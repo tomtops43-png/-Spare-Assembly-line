@@ -1,0 +1,330 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  LayoutDashboard, 
+  Package, 
+  History, 
+  AlertTriangle, 
+  Search, 
+  ArrowDownToLine, 
+  ArrowUpFromLine,
+  Menu,
+  X
+} from 'lucide-react';
+
+// --- ข้อมูลจำลองที่สกัดมาจากไฟล์ CSV ของคุณ ---
+const mockInventory = [
+  // จากไฟล์ Arc chut
+  { id: 1, code: 'MF-DRWG-AAC-004', name: 'Semi Auto Arc Chute Plug-in Pieace 2', location: 'M12-153', category: 'Machanical', qoh: 1159, min: 50, max: 200, unit: 'PCS', source: 'Assembly Room' },
+  { id: 2, code: 'MF-DRWG-AAC-005', name: 'Semi Auto Arc Chute Plate', location: 'M12-154', category: 'Machanical', qoh: 0, min: 50, max: 100, unit: 'PCS', source: 'Assembly Room' },
+  { id: 3, code: 'MF-DRWG-AAC-007', name: 'Semi Auto Arc Chute Needle Punch', location: 'M19-911', category: 'Machanical', qoh: 23, min: 100, max: 300, unit: 'PCS', source: 'Assembly Room' },
+  { id: 4, code: 'MF-DRWG-AAC-011', name: 'Semi Auto Arc Chute- Ejector', location: '-', category: 'Machanical', qoh: 108, min: 20, max: 50, unit: 'PCS', source: 'Assembly Room' },
+  // จากไฟล์ Common / GV2
+  { id: 5, code: 'MF-DRWG-AAC-016', name: 'Semi Auto Arc Chute GV2 Punch OD.0.95', location: 'K14', category: 'Machanical', qoh: 0, min: 50, max: 100, unit: 'PCS', source: 'Assembly Room' },
+  { id: 6, code: 'MF-DRWG-AAC-014', name: 'Semi Auto Arc Chute GV2', location: 'M19-81', category: 'Machanical', qoh: 54, min: 50, max: 100, unit: 'PCS', source: 'Assembly Room' },
+  // จากไฟล์ H9 Main List
+  { id: 7, code: 'Unknown Model', name: 'Ball Transfer Unit', location: 'H9-Line 04', category: 'Machanical', qoh: 37, min: 5, max: 10, unit: 'PCS', source: 'H9' },
+  { id: 8, code: 'BN058C 13W', name: 'หลอดไฟ', location: 'H9-All', category: 'Electrical', qoh: 4, min: 10, max: 10, unit: 'PCS', source: 'H9' },
+  { id: 9, code: 'PG6-4', name: 'ข้อต่อลม/ข้อต่อตรง', location: 'H9-All', category: 'Pneumatic', qoh: 40, min: 10, max: 20, unit: 'PCS', source: 'H9' },
+  // จากไฟล์ H9 MC
+  { id: 10, code: 'RXM4AB2BD', name: 'Relay (SCHNEIDER)', location: 'H9-All', category: 'Electrical', qoh: 1, min: 2, max: 5, unit: 'PCS', source: 'H9' },
+  { id: 11, code: 'SY3320-5LZ-C6', name: 'Solenoid Valve (SMC)', location: 'H9-Line 04', category: 'Electrical', qoh: 8, min: 2, max: 10, unit: 'PCS', source: 'H9' },
+];
+
+const mockTransactions = [
+  { id: 101, date: '2025-09-29 13:23:41', type: 'Input', item: 'MF-DRWG-AAC-005', qty: 0, unit: 'PCS', by: 'Maintenance', source: 'Assembly Room' },
+  { id: 102, date: '2025-10-06 13:14:41', type: 'Output', item: 'MF-DRWG-AAC-015', qty: -18, unit: 'PCS', by: 'Maintenance', source: 'Assembly Room' },
+  { id: 103, date: '2025-11-11 08:49:33', type: 'Output', item: 'MF-DRWG-AAC-014', qty: -5, unit: 'PCS', by: 'Maintenance', source: 'Assembly Room' },
+  { id: 104, date: '2025-10-07 18:29:27', type: 'Input', item: 'Solenoid Valve SY5240-5DZ', qty: 8, unit: 'PCS', by: 'Engineer', source: 'H9' },
+  { id: 105, date: '2025-10-07 19:28:57', type: 'Input', item: 'Ball Transfer Unit', qty: 37, unit: 'PCS', by: 'Engineer', source: 'H9' },
+  { id: 106, date: '2026-01-30 14:10:41', type: 'Input', item: 'Reed Auto Switch D-M9P', qty: 4, unit: 'PCS', by: 'Engineer', source: 'H9' },
+];
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // คำนวณข้อมูลสถิติ
+  const totalItems = mockInventory.length;
+  const lowStockItems = mockInventory.filter(item => item.qoh <= item.min);
+  const totalStockQty = mockInventory.reduce((sum, item) => sum + item.qoh, 0);
+
+  // กรองข้อมูลตามการค้นหา
+  const filteredInventory = useMemo(() => {
+    return mockInventory.filter(item => 
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
+
+  const navItems = [
+    { id: 'dashboard', label: 'ภาพรวม (Dashboard)', icon: LayoutDashboard },
+    { id: 'inventory', label: 'รายการสต๊อก (Inventory)', icon: Package },
+    { id: 'transactions', label: 'ประวัติเบิก-จ่าย (Records)', icon: History },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
+      
+      {/* Mobile Header */}
+      <div className="md:hidden bg-blue-800 text-white p-4 flex justify-between items-center shadow-md">
+        <h1 className="text-xl font-bold">Stock Mgmt</h1>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      {/* Sidebar */}
+      <aside className={`
+        ${isMobileMenuOpen ? 'block' : 'hidden'} 
+        md:block w-full md:w-64 bg-blue-800 text-white flex-shrink-0 shadow-xl transition-all duration-300
+      `}>
+        <div className="p-6 hidden md:block">
+          <h1 className="text-2xl font-bold tracking-wider">STOCK<br/><span className="text-blue-300">SYSTEM</span></h1>
+          <p className="text-xs text-blue-200 mt-2">Assembly Room & H9</p>
+        </div>
+        <nav className="mt-4 md:mt-6">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center px-6 py-4 text-left transition-colors duration-200 ${
+                  activeTab === item.id 
+                    ? 'bg-blue-900 border-l-4 border-blue-400' 
+                    : 'hover:bg-blue-700'
+                }`}
+              >
+                <Icon className="w-5 h-5 mr-3" />
+                <span className="font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+        
+        {/* --- TAB: DASHBOARD --- */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <h2 className="text-2xl font-bold text-gray-800">ภาพรวมระบบสต๊อก</h2>
+            
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
+                <div className="bg-blue-100 p-4 rounded-lg mr-4">
+                  <Package className="w-8 h-8 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">รายการสินค้าทั้งหมด</p>
+                  <p className="text-2xl font-bold text-gray-800">{totalItems} <span className="text-sm font-normal text-gray-500">SKUs</span></p>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
+                <div className="bg-green-100 p-4 rounded-lg mr-4">
+                  <LayoutDashboard className="w-8 h-8 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">ชิ้นส่วนรวมในคลัง</p>
+                  <p className="text-2xl font-bold text-gray-800">{totalStockQty} <span className="text-sm font-normal text-gray-500">PCS</span></p>
+                </div>
+              </div>
+
+              <div className="bg-red-50 rounded-xl shadow-sm p-6 border border-red-100 flex items-center">
+                <div className="bg-red-100 p-4 rounded-lg mr-4">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-red-500 font-medium">สินค้าต่ำกว่าจุดสั่งซื้อ (Min)</p>
+                  <p className="text-2xl font-bold text-red-700">{lowStockItems.length} <span className="text-sm font-normal text-red-500">รายการ</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Low Stock Alert Table */}
+            {lowStockItems.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden mt-8">
+                <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+                  <h3 className="text-lg font-bold text-red-800">แจ้งเตือน: สินค้าที่ต้องสั่งซื้อด่วน (ต่ำกว่า Min)</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-600 font-medium border-b">
+                      <tr>
+                        <th className="px-6 py-3">Part Name</th>
+                        <th className="px-6 py-3">Code / Model</th>
+                        <th className="px-6 py-3 text-center">คงเหลือ (QOH)</th>
+                        <th className="px-6 py-3 text-center">จุดสั่งซื้อ (Min)</th>
+                        <th className="px-6 py-3 text-center">ขาดอีก</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {lowStockItems.map(item => (
+                        <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 font-medium text-gray-800">{item.name}</td>
+                          <td className="px-6 py-4 text-gray-500">{item.code}</td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              {item.qoh}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center text-gray-500">{item.min}</td>
+                          <td className="px-6 py-4 text-center font-bold text-red-600">
+                            {item.min - item.qoh}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB: INVENTORY --- */}
+        {activeTab === 'inventory' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <h2 className="text-2xl font-bold text-gray-800">รายการสต๊อกทั้งหมด</h2>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อ, Code หรือชนิด..."
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-80 outline-none"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-gray-50 text-gray-700 font-medium border-b">
+                    <tr>
+                      <th className="px-6 py-4">Source</th>
+                      <th className="px-6 py-4">Name / Description</th>
+                      <th className="px-6 py-4">Code / Model</th>
+                      <th className="px-6 py-4">Category</th>
+                      <th className="px-6 py-4 text-center">Qty (QOH)</th>
+                      <th className="px-6 py-4 text-center">Min/Max</th>
+                      <th className="px-6 py-4 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredInventory.map(item => {
+                      const isLowStock = item.qoh <= item.min;
+                      return (
+                        <tr key={item.id} className="hover:bg-blue-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              {item.source}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-medium text-gray-800">{item.name}</td>
+                          <td className="px-6 py-4 text-gray-600">{item.code}</td>
+                          <td className="px-6 py-4 text-gray-600">{item.category}</td>
+                          <td className="px-6 py-4 text-center font-bold text-gray-800">{item.qoh} {item.unit}</td>
+                          <td className="px-6 py-4 text-center text-gray-500 text-xs">
+                            {item.min} / {item.max}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {isLowStock ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700">
+                                Low Stock
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-700">
+                                Normal
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {filteredInventory.length === 0 && (
+                      <tr>
+                        <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                          ไม่พบรายการที่ค้นหา
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- TAB: TRANSACTIONS --- */}
+        {activeTab === 'transactions' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <h2 className="text-2xl font-bold text-gray-800">ประวัติการเบิก-จ่าย (Records)</h2>
+            
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-gray-50 text-gray-700 font-medium border-b">
+                    <tr>
+                      <th className="px-6 py-4">Date / Time</th>
+                      <th className="px-6 py-4">Type</th>
+                      <th className="px-6 py-4">Item Name / Model</th>
+                      <th className="px-6 py-4 text-right">QTY</th>
+                      <th className="px-6 py-4">By</th>
+                      <th className="px-6 py-4">Source</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {mockTransactions.map(tx => {
+                      const isInput = tx.type.toLowerCase().includes('input');
+                      return (
+                        <tr key={tx.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-gray-600">{tx.date}</td>
+                          <td className="px-6 py-4">
+                            {isInput ? (
+                              <span className="inline-flex items-center text-green-600 font-medium text-xs">
+                                <ArrowDownToLine className="w-3 h-3 mr-1" /> รับเข้า (Input)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-red-600 font-medium text-xs">
+                                <ArrowUpFromLine className="w-3 h-3 mr-1" /> เบิกออก (Output)
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 font-medium text-gray-800">{tx.item}</td>
+                          <td className={`px-6 py-4 text-right font-bold ${isInput ? 'text-green-600' : 'text-red-600'}`}>
+                            {tx.qty > 0 ? `+${tx.qty}` : tx.qty}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">{tx.by}</td>
+                          <td className="px-6 py-4">
+                             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              {tx.source}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
+    </div>
+  );
+}
