@@ -3,266 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Management System - Assembly Room</title>
-    <!-- Tailwind CSS for Styling -->
+    <title>Stock System - GitHub Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; }
-        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
+        .loading-overlay { background: rgba(255,255,255,0.8); backdrop-filter: blur(4px); }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="text-slate-800">
 
-    <!-- App Wrapper -->
-    <div id="app" class="min-h-screen flex flex-col md:flex-row">
+    <!-- Loading State -->
+    <div id="loader" class="fixed inset-0 z-[100] flex items-center justify-center loading-overlay hidden">
+        <div class="flex flex-col items-center">
+            <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p class="mt-4 font-bold text-blue-800">กำลังประมวลผล...</p>
+        </div>
+    </div>
+
+    <!-- Layout -->
+    <div class="min-h-screen flex flex-col md:flex-row">
         
         <!-- Sidebar -->
-        <aside id="sidebar" class="w-full md:w-64 bg-blue-800 text-white flex-shrink-0 shadow-xl z-20 hidden md:block">
-            <div class="p-6">
-                <h1 class="text-2xl font-bold tracking-wider uppercase">Stock <span class="text-blue-300">System</span></h1>
-                <p class="text-xs text-blue-200 mt-1">Assembly Room & H9</p>
+        <nav class="w-full md:w-72 bg-slate-900 text-white flex-shrink-0 shadow-2xl">
+            <div class="p-8">
+                <h1 class="text-2xl font-black text-blue-400 tracking-tighter">STOCK ROOM</h1>
+                <p class="text-xs text-slate-500 font-medium">GITHUB + APPS SCRIPT</p>
             </div>
-            <nav class="mt-4">
-                <button onclick="switchTab('dashboard')" class="nav-item w-full flex items-center px-6 py-4 text-left hover:bg-blue-700 transition-colors border-l-4 border-transparent" id="tab-dashboard">
-                    <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> ภาพรวม (Dashboard)
+            <div class="px-4 space-y-2">
+                <button onclick="switchPage('list')" class="nav-btn w-full flex items-center p-4 rounded-xl transition-all hover:bg-slate-800" id="btn-list">
+                    <i data-lucide="table-2" class="mr-3"></i> รายการประวัติ
                 </button>
-                <button onclick="switchTab('inventory')" class="nav-item w-full flex items-center px-6 py-4 text-left hover:bg-blue-700 transition-colors border-l-4 border-transparent" id="tab-inventory">
-                    <i data-lucide="package" class="w-5 h-5 mr-3"></i> รายการสต๊อก (Inventory)
+                <button onclick="switchPage('form')" class="nav-btn w-full flex items-center p-4 rounded-xl transition-all hover:bg-slate-800" id="btn-form">
+                    <i data-lucide="plus-square" class="mr-3"></i> บันทึกรับ/เบิก
                 </button>
-                <button onclick="switchTab('records')" class="nav-item w-full flex items-center px-6 py-4 text-left bg-blue-900 border-l-4 border-blue-400 transition-colors" id="tab-records">
-                    <i data-lucide="history" class="w-5 h-5 mr-3"></i> ประวัติเบิก-จ่าย (Records)
-                </button>
-            </nav>
-        </aside>
-
-        <!-- Mobile Header -->
-        <div class="md:hidden bg-blue-800 text-white p-4 flex justify-between items-center shadow-md">
-            <h1 class="text-xl font-bold">Stock System</h1>
-            <button onclick="toggleMobileMenu()"><i data-lucide="menu"></i></button>
-        </div>
+            </div>
+        </nav>
 
         <!-- Main Content -->
-        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+        <main class="flex-1 p-6 md:p-12 overflow-y-auto">
             
-            <!-- Global Actions -->
-            <div class="flex justify-between items-center mb-6">
-                <h2 id="page-title" class="text-2xl font-bold text-gray-800">ประวัติการรับเข้า-เบิกออก</h2>
-                <button onclick="fetchSheetData()" id="refresh-btn" class="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 text-gray-700 text-sm font-medium transition-all">
-                    <i data-lucide="refresh-cw" class="w-4 h-4 mr-2" id="refresh-icon"></i> รีเฟรชข้อมูล
-                </button>
+            <!-- PAGE: LIST -->
+            <div id="page-list" class="page-content space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <h2 class="text-3xl font-extrabold text-slate-900">ประวัติความเคลื่อนไหว</h2>
+                    <button onclick="refreshData()" class="flex items-center px-6 py-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 font-bold text-slate-600">
+                        <i data-lucide="refresh-ccw" class="w-4 h-4 mr-2" id="refresh-icon"></i> รีเฟรชข้อมูล
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 border-b border-slate-100">
+                                <tr>
+                                    <th class="px-6 py-4 text-sm font-bold text-slate-400">วัน-เวลา</th>
+                                    <th class="px-6 py-4 text-sm font-bold text-slate-400">ประเภท</th>
+                                    <th class="px-6 py-4 text-sm font-bold text-slate-400">Process</th>
+                                    <th class="px-6 py-4 text-sm font-bold text-slate-400">Part Name</th>
+                                    <th class="px-6 py-4 text-center text-sm font-bold text-slate-400">จำนวน</th>
+                                    <th class="px-6 py-4 text-sm font-bold text-slate-400">โดย</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body" class="divide-y divide-slate-50">
+                                <!-- Data rows injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
-            <!-- Content Area -->
-            <div id="content-area" class="animate-fade-in">
-                
-                <!-- TAB: RECORDS (Default) -->
-                <div id="tab-content-records" class="tab-content space-y-6">
-                    <div class="flex flex-col md:flex-row gap-4 justify-between">
-                        <div class="relative flex-1 max-w-md">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                <i data-lucide="search" class="w-5 h-5"></i>
-                            </span>
-                            <input type="text" id="search-input" oninput="handleSearch()" placeholder="ค้นหา Part Name หรือ Process..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+            <!-- PAGE: FORM -->
+            <div id="page-form" class="page-content hidden max-w-2xl mx-auto">
+                <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
+                    <h2 class="text-2xl font-bold mb-8 text-slate-900 flex items-center">
+                        <i data-lucide="clipboard-edit" class="mr-3 text-blue-500"></i> บันทึกรายการสต๊อกใหม่
+                    </h2>
+                    
+                    <form id="stockForm" onsubmit="submitForm(event)" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-500 mb-2">ประเภท</label>
+                                <select name="type" required class="w-full bg-slate-50 border-0 p-4 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="Input(รับเข้า)">Input (รับเข้า)</option>
+                                    <option value="Output(เบิกออก)">Output (เบิกออก)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-500 mb-2">Process</label>
+                                <input type="text" name="process" placeholder="เช่น Gv.2" required class="w-full bg-slate-50 border-0 p-4 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left border-collapse">
-                                <thead class="bg-blue-50 text-blue-800 font-bold border-b border-gray-200">
-                                    <tr class="whitespace-nowrap">
-                                        <th class="px-4 py-3">ประทับเวลา</th>
-                                        <th class="px-4 py-3">Type (ประเภท)</th>
-                                        <th class="px-4 py-3">Process</th>
-                                        <th class="px-4 py-3">Category(ชนิด)</th>
-                                        <th class="px-4 py-3">Part Name</th>
-                                        <th class="px-4 py-3 text-center">QTY(จำนวน)</th>
-                                        <th class="px-4 py-3 text-center">Unit(หน่วย)</th>
-                                        <th class="px-4 py-3">By(โดย)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="records-table-body" class="divide-y divide-gray-100">
-                                    <!-- Data rows will be injected here -->
-                                </tbody>
-                            </table>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-500 mb-2">Part Name</label>
+                            <input type="text" name="partName" placeholder="รหัสหรือชื่ออะไหล่" required class="w-full bg-slate-50 border-0 p-4 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
-                    </div>
+
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-500 mb-2">จำนวน</label>
+                                <input type="number" name="qty" required class="w-full bg-slate-50 border-0 p-4 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-500 mb-2">หน่วย</label>
+                                <input type="text" name="unit" value="PCS" class="w-full bg-slate-50 border-0 p-4 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-slate-500 mb-2">ชื่อผู้ดำเนินการ</label>
+                            <input type="text" name="by" placeholder="ระบุชื่อของคุณ" required class="w-full bg-slate-50 border-0 p-4 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-2xl shadow-lg shadow-blue-200 transition-all active:scale-[0.98]">
+                            ส่งข้อมูลไปยัง Google Sheets
+                        </button>
+                    </form>
                 </div>
-
-                <!-- TAB: DASHBOARD (Hidden by default) -->
-                <div id="tab-content-dashboard" class="tab-content hidden space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center">
-                            <div class="p-4 bg-blue-100 rounded-lg text-blue-600 mr-4"><i data-lucide="package" class="w-8 h-8"></i></div>
-                            <div><p class="text-sm text-gray-500 font-medium">ความเคลื่อนไหวล่าสุด</p><p id="stat-total-records" class="text-2xl font-bold">0 รายการ</p></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center">
-                            <div class="p-4 bg-green-100 rounded-lg text-green-600 mr-4"><i data-lucide="arrow-down-to-line" class="w-8 h-8"></i></div>
-                            <div><p class="text-sm text-gray-500 font-medium">รับเข้า (เดือนนี้)</p><p id="stat-total-input" class="text-2xl font-bold text-green-600">0</p></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center">
-                            <div class="p-4 bg-red-100 rounded-lg text-red-600 mr-4"><i data-lucide="arrow-up-from-line" class="w-8 h-8"></i></div>
-                            <div><p class="text-sm text-gray-500 font-medium">เบิกออก (เดือนนี้)</p><p id="stat-total-output" class="text-2xl font-bold text-red-600">0</p></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB: INVENTORY (Placeholder) -->
-                <div id="tab-content-inventory" class="tab-content hidden">
-                    <div class="bg-white p-12 rounded-xl text-center border-2 border-dashed border-gray-200">
-                        <i data-lucide="construction" class="w-12 h-12 text-gray-300 mx-auto mb-4"></i>
-                        <p class="text-gray-500 font-medium">หน้ารายการสต๊อกคงเหลือ กำลังอยู่ในการพัฒนา...</p>
-                    </div>
-                </div>
-
             </div>
         </main>
     </div>
 
-    <!-- Script Section -->
     <script>
-        // ==========================================
-        // ตั้งค่าลิงก์ Google Sheets CSV ตรงนี้
-        // ==========================================
-        const SHEET_CSV_URL = ""; // วางลิงก์ "Publish to Web (CSV)" ของหน้า Record ที่นี่
+        // 1. แทนที่ URL นี้ด้วย Web App URL จาก Apps Script
+        const API_URL = "YOUR_APPS_SCRIPT_URL_HERE"; 
 
-        let allRecords = [
-            { timestamp: '2025-09-29 13:23:41', type: 'Input(รับเข้า)', process: 'Gv.2', category: 'Machanical', partName: 'MF-DRWG-AAC-005', qty: '0', unit: 'PCS', by: 'Maintenance' },
-            { timestamp: '2025-09-29 14:20:00', type: 'Output(เบิกออก)', process: 'Gv.2', category: 'Machanical', partName: 'MF-DRWG-AAC-012', qty: '0', unit: 'PCS', by: 'Maintenance' },
-            { timestamp: '2025-09-29 14:22:45', type: 'Output(เบิกออก)', process: 'Gv.2', category: 'Machanical', partName: 'MF-DRWG-AAC-019', qty: '0', unit: 'PCS', by: 'Engineer' },
-            { timestamp: '2025-10-06 13:14:41', type: 'Output(เบิกออก)', process: 'Gv.2', category: 'Machanical', partName: 'MF-DRWG-AAC-015', qty: '-18', unit: 'PCS', by: 'Maintenance' }
-        ];
-
-        // ฟังก์ชันเริ่มการทำงาน
         window.onload = () => {
             lucide.createIcons();
-            if (SHEET_CSV_URL) fetchSheetData();
-            renderTable(allRecords);
-            updateStats();
+            if (API_URL.includes("YOUR_APPS_SCRIPT")) {
+                alert("คำเตือน: โปรดตั้งค่า API_URL ในไฟล์ index.html ก่อนใช้งาน");
+            } else {
+                refreshData();
+            }
         };
 
-        // สลับ Tab
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById('tab-content-' + tabId).classList.remove('hidden');
+        function switchPage(page) {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+            document.getElementById('page-' + page).classList.remove('hidden');
             
-            document.querySelectorAll('.nav-item').forEach(el => {
-                el.classList.remove('bg-blue-900', 'border-blue-400');
-                el.classList.add('border-transparent');
-            });
-            document.getElementById('tab-' + tabId).classList.add('bg-blue-900', 'border-blue-400');
-            
-            const titles = { 'dashboard': 'ภาพรวมระบบ', 'inventory': 'รายการสต๊อกคงเหลือ', 'records': 'ประวัติการรับเข้า-เบิกออก' };
-            document.getElementById('page-title').innerText = titles[tabId];
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('bg-blue-600', 'text-white'));
+            document.getElementById('btn-' + page).classList.add('bg-blue-600', 'text-white');
         }
 
-        // ค้นหาข้อมูล
-        function handleSearch() {
-            const query = document.getElementById('search-input').value.toLowerCase();
-            const filtered = allRecords.filter(item => 
-                item.partName.toLowerCase().includes(query) || 
-                item.process.toLowerCase().includes(query)
-            );
-            renderTable(filtered);
-        }
-
-        // วาดตาราง
-        function renderTable(data) {
-            const tbody = document.getElementById('records-table-body');
-            tbody.innerHTML = '';
-            
-            data.forEach(item => {
-                const isInput = item.type.includes('รับเข้า') || item.type.toLowerCase().includes('input');
-                const isOutput = item.type.includes('เบิกออก') || item.type.toLowerCase().includes('output');
-                const badgeClass = isInput ? 'bg-green-50 text-green-600' : isOutput ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500';
-                const icon = isInput ? 'arrow-down-to-line' : isOutput ? 'arrow-up-from-line' : 'minus';
-
-                const row = document.createElement('tr');
-                row.className = "hover:bg-gray-50 transition-colors border-b border-gray-100";
-                row.innerHTML = `
-                    <td class="px-4 py-3 text-gray-500 whitespace-nowrap">${item.timestamp}</td>
-                    <td class="px-4 py-3">
-                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold ${badgeClass}">
-                            <i data-lucide="${icon}" class="w-3 h-3 mr-1"></i> ${item.type}
-                        </span>
-                    </td>
-                    <td class="px-4 py-3 text-gray-700">${item.process}</td>
-                    <td class="px-4 py-3 text-gray-400 text-xs">${item.category}</td>
-                    <td class="px-4 py-3 font-medium text-gray-800">${item.partName}</td>
-                    <td class="px-4 py-3 text-center font-bold ${isInput ? 'text-green-600' : isOutput ? 'text-red-600' : ''}">${item.qty}</td>
-                    <td class="px-4 py-3 text-center text-gray-400">${item.unit}</td>
-                    <td class="px-4 py-3 text-gray-600">${item.by}</td>
-                `;
-                tbody.appendChild(row);
-            });
-            lucide.createIcons();
-        }
-
-        // ดึงข้อมูลจาก Google Sheets (CSV)
-        async function fetchSheetData() {
-            if (!SHEET_CSV_URL) return;
-            
-            const btn = document.getElementById('refresh-btn');
+        async function refreshData() {
+            setLoading(true);
             const icon = document.getElementById('refresh-icon');
-            btn.disabled = true;
             icon.classList.add('animate-spin');
 
             try {
-                const response = await fetch(SHEET_CSV_URL);
-                const csvText = await response.text();
-                const rows = csvText.split('\n');
-                const headers = rows[0].split(',').map(h => h.trim().replace(/"/g, ''));
-                
-                const jsonData = [];
-                for (let i = 1; i < rows.length; i++) {
-                    if (!rows[i].trim()) continue;
-                    const cols = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                    const obj = {};
-                    headers.forEach((h, idx) => {
-                        let val = cols[idx] ? cols[idx].trim().replace(/"/g, '') : '';
-                        obj[h] = val;
-                    });
-                    
-                    // แมปคอลัมน์ให้ตรงกับที่ใช้แสดงผล
-                    jsonData.push({
-                        timestamp: obj['ประทับเวลา'] || obj['DATE'] || '',
-                        type: obj['Type (ประเภท)'] || obj['Type'] || '',
-                        process: obj['Proecess'] || obj['Process'] || '',
-                        category: obj['Category(ชนิด)'] || obj['Category'] || '',
-                        partName: obj['Part Name '] || obj['Part Name'] || '',
-                        qty: obj['QTY(จำนวน)'] || obj['QTY'] || '0',
-                        unit: obj['Unit(หน่วย)'] || obj['Unit'] || '',
-                        by: obj['By(โดย)'] || obj['By'] || ''
-                    });
-                }
-                
-                allRecords = jsonData.filter(item => item.timestamp);
-                renderTable(allRecords);
-                updateStats();
-            } catch (error) {
-                console.error("Error:", error);
-                alert("ไม่สามารถดึงข้อมูลได้ โปรดตรวจสอบลิงก์ CSV");
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                renderTable(data);
+            } catch (err) {
+                console.error(err);
+                alert("ไม่สามารถดึงข้อมูลได้ โปรดตรวจสอบการ Deploy Apps Script");
             } finally {
-                btn.disabled = false;
+                setLoading(false);
                 icon.classList.remove('animate-spin');
             }
         }
 
-        function updateStats() {
-            document.getElementById('stat-total-records').innerText = allRecords.length + ' รายการ';
-            const inputs = allRecords.filter(r => r.type.includes('รับเข้า') || r.type.toLowerCase().includes('input')).length;
-            const outputs = allRecords.filter(r => r.type.includes('เบิกออก') || r.type.toLowerCase().includes('output')).length;
-            document.getElementById('stat-total-input').innerText = inputs;
-            document.getElementById('stat-total-output').innerText = outputs;
+        function renderTable(data) {
+            const tbody = document.getElementById('table-body');
+            // นำข้อมูลล่าสุดขึ้นก่อน (Reverse)
+            const rows = data.slice().reverse();
+            
+            tbody.innerHTML = rows.map(item => {
+                const isInput = item['Type (ประเภท)']?.includes('รับเข้า');
+                const badgeColor = isInput ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700';
+                
+                return `
+                    <tr class="hover:bg-slate-50/50 transition-colors">
+                        <td class="px-6 py-4 text-xs font-medium text-slate-400">${formatDate(item['ประทับเวลา'])}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${badgeColor}">
+                                ${item['Type (ประเภท)'] || 'N/A'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 font-bold text-slate-700">${item['Proecess'] || '-'}</td>
+                        <td class="px-6 py-4 text-slate-600 font-medium">${item['Part Name '] || item['Part Name'] || '-'}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="text-lg font-black ${isInput ? 'text-green-600' : 'text-rose-600'}">${item['QTY(จำนวน)']}</span>
+                            <span class="text-[10px] text-slate-300 ml-1 font-bold">${item['Unit(หน่วย)'] || ''}</span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-slate-500">${item['By(โดย)'] || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
-        function toggleMobileMenu() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('hidden');
+        async function submitForm(e) {
+            e.preventDefault();
+            setLoading(true);
+            
+            const formData = new FormData(e.target);
+            const payload = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    body: JSON.stringify(payload)
+                });
+                const res = await response.json();
+                
+                if (res.status === "success") {
+                    alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
+                    e.target.reset();
+                    switchPage('list');
+                    refreshData();
+                }
+            } catch (err) {
+                console.error(err);
+                alert("บันทึกไม่สำเร็จ: " + err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function setLoading(state) {
+            const loader = document.getElementById('loader');
+            state ? loader.classList.remove('hidden') : loader.classList.add('hidden');
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return "-";
+            const date = new Date(dateStr);
+            return date.toLocaleString('th-TH', { 
+                year: '2-digit', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
         }
     </script>
 </body>
