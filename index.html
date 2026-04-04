@@ -16,7 +16,7 @@
       <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <p class="text-xs text-blue-600 font-semibold tracking-wide uppercase">Spare parts for production line H9</p>
         <h1 class="text-2xl md:text-3xl font-bold mt-1">ระบบดูอะไหล่สำรอง (Stock H9)</h1>
-        <p class="text-slate-500 mt-2 text-sm md:text-base">รองรับการดึงข้อมูลจาก Google Apps Script และ fallback เป็นข้อมูลตัวอย่างเมื่อ API ยังไม่พร้อม</p>
+        <p class="text-slate-500 mt-2 text-sm md:text-base">ออกแบบจากโครงสร้างชีต: NO, Name/Descriptions, Model, Main line, Category, Brand, Stock, Qty max/min และ Need to PO</p>
         <p id="apiStatus" class="mt-3 text-xs font-medium text-slate-500">สถานะ: กำลังเตรียมระบบ...</p>
       </div>
     </header>
@@ -57,10 +57,14 @@
     const SAMPLE_DATA = [
       { no: 1, name: 'Ball Transfer Unit', model: 'Unknown Model', line: 'H9-Line 04', category: 'Mechanical', brand: 'Unknown Brand', stock: 0, max: 10, min: 5, needToPO: 5 },
       { no: 2, name: 'หลอดไฟ BN058C 13W (1200mm)', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 10, min: 10, needToPO: 10 },
+      { no: 3, name: 'หลอดไฟ LEDtube 600mm 8W 765 T8', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 5, min: 2, needToPO: 2 },
       { no: 8, name: 'Photoelectric sensors', model: 'PR-M51N3', line: 'H9-All', category: 'Electrical', brand: 'Keyence', stock: 0, max: 5, min: 2, needToPO: 2 },
+      { no: 9, name: 'Relay', model: 'RXM4AB2BD', line: 'H9-All', category: 'Electrical', brand: 'Schneider', stock: 0, max: 10, min: 5, needToPO: 5 },
+      { no: 17, name: 'Zebra Printhead', model: 'P1083320-016', line: 'H9-All', category: 'Electrical', brand: 'ZEBRA', stock: 0, max: 5, min: 3, needToPO: 3 },
       { no: 22, name: 'Air Cylinder', model: 'MDBB40-150Z-M9P', line: 'H9-All', category: 'Pneumatic', brand: 'SMC', stock: 0, max: 5, min: 2, needToPO: 2 },
       { no: 24, name: 'Bearing', model: '6202-ZZ', line: 'H9-All', category: 'Mechanical', brand: 'SKC', stock: 0, max: 30, min: 10, needToPO: 10 },
       { no: 27, name: 'Photoelectric Switch', model: 'EE-SX672P', line: 'H9-All', category: 'Electrical', brand: 'OMRON', stock: 0, max: 20, min: 10, needToPO: 10 },
+      { no: 34, name: 'Spring Balancer', model: 'SS-030', line: 'H9-Line 05', category: 'Mechanical', brand: 'SUMO', stock: 0, max: 10, min: 5, needToPO: 5 },
       { no: 43, name: 'Hub Switch', model: 'TL-SG1005P', line: 'H9-All', category: 'Electrical', brand: 'TP-Link', stock: 0, max: 0, min: 0, needToPO: 0 },
       { no: 54, name: 'ไฟสี่เหลี่ยม', model: 'CA-DQW12M', line: 'H9-Line 04', category: 'Electrical', brand: 'Keyence', stock: 0, max: 2, min: 1, needToPO: 1 }
     ];
@@ -75,17 +79,21 @@
     let partsData = [];
 
     function mapRow(item, index) {
+      const min = Number(item['Qty min'] ?? item.min ?? 0);
+      const stock = Number(item.Stock ?? item.stock ?? item.qty ?? 0);
+      const needToPO = Number(item['Need to PO'] ?? item.needToPO ?? Math.max(min - stock, 0));
+
       return {
         no: Number(item.NO || item.No || item.no || index + 1),
-        name: item['Name/Descriptions'] || item['Name / Descriptions'] || item.name || '-',
+        name: item['Name/Descriptions'] || item['Name / Descriptions'] || item.partName || item['Part Name'] || item.name || '-',
         model: item.Model || item.model || '-',
-        line: item['Main line'] || item['Main Line'] || item.line || '-',
+        line: item['Main line'] || item['Main Line'] || item.process || item.line || '-',
         category: item.Category || item.category || 'Uncategorized',
         brand: item.Brand || item.brand || '-',
-        stock: Number(item.Stock ?? item.stock ?? 0),
+        stock,
         max: Number(item['Qty max'] ?? item.max ?? 0),
-        min: Number(item['Qty min'] ?? item.min ?? 0),
-        needToPO: Number(item['Need to PO'] ?? item.needToPO ?? 0)
+        min,
+        needToPO
       };
     }
 
@@ -176,6 +184,7 @@
         const hitCategory = category === 'all' || item.category === category;
         return hitSearch && hitCategory;
       });
+
       renderTable(filtered);
       renderStats(filtered);
     }
