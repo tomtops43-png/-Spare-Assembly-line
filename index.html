@@ -16,6 +16,7 @@
       <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <p class="text-xs text-blue-600 font-semibold tracking-wide uppercase">Spare parts for production line H9</p>
         <h1 class="text-2xl md:text-3xl font-bold mt-1">ระบบดูอะไหล่สำรอง (Stock H9)</h1>
+        <p class="text-slate-500 mt-2 text-sm md:text-base">ออกแบบจากโครงสร้างชีต: NO, Name/Descriptions, Model, Main line, Category, Brand, Stock, Qty max/min และ Need to PO</p>
         <p class="text-slate-500 mt-2 text-sm md:text-base">ดึงข้อมูลจาก Google Sheet (Apps Script) พร้อมคำนวณ Need to PO อัตโนมัติ</p>
       </div>
     </header>
@@ -53,12 +54,28 @@
   </div>
 
   <script>
+    const partsData = [
+      { no: 1, name: 'Ball Transfer Unit', model: 'Unknown Model', line: 'H9-Line 04', category: 'Mechanical', brand: 'Unknown Brand', stock: 0, max: 10, min: 5, needToPO: 5 },
+      { no: 2, name: 'หลอดไฟ BN058C 13W (1200mm)', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 10, min: 10, needToPO: 10 },
+      { no: 3, name: 'หลอดไฟ LEDtube 600mm 8W 765 T8', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 5, min: 2, needToPO: 2 },
+      { no: 8, name: 'Photoelectric sensors', model: 'PR-M51N3', line: 'H9-All', category: 'Electrical', brand: 'Keyence', stock: 0, max: 5, min: 2, needToPO: 2 },
+      { no: 9, name: 'Relay', model: 'RXM4AB2BD', line: 'H9-All', category: 'Electrical', brand: 'Schneider', stock: 0, max: 10, min: 5, needToPO: 5 },
+      { no: 17, name: 'Zebra Printhead', model: 'P1083320-016', line: 'H9-All', category: 'Electrical', brand: 'ZEBRA', stock: 0, max: 5, min: 3, needToPO: 3 },
+      { no: 22, name: 'Air Cylinder', model: 'MDBB40-150Z-M9P', line: 'H9-All', category: 'Pneumatic', brand: 'SMC', stock: 0, max: 5, min: 2, needToPO: 2 },
+      { no: 24, name: 'Bearing', model: '6202-ZZ', line: 'H9-All', category: 'Mechanical', brand: 'SKC', stock: 0, max: 30, min: 10, needToPO: 10 },
+      { no: 27, name: 'Photoelectric Switch', model: 'EE-SX672P', line: 'H9-All', category: 'Electrical', brand: 'OMRON', stock: 0, max: 20, min: 10, needToPO: 10 },
+      { no: 34, name: 'Spring Balancer', model: 'SS-030', line: 'H9-Line 05', category: 'Mechanical', brand: 'SUMO', stock: 0, max: 10, min: 5, needToPO: 5 },
+      { no: 43, name: 'Hub Switch', model: 'TL-SG1005P', line: 'H9-All', category: 'Electrical', brand: 'TP-Link', stock: 0, max: 0, min: 0, needToPO: 0 },
+      { no: 54, name: 'ไฟสี่เหลี่ยม', model: 'CA-DQW12M', line: 'H9-Line 04', category: 'Electrical', brand: 'Keyence', stock: 0, max: 2, min: 1, needToPO: 1 }
+    ];
     const API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
 
     const tableBody = document.getElementById('partsTable');
     const categoryFilter = document.getElementById('categoryFilter');
     const searchInput = document.getElementById('searchInput');
 
+    function populateCategoryOptions() {
+      const categories = [...new Set(partsData.map(item => item.category))].sort();
     let partsData = [];
 
     const safeNum = (value) => {
@@ -86,14 +103,55 @@
       };
     }
 
+
+    function loadViaJsonp(url) {
+      return new Promise((resolve, reject) => {
+        const callbackName = `partsCallback_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+        const sep = url.includes('?') ? '&' : '?';
+        const script = document.createElement('script');
+        const timeoutMs = 10000;
+
+        const cleanup = () => {
+          delete window[callbackName];
+          script.remove();
+          clearTimeout(timeoutId);
+        };
+
+        window[callbackName] = (payload) => {
+          cleanup();
+          resolve(payload);
+        };
+
+        script.onerror = () => {
+          cleanup();
+          reject(new Error('ไม่สามารถโหลดข้อมูล (JSONP) ได้'));
+        };
+
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          reject(new Error('โหลดข้อมูลเกินเวลาที่กำหนด (JSONP timeout)'));
+        }, timeoutMs);
+
+        script.src = `${url}${sep}callback=${callbackName}&t=${Date.now()}`;
+        document.body.appendChild(script);
+      });
+    }
+
     async function loadPartsData() {
       tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
 
       try {
-        const response = await fetch(`${API_URL}?t=${Date.now()}`);
-        if (!response.ok) throw new Error(`โหลดข้อมูลไม่สำเร็จ (${response.status})`);
+        let rawData;
 
-        const rawData = await response.json();
+        try {
+          const response = await fetch(`${API_URL}?t=${Date.now()}`);
+          if (!response.ok) throw new Error(`โหลดข้อมูลไม่สำเร็จ (${response.status})`);
+          rawData = await response.json();
+        } catch (fetchError) {
+          rawData = await loadViaJsonp(API_URL);
+        }
+
+        if (rawData && rawData.status === 'error') throw new Error(rawData.message || 'API ตอบกลับ error');
         if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
 
         partsData = rawData
@@ -136,24 +194,7 @@
     function renderTable(data) {
       if (!data.length) {
         tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขค้นหา</td></tr>';
-        return;
-      }
-
-      tableBody.innerHTML = data.map(item => {
-        const lowStock = item.stock <= item.min && item.min > 0;
-        return `
-          <tr class="hover:bg-slate-50">
-            <td class="py-3 pr-4 font-medium">${item.no}</td>
-            <td class="py-3 pr-4">${item.name}</td>
-            <td class="py-3 pr-4 text-slate-600">${item.model}</td>
-            <td class="py-3 pr-4 text-slate-600">${item.line}</td>
-            <td class="py-3 pr-4">${item.category}</td>
-            <td class="py-3 pr-4">${item.brand}</td>
-            <td class="py-3 pr-4 text-center font-semibold ${lowStock ? 'text-rose-600' : ''}">${item.stock}</td>
-            <td class="py-3 pr-4 text-center">${item.min}</td>
-            <td class="py-3 pr-4 text-center">${item.max}</td>
-            <td class="py-3 pr-4 text-center">
-              <span class="px-2 py-1 rounded-full text-xs font-semibold ${item.needToPO > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">
+@@ -120,31 +198,29 @@
                 ${item.needToPO > 0 ? item.needToPO : 'OK'}
               </span>
             </td>
@@ -179,7 +220,11 @@
     categoryFilter.addEventListener('change', applyFilters);
     searchInput.addEventListener('input', applyFilters);
 
+    populateCategoryOptions();
+    renderTable(partsData);
+    renderStats(partsData);
     loadPartsData();
   </script>
 </body>
 </html>
+scr/Backen
