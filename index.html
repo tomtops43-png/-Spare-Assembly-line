@@ -92,21 +92,28 @@
         const callbackName = `partsCallback_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
         const sep = url.includes('?') ? '&' : '?';
         const script = document.createElement('script');
+        const timeoutMs = 10000;
+
+        const cleanup = () => {
+          delete window[callbackName];
+          script.remove();
+          clearTimeout(timeoutId);
+        };
 
         window[callbackName] = (payload) => {
           cleanup();
           resolve(payload);
         };
 
-        const cleanup = () => {
-          delete window[callbackName];
-          script.remove();
-        };
-
         script.onerror = () => {
           cleanup();
           reject(new Error('ไม่สามารถโหลดข้อมูล (JSONP) ได้'));
         };
+
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          reject(new Error('โหลดข้อมูลเกินเวลาที่กำหนด (JSONP timeout)'));
+        }, timeoutMs);
 
         script.src = `${url}${sep}callback=${callbackName}&t=${Date.now()}`;
         document.body.appendChild(script);
@@ -127,6 +134,7 @@
           rawData = await loadViaJsonp(API_URL);
         }
 
+        if (rawData && rawData.status === 'error') throw new Error(rawData.message || 'API ตอบกลับ error');
         if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
 
         partsData = rawData
