@@ -12,7 +12,6 @@ function doGet(e) {
     if (!sheet) throw new Error("ไม่พบชีทชื่อ Record");
 
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
     const rows = data.slice(1);
 
     const result = rows.map(row => {
@@ -30,10 +29,10 @@ function doGet(e) {
       };
     });
 
-    return jsonOutput(result);
+    return respond(result, e);
 
   } catch (err) {
-    return jsonOutput({ status: "error", message: err.message });
+    return respond({ status: "error", message: err.message }, e);
   }
 }
 
@@ -71,28 +70,25 @@ function doPost(e) {
       body.by || "Unknown"
     ]);
 
-    return jsonOutput({ status: "success" });
+    return respond({ status: "success" }, e);
 
   } catch (err) {
-    return jsonOutput({ status: "error", message: err.message });
+    return respond({ status: "error", message: err.message }, e);
   }
 }
 
 // =============================
-// OPTIONS (แก้ CORS preflight)
+// RESPONSE HELPERS
 // =============================
-function doOptions() {
-  return jsonOutput({});
-}
+function respond(data, e) {
+  const callback = e && e.parameter && e.parameter.callback;
+  if (callback) {
+    return ContentService
+      .createTextOutput(`${callback}(${JSON.stringify(data)})`)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
 
-// =============================
-// JSON RESPONSE + CORS FIX
-// =============================
-function jsonOutput(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader("Access-Control-Allow-Origin", "*")
-    .setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    .setHeader("Access-Control-Allow-Headers", "Content-Type");
+    .setMimeType(ContentService.MimeType.JSON);
 }
