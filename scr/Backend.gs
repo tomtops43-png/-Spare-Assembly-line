@@ -3,7 +3,7 @@
 // =============================
 var SPARE_APP_CONFIG = this.SPARE_APP_CONFIG || {};
 SPARE_APP_CONFIG.readSheetName = SPARE_APP_CONFIG.readSheetName || 'Main List Stock';
-SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Record';
+SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Log';
 
 // =============================
 // HELPERS
@@ -57,11 +57,131 @@ function findHeaderRowIndex(data) {
   return 0;
 }
 
+function getOrCreateSheet(spreadsheet, sheetName) {
+  var sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(sheetName);
+  }
+  return sheet;
+}
+
+function parseTransactionPayloadFromGet(e) {
+  return {
+    partNo: e.parameter.partNo,
+    type: e.parameter.type,
+    process: e.parameter.process,
+    category: e.parameter.category,
+    partName: e.parameter.partName,
+    model: e.parameter.model,
+    brand: e.parameter.brand,
+    qty: e.parameter.qty,
+    unit: e.parameter.unit,
+    by: e.parameter.by
+  };
+}
+
+function processTransaction(payload) {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
+  var mainSheet = spreadsheet.getSheetByName(SPARE_APP_CONFIG.readSheetName);
+
+  if (!mainSheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.readSheetName);
+
+  if (!payload.partName || !payload.qty) throw new Error('ต้องมี partName และ qty');
+
+  var qty = Number(payload.qty);
+  if (!qty || qty <= 0) throw new Error('qty ต้องมากกว่า 0');
+
+  var signedQty = qty;
+  if (payload.type && String(payload.type).indexOf('Output') > -1) {
+    signedQty = -Math.abs(qty);
+  } else {
+    signedQty = Math.abs(qty);
+  }
+
+  var mainData = mainSheet.getDataRange().getValues();
+  if (!mainData.length) throw new Error('ไม่พบข้อมูลในชีทหลัก');
+
+  var headerRowIndex = findHeaderRowIndex(mainData);
+  var headers = mainData[headerRowIndex];
+  var map = buildHeaderIndexMap(headers);
+  var rows = mainData.slice(headerRowIndex + 1);
+
+  var stockCol = map.stockqty !== undefined ? map.stockqty : map.stock;
+  var minCol = map.min;
+  var needPoCol = map.needtopo !== undefined ? map.needtopo : map.needpo;
+
+  if (stockCol === undefined) throw new Error('ไม่พบคอลัมน์ stock/stock qty');
+
+  var targetIndex = -1;
+  for (var i = 0; i < rows.length; i += 1) {
+    var row = rows[i];
+    var rowNo = pickRowValue(row, map, ['no'], '');
+    var rowName = pickRowValue(row, map, ['namedescriptions', 'name', 'description'], '');
+    var rowModel = pickRowValue(row, map, ['model'], '');
+
+    var noMatch = payload.partNo !== undefined && String(rowNo) === String(payload.partNo);
+    var nameMatch = String(rowName) === String(payload.partName);
+    var modelMatch = !payload.model || String(rowModel) === String(payload.model);
+
+    if (noMatch || (nameMatch && modelMatch)) {
+      targetIndex = i;
+      break;
+    }
+  }
+
+  if (targetIndex === -1) throw new Error('ไม่พบอะไหล่ที่ต้องการเบิก/คืนในชีทหลัก');
+
+  var targetRow = rows[targetIndex];
+  var stockBefore = Number(targetRow[stockCol]) || 0;
+  var stockAfter = stockBefore + signedQty;
+
+  if (stockAfter < 0) throw new Error('สต็อกไม่พอสำหรับการเบิกออก');
+
+  var sheetRowNumber = headerRowIndex + 2 + targetIndex;
+  mainSheet.getRange(sheetRowNumber, stockCol + 1).setValue(stockAfter);
+
+  if (needPoCol !== undefined) {
+    var minValue = minCol !== undefined ? Number(targetRow[minCol]) || 0 : 0;
+    var needPoValue = Math.max(minValue - stockAfter, 0);
+    mainSheet.getRange(sheetRowNumber, needPoCol + 1).setValue(needPoValue);
+  }
+
+  historySheet.appendRow([
+    new Date(),
+    payload.type || 'Input',
+    payload.process || '-',
+    payload.category || 'General',
+    payload.partName,
+    payload.model || '-',
+    payload.brand || '-',
+    signedQty,
+    payload.unit || 'PCS',
+    payload.by || 'Unknown',
+    payload.partNo || '',
+    stockBefore,
+    stockAfter
+  ]);
+
+  return {
+    status: 'success',
+    stockBefore: stockBefore,
+    stockAfter: stockAfter,
+    qty: signedQty
+  };
+}
+
 // =============================
-// GET (ดึงข้อมูลจาก Main List Stock)
+// GET (ดึงข้อมูล + JSONP transaction)
 // =============================
 function doGet(e) {
   try {
+    var action = e && e.parameter ? e.parameter.action : '';
+    if (action === 'transact') {
+      var payload = parseTransactionPayloadFromGet(e);
+      return respond(processTransaction(payload), e);
+    }
+
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.readSheetName);
     if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.readSheetName);
 
@@ -100,100 +220,12 @@ function doGet(e) {
 }
 
 // =============================
-// POST (เพิ่มข้อมูลลง Record)
+// POST (เพิ่มข้อมูลสำหรับ client ที่เรียก POST ได้)
 // =============================
 function doPost(e) {
   try {
-    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    var historySheet = spreadsheet.getSheetByName(SPARE_APP_CONFIG.writeSheetName);
-    var mainSheet = spreadsheet.getSheetByName(SPARE_APP_CONFIG.readSheetName);
-
-    if (!historySheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.writeSheetName);
-    if (!mainSheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.readSheetName);
-
     var body = JSON.parse(e.postData.contents);
-    if (!body.partName || !body.qty) throw new Error('ต้องมี partName และ qty');
-
-    var qty = Number(body.qty);
-    if (!qty || qty <= 0) throw new Error('qty ต้องมากกว่า 0');
-
-    var signedQty = qty;
-    if (body.type && String(body.type).indexOf('Output') > -1) {
-      signedQty = -Math.abs(qty);
-    } else {
-      signedQty = Math.abs(qty);
-    }
-
-    var mainData = mainSheet.getDataRange().getValues();
-    if (!mainData.length) throw new Error('ไม่พบข้อมูลในชีทหลัก');
-
-    var headerRowIndex = findHeaderRowIndex(mainData);
-    var headers = mainData[headerRowIndex];
-    var map = buildHeaderIndexMap(headers);
-    var rows = mainData.slice(headerRowIndex + 1);
-
-    var stockCol = map.stockqty !== undefined ? map.stockqty : map.stock;
-    var minCol = map.min;
-    var needPoCol = map.needtopo !== undefined ? map.needtopo : map.needpo;
-
-    if (stockCol === undefined) throw new Error('ไม่พบคอลัมน์ stock/stock qty');
-
-    var targetIndex = -1;
-    for (var i = 0; i < rows.length; i += 1) {
-      var row = rows[i];
-      var rowNo = pickRowValue(row, map, ['no'], '');
-      var rowName = pickRowValue(row, map, ['namedescriptions', 'name', 'description'], '');
-      var rowModel = pickRowValue(row, map, ['model'], '');
-
-      var noMatch = body.partNo !== undefined && String(rowNo) === String(body.partNo);
-      var nameMatch = String(rowName) === String(body.partName);
-      var modelMatch = !body.model || String(rowModel) === String(body.model);
-
-      if (noMatch || (nameMatch && modelMatch)) {
-        targetIndex = i;
-        break;
-      }
-    }
-
-    if (targetIndex === -1) throw new Error('ไม่พบอะไหล่ที่ต้องการเบิก/คืนในชีทหลัก');
-
-    var targetRow = rows[targetIndex];
-    var stockBefore = Number(targetRow[stockCol]) || 0;
-    var stockAfter = stockBefore + signedQty;
-
-    if (stockAfter < 0) throw new Error('สต็อกไม่พอสำหรับการเบิกออก');
-
-    var sheetRowNumber = headerRowIndex + 2 + targetIndex;
-    mainSheet.getRange(sheetRowNumber, stockCol + 1).setValue(stockAfter);
-
-    if (needPoCol !== undefined) {
-      var minValue = minCol !== undefined ? Number(targetRow[minCol]) || 0 : 0;
-      var needPoValue = Math.max(minValue - stockAfter, 0);
-      mainSheet.getRange(sheetRowNumber, needPoCol + 1).setValue(needPoValue);
-    }
-
-    historySheet.appendRow([
-      new Date(),
-      body.type || 'Input',
-      body.process || '-',
-      body.category || 'General',
-      body.partName,
-      body.model || '-',
-      body.brand || '-',
-      signedQty,
-      body.unit || 'PCS',
-      body.by || 'Unknown',
-      body.partNo || '',
-      stockBefore,
-      stockAfter
-    ]);
-
-    return respond({
-      status: 'success',
-      stockBefore: stockBefore,
-      stockAfter: stockAfter,
-      qty: signedQty
-    }, e);
+    return respond(processTransaction(body), e);
   } catch (err) {
     return respond({ status: 'error', message: err.message }, e);
   }

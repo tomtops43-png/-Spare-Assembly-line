@@ -162,6 +162,25 @@
       });
     }
 
+
+    function callTransactionViaJsonp(payload) {
+      var query = [
+        'action=transact',
+        'partNo=' + encodeURIComponent(payload.partNo || ''),
+        'type=' + encodeURIComponent(payload.type || ''),
+        'process=' + encodeURIComponent(payload.process || ''),
+        'category=' + encodeURIComponent(payload.category || ''),
+        'partName=' + encodeURIComponent(payload.partName || ''),
+        'model=' + encodeURIComponent(payload.model || ''),
+        'brand=' + encodeURIComponent(payload.brand || ''),
+        'qty=' + encodeURIComponent(String(payload.qty || '')),
+        'unit=' + encodeURIComponent(payload.unit || ''),
+        'by=' + encodeURIComponent(payload.by || '')
+      ].join('&');
+
+      return loadViaJsonp(API_URL + '?' + query);
+    }
+
     function loadPartsData() {
       tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
 
@@ -247,14 +266,13 @@
       txnMessage.className = 'mt-3 text-sm text-slate-500';
       txnMessage.textContent = 'กำลังบันทึกรายการ...';
 
-      fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }).then(function() {
+      callTransactionViaJsonp(payload).then(function(res) {
+        if (!res || res.status !== 'success') {
+          throw new Error((res && res.message) ? res.message : 'บันทึกไม่สำเร็จ');
+        }
+
         txnMessage.className = 'mt-3 text-sm text-emerald-600';
-        txnMessage.textContent = 'บันทึกสำเร็จ (กำลังรีโหลดข้อมูล)';
+        txnMessage.textContent = 'บันทึกสำเร็จ: Stock ' + res.stockBefore + ' → ' + res.stockAfter;
         txnForm.reset();
         loadPartsData();
       }).catch(function(err) {
