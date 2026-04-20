@@ -137,9 +137,9 @@
     function loadPartsData() {
       tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
 
-      loadByFetch(API_URL)
+      loadViaJsonp(API_URL)
         .catch(function() {
-          return loadViaJsonp(API_URL);
+          return loadByFetch(API_URL);
         })
         .then(function(rawData) {
           if (rawData && rawData.status === 'error') {
@@ -159,7 +159,8 @@
           applyFilters();
         })
         .catch(function(err) {
-          tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-rose-500">' + err.message + '</td></tr>';
+          var hint = 'ตรวจสอบ Apps Script Deployment: ต้องตั้งสิทธิ์เป็น Anyone และ deploy เวอร์ชันล่าสุด';
+          tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-rose-500">' + err.message + '<br><span class="text-xs text-slate-500">' + hint + '</span></td></tr>';
           document.getElementById('stat-cards').innerHTML = '';
         });
     }
