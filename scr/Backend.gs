@@ -104,23 +104,75 @@ function doGet(e) {
 // =============================
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.writeSheetName);
-    if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.writeSheetName);
+    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    var historySheet = spreadsheet.getSheetByName(SPARE_APP_CONFIG.writeSheetName);
+    var mainSheet = spreadsheet.getSheetByName(SPARE_APP_CONFIG.readSheetName);
+
+    if (!historySheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.writeSheetName);
+    if (!mainSheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.readSheetName);
 
     var body = JSON.parse(e.postData.contents);
-
-    if (!body.partName || !body.qty) {
-      throw new Error('ต้องมี partName และ qty');
-    }
+    if (!body.partName || !body.qty) throw new Error('ต้องมี partName และ qty');
 
     var qty = Number(body.qty);
+    if (!qty || qty <= 0) throw new Error('qty ต้องมากกว่า 0');
+
+    var signedQty = qty;
     if (body.type && String(body.type).indexOf('Output') > -1) {
-      qty = -Math.abs(qty);
+      signedQty = -Math.abs(qty);
     } else {
-      qty = Math.abs(qty);
+      signedQty = Math.abs(qty);
     }
 
-    sheet.appendRow([
+    var mainData = mainSheet.getDataRange().getValues();
+    if (!mainData.length) throw new Error('ไม่พบข้อมูลในชีทหลัก');
+
+    var headerRowIndex = findHeaderRowIndex(mainData);
+    var headers = mainData[headerRowIndex];
+    var map = buildHeaderIndexMap(headers);
+    var rows = mainData.slice(headerRowIndex + 1);
+
+    var stockCol = map.stockqty !== undefined ? map.stockqty : map.stock;
+    var minCol = map.min;
+    var needPoCol = map.needtopo !== undefined ? map.needtopo : map.needpo;
+
+    if (stockCol === undefined) throw new Error('ไม่พบคอลัมน์ stock/stock qty');
+
+    var targetIndex = -1;
+    for (var i = 0; i < rows.length; i += 1) {
+      var row = rows[i];
+      var rowNo = pickRowValue(row, map, ['no'], '');
+      var rowName = pickRowValue(row, map, ['namedescriptions', 'name', 'description'], '');
+      var rowModel = pickRowValue(row, map, ['model'], '');
+
+      var noMatch = body.partNo !== undefined && String(rowNo) === String(body.partNo);
+      var nameMatch = String(rowName) === String(body.partName);
+      var modelMatch = !body.model || String(rowModel) === String(body.model);
+
+      if (noMatch || (nameMatch && modelMatch)) {
+        targetIndex = i;
+        break;
+      }
+    }
+
+    if (targetIndex === -1) throw new Error('ไม่พบอะไหล่ที่ต้องการเบิก/คืนในชีทหลัก');
+
+    var targetRow = rows[targetIndex];
+    var stockBefore = Number(targetRow[stockCol]) || 0;
+    var stockAfter = stockBefore + signedQty;
+
+    if (stockAfter < 0) throw new Error('สต็อกไม่พอสำหรับการเบิกออก');
+
+    var sheetRowNumber = headerRowIndex + 2 + targetIndex;
+    mainSheet.getRange(sheetRowNumber, stockCol + 1).setValue(stockAfter);
+
+    if (needPoCol !== undefined) {
+      var minValue = minCol !== undefined ? Number(targetRow[minCol]) || 0 : 0;
+      var needPoValue = Math.max(minValue - stockAfter, 0);
+      mainSheet.getRange(sheetRowNumber, needPoCol + 1).setValue(needPoValue);
+    }
+
+    historySheet.appendRow([
       new Date(),
       body.type || 'Input',
       body.process || '-',
@@ -128,12 +180,20 @@ function doPost(e) {
       body.partName,
       body.model || '-',
       body.brand || '-',
-      qty,
+      signedQty,
       body.unit || 'PCS',
-      body.by || 'Unknown'
+      body.by || 'Unknown',
+      body.partNo || '',
+      stockBefore,
+      stockAfter
     ]);
 
-    return respond({ status: 'success' }, e);
+    return respond({
+      status: 'success',
+      stockBefore: stockBefore,
+      stockAfter: stockAfter,
+      qty: signedQty
+    }, e);
   } catch (err) {
     return respond({ status: 'error', message: err.message }, e);
   }
