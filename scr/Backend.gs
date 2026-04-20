@@ -1,20 +1,20 @@
 // =============================
 // CONFIG
 // =============================
-const SHEET_NAME = "Record";
+var SHEET_NAME = 'Record';
 
 // =============================
 // GET (ดึงข้อมูล)
 // =============================
 function doGet(e) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-    if (!sheet) throw new Error("ไม่พบชีทชื่อ Record");
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    if (!sheet) throw new Error('ไม่พบชีทชื่อ Record');
 
-    const data = sheet.getDataRange().getValues();
-    const rows = data.slice(1);
+    var data = sheet.getDataRange().getValues();
+    var rows = data.slice(1);
 
-    const result = rows.map(row => {
+    var result = rows.map(function (row) {
       return {
         timestamp: row[0],
         type: row[1],
@@ -30,9 +30,8 @@ function doGet(e) {
     });
 
     return respond(result, e);
-
   } catch (err) {
-    return respond({ status: "error", message: err.message }, e);
+    return respond({ status: 'error', message: err.message }, e);
   }
 }
 
@@ -41,17 +40,17 @@ function doGet(e) {
 // =============================
 function doPost(e) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-    if (!sheet) throw new Error("ไม่พบชีทชื่อ Record");
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    if (!sheet) throw new Error('ไม่พบชีทชื่อ Record');
 
-    const body = JSON.parse(e.postData.contents);
+    var body = JSON.parse(e.postData.contents);
 
     if (!body.partName || !body.qty) {
-      throw new Error("ต้องมี partName และ qty");
+      throw new Error('ต้องมี partName และ qty');
     }
 
-    let qty = Number(body.qty);
-    if (body.type && body.type.includes("Output")) {
+    var qty = Number(body.qty);
+    if (body.type && String(body.type).indexOf('Output') > -1) {
       qty = -Math.abs(qty);
     } else {
       qty = Math.abs(qty);
@@ -59,21 +58,20 @@ function doPost(e) {
 
     sheet.appendRow([
       new Date(),
-      body.type || "Input",
-      body.process || "-",
-      body.category || "General",
+      body.type || 'Input',
+      body.process || '-',
+      body.category || 'General',
       body.partName,
-      body.model || "-",
-      body.brand || "-",
+      body.model || '-',
+      body.brand || '-',
       qty,
-      body.unit || "PCS",
-      body.by || "Unknown"
+      body.unit || 'PCS',
+      body.by || 'Unknown'
     ]);
 
-    return respond({ status: "success" }, e);
-
+    return respond({ status: 'success' }, e);
   } catch (err) {
-    return respond({ status: "error", message: err.message }, e);
+    return respond({ status: 'error', message: err.message }, e);
   }
 }
 
@@ -81,10 +79,11 @@ function doPost(e) {
 // RESPONSE HELPERS
 // =============================
 function respond(data, e) {
-  const callback = e && e.parameter && e.parameter.callback;
+  var callback = e && e.parameter ? e.parameter.callback : null;
+
   if (callback) {
     return ContentService
-      .createTextOutput(`${callback}(${JSON.stringify(data)})`)
+      .createTextOutput(callback + '(' + JSON.stringify(data) + ')')
       .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 
