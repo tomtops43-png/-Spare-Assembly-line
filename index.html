@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>H9 Spare Parts Portal</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
     body { font-family: 'Prompt', sans-serif; }
@@ -16,11 +16,30 @@
       <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <p class="text-xs text-blue-600 font-semibold tracking-wide uppercase">Spare parts for production line H9</p>
         <h1 class="text-2xl md:text-3xl font-bold mt-1">ระบบดูอะไหล่สำรอง (Stock H9)</h1>
-        <p class="text-slate-500 mt-2 text-sm md:text-base">ออกแบบจากโครงสร้างชีต: NO, Name/Descriptions, Model, Main line, Category, Brand, Stock, Qty max/min และ Need to PO</p>
+        <p class="text-slate-500 mt-2 text-sm md:text-base">ดึงข้อมูลจาก Google Sheet (Apps Script) พร้อมคำนวณ Need to PO อัตโนมัติ</p>
       </div>
     </header>
 
     <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
+
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-3">เบิก / คืน อะไหล่</h2>
+      <form id="txnForm" class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <select id="partSelect" class="md:col-span-2 rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือกอะไหล่</option>
+        </select>
+        <select id="txnType" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="Output">เบิกออก</option>
+          <option value="Input">คืนเข้า</option>
+        </select>
+        <input id="txnQty" type="number" min="1" step="1" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="จำนวน" required />
+        <input id="txnBy" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ผู้เบิก/ผู้คืน" required />
+        <input id="txnProcess" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ไลน์/งาน" />
+        <button type="submit" class="md:col-span-6 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
+      </form>
+      <p id="txnMessage" class="mt-3 text-sm"></p>
+    </section>
+
 
     <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
       <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4">
@@ -53,29 +72,221 @@
   </div>
 
   <script>
-    const partsData = [
-      { no: 1, name: 'Ball Transfer Unit', model: 'Unknown Model', line: 'H9-Line 04', category: 'Mechanical', brand: 'Unknown Brand', stock: 0, max: 10, min: 5, needToPO: 5 },
-      { no: 2, name: 'หลอดไฟ BN058C 13W (1200mm)', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 10, min: 10, needToPO: 10 },
-      { no: 3, name: 'หลอดไฟ LEDtube 600mm 8W 765 T8', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 5, min: 2, needToPO: 2 },
-      { no: 8, name: 'Photoelectric sensors', model: 'PR-M51N3', line: 'H9-All', category: 'Electrical', brand: 'Keyence', stock: 0, max: 5, min: 2, needToPO: 2 },
-      { no: 9, name: 'Relay', model: 'RXM4AB2BD', line: 'H9-All', category: 'Electrical', brand: 'Schneider', stock: 0, max: 10, min: 5, needToPO: 5 },
-      { no: 17, name: 'Zebra Printhead', model: 'P1083320-016', line: 'H9-All', category: 'Electrical', brand: 'ZEBRA', stock: 0, max: 5, min: 3, needToPO: 3 },
-      { no: 22, name: 'Air Cylinder', model: 'MDBB40-150Z-M9P', line: 'H9-All', category: 'Pneumatic', brand: 'SMC', stock: 0, max: 5, min: 2, needToPO: 2 },
-      { no: 24, name: 'Bearing', model: '6202-ZZ', line: 'H9-All', category: 'Mechanical', brand: 'SKC', stock: 0, max: 30, min: 10, needToPO: 10 },
-      { no: 27, name: 'Photoelectric Switch', model: 'EE-SX672P', line: 'H9-All', category: 'Electrical', brand: 'OMRON', stock: 0, max: 20, min: 10, needToPO: 10 },
-      { no: 34, name: 'Spring Balancer', model: 'SS-030', line: 'H9-Line 05', category: 'Mechanical', brand: 'SUMO', stock: 0, max: 10, min: 5, needToPO: 5 },
-      { no: 43, name: 'Hub Switch', model: 'TL-SG1005P', line: 'H9-All', category: 'Electrical', brand: 'TP-Link', stock: 0, max: 0, min: 0, needToPO: 0 },
-      { no: 54, name: 'ไฟสี่เหลี่ยม', model: 'CA-DQW12M', line: 'H9-Line 04', category: 'Electrical', brand: 'Keyence', stock: 0, max: 2, min: 1, needToPO: 1 }
-    ];
+    var API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
 
-    const tableBody = document.getElementById('partsTable');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const searchInput = document.getElementById('searchInput');
+    var tableBody = document.getElementById('partsTable');
+    var categoryFilter = document.getElementById('categoryFilter');
+    var searchInput = document.getElementById('searchInput');
 
-    function populateCategoryOptions() {
-      const categories = [...new Set(partsData.map(item => item.category))].sort();
-      categories.forEach(cat => {
-        const option = document.createElement('option');
+    var partsData = [];
+    var partMap = {};
+
+    var txnForm = document.getElementById('txnForm');
+    var partSelect = document.getElementById('partSelect');
+    var txnType = document.getElementById('txnType');
+    var txnQty = document.getElementById('txnQty');
+    var txnBy = document.getElementById('txnBy');
+    var txnProcess = document.getElementById('txnProcess');
+    var txnMessage = document.getElementById('txnMessage');
+
+    function safeNum(value) {
+      var parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function firstDefined(values, fallbackValue) {
+      for (var i = 0; i < values.length; i += 1) {
+        var v = values[i];
+        if (v !== undefined && v !== null && v !== '') return v;
+      }
+      return fallbackValue;
+    }
+
+    function normalizeRecord(item, index) {
+      var stock = safeNum(firstDefined([item.stock, item.qty], 0));
+      var min = safeNum(firstDefined([item.min, item.qtyMin], 0));
+      var max = safeNum(firstDefined([item.max, item.qtyMax], 0));
+      var needToPO = safeNum(firstDefined([item.needToPO], Math.max(min - stock, 0)));
+
+      return {
+        no: firstDefined([item.no], index + 1),
+        name: firstDefined([item.name, item.partName], '-'),
+        model: firstDefined([item.model], '-'),
+        line: firstDefined([item.line, item.mainLine, item.process], '-'),
+        category: firstDefined([item.category], 'General'),
+        brand: firstDefined([item.brand], '-'),
+        stock: stock,
+        min: min,
+        max: max,
+        needToPO: needToPO
+      };
+    }
+
+    function loadViaJsonp(url) {
+      return new Promise(function(resolve, reject) {
+        var callbackName = 'partsCallback_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        var sep = url.indexOf('?') > -1 ? '&' : '?';
+        var script = document.createElement('script');
+        var timeoutMs = 10000;
+
+        var timeoutId = setTimeout(function() {
+          cleanup();
+          reject(new Error('โหลดข้อมูลเกินเวลาที่กำหนด (JSONP timeout)'));
+        }, timeoutMs);
+
+        function cleanup() {
+          clearTimeout(timeoutId);
+          delete window[callbackName];
+          script.remove();
+        }
+
+        window[callbackName] = function(payload) {
+          cleanup();
+          resolve(payload);
+        };
+
+        script.onerror = function() {
+          cleanup();
+          reject(new Error('ไม่สามารถโหลดข้อมูล (JSONP) ได้'));
+        };
+
+        script.src = url + sep + 'callback=' + callbackName + '&t=' + Date.now();
+        document.body.appendChild(script);
+      });
+    }
+
+    function loadByFetch(url) {
+      return fetch(url + '?t=' + Date.now()).then(function(response) {
+        if (!response.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ (' + response.status + ')');
+        return response.json();
+      });
+    }
+
+
+    function callTransactionViaJsonp(payload) {
+      var query = [
+        'action=transact',
+        'partNo=' + encodeURIComponent(payload.partNo || ''),
+        'type=' + encodeURIComponent(payload.type || ''),
+        'process=' + encodeURIComponent(payload.process || ''),
+        'category=' + encodeURIComponent(payload.category || ''),
+        'partName=' + encodeURIComponent(payload.partName || ''),
+        'model=' + encodeURIComponent(payload.model || ''),
+        'brand=' + encodeURIComponent(payload.brand || ''),
+        'qty=' + encodeURIComponent(String(payload.qty || '')),
+        'unit=' + encodeURIComponent(payload.unit || ''),
+        'by=' + encodeURIComponent(payload.by || '')
+      ].join('&');
+
+      return loadViaJsonp(API_URL + '?' + query);
+    }
+
+    function loadPartsData() {
+      tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
+
+      loadViaJsonp(API_URL)
+        .catch(function() {
+          return loadByFetch(API_URL);
+        })
+        .then(function(rawData) {
+          if (rawData && rawData.status === 'error') {
+            throw new Error(rawData.message || 'API ตอบกลับ error');
+          }
+          if (!Array.isArray(rawData)) {
+            throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
+          }
+
+          partsData = rawData.map(function(item, index) {
+            return normalizeRecord(item, index);
+          }).filter(function(item) {
+            return item.name && item.name !== '-';
+          });
+
+          populateCategoryOptions(partsData);
+          populatePartOptions(partsData);
+          applyFilters();
+        })
+        .catch(function(err) {
+          var hint = 'ตรวจสอบ Apps Script Deployment: ต้องตั้งสิทธิ์เป็น Anyone และ deploy เวอร์ชันล่าสุด';
+          tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-rose-500">' + err.message + '<br><span class="text-xs text-slate-500">' + hint + '</span></td></tr>';
+          document.getElementById('stat-cards').innerHTML = '';
+        });
+    }
+
+
+    function populatePartOptions(data) {
+      partMap = {};
+      partSelect.innerHTML = '<option value="">เลือกอะไหล่</option>';
+
+      data.forEach(function(item, idx) {
+        var key = String(item.no || idx + 1);
+        partMap[key] = item;
+
+        var option = document.createElement('option');
+        option.value = key;
+        option.textContent = key + ' - ' + item.name + ' (' + item.model + ')';
+        partSelect.appendChild(option);
+      });
+    }
+
+    function submitTransaction(event) {
+      event.preventDefault();
+
+      var selected = partMap[partSelect.value];
+      var qty = Number(txnQty.value || 0);
+      if (!selected) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'กรุณาเลือกอะไหล่';
+        return;
+      }
+      if (!qty || qty <= 0) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'จำนวนต้องมากกว่า 0';
+        return;
+      }
+      if (txnType.value === 'Output' && qty > Number(selected.stock || 0)) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'จำนวนเบิกมากกว่า stock ปัจจุบัน';
+        return;
+      }
+
+      var payload = {
+        partNo: selected.no,
+        type: txnType.value,
+        process: txnProcess.value || selected.line || '-',
+        category: selected.category || 'General',
+        partName: selected.name,
+        model: selected.model || '-',
+        brand: selected.brand || '-',
+        qty: qty,
+        unit: selected.unit || 'PCS',
+        by: txnBy.value || 'Unknown'
+      };
+
+      txnMessage.className = 'mt-3 text-sm text-slate-500';
+      txnMessage.textContent = 'กำลังบันทึกรายการ...';
+
+      callTransactionViaJsonp(payload).then(function(res) {
+        if (!res || res.status !== 'success') {
+          throw new Error((res && res.message) ? res.message : 'บันทึกไม่สำเร็จ');
+        }
+
+        txnMessage.className = 'mt-3 text-sm text-emerald-600';
+        txnMessage.textContent = 'บันทึกสำเร็จ: Stock ' + res.stockBefore + ' → ' + res.stockAfter;
+        txnForm.reset();
+        loadPartsData();
+      }).catch(function(err) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'บันทึกไม่สำเร็จ: ' + err.message;
+      });
+    }
+
+    function populateCategoryOptions(data) {
+      categoryFilter.innerHTML = '<option value="all">ทุกหมวดหมู่</option>';
+      var categories = Array.from(new Set(data.map(function(item) { return item.category; }))).sort();
+
+      categories.forEach(function(cat) {
+        var option = document.createElement('option');
         option.value = cat;
         option.textContent = cat;
         categoryFilter.appendChild(option);
@@ -83,17 +294,16 @@
     }
 
     function renderStats(data) {
-      const total = data.length;
-      const needPO = data.filter(item => item.needToPO > 0).length;
-      const electrical = data.filter(item => item.category === 'Electrical').length;
-      const zeroStock = data.filter(item => item.stock === 0).length;
+      var total = data.length;
+      var needPO = data.filter(function(item) { return item.needToPO > 0; }).length;
+      var electrical = data.filter(function(item) { return item.category === 'Electrical'; }).length;
+      var zeroStock = data.filter(function(item) { return item.stock === 0; }).length;
 
-      document.getElementById('stat-cards').innerHTML = `
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">รายการทั้งหมด</p><p class="text-2xl font-bold">${total}</p></div>
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">ต้องสั่งซื้อ (Need PO)</p><p class="text-2xl font-bold text-amber-600">${needPO}</p></div>
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">หมวด Electrical</p><p class="text-2xl font-bold text-blue-600">${electrical}</p></div>
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">Stock = 0</p><p class="text-2xl font-bold text-rose-600">${zeroStock}</p></div>
-      `;
+      document.getElementById('stat-cards').innerHTML =
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">รายการทั้งหมด</p><p class="text-2xl font-bold">' + total + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">ต้องสั่งซื้อ (Need PO)</p><p class="text-2xl font-bold text-amber-600">' + needPO + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">หมวด Electrical</p><p class="text-2xl font-bold text-blue-600">' + electrical + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">Stock = 0</p><p class="text-2xl font-bold text-rose-600">' + zeroStock + '</p></div>';
     }
 
     function renderTable(data) {
@@ -102,36 +312,34 @@
         return;
       }
 
-      tableBody.innerHTML = data.map(item => {
-        const lowStock = item.stock <= item.min && item.min > 0;
-        return `
-          <tr class="hover:bg-slate-50">
-            <td class="py-3 pr-4 font-medium">${item.no}</td>
-            <td class="py-3 pr-4">${item.name}</td>
-            <td class="py-3 pr-4 text-slate-600">${item.model}</td>
-            <td class="py-3 pr-4 text-slate-600">${item.line}</td>
-            <td class="py-3 pr-4">${item.category}</td>
-            <td class="py-3 pr-4">${item.brand}</td>
-            <td class="py-3 pr-4 text-center font-semibold ${lowStock ? 'text-rose-600' : ''}">${item.stock}</td>
-            <td class="py-3 pr-4 text-center">${item.min}</td>
-            <td class="py-3 pr-4 text-center">${item.max}</td>
-            <td class="py-3 pr-4 text-center">
-              <span class="px-2 py-1 rounded-full text-xs font-semibold ${item.needToPO > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">
-                ${item.needToPO > 0 ? item.needToPO : 'OK'}
-              </span>
-            </td>
-          </tr>
-        `;
+      tableBody.innerHTML = data.map(function(item) {
+        var lowStock = item.stock <= item.min && item.min > 0;
+        return '<tr class="hover:bg-slate-50">' +
+          '<td class="py-3 pr-4 font-medium">' + item.no + '</td>' +
+          '<td class="py-3 pr-4">' + item.name + '</td>' +
+          '<td class="py-3 pr-4 text-slate-600">' + item.model + '</td>' +
+          '<td class="py-3 pr-4 text-slate-600">' + item.line + '</td>' +
+          '<td class="py-3 pr-4">' + item.category + '</td>' +
+          '<td class="py-3 pr-4">' + item.brand + '</td>' +
+          '<td class="py-3 pr-4 text-center font-semibold ' + (lowStock ? 'text-rose-600' : '') + '">' + item.stock + '</td>' +
+          '<td class="py-3 pr-4 text-center">' + item.min + '</td>' +
+          '<td class="py-3 pr-4 text-center">' + item.max + '</td>' +
+          '<td class="py-3 pr-4 text-center">' +
+            '<span class="px-2 py-1 rounded-full text-xs font-semibold ' + (item.needToPO > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700') + '">' +
+              (item.needToPO > 0 ? item.needToPO : 'OK') +
+            '</span>' +
+          '</td>' +
+        '</tr>';
       }).join('');
     }
 
     function applyFilters() {
-      const keyword = searchInput.value.trim().toLowerCase();
-      const category = categoryFilter.value;
+      var keyword = searchInput.value.trim().toLowerCase();
+      var category = categoryFilter.value;
 
-      const filtered = partsData.filter(item => {
-        const hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().includes(keyword);
-        const hitCategory = category === 'all' || item.category === category;
+      var filtered = partsData.filter(function(item) {
+        var hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().indexOf(keyword) > -1;
+        var hitCategory = category === 'all' || item.category === category;
         return hitSearch && hitCategory;
       });
 
@@ -141,10 +349,9 @@
 
     categoryFilter.addEventListener('change', applyFilters);
     searchInput.addEventListener('input', applyFilters);
+    txnForm.addEventListener('submit', submitTransaction);
 
-    populateCategoryOptions();
-    renderTable(partsData);
-    renderStats(partsData);
+    loadPartsData();
   </script>
 </body>
 </html>
