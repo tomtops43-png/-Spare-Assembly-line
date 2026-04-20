@@ -33,6 +33,30 @@ function pickRowValue(row, map, keys, fallbackValue) {
   return fallbackValue;
 }
 
+function findHeaderRowIndex(data) {
+  var requiredHints = ['no', 'name', 'category', 'brand', 'stock'];
+  var maxScan = Math.min(data.length, 8);
+
+  for (var r = 0; r < maxScan; r += 1) {
+    var normalizedRow = data[r].map(function (cell) {
+      return normalizeHeaderName(cell);
+    });
+
+    var hit = 0;
+    for (var i = 0; i < requiredHints.length; i += 1) {
+      var hint = requiredHints[i];
+      var matched = normalizedRow.some(function (col) {
+        return col.indexOf(hint) > -1;
+      });
+      if (matched) hit += 1;
+    }
+
+    if (hit >= 3) return r;
+  }
+
+  return 0;
+}
+
 // =============================
 // GET (ดึงข้อมูลจาก Main List Stock)
 // =============================
@@ -44,8 +68,9 @@ function doGet(e) {
     var data = sheet.getDataRange().getValues();
     if (!data.length) return respond([], e);
 
-    var headers = data[0];
-    var rows = data.slice(1);
+    var headerRowIndex = findHeaderRowIndex(data);
+    var headers = data[headerRowIndex];
+    var rows = data.slice(headerRowIndex + 1);
     var map = buildHeaderIndexMap(headers);
 
     var result = rows.map(function (row, index) {
