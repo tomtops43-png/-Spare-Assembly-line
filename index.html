@@ -47,6 +47,25 @@
     </section>
 
 
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-3">เบิก / คืน อะไหล่</h2>
+      <form id="txnForm" class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <select id="partSelect" class="md:col-span-2 rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือกอะไหล่</option>
+        </select>
+        <select id="txnType" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="Output">เบิกออก</option>
+          <option value="Input">คืนเข้า</option>
+        </select>
+        <input id="txnQty" type="number" min="1" step="1" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="จำนวน" required />
+        <input id="txnBy" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ผู้เบิก/ผู้คืน" required />
+        <input id="txnProcess" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ไลน์/งาน" />
+        <button type="submit" class="md:col-span-6 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
+      </form>
+      <p id="txnMessage" class="mt-3 text-sm"></p>
+    </section>
+
+
     <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
       <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4">
         <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full md:flex-1 rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -437,3 +456,4 @@
   </script>
 </body>
 </html>
+scr/Backen
