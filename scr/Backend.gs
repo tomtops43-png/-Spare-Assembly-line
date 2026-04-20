@@ -4,6 +4,7 @@
 var SPARE_APP_CONFIG = this.SPARE_APP_CONFIG || {};
 SPARE_APP_CONFIG.readSheetName = SPARE_APP_CONFIG.readSheetName || 'Main List Stock';
 SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Log';
+var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After'];
 
 // =============================
 // HELPERS
@@ -59,10 +60,30 @@ function findHeaderRowIndex(data) {
 
 function getOrCreateSheet(spreadsheet, sheetName) {
   var sheet = spreadsheet.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = spreadsheet.insertSheet(sheetName);
-  }
+  if (!sheet) sheet = spreadsheet.insertSheet(sheetName);
   return sheet;
+}
+
+function ensureLogSheetHeaders(historySheet) {
+  var lastRow = historySheet.getLastRow();
+  if (lastRow === 0) {
+    historySheet.appendRow(LOG_HEADERS);
+    return;
+  }
+
+  var firstRow = historySheet.getRange(1, 1, 1, LOG_HEADERS.length).getValues()[0];
+  var isSame = true;
+  for (var i = 0; i < LOG_HEADERS.length; i += 1) {
+    if (String(firstRow[i] || '') !== LOG_HEADERS[i]) {
+      isSame = false;
+      break;
+    }
+  }
+
+  if (!isSame) {
+    historySheet.insertRowBefore(1);
+    historySheet.getRange(1, 1, 1, LOG_HEADERS.length).setValues([LOG_HEADERS]);
+  }
 }
 
 function parseTransactionPayloadFromGet(e) {
@@ -80,24 +101,49 @@ function parseTransactionPayloadFromGet(e) {
   };
 }
 
+function getLogRows() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
+  ensureLogSheetHeaders(historySheet);
+
+  var data = historySheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  return data.slice(1).map(function (row, idx) {
+    return {
+      no: idx + 1,
+      timestamp: row[0],
+      type: row[1],
+      process: row[2],
+      category: row[3],
+      partName: row[4],
+      model: row[5],
+      brand: row[6],
+      qty: row[7],
+      unit: row[8],
+      by: row[9],
+      partNo: row[10],
+      stockBefore: row[11],
+      stockAfter: row[12]
+    };
+  }).reverse();
+}
+
 function processTransaction(payload) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
   var mainSheet = spreadsheet.getSheetByName(SPARE_APP_CONFIG.readSheetName);
 
+  ensureLogSheetHeaders(historySheet);
   if (!mainSheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.readSheetName);
-
   if (!payload.partName || !payload.qty) throw new Error('ต้องมี partName และ qty');
 
   var qty = Number(payload.qty);
   if (!qty || qty <= 0) throw new Error('qty ต้องมากกว่า 0');
 
   var signedQty = qty;
-  if (payload.type && String(payload.type).indexOf('Output') > -1) {
-    signedQty = -Math.abs(qty);
-  } else {
-    signedQty = Math.abs(qty);
-  }
+  if (payload.type && String(payload.type).indexOf('Output') > -1) signedQty = -Math.abs(qty);
+  else signedQty = Math.abs(qty);
 
   var mainData = mainSheet.getDataRange().getValues();
   if (!mainData.length) throw new Error('ไม่พบข้อมูลในชีทหลัก');
@@ -119,11 +165,9 @@ function processTransaction(payload) {
     var rowNo = pickRowValue(row, map, ['no'], '');
     var rowName = pickRowValue(row, map, ['namedescriptions', 'name', 'description'], '');
     var rowModel = pickRowValue(row, map, ['model'], '');
-
     var noMatch = payload.partNo !== undefined && String(rowNo) === String(payload.partNo);
     var nameMatch = String(rowName) === String(payload.partName);
     var modelMatch = !payload.model || String(rowModel) === String(payload.model);
-
     if (noMatch || (nameMatch && modelMatch)) {
       targetIndex = i;
       break;
@@ -135,7 +179,6 @@ function processTransaction(payload) {
   var targetRow = rows[targetIndex];
   var stockBefore = Number(targetRow[stockCol]) || 0;
   var stockAfter = stockBefore + signedQty;
-
   if (stockAfter < 0) throw new Error('สต็อกไม่พอสำหรับการเบิกออก');
 
   var sheetRowNumber = headerRowIndex + 2 + targetIndex;
@@ -172,15 +215,13 @@ function processTransaction(payload) {
 }
 
 // =============================
-// GET (ดึงข้อมูล + JSONP transaction)
+// GET (stock + logs + JSONP transaction)
 // =============================
 function doGet(e) {
   try {
     var action = e && e.parameter ? e.parameter.action : '';
-    if (action === 'transact') {
-      var payload = parseTransactionPayloadFromGet(e);
-      return respond(processTransaction(payload), e);
-    }
+    if (action === 'transact') return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
+    if (action === 'logs') return respond(getLogRows(), e);
 
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.readSheetName);
     if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.readSheetName);
@@ -220,7 +261,7 @@ function doGet(e) {
 }
 
 // =============================
-// POST (เพิ่มข้อมูลสำหรับ client ที่เรียก POST ได้)
+// POST (transaction)
 // =============================
 function doPost(e) {
   try {
@@ -236,13 +277,11 @@ function doPost(e) {
 // =============================
 function respond(data, e) {
   var callback = e && e.parameter ? e.parameter.callback : null;
-
   if (callback) {
     return ContentService
       .createTextOutput(callback + '(' + JSON.stringify(data) + ')')
       .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
-
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
