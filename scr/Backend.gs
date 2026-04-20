@@ -2,32 +2,70 @@
 // CONFIG
 // =============================
 var SPARE_APP_CONFIG = this.SPARE_APP_CONFIG || {};
-SPARE_APP_CONFIG.sheetName = SPARE_APP_CONFIG.sheetName || 'Record';
+SPARE_APP_CONFIG.readSheetName = SPARE_APP_CONFIG.readSheetName || 'Main List Stock';
+SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Record';
 
 // =============================
-// GET (ดึงข้อมูล)
+// HELPERS
+// =============================
+function normalizeHeaderName(header) {
+  return String(header || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function buildHeaderIndexMap(headers) {
+  var map = {};
+  for (var i = 0; i < headers.length; i += 1) {
+    map[normalizeHeaderName(headers[i])] = i;
+  }
+  return map;
+}
+
+function pickRowValue(row, map, keys, fallbackValue) {
+  for (var i = 0; i < keys.length; i += 1) {
+    var idx = map[keys[i]];
+    if (idx !== undefined && row[idx] !== '' && row[idx] !== null && row[idx] !== undefined) {
+      return row[idx];
+    }
+  }
+  return fallbackValue;
+}
+
+// =============================
+// GET (ดึงข้อมูลจาก Main List Stock)
 // =============================
 function doGet(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.sheetName);
-    if (!sheet) throw new Error('ไม่พบชีทชื่อ Record');
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.readSheetName);
+    if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.readSheetName);
 
     var data = sheet.getDataRange().getValues();
-    var rows = data.slice(1);
+    if (!data.length) return respond([], e);
 
-    var result = rows.map(function (row) {
+    var headers = data[0];
+    var rows = data.slice(1);
+    var map = buildHeaderIndexMap(headers);
+
+    var result = rows.map(function (row, index) {
       return {
-        timestamp: row[0],
-        type: row[1],
-        process: row[2],
-        category: row[3],
-        partName: row[4],
-        model: row[5],
-        brand: row[6],
-        qty: row[7],
-        unit: row[8],
-        by: row[9]
+        no: pickRowValue(row, map, ['no'], index + 1),
+        name: pickRowValue(row, map, ['namedescriptions', 'name', 'description'], '-'),
+        model: pickRowValue(row, map, ['model'], '-'),
+        line: pickRowValue(row, map, ['mainline', 'line'], '-'),
+        category: pickRowValue(row, map, ['category'], 'General'),
+        brand: pickRowValue(row, map, ['brand'], '-'),
+        stock: pickRowValue(row, map, ['stockqty', 'stock'], 0),
+        max: pickRowValue(row, map, ['max', 'qtymax'], 0),
+        min: pickRowValue(row, map, ['min', 'qtymin'], 0),
+        needToPO: pickRowValue(row, map, ['needtopo', 'needpo'], 0),
+        unit: pickRowValue(row, map, ['unit'], 'PCS'),
+        remark: pickRowValue(row, map, ['remark'], ''),
+        photo: pickRowValue(row, map, ['sparepartsphotos', 'photo'], '')
       };
+    }).filter(function (item) {
+      return item.name && item.name !== '-';
     });
 
     return respond(result, e);
@@ -37,12 +75,12 @@ function doGet(e) {
 }
 
 // =============================
-// POST (เพิ่มข้อมูล)
+// POST (เพิ่มข้อมูลลง Record)
 // =============================
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.sheetName);
-    if (!sheet) throw new Error('ไม่พบชีทชื่อ Record');
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.writeSheetName);
+    if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.writeSheetName);
 
     var body = JSON.parse(e.postData.contents);
 
