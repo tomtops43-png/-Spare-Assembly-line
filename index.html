@@ -20,7 +20,32 @@
       </div>
     </header>
 
-    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
+    <div class="flex gap-2 mb-4">
+      <button id="tabStock" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
+      <button id="tabLog" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
+    </div>
+
+    <section id="stockPage">
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
+
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-3">เบิก / คืน อะไหล่</h2>
+      <form id="txnForm" class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <select id="partSelect" class="md:col-span-2 rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือกอะไหล่</option>
+        </select>
+        <select id="txnType" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="Output">เบิกออก</option>
+          <option value="Input">คืนเข้า</option>
+        </select>
+        <input id="txnQty" type="number" min="1" step="1" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="จำนวน" required />
+        <input id="txnBy" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ผู้เบิก/ผู้คืน" required />
+        <input id="txnProcess" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ไลน์/งาน" />
+        <button type="submit" class="md:col-span-6 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
+      </form>
+      <p id="txnMessage" class="mt-3 text-sm"></p>
+    </section>
+
 
     <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6 mb-6">
       <h2 class="text-lg font-semibold mb-3">เบิก / คืน อะไหล่</h2>
@@ -69,6 +94,27 @@
         </table>
       </div>
     </section>
+    </section>
+
+    <section id="logPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
+      <h2 class="text-lg font-semibold mb-3">ประวัติการเบิก / คืน (Log)</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-slate-500 border-b border-slate-200">
+              <th class="py-3 pr-4">เวลา</th>
+              <th class="py-3 pr-4">ประเภท</th>
+              <th class="py-3 pr-4">อะไหล่</th>
+              <th class="py-3 pr-4">จำนวน</th>
+              <th class="py-3 pr-4">ก่อน</th>
+              <th class="py-3 pr-4">หลัง</th>
+              <th class="py-3 pr-4">ผู้ทำรายการ</th>
+            </tr>
+          </thead>
+          <tbody id="logTable" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
   <script>
@@ -88,6 +134,11 @@
     var txnBy = document.getElementById('txnBy');
     var txnProcess = document.getElementById('txnProcess');
     var txnMessage = document.getElementById('txnMessage');
+    var stockPage = document.getElementById('stockPage');
+    var logPage = document.getElementById('logPage');
+    var tabStock = document.getElementById('tabStock');
+    var tabLog = document.getElementById('tabLog');
+    var logTable = document.getElementById('logTable');
 
     function safeNum(value) {
       var parsed = Number(value);
@@ -179,6 +230,53 @@
       ].join('&');
 
       return loadViaJsonp(API_URL + '?' + query);
+    }
+
+
+    function renderLogTable(rows) {
+      if (!rows.length) {
+        logTable.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">ยังไม่มีประวัติการเบิก/คืน</td></tr>';
+        return;
+      }
+
+      logTable.innerHTML = rows.map(function(item) {
+        return '<tr>' +
+          '<td class="py-3 pr-4">' + (item.timestamp || '-') + '</td>' +
+          '<td class="py-3 pr-4">' + (item.type || '-') + '</td>' +
+          '<td class="py-3 pr-4">' + (item.partName || '-') + '</td>' +
+          '<td class="py-3 pr-4">' + (item.qty || 0) + ' ' + (item.unit || '') + '</td>' +
+          '<td class="py-3 pr-4">' + (item.stockBefore || 0) + '</td>' +
+          '<td class="py-3 pr-4">' + (item.stockAfter || 0) + '</td>' +
+          '<td class="py-3 pr-4">' + (item.by || '-') + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function loadLogData() {
+      logTable.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">กำลังโหลดประวัติ...</td></tr>';
+      loadViaJsonp(API_URL + '?action=logs')
+        .then(function(rawData) {
+          if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูล Log ไม่ถูกต้อง');
+          renderLogTable(rawData);
+        })
+        .catch(function(err) {
+          logTable.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-rose-500">' + err.message + '</td></tr>';
+        });
+    }
+
+    function switchToStockPage() {
+      stockPage.classList.remove('hidden');
+      logPage.classList.add('hidden');
+      tabStock.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      tabLog.className = 'px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+    }
+
+    function switchToLogPage() {
+      stockPage.classList.add('hidden');
+      logPage.classList.remove('hidden');
+      tabLog.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      tabStock.className = 'px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      loadLogData();
     }
 
     function loadPartsData() {
@@ -275,6 +373,7 @@
         txnMessage.textContent = 'บันทึกสำเร็จ: Stock ' + res.stockBefore + ' → ' + res.stockAfter;
         txnForm.reset();
         loadPartsData();
+        if (!logPage.classList.contains('hidden')) loadLogData();
       }).catch(function(err) {
         txnMessage.className = 'mt-3 text-sm text-rose-600';
         txnMessage.textContent = 'บันทึกไม่สำเร็จ: ' + err.message;
@@ -350,6 +449,8 @@
     categoryFilter.addEventListener('change', applyFilters);
     searchInput.addEventListener('input', applyFilters);
     txnForm.addEventListener('submit', submitTransaction);
+    tabStock.addEventListener('click', switchToStockPage);
+    tabLog.addEventListener('click', switchToLogPage);
 
     loadPartsData();
   </script>
