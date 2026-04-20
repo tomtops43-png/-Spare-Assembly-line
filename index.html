@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>H9 Spare Parts Portal</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
     body { font-family: 'Prompt', sans-serif; }
@@ -16,7 +16,6 @@
       <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <p class="text-xs text-blue-600 font-semibold tracking-wide uppercase">Spare parts for production line H9</p>
         <h1 class="text-2xl md:text-3xl font-bold mt-1">ระบบดูอะไหล่สำรอง (Stock H9)</h1>
-        <p class="text-slate-500 mt-2 text-sm md:text-base">ออกแบบจากโครงสร้างชีต: NO, Name/Descriptions, Model, Main line, Category, Brand, Stock, Qty max/min และ Need to PO</p>
         <p class="text-slate-500 mt-2 text-sm md:text-base">ดึงข้อมูลจาก Google Sheet (Apps Script) พร้อมคำนวณ Need to PO อัตโนมัติ</p>
       </div>
     </header>
@@ -54,123 +53,123 @@
   </div>
 
   <script>
-    const partsData = [
-      { no: 1, name: 'Ball Transfer Unit', model: 'Unknown Model', line: 'H9-Line 04', category: 'Mechanical', brand: 'Unknown Brand', stock: 0, max: 10, min: 5, needToPO: 5 },
-      { no: 2, name: 'หลอดไฟ BN058C 13W (1200mm)', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 10, min: 10, needToPO: 10 },
-      { no: 3, name: 'หลอดไฟ LEDtube 600mm 8W 765 T8', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 5, min: 2, needToPO: 2 },
-      { no: 8, name: 'Photoelectric sensors', model: 'PR-M51N3', line: 'H9-All', category: 'Electrical', brand: 'Keyence', stock: 0, max: 5, min: 2, needToPO: 2 },
-      { no: 9, name: 'Relay', model: 'RXM4AB2BD', line: 'H9-All', category: 'Electrical', brand: 'Schneider', stock: 0, max: 10, min: 5, needToPO: 5 },
-      { no: 17, name: 'Zebra Printhead', model: 'P1083320-016', line: 'H9-All', category: 'Electrical', brand: 'ZEBRA', stock: 0, max: 5, min: 3, needToPO: 3 },
-      { no: 22, name: 'Air Cylinder', model: 'MDBB40-150Z-M9P', line: 'H9-All', category: 'Pneumatic', brand: 'SMC', stock: 0, max: 5, min: 2, needToPO: 2 },
-      { no: 24, name: 'Bearing', model: '6202-ZZ', line: 'H9-All', category: 'Mechanical', brand: 'SKC', stock: 0, max: 30, min: 10, needToPO: 10 },
-      { no: 27, name: 'Photoelectric Switch', model: 'EE-SX672P', line: 'H9-All', category: 'Electrical', brand: 'OMRON', stock: 0, max: 20, min: 10, needToPO: 10 },
-      { no: 34, name: 'Spring Balancer', model: 'SS-030', line: 'H9-Line 05', category: 'Mechanical', brand: 'SUMO', stock: 0, max: 10, min: 5, needToPO: 5 },
-      { no: 43, name: 'Hub Switch', model: 'TL-SG1005P', line: 'H9-All', category: 'Electrical', brand: 'TP-Link', stock: 0, max: 0, min: 0, needToPO: 0 },
-      { no: 54, name: 'ไฟสี่เหลี่ยม', model: 'CA-DQW12M', line: 'H9-Line 04', category: 'Electrical', brand: 'Keyence', stock: 0, max: 2, min: 1, needToPO: 1 }
-    ];
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
+    var API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
 
-    const tableBody = document.getElementById('partsTable');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const searchInput = document.getElementById('searchInput');
+    var tableBody = document.getElementById('partsTable');
+    var categoryFilter = document.getElementById('categoryFilter');
+    var searchInput = document.getElementById('searchInput');
 
-    function populateCategoryOptions() {
-      const categories = [...new Set(partsData.map(item => item.category))].sort();
-    let partsData = [];
+    var partsData = [];
 
-    const safeNum = (value) => {
-      const parsed = Number(value);
+    function safeNum(value) {
+      var parsed = Number(value);
       return Number.isFinite(parsed) ? parsed : 0;
-    };
+    }
+
+    function firstDefined(values, fallbackValue) {
+      for (var i = 0; i < values.length; i += 1) {
+        var v = values[i];
+        if (v !== undefined && v !== null && v !== '') return v;
+      }
+      return fallbackValue;
+    }
 
     function normalizeRecord(item, index) {
-      const stock = safeNum(item.stock ?? item.qty);
-      const min = safeNum(item.min ?? item.qtyMin);
-      const max = safeNum(item.max ?? item.qtyMax);
-      const needToPO = item.needToPO != null ? safeNum(item.needToPO) : Math.max(min - stock, 0);
+      var stock = safeNum(firstDefined([item.stock, item.qty], 0));
+      var min = safeNum(firstDefined([item.min, item.qtyMin], 0));
+      var max = safeNum(firstDefined([item.max, item.qtyMax], 0));
+      var needToPO = safeNum(firstDefined([item.needToPO], Math.max(min - stock, 0)));
 
       return {
-        no: item.no ?? index + 1,
-        name: item.name ?? item.partName ?? '-',
-        model: item.model ?? '-',
-        line: item.line ?? item.mainLine ?? item.process ?? '-',
-        category: item.category ?? 'General',
-        brand: item.brand ?? '-',
-        stock,
-        min,
-        max,
-        needToPO,
+        no: firstDefined([item.no], index + 1),
+        name: firstDefined([item.name, item.partName], '-'),
+        model: firstDefined([item.model], '-'),
+        line: firstDefined([item.line, item.mainLine, item.process], '-'),
+        category: firstDefined([item.category], 'General'),
+        brand: firstDefined([item.brand], '-'),
+        stock: stock,
+        min: min,
+        max: max,
+        needToPO: needToPO
       };
     }
 
-
     function loadViaJsonp(url) {
-      return new Promise((resolve, reject) => {
-        const callbackName = `partsCallback_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-        const sep = url.includes('?') ? '&' : '?';
-        const script = document.createElement('script');
-        const timeoutMs = 10000;
+      return new Promise(function(resolve, reject) {
+        var callbackName = 'partsCallback_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        var sep = url.indexOf('?') > -1 ? '&' : '?';
+        var script = document.createElement('script');
+        var timeoutMs = 10000;
 
-        const cleanup = () => {
-          delete window[callbackName];
-          script.remove();
-          clearTimeout(timeoutId);
-        };
-
-        window[callbackName] = (payload) => {
-          cleanup();
-          resolve(payload);
-        };
-
-        script.onerror = () => {
-          cleanup();
-          reject(new Error('ไม่สามารถโหลดข้อมูล (JSONP) ได้'));
-        };
-
-        const timeoutId = setTimeout(() => {
+        var timeoutId = setTimeout(function() {
           cleanup();
           reject(new Error('โหลดข้อมูลเกินเวลาที่กำหนด (JSONP timeout)'));
         }, timeoutMs);
 
-        script.src = `${url}${sep}callback=${callbackName}&t=${Date.now()}`;
+        function cleanup() {
+          clearTimeout(timeoutId);
+          delete window[callbackName];
+          script.remove();
+        }
+
+        window[callbackName] = function(payload) {
+          cleanup();
+          resolve(payload);
+        };
+
+        script.onerror = function() {
+          cleanup();
+          reject(new Error('ไม่สามารถโหลดข้อมูล (JSONP) ได้'));
+        };
+
+        script.src = url + sep + 'callback=' + callbackName + '&t=' + Date.now();
         document.body.appendChild(script);
       });
     }
 
-    async function loadPartsData() {
+    function loadByFetch(url) {
+      return fetch(url + '?t=' + Date.now()).then(function(response) {
+        if (!response.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ (' + response.status + ')');
+        return response.json();
+      });
+    }
+
+    function loadPartsData() {
       tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
 
-      try {
-        let rawData;
+      loadByFetch(API_URL)
+        .catch(function() {
+          return loadViaJsonp(API_URL);
+        })
+        .then(function(rawData) {
+          if (rawData && rawData.status === 'error') {
+            throw new Error(rawData.message || 'API ตอบกลับ error');
+          }
+          if (!Array.isArray(rawData)) {
+            throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
+          }
 
-        try {
-          const response = await fetch(`${API_URL}?t=${Date.now()}`);
-          if (!response.ok) throw new Error(`โหลดข้อมูลไม่สำเร็จ (${response.status})`);
-          rawData = await response.json();
-        } catch (fetchError) {
-          rawData = await loadViaJsonp(API_URL);
-        }
+          partsData = rawData.map(function(item, index) {
+            return normalizeRecord(item, index);
+          }).filter(function(item) {
+            return item.name && item.name !== '-';
+          });
 
-        if (rawData && rawData.status === 'error') throw new Error(rawData.message || 'API ตอบกลับ error');
-        if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
-
-        partsData = rawData
-          .map(normalizeRecord)
-          .filter(item => item.name && item.name !== '-');
-
-        populateCategoryOptions(partsData);
-        applyFilters();
-      } catch (err) {
-        tableBody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-rose-500">${err.message}</td></tr>`;
-        document.getElementById('stat-cards').innerHTML = '';
-      }
+          populateCategoryOptions(partsData);
+          applyFilters();
+        })
+        .catch(function(err) {
+          tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-rose-500">' + err.message + '</td></tr>';
+          document.getElementById('stat-cards').innerHTML = '';
+        });
     }
 
     function populateCategoryOptions(data) {
       categoryFilter.innerHTML = '<option value="all">ทุกหมวดหมู่</option>';
-      const categories = [...new Set(data.map(item => item.category))].sort();
-      categories.forEach(cat => {
-        const option = document.createElement('option');
+      var categories = Array.from(new Set(data.map(function(item) { return item.category; }))).sort();
+
+      categories.forEach(function(cat) {
+        var option = document.createElement('option');
         option.value = cat;
         option.textContent = cat;
         categoryFilter.appendChild(option);
@@ -178,38 +177,52 @@
     }
 
     function renderStats(data) {
-      const total = data.length;
-      const needPO = data.filter(item => item.needToPO > 0).length;
-      const electrical = data.filter(item => item.category === 'Electrical').length;
-      const zeroStock = data.filter(item => item.stock === 0).length;
+      var total = data.length;
+      var needPO = data.filter(function(item) { return item.needToPO > 0; }).length;
+      var electrical = data.filter(function(item) { return item.category === 'Electrical'; }).length;
+      var zeroStock = data.filter(function(item) { return item.stock === 0; }).length;
 
-      document.getElementById('stat-cards').innerHTML = `
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">รายการทั้งหมด</p><p class="text-2xl font-bold">${total}</p></div>
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">ต้องสั่งซื้อ (Need PO)</p><p class="text-2xl font-bold text-amber-600">${needPO}</p></div>
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">หมวด Electrical</p><p class="text-2xl font-bold text-blue-600">${electrical}</p></div>
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">Stock = 0</p><p class="text-2xl font-bold text-rose-600">${zeroStock}</p></div>
-      `;
+      document.getElementById('stat-cards').innerHTML =
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">รายการทั้งหมด</p><p class="text-2xl font-bold">' + total + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">ต้องสั่งซื้อ (Need PO)</p><p class="text-2xl font-bold text-amber-600">' + needPO + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">หมวด Electrical</p><p class="text-2xl font-bold text-blue-600">' + electrical + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">Stock = 0</p><p class="text-2xl font-bold text-rose-600">' + zeroStock + '</p></div>';
     }
 
     function renderTable(data) {
       if (!data.length) {
         tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขค้นหา</td></tr>';
-@@ -120,31 +198,29 @@
-                ${item.needToPO > 0 ? item.needToPO : 'OK'}
-              </span>
-            </td>
-          </tr>
-        `;
+        return;
+      }
+
+      tableBody.innerHTML = data.map(function(item) {
+        var lowStock = item.stock <= item.min && item.min > 0;
+        return '<tr class="hover:bg-slate-50">' +
+          '<td class="py-3 pr-4 font-medium">' + item.no + '</td>' +
+          '<td class="py-3 pr-4">' + item.name + '</td>' +
+          '<td class="py-3 pr-4 text-slate-600">' + item.model + '</td>' +
+          '<td class="py-3 pr-4 text-slate-600">' + item.line + '</td>' +
+          '<td class="py-3 pr-4">' + item.category + '</td>' +
+          '<td class="py-3 pr-4">' + item.brand + '</td>' +
+          '<td class="py-3 pr-4 text-center font-semibold ' + (lowStock ? 'text-rose-600' : '') + '">' + item.stock + '</td>' +
+          '<td class="py-3 pr-4 text-center">' + item.min + '</td>' +
+          '<td class="py-3 pr-4 text-center">' + item.max + '</td>' +
+          '<td class="py-3 pr-4 text-center">' +
+            '<span class="px-2 py-1 rounded-full text-xs font-semibold ' + (item.needToPO > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700') + '">' +
+              (item.needToPO > 0 ? item.needToPO : 'OK') +
+            '</span>' +
+          '</td>' +
+        '</tr>';
       }).join('');
     }
 
     function applyFilters() {
-      const keyword = searchInput.value.trim().toLowerCase();
-      const category = categoryFilter.value;
+      var keyword = searchInput.value.trim().toLowerCase();
+      var category = categoryFilter.value;
 
-      const filtered = partsData.filter(item => {
-        const hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().includes(keyword);
-        const hitCategory = category === 'all' || item.category === category;
+      var filtered = partsData.filter(function(item) {
+        var hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().indexOf(keyword) > -1;
+        var hitCategory = category === 'all' || item.category === category;
         return hitSearch && hitCategory;
       });
 
@@ -220,9 +233,6 @@
     categoryFilter.addEventListener('change', applyFilters);
     searchInput.addEventListener('input', applyFilters);
 
-    populateCategoryOptions();
-    renderTable(partsData);
-    renderStats(partsData);
     loadPartsData();
   </script>
 </body>

@@ -1,21 +1,21 @@
 // =============================
 // CONFIG
 // =============================
-const SHEET_NAME = "Record";
+var SPARE_APP_CONFIG = this.SPARE_APP_CONFIG || {};
+SPARE_APP_CONFIG.sheetName = SPARE_APP_CONFIG.sheetName || 'Record';
 
 // =============================
 // GET (ดึงข้อมูล)
 // =============================
 function doGet(e) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-    if (!sheet) throw new Error("ไม่พบชีทชื่อ Record");
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.sheetName);
+    if (!sheet) throw new Error('ไม่พบชีทชื่อ Record');
 
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0];
-    const rows = data.slice(1);
+    var data = sheet.getDataRange().getValues();
+    var rows = data.slice(1);
 
-    const result = rows.map(row => {
+    var result = rows.map(function (row) {
       return {
         timestamp: row[0],
         type: row[1],
@@ -30,10 +30,9 @@ function doGet(e) {
       };
     });
 
-    return jsonOutput(result);
-
+    return respond(result, e);
   } catch (err) {
-    return jsonOutput({ status: "error", message: err.message });
+    return respond({ status: 'error', message: err.message }, e);
   }
 }
 
@@ -42,17 +41,17 @@ function doGet(e) {
 // =============================
 function doPost(e) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-    if (!sheet) throw new Error("ไม่พบชีทชื่อ Record");
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.sheetName);
+    if (!sheet) throw new Error('ไม่พบชีทชื่อ Record');
 
-    const body = JSON.parse(e.postData.contents);
+    var body = JSON.parse(e.postData.contents);
 
     if (!body.partName || !body.qty) {
-      throw new Error("ต้องมี partName และ qty");
+      throw new Error('ต้องมี partName และ qty');
     }
 
-    let qty = Number(body.qty);
-    if (body.type && body.type.includes("Output")) {
+    var qty = Number(body.qty);
+    if (body.type && String(body.type).indexOf('Output') > -1) {
       qty = -Math.abs(qty);
     } else {
       qty = Math.abs(qty);
@@ -60,39 +59,36 @@ function doPost(e) {
 
     sheet.appendRow([
       new Date(),
-      body.type || "Input",
-      body.process || "-",
-      body.category || "General",
+      body.type || 'Input',
+      body.process || '-',
+      body.category || 'General',
       body.partName,
-      body.model || "-",
-      body.brand || "-",
+      body.model || '-',
+      body.brand || '-',
       qty,
-      body.unit || "PCS",
-      body.by || "Unknown"
+      body.unit || 'PCS',
+      body.by || 'Unknown'
     ]);
 
-    return jsonOutput({ status: "success" });
-
+    return respond({ status: 'success' }, e);
   } catch (err) {
-    return jsonOutput({ status: "error", message: err.message });
+    return respond({ status: 'error', message: err.message }, e);
   }
 }
 
 // =============================
-// OPTIONS (แก้ CORS preflight)
+// RESPONSE HELPERS
 // =============================
-function doOptions() {
-  return jsonOutput({});
-}
+function respond(data, e) {
+  var callback = e && e.parameter ? e.parameter.callback : null;
 
-// =============================
-// JSON RESPONSE + CORS FIX
-// =============================
-function jsonOutput(data) {
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(data) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
   return ContentService
     .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader("Access-Control-Allow-Origin", "*")
-    .setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    .setHeader("Access-Control-Allow-Headers", "Content-Type");
+    .setMimeType(ContentService.MimeType.JSON);
 }
