@@ -1,14 +1,15 @@
 // =============================
 // CONFIG
 // =============================
-var SHEET_NAME = 'Record';
+var SPARE_APP_CONFIG = this.SPARE_APP_CONFIG || {};
+SPARE_APP_CONFIG.sheetName = SPARE_APP_CONFIG.sheetName || 'Record';
 
 // =============================
 // GET (ดึงข้อมูล)
 // =============================
 function doGet(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.sheetName);
     if (!sheet) throw new Error('ไม่พบชีทชื่อ Record');
 
     var data = sheet.getDataRange().getValues();
@@ -40,7 +41,7 @@ function doGet(e) {
 // =============================
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.sheetName);
     if (!sheet) throw new Error('ไม่พบชีทชื่อ Record');
 
     var body = JSON.parse(e.postData.contents);
