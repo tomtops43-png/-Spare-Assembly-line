@@ -39,9 +39,7 @@
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
-          <select id="sheetSelector" class="ml-auto rounded-lg border border-slate-300 px-3 py-2 bg-white text-sm" disabled>
-            <option value="Main List Stock">Main List Stock</option>
-          </select>
+          <div id="sheetSelectorLabel" class="ml-auto rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">H9 Only</div>
         </div>
 
     <section id="stockPage" class="space-y-6 eng-gridline p-2 rounded-2xl">
@@ -205,7 +203,6 @@
     var lineMenuClose = document.getElementById('lineMenuClose');
     var lineMenuBackdrop = document.getElementById('lineMenuBackdrop');
     var lineMenuPanel = document.getElementById('lineMenuPanel');
-    var sheetSelector = document.getElementById('sheetSelector');
     var txnPage = document.getElementById('txnPage');
     var managePage = document.getElementById('managePage');
     var logTable = document.getElementById('logTable');
@@ -218,10 +215,7 @@
     var editModalSubtitle = document.getElementById('editModalSubtitle');
     var currentLine = 'H9';
     var lineConfig = [
-      { key: 'H9', color: '#2563eb' },
-      { key: 'Arc Chute', color: '#9333ea' },
-      { key: 'Coil Winding', color: '#0891b2' },
-      { key: 'Lug&Screw', color: '#ea580c' }
+      { key: 'H9', color: '#2563eb' }
     ];
     var isLineMenuVisible = false;
 
@@ -965,11 +959,6 @@
     editForm.addEventListener('submit', submitEditModal);
     bindPhotoFileInput('mPhotoFile', 'mPhoto');
     bindPhotoFileInput('ePhotoFile', 'ePhoto');
-    sheetSelector.addEventListener('change', function() {
-      loadPartsData();
-      if (!logPage.classList.contains('hidden')) loadLogData();
-    });
-
     applyEngineerJssTheme();
     renderLineTabs();
     applyLineTheme();
