@@ -12,8 +12,8 @@
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800">
-  <button id="lineMenuDockToggle" class="fixed left-3 top-24 z-40 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-    เปิด Line Menu
+  <button id="lineMenuDockToggle" class="fixed left-3 top-24 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-semibold text-slate-700 shadow-sm" aria-label="เปิด Line Menu" title="เปิด Line Menu">
+    ☰
   </button>
   <div id="lineMenuBackdrop" class="fixed inset-0 z-30 hidden bg-slate-900 bg-opacity-30"></div>
   <aside id="lineMenuPanel" class="fixed left-0 top-0 z-40 h-full w-72 -translate-x-full transform overflow-y-auto border-r border-slate-200 bg-white p-4 panel-shadow transition-transform duration-200">
@@ -375,11 +375,15 @@
       if (isLineMenuVisible) {
         lineMenuPanel.classList.remove('-translate-x-full');
         lineMenuBackdrop.classList.remove('hidden');
-        lineMenuDockToggle.textContent = 'ซ่อน Line Menu';
+        lineMenuDockToggle.textContent = '✕';
+        lineMenuDockToggle.setAttribute('aria-label', 'ซ่อน Line Menu');
+        lineMenuDockToggle.setAttribute('title', 'ซ่อน Line Menu');
       } else {
         lineMenuPanel.classList.add('-translate-x-full');
         lineMenuBackdrop.classList.add('hidden');
-        lineMenuDockToggle.textContent = 'เปิด Line Menu';
+        lineMenuDockToggle.textContent = '☰';
+        lineMenuDockToggle.setAttribute('aria-label', 'เปิด Line Menu');
+        lineMenuDockToggle.setAttribute('title', 'เปิด Line Menu');
       }
     }
 
