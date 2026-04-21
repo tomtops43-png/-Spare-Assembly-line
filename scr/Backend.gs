@@ -245,6 +245,23 @@ function getMainSheetContext(sheetName) {
   };
 }
 
+function ensureColumnInContext(ctx, headerLabel, aliases) {
+  var aliasList = aliases || [normalizeHeaderName(headerLabel)];
+  for (var i = 0; i < aliasList.length; i += 1) {
+    if (ctx.map[aliasList[i]] !== undefined) return ctx.map[aliasList[i]];
+  }
+
+  var newColIndex = ctx.headers.length;
+  ctx.sheet.getRange(ctx.headerRowIndex + 1, newColIndex + 1).setValue(headerLabel);
+  ctx.headers.push(headerLabel);
+  ctx.map = buildHeaderIndexMap(ctx.headers);
+  ctx.rows = ctx.rows.map(function(row) {
+    row.push('');
+    return row;
+  });
+  return newColIndex;
+}
+
 function upsertMainItem(payload) {
   var sheetName = resolveReadSheetName({ sheet: payload.sheetName });
   var ctx = getMainSheetContext(sheetName);
@@ -272,6 +289,10 @@ function upsertMainItem(payload) {
     unit: findCol(['unit']),
     stock: findCol(['stockqty', 'qtystock', 'stock', 'initialstock'])
   };
+
+  if (fieldCols.brand === undefined) {
+    fieldCols.brand = ensureColumnInContext(ctx, 'Brand', ['brand']);
+  }
 
   if (fieldCols.no === undefined) throw new Error('ไม่พบคอลัมน์ NO');
 
