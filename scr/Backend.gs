@@ -266,6 +266,7 @@ function upsertMainItem(payload) {
     line: findCol(['mainline', 'line']),
     category: findCol(['category']),
     brand: findCol(['brand']),
+    photo: findCol(['sparepartsphotos', 'photo', 'image', 'imageurl', 'picture']),
     max: findCol(['max', 'qtymax']),
     min: findCol(['min', 'qtymin']),
     unit: findCol(['unit']),
@@ -289,6 +290,7 @@ function upsertMainItem(payload) {
     line: payload.line || '',
     category: payload.category || '',
     brand: payload.brand || '',
+    photo: payload.photo || '',
     max: payload.max || '',
     min: payload.min || '',
     unit: payload.unit || '',
@@ -349,6 +351,7 @@ function doGet(e) {
       line: e.parameter.line,
       category: e.parameter.category,
       brand: e.parameter.brand,
+      photo: e.parameter.photo,
       max: e.parameter.max,
       min: e.parameter.min,
       unit: e.parameter.unit,
@@ -382,7 +385,7 @@ function doGet(e) {
         needToPO: pickRowValue(row, map, ['needtopo', 'needpo'], 0),
         unit: pickRowValue(row, map, ['unit'], 'PCS'),
         remark: pickRowValue(row, map, ['remark'], ''),
-        photo: pickRowValue(row, map, ['sparepartsphotos', 'photo'], '')
+        photo: pickRowValue(row, map, ['sparepartsphotos', 'photo', 'image', 'imageurl', 'picture'], '')
       };
     }).filter(function (item) {
       return item.name && item.name !== '-';

@@ -109,6 +109,7 @@
         <input id="mLine" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Main line" />
         <input id="mCategory" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Category" />
         <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
+        <input id="mPhoto" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Photo URL" />
         <input id="mMax" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Max" />
         <input id="mMin" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Min" />
         <input id="mUnit" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Unit" />
@@ -157,6 +158,7 @@
         <div><label class="text-xs text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Photo URL</label><input id="ePhoto" type="url" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Unit</label><input id="eUnit" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
@@ -297,7 +299,8 @@
         stock: stock,
         min: min,
         max: max,
-        needToPO: needToPO
+        needToPO: needToPO,
+        photo: firstDefined([item.photo, item.image, item.imageUrl], '')
       };
     }
 
@@ -401,6 +404,7 @@
         'line=' + encodeURIComponent(payload.line || ''),
         'category=' + encodeURIComponent(payload.category || ''),
         'brand=' + encodeURIComponent(payload.brand || ''),
+        'photo=' + encodeURIComponent(payload.photo || ''),
         'max=' + encodeURIComponent(payload.max || ''),
         'min=' + encodeURIComponent(payload.min || ''),
         'unit=' + encodeURIComponent(payload.unit || ''),
@@ -615,6 +619,7 @@
       document.getElementById('eLine').value = item.line || '';
       document.getElementById('eCategory').value = item.category || '';
       document.getElementById('eBrand').value = item.brand || '';
+      document.getElementById('ePhoto').value = item.photo || '';
       document.getElementById('eMax').value = item.max || '';
       document.getElementById('eMin').value = item.min || '';
       document.getElementById('eUnit').value = item.unit || '';
@@ -640,6 +645,7 @@
         line: document.getElementById('eLine').value.trim(),
         category: document.getElementById('eCategory').value.trim(),
         brand: document.getElementById('eBrand').value.trim(),
+        photo: document.getElementById('ePhoto').value.trim(),
         max: document.getElementById('eMax').value.trim(),
         min: document.getElementById('eMin').value.trim(),
         unit: document.getElementById('eUnit').value.trim(),
@@ -683,6 +689,7 @@
         line: document.getElementById('mLine').value.trim(),
         category: document.getElementById('mCategory').value.trim(),
         brand: document.getElementById('mBrand').value.trim(),
+        photo: document.getElementById('mPhoto').value.trim(),
         max: document.getElementById('mMax').value.trim(),
         min: document.getElementById('mMin').value.trim(),
         unit: document.getElementById('mUnit').value.trim(),
@@ -757,7 +764,12 @@
         var lowStock = item.stock <= item.min && item.min > 0;
         return '<tr class="hover:bg-slate-50">' +
           '<td class="py-3 pr-4 font-medium">' + item.no + '</td>' +
-          '<td class="py-3 pr-4">' + item.name + '</td>' +
+          '<td class="py-3 pr-4">' +
+            '<div class="flex items-center gap-3">' +
+              (item.photo ? '<a href="' + item.photo + '" target="_blank" rel="noopener"><img src="' + item.photo + '" alt="part image" class="h-10 w-10 rounded-md border border-slate-200 object-cover" /></a>' : '<div class="h-10 w-10 rounded-md border border-slate-200 bg-slate-100"></div>') +
+              '<span>' + item.name + '</span>' +
+            '</div>' +
+          '</td>' +
           '<td class="py-3 pr-4 text-slate-600">' + item.model + '</td>' +
           '<td class="py-3 pr-4 text-slate-600">' + item.line + '</td>' +
           '<td class="py-3 pr-4">' + item.category + '</td>' +
