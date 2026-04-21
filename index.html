@@ -22,12 +22,12 @@
     </header>
 
     <div class="flex gap-2 mb-4">
-      <button id="tabStock" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
-      <button id="tabTxn" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
-      <button id="tabLog" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
+      <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
+      <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
+      <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
     </div>
 
-    <section id="stockPage" class="space-y-6">
+    <section id="stockPage" class="space-y-6 eng-gridline p-2 rounded-2xl">
       <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
 
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
@@ -60,7 +60,7 @@
       </section>
     </section>
 
-    <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow p-4 md:p-6 mb-6">
+    <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
       <div class="mb-4 flex items-center justify-between">
         <h2 class="text-xl font-bold">⚙️ เบิก / รับ อะไหล่</h2>
         <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">Engineer Mode</span>
@@ -76,33 +76,12 @@
         <input id="txnQty" type="number" min="1" step="1" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="จำนวน" required />
         <input id="txnBy" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ผู้เบิก/ผู้รับ" required />
         <input id="txnProcess" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ไลน์/งาน" />
-        <button type="submit" class="md:col-span-6 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
+        <button type="submit" class="md:col-span-6 eng-primary-btn rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
       </form>
       <p id="txnMessage" class="mt-3 text-sm"></p>
     </section>
 
-    <section id="logPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow p-4 md:p-6">
-      <h2 class="text-lg font-semibold mb-3">ประวัติการเบิก / คืน (Log)</h2>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-slate-500 border-b border-slate-200">
-              <th class="py-3 pr-4">เวลา</th>
-              <th class="py-3 pr-4">ประเภท</th>
-              <th class="py-3 pr-4">อะไหล่</th>
-              <th class="py-3 pr-4">จำนวน</th>
-              <th class="py-3 pr-4">ก่อน</th>
-              <th class="py-3 pr-4">หลัง</th>
-              <th class="py-3 pr-4">ผู้ทำรายการ</th>
-            </tr>
-          </thead>
-          <tbody id="logTable" class="divide-y divide-slate-100"></tbody>
-        </table>
-      </div>
-    </section>
-    </section>
-
-    <section id="logPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
+    <section id="logPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6">
       <h2 class="text-lg font-semibold mb-3">ประวัติการเบิก / คืน (Log)</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -147,6 +126,53 @@
     var tabLog = document.getElementById('tabLog');
     var txnPage = document.getElementById('txnPage');
     var logTable = document.getElementById('logTable');
+
+
+    function applyEngineerJssTheme() {
+      var jss = {
+        'body': {
+          background: 'radial-gradient(circle at top right, #dbeafe 0%, #f1f5f9 45%, #e2e8f0 100%)',
+          color: '#0f172a'
+        },
+        '.eng-tab': {
+          transition: 'all .2s ease',
+          letterSpacing: '.2px'
+        },
+        '.eng-tab:hover': {
+          transform: 'translateY(-1px)',
+          boxShadow: '0 6px 14px rgba(30,64,175,.15)'
+        },
+        '.panel-shadow': {
+          border: '1px solid rgba(148,163,184,.35)',
+          boxShadow: '0 12px 24px rgba(15,23,42,.08)'
+        },
+        '.eng-primary-btn': {
+          background: 'linear-gradient(90deg,#1d4ed8 0%,#2563eb 45%,#1e40af 100%)',
+          boxShadow: '0 8px 16px rgba(37,99,235,.25)'
+        },
+        '.eng-primary-btn:hover': {
+          filter: 'brightness(1.05)'
+        },
+        '.eng-gridline': {
+          backgroundImage: 'linear-gradient(to right, rgba(148,163,184,.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,.12) 1px, transparent 1px)',
+          backgroundSize: '16px 16px'
+        }
+      };
+
+      var css = '';
+      for (var selector in jss) {
+        css += selector + '{';
+        var rules = jss[selector];
+        for (var key in rules) {
+          css += key + ':' + rules[key] + ';';
+        }
+        css += '}';
+      }
+
+      var styleEl = document.createElement('style');
+      styleEl.textContent = css;
+      document.head.appendChild(styleEl);
+    }
 
     function safeNum(value) {
       var parsed = Number(value);
@@ -423,10 +449,10 @@
       var zeroStock = data.filter(function(item) { return item.stock === 0; }).length;
 
       document.getElementById('stat-cards').innerHTML =
-        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">รายการทั้งหมด</p><p class="text-2xl font-bold">' + total + '</p></div>' +
-        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">ต้องสั่งซื้อ (Need PO)</p><p class="text-2xl font-bold text-amber-600">' + needPO + '</p></div>' +
-        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">หมวด Electrical</p><p class="text-2xl font-bold text-blue-600">' + electrical + '</p></div>' +
-        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">Stock = 0</p><p class="text-2xl font-bold text-rose-600">' + zeroStock + '</p></div>';
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"><p class="text-xs text-slate-500">รายการทั้งหมด</p><p class="text-2xl font-bold">' + total + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"><p class="text-xs text-slate-500">ต้องสั่งซื้อ (Need PO)</p><p class="text-2xl font-bold text-amber-600">' + needPO + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"><p class="text-xs text-slate-500">หมวด Electrical</p><p class="text-2xl font-bold text-blue-600">' + electrical + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"><p class="text-xs text-slate-500">Stock = 0</p><p class="text-2xl font-bold text-rose-600">' + zeroStock + '</p></div>';
     }
 
     function renderTable(data) {
@@ -477,6 +503,7 @@
     tabTxn.addEventListener('click', switchToTxnPage);
     tabLog.addEventListener('click', switchToLogPage);
 
+    applyEngineerJssTheme();
     switchToStockPage();
     loadPartsData();
   </script>
