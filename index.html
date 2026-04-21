@@ -370,6 +370,17 @@
       });
     }
 
+    function postJson(payload) {
+      return fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function(response) {
+        if (!response.ok) throw new Error('ส่งข้อมูลไม่สำเร็จ (' + response.status + ')');
+        return response.json();
+      });
+    }
+
 
 
 
@@ -421,21 +432,44 @@
     }
 
     function callManageAction(action, payload) {
+      var requestPayload = {
+        action: action,
+        sheet: getCurrentSheetName(),
+        no: payload.no || '',
+        name: payload.name || '',
+        model: payload.model || '',
+        line: payload.line || '',
+        category: payload.category || '',
+        brand: payload.brand || '',
+        photo: payload.photo || '',
+        max: payload.max || '',
+        min: payload.min || '',
+        unit: payload.unit || '',
+        stock: payload.stock || ''
+      };
+
+      var photoSize = String(requestPayload.photo || '').length;
+      var shouldUsePost = photoSize > 1200;
+      if (shouldUsePost) {
+        return postJson(requestPayload);
+      }
+
       var query = [
-        'action=' + encodeURIComponent(action),
-        'sheet=' + encodeURIComponent(getCurrentSheetName()),
-        'no=' + encodeURIComponent(payload.no || ''),
-        'name=' + encodeURIComponent(payload.name || ''),
-        'model=' + encodeURIComponent(payload.model || ''),
-        'line=' + encodeURIComponent(payload.line || ''),
-        'category=' + encodeURIComponent(payload.category || ''),
-        'brand=' + encodeURIComponent(payload.brand || ''),
-        'photo=' + encodeURIComponent(payload.photo || ''),
-        'max=' + encodeURIComponent(payload.max || ''),
-        'min=' + encodeURIComponent(payload.min || ''),
-        'unit=' + encodeURIComponent(payload.unit || ''),
-        'stock=' + encodeURIComponent(payload.stock || '')
+        'action=' + encodeURIComponent(requestPayload.action),
+        'sheet=' + encodeURIComponent(requestPayload.sheet),
+        'no=' + encodeURIComponent(requestPayload.no),
+        'name=' + encodeURIComponent(requestPayload.name),
+        'model=' + encodeURIComponent(requestPayload.model),
+        'line=' + encodeURIComponent(requestPayload.line),
+        'category=' + encodeURIComponent(requestPayload.category),
+        'brand=' + encodeURIComponent(requestPayload.brand),
+        'photo=' + encodeURIComponent(requestPayload.photo),
+        'max=' + encodeURIComponent(requestPayload.max),
+        'min=' + encodeURIComponent(requestPayload.min),
+        'unit=' + encodeURIComponent(requestPayload.unit),
+        'stock=' + encodeURIComponent(requestPayload.stock)
       ].join('&');
+
       return loadViaJsonp(API_URL + '?' + query);
     }
 

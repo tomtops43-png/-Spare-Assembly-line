@@ -403,6 +403,29 @@ function doGet(e) {
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
+    var action = body && body.action ? String(body.action) : '';
+    if (action === 'upsertItem') {
+      return respond(upsertMainItem({
+        sheetName: body.sheet || body.sheetName,
+        no: body.no,
+        name: body.name,
+        model: body.model,
+        line: body.line,
+        category: body.category,
+        brand: body.brand,
+        photo: body.photo,
+        max: body.max,
+        min: body.min,
+        unit: body.unit,
+        stock: body.stock
+      }), e);
+    }
+    if (action === 'deleteItem') {
+      return respond(deleteMainItem({
+        sheetName: body.sheet || body.sheetName,
+        no: body.no
+      }), e);
+    }
     return respond(processTransaction(body), e);
   } catch (err) {
     return respond({ status: 'error', message: err.message }, e);
