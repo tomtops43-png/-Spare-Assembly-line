@@ -75,6 +75,7 @@
             <tbody id="partsTable" class="divide-y divide-slate-100"></tbody>
           </table>
         </div>
+        <div id="paginationControls" class="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm"></div>
       </section>
     </section>
 
@@ -174,11 +175,14 @@
     var API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
 
     var tableBody = document.getElementById('partsTable');
+    var paginationControls = document.getElementById('paginationControls');
     var categoryFilter = document.getElementById('categoryFilter');
     var searchInput = document.getElementById('searchInput');
 
     var partsData = [];
     var partMap = {};
+    var currentPage = 1;
+    var pageSize = 15;
 
     var txnForm = document.getElementById('txnForm');
     var partSelect = document.getElementById('partSelect');
@@ -791,7 +795,53 @@
       });
     }
 
-    function applyFilters() {
+    function renderPagination(totalItems) {
+      var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      if (totalItems <= pageSize) {
+        paginationControls.innerHTML = '';
+        return;
+      }
+
+      var pageButtons = [];
+      for (var page = 1; page <= totalPages; page++) {
+        pageButtons.push(
+          '<button data-page="' + page + '" class="rounded border px-2 py-1 ' +
+          (page === currentPage ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white text-slate-700') +
+          '">' + page + '</button>'
+        );
+      }
+
+      paginationControls.innerHTML =
+        '<p class="text-slate-500">แสดงหน้า ' + currentPage + ' / ' + totalPages + ' (สูงสุด 15 รายการต่อหน้า)</p>' +
+        '<div class="flex flex-wrap gap-2">' +
+          '<button data-page="' + (currentPage - 1) + '" class="rounded border border-slate-300 bg-white px-3 py-1 text-slate-700" ' + (currentPage === 1 ? 'disabled' : '') + '>ก่อนหน้า</button>' +
+          pageButtons.join('') +
+          '<button data-page="' + (currentPage + 1) + '" class="rounded border border-slate-300 bg-white px-3 py-1 text-slate-700" ' + (currentPage === totalPages ? 'disabled' : '') + '>ถัดไป</button>' +
+        '</div>';
+
+      Array.prototype.slice.call(paginationControls.querySelectorAll('[data-page]')).forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var targetPage = Number(btn.getAttribute('data-page') || 1);
+          if (!Number.isFinite(targetPage)) return;
+          if (targetPage < 1 || targetPage > totalPages || targetPage === currentPage) return;
+          currentPage = targetPage;
+          applyFilters(false);
+        });
+      });
+    }
+
+    function renderFilteredResults(filtered) {
+      var start = (currentPage - 1) * pageSize;
+      var paged = filtered.slice(start, start + pageSize);
+      renderTable(paged);
+      renderPagination(filtered.length);
+      renderStats(filtered);
+    }
+
+    function applyFilters(resetPage) {
+      if (typeof resetPage === 'undefined') resetPage = true;
       var keyword = searchInput.value.trim().toLowerCase();
       var category = categoryFilter.value;
 
@@ -803,8 +853,8 @@
         return hitSearch && hitCategory && hitLine;
       });
 
-      renderTable(filtered);
-      renderStats(filtered);
+      if (resetPage) currentPage = 1;
+      renderFilteredResults(filtered);
     }
 
     categoryFilter.addEventListener('change', applyFilters);
