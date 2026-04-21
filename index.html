@@ -177,7 +177,9 @@
 
 
   <script>
-    var API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
+    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
+    var API_URL = localStorage.getItem('spare_api_url') || DEFAULT_API_URL;
+    var ACTIVE_API_URL = API_URL;
 
     var tableBody = document.getElementById('partsTable');
     var paginationControls = document.getElementById('paginationControls');
@@ -371,8 +373,29 @@
       });
     }
 
+    function getApiCandidates() {
+      var candidates = [API_URL];
+      if (API_URL.indexOf('/exec') > -1) candidates.push(API_URL.replace('/exec', '/dev'));
+      if (API_URL.indexOf('/dev') > -1) candidates.push(API_URL.replace('/dev', '/exec'));
+      return Array.from(new Set(candidates.filter(Boolean)));
+    }
+
+    function loadJsonpWithFallback(queryBuilder) {
+      var candidates = getApiCandidates();
+      var idx = 0;
+      function runNext(lastErr) {
+        if (idx >= candidates.length) throw lastErr || new Error('โหลดข้อมูล API ไม่สำเร็จ');
+        var base = candidates[idx++];
+        return loadViaJsonp(queryBuilder(base)).then(function(res) {
+          ACTIVE_API_URL = base;
+          return res;
+        }).catch(runNext);
+      }
+      return runNext();
+    }
+
     function postJsonNoCors(payload) {
-      return fetch(API_URL, {
+      return fetch(ACTIVE_API_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -471,7 +494,7 @@
         'stock=' + encodeURIComponent(requestPayload.stock)
       ].join('&');
 
-      return loadViaJsonp(API_URL + '?' + query);
+      return loadJsonpWithFallback(function(base){ return base + '?' + query; });
     }
 
     function callTransactionViaJsonp(payload) {
@@ -490,7 +513,7 @@
         'by=' + encodeURIComponent(payload.by || '')
       ].join('&');
 
-      return loadViaJsonp(API_URL + '?' + query);
+      return loadJsonpWithFallback(function(base){ return base + '?' + query; });
     }
 
 
@@ -515,7 +538,7 @@
 
     function loadLogData() {
       logTable.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">กำลังโหลดประวัติ...</td></tr>';
-      loadViaJsonp(API_URL + '?action=logs')
+      loadJsonpWithFallback(function(base){ return base + '?action=logs'; })
         .then(function(rawData) {
           if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูล Log ไม่ถูกต้อง');
           renderLogTable(rawData);
@@ -572,9 +595,9 @@
     function loadPartsData() {
       tableBody.innerHTML = '<tr><td colspan="11" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
 
-      loadViaJsonp(API_URL + "?sheet=" + encodeURIComponent(getCurrentSheetName()))
+      loadJsonpWithFallback(function(base){ return base + "?sheet=" + encodeURIComponent(getCurrentSheetName()); })
         .catch(function() {
-          return loadByFetch(API_URL);
+          return loadByFetch(ACTIVE_API_URL);
         })
         .then(function(rawData) {
           if (rawData && rawData.status === 'error') {
