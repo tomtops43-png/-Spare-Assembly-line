@@ -97,7 +97,8 @@ function parseTransactionPayloadFromGet(e) {
     brand: e.parameter.brand,
     qty: e.parameter.qty,
     unit: e.parameter.unit,
-    by: e.parameter.by
+    by: e.parameter.by,
+    sheetName: e.parameter.sheet
   };
 }
 
@@ -132,10 +133,11 @@ function getLogRows() {
 function processTransaction(payload) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
-  var mainSheet = spreadsheet.getSheetByName(SPARE_APP_CONFIG.readSheetName);
+  var resolvedSheetName = resolveReadSheetName({ sheet: payload.sheetName });
+  var mainSheet = spreadsheet.getSheetByName(resolvedSheetName);
 
   ensureLogSheetHeaders(historySheet);
-  if (!mainSheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.readSheetName);
+  if (!mainSheet) throw new Error('ไม่พบชีทชื่อ ' + resolvedSheetName);
   if (!payload.partName || !payload.qty) throw new Error('ต้องมี partName และ qty');
 
   var qty = Number(payload.qty);
@@ -214,6 +216,123 @@ function processTransaction(payload) {
   };
 }
 
+
+function resolveReadSheetName(source) {
+  var candidate = source && source.sheet ? String(source.sheet).trim() : '';
+  return candidate || SPARE_APP_CONFIG.readSheetName;
+}
+
+function getMainSheetContext(sheetName) {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + sheetName);
+
+  var data = sheet.getDataRange().getValues();
+  if (!data.length) throw new Error('ไม่พบข้อมูลในชีท ' + sheetName);
+
+  var headerRowIndex = findHeaderRowIndex(data);
+  var headers = data[headerRowIndex];
+  var rows = data.slice(headerRowIndex + 1);
+  var map = buildHeaderIndexMap(headers);
+
+  return {
+    sheet: sheet,
+    data: data,
+    headerRowIndex: headerRowIndex,
+    headers: headers,
+    rows: rows,
+    map: map
+  };
+}
+
+function upsertMainItem(payload) {
+  var sheetName = resolveReadSheetName({ sheet: payload.sheetName });
+  var ctx = getMainSheetContext(sheetName);
+  var map = ctx.map;
+  var noValue = String(payload.no || '').trim();
+  if (!noValue) throw new Error('ต้องมีรหัส NO');
+
+  function findCol(aliases) {
+    for (var i = 0; i < aliases.length; i += 1) {
+      if (map[aliases[i]] !== undefined) return map[aliases[i]];
+    }
+    return undefined;
+  }
+
+  var fieldCols = {
+    no: findCol(['no']),
+    name: findCol(['namedescriptions', 'name', 'description']),
+    model: findCol(['model']),
+    line: findCol(['mainline', 'line']),
+    category: findCol(['category']),
+    brand: findCol(['brand']),
+    max: findCol(['max', 'qtymax']),
+    min: findCol(['min', 'qtymin']),
+    unit: findCol(['unit']),
+    stock: findCol(['stockqty', 'stock', 'initialstock'])
+  };
+
+  if (fieldCols.no === undefined) throw new Error('ไม่พบคอลัมน์ NO');
+
+  var targetIndex = -1;
+  for (var i = 0; i < ctx.rows.length; i += 1) {
+    if (String(ctx.rows[i][fieldCols.no]) === noValue) {
+      targetIndex = i;
+      break;
+    }
+  }
+
+  var values = {
+    no: noValue,
+    name: payload.name || '',
+    model: payload.model || '',
+    line: payload.line || '',
+    category: payload.category || '',
+    brand: payload.brand || '',
+    max: payload.max || '',
+    min: payload.min || '',
+    unit: payload.unit || '',
+    stock: payload.stock || ''
+  };
+
+  if (targetIndex > -1) {
+    var sheetRow = ctx.headerRowIndex + 2 + targetIndex;
+    for (var key in fieldCols) {
+      if (fieldCols[key] !== undefined) {
+        ctx.sheet.getRange(sheetRow, fieldCols[key] + 1).setValue(values[key]);
+      }
+    }
+    return { status: 'success', mode: 'update', no: noValue };
+  }
+
+  var newRow = new Array(ctx.headers.length);
+  for (var x = 0; x < newRow.length; x += 1) newRow[x] = '';
+  for (var k in fieldCols) {
+    if (fieldCols[k] !== undefined) newRow[fieldCols[k]] = values[k];
+  }
+  ctx.sheet.appendRow(newRow);
+  return { status: 'success', mode: 'create', no: noValue };
+}
+
+function deleteMainItem(payload) {
+  var sheetName = resolveReadSheetName({ sheet: payload.sheetName });
+  var ctx = getMainSheetContext(sheetName);
+  var noCol = ctx.map.no;
+  var noValue = String(payload.no || '').trim();
+  if (!noValue) throw new Error('ต้องระบุ NO เพื่อการลบ');
+  if (noCol === undefined) throw new Error('ไม่พบคอลัมน์ NO');
+
+  for (var i = 0; i < ctx.rows.length; i += 1) {
+    if (String(ctx.rows[i][noCol]) === noValue) {
+      var rowNumber = ctx.headerRowIndex + 2 + i;
+      ctx.sheet.deleteRow(rowNumber);
+      return { status: 'success', mode: 'delete', no: noValue };
+    }
+  }
+
+  throw new Error('ไม่พบรายการ NO: ' + noValue);
+}
+
 // =============================
 // GET (stock + logs + JSONP transaction)
 // =============================
@@ -222,9 +341,24 @@ function doGet(e) {
     var action = e && e.parameter ? e.parameter.action : '';
     if (action === 'transact') return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
     if (action === 'logs') return respond(getLogRows(), e);
+    if (action === 'upsertItem') return respond(upsertMainItem({
+      sheetName: e.parameter.sheet,
+      no: e.parameter.no,
+      name: e.parameter.name,
+      model: e.parameter.model,
+      line: e.parameter.line,
+      category: e.parameter.category,
+      brand: e.parameter.brand,
+      max: e.parameter.max,
+      min: e.parameter.min,
+      unit: e.parameter.unit,
+      stock: e.parameter.stock
+    }), e);
+    if (action === 'deleteItem') return respond(deleteMainItem({ sheetName: e.parameter.sheet, no: e.parameter.no }), e);
 
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.readSheetName);
-    if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + SPARE_APP_CONFIG.readSheetName);
+    var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + sheetName);
 
     var data = sheet.getDataRange().getValues();
     if (!data.length) return respond([], e);
