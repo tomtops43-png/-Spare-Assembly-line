@@ -133,7 +133,7 @@
   <div id="editModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
     <div class="bg-white w-full max-w-3xl rounded-2xl p-5 shadow-xl">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold">แก้ไขรายการอะไหล่</h3>
+        <div><h3 class="text-lg font-bold">แก้ไขรายการอะไหล่ (Popup แก้ไข)</h3><p id="editModalSubtitle" class="text-xs text-slate-500 mt-1"></p></div>
         <button id="closeEditModal" class="text-slate-500">✕</button>
       </div>
       <form id="editForm" class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -190,6 +190,7 @@
     var editModal = document.getElementById('editModal');
     var editForm = document.getElementById('editForm');
     var editMessage = document.getElementById('editMessage');
+    var editModalSubtitle = document.getElementById('editModalSubtitle');
     var currentLine = 'H9';
     var lineConfig = [
       { key: 'H9', color: '#2563eb' },
@@ -532,6 +533,7 @@
         return;
       }
 
+      if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
       var payload = {
         partNo: selected.no,
         type: txnType.value,
@@ -578,6 +580,7 @@
       document.getElementById('eUnit').value = item.unit || '';
       document.getElementById('eStock').value = item.stock || '';
       editMessage.textContent = '';
+      editModalSubtitle.textContent = 'ชีต: ' + getCurrentSheetName() + ' | NO: ' + (item.no || '-');
       editModal.classList.remove('hidden');
       editModal.classList.add('flex');
     }
@@ -589,6 +592,7 @@
 
     function submitEditModal(event) {
       event.preventDefault();
+      if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
       var payload = {
         no: document.getElementById('eNo').value.trim(),
         name: document.getElementById('eName').value.trim(),
@@ -618,6 +622,7 @@
     function deleteEditModalItem() {
       var no = document.getElementById('eNo').value.trim();
       if (!no) return;
+      if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
       callManageAction('deleteItem', { no: no }).then(function(res){
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
         loadPartsData();
@@ -630,6 +635,7 @@
 
     function submitManageItem(event) {
       event.preventDefault();
+      if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
       var payload = {
         no: document.getElementById('mNo').value.trim(),
         name: document.getElementById('mName').value.trim(),
@@ -724,7 +730,10 @@
               (item.needToPO > 0 ? item.needToPO : 'OK') +
             '</span>' +
           '</td>' +
-          '<td class="py-3 pr-4 text-center"><button data-edit-no="' + item.no + '" class="text-blue-600 font-semibold">แก้ไข</button></td>' +
+          '<td class="py-3 pr-4 text-center">' +
+            '<button data-edit-no="' + item.no + '" class="text-blue-600 font-semibold mr-2" title="แก้ไข">✏️</button>' +
+            '<button data-delete-no="' + item.no + '" class="text-rose-600 font-semibold" title="ลบ">🗑️</button>' +
+          '</td>' +
         '</tr>';
       }).join('');
 
@@ -733,6 +742,19 @@
           var no = btn.getAttribute('data-edit-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (found) openEditModal(found);
+        });
+      });
+
+      Array.prototype.slice.call(tableBody.querySelectorAll('[data-delete-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var no = btn.getAttribute('data-delete-no');
+          if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
+          callManageAction('deleteItem', { no: no }).then(function(res){
+            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+            loadPartsData();
+          }).catch(function(err){
+            alert('ลบไม่สำเร็จ: ' + err.message);
+          });
         });
       });
     }
