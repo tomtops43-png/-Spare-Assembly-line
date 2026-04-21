@@ -370,14 +370,14 @@
       });
     }
 
-    function postJson(payload) {
+    function postJsonNoCors(payload) {
       return fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
-      }).then(function(response) {
-        if (!response.ok) throw new Error('ส่งข้อมูลไม่สำเร็จ (' + response.status + ')');
-        return response.json();
+      }).then(function() {
+        return { status: 'success', transport: 'no-cors' };
       });
     }
 
@@ -451,7 +451,7 @@
       var photoSize = String(requestPayload.photo || '').length;
       var shouldUsePost = photoSize > 1200;
       if (shouldUsePost) {
-        return postJson(requestPayload);
+        return postJsonNoCors(requestPayload);
       }
 
       var query = [
