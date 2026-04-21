@@ -388,9 +388,7 @@ function doGet(e) {
         photo: pickRowValue(row, map, ['sparepartsphotos', 'photo', 'image', 'imageurl', 'picture'], '')
       };
     }).filter(function (item) {
-      if (!item.name || item.name === '-') return false;
-      var lineText = String(item.line || '').toLowerCase();
-      return lineText.indexOf('h9') > -1 || lineText === '' || item.line === '-';
+      return item.name && item.name !== '-';
     });
 
     return respond(result, e);
