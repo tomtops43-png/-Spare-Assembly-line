@@ -4,78 +4,698 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>H9 Spare Parts Portal</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
-    body { font-family: 'Prompt', sans-serif; }
+    body { font-family: 'Prompt', sans-serif; background: linear-gradient(180deg,#f1f5f9 0%,#eef2ff 100%); }
+    .panel-shadow { box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08); }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800">
   <div class="max-w-7xl mx-auto px-4 py-8 md:px-8">
     <header class="mb-6">
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <p class="text-xs text-blue-600 font-semibold tracking-wide uppercase">Spare parts for production line H9</p>
-        <h1 class="text-2xl md:text-3xl font-bold mt-1">ระบบดูอะไหล่สำรอง (Stock H9)</h1>
-        <p class="text-slate-500 mt-2 text-sm md:text-base">ออกแบบจากโครงสร้างชีต: NO, Name/Descriptions, Model, Main line, Category, Brand, Stock, Qty max/min และ Need to PO</p>
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm panel-shadow">
+        <p class="text-xs text-blue-600 font-semibold tracking-wide uppercase">Current Line: H9</p>
+        <h1 class="text-2xl md:text-3xl font-bold mt-1">Spare parts for production Assembly line</h1>
       </div>
     </header>
 
-    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
+    <div class="grid grid-cols-[180px_1fr] gap-4 items-start">
+      <aside class="bg-white rounded-2xl border border-slate-200 panel-shadow p-3 h-fit">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Line Menu</p>
+        <div id="lineTabs" class="flex flex-col gap-2"></div>
+      </aside>
 
-    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
-      <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4">
-        <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full md:flex-1 rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
-        <select id="categoryFilter" class="w-full md:w-56 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
-          <option value="all">ทุกหมวดหมู่</option>
-        </select>
+      <div>
+        <div class="flex flex-wrap gap-2 mb-4 items-center">
+          <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
+          <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
+          <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
+          <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
+          <select id="sheetSelector" class="ml-auto rounded-lg border border-slate-300 px-3 py-2 bg-white text-sm" disabled>
+            <option value="Main List Stock">Main List Stock</option>
+          </select>
+        </div>
+
+    <section id="stockPage" class="space-y-6 eng-gridline p-2 rounded-2xl">
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
+
+      <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
+        <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4">
+          <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full md:flex-1 rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
+          <select id="categoryFilter" class="w-full md:w-56 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
+            <option value="all">ทุกหมวดหมู่</option>
+          </select>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-slate-500 border-b border-slate-200">
+                <th class="py-3 pr-4">#</th>
+                <th class="py-3 pr-4">Name / Description</th>
+                <th class="py-3 pr-4">Model</th>
+                <th class="py-3 pr-4">Line</th>
+                <th class="py-3 pr-4">Category</th>
+                <th class="py-3 pr-4">Brand</th>
+                <th class="py-3 pr-4 text-center">Stock</th>
+                <th class="py-3 pr-4 text-center">Min</th>
+                <th class="py-3 pr-4 text-center">Max</th>
+                <th class="py-3 pr-4 text-center">Need to PO</th>
+                <th class="py-3 pr-4 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="partsTable" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-bold">⚙️ เบิก / รับ อะไหล่</h2>
+        <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">Engineer Mode</span>
       </div>
+      <form id="txnForm" class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <select id="partSelect" class="md:col-span-2 rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือกอะไหล่</option>
+        </select>
+        <select id="txnType" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="Output">เบิกออก</option>
+          <option value="Input">รับเข้า/คืนเข้า</option>
+        </select>
+        <input id="txnQty" type="number" min="1" step="1" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="จำนวน" required />
+        <input id="txnBy" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ผู้เบิก/ผู้รับ" required />
+        <input id="txnProcess" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ไลน์/งาน" />
+        <button type="submit" class="md:col-span-6 eng-primary-btn rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
+      </form>
+      <p id="txnMessage" class="mt-3 text-sm"></p>
+    </section>
 
+    <section id="managePage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-3">จัดการรายการอะไหล่ (เพิ่ม/แก้ไข/ลบ)</h2>
+      <form id="manageForm" class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <input id="mNo" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="NO (เช่น ID-001)" required />
+        <input id="mName" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Name" required />
+        <input id="mModel" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Model" />
+        <input id="mLine" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Main line" />
+        <input id="mCategory" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Category" />
+        <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
+        <input id="mMax" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Max" />
+        <input id="mMin" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Min" />
+        <input id="mUnit" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Unit" />
+        <input id="mStock" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Stock" />
+        <div class="md:col-span-2 flex gap-2">
+          <button id="btnSaveItem" type="submit" class="eng-primary-btn flex-1 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold">บันทึก/อัปเดต</button>
+          <button id="btnDeleteItem" type="button" class="flex-1 rounded-xl bg-rose-600 text-white px-4 py-2.5 font-semibold">ลบ</button>
+        </div>
+      </form>
+      <p id="manageMessage" class="mt-3 text-sm"></p>
+    </section>
+
+    <section id="logPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6">
+      <h2 class="text-lg font-semibold mb-3">ประวัติการเบิก / คืน (Log)</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="text-left text-slate-500 border-b border-slate-200">
-              <th class="py-3 pr-4">#</th>
-              <th class="py-3 pr-4">Name / Description</th>
-              <th class="py-3 pr-4">Model</th>
-              <th class="py-3 pr-4">Line</th>
-              <th class="py-3 pr-4">Category</th>
-              <th class="py-3 pr-4">Brand</th>
-              <th class="py-3 pr-4 text-center">Stock</th>
-              <th class="py-3 pr-4 text-center">Min</th>
-              <th class="py-3 pr-4 text-center">Max</th>
-              <th class="py-3 pr-4 text-center">Need to PO</th>
+              <th class="py-3 pr-4">เวลา</th>
+              <th class="py-3 pr-4">ประเภท</th>
+              <th class="py-3 pr-4">อะไหล่</th>
+              <th class="py-3 pr-4">จำนวน</th>
+              <th class="py-3 pr-4">ก่อน</th>
+              <th class="py-3 pr-4">หลัง</th>
+              <th class="py-3 pr-4">ผู้ทำรายการ</th>
             </tr>
           </thead>
-          <tbody id="partsTable" class="divide-y divide-slate-100"></tbody>
+          <tbody id="logTable" class="divide-y divide-slate-100"></tbody>
         </table>
       </div>
     </section>
+      </div>
+    </div>
   </div>
 
+  <div id="editModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
+    <div class="bg-white w-full max-w-3xl rounded-2xl p-5 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <div><h3 class="text-lg font-bold">แก้ไขรายการอะไหล่</h3><p id="editModalSubtitle" class="text-xs text-slate-500 mt-1"></p></div>
+        <button id="closeEditModal" class="text-slate-500">✕</button>
+      </div>
+      <form id="editForm" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div><label class="text-xs text-slate-500">NO</label><input id="eNo" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
+        <div><label class="text-xs text-slate-500">Name / Description</label><input id="eName" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
+        <div><label class="text-xs text-slate-500">Model</label><input id="eModel" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Unit</label><input id="eUnit" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Qty / Stock</label><input id="eStock" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div class="md:col-span-3 flex gap-2">
+          <button type="submit" class="eng-primary-btn flex-1 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold">บันทึก</button>
+          <button id="deleteEditItem" type="button" class="flex-1 rounded-xl bg-rose-600 text-white px-4 py-2.5 font-semibold">ลบ</button>
+        </div>
+      </form>
+      <p id="editMessage" class="mt-3 text-sm"></p>
+    </div>
+  </div>
+
+
   <script>
-    const partsData = [
-      { no: 1, name: 'Ball Transfer Unit', model: 'Unknown Model', line: 'H9-Line 04', category: 'Mechanical', brand: 'Unknown Brand', stock: 0, max: 10, min: 5, needToPO: 5 },
-      { no: 2, name: 'หลอดไฟ BN058C 13W (1200mm)', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 10, min: 10, needToPO: 10 },
-      { no: 3, name: 'หลอดไฟ LEDtube 600mm 8W 765 T8', model: '-', line: 'H9-All', category: 'Electrical', brand: 'Philips', stock: 0, max: 5, min: 2, needToPO: 2 },
-      { no: 8, name: 'Photoelectric sensors', model: 'PR-M51N3', line: 'H9-All', category: 'Electrical', brand: 'Keyence', stock: 0, max: 5, min: 2, needToPO: 2 },
-      { no: 9, name: 'Relay', model: 'RXM4AB2BD', line: 'H9-All', category: 'Electrical', brand: 'Schneider', stock: 0, max: 10, min: 5, needToPO: 5 },
-      { no: 17, name: 'Zebra Printhead', model: 'P1083320-016', line: 'H9-All', category: 'Electrical', brand: 'ZEBRA', stock: 0, max: 5, min: 3, needToPO: 3 },
-      { no: 22, name: 'Air Cylinder', model: 'MDBB40-150Z-M9P', line: 'H9-All', category: 'Pneumatic', brand: 'SMC', stock: 0, max: 5, min: 2, needToPO: 2 },
-      { no: 24, name: 'Bearing', model: '6202-ZZ', line: 'H9-All', category: 'Mechanical', brand: 'SKC', stock: 0, max: 30, min: 10, needToPO: 10 },
-      { no: 27, name: 'Photoelectric Switch', model: 'EE-SX672P', line: 'H9-All', category: 'Electrical', brand: 'OMRON', stock: 0, max: 20, min: 10, needToPO: 10 },
-      { no: 34, name: 'Spring Balancer', model: 'SS-030', line: 'H9-Line 05', category: 'Mechanical', brand: 'SUMO', stock: 0, max: 10, min: 5, needToPO: 5 },
-      { no: 43, name: 'Hub Switch', model: 'TL-SG1005P', line: 'H9-All', category: 'Electrical', brand: 'TP-Link', stock: 0, max: 0, min: 0, needToPO: 0 },
-      { no: 54, name: 'ไฟสี่เหลี่ยม', model: 'CA-DQW12M', line: 'H9-Line 04', category: 'Electrical', brand: 'Keyence', stock: 0, max: 2, min: 1, needToPO: 1 }
+    var API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
+
+    var tableBody = document.getElementById('partsTable');
+    var categoryFilter = document.getElementById('categoryFilter');
+    var searchInput = document.getElementById('searchInput');
+
+    var partsData = [];
+    var partMap = {};
+
+    var txnForm = document.getElementById('txnForm');
+    var partSelect = document.getElementById('partSelect');
+    var txnType = document.getElementById('txnType');
+    var txnQty = document.getElementById('txnQty');
+    var txnBy = document.getElementById('txnBy');
+    var txnProcess = document.getElementById('txnProcess');
+    var txnMessage = document.getElementById('txnMessage');
+    var stockPage = document.getElementById('stockPage');
+    var logPage = document.getElementById('logPage');
+    var tabStock = document.getElementById('tabStock');
+    var tabTxn = document.getElementById('tabTxn');
+    var tabLog = document.getElementById('tabLog');
+    var tabManage = document.getElementById('tabManage');
+    var sheetSelector = document.getElementById('sheetSelector');
+    var txnPage = document.getElementById('txnPage');
+    var managePage = document.getElementById('managePage');
+    var logTable = document.getElementById('logTable');
+    var manageForm = document.getElementById('manageForm');
+    var manageMessage = document.getElementById('manageMessage');
+    var lineTabs = document.getElementById('lineTabs');
+    var editModal = document.getElementById('editModal');
+    var editForm = document.getElementById('editForm');
+    var editMessage = document.getElementById('editMessage');
+    var editModalSubtitle = document.getElementById('editModalSubtitle');
+    var currentLine = 'H9';
+    var lineConfig = [
+      { key: 'H9', color: '#2563eb' },
+      { key: 'Arc Chute', color: '#9333ea' },
+      { key: 'Coil Winding', color: '#0891b2' },
+      { key: 'Lug&Screw', color: '#ea580c' }
     ];
 
-    const tableBody = document.getElementById('partsTable');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const searchInput = document.getElementById('searchInput');
 
-    function populateCategoryOptions() {
-      const categories = [...new Set(partsData.map(item => item.category))].sort();
-      categories.forEach(cat => {
-        const option = document.createElement('option');
+    function applyEngineerJssTheme() {
+      var jss = {
+        'body': {
+          background: 'radial-gradient(circle at top right, #dbeafe 0%, #f1f5f9 45%, #e2e8f0 100%)',
+          color: '#0f172a'
+        },
+        '.eng-tab': {
+          transition: 'all .2s ease',
+          letterSpacing: '.2px'
+        },
+        '.eng-tab:hover': {
+          transform: 'translateY(-1px)',
+          boxShadow: '0 6px 14px rgba(30,64,175,.15)'
+        },
+        '.panel-shadow': {
+          border: '1px solid rgba(148,163,184,.35)',
+          boxShadow: '0 12px 24px rgba(15,23,42,.08)'
+        },
+        '.eng-primary-btn': {
+          background: 'linear-gradient(90deg,#1d4ed8 0%,#2563eb 45%,#1e40af 100%)',
+          boxShadow: '0 8px 16px rgba(37,99,235,.25)'
+        },
+        '.eng-primary-btn:hover': {
+          filter: 'brightness(1.05)'
+        },
+        '.eng-gridline': {
+          backgroundImage: 'linear-gradient(to right, rgba(148,163,184,.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,.12) 1px, transparent 1px)',
+          backgroundSize: '16px 16px'
+        }
+      };
+
+      var css = '';
+      for (var selector in jss) {
+        css += selector + '{';
+        var rules = jss[selector];
+        for (var key in rules) {
+          css += key + ':' + rules[key] + ';';
+        }
+        css += '}';
+      }
+
+      var styleEl = document.createElement('style');
+      styleEl.textContent = css;
+      document.head.appendChild(styleEl);
+    }
+
+    function safeNum(value) {
+      var parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function firstDefined(values, fallbackValue) {
+      for (var i = 0; i < values.length; i += 1) {
+        var v = values[i];
+        if (v !== undefined && v !== null && v !== '') return v;
+      }
+      return fallbackValue;
+    }
+
+    function normalizeRecord(item, index) {
+      var stock = safeNum(firstDefined([item.stock, item.qty], 0));
+      var min = safeNum(firstDefined([item.min, item.qtyMin], 0));
+      var max = safeNum(firstDefined([item.max, item.qtyMax], 0));
+      var needToPO = safeNum(firstDefined([item.needToPO], Math.max(min - stock, 0)));
+
+      return {
+        no: firstDefined([item.no], index + 1),
+        name: firstDefined([item.name, item.partName], '-'),
+        model: firstDefined([item.model], '-'),
+        line: firstDefined([item.line, item.mainLine, item.process], '-'),
+        category: firstDefined([item.category], 'General'),
+        brand: firstDefined([item.brand], '-'),
+        stock: stock,
+        min: min,
+        max: max,
+        needToPO: needToPO
+      };
+    }
+
+    function loadViaJsonp(url) {
+      return new Promise(function(resolve, reject) {
+        var callbackName = 'partsCallback_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        var sep = url.indexOf('?') > -1 ? '&' : '?';
+        var script = document.createElement('script');
+        var timeoutMs = 10000;
+
+        var timeoutId = setTimeout(function() {
+          cleanup();
+          reject(new Error('โหลดข้อมูลเกินเวลาที่กำหนด (JSONP timeout)'));
+        }, timeoutMs);
+
+        function cleanup() {
+          clearTimeout(timeoutId);
+          delete window[callbackName];
+          script.remove();
+        }
+
+        window[callbackName] = function(payload) {
+          cleanup();
+          resolve(payload);
+        };
+
+        script.onerror = function() {
+          cleanup();
+          reject(new Error('ไม่สามารถโหลดข้อมูล (JSONP) ได้'));
+        };
+
+        script.src = url + sep + 'callback=' + callbackName + '&t=' + Date.now();
+        document.body.appendChild(script);
+      });
+    }
+
+    function loadByFetch(url) {
+      return fetch(url + '?t=' + Date.now()).then(function(response) {
+        if (!response.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ (' + response.status + ')');
+        return response.json();
+      });
+    }
+
+
+
+
+    function applyLineTheme() {
+      var active = lineConfig.filter(function(item){ return item.key === currentLine; })[0] || lineConfig[0];
+      document.documentElement.style.setProperty('--line-accent', active.color);
+      tabStock.style.backgroundColor = currentLine ? '' : '';
+      var headerHint = document.querySelector('header p');
+      if (headerHint) headerHint.textContent = 'CURRENT LINE: ' + currentLine;
+    }
+
+    function renderLineTabs() {
+      var iconMap = { 'H9': '🏭', 'Arc Chute': '⚡', 'Coil Winding': '🧲', 'Lug&Screw': '🔩' };
+      lineTabs.innerHTML = lineConfig.map(function(item) {
+        var active = item.key === currentLine;
+        var style = active ? 'background:' + item.color + ';color:#fff;border-color:' + item.color : '';
+        var icon = iconMap[item.key] || '📦';
+        return '<button data-line="' + item.key + '" class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-left" style="' + style + '">' + icon + ' ' + item.key + '</button>';
+      }).join('');
+
+      Array.prototype.slice.call(lineTabs.querySelectorAll('button')).forEach(function(btn){
+        btn.addEventListener('click', function(){
+          currentLine = btn.getAttribute('data-line');
+          renderLineTabs();
+          applyLineTheme();
+          applyFilters();
+        });
+      });
+    }
+
+    function getCurrentSheetName() {
+      return 'Main List Stock';
+    }
+
+    function callManageAction(action, payload) {
+      var query = [
+        'action=' + encodeURIComponent(action),
+        'sheet=' + encodeURIComponent(getCurrentSheetName()),
+        'no=' + encodeURIComponent(payload.no || ''),
+        'name=' + encodeURIComponent(payload.name || ''),
+        'model=' + encodeURIComponent(payload.model || ''),
+        'line=' + encodeURIComponent(payload.line || ''),
+        'category=' + encodeURIComponent(payload.category || ''),
+        'brand=' + encodeURIComponent(payload.brand || ''),
+        'max=' + encodeURIComponent(payload.max || ''),
+        'min=' + encodeURIComponent(payload.min || ''),
+        'unit=' + encodeURIComponent(payload.unit || ''),
+        'stock=' + encodeURIComponent(payload.stock || '')
+      ].join('&');
+      return loadViaJsonp(API_URL + '?' + query);
+    }
+
+    function callTransactionViaJsonp(payload) {
+      var query = [
+        'action=transact',
+        'sheet=' + encodeURIComponent(getCurrentSheetName()),
+        'partNo=' + encodeURIComponent(payload.partNo || ''),
+        'type=' + encodeURIComponent(payload.type || ''),
+        'process=' + encodeURIComponent(payload.process || ''),
+        'category=' + encodeURIComponent(payload.category || ''),
+        'partName=' + encodeURIComponent(payload.partName || ''),
+        'model=' + encodeURIComponent(payload.model || ''),
+        'brand=' + encodeURIComponent(payload.brand || ''),
+        'qty=' + encodeURIComponent(String(payload.qty || '')),
+        'unit=' + encodeURIComponent(payload.unit || ''),
+        'by=' + encodeURIComponent(payload.by || '')
+      ].join('&');
+
+      return loadViaJsonp(API_URL + '?' + query);
+    }
+
+
+    function renderLogTable(rows) {
+      if (!rows.length) {
+        logTable.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">ยังไม่มีประวัติการเบิก/คืน</td></tr>';
+        return;
+      }
+
+      logTable.innerHTML = rows.map(function(item) {
+        return '<tr>' +
+          '<td class="py-3 pr-4">' + (item.timestamp || '-') + '</td>' +
+          '<td class="py-3 pr-4">' + (item.type || '-') + '</td>' +
+          '<td class="py-3 pr-4">' + (item.partName || '-') + '</td>' +
+          '<td class="py-3 pr-4">' + (item.qty || 0) + ' ' + (item.unit || '') + '</td>' +
+          '<td class="py-3 pr-4">' + (item.stockBefore || 0) + '</td>' +
+          '<td class="py-3 pr-4">' + (item.stockAfter || 0) + '</td>' +
+          '<td class="py-3 pr-4">' + (item.by || '-') + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function loadLogData() {
+      logTable.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">กำลังโหลดประวัติ...</td></tr>';
+      loadViaJsonp(API_URL + '?action=logs')
+        .then(function(rawData) {
+          if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูล Log ไม่ถูกต้อง');
+          renderLogTable(rawData);
+        })
+        .catch(function(err) {
+          logTable.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-rose-500">' + err.message + '</td></tr>';
+        });
+    }
+
+    function setTabStyles(active) {
+      tabStock.className = 'px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      tabTxn.className = 'px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      tabLog.className = 'px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      tabManage.className = 'px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      if (active === 'stock') tabStock.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      if (active === 'txn') tabTxn.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      if (active === 'log') tabLog.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      if (active === 'manage') tabManage.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+    }
+
+    function switchToStockPage() {
+      stockPage.classList.remove('hidden');
+      txnPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      setTabStyles('stock');
+    }
+
+    function switchToTxnPage() {
+      stockPage.classList.add('hidden');
+      txnPage.classList.remove('hidden');
+      logPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      setTabStyles('txn');
+    }
+
+    function switchToLogPage() {
+      stockPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      logPage.classList.remove('hidden');
+      managePage.classList.add('hidden');
+      setTabStyles('log');
+      loadLogData();
+    }
+
+    function switchToManagePage() {
+      stockPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      managePage.classList.remove('hidden');
+      setTabStyles('manage');
+    }
+
+    function loadPartsData() {
+      tableBody.innerHTML = '<tr><td colspan="11" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
+
+      loadViaJsonp(API_URL + "?sheet=" + encodeURIComponent(getCurrentSheetName()))
+        .catch(function() {
+          return loadByFetch(API_URL);
+        })
+        .then(function(rawData) {
+          if (rawData && rawData.status === 'error') {
+            throw new Error(rawData.message || 'API ตอบกลับ error');
+          }
+          if (!Array.isArray(rawData)) {
+            throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
+          }
+
+          partsData = rawData.map(function(item, index) {
+            return normalizeRecord(item, index);
+          }).filter(function(item) {
+            return item.name && item.name !== '-';
+          });
+
+          populateCategoryOptions(partsData);
+          populatePartOptions(partsData);
+          applyFilters();
+        })
+        .catch(function(err) {
+          var hint = 'ตรวจสอบ Apps Script Deployment: ต้องตั้งสิทธิ์เป็น Anyone และ deploy เวอร์ชันล่าสุด';
+          tableBody.innerHTML = '<tr><td colspan="11" class="py-8 text-center text-rose-500">' + err.message + '<br><span class="text-xs text-slate-500">' + hint + '</span></td></tr>';
+          document.getElementById('stat-cards').innerHTML = '';
+        });
+    }
+
+
+    function populatePartOptions(data) {
+      partMap = {};
+      partSelect.innerHTML = '<option value="">เลือกอะไหล่</option>';
+
+      data.forEach(function(item, idx) {
+        var key = String(item.no || idx + 1);
+        partMap[key] = item;
+
+        var option = document.createElement('option');
+        option.value = key;
+        option.textContent = key + ' - ' + item.name + ' (' + item.model + ')';
+        partSelect.appendChild(option);
+      });
+    }
+
+    function submitTransaction(event) {
+      event.preventDefault();
+
+      var selected = partMap[partSelect.value];
+      var qty = Number(txnQty.value || 0);
+      if (!selected) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'กรุณาเลือกอะไหล่';
+        return;
+      }
+      if (!qty || qty <= 0) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'จำนวนต้องมากกว่า 0';
+        return;
+      }
+      if (txnType.value === 'Output' && qty > Number(selected.stock || 0)) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'จำนวนเบิกมากกว่า stock ปัจจุบัน';
+        return;
+      }
+
+      if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
+      var payload = {
+        partNo: selected.no,
+        type: txnType.value,
+        process: txnProcess.value || selected.line || '-',
+        category: selected.category || 'General',
+        partName: selected.name,
+        model: selected.model || '-',
+        brand: selected.brand || '-',
+        qty: qty,
+        unit: selected.unit || 'PCS',
+        by: txnBy.value || 'Unknown'
+      };
+
+      txnMessage.className = 'mt-3 text-sm text-slate-500';
+      txnMessage.textContent = 'กำลังบันทึกรายการ...';
+
+      callTransactionViaJsonp(payload).then(function(res) {
+        if (!res || res.status !== 'success') {
+          throw new Error((res && res.message) ? res.message : 'บันทึกไม่สำเร็จ');
+        }
+
+        txnMessage.className = 'mt-3 text-sm text-emerald-600';
+        txnMessage.textContent = 'บันทึกสำเร็จ: Stock ' + res.stockBefore + ' → ' + res.stockAfter;
+        txnForm.reset();
+        loadPartsData();
+        if (!logPage.classList.contains('hidden')) loadLogData();
+      }).catch(function(err) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'บันทึกไม่สำเร็จ: ' + err.message;
+      });
+    }
+
+
+
+    function openEditModal(item) {
+      document.getElementById('eNo').value = item.no || '';
+      document.getElementById('eName').value = item.name || '';
+      document.getElementById('eModel').value = item.model || '';
+      document.getElementById('eLine').value = item.line || '';
+      document.getElementById('eCategory').value = item.category || '';
+      document.getElementById('eBrand').value = item.brand || '';
+      document.getElementById('eMax').value = item.max || '';
+      document.getElementById('eMin').value = item.min || '';
+      document.getElementById('eUnit').value = item.unit || '';
+      document.getElementById('eStock').value = item.stock || '';
+      editMessage.textContent = '';
+      editModalSubtitle.textContent = 'ชีต: ' + getCurrentSheetName() + ' | NO: ' + (item.no || '-');
+      editModal.classList.remove('hidden');
+      editModal.classList.add('flex');
+    }
+
+    function closeEditModal() {
+      editModal.classList.add('hidden');
+      editModal.classList.remove('flex');
+    }
+
+    function submitEditModal(event) {
+      event.preventDefault();
+      if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
+      var payload = {
+        no: document.getElementById('eNo').value.trim(),
+        name: document.getElementById('eName').value.trim(),
+        model: document.getElementById('eModel').value.trim(),
+        line: document.getElementById('eLine').value.trim(),
+        category: document.getElementById('eCategory').value.trim(),
+        brand: document.getElementById('eBrand').value.trim(),
+        max: document.getElementById('eMax').value.trim(),
+        min: document.getElementById('eMin').value.trim(),
+        unit: document.getElementById('eUnit').value.trim(),
+        stock: document.getElementById('eStock').value.trim()
+      };
+      editMessage.className = 'mt-3 text-sm text-slate-500';
+      editMessage.textContent = 'กำลังบันทึก...';
+      callManageAction('upsertItem', payload).then(function(res){
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
+        editMessage.className = 'mt-3 text-sm text-emerald-600';
+        editMessage.textContent = 'บันทึกสำเร็จ';
+        loadPartsData();
+        setTimeout(closeEditModal, 400);
+      }).catch(function(err){
+        editMessage.className = 'mt-3 text-sm text-rose-600';
+        editMessage.textContent = err.message;
+      });
+    }
+
+    function deleteEditModalItem() {
+      var no = document.getElementById('eNo').value.trim();
+      if (!no) return;
+      if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
+      callManageAction('deleteItem', { no: no }).then(function(res){
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+        loadPartsData();
+        closeEditModal();
+      }).catch(function(err){
+        editMessage.className = 'mt-3 text-sm text-rose-600';
+        editMessage.textContent = err.message;
+      });
+    }
+
+    function submitManageItem(event) {
+      event.preventDefault();
+      if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
+      var payload = {
+        no: document.getElementById('mNo').value.trim(),
+        name: document.getElementById('mName').value.trim(),
+        model: document.getElementById('mModel').value.trim(),
+        line: document.getElementById('mLine').value.trim(),
+        category: document.getElementById('mCategory').value.trim(),
+        brand: document.getElementById('mBrand').value.trim(),
+        max: document.getElementById('mMax').value.trim(),
+        min: document.getElementById('mMin').value.trim(),
+        unit: document.getElementById('mUnit').value.trim(),
+        stock: document.getElementById('mStock').value.trim()
+      };
+      manageMessage.className = 'mt-3 text-sm text-slate-500';
+      manageMessage.textContent = 'กำลังบันทึกรายการ...';
+      callManageAction('upsertItem', payload).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
+        manageMessage.className = 'mt-3 text-sm text-emerald-600';
+        manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no;
+        loadPartsData();
+      }).catch(function(err) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = err.message;
+      });
+    }
+
+    function deleteManageItem() {
+      var no = document.getElementById('mNo').value.trim();
+      if (!no) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = 'กรุณาระบุ NO ก่อนลบ';
+        return;
+      }
+      manageMessage.className = 'mt-3 text-sm text-slate-500';
+      manageMessage.textContent = 'กำลังลบรายการ...';
+      callManageAction('deleteItem', { no: no }).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+        manageMessage.className = 'mt-3 text-sm text-emerald-600';
+        manageMessage.textContent = 'ลบสำเร็จ: ' + no;
+        manageForm.reset();
+        loadPartsData();
+      }).catch(function(err) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = err.message;
+      });
+    }
+
+    function populateCategoryOptions(data) {
+      categoryFilter.innerHTML = '<option value="all">ทุกหมวดหมู่</option>';
+      var categories = Array.from(new Set(data.map(function(item) { return item.category; }))).sort();
+
+      categories.forEach(function(cat) {
+        var option = document.createElement('option');
         option.value = cat;
         option.textContent = cat;
         categoryFilter.appendChild(option);
@@ -83,56 +703,80 @@
     }
 
     function renderStats(data) {
-      const total = data.length;
-      const needPO = data.filter(item => item.needToPO > 0).length;
-      const electrical = data.filter(item => item.category === 'Electrical').length;
-      const zeroStock = data.filter(item => item.stock === 0).length;
+      var total = data.length;
+      var needPO = data.filter(function(item) { return item.needToPO > 0; }).length;
+      var electrical = data.filter(function(item) { return item.category === 'Electrical'; }).length;
+      var zeroStock = data.filter(function(item) { return item.stock === 0; }).length;
 
-      document.getElementById('stat-cards').innerHTML = `
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">รายการทั้งหมด</p><p class="text-2xl font-bold">${total}</p></div>
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">ต้องสั่งซื้อ (Need PO)</p><p class="text-2xl font-bold text-amber-600">${needPO}</p></div>
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">หมวด Electrical</p><p class="text-2xl font-bold text-blue-600">${electrical}</p></div>
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm"><p class="text-xs text-slate-500">Stock = 0</p><p class="text-2xl font-bold text-rose-600">${zeroStock}</p></div>
-      `;
+      document.getElementById('stat-cards').innerHTML =
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"><p class="text-xs text-slate-500">รายการทั้งหมด</p><p class="text-2xl font-bold">' + total + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"><p class="text-xs text-slate-500">ต้องสั่งซื้อ (Need PO)</p><p class="text-2xl font-bold text-amber-600">' + needPO + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"><p class="text-xs text-slate-500">หมวด Electrical</p><p class="text-2xl font-bold text-blue-600">' + electrical + '</p></div>' +
+        '<div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"><p class="text-xs text-slate-500">Stock = 0</p><p class="text-2xl font-bold text-rose-600">' + zeroStock + '</p></div>';
     }
 
     function renderTable(data) {
       if (!data.length) {
-        tableBody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขค้นหา</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="11" class="py-8 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขค้นหา</td></tr>';
         return;
       }
 
-      tableBody.innerHTML = data.map(item => {
-        const lowStock = item.stock <= item.min && item.min > 0;
-        return `
-          <tr class="hover:bg-slate-50">
-            <td class="py-3 pr-4 font-medium">${item.no}</td>
-            <td class="py-3 pr-4">${item.name}</td>
-            <td class="py-3 pr-4 text-slate-600">${item.model}</td>
-            <td class="py-3 pr-4 text-slate-600">${item.line}</td>
-            <td class="py-3 pr-4">${item.category}</td>
-            <td class="py-3 pr-4">${item.brand}</td>
-            <td class="py-3 pr-4 text-center font-semibold ${lowStock ? 'text-rose-600' : ''}">${item.stock}</td>
-            <td class="py-3 pr-4 text-center">${item.min}</td>
-            <td class="py-3 pr-4 text-center">${item.max}</td>
-            <td class="py-3 pr-4 text-center">
-              <span class="px-2 py-1 rounded-full text-xs font-semibold ${item.needToPO > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">
-                ${item.needToPO > 0 ? item.needToPO : 'OK'}
-              </span>
-            </td>
-          </tr>
-        `;
+      tableBody.innerHTML = data.map(function(item) {
+        var lowStock = item.stock <= item.min && item.min > 0;
+        return '<tr class="hover:bg-slate-50">' +
+          '<td class="py-3 pr-4 font-medium">' + item.no + '</td>' +
+          '<td class="py-3 pr-4">' + item.name + '</td>' +
+          '<td class="py-3 pr-4 text-slate-600">' + item.model + '</td>' +
+          '<td class="py-3 pr-4 text-slate-600">' + item.line + '</td>' +
+          '<td class="py-3 pr-4">' + item.category + '</td>' +
+          '<td class="py-3 pr-4">' + item.brand + '</td>' +
+          '<td class="py-3 pr-4 text-center font-semibold ' + (lowStock ? 'text-rose-600' : '') + '">' + item.stock + '</td>' +
+          '<td class="py-3 pr-4 text-center">' + item.min + '</td>' +
+          '<td class="py-3 pr-4 text-center">' + item.max + '</td>' +
+          '<td class="py-3 pr-4 text-center">' +
+            '<span class="px-2 py-1 rounded-full text-xs font-semibold ' + (item.needToPO > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700') + '">' +
+              (item.needToPO > 0 ? item.needToPO : 'OK') +
+            '</span>' +
+          '</td>' +
+          '<td class="py-3 pr-4 text-center">' +
+            '<button data-edit-no="' + item.no + '" class="text-blue-600 font-semibold mr-2" title="แก้ไข">✏️</button>' +
+            '<button data-delete-no="' + item.no + '" class="text-rose-600 font-semibold" title="ลบ">🗑️</button>' +
+          '</td>' +
+        '</tr>';
       }).join('');
+
+      Array.prototype.slice.call(tableBody.querySelectorAll('[data-edit-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var no = btn.getAttribute('data-edit-no');
+          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          if (found) openEditModal(found);
+        });
+      });
+
+      Array.prototype.slice.call(tableBody.querySelectorAll('[data-delete-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var no = btn.getAttribute('data-delete-no');
+          if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
+          callManageAction('deleteItem', { no: no }).then(function(res){
+            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+            loadPartsData();
+          }).catch(function(err){
+            alert('ลบไม่สำเร็จ: ' + err.message);
+          });
+        });
+      });
     }
 
     function applyFilters() {
-      const keyword = searchInput.value.trim().toLowerCase();
-      const category = categoryFilter.value;
+      var keyword = searchInput.value.trim().toLowerCase();
+      var category = categoryFilter.value;
 
-      const filtered = partsData.filter(item => {
-        const hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().includes(keyword);
-        const hitCategory = category === 'all' || item.category === category;
-        return hitSearch && hitCategory;
+      var filtered = partsData.filter(function(item) {
+        var hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().indexOf(keyword) > -1;
+        var hitCategory = category === 'all' || item.category === category;
+        var lineText = String(item.line || '').toLowerCase();
+        var hitLine = currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1;
+        return hitSearch && hitCategory && hitLine;
       });
 
       renderTable(filtered);
@@ -141,10 +785,26 @@
 
     categoryFilter.addEventListener('change', applyFilters);
     searchInput.addEventListener('input', applyFilters);
+    txnForm.addEventListener('submit', submitTransaction);
+    tabStock.addEventListener('click', switchToStockPage);
+    tabTxn.addEventListener('click', switchToTxnPage);
+    tabLog.addEventListener('click', switchToLogPage);
+    tabManage.addEventListener('click', switchToManagePage);
+    manageForm.addEventListener('submit', submitManageItem);
+    document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
+    document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+    document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
+    editForm.addEventListener('submit', submitEditModal);
+    sheetSelector.addEventListener('change', function() {
+      loadPartsData();
+      if (!logPage.classList.contains('hidden')) loadLogData();
+    });
 
-    populateCategoryOptions();
-    renderTable(partsData);
-    renderStats(partsData);
+    applyEngineerJssTheme();
+    renderLineTabs();
+    applyLineTheme();
+    switchToStockPage();
+    loadPartsData();
   </script>
 </body>
 </html>
