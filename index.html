@@ -21,17 +21,18 @@
     </header>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-      <aside class="bg-white rounded-2xl border border-slate-200 panel-shadow p-3 h-fit lg:col-span-3 xl:col-span-2">
+      <aside id="lineMenuPanel" class="bg-white rounded-2xl border border-slate-200 panel-shadow p-3 h-fit lg:col-span-3 xl:col-span-2">
         <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Line Menu</p>
         <div id="lineTabs" class="flex flex-col gap-2"></div>
       </aside>
 
-      <div class="lg:col-span-9 xl:col-span-10 min-w-0">
+      <div id="mainContentPanel" class="lg:col-span-9 xl:col-span-10 min-w-0">
         <div class="flex flex-wrap gap-2 mb-4 items-center">
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
+          <button id="lineMenuToggle" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">ซ่อน Line Menu</button>
           <select id="sheetSelector" class="ml-auto rounded-lg border border-slate-300 px-3 py-2 bg-white text-sm" disabled>
             <option value="Main List Stock">Main List Stock</option>
           </select>
@@ -186,6 +187,9 @@
     var tabTxn = document.getElementById('tabTxn');
     var tabLog = document.getElementById('tabLog');
     var tabManage = document.getElementById('tabManage');
+    var lineMenuToggle = document.getElementById('lineMenuToggle');
+    var lineMenuPanel = document.getElementById('lineMenuPanel');
+    var mainContentPanel = document.getElementById('mainContentPanel');
     var sheetSelector = document.getElementById('sheetSelector');
     var txnPage = document.getElementById('txnPage');
     var managePage = document.getElementById('managePage');
@@ -204,6 +208,7 @@
       { key: 'Coil Winding', color: '#0891b2' },
       { key: 'Lug&Screw', color: '#ea580c' }
     ];
+    var isLineMenuVisible = true;
 
 
     function applyEngineerJssTheme() {
@@ -353,6 +358,20 @@
           applyFilters();
         });
       });
+    }
+
+    function updateLineMenuVisibility() {
+      if (isLineMenuVisible) {
+        lineMenuPanel.classList.remove('hidden');
+        mainContentPanel.classList.remove('lg:col-span-12', 'xl:col-span-12');
+        mainContentPanel.classList.add('lg:col-span-9', 'xl:col-span-10');
+        lineMenuToggle.textContent = 'ซ่อน Line Menu';
+      } else {
+        lineMenuPanel.classList.add('hidden');
+        mainContentPanel.classList.remove('lg:col-span-9', 'xl:col-span-10');
+        mainContentPanel.classList.add('lg:col-span-12', 'xl:col-span-12');
+        lineMenuToggle.textContent = 'แสดง Line Menu';
+      }
     }
 
     function getCurrentSheetName() {
@@ -790,6 +809,10 @@
     tabTxn.addEventListener('click', switchToTxnPage);
     tabLog.addEventListener('click', switchToLogPage);
     tabManage.addEventListener('click', switchToManagePage);
+    lineMenuToggle.addEventListener('click', function() {
+      isLineMenuVisible = !isLineMenuVisible;
+      updateLineMenuVisibility();
+    });
     manageForm.addEventListener('submit', submitManageItem);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
@@ -803,6 +826,7 @@
     applyEngineerJssTheme();
     renderLineTabs();
     applyLineTheme();
+    updateLineMenuVisibility();
     switchToStockPage();
     loadPartsData();
   </script>
