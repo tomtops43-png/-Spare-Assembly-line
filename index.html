@@ -110,6 +110,7 @@
         <input id="mCategory" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Category" />
         <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
         <input id="mPhoto" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Photo URL" />
+        <input id="mPhotoFile" type="file" accept="image/*" capture="environment" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
         <input id="mMax" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Max" />
         <input id="mMin" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Min" />
         <input id="mUnit" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Unit" />
@@ -159,6 +160,7 @@
         <div><label class="text-xs text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Photo URL</label><input id="ePhoto" type="url" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Photo File (มือถือ/คอม)</label><input id="ePhotoFile" type="file" accept="image/*" capture="environment" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" /></div>
         <div><label class="text-xs text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Unit</label><input id="eUnit" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
@@ -302,6 +304,30 @@
         needToPO: needToPO,
         photo: firstDefined([item.photo, item.image, item.imageUrl], '')
       };
+    }
+
+    function bindPhotoFileInput(fileInputId, targetInputId) {
+      var fileInput = document.getElementById(fileInputId);
+      var targetInput = document.getElementById(targetInputId);
+      if (!fileInput || !targetInput) return;
+
+      fileInput.addEventListener('change', function() {
+        var file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        if (!file.type || file.type.indexOf('image/') !== 0) {
+          alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+          fileInput.value = '';
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function() {
+          targetInput.value = String(reader.result || '');
+        };
+        reader.onerror = function() {
+          alert('อ่านไฟล์รูปภาพไม่สำเร็จ');
+        };
+        reader.readAsDataURL(file);
+      });
     }
 
     function loadViaJsonp(url) {
@@ -620,6 +646,7 @@
       document.getElementById('eCategory').value = item.category || '';
       document.getElementById('eBrand').value = item.brand || '';
       document.getElementById('ePhoto').value = item.photo || '';
+      document.getElementById('ePhotoFile').value = '';
       document.getElementById('eMax').value = item.max || '';
       document.getElementById('eMin').value = item.min || '';
       document.getElementById('eUnit').value = item.unit || '';
@@ -902,6 +929,8 @@
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
     document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
     editForm.addEventListener('submit', submitEditModal);
+    bindPhotoFileInput('mPhotoFile', 'mPhoto');
+    bindPhotoFileInput('ePhotoFile', 'ePhoto');
     sheetSelector.addEventListener('change', function() {
       loadPartsData();
       if (!logPage.classList.contains('hidden')) loadLogData();
