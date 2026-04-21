@@ -20,18 +20,23 @@
       </div>
     </header>
 
-    <div id="lineTabs" class="flex flex-wrap gap-2 mb-4"></div>
+    <div class="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
+      <aside class="bg-white rounded-2xl border border-slate-200 panel-shadow p-3 h-fit">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Line Menu</p>
+        <div id="lineTabs" class="flex md:flex-col flex-wrap gap-2"></div>
+      </aside>
 
-    <div class="flex flex-wrap gap-2 mb-4 items-center">
-      <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
-      <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
-      <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
-      <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
-      <select id="sheetSelector" class="ml-auto rounded-lg border border-slate-300 px-3 py-2 bg-white text-sm">
-        <option value="Main List Stock">Main List Stock</option>
-        <option value="Stock for MC">Stock for MC</option>
-      </select>
-    </div>
+      <div>
+        <div class="flex flex-wrap gap-2 mb-4 items-center">
+          <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
+          <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
+          <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
+          <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
+          <select id="sheetSelector" class="ml-auto rounded-lg border border-slate-300 px-3 py-2 bg-white text-sm">
+            <option value="Main List Stock">Main List Stock</option>
+            <option value="Stock for MC">Stock for MC</option>
+          </select>
+        </div>
 
     <section id="stockPage" class="space-y-6 eng-gridline p-2 rounded-2xl">
       <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
@@ -128,6 +133,8 @@
         </table>
       </div>
     </section>
+      </div>
+    </div>
   </div>
 
   <div id="editModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
@@ -331,10 +338,12 @@
     }
 
     function renderLineTabs() {
+      var iconMap = { 'H9': '🏭', 'Arc Chute': '⚡', 'Coil Winding': '🧲', 'Lug&Screw': '🔩' };
       lineTabs.innerHTML = lineConfig.map(function(item) {
         var active = item.key === currentLine;
         var style = active ? 'background:' + item.color + ';color:#fff;border-color:' + item.color : '';
-        return '<button data-line="' + item.key + '" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-semibold" style="' + style + '">' + item.key + '</button>';
+        var icon = iconMap[item.key] || '📦';
+        return '<button data-line="' + item.key + '" class="px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-left" style="' + style + '">' + icon + ' ' + item.key + '</button>';
       }).join('');
 
       Array.prototype.slice.call(lineTabs.querySelectorAll('button')).forEach(function(btn){
