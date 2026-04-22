@@ -187,8 +187,8 @@
       'Coil Winding': localStorage.getItem('spare_api_url_coil_winding') || '',
       'Lug&Screw': localStorage.getItem('spare_api_url_lug_screw') || ''
     };
-    var LINE_SHEET_MAP = {
-      'Arc Chute': 'Standard Spare part'
+    var LINE_SHEET_OPTIONS = {
+      'Arc Chute': ['Standard Spare part', 'Arc chut']
     };
 
     var tableBody = document.getElementById('partsTable');
@@ -436,11 +436,15 @@
     }
 
     function syncSheetSelectorForCurrentLine() {
-      if (LINE_SHEET_MAP[currentLine]) {
-        var forcedSheet = LINE_SHEET_MAP[currentLine];
-        sheetSelector.innerHTML = '<option value="' + forcedSheet + '">' + forcedSheet + '</option>';
-        sheetSelector.value = forcedSheet;
-        sheetSelector.disabled = true;
+      if (LINE_SHEET_OPTIONS[currentLine] && LINE_SHEET_OPTIONS[currentLine].length) {
+        var options = LINE_SHEET_OPTIONS[currentLine];
+        sheetSelector.disabled = false;
+        sheetSelector.innerHTML = options.map(function(sheetName){
+          return '<option value="' + sheetName + '">' + sheetName + '</option>';
+        }).join('');
+        if (options.indexOf(sheetSelector.value) === -1) {
+          sheetSelector.value = options[0];
+        }
         return;
       }
 
@@ -487,7 +491,9 @@
     }
 
     function getCurrentSheetName() {
-      if (LINE_SHEET_MAP[currentLine]) return LINE_SHEET_MAP[currentLine];
+      if (LINE_SHEET_OPTIONS[currentLine] && LINE_SHEET_OPTIONS[currentLine].length) {
+        return sheetSelector.value || LINE_SHEET_OPTIONS[currentLine][0];
+      }
       return sheetSelector.value || 'Main List Stock';
     }
 
@@ -986,7 +992,7 @@
         var hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().indexOf(keyword) > -1;
         var hitCategory = category === 'all' || item.category === category;
         var lineText = String(item.line || '').toLowerCase();
-        var hitLine = LINE_SHEET_MAP[currentLine]
+        var hitLine = LINE_SHEET_OPTIONS[currentLine]
           ? true
           : (currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1);
         return hitSearch && hitCategory && hitLine;
