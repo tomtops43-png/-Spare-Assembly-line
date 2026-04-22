@@ -428,6 +428,7 @@ function doGet(e) {
         name: pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '-'),
         model: pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '-'),
         line: pickRowValue(row, map, ['mainline', 'line', 'location', 'jrlocation'], '-'),
+        location: pickRowValue(row, map, ['location', 'jrlocation'], '-'),
         category: pickRowValue(row, map, ['category'], 'General'),
         brand: pickRowValue(row, map, ['brand'], '-'),
         stock: stockValue,
