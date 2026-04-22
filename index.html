@@ -39,10 +39,12 @@
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
-          <select id="sheetSelector" class="ml-auto rounded-lg border border-slate-300 px-3 py-2 bg-white text-sm">
-            <option value="Main List Stock">Main List Stock</option>
-            <option value="Stock for MC">Stock for MC</option>
-          </select>
+          <div id="sheetSelectorWrap" class="ml-auto">
+            <select id="sheetSelector" class="rounded-lg border border-slate-300 px-3 py-2 bg-white text-sm">
+              <option value="Main List Stock">General</option>
+              <option value="Stock for MC">Stock for MC</option>
+            </select>
+          </div>
         </div>
 
     <section id="stockPage" class="space-y-6 eng-gridline p-2 rounded-2xl">
@@ -218,6 +220,7 @@
     var lineMenuClose = document.getElementById('lineMenuClose');
     var lineMenuBackdrop = document.getElementById('lineMenuBackdrop');
     var lineMenuPanel = document.getElementById('lineMenuPanel');
+    var sheetSelectorWrap = document.getElementById('sheetSelectorWrap');
     var sheetSelector = document.getElementById('sheetSelector');
     var txnPage = document.getElementById('txnPage');
     var managePage = document.getElementById('managePage');
@@ -452,7 +455,7 @@
 
       sheetSelector.disabled = false;
       sheetSelector.innerHTML =
-        '<option value="Main List Stock">Main List Stock</option>' +
+        '<option value="Main List Stock">General</option>' +
         '<option value="Stock for MC">Stock for MC</option>';
     }
 
@@ -601,6 +604,7 @@
       if (active === 'txn') tabTxn.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
       if (active === 'log') tabLog.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
       if (active === 'manage') tabManage.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
     }
 
     function switchToStockPage() {
