@@ -64,6 +64,26 @@ function getOrCreateSheet(spreadsheet, sheetName) {
   return sheet;
 }
 
+function getSheetByFlexibleName(spreadsheet, requestedName) {
+  var exact = spreadsheet.getSheetByName(requestedName);
+  if (exact) return exact;
+
+  var target = normalizeHeaderName(requestedName);
+  if (!target) return null;
+
+  var sheets = spreadsheet.getSheets();
+  for (var i = 0; i < sheets.length; i += 1) {
+    var normalized = normalizeHeaderName(sheets[i].getName());
+    if (normalized === target) return sheets[i];
+  }
+
+  for (var x = 0; x < sheets.length; x += 1) {
+    var n = normalizeHeaderName(sheets[x].getName());
+    if (n.indexOf(target) > -1 || target.indexOf(n) > -1) return sheets[x];
+  }
+  return null;
+}
+
 function ensureLogSheetHeaders(historySheet) {
   var lastRow = historySheet.getLastRow();
   if (lastRow === 0) {
@@ -134,7 +154,7 @@ function processTransaction(payload) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
   var resolvedSheetName = resolveReadSheetName({ sheet: payload.sheetName });
-  var mainSheet = spreadsheet.getSheetByName(resolvedSheetName);
+  var mainSheet = getSheetByFlexibleName(spreadsheet, resolvedSheetName);
 
   ensureLogSheetHeaders(historySheet);
   if (!mainSheet) throw new Error('ไม่พบชีทชื่อ ' + resolvedSheetName);
@@ -224,7 +244,7 @@ function resolveReadSheetName(source) {
 
 function getMainSheetContext(sheetName) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = spreadsheet.getSheetByName(sheetName);
+  var sheet = getSheetByFlexibleName(spreadsheet, sheetName);
   if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + sheetName);
 
   var data = sheet.getDataRange().getValues();
@@ -387,7 +407,7 @@ function doGet(e) {
     if (action === 'deleteItem') return respond(deleteMainItem({ sheetName: e.parameter.sheet, no: e.parameter.no }), e);
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    var sheet = getSheetByFlexibleName(SpreadsheetApp.getActiveSpreadsheet(), sheetName);
     if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + sheetName);
 
     var data = sheet.getDataRange().getValues();
