@@ -89,6 +89,7 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-slate-500 border-b border-slate-200">
+                <th class="py-3 pr-4 text-center">รูป</th>
                 <th class="py-3 pr-4">#</th>
                 <th class="py-3 pr-4">Name / Description</th>
                 <th class="py-3 pr-4">Model</th>
@@ -140,8 +141,19 @@
         <input id="mLine" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Main line" />
         <input id="mCategory" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Category" />
         <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
-        <input id="mPhoto" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Photo URL" />
+        <input id="mImageMain" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Image Main URL (Drive)" />
+        <input id="mImageInstall" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Image Install URL (Drive)" />
         <input id="mPhotoFile" type="file" accept="image/*" capture="environment" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
+        <div class="md:col-span-2 grid grid-cols-2 gap-2">
+          <div>
+            <p class="text-xs text-slate-500 mb-1">Preview Main</p>
+            <img id="mImageMainPreview" src="/images/no-image.svg" alt="preview main" class="h-20 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 mb-1">Preview Install</p>
+            <img id="mImageInstallPreview" src="/images/no-image.svg" alt="preview install" class="h-20 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
+          </div>
+        </div>
         <input id="mMax" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Max" />
         <input id="mMin" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Min" />
         <input id="mUnit" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Unit" />
@@ -190,7 +202,8 @@
         <div><label class="text-xs text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Photo URL</label><input id="ePhoto" type="url" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Image Main URL (Drive)</label><input id="eImageMain" type="url" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Image Install URL (Drive)</label><input id="eImageInstall" type="url" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Photo File (มือถือ/คอม)</label><input id="ePhotoFile" type="file" accept="image/*" capture="environment" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" /></div>
         <div><label class="text-xs text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
@@ -202,6 +215,36 @@
         </div>
       </form>
       <p id="editMessage" class="mt-3 text-sm"></p>
+    </div>
+  </div>
+
+  <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
+    <div class="bg-white w-full max-w-4xl rounded-2xl p-5 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold">รายละเอียดอะไหล่</h3>
+        <button id="closeDetailModal" class="text-slate-500">✕</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <img id="detailMainImage" src="/images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-cover bg-slate-100" />
+          <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
+        </div>
+        <div>
+          <img id="detailInstallImage" src="/images/no-image.svg" alt="install image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-cover bg-slate-100" />
+          <p class="text-xs text-slate-500 mt-2">รูปติดตั้ง</p>
+        </div>
+      </div>
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+        <p><b>Name:</b> <span id="detailName">-</span></p>
+        <p><b>Model:</b> <span id="detailModel">-</span></p>
+        <p><b>Brand:</b> <span id="detailBrand">-</span></p>
+        <p><b>Location:</b> <span id="detailLocation">-</span></p>
+        <p><b>Stock:</b> <span id="detailStock">0</span></p>
+        <p><b>Min/Max:</b> <span id="detailMinMax">0/0</span></p>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button id="detailQuickIssueBtn" class="eng-primary-btn rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold">⚡ Quick Issue</button>
+      </div>
     </div>
   </div>
 
@@ -228,6 +271,7 @@
     var lineSubFilter = document.getElementById('lineSubFilter');
     var brandFilter = document.getElementById('brandFilter');
     var searchInput = document.getElementById('searchInput');
+    var FALLBACK_IMAGE = '/images/no-image.svg';
 
     var partsData = [];
     var partMap = {};
@@ -264,6 +308,9 @@
     var editForm = document.getElementById('editForm');
     var editMessage = document.getElementById('editMessage');
     var editModalSubtitle = document.getElementById('editModalSubtitle');
+    var detailModal = document.getElementById('detailModal');
+    var detailQuickIssueBtn = document.getElementById('detailQuickIssueBtn');
+    var detailModalCurrentNo = null;
     var currentLine = 'H9';
     var lineConfig = [
       { key: 'H9', color: '#2563eb' },
@@ -351,8 +398,44 @@
         min: min,
         max: max,
         needToPO: needToPO,
-        photo: firstDefined([item.photo, item.image, item.imageUrl], '')
+        photo: firstDefined([item.photo, item.image, item.imageUrl], ''),
+        image_main: firstDefined([item.image_main, item.imageMain, item.photo, item.image, item.imageUrl], ''),
+        image_install: firstDefined([item.image_install, item.imageInstall], '')
       };
+    }
+
+    function isDriveViewUrl(url) {
+      return /^https:\/\/drive\.google\.com\/uc\?export=view&id=[A-Za-z0-9_-]+$/i.test(String(url || '').trim());
+    }
+
+    function toSafeImageUrl(url) {
+      var value = String(url || '').trim();
+      return isDriveViewUrl(value) ? value : FALLBACK_IMAGE;
+    }
+
+    function validateDriveUrlOrEmpty(value, label) {
+      var v = String(value || '').trim();
+      if (!v) return '';
+      if (!isDriveViewUrl(v)) throw new Error(label + ' ต้องเป็นลิงก์ Google Drive รูปแบบ https://drive.google.com/uc?export=view&id=FILE_ID');
+      return v;
+    }
+
+    function bindImageFallback(imgEl) {
+      if (!imgEl) return;
+      imgEl.addEventListener('error', function onImgError() {
+        imgEl.src = FALLBACK_IMAGE;
+      }, { once: true });
+    }
+
+    function bindDrivePreview(inputId, previewId) {
+      var input = document.getElementById(inputId);
+      var preview = document.getElementById(previewId);
+      if (!input || !preview) return;
+      bindImageFallback(preview);
+      input.addEventListener('input', function() {
+        var value = String(input.value || '').trim();
+        preview.src = isDriveViewUrl(value) ? value : FALLBACK_IMAGE;
+      });
     }
 
     function bindPhotoFileInput(fileInputId, targetInputId) {
@@ -674,7 +757,7 @@
     }
 
     function loadPartsData() {
-      tableBody.innerHTML = '<tr><td colspan="12" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="13" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
 
       loadJsonpWithFallback(function(base){ return base + "?sheet=" + encodeURIComponent(getCurrentSheetName()); })
         .catch(function() {
@@ -706,7 +789,7 @@
         })
         .catch(function(err) {
           var hint = 'ตรวจสอบ Apps Script Deployment: ต้องตั้งสิทธิ์เป็น Anyone และ deploy เวอร์ชันล่าสุด';
-          tableBody.innerHTML = '<tr><td colspan="12" class="py-8 text-center text-rose-500">' + err.message + '<br><span class="text-xs text-slate-500">' + hint + '</span></td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="13" class="py-8 text-center text-rose-500">' + err.message + '<br><span class="text-xs text-slate-500">' + hint + '</span></td></tr>';
           document.getElementById('stat-cards').innerHTML = '';
         });
     }
@@ -790,7 +873,8 @@
       document.getElementById('eLine').value = item.line || '';
       document.getElementById('eCategory').value = item.category || '';
       document.getElementById('eBrand').value = item.brand || '';
-      document.getElementById('ePhoto').value = item.photo || '';
+      document.getElementById('eImageMain').value = item.image_main || item.photo || '';
+      document.getElementById('eImageInstall').value = item.image_install || '';
       document.getElementById('ePhotoFile').value = '';
       document.getElementById('eMax').value = item.max || '';
       document.getElementById('eMin').value = item.min || '';
@@ -810,6 +894,16 @@
     function submitEditModal(event) {
       event.preventDefault();
       if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
+      var imageMain = '';
+      var imageInstall = '';
+      try {
+        imageMain = validateDriveUrlOrEmpty(document.getElementById('eImageMain').value.trim(), 'Image Main URL');
+        imageInstall = validateDriveUrlOrEmpty(document.getElementById('eImageInstall').value.trim(), 'Image Install URL');
+      } catch (err) {
+        editMessage.className = 'mt-3 text-sm text-rose-600';
+        editMessage.textContent = err.message;
+        return;
+      }
       var payload = {
         no: document.getElementById('eNo').value.trim(),
         name: document.getElementById('eName').value.trim(),
@@ -817,7 +911,9 @@
         line: document.getElementById('eLine').value.trim(),
         category: document.getElementById('eCategory').value.trim(),
         brand: document.getElementById('eBrand').value.trim(),
-        photo: document.getElementById('ePhoto').value.trim(),
+        photo: imageMain,
+        image_main: imageMain,
+        image_install: imageInstall,
         max: document.getElementById('eMax').value.trim(),
         min: document.getElementById('eMin').value.trim(),
         unit: document.getElementById('eUnit').value.trim(),
@@ -854,6 +950,16 @@
     function submitManageItem(event) {
       event.preventDefault();
       if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
+      var imageMain = '';
+      var imageInstall = '';
+      try {
+        imageMain = validateDriveUrlOrEmpty(document.getElementById('mImageMain').value.trim(), 'Image Main URL');
+        imageInstall = validateDriveUrlOrEmpty(document.getElementById('mImageInstall').value.trim(), 'Image Install URL');
+      } catch (err) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = err.message;
+        return;
+      }
       var payload = {
         no: document.getElementById('mNo').value.trim(),
         name: document.getElementById('mName').value.trim(),
@@ -861,7 +967,9 @@
         line: document.getElementById('mLine').value.trim(),
         category: document.getElementById('mCategory').value.trim(),
         brand: document.getElementById('mBrand').value.trim(),
-        photo: document.getElementById('mPhoto').value.trim(),
+        photo: imageMain,
+        image_main: imageMain,
+        image_install: imageInstall,
         max: document.getElementById('mMax').value.trim(),
         min: document.getElementById('mMin').value.trim(),
         unit: document.getElementById('mUnit').value.trim(),
@@ -954,7 +1062,7 @@
 
     function renderTable(data) {
       if (!data.length) {
-        tableBody.innerHTML = '<tr><td colspan="12" class="py-8 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขค้นหา</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="13" class="py-8 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไขค้นหา</td></tr>';
         return;
       }
 
@@ -966,12 +1074,16 @@
         var needLabel = item.needToPO > 0 ? 'ORDER ' + item.needToPO : 'OK';
         var needClass = item.needToPO > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
         return '<tr class="hover:bg-slate-50">' +
+          '<td class="py-3 pr-4 text-center">' +
+            '<button type="button" data-view-no="' + item.no + '" class="group inline-block" title="ดูรูปและรายละเอียด">' +
+              '<span class="block h-10 w-10 rounded-md border border-slate-200 bg-slate-100 overflow-hidden">' +
+                '<img loading="lazy" src="' + toSafeImageUrl(item.image_main || item.photo) + '" alt="part image" class="h-10 w-10 object-cover transition-transform duration-200 group-hover:scale-125" onerror="this.src=\'' + FALLBACK_IMAGE + '\'" />' +
+              '</span>' +
+            '</button>' +
+          '</td>' +
           '<td class="py-3 pr-4 font-medium">' + item.no + '</td>' +
           '<td class="py-3 pr-4">' +
-            '<div class="flex items-center gap-3">' +
-              (item.photo ? '<a href="' + item.photo + '" target="_blank" rel="noopener"><img src="' + item.photo + '" alt="part image" class="h-10 w-10 rounded-md border border-slate-200 object-cover" /></a>' : '<div class="h-10 w-10 rounded-md border border-slate-200 bg-slate-100"></div>') +
-              '<span>' + item.name + '</span>' +
-            '</div>' +
+            '<span>' + item.name + '</span>' +
           '</td>' +
           '<td class="py-3 pr-4 text-slate-600">' + item.model + '</td>' +
           '<td class="py-3 pr-4 text-slate-600">' + item.line + '</td>' +
@@ -987,7 +1099,7 @@
             '</span>' +
           '</td>' +
           '<td class="py-3 pr-4 text-center">' +
-            '<button data-view-no="' + item.no + '" class="text-slate-600 font-semibold mr-2" title="ดูรายละเอียด">👁</button>' +
+            '<button data-view-no="' + item.no + '" class="text-slate-600 font-semibold mr-2" title="ดูรายละเอียด">👁 View</button>' +
             '<button data-quick-no="' + item.no + '" class="text-amber-600 font-semibold mr-2" title="เบิกด่วน">⚡</button>' +
             '<button data-edit-no="' + item.no + '" class="text-blue-600 font-semibold mr-2" title="แก้ไข">✏️</button>' +
             '<button data-delete-no="' + item.no + '" class="text-rose-600 font-semibold" title="ลบ">🗑️</button>' +
@@ -1000,7 +1112,7 @@
           var no = btn.getAttribute('data-view-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (!found) return;
-          alert('Part: ' + (found.name || '-') + '\nModel: ' + (found.model || '-') + '\nLine: ' + (found.line || '-') + '\nLocation: ' + (found.location || '-') + '\nStock: ' + found.stock + '\nMin/Max: ' + found.min + '/' + found.max);
+          openDetailModal(found);
         });
       });
 
@@ -1008,29 +1120,7 @@
         btn.addEventListener('click', function(){
           var no = btn.getAttribute('data-quick-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
-          if (!found) return;
-          var qtyText = prompt('Quick Issue - ใส่จำนวนที่ต้องการเบิก', '1');
-          if (!qtyText) return;
-          var qty = Number(qtyText);
-          if (!qty || qty <= 0) return alert('จำนวนไม่ถูกต้อง');
-          callTransactionViaJsonp({
-            partNo: found.no,
-            partName: found.name,
-            model: found.model,
-            brand: found.brand,
-            category: found.category,
-            qty: qty,
-            type: 'Output',
-            unit: found.unit || 'PCS',
-            process: currentLine,
-            by: 'Quick Issue'
-          }).then(function(res){
-            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ไม่สำเร็จ');
-            loadPartsData();
-            if (!logPage.classList.contains('hidden')) loadLogData();
-          }).catch(function(err){
-            alert('Quick Issue ไม่สำเร็จ: ' + err.message);
-          });
+          quickIssueByItem(found);
         });
       });
 
@@ -1054,6 +1144,57 @@
           });
         });
       });
+    }
+
+    function quickIssueByItem(found) {
+      if (!found) return;
+      var qtyText = prompt('Quick Issue - ใส่จำนวนที่ต้องการเบิก', '1');
+      if (!qtyText) return;
+      var qty = Number(qtyText);
+      if (!qty || qty <= 0) return alert('จำนวนไม่ถูกต้อง');
+      callTransactionViaJsonp({
+        partNo: found.no,
+        partName: found.name,
+        model: found.model,
+        brand: found.brand,
+        category: found.category,
+        qty: qty,
+        type: 'Output',
+        unit: found.unit || 'PCS',
+        process: currentLine,
+        by: 'Quick Issue'
+      }).then(function(res){
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ไม่สำเร็จ');
+        loadPartsData();
+        if (!logPage.classList.contains('hidden')) loadLogData();
+        closeDetailModal();
+      }).catch(function(err){
+        alert('Quick Issue ไม่สำเร็จ: ' + err.message);
+      });
+    }
+
+    function openDetailModal(item) {
+      detailModalCurrentNo = item.no;
+      document.getElementById('detailName').textContent = item.name || '-';
+      document.getElementById('detailModel').textContent = item.model || '-';
+      document.getElementById('detailBrand').textContent = item.brand || '-';
+      document.getElementById('detailLocation').textContent = item.location || '-';
+      document.getElementById('detailStock').textContent = String(item.stock || 0);
+      document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
+      var mainImg = document.getElementById('detailMainImage');
+      var installImg = document.getElementById('detailInstallImage');
+      mainImg.src = toSafeImageUrl(item.image_main || item.photo);
+      installImg.src = toSafeImageUrl(item.image_install);
+      bindImageFallback(mainImg);
+      bindImageFallback(installImg);
+      detailModal.classList.remove('hidden');
+      detailModal.classList.add('flex');
+    }
+
+    function closeDetailModal() {
+      detailModal.classList.add('hidden');
+      detailModal.classList.remove('flex');
+      detailModalCurrentNo = null;
     }
 
     function renderPagination(totalItems) {
@@ -1167,10 +1308,17 @@
     manageForm.addEventListener('submit', submitManageItem);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+    document.getElementById('closeDetailModal').addEventListener('click', closeDetailModal);
     document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
+    detailQuickIssueBtn.addEventListener('click', function() {
+      var found = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
+      quickIssueByItem(found);
+    });
     editForm.addEventListener('submit', submitEditModal);
-    bindPhotoFileInput('mPhotoFile', 'mPhoto');
-    bindPhotoFileInput('ePhotoFile', 'ePhoto');
+    bindPhotoFileInput('mPhotoFile', 'mImageMain');
+    bindPhotoFileInput('ePhotoFile', 'eImageMain');
+    bindDrivePreview('mImageMain', 'mImageMainPreview');
+    bindDrivePreview('mImageInstall', 'mImageInstallPreview');
     sheetSelector.addEventListener('change', function() {
       loadPartsData();
       if (!logPage.classList.contains('hidden')) loadLogData();

@@ -304,6 +304,8 @@ function upsertMainItem(payload) {
     category: findCol(['category']),
     brand: findCol(['brand']),
     photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic']),
+    image_main: findCol(['image_main', 'imagemain', 'mainimage', 'main_image']),
+    image_install: findCol(['image_install', 'imageinstall', 'installimage', 'install_image']),
     max: findCol(['max', 'qtymax']),
     min: findCol(['min', 'qtymin']),
     unit: findCol(['unit']),
@@ -318,6 +320,12 @@ function upsertMainItem(payload) {
   }
   if (fieldCols.category === undefined) {
     fieldCols.category = ensureColumnInContext(ctx, 'Category', ['category']);
+  }
+  if (fieldCols.image_main === undefined) {
+    fieldCols.image_main = ensureColumnInContext(ctx, 'image_main', ['image_main', 'imagemain']);
+  }
+  if (fieldCols.image_install === undefined) {
+    fieldCols.image_install = ensureColumnInContext(ctx, 'image_install', ['image_install', 'imageinstall']);
   }
 
   if (fieldCols.no === undefined) throw new Error('ไม่พบคอลัมน์ NO');
@@ -338,6 +346,8 @@ function upsertMainItem(payload) {
     category: payload.category || '',
     brand: payload.brand || '',
     photo: payload.photo || '',
+    image_main: payload.image_main || payload.photo || '',
+    image_install: payload.image_install || '',
     max: payload.max || '',
     min: payload.min || '',
     unit: payload.unit || '',
@@ -399,6 +409,8 @@ function doGet(e) {
       category: e.parameter.category,
       brand: e.parameter.brand,
       photo: e.parameter.photo,
+      image_main: e.parameter.image_main,
+      image_install: e.parameter.image_install,
       max: e.parameter.max,
       min: e.parameter.min,
       unit: e.parameter.unit,
@@ -437,7 +449,9 @@ function doGet(e) {
         needToPO: needToPOValue,
         unit: pickRowValue(row, map, ['unit'], 'PCS'),
         remark: pickRowValue(row, map, ['remark'], ''),
-        photo: pickRowValue(row, map, ['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], '')
+        photo: pickRowValue(row, map, ['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
+        image_main: pickRowValue(row, map, ['image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
+        image_install: pickRowValue(row, map, ['image_install', 'imageinstall', 'installimage', 'install_image'], '')
       };
     }).filter(function (item) {
       return item.name && item.name !== '-';
@@ -466,6 +480,8 @@ function doPost(e) {
         category: body.category,
         brand: body.brand,
         photo: body.photo,
+        image_main: body.image_main,
+        image_install: body.image_install,
         max: body.max,
         min: body.min,
         unit: body.unit,
