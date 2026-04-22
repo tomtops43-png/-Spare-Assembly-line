@@ -401,9 +401,7 @@ function doGet(e) {
     var result = rows.map(function (row, index) {
       var stockValue = Number(pickRowValue(row, map, ['stockqty', 'qtystock', 'qoh', 'stock'], 0)) || 0;
       var minValue = Number(pickRowValue(row, map, ['min', 'qtymin'], 0)) || 0;
-      var rawNeedToPO = pickRowValue(row, map, ['needtopo', 'needpo'], '');
-      var needToPOValue = Number(rawNeedToPO);
-      if (!isFinite(needToPOValue)) needToPOValue = Math.max(minValue - stockValue, 0);
+      var needToPOValue = Math.max(minValue - stockValue, 0);
 
       return {
         no: pickRowValue(row, map, ['no'], index + 1),
