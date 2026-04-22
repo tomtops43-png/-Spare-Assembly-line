@@ -389,6 +389,8 @@
       var candidates = [baseUrl];
       if (baseUrl.indexOf('/exec') > -1) candidates.push(baseUrl.replace('/exec', '/dev'));
       if (baseUrl.indexOf('/dev') > -1) candidates.push(baseUrl.replace('/dev', '/exec'));
+      if (API_URL && candidates.indexOf(API_URL) === -1) candidates.push(API_URL);
+      if (API_URL && API_URL.indexOf('/exec') > -1) candidates.push(API_URL.replace('/exec', '/dev'));
       return Array.from(new Set(candidates.filter(Boolean)));
     }
 
@@ -643,7 +645,12 @@
         })
         .then(function(rawData) {
           if (rawData && rawData.status === 'error') {
-            throw new Error(rawData.message || 'API ตอบกลับ error');
+            var msg = rawData.message || 'API ตอบกลับ error';
+            var isMissingSheet = msg.indexOf('ไม่พบชีทชื่อ') > -1;
+            if (isMissingSheet && ACTIVE_API_URL !== API_URL) {
+              return loadViaJsonp(API_URL + "?sheet=" + encodeURIComponent(getCurrentSheetName()));
+            }
+            throw new Error(msg);
           }
           if (!Array.isArray(rawData)) {
             throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
