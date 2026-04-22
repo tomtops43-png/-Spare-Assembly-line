@@ -293,6 +293,12 @@ function upsertMainItem(payload) {
   if (fieldCols.brand === undefined) {
     fieldCols.brand = ensureColumnInContext(ctx, 'Brand', ['brand']);
   }
+  if (fieldCols.line === undefined) {
+    fieldCols.line = ensureColumnInContext(ctx, 'Line', ['line', 'mainline']);
+  }
+  if (fieldCols.category === undefined) {
+    fieldCols.category = ensureColumnInContext(ctx, 'Category', ['category']);
+  }
 
   if (fieldCols.no === undefined) throw new Error('ไม่พบคอลัมน์ NO');
 
