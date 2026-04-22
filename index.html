@@ -187,6 +187,9 @@
       'Coil Winding': localStorage.getItem('spare_api_url_coil_winding') || '',
       'Lug&Screw': localStorage.getItem('spare_api_url_lug_screw') || ''
     };
+    var LINE_SHEET_MAP = {
+      'Arc Chute': 'Standard Spare part'
+    };
 
     var tableBody = document.getElementById('partsTable');
     var paginationControls = document.getElementById('paginationControls');
@@ -445,7 +448,8 @@
           currentLine = btn.getAttribute('data-line');
           renderLineTabs();
           applyLineTheme();
-          applyFilters();
+          loadPartsData();
+          if (!logPage.classList.contains('hidden')) loadLogData();
         });
       });
     }
@@ -467,6 +471,7 @@
     }
 
     function getCurrentSheetName() {
+      if (LINE_SHEET_MAP[currentLine]) return LINE_SHEET_MAP[currentLine];
       return sheetSelector.value || 'Main List Stock';
     }
 
