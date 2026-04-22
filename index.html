@@ -179,6 +179,7 @@
   <script>
     var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
     var API_URL = localStorage.getItem('spare_api_url') || DEFAULT_API_URL;
+    if (API_URL.indexOf('/dev') > -1) API_URL = API_URL.replace('/dev', '/exec');
     var ACTIVE_API_URL = API_URL;
 
     var tableBody = document.getElementById('partsTable');
@@ -394,8 +395,13 @@
       return runNext();
     }
 
+    function getWriteApiUrl() {
+      if (API_URL.indexOf('/dev') > -1) return API_URL.replace('/dev', '/exec');
+      return API_URL;
+    }
+
     function postJsonNoCors(payload) {
-      return fetch(ACTIVE_API_URL, {
+      return fetch(getWriteApiUrl(), {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
