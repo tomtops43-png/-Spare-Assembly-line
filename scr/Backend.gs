@@ -185,8 +185,8 @@ function processTransaction(payload) {
   for (var i = 0; i < rows.length; i += 1) {
     var row = rows[i];
     var rowNo = pickRowValue(row, map, ['no'], '');
-    var rowName = pickRowValue(row, map, ['namedescriptions', 'name', 'description'], '');
-    var rowModel = pickRowValue(row, map, ['model'], '');
+    var rowName = pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '');
+    var rowModel = pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '');
     var noMatch = payload.partNo !== undefined && String(rowNo) === String(payload.partNo);
     var nameMatch = String(rowName) === String(payload.partName);
     var modelMatch = !payload.model || String(rowModel) === String(payload.model);
@@ -298,9 +298,9 @@ function upsertMainItem(payload) {
 
   var fieldCols = {
     no: findCol(['no']),
-    name: findCol(['namedescriptions', 'name', 'description']),
-    model: findCol(['model']),
-    line: findCol(['mainline', 'line']),
+    name: findCol(['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp']),
+    model: findCol(['model', 'codeno', 'jrcodeno']),
+    line: findCol(['mainline', 'line', 'location', 'jrlocation']),
     category: findCol(['category']),
     brand: findCol(['brand']),
     photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic']),
@@ -425,9 +425,9 @@ function doGet(e) {
 
       return {
         no: pickRowValue(row, map, ['no'], index + 1),
-        name: pickRowValue(row, map, ['namedescriptions', 'name', 'description'], '-'),
-        model: pickRowValue(row, map, ['model'], '-'),
-        line: pickRowValue(row, map, ['mainline', 'line'], '-'),
+        name: pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '-'),
+        model: pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '-'),
+        line: pickRowValue(row, map, ['mainline', 'line', 'location', 'jrlocation'], '-'),
         category: pickRowValue(row, map, ['category'], 'General'),
         brand: pickRowValue(row, map, ['brand'], '-'),
         stock: stockValue,
