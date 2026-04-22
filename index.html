@@ -302,7 +302,9 @@
       var stock = safeNum(firstDefined([item.stock, item.qty], 0));
       var min = safeNum(firstDefined([item.min, item.qtyMin], 0));
       var max = safeNum(firstDefined([item.max, item.qtyMax], 0));
-      var needToPO = safeNum(firstDefined([item.needToPO], Math.max(min - stock, 0)));
+      var rawNeedToPO = firstDefined([item.needToPO, item.needpo], '');
+      var parsedNeedToPO = Number(rawNeedToPO);
+      var needToPO = Number.isFinite(parsedNeedToPO) ? parsedNeedToPO : Math.max(min - stock, 0);
 
       return {
         no: firstDefined([item.no], index + 1),

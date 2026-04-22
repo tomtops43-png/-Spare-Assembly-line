@@ -399,6 +399,12 @@ function doGet(e) {
     var map = buildHeaderIndexMap(headers);
 
     var result = rows.map(function (row, index) {
+      var stockValue = Number(pickRowValue(row, map, ['stockqty', 'qtystock', 'qoh', 'stock'], 0)) || 0;
+      var minValue = Number(pickRowValue(row, map, ['min', 'qtymin'], 0)) || 0;
+      var rawNeedToPO = pickRowValue(row, map, ['needtopo', 'needpo'], '');
+      var needToPOValue = Number(rawNeedToPO);
+      if (!isFinite(needToPOValue)) needToPOValue = Math.max(minValue - stockValue, 0);
+
       return {
         no: pickRowValue(row, map, ['no'], index + 1),
         name: pickRowValue(row, map, ['namedescriptions', 'name', 'description'], '-'),
@@ -406,10 +412,10 @@ function doGet(e) {
         line: pickRowValue(row, map, ['mainline', 'line'], '-'),
         category: pickRowValue(row, map, ['category'], 'General'),
         brand: pickRowValue(row, map, ['brand'], '-'),
-        stock: pickRowValue(row, map, ['stockqty', 'qtystock', 'qoh', 'stock'], 0),
+        stock: stockValue,
         max: pickRowValue(row, map, ['max', 'qtymax'], 0),
-        min: pickRowValue(row, map, ['min', 'qtymin'], 0),
-        needToPO: pickRowValue(row, map, ['needtopo', 'needpo'], 0),
+        min: minValue,
+        needToPO: needToPOValue,
         unit: pickRowValue(row, map, ['unit'], 'PCS'),
         remark: pickRowValue(row, map, ['remark'], ''),
         photo: pickRowValue(row, map, ['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], '')
