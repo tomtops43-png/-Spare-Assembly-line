@@ -181,6 +181,12 @@
     var API_URL = localStorage.getItem('spare_api_url') || DEFAULT_API_URL;
     if (API_URL.indexOf('/dev') > -1) API_URL = API_URL.replace('/dev', '/exec');
     var ACTIVE_API_URL = API_URL;
+    var LINE_API_URL_MAP = {
+      'H9': API_URL,
+      'Arc Chute': localStorage.getItem('spare_api_url_arc_chute') || '',
+      'Coil Winding': localStorage.getItem('spare_api_url_coil_winding') || '',
+      'Lug&Screw': localStorage.getItem('spare_api_url_lug_screw') || ''
+    };
 
     var tableBody = document.getElementById('partsTable');
     var paginationControls = document.getElementById('paginationControls');
@@ -375,9 +381,11 @@
     }
 
     function getApiCandidates() {
-      var candidates = [API_URL];
-      if (API_URL.indexOf('/exec') > -1) candidates.push(API_URL.replace('/exec', '/dev'));
-      if (API_URL.indexOf('/dev') > -1) candidates.push(API_URL.replace('/dev', '/exec'));
+      var baseUrl = LINE_API_URL_MAP[currentLine] || API_URL;
+      if (baseUrl.indexOf('/dev') > -1) baseUrl = baseUrl.replace('/dev', '/exec');
+      var candidates = [baseUrl];
+      if (baseUrl.indexOf('/exec') > -1) candidates.push(baseUrl.replace('/exec', '/dev'));
+      if (baseUrl.indexOf('/dev') > -1) candidates.push(baseUrl.replace('/dev', '/exec'));
       return Array.from(new Set(candidates.filter(Boolean)));
     }
 
@@ -396,8 +404,9 @@
     }
 
     function getWriteApiUrl() {
-      if (API_URL.indexOf('/dev') > -1) return API_URL.replace('/dev', '/exec');
-      return API_URL;
+      var baseUrl = LINE_API_URL_MAP[currentLine] || API_URL;
+      if (baseUrl.indexOf('/dev') > -1) return baseUrl.replace('/dev', '/exec');
+      return baseUrl;
     }
 
     function postJsonNoCors(payload) {
