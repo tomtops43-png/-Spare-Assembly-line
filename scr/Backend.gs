@@ -35,7 +35,7 @@ function pickRowValue(row, map, keys, fallbackValue) {
 }
 
 function findHeaderRowIndex(data) {
-  var requiredHints = ['no', 'name', 'category', 'brand', 'stock'];
+  var requiredHints = ['no', 'name', 'description', 'category', 'brand', 'stock', 'qoh', 'model'];
   var maxScan = Math.min(data.length, 8);
 
   for (var r = 0; r < maxScan; r += 1) {
@@ -52,7 +52,7 @@ function findHeaderRowIndex(data) {
       if (matched) hit += 1;
     }
 
-    if (hit >= 3) return r;
+    if (hit >= 2) return r;
   }
 
   return 0;
@@ -155,7 +155,7 @@ function processTransaction(payload) {
   var map = buildHeaderIndexMap(headers);
   var rows = mainData.slice(headerRowIndex + 1);
 
-  var stockCol = map.stockqty !== undefined ? map.stockqty : (map.qtystock !== undefined ? map.qtystock : map.stock);
+  var stockCol = map.stockqty !== undefined ? map.stockqty : (map.qtystock !== undefined ? map.qtystock : (map.qoh !== undefined ? map.qoh : map.stock));
   var minCol = map.min;
   var needPoCol = map.needtopo !== undefined ? map.needtopo : map.needpo;
 
@@ -283,11 +283,11 @@ function upsertMainItem(payload) {
     line: findCol(['mainline', 'line']),
     category: findCol(['category']),
     brand: findCol(['brand']),
-    photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture']),
+    photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic']),
     max: findCol(['max', 'qtymax']),
     min: findCol(['min', 'qtymin']),
     unit: findCol(['unit']),
-    stock: findCol(['stockqty', 'qtystock', 'stock', 'initialstock'])
+    stock: findCol(['stockqty', 'qtystock', 'qoh', 'stock', 'initialstock'])
   };
 
   if (fieldCols.brand === undefined) {
@@ -400,13 +400,13 @@ function doGet(e) {
         line: pickRowValue(row, map, ['mainline', 'line'], '-'),
         category: pickRowValue(row, map, ['category'], 'General'),
         brand: pickRowValue(row, map, ['brand'], '-'),
-        stock: pickRowValue(row, map, ['stockqty', 'qtystock', 'stock'], 0),
+        stock: pickRowValue(row, map, ['stockqty', 'qtystock', 'qoh', 'stock'], 0),
         max: pickRowValue(row, map, ['max', 'qtymax'], 0),
         min: pickRowValue(row, map, ['min', 'qtymin'], 0),
         needToPO: pickRowValue(row, map, ['needtopo', 'needpo'], 0),
         unit: pickRowValue(row, map, ['unit'], 'PCS'),
         remark: pickRowValue(row, map, ['remark'], ''),
-        photo: pickRowValue(row, map, ['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture'], '')
+        photo: pickRowValue(row, map, ['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], '')
       };
     }).filter(function (item) {
       return item.name && item.name !== '-';
