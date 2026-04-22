@@ -432,6 +432,22 @@
       tabStock.style.backgroundColor = currentLine ? '' : '';
       var headerHint = document.querySelector('header p');
       if (headerHint) headerHint.textContent = 'CURRENT LINE: ' + currentLine;
+      syncSheetSelectorForCurrentLine();
+    }
+
+    function syncSheetSelectorForCurrentLine() {
+      if (LINE_SHEET_MAP[currentLine]) {
+        var forcedSheet = LINE_SHEET_MAP[currentLine];
+        sheetSelector.innerHTML = '<option value="' + forcedSheet + '">' + forcedSheet + '</option>';
+        sheetSelector.value = forcedSheet;
+        sheetSelector.disabled = true;
+        return;
+      }
+
+      sheetSelector.disabled = false;
+      sheetSelector.innerHTML =
+        '<option value="Main List Stock">Main List Stock</option>' +
+        '<option value="Stock for MC">Stock for MC</option>';
     }
 
     function renderLineTabs() {
@@ -970,7 +986,9 @@
         var hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().indexOf(keyword) > -1;
         var hitCategory = category === 'all' || item.category === category;
         var lineText = String(item.line || '').toLowerCase();
-        var hitLine = currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1;
+        var hitLine = LINE_SHEET_MAP[currentLine]
+          ? true
+          : (currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1);
         return hitSearch && hitCategory && hitLine;
       });
 
