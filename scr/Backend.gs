@@ -9,6 +9,26 @@ var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Mod
 // =============================
 // HELPERS
 // =============================
+
+function buildErrorResponse(err) {
+  var msg = err && err.message ? String(err.message) : String(err || 'Unknown error');
+  var lower = msg.toLowerCase();
+  var isDriveAuth = lower.indexOf('ไม่ได้รับอนุญาต') > -1 ||
+    lower.indexOf('authorization') > -1 ||
+    lower.indexOf('googleapis.com/auth/drive') > -1;
+
+  if (isDriveAuth) {
+    return {
+      status: 'error',
+      errorCode: 'DRIVE_AUTH_REQUIRED',
+      message: 'ยังไม่ได้อนุญาตสิทธิ์ Google Drive ให้ Apps Script (DRIVE_AUTH_REQUIRED). กรุณาเปิด Apps Script แล้ว Run ฟังก์ชันที่ใช้ DriveApp 1 ครั้งเพื่ออนุญาตสิทธิ์ จากนั้น Deploy เว็บแอปใหม่และลองอีกครั้ง',
+      detail: msg
+    };
+  }
+
+  return { status: 'error', message: msg };
+}
+
 function normalizeHeaderName(header) {
   return String(header || '')
     .toLowerCase()
@@ -310,6 +330,11 @@ function getDataUrlMimeType(dataUrl) {
 }
 
 function uploadImageToDrive(payload) {
+  payload = payload || {};
+  if (!payload.itemId && !payload.no && !payload.dataUrl && !payload.fileBase64) {
+    throw new Error('uploadImageToDrive ต้องรับ payload เช่น { itemId, line, imageType/kind, dataUrl }');
+  }
+
   var itemId = String(payload.itemId || payload.no || '').trim();
   var line = String(payload.line || payload.mainLine || '').trim();
   var kind = String(payload.kind || payload.imageType || 'main').toLowerCase();
@@ -338,7 +363,13 @@ function uploadImageToDrive(payload) {
   }
 
   var file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  var sharingWarning = '';
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (shareErr) {
+    sharingWarning = shareErr && shareErr.message ? String(shareErr.message) : String(shareErr);
+    Logger.log('setSharing warning: ' + sharingWarning);
+  }
 
   return {
     ok: true,
@@ -349,7 +380,8 @@ function uploadImageToDrive(payload) {
     imageUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
     viewUrl: 'https://drive.google.com/file/d/' + file.getId() + '/view',
     directUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
-    drivePath: target.drivePath
+    drivePath: target.drivePath,
+    warning: sharingWarning
   };
 }
 
@@ -486,11 +518,46 @@ function deleteMainItem(payload) {
 // =============================
 // GET (stock + logs + JSONP transaction)
 // =============================
+
+
+function authorizeGoogleDriveAccess() {
+  // รันฟังก์ชันนี้จาก Apps Script Editor 1 ครั้งเพื่อให้ Google แสดงหน้าขอสิทธิ์
+  var root = DriveApp.getRootFolder();
+  return {
+    ok: true,
+    status: 'success',
+    authorized: true,
+    message: 'อนุญาตสิทธิ์ Google Drive สำเร็จ',
+    rootFolderName: root.getName()
+  };
+}
+
+function getDriveAuthStatus() {
+  try {
+    var root = DriveApp.getRootFolder();
+    return {
+      ok: true,
+      status: 'success',
+      authorized: true,
+      rootFolderName: root.getName()
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 'error',
+      authorized: false,
+      message: err && err.message ? err.message : String(err)
+    };
+  }
+}
+
 function doGet(e) {
   try {
     var action = e && e.parameter ? e.parameter.action : '';
     if (action === 'transact') return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
     if (action === 'logs') return respond(getLogRows(), e);
+    if (action === 'authStatus') return respond(getDriveAuthStatus(), e);
+    if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
     if (action === 'upsertItem') return respond(upsertMainItem({
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
@@ -558,7 +625,7 @@ function doGet(e) {
 
     return respond(result, e);
   } catch (err) {
-    return respond({ status: 'error', message: err.message }, e);
+    return respond(buildErrorResponse(err), e);
   }
 }
 
@@ -625,6 +692,12 @@ function doPost(e) {
     if (action === 'uploadImage' || action === 'upload') {
       return respond(uploadImageToDrive(body), e);
     }
+    if (action === 'authStatus') {
+      return respond(getDriveAuthStatus(), e);
+    }
+    if (action === 'authorizeDrive') {
+      return respond(authorizeGoogleDriveAccess(), e);
+    }
     if (action === 'deleteItem') {
       return respond(deleteMainItem({
         sheetName: body.sheet || body.sheetName,
@@ -634,7 +707,7 @@ function doPost(e) {
     return respond(processTransaction(body), e);
   } catch (err) {
     Logger.log('doPost error: ' + err);
-    return respond({ status: 'error', message: err.message }, e);
+    return respond(buildErrorResponse(err), e);
   }
 }
 
