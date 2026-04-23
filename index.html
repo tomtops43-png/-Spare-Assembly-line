@@ -500,20 +500,36 @@
       });
     }
 
-    function uploadImageFile(file, itemId, kind) {
+    function uploadImageFile(file, itemId, kind, itemName) {
       if (!file) return Promise.resolve(null);
       validateImageFile(file);
       return readFileAsDataUrl(file).then(function(dataUrl) {
-        return callManageAction('uploadImage', {
-          itemId: itemId,
-          line: currentLine,
-          imageType: kind,
-          kind: kind,
-          dataUrl: dataUrl
+        var formData = new FormData();
+        formData.append('action', 'uploadImage');
+        formData.append('itemId', itemId);
+        formData.append('line', currentLine);
+        formData.append('imageType', kind);
+        formData.append('itemName', itemName || '');
+        formData.append('file', file, file.name || (kind + '-' + itemId));
+        formData.append('dataUrl', dataUrl);
+        return fetch(getWriteApiUrl(), {
+          method: 'POST',
+          body: formData
+        }).then(function(res) {
+          return res.text().then(function(text) {
+            var parsed = null;
+            try { parsed = text ? JSON.parse(text) : null; } catch (err) {}
+            if (!res.ok) throw new Error((parsed && parsed.message) || ('HTTP ' + res.status));
+            return parsed || { ok: false, message: 'invalid response' };
+          });
         });
       }).then(function(res) {
-        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'อัปโหลดรูปไม่สำเร็จ');
+        console.log('[uploadImage] response', res);
+        if (!res || (res.ok !== true && res.status !== 'success')) throw new Error((res && res.message) || 'อัปโหลดรูปไม่สำเร็จ');
         return res;
+      }).catch(function(err) {
+        console.error('[uploadImage] error', err);
+        throw err;
       });
     }
 
@@ -710,16 +726,6 @@
         unit: payload.unit || '',
         stock: payload.stock || ''
       };
-
-      if (action === 'uploadImage') {
-        return postJson(requestPayload).then(function(res) {
-          console.log('[uploadImage] response', res);
-          return res;
-        }).catch(function(err) {
-          console.error('[uploadImage] error', err, requestPayload);
-          throw err;
-        });
-      }
 
       var photoSize = String(requestPayload.photo || '').length;
       var shouldUsePost = photoSize > 1200;
@@ -1023,8 +1029,8 @@
       editMessage.className = 'mt-3 text-sm text-slate-500';
       editMessage.textContent = 'กำลังอัปโหลดรูปและบันทึก...';
       Promise.all([
-        uploadImageFile(mainFile, itemNo, 'main'),
-        uploadImageFile(installFile, itemNo, 'install')
+        uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()),
+        uploadImageFile(installFile, itemNo, 'install', document.getElementById('eName').value.trim())
       ]).then(function(results){
         var mainRes = results[0];
         var installRes = results[1];
@@ -1094,8 +1100,8 @@
       manageMessage.className = 'mt-3 text-sm text-slate-500';
       manageMessage.textContent = 'กำลังอัปโหลดรูปและบันทึกรายการ...';
       Promise.all([
-        uploadImageFile(mainFile, itemNo, 'main'),
-        uploadImageFile(installFile, itemNo, 'install')
+        uploadImageFile(mainFile, itemNo, 'main', document.getElementById('mName').value.trim()),
+        uploadImageFile(installFile, itemNo, 'install', document.getElementById('mName').value.trim())
       ]).then(function(results) {
         var mainRes = results[0];
         var installRes = results[1];

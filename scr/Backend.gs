@@ -341,6 +341,7 @@ function uploadImageToDrive(payload) {
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
   return {
+    ok: true,
     status: 'success',
     itemId: itemId,
     kind: kind,
