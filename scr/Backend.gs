@@ -15,8 +15,7 @@ function buildErrorResponse(err) {
   var lower = msg.toLowerCase();
   var isDriveAuth = lower.indexOf('ไม่ได้รับอนุญาต') > -1 ||
     lower.indexOf('authorization') > -1 ||
-    lower.indexOf('googleapis.com/auth/drive') > -1 ||
-    lower.indexOf('driveapp') > -1;
+    lower.indexOf('googleapis.com/auth/drive') > -1;
 
   if (isDriveAuth) {
     return {
@@ -364,7 +363,13 @@ function uploadImageToDrive(payload) {
   }
 
   var file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  var sharingWarning = '';
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (shareErr) {
+    sharingWarning = shareErr && shareErr.message ? String(shareErr.message) : String(shareErr);
+    Logger.log('setSharing warning: ' + sharingWarning);
+  }
 
   return {
     ok: true,
@@ -375,7 +380,8 @@ function uploadImageToDrive(payload) {
     imageUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
     viewUrl: 'https://drive.google.com/file/d/' + file.getId() + '/view',
     directUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
-    drivePath: target.drivePath
+    drivePath: target.drivePath,
+    warning: sharingWarning
   };
 }
 
