@@ -1253,7 +1253,9 @@
       var status = getStockStatus(selected);
       var tone = getStatusTone(status);
       var normalizedImage = toSafeImageUrl(selected.image_main_url);
+      var secondaryFallback = getSecondaryDriveImageUrl(selected.image_main_url);
       txnSelectedImage.src = normalizedImage;
+      txnSelectedImage.setAttribute('data-fallback-src', secondaryFallback || '');
       bindImageFallback(txnSelectedImage);
       txnSelectedName.textContent = selected.name || '-';
       txnSelectedModel.textContent = 'Model: ' + (selected.model || '-');
