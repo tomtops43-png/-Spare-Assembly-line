@@ -127,22 +127,72 @@
     <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
       <div class="mb-4 flex items-center justify-between">
         <h2 class="text-xl font-bold">⚙️ เบิก / รับ อะไหล่</h2>
-        <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">Engineer Mode</span>
+        <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">Quick Issue Flow</span>
       </div>
-      <form id="txnForm" class="grid grid-cols-1 md:grid-cols-6 gap-3">
-        <select id="partSelect" class="md:col-span-2 rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
-          <option value="">เลือกอะไหล่</option>
-        </select>
-        <select id="txnType" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
-          <option value="Output">เบิกออก</option>
-          <option value="Input">รับเข้า/คืนเข้า</option>
-        </select>
-        <input id="txnQty" type="number" min="1" step="1" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="จำนวน" required />
-        <input id="txnBy" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ผู้เบิก/ผู้รับ" required />
-        <input id="txnProcess" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="ไลน์/งาน" />
-        <button type="submit" class="md:col-span-6 eng-primary-btn rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
-      </form>
-      <p id="txnMessage" class="mt-3 text-sm"></p>
+
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <div class="xl:col-span-7 space-y-3">
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 md:p-4">
+            <label for="txnSearchInput" class="text-xs font-semibold text-slate-500">ค้นหาอะไหล่ (ชื่อ / รุ่น / แบรนด์ / รหัส)</label>
+            <div class="relative mt-2">
+              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+              <input id="txnSearchInput" type="text" placeholder="พิมพ์เพื่อค้นหา..." class="h-12 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 text-base focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+              <select id="txnCategoryFilter" class="h-11 rounded-xl border border-slate-300 px-3 bg-white">
+                <option value="all">หมวดหมู่ทั้งหมด</option>
+              </select>
+              <select id="txnBrandFilter" class="h-11 rounded-xl border border-slate-300 px-3 bg-white">
+                <option value="all">แบรนด์ทั้งหมด</option>
+              </select>
+              <select id="txnStatusFilter" class="h-11 rounded-xl border border-slate-300 px-3 bg-white">
+                <option value="all">ทุกสถานะ</option>
+                <option value="out">หมด</option>
+                <option value="low">ต่ำ / ใกล้หมด</option>
+                <option value="ok">พร้อมใช้</option>
+              </select>
+              <label class="h-11 rounded-xl border border-slate-300 px-3 bg-white flex items-center gap-2 text-sm">
+                <input id="txnInStockOnly" type="checkbox" class="h-4 w-4" checked />
+                มีของใน stock
+              </label>
+            </div>
+          </div>
+
+          <div id="txnResultList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
+
+        <div class="xl:col-span-5">
+          <form id="txnForm" class="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5 space-y-3">
+            <div id="txnSelectedEmpty" class="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-slate-500 text-sm">
+              ยังไม่ได้เลือกรายการอะไหล่<br/>กรุณาค้นหาและกดเลือกจากการ์ดด้านซ้ายก่อน
+            </div>
+            <div id="txnSelectedCard" class="hidden rounded-xl border border-slate-200 bg-white p-3">
+              <div class="flex gap-3">
+                <img id="txnSelectedImage" src="images/no-image.svg" alt="selected item" class="h-20 w-20 rounded-lg border border-slate-200 object-contain bg-slate-100 cursor-zoom-in" />
+                <div class="min-w-0 flex-1">
+                  <p id="txnSelectedName" class="text-sm font-semibold text-slate-900 truncate">-</p>
+                  <p id="txnSelectedModel" class="text-xs text-slate-500 mt-1">Model: -</p>
+                  <p id="txnSelectedNo" class="text-xs text-slate-500">รหัส: -</p>
+                  <div class="mt-2 flex items-center gap-2">
+                    <span id="txnSelectedStatus" class="inline-flex items-center rounded-full px-2 py-1 text-[11px] bg-slate-100 text-slate-600">-</span>
+                    <span id="txnSelectedStock" class="text-sm font-semibold text-blue-700">Stock: -</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <select id="txnType" class="h-11 rounded-xl border border-slate-300 px-3 bg-white" required>
+              <option value="Output">เบิกออก</option>
+              <option value="Input">รับเข้า/คืนเข้า</option>
+            </select>
+            <input id="txnQty" type="number" min="1" step="1" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="จำนวน" required />
+            <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ผู้เบิก/ผู้รับ" required />
+            <input id="txnProcess" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ไลน์/งาน" />
+            <button type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
+          </form>
+          <p id="txnMessage" class="mt-3 text-sm"></p>
+        </div>
+      </div>
     </section>
 
     <section id="managePage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
@@ -334,12 +384,26 @@
 
     var partsData = [];
     var partMap = {};
+    var currentTxnItemNo = '';
     var currentPage = 1;
     var pageSize = 10;
     var tableStatusMode = 'all';
 
     var txnForm = document.getElementById('txnForm');
-    var partSelect = document.getElementById('partSelect');
+    var txnSearchInput = document.getElementById('txnSearchInput');
+    var txnCategoryFilter = document.getElementById('txnCategoryFilter');
+    var txnBrandFilter = document.getElementById('txnBrandFilter');
+    var txnStatusFilter = document.getElementById('txnStatusFilter');
+    var txnInStockOnly = document.getElementById('txnInStockOnly');
+    var txnResultList = document.getElementById('txnResultList');
+    var txnSelectedEmpty = document.getElementById('txnSelectedEmpty');
+    var txnSelectedCard = document.getElementById('txnSelectedCard');
+    var txnSelectedImage = document.getElementById('txnSelectedImage');
+    var txnSelectedName = document.getElementById('txnSelectedName');
+    var txnSelectedModel = document.getElementById('txnSelectedModel');
+    var txnSelectedNo = document.getElementById('txnSelectedNo');
+    var txnSelectedStatus = document.getElementById('txnSelectedStatus');
+    var txnSelectedStock = document.getElementById('txnSelectedStock');
     var txnType = document.getElementById('txnType');
     var txnQty = document.getElementById('txnQty');
     var txnBy = document.getElementById('txnBy');
@@ -1001,6 +1065,10 @@
       logPage.classList.add('hidden');
       managePage.classList.add('hidden');
       setTabStyles('txn');
+      renderTxnResultList();
+      setTimeout(function() {
+        txnSearchInput.focus();
+      }, 50);
     }
 
     function switchToLogPage() {
@@ -1023,6 +1091,7 @@
     function loadPartsData() {
       tableBody.innerHTML = '<tr><td colspan="13" class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td></tr>';
       mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
+      txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
 
       loadJsonpWithFallback(function(base){ return base + "?sheet=" + encodeURIComponent(getCurrentSheetName()); })
         .catch(function() {
@@ -1051,6 +1120,10 @@
           populateCategoryOptions(partsData);
           populateBrandOptions(partsData);
           populatePartOptions(partsData);
+          populateTxnFilters(partsData);
+          if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
+          renderTxnResultList();
+          selectTxnItem(currentTxnItemNo);
           if (partsData.length) {
             var updatedAtText = document.getElementById('updatedAtText');
             updatedAtText.textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH');
@@ -1064,6 +1137,7 @@
           var hint = 'ตรวจสอบ Apps Script Deployment: ต้องตั้งสิทธิ์เป็น Anyone และ deploy เวอร์ชันล่าสุด';
           tableBody.innerHTML = '<tr><td colspan="13" class="py-8 text-center text-rose-500">' + err.message + '<br><span class="text-xs text-slate-500">' + hint + '</span></td></tr>';
           mobileCardList.innerHTML = '<div class="py-8 text-center text-rose-500">' + err.message + '</div>';
+          txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-rose-500">' + err.message + '</div>';
           document.getElementById('stat-cards').innerHTML = '';
           document.getElementById('updatedAtText').classList.add('hidden');
         });
@@ -1072,27 +1146,136 @@
 
     function populatePartOptions(data) {
       partMap = {};
-      partSelect.innerHTML = '<option value="">เลือกอะไหล่</option>';
-
       data.forEach(function(item, idx) {
         var key = String(item.no || idx + 1);
         partMap[key] = item;
+      });
+    }
 
+    function populateTxnFilters(data) {
+      var categories = Array.from(new Set(data.map(function(item){ return item.category; }).filter(Boolean))).sort();
+      var brands = Array.from(new Set(data.map(function(item){ return item.brand; }).filter(Boolean))).sort();
+
+      txnCategoryFilter.innerHTML = '<option value="all">หมวดหมู่ทั้งหมด</option>';
+      categories.forEach(function(value) {
         var option = document.createElement('option');
-        option.value = key;
-        option.textContent = key + ' - ' + item.name + ' (' + item.model + ')';
-        partSelect.appendChild(option);
+        option.value = value;
+        option.textContent = value;
+        txnCategoryFilter.appendChild(option);
+      });
+
+      txnBrandFilter.innerHTML = '<option value="all">แบรนด์ทั้งหมด</option>';
+      brands.forEach(function(value) {
+        var option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        txnBrandFilter.appendChild(option);
+      });
+    }
+
+    function getSelectedTxnItem() {
+      if (!currentTxnItemNo) return null;
+      return partMap[currentTxnItemNo] || null;
+    }
+
+    function selectTxnItem(no) {
+      currentTxnItemNo = String(no || '');
+      var selected = getSelectedTxnItem();
+      txnSelectedCard.classList.toggle('hidden', !selected);
+      txnSelectedEmpty.classList.toggle('hidden', !!selected);
+
+      if (!selected) return;
+      var status = getStockStatus(selected);
+      var tone = getStatusTone(status);
+      var normalizedImage = toSafeImageUrl(selected.image_main_url || selected.photo || selected.image_main);
+      txnSelectedImage.src = normalizedImage;
+      bindImageFallback(txnSelectedImage);
+      txnSelectedName.textContent = selected.name || '-';
+      txnSelectedModel.textContent = 'Model: ' + (selected.model || '-');
+      txnSelectedNo.textContent = 'รหัส: ' + (selected.no || '-');
+      txnSelectedStatus.textContent = status;
+      txnSelectedStatus.className = 'inline-flex items-center rounded-full px-2 py-1 text-[11px] ' + tone.badgeClass;
+      txnSelectedStock.textContent = 'Stock: ' + (selected.stock || 0) + ' ' + (selected.unit || 'PCS');
+      if (!txnProcess.value) txnProcess.value = selected.line || '';
+    }
+
+    function getTxnFilteredData() {
+      var keyword = String(txnSearchInput.value || '').trim().toLowerCase();
+      var category = txnCategoryFilter.value;
+      var brand = txnBrandFilter.value;
+      var statusValue = txnStatusFilter.value;
+      var inStockOnly = !!txnInStockOnly.checked;
+
+      return partsData.filter(function(item) {
+        var text = [
+          item.no,
+          item.name,
+          item.model,
+          item.brand,
+          item.category
+        ].join(' ').toLowerCase();
+
+        var hitKeyword = !keyword || text.indexOf(keyword) > -1;
+        var hitCategory = category === 'all' || item.category === category;
+        var hitBrand = brand === 'all' || item.brand === brand;
+        var status = getStockStatus(item);
+        var hitStatus = statusValue === 'all' ||
+          (statusValue === 'out' && status === 'OUT') ||
+          (statusValue === 'low' && status === 'LOW') ||
+          (statusValue === 'ok' && status === 'OK');
+        var hitStock = !inStockOnly || Number(item.stock || 0) > 0;
+        return hitKeyword && hitCategory && hitBrand && hitStatus && hitStock;
+      }).sort(function(a, b) {
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+    }
+
+    function renderTxnResultList() {
+      var list = getTxnFilteredData();
+      if (!list.length) {
+        txnResultList.innerHTML = '<div class="md:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-slate-500">ไม่พบอะไหล่ตามคำค้นหา/ตัวกรอง</div>';
+        return;
+      }
+
+      txnResultList.innerHTML = list.map(function(item) {
+        var status = getStockStatus(item);
+        var tone = getStatusTone(status);
+        var active = currentTxnItemNo && String(currentTxnItemNo) === String(item.no);
+        var cardBorder = active ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200';
+        return '<button type="button" data-txn-no="' + item.no + '" class="text-left rounded-2xl border ' + cardBorder + ' bg-white p-3 shadow-sm hover:shadow transition">' +
+          '<div class="flex gap-3">' +
+          '<img src="' + toSafeImageUrl(item.image_main_url || item.photo || item.image_main) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + getSecondaryDriveImageUrl(item.image_main_url || item.photo || item.image_main) + '" />' +
+          '<div class="min-w-0 flex-1">' +
+          '<p class="text-sm font-semibold text-slate-900 truncate">' + (item.name || '-') + '</p>' +
+          '<p class="text-xs text-slate-500 truncate mt-1">Model: ' + (item.model || '-') + ' • #' + (item.no || '-') + '</p>' +
+          '<div class="mt-2 flex items-center justify-between gap-2">' +
+          '<span class="inline-flex items-center rounded-full px-2 py-1 text-[11px] ' + tone.badgeClass + '">' + status + '</span>' +
+          '<span class="text-xs font-semibold text-blue-700">Stock: ' + (item.stock || 0) + ' ' + (item.unit || 'PCS') + '</span>' +
+          '</div>' +
+          '</div>' +
+          '</div>' +
+          '</button>';
+      }).join('');
+
+      Array.prototype.slice.call(txnResultList.querySelectorAll('img')).forEach(function(img) {
+        bindImageFallback(img);
+      });
+      Array.prototype.slice.call(txnResultList.querySelectorAll('[data-txn-no]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          selectTxnItem(btn.getAttribute('data-txn-no'));
+          renderTxnResultList();
+        });
       });
     }
 
     function submitTransaction(event) {
       event.preventDefault();
 
-      var selected = partMap[partSelect.value];
+      var selected = getSelectedTxnItem();
       var qty = Number(txnQty.value || 0);
       if (!selected) {
         txnMessage.className = 'mt-3 text-sm text-rose-600';
-        txnMessage.textContent = 'กรุณาเลือกอะไหล่';
+        txnMessage.textContent = 'กรุณาเลือกอะไหล่จากรายการด้านซ้าย';
         return;
       }
       if (!qty || qty <= 0) {
@@ -1130,7 +1313,17 @@
 
         txnMessage.className = 'mt-3 text-sm text-emerald-600';
         txnMessage.textContent = 'บันทึกสำเร็จ: Stock ' + res.stockBefore + ' → ' + res.stockAfter;
+        var preservedSearch = txnSearchInput.value;
+        var preservedCategory = txnCategoryFilter.value;
+        var preservedBrand = txnBrandFilter.value;
+        var preservedStatus = txnStatusFilter.value;
+        var preservedInStockOnly = txnInStockOnly.checked;
         txnForm.reset();
+        txnSearchInput.value = preservedSearch;
+        txnCategoryFilter.value = preservedCategory;
+        txnBrandFilter.value = preservedBrand;
+        txnStatusFilter.value = preservedStatus;
+        txnInStockOnly.checked = preservedInStockOnly;
         loadPartsData();
         if (!logPage.classList.contains('hidden')) loadLogData();
       }).catch(function(err) {
@@ -1684,6 +1877,15 @@
       searchClearBtnMobile.classList.add('hidden');
       applyFilters();
       searchInputMobile.focus();
+    });
+    txnSearchInput.addEventListener('input', renderTxnResultList);
+    txnCategoryFilter.addEventListener('change', renderTxnResultList);
+    txnBrandFilter.addEventListener('change', renderTxnResultList);
+    txnStatusFilter.addEventListener('change', renderTxnResultList);
+    txnInStockOnly.addEventListener('change', renderTxnResultList);
+    txnSelectedImage.addEventListener('click', function() {
+      if (!txnSelectedImage.src) return;
+      openImageViewer(txnSelectedImage.src);
     });
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
