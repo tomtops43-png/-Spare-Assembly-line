@@ -486,11 +486,32 @@ function deleteMainItem(payload) {
 // =============================
 // GET (stock + logs + JSONP transaction)
 // =============================
+
+function getDriveAuthStatus() {
+  try {
+    var root = DriveApp.getRootFolder();
+    return {
+      ok: true,
+      status: 'success',
+      authorized: true,
+      rootFolderName: root.getName()
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 'error',
+      authorized: false,
+      message: err && err.message ? err.message : String(err)
+    };
+  }
+}
+
 function doGet(e) {
   try {
     var action = e && e.parameter ? e.parameter.action : '';
     if (action === 'transact') return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
     if (action === 'logs') return respond(getLogRows(), e);
+    if (action === 'authStatus') return respond(getDriveAuthStatus(), e);
     if (action === 'upsertItem') return respond(upsertMainItem({
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
@@ -624,6 +645,9 @@ function doPost(e) {
     }
     if (action === 'uploadImage' || action === 'upload') {
       return respond(uploadImageToDrive(body), e);
+    }
+    if (action === 'authStatus') {
+      return respond(getDriveAuthStatus(), e);
     }
     if (action === 'deleteItem') {
       return respond(deleteMainItem({

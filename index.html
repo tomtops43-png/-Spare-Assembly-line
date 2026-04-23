@@ -504,19 +504,16 @@
       if (!file) return Promise.resolve(null);
       validateImageFile(file);
       return readFileAsDataUrl(file).then(function(dataUrl) {
-        var formData = new FormData();
-        formData.append('action', 'uploadImage');
-        formData.append('itemId', itemId);
-        formData.append('line', currentLine);
-        formData.append('imageType', kind);
-        formData.append('itemName', itemName || '');
-        formData.append('partName', itemName || '');
-        formData.append('qty', '0');
-        formData.append('file', file, file.name || (kind + '-' + itemId));
-        formData.append('dataUrl', dataUrl);
+        var payload = new URLSearchParams();
+        payload.append('action', 'uploadImage');
+        payload.append('itemId', itemId);
+        payload.append('line', currentLine);
+        payload.append('imageType', kind);
+        payload.append('itemName', itemName || '');
+        payload.append('dataUrl', dataUrl);
         return fetch(getWriteApiUrl(), {
           method: 'POST',
-          body: formData
+          body: payload
         }).then(function(res) {
           return res.text().then(function(text) {
             var parsed = null;
