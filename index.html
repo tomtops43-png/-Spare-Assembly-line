@@ -1252,7 +1252,7 @@
       }
       var status = getStockStatus(selected);
       var tone = getStatusTone(status);
-      var normalizedImage = toSafeImageUrl(selected.image_main_url || selected.photo || selected.image_main);
+      var normalizedImage = toSafeImageUrl(selected.image_main_url);
       txnSelectedImage.src = normalizedImage;
       bindImageFallback(txnSelectedImage);
       txnSelectedName.textContent = selected.name || '-';
@@ -1328,7 +1328,7 @@
         var cardBorder = active ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200';
         return '<button type="button" data-txn-no="' + item.no + '" class="text-left rounded-2xl border ' + cardBorder + ' bg-white p-3 shadow-sm hover:shadow transition">' +
           '<div class="flex gap-3">' +
-          '<img src="' + toSafeImageUrl(item.image_main_url || item.photo || item.image_main) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + getSecondaryDriveImageUrl(item.image_main_url || item.photo || item.image_main) + '" />' +
+          '<img src="' + toSafeImageUrl(item.image_main_url) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + getSecondaryDriveImageUrl(item.image_main_url) + '" />' +
           '<div class="min-w-0 flex-1">' +
           '<p class="text-sm font-semibold text-slate-900 truncate">' + (item.name || '-') + '</p>' +
           '<p class="text-xs text-slate-500 truncate mt-1">Model: ' + (item.model || '-') + ' • #' + (item.no || '-') + '</p>' +
