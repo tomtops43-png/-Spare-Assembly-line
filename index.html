@@ -26,7 +26,7 @@
 
   <div class="max-w-7xl mx-auto px-4 py-8 md:px-8">
     <header class="mb-4 md:mb-6">
-      <div class="bg-white rounded-2xl border border-slate-200 p-3 md:p-4 shadow-sm panel-shadow">
+      <div class="bg-white rounded-2xl border border-slate-200 p-3 md:p-4 lg:p-3 shadow-sm panel-shadow">
         <p class="text-[11px] md:text-xs text-blue-600 font-semibold tracking-wide uppercase">Current Line: H9</p>
         <h1 class="hidden md:block text-2xl font-bold mt-1">Spare parts for production Assembly line</h1>
         <h1 class="md:hidden text-xl font-bold mt-1 leading-tight">Spare Parts</h1>
@@ -51,15 +51,19 @@
     <section id="stockPage" class="space-y-6 eng-gridline p-2 rounded-2xl">
       <p id="updatedAtText" class="hidden text-xs text-slate-500"></p>
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 md:p-4">
+        <div class="hidden lg:flex items-center justify-between mb-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Quick Actions</p>
+          <p class="text-[11px] text-slate-400">ทางลัดสำหรับงานประจำวัน</p>
+        </div>
         <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <button id="qaIssueBtn" class="h-11 rounded-xl bg-blue-600 text-white text-sm font-semibold md:col-span-2">⚡ เบิกอะไหล่</button>
+          <button id="qaIssueBtn" class="h-11 rounded-xl bg-blue-600 text-white text-sm font-semibold md:col-span-2 lg:h-12">⚡ เบิกอะไหล่</button>
           <button id="qaReceiveBtn" class="h-11 rounded-xl bg-emerald-600 text-white text-sm font-semibold">📥 รับเข้า</button>
           <button id="qaOutBtn" class="h-11 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-sm font-semibold">❌ ดูของหมด</button>
           <button id="qaLowBtn" class="h-11 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-sm font-semibold">⚠️ ต่ำกว่า Min</button>
           <button id="qaManageBtn" class="h-11 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold col-span-2 md:col-span-2">🛠 จัดการรายการ</button>
         </div>
       </section>
-      <section id="stockTodayAlert" class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"></section>
+      <section id="stockTodayAlert" class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 lg:px-5 lg:py-3"></section>
       <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
 
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
@@ -1624,10 +1628,10 @@
 
       if (window.innerWidth >= 1024) {
         document.getElementById('stat-cards').innerHTML =
-          '<button data-status-card="all" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">📦 Stock ทั้งหมด</p><p class="text-2xl font-bold text-blue-700">' + totalStockQty + '</p><p class="text-xs text-slate-400 mt-1">OK ' + okCount + ' รายการ</p></button>' +
-          '<button data-status-card="low" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">🔴 ต่ำกว่า Min</p><p class="text-2xl font-bold text-rose-600">' + lowCount + '</p><p class="text-xs text-slate-400 mt-1">Need to PO ' + needPO + '</p></button>' +
-          '<button data-status-card="near" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">⚠️ LOW</p><p class="text-2xl font-bold text-amber-600">' + lowCount + '</p><p class="text-xs text-slate-400 mt-1">ใกล้จุดสั่งซื้อ</p></button>' +
-          '<button data-status-card="out" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">❌ หมด</p><p class="text-2xl font-bold text-rose-700">' + outCount + '</p><p class="text-xs text-slate-400 mt-1">ต้องดำเนินการด่วน</p></button>';
+          '<button data-status-card="all" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs uppercase tracking-wide text-slate-500">📦 Stock ทั้งหมด</p><p class="text-2xl font-bold text-blue-700 mt-1">' + totalStockQty + '</p><p class="text-xs text-slate-400 mt-1">พร้อมใช้งาน ' + okCount + ' รายการ</p></button>' +
+          '<button data-status-card="out" class="bg-white rounded-2xl border border-rose-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs uppercase tracking-wide text-rose-600">❌ Out of Stock</p><p class="text-2xl font-bold text-rose-700 mt-1">' + outCount + '</p><p class="text-xs text-rose-500 mt-1">ต้องดำเนินการด่วน</p></button>' +
+          '<button data-status-card="low" class="bg-white rounded-2xl border border-amber-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs uppercase tracking-wide text-amber-600">⚠️ ต่ำกว่า Min</p><p class="text-2xl font-bold text-amber-700 mt-1">' + lowCount + '</p><p class="text-xs text-amber-600 mt-1">Need to PO ' + needPO + '</p></button>' +
+          '<button data-status-card="near" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs uppercase tracking-wide text-slate-500">🧭 เฝ้าระวัง</p><p class="text-2xl font-bold text-slate-800 mt-1">' + lowCount + '</p><p class="text-xs text-slate-400 mt-1">เช็คก่อนถึงจุดวิกฤต</p></button>';
       } else {
         document.getElementById('stat-cards').innerHTML =
           '<div class="md:col-span-4 grid grid-cols-2 gap-2">' +
