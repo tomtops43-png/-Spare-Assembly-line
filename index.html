@@ -299,7 +299,7 @@
     <div class="bg-white w-full h-full md:h-auto md:max-h-[92vh] md:max-w-4xl md:rounded-2xl p-5 shadow-xl overflow-y-auto">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-bold">รายละเอียดอะไหล่</h3>
-        <button id="closeDetailModal" class="text-slate-500">✕</button>
+        <button id="closeDetailModal" type="button" class="h-9 w-9 rounded-full border border-slate-300 bg-white text-slate-600 text-xl leading-none">×</button>
       </div>
       <div>
         <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1" />
@@ -327,6 +327,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
               <div id="detailFieldStock" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Stock</p><p id="detailStock" class="font-semibold text-base">0</p></div>
               <div id="detailFieldMinMax" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Min/Max</p><p id="detailMinMax" class="font-semibold text-base">0/0</p></div>
+              <div id="detailFieldNeedToOrder" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Need to order</p><p id="detailNeedToOrder" class="font-semibold text-base">0</p></div>
             </div>
           </section>
           <section>
@@ -1847,6 +1848,7 @@
       document.getElementById('detailLocation').textContent = item.location || '-';
       document.getElementById('detailStock').textContent = String(item.stock || 0);
       document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
+      document.getElementById('detailNeedToOrder').textContent = String(getNeedToOrder(item));
       var detailStatus = document.getElementById('detailStatus');
       var detailStatusValue = getStockStatus(item);
       var detailTone = getStatusTone(detailStatusValue);
@@ -1861,13 +1863,12 @@
       var needToOrder = getNeedToOrder(item);
       var metaText = detailMetaParts.join(' • ');
       document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
-      var isMobileView = window.innerWidth < 768;
       ['Model', 'Brand', 'Category', 'Line', 'Location'].forEach(function(field) {
         var valueEl = document.getElementById('detail' + field);
         var container = document.getElementById('detailField' + field);
         if (!valueEl || !container) return;
         var valueText = String(valueEl.textContent || '').trim();
-        var shouldHide = isMobileView && (!valueText || valueText === '-');
+        var shouldHide = (!valueText || valueText === '-');
         container.classList.toggle('hidden', shouldHide);
       });
       mainImg.setAttribute('data-fallback-src', detailFallbackSrc || '');
