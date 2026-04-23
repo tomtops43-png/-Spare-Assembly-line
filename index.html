@@ -54,8 +54,9 @@
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
         <div class="space-y-3 mb-4 lg:hidden">
           <div class="relative">
-            <input id="searchInputMobile" type="text" placeholder="สแกนบาร์โค้ด หรือค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full rounded-xl border border-slate-300 px-4 py-3 pr-24 text-base focus:ring-2 focus:ring-blue-500 outline-none" />
-            <button id="searchClearBtnMobile" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 rounded-lg bg-slate-100 text-slate-700 text-sm">ล้าง</button>
+            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full rounded-xl border border-slate-300 pl-10 pr-12 py-3 text-base focus:ring-2 focus:ring-blue-500 outline-none" />
+            <button id="searchClearBtnMobile" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-100 text-slate-700 text-sm">×</button>
           </div>
           <div class="flex items-center gap-2">
             <button id="openFilterSheetBtn" type="button" class="h-11 px-4 rounded-xl border border-slate-300 bg-white text-sm font-semibold">Filter</button>
@@ -69,7 +70,11 @@
         </div>
 
         <div class="hidden lg:flex lg:flex-row lg:items-center gap-3 lg:gap-4 mb-4">
-          <input id="searchInput" type="text" placeholder="สแกนบาร์โค้ด หรือค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full lg:flex-1 rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
+          <div class="relative w-full lg:flex-1">
+            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full rounded-xl border border-slate-300 pl-10 pr-10 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
+            <button id="searchClearBtn" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-slate-100 text-slate-700 text-sm">×</button>
+          </div>
           <select id="categoryFilter" class="w-full lg:w-56 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="all">ทุกหมวดหมู่</option>
           </select>
@@ -111,7 +116,7 @@
                 <th class="py-3 pr-4 text-center">Action</th>
               </tr>
             </thead>
-            <tbody id="partsTable" class="divide-y divide-slate-100"></tbody>
+            <tbody id="partsTable" class="divide-y divide-slate-50"></tbody>
           </table>
         </div>
         <div id="paginationControls" class="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm"></div>
@@ -283,6 +288,7 @@
     var brandFilter = document.getElementById('brandFilter');
     var searchInput = document.getElementById('searchInput');
     var searchInputMobile = document.getElementById('searchInputMobile');
+    var searchClearBtn = document.getElementById('searchClearBtn');
     var searchClearBtnMobile = document.getElementById('searchClearBtnMobile');
     var mobileCardList = document.getElementById('mobileCardList');
     var sortFilter = document.getElementById('sortFilter');
@@ -1280,36 +1286,38 @@
         var isNear = item.stock > 0 && item.min > 0 && item.stock >= item.min && item.stock <= (item.min * 1.2);
         var stockClass = isOut || isLow ? 'text-rose-600' : (isNear ? 'text-amber-600' : 'text-emerald-600');
         var needLabel = item.needToPO > 0 ? 'ORDER ' + item.needToPO : 'OK';
-        var needClass = item.needToPO > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
+        var needClass = item.needToPO > 0 ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-200 font-bold' : 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200';
         return '<tr class="hover:bg-slate-50">' +
-          '<td class="py-3 pr-4 text-center">' +
+          '<td class="py-4 pr-4 text-center">' +
             '<button type="button" data-view-no="' + item.no + '" class="group inline-block" title="ดูรูปและรายละเอียด">' +
-              '<span class="block h-10 w-10 rounded-md border border-slate-200 bg-slate-100 overflow-hidden">' +
-                '<img loading="lazy" src="' + tableImageSrc + '" data-fallback-src="' + (tableFallbackSrc || '') + '" alt="part image" class="h-10 w-10 object-cover transition-transform duration-200 group-hover:scale-125" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+              '<span class="block h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden mx-auto">' +
+                '<img loading="lazy" src="' + tableImageSrc + '" data-fallback-src="' + (tableFallbackSrc || '') + '" alt="part image" class="h-14 w-14 object-cover object-center transition-transform duration-200 group-hover:scale-110" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
               '</span>' +
             '</button>' +
           '</td>' +
-          '<td class="py-3 pr-4 font-medium">' + item.no + '</td>' +
-          '<td class="py-3 pr-4">' +
+          '<td class="py-4 pr-4 font-medium">' + item.no + '</td>' +
+          '<td class="py-4 pr-4">' +
             '<span>' + item.name + '</span>' +
           '</td>' +
-          '<td class="py-3 pr-4 text-slate-600">' + item.model + '</td>' +
-          '<td class="py-3 pr-4 text-slate-600">' + item.line + '</td>' +
-          '<td class="py-3 pr-4 text-slate-600">' + (item.location || '-') + '</td>' +
-          '<td class="py-3 pr-4">' + item.category + '</td>' +
-          '<td class="py-3 pr-4">' + item.brand + '</td>' +
-          '<td class="py-3 pr-4 text-center font-semibold ' + stockClass + '">' + item.stock + '</td>' +
-          '<td class="py-3 pr-4 text-center">' + item.min + '</td>' +
-          '<td class="py-3 pr-4 text-center">' + item.max + '</td>' +
-          '<td class="py-3 pr-4 text-center">' +
-            '<span class="px-2 py-1 rounded-full text-xs font-semibold ' + needClass + '">' +
+          '<td class="py-4 pr-4 text-slate-600">' + item.model + '</td>' +
+          '<td class="py-4 pr-4 text-slate-600">' + item.line + '</td>' +
+          '<td class="py-4 pr-4 text-slate-600">' + (item.location || '-') + '</td>' +
+          '<td class="py-4 pr-4">' + item.category + '</td>' +
+          '<td class="py-4 pr-4">' + item.brand + '</td>' +
+          '<td class="py-4 pr-4 text-center font-semibold ' + stockClass + '">' + item.stock + '</td>' +
+          '<td class="py-4 pr-4 text-center">' + item.min + '</td>' +
+          '<td class="py-4 pr-4 text-center">' + item.max + '</td>' +
+          '<td class="py-4 pr-4 text-center">' +
+            '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs ' + needClass + '">' +
               needLabel +
             '</span>' +
           '</td>' +
-          '<td class="py-3 pr-4 text-center">' +
-            '<button data-view-no="' + item.no + '" class="text-slate-600 font-semibold mr-2" title="ดูรายละเอียด">👁 View</button>' +
-            '<button data-edit-no="' + item.no + '" class="text-blue-600 font-semibold mr-2" title="แก้ไข">✏️</button>' +
-            '<button data-delete-no="' + item.no + '" class="text-rose-600 font-semibold" title="ลบ">🗑️</button>' +
+          '<td class="py-4 pr-4 text-center">' +
+            '<div class="inline-flex items-center gap-3">' +
+              '<button data-view-no="' + item.no + '" class="text-slate-700 font-semibold" title="ดูรายละเอียด">👁 View</button>' +
+              '<button data-edit-no="' + item.no + '" class="text-blue-600 font-semibold" title="แก้ไข">✏️</button>' +
+              '<button data-delete-no="' + item.no + '" class="text-rose-600 font-semibold" title="ลบ">🗑️</button>' +
+            '</div>' +
           '</td>' +
         '</tr>';
       }).join('');
@@ -1511,9 +1519,34 @@
     brandFilterMobile.addEventListener('change', function(){ brandFilter.value = brandFilterMobile.value; applyFilters(); });
     sortFilter.addEventListener('change', applyFilters);
     sortFilterMobile.addEventListener('change', function(){ sortFilter.value = sortFilterMobile.value; applyFilters(); });
-    searchInput.addEventListener('input', function(){ searchInputMobile.value = searchInput.value; applyFilters(); });
-    searchInputMobile.addEventListener('input', function(){ searchInput.value = searchInputMobile.value; searchClearBtnMobile.classList.toggle('hidden', !searchInputMobile.value.trim()); applyFilters(); });
-    searchClearBtnMobile.addEventListener('click', function(){ searchInput.value = ''; searchInputMobile.value = ''; searchClearBtnMobile.classList.add('hidden'); applyFilters(); searchInputMobile.focus(); });
+    searchInput.addEventListener('input', function(){
+      searchInputMobile.value = searchInput.value;
+      searchClearBtn.classList.toggle('hidden', !searchInput.value.trim());
+      searchClearBtnMobile.classList.toggle('hidden', !searchInput.value.trim());
+      applyFilters();
+    });
+    searchInputMobile.addEventListener('input', function(){
+      searchInput.value = searchInputMobile.value;
+      searchClearBtn.classList.toggle('hidden', !searchInputMobile.value.trim());
+      searchClearBtnMobile.classList.toggle('hidden', !searchInputMobile.value.trim());
+      applyFilters();
+    });
+    searchClearBtn.addEventListener('click', function(){
+      searchInput.value = '';
+      searchInputMobile.value = '';
+      searchClearBtn.classList.add('hidden');
+      searchClearBtnMobile.classList.add('hidden');
+      applyFilters();
+      searchInput.focus();
+    });
+    searchClearBtnMobile.addEventListener('click', function(){
+      searchInput.value = '';
+      searchInputMobile.value = '';
+      searchClearBtn.classList.add('hidden');
+      searchClearBtnMobile.classList.add('hidden');
+      applyFilters();
+      searchInputMobile.focus();
+    });
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
     tabTxn.addEventListener('click', switchToTxnPage);
