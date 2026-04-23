@@ -513,6 +513,19 @@ function deleteMainItem(payload) {
 // GET (stock + logs + JSONP transaction)
 // =============================
 
+
+function authorizeGoogleDriveAccess() {
+  // รันฟังก์ชันนี้จาก Apps Script Editor 1 ครั้งเพื่อให้ Google แสดงหน้าขอสิทธิ์
+  var root = DriveApp.getRootFolder();
+  return {
+    ok: true,
+    status: 'success',
+    authorized: true,
+    message: 'อนุญาตสิทธิ์ Google Drive สำเร็จ',
+    rootFolderName: root.getName()
+  };
+}
+
 function getDriveAuthStatus() {
   try {
     var root = DriveApp.getRootFolder();
@@ -538,6 +551,7 @@ function doGet(e) {
     if (action === 'transact') return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
     if (action === 'logs') return respond(getLogRows(), e);
     if (action === 'authStatus') return respond(getDriveAuthStatus(), e);
+    if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
     if (action === 'upsertItem') return respond(upsertMainItem({
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
@@ -674,6 +688,9 @@ function doPost(e) {
     }
     if (action === 'authStatus') {
       return respond(getDriveAuthStatus(), e);
+    }
+    if (action === 'authorizeDrive') {
+      return respond(authorizeGoogleDriveAccess(), e);
     }
     if (action === 'deleteItem') {
       return respond(deleteMainItem({
