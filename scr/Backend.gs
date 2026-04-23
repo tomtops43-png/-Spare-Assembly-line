@@ -282,6 +282,58 @@ function ensureColumnInContext(ctx, headerLabel, aliases) {
   return newColIndex;
 }
 
+function getOrCreateSparePartsFolder(itemId) {
+  var rootName = 'SpareParts';
+  var rootFolders = DriveApp.getFoldersByName(rootName);
+  var root = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(rootName);
+  var safeItemId = String(itemId || '').trim() || 'UNKNOWN';
+  var itemFolders = root.getFoldersByName(safeItemId);
+  return itemFolders.hasNext() ? itemFolders.next() : root.createFolder(safeItemId);
+}
+
+function getDataUrlMimeType(dataUrl) {
+  var m = String(dataUrl || '').match(/^data:([^;]+);base64,/i);
+  return m ? m[1].toLowerCase() : '';
+}
+
+function uploadImageToDrive(payload) {
+  var itemId = String(payload.itemId || payload.no || '').trim();
+  var kind = String(payload.kind || 'main').toLowerCase();
+  var dataUrl = String(payload.dataUrl || '');
+  if (!itemId) throw new Error('ต้องมี itemId');
+  if (!dataUrl) throw new Error('ไม่พบข้อมูลไฟล์');
+  if (kind !== 'main' && kind !== 'install') throw new Error('kind ต้องเป็น main หรือ install');
+
+  var mimeType = getDataUrlMimeType(dataUrl);
+  if (!mimeType) throw new Error('รูปแบบไฟล์ไม่ถูกต้อง');
+  var allowed = { 'image/jpeg': true, 'image/png': true, 'image/webp': true };
+  if (!allowed[mimeType]) throw new Error('รองรับเฉพาะ jpg, png, webp');
+
+  var base64Content = dataUrl.split(',')[1] || '';
+  var bytes = Utilities.base64Decode(base64Content);
+  var ext = mimeType === 'image/png' ? 'png' : (mimeType === 'image/webp' ? 'webp' : 'jpg');
+  var fileName = (kind === 'main' ? 'main-' : 'install-') + itemId + '.' + ext;
+  var blob = Utilities.newBlob(bytes, mimeType, fileName);
+
+  var folder = getOrCreateSparePartsFolder(itemId);
+  var existing = folder.getFilesByName(fileName);
+  while (existing.hasNext()) {
+    existing.next().setTrashed(true);
+  }
+
+  var file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+  return {
+    status: 'success',
+    itemId: itemId,
+    kind: kind,
+    fileId: file.getId(),
+    viewUrl: 'https://drive.google.com/file/d/' + file.getId() + '/view',
+    directUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId()
+  };
+}
+
 function upsertMainItem(payload) {
   var sheetName = resolveReadSheetName({ sheet: payload.sheetName });
   var ctx = getMainSheetContext(sheetName);
@@ -304,6 +356,10 @@ function upsertMainItem(payload) {
     category: findCol(['category']),
     brand: findCol(['brand']),
     photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic']),
+    image_main_url: findCol(['image_main_url', 'imagemainurl', 'image_main', 'imagemain']),
+    image_main_file_id: findCol(['image_main_file_id', 'imagemainfileid']),
+    image_install_url: findCol(['image_install_url', 'imageinstallurl', 'image_install', 'imageinstall']),
+    image_install_file_id: findCol(['image_install_file_id', 'imageinstallfileid']),
     image_main: findCol(['image_main', 'imagemain', 'mainimage', 'main_image']),
     image_install: findCol(['image_install', 'imageinstall', 'installimage', 'install_image']),
     max: findCol(['max', 'qtymax']),
@@ -327,6 +383,18 @@ function upsertMainItem(payload) {
   if (fieldCols.image_install === undefined) {
     fieldCols.image_install = ensureColumnInContext(ctx, 'image_install', ['image_install', 'imageinstall']);
   }
+  if (fieldCols.image_main_url === undefined) {
+    fieldCols.image_main_url = ensureColumnInContext(ctx, 'image_main_url', ['image_main_url', 'imagemainurl']);
+  }
+  if (fieldCols.image_main_file_id === undefined) {
+    fieldCols.image_main_file_id = ensureColumnInContext(ctx, 'image_main_file_id', ['image_main_file_id', 'imagemainfileid']);
+  }
+  if (fieldCols.image_install_url === undefined) {
+    fieldCols.image_install_url = ensureColumnInContext(ctx, 'image_install_url', ['image_install_url', 'imageinstallurl']);
+  }
+  if (fieldCols.image_install_file_id === undefined) {
+    fieldCols.image_install_file_id = ensureColumnInContext(ctx, 'image_install_file_id', ['image_install_file_id', 'imageinstallfileid']);
+  }
 
   if (fieldCols.no === undefined) throw new Error('ไม่พบคอลัมน์ NO');
 
@@ -346,8 +414,12 @@ function upsertMainItem(payload) {
     category: payload.category || '',
     brand: payload.brand || '',
     photo: payload.photo || '',
-    image_main: payload.image_main || payload.photo || '',
-    image_install: payload.image_install || '',
+    image_main: payload.image_main || payload.image_main_url || payload.photo || '',
+    image_install: payload.image_install || payload.image_install_url || '',
+    image_main_url: payload.image_main_url || payload.image_main || payload.photo || '',
+    image_main_file_id: payload.image_main_file_id || '',
+    image_install_url: payload.image_install_url || payload.image_install || '',
+    image_install_file_id: payload.image_install_file_id || '',
     max: payload.max || '',
     min: payload.min || '',
     unit: payload.unit || '',
@@ -411,6 +483,10 @@ function doGet(e) {
       photo: e.parameter.photo,
       image_main: e.parameter.image_main,
       image_install: e.parameter.image_install,
+      image_main_url: e.parameter.image_main_url,
+      image_main_file_id: e.parameter.image_main_file_id,
+      image_install_url: e.parameter.image_install_url,
+      image_install_file_id: e.parameter.image_install_file_id,
       max: e.parameter.max,
       min: e.parameter.min,
       unit: e.parameter.unit,
@@ -450,8 +526,12 @@ function doGet(e) {
         unit: pickRowValue(row, map, ['unit'], 'PCS'),
         remark: pickRowValue(row, map, ['remark'], ''),
         photo: pickRowValue(row, map, ['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
-        image_main: pickRowValue(row, map, ['image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
-        image_install: pickRowValue(row, map, ['image_install', 'imageinstall', 'installimage', 'install_image'], '')
+        image_main: pickRowValue(row, map, ['image_main_url', 'imagemainurl', 'image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
+        image_install: pickRowValue(row, map, ['image_install_url', 'imageinstallurl', 'image_install', 'imageinstall', 'installimage', 'install_image'], ''),
+        image_main_url: pickRowValue(row, map, ['image_main_url', 'imagemainurl', 'image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
+        image_main_file_id: pickRowValue(row, map, ['image_main_file_id', 'imagemainfileid'], ''),
+        image_install_url: pickRowValue(row, map, ['image_install_url', 'imageinstallurl', 'image_install', 'imageinstall', 'installimage', 'install_image'], ''),
+        image_install_file_id: pickRowValue(row, map, ['image_install_file_id', 'imageinstallfileid'], '')
       };
     }).filter(function (item) {
       return item.name && item.name !== '-';
@@ -482,11 +562,18 @@ function doPost(e) {
         photo: body.photo,
         image_main: body.image_main,
         image_install: body.image_install,
+        image_main_url: body.image_main_url,
+        image_main_file_id: body.image_main_file_id,
+        image_install_url: body.image_install_url,
+        image_install_file_id: body.image_install_file_id,
         max: body.max,
         min: body.min,
         unit: body.unit,
         stock: body.stock
       }), e);
+    }
+    if (action === 'uploadImage') {
+      return respond(uploadImageToDrive(body), e);
     }
     if (action === 'deleteItem') {
       return respond(deleteMainItem({
