@@ -26,9 +26,9 @@
 
   <div class="max-w-7xl mx-auto px-4 py-8 md:px-8">
     <header class="mb-4 md:mb-6">
-      <div class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 shadow-sm panel-shadow">
+      <div class="bg-white rounded-2xl border border-slate-200 p-3 md:p-4 shadow-sm panel-shadow">
         <p class="text-[11px] md:text-xs text-blue-600 font-semibold tracking-wide uppercase">Current Line: H9</p>
-        <h1 class="hidden md:block text-3xl font-bold mt-1">Spare parts for production Assembly line</h1>
+        <h1 class="hidden md:block text-2xl font-bold mt-1">Spare parts for production Assembly line</h1>
         <h1 class="md:hidden text-xl font-bold mt-1 leading-tight">Spare Parts</h1>
       </div>
     </header>
@@ -52,11 +52,11 @@
       <p id="updatedAtText" class="hidden text-xs text-slate-500"></p>
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 md:p-4">
         <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <button id="qaIssueBtn" class="h-11 rounded-xl bg-blue-600 text-white text-sm font-semibold">⚡ เบิกอะไหล่</button>
+          <button id="qaIssueBtn" class="h-11 rounded-xl bg-blue-600 text-white text-sm font-semibold md:col-span-2">⚡ เบิกอะไหล่</button>
           <button id="qaReceiveBtn" class="h-11 rounded-xl bg-emerald-600 text-white text-sm font-semibold">📥 รับเข้า</button>
           <button id="qaOutBtn" class="h-11 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-sm font-semibold">❌ ดูของหมด</button>
           <button id="qaLowBtn" class="h-11 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-sm font-semibold">⚠️ ต่ำกว่า Min</button>
-          <button id="qaManageBtn" class="h-11 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold col-span-2 md:col-span-1">🛠 จัดการรายการ</button>
+          <button id="qaManageBtn" class="h-11 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold col-span-2 md:col-span-2">🛠 จัดการรายการ</button>
         </div>
       </section>
       <section id="stockTodayAlert" class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"></section>
@@ -176,29 +176,30 @@
             <div id="txnSelectedEmpty" class="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-slate-500 text-sm">
               ยังไม่ได้เลือกรายการอะไหล่<br/>กรุณาค้นหาและกดเลือกจากการ์ดด้านซ้ายก่อน
             </div>
-            <div id="txnSelectedCard" class="hidden rounded-xl border border-slate-200 bg-white p-3">
-              <div class="flex gap-3">
-                <img id="txnSelectedImage" src="images/no-image.svg" alt="selected item" class="h-20 w-20 rounded-lg border border-slate-200 object-contain bg-slate-100 cursor-zoom-in" />
+            <div id="txnSelectedCard" class="hidden rounded-xl border border-blue-100 bg-white p-3 lg:p-4 shadow-sm">
+              <div class="flex gap-3 lg:gap-4 items-start">
+                <img id="txnSelectedImage" src="images/no-image.svg" alt="selected item" class="h-20 w-20 lg:h-24 lg:w-24 rounded-lg border border-slate-200 object-contain bg-slate-100 cursor-zoom-in" />
                 <div class="min-w-0 flex-1">
-                  <p id="txnSelectedName" class="text-sm font-semibold text-slate-900 truncate">-</p>
-                  <p id="txnSelectedModel" class="text-xs text-slate-500 mt-1">Model: -</p>
+                  <p id="txnSelectedName" class="text-sm lg:text-base font-semibold text-slate-900 truncate">-</p>
+                  <p id="txnSelectedModel" class="text-xs lg:text-sm text-slate-500 mt-1">Model: -</p>
                   <p id="txnSelectedNo" class="text-xs text-slate-500">รหัส: -</p>
-                  <div class="mt-2 flex items-center gap-2">
+                  <div class="mt-2 flex items-center gap-2 flex-wrap">
                     <span id="txnSelectedStatus" class="inline-flex items-center rounded-full px-2 py-1 text-[11px] bg-slate-100 text-slate-600">-</span>
-                    <span id="txnSelectedStock" class="text-sm font-semibold text-blue-700">Stock: -</span>
+                    <span id="txnSelectedStock" class="text-sm lg:text-base font-semibold text-blue-700">Stock: -</span>
                   </div>
                 </div>
               </div>
             </div>
 
             <select id="txnType" class="h-11 rounded-xl border border-slate-300 px-3 bg-white" required>
-              <option value="Output">เบิกออก</option>
+              <option id="txnTypeOutputOption" value="Output">เบิกออก</option>
               <option value="Input">รับเข้า/คืนเข้า</option>
             </select>
+            <p id="txnStockGuardMessage" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"></p>
             <input id="txnQty" type="number" min="1" step="1" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="จำนวน" required />
             <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ผู้เบิก/ผู้รับ" required />
             <input id="txnProcess" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ไลน์/งาน" />
-            <button type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
+            <button id="txnSubmitBtn" type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
           </form>
           <p id="txnMessage" class="mt-3 text-sm"></p>
         </div>
@@ -419,10 +420,13 @@
     var txnSelectedStatus = document.getElementById('txnSelectedStatus');
     var txnSelectedStock = document.getElementById('txnSelectedStock');
     var txnType = document.getElementById('txnType');
+    var txnTypeOutputOption = document.getElementById('txnTypeOutputOption');
     var txnQty = document.getElementById('txnQty');
     var txnBy = document.getElementById('txnBy');
     var txnProcess = document.getElementById('txnProcess');
     var txnMessage = document.getElementById('txnMessage');
+    var txnStockGuardMessage = document.getElementById('txnStockGuardMessage');
+    var txnSubmitBtn = document.getElementById('txnSubmitBtn');
     var qaIssueBtn = document.getElementById('qaIssueBtn');
     var qaReceiveBtn = document.getElementById('qaReceiveBtn');
     var qaOutBtn = document.getElementById('qaOutBtn');
@@ -457,6 +461,7 @@
     var imageViewerImg = document.getElementById('imageViewerImg');
     var closeImageViewerBtn = document.getElementById('closeImageViewer');
     var currentLine = 'H9';
+    var modalLockCount = 0;
     var lineConfig = [
       { key: 'H9', color: '#2563eb' },
       { key: 'Arc Chute', color: '#9333ea' },
@@ -464,6 +469,16 @@
       { key: 'Lug&Screw', color: '#ea580c' }
     ];
     var isLineMenuVisible = false;
+
+    function lockBodyScroll() {
+      modalLockCount += 1;
+      document.body.style.overflow = 'hidden';
+    }
+
+    function unlockBodyScroll() {
+      modalLockCount = Math.max(0, modalLockCount - 1);
+      if (modalLockCount === 0) document.body.style.overflow = '';
+    }
 
 
     function applyEngineerJssTheme() {
@@ -1098,6 +1113,7 @@
         selectTxnItem(String(no));
         renderTxnResultList();
       }
+      refreshTxnActionAvailability();
       setTimeout(function() {
         txnQty.focus();
       }, 120);
@@ -1216,7 +1232,13 @@
       txnSelectedCard.classList.toggle('hidden', !selected);
       txnSelectedEmpty.classList.toggle('hidden', !!selected);
 
-      if (!selected) return;
+      if (!selected) {
+        if (txnTypeOutputOption) txnTypeOutputOption.disabled = false;
+        txnStockGuardMessage.classList.add('hidden');
+        txnSubmitBtn.disabled = false;
+        txnSubmitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+        return;
+      }
       var status = getStockStatus(selected);
       var tone = getStatusTone(status);
       var normalizedImage = toSafeImageUrl(selected.image_main_url || selected.photo || selected.image_main);
@@ -1229,6 +1251,30 @@
       txnSelectedStatus.className = 'inline-flex items-center rounded-full px-2 py-1 text-[11px] ' + tone.badgeClass;
       txnSelectedStock.textContent = 'Stock: ' + (selected.stock || 0) + ' ' + (selected.unit || 'PCS');
       if (!txnProcess.value) txnProcess.value = selected.line || '';
+      refreshTxnActionAvailability();
+    }
+
+    function refreshTxnActionAvailability() {
+      var selected = getSelectedTxnItem();
+      var stock = Number(selected && selected.stock ? selected.stock : 0);
+      var isOutOfStock = !!selected && stock <= 0;
+      var isOutput = txnType.value === 'Output';
+      if (txnTypeOutputOption) txnTypeOutputOption.disabled = isOutOfStock;
+
+      if (isOutOfStock && isOutput) {
+        txnType.value = 'Input';
+        isOutput = false;
+      }
+
+      var shouldBlockSubmit = !!selected && stock <= 0 && isOutput;
+      txnSubmitBtn.disabled = shouldBlockSubmit;
+      txnSubmitBtn.classList.toggle('opacity-60', shouldBlockSubmit);
+      txnSubmitBtn.classList.toggle('cursor-not-allowed', shouldBlockSubmit);
+
+      txnStockGuardMessage.classList.toggle('hidden', !isOutOfStock);
+      if (isOutOfStock) {
+        txnStockGuardMessage.innerHTML = 'สินค้าหมดสต็อก ไม่สามารถเบิกออกได้<br>สามารถรับเข้าได้เท่านั้น';
+      }
     }
 
     function getTxnFilteredData() {
@@ -1383,11 +1429,13 @@
       editModalSubtitle.textContent = 'ชีต: ' + getCurrentSheetName() + ' | NO: ' + (item.no || '-');
       editModal.classList.remove('hidden');
       editModal.classList.add('flex');
+      lockBodyScroll();
     }
 
     function closeEditModal() {
       editModal.classList.add('hidden');
       editModal.classList.remove('flex');
+      unlockBodyScroll();
     }
 
     function submitEditModal(event) {
@@ -1575,16 +1623,10 @@
 
       if (window.innerWidth >= 1024) {
         document.getElementById('stat-cards').innerHTML =
-          '<div class="md:col-span-4 bg-rose-50 rounded-2xl border border-rose-200 p-4 shadow-sm">' +
-            '<p class="text-xs text-rose-700 font-semibold">🚨 วันนี้ต้องทำ</p>' +
-            '<p class="text-sm text-rose-700 mt-1">- สั่งซื้อ <b>' + needPO + '</b> รายการ</p>' +
-            '<p class="text-sm text-rose-700">- ของหมด <b>' + outCount + '</b> รายการ</p>' +
-            '<p class="text-sm text-rose-700">- ต่ำ/ต้องเฝ้าระวัง <b>' + lowCount + '</b> รายการ</p>' +
-          '</div>' +
-          '<button data-status-card="low" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">🔴 ต่ำกว่า Min</p><p class="text-2xl font-bold text-rose-600">' + lowCount + '</p></button>' +
-          '<button data-status-card="near" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">⚠️ LOW</p><p class="text-2xl font-bold text-amber-600">' + lowCount + '</p></button>' +
-          '<button data-status-card="out" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">❌ หมด</p><p class="text-2xl font-bold text-rose-700">' + outCount + '</p></button>' +
-          '<button data-status-card="all" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">📦 Stock ทั้งหมด</p><p class="text-2xl font-bold text-blue-700">' + totalStockQty + '</p></button>';
+          '<button data-status-card="all" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">📦 Stock ทั้งหมด</p><p class="text-2xl font-bold text-blue-700">' + totalStockQty + '</p><p class="text-xs text-slate-400 mt-1">OK ' + okCount + ' รายการ</p></button>' +
+          '<button data-status-card="low" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">🔴 ต่ำกว่า Min</p><p class="text-2xl font-bold text-rose-600">' + lowCount + '</p><p class="text-xs text-slate-400 mt-1">Need to PO ' + needPO + '</p></button>' +
+          '<button data-status-card="near" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">⚠️ LOW</p><p class="text-2xl font-bold text-amber-600">' + lowCount + '</p><p class="text-xs text-slate-400 mt-1">ใกล้จุดสั่งซื้อ</p></button>' +
+          '<button data-status-card="out" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">❌ หมด</p><p class="text-2xl font-bold text-rose-700">' + outCount + '</p><p class="text-xs text-slate-400 mt-1">ต้องดำเนินการด่วน</p></button>';
       } else {
         document.getElementById('stat-cards').innerHTML =
           '<div class="md:col-span-4 grid grid-cols-2 gap-2">' +
@@ -1621,7 +1663,7 @@
         var tone = getStatusTone(status);
         var stockClass = tone.textClass;
         var needToOrder = getNeedToOrder(item);
-        return '<tr class="hover:bg-slate-50">' +
+        return '<tr data-row-no="' + item.no + '" class="hover:bg-blue-50/40 cursor-pointer transition-colors">' +
           '<td class="py-4 pr-4 text-center">' +
             '<button type="button" data-view-no="' + item.no + '" class="group inline-block" title="ดูรูปและรายละเอียด">' +
               '<span class="block h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden mx-auto">' +
@@ -1631,13 +1673,14 @@
           '</td>' +
           '<td class="py-4 pr-4 font-medium">' + item.no + '</td>' +
           '<td class="py-4 pr-4">' +
-            '<span>' + item.name + '</span>' +
+            '<span class="font-semibold text-slate-900">' + item.name + '</span>' +
+            '<p class="text-xs text-slate-500 mt-0.5">' + (item.model || '-') + '</p>' +
           '</td>' +
-          '<td class="py-4 pr-4 text-slate-600">' + item.model + '</td>' +
-          '<td class="py-4 pr-4 text-slate-600">' + item.line + '</td>' +
-          '<td class="py-4 pr-4 text-slate-600">' + (item.location || '-') + '</td>' +
-          '<td class="py-4 pr-4">' + item.category + '</td>' +
-          '<td class="py-4 pr-4">' + item.brand + '</td>' +
+          '<td class="py-4 pr-4 text-slate-500">' + item.model + '</td>' +
+          '<td class="py-4 pr-4 text-slate-700 font-medium">' + item.line + '</td>' +
+          '<td class="py-4 pr-4 text-slate-400 text-xs">' + (item.location || '-') + '</td>' +
+          '<td class="py-4 pr-4 text-slate-500 text-xs">' + item.category + '</td>' +
+          '<td class="py-4 pr-4 text-slate-500 text-xs">' + item.brand + '</td>' +
           '<td class="py-4 pr-4 text-center font-semibold ' + stockClass + '">' + item.stock + '</td>' +
           '<td class="py-4 pr-4 text-center">' + item.min + '</td>' +
           '<td class="py-4 pr-4 text-center">' + item.max + '</td>' +
@@ -1648,15 +1691,24 @@
             '<p class="text-[11px] text-slate-500 mt-1">Need to order: ' + needToOrder + '</p>' +
           '</td>' +
           '<td class="py-4 pr-4 text-center">' +
-            '<div class="inline-flex items-center gap-3">' +
-              '<button data-view-no="' + item.no + '" class="text-slate-700 font-semibold" title="ดูรายละเอียด">👁 View</button>' +
-              '<button data-issue-no="' + item.no + '" class="text-emerald-600 font-semibold" title="เบิก/รับ">⚡ เบิก/รับ</button>' +
-              '<button data-edit-no="' + item.no + '" class="text-blue-600 font-semibold" title="แก้ไข">✏️</button>' +
-              '<button data-delete-no="' + item.no + '" class="text-rose-600 font-semibold" title="ลบ">🗑️</button>' +
+            '<div class="inline-flex items-center gap-1.5">' +
+              '<button data-view-no="' + item.no + '" class="h-8 px-2 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold" title="ดูรายละเอียด">👁 View</button>' +
+              '<button data-issue-no="' + item.no + '" class="h-8 px-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold" title="เบิก/รับ">⚡ Issue</button>' +
+              '<button data-edit-no="' + item.no + '" class="h-8 px-2 rounded-lg border border-blue-200 text-blue-700 text-xs font-semibold" title="แก้ไข">✏️</button>' +
+              '<button data-delete-no="' + item.no + '" class="h-8 px-2 rounded-lg border border-rose-200 text-rose-700 text-xs font-semibold" title="ลบ">🗑️</button>' +
             '</div>' +
           '</td>' +
         '</tr>';
       }).join('');
+
+      Array.prototype.slice.call(tableBody.querySelectorAll('tr[data-row-no]')).forEach(function(row){
+        row.addEventListener('click', function(e){
+          if (e.target.closest('button')) return;
+          var no = row.getAttribute('data-row-no');
+          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          if (found) openDetailModal(found);
+        });
+      });
 
       Array.prototype.slice.call(tableBody.querySelectorAll('[data-view-no]')).forEach(function(btn){
         btn.addEventListener('click', function(){
@@ -1827,12 +1879,27 @@
       bindImageFallback(mainImg);
       detailModal.classList.remove('hidden');
       detailModal.classList.add('flex');
+      lockBodyScroll();
     }
 
     function closeDetailModal() {
       detailModal.classList.add('hidden');
       detailModal.classList.remove('flex');
       detailModalCurrentNo = null;
+      unlockBodyScroll();
+    }
+
+    function openImageViewer(src) {
+      if (!src || src === FALLBACK_IMAGE) return;
+      imageViewerImg.src = src;
+      imageViewer.classList.remove('hidden');
+      lockBodyScroll();
+    }
+
+    function closeImageViewer() {
+      imageViewer.classList.add('hidden');
+      imageViewerImg.src = '';
+      unlockBodyScroll();
     }
 
     function openImageViewer(src) {
@@ -1969,6 +2036,7 @@
       if (!txnSelectedImage.src) return;
       openImageViewer(txnSelectedImage.src);
     });
+    txnType.addEventListener('change', refreshTxnActionAvailability);
     qaIssueBtn.addEventListener('click', function() {
       openTxnPageWithItem('', 'Output');
     });
@@ -2016,9 +2084,21 @@
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
     document.getElementById('closeDetailModal').addEventListener('click', closeDetailModal);
+    editModal.addEventListener('click', function(e){
+      if (e.target === editModal) closeEditModal();
+    });
+    detailModal.addEventListener('click', function(e){
+      if (e.target === detailModal) closeDetailModal();
+    });
     closeImageViewerBtn.addEventListener('click', closeImageViewer);
     imageViewer.addEventListener('click', function(e) {
       if (e.target === imageViewer) closeImageViewer();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      if (!imageViewer.classList.contains('hidden')) return closeImageViewer();
+      if (!detailModal.classList.contains('hidden')) return closeDetailModal();
+      if (!editModal.classList.contains('hidden')) return closeEditModal();
     });
     document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
     openFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.remove('hidden'); });
