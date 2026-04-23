@@ -56,14 +56,14 @@
       </section>
 
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
-        <div class="space-y-3 mb-4">
+        <div class="space-y-3 mb-4 lg:hidden">
           <div class="relative">
-            <input id="searchInput" type="text" placeholder="สแกนบาร์โค้ด หรือค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full rounded-xl border border-slate-300 px-4 py-3 pr-24 text-base focus:ring-2 focus:ring-blue-500 outline-none" />
-            <button id="searchClearBtn" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 rounded-lg bg-slate-100 text-slate-700 text-sm">ล้าง</button>
+            <input id="searchInputMobile" type="text" placeholder="สแกนบาร์โค้ด หรือค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full rounded-xl border border-slate-300 px-4 py-3 pr-24 text-base focus:ring-2 focus:ring-blue-500 outline-none" />
+            <button id="searchClearBtnMobile" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 rounded-lg bg-slate-100 text-slate-700 text-sm">ล้าง</button>
           </div>
-          <div class="flex items-center gap-2 md:hidden">
+          <div class="flex items-center gap-2">
             <button id="openFilterSheetBtn" type="button" class="h-11 px-4 rounded-xl border border-slate-300 bg-white text-sm font-semibold">Filter</button>
-            <select id="sortFilter" class="h-11 flex-1 rounded-xl border border-slate-300 px-3 bg-white text-sm">
+            <select id="sortFilterMobile" class="h-11 flex-1 rounded-xl border border-slate-300 px-3 bg-white text-sm">
               <option value="default">เรียงตามเดิม</option>
               <option value="needpo_desc">Need to PO มากสุด</option>
               <option value="stock_asc">Stock น้อยสุด</option>
@@ -72,27 +72,28 @@
           </div>
         </div>
 
-        <div class="hidden md:flex md:flex-row md:items-center gap-3 md:gap-4 mb-4">
-          <select id="categoryFilter" class="w-full md:w-56 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
+        <div class="hidden lg:flex lg:flex-row lg:items-center gap-3 lg:gap-4 mb-4">
+          <input id="searchInput" type="text" placeholder="สแกนบาร์โค้ด หรือค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full lg:flex-1 rounded-xl border border-slate-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
+          <select id="categoryFilter" class="w-full lg:w-56 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="all">ทุกหมวดหมู่</option>
           </select>
-          <select id="statusFilter" class="w-full md:w-44 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
+          <select id="statusFilter" class="w-full lg:w-44 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="all">Status: ทั้งหมด</option>
             <option value="low">ต่ำกว่า Min</option>
             <option value="near">ใกล้หมด</option>
             <option value="out">หมด</option>
             <option value="ok">OK</option>
           </select>
-          <select id="lineSubFilter" class="w-full md:w-40 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
+          <select id="lineSubFilter" class="w-full lg:w-40 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="all">Line ย่อย: ทั้งหมด</option>
             <option value="arc">Arc</option>
             <option value="coil">Coil</option>
             <option value="lug">Lug</option>
           </select>
-          <select id="brandFilter" class="w-full md:w-44 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
+          <select id="brandFilter" class="w-full lg:w-44 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="all">แบรนด์ทั้งหมด</option>
           </select>
-          <select id="sortFilterDesktop" class="w-full md:w-48 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
+          <select id="sortFilter" class="w-full lg:w-48 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="default">เรียงตามเดิม</option>
             <option value="needpo_desc">Need to PO มากสุด</option>
             <option value="stock_asc">Stock น้อยสุด</option>
@@ -100,8 +101,8 @@
           </select>
         </div>
 
-        <div id="mobileCardList" class="space-y-3 md:hidden"></div>
-        <div class="overflow-x-auto hidden md:block">
+        <div id="mobileCardList" class="space-y-3 lg:hidden"></div>
+        <div class="overflow-x-auto hidden lg:block">
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-slate-500 border-b border-slate-200">
@@ -329,10 +330,11 @@
     var lineSubFilter = document.getElementById('lineSubFilter');
     var brandFilter = document.getElementById('brandFilter');
     var searchInput = document.getElementById('searchInput');
-    var searchClearBtn = document.getElementById('searchClearBtn');
+    var searchInputMobile = document.getElementById('searchInputMobile');
+    var searchClearBtnMobile = document.getElementById('searchClearBtnMobile');
     var mobileCardList = document.getElementById('mobileCardList');
     var sortFilter = document.getElementById('sortFilter');
-    var sortFilterDesktop = document.getElementById('sortFilterDesktop');
+    var sortFilterMobile = document.getElementById('sortFilterMobile');
     var statusFilterMobile = document.getElementById('statusFilterMobile');
     var lineSubFilterMobile = document.getElementById('lineSubFilterMobile');
     var brandFilterMobile = document.getElementById('brandFilterMobile');
@@ -1117,14 +1119,28 @@
       var totalStockQty = data.reduce(function(sum, item){ return sum + safeNum(item.stock); }, 0);
       var needPO = data.filter(function(item) { return item.needToPO > 0; }).length;
 
-      document.getElementById('stat-cards').innerHTML =
-        '<div class="md:col-span-4 overflow-x-auto"><div class="flex gap-3 pb-1">' +
-        '<button data-status-card="all" class="min-w-[170px] min-h-[88px] bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">📦 Stock ทั้งหมด</p><p class="text-2xl font-bold text-blue-700">' + totalStockQty + '</p></button>' +
-        '<button data-status-card="low" class="min-w-[170px] min-h-[88px] bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">🔴 ต่ำกว่า Min</p><p class="text-2xl font-bold text-rose-600">' + lowCount + '</p></button>' +
-        '<button data-status-card="near" class="min-w-[170px] min-h-[88px] bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">⚠️ ใกล้หมด</p><p class="text-2xl font-bold text-amber-600">' + nearCount + '</p></button>' +
-        '<button data-status-card="out" class="min-w-[170px] min-h-[88px] bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">❌ หมด</p><p class="text-2xl font-bold text-rose-700">' + outCount + '</p></button>' +
-        '<div class="min-w-[220px] bg-rose-50 rounded-2xl border border-rose-200 p-4 shadow-sm"><p class="text-xs text-rose-700 font-semibold">🚨 วันนี้ต้องทำ</p><p class="text-sm text-rose-700 mt-1">สั่งซื้อ <b>' + needPO + '</b></p><p class="text-sm text-rose-700">ของหมด <b>' + outCount + '</b></p></div>' +
-        '</div></div>';
+      if (window.innerWidth >= 1024) {
+        document.getElementById('stat-cards').innerHTML =
+          '<div class="md:col-span-4 bg-rose-50 rounded-2xl border border-rose-200 p-4 shadow-sm">' +
+            '<p class="text-xs text-rose-700 font-semibold">🚨 วันนี้ต้องทำ</p>' +
+            '<p class="text-sm text-rose-700 mt-1">- สั่งซื้อ <b>' + needPO + '</b> รายการ</p>' +
+            '<p class="text-sm text-rose-700">- ของหมด <b>' + outCount + '</b> รายการ</p>' +
+            '<p class="text-sm text-rose-700">- ต่ำกว่า Min <b>' + lowCount + '</b> รายการ</p>' +
+          '</div>' +
+          '<button data-status-card="low" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">🔴 ต่ำกว่า Min</p><p class="text-2xl font-bold text-rose-600">' + lowCount + '</p></button>' +
+          '<button data-status-card="near" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">⚠️ ใกล้หมด</p><p class="text-2xl font-bold text-amber-600">' + nearCount + '</p></button>' +
+          '<button data-status-card="out" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">❌ หมด</p><p class="text-2xl font-bold text-rose-700">' + outCount + '</p></button>' +
+          '<button data-status-card="all" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">📦 Stock ทั้งหมด</p><p class="text-2xl font-bold text-blue-700">' + totalStockQty + '</p></button>';
+      } else {
+        document.getElementById('stat-cards').innerHTML =
+          '<div class="md:col-span-4 overflow-x-auto"><div class="flex gap-3 pb-1">' +
+          '<button data-status-card="all" class="min-w-[170px] min-h-[88px] bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">📦 Stock ทั้งหมด</p><p class="text-2xl font-bold text-blue-700">' + totalStockQty + '</p></button>' +
+          '<button data-status-card="low" class="min-w-[170px] min-h-[88px] bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">🔴 ต่ำกว่า Min</p><p class="text-2xl font-bold text-rose-600">' + lowCount + '</p></button>' +
+          '<button data-status-card="near" class="min-w-[170px] min-h-[88px] bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">⚠️ ใกล้หมด</p><p class="text-2xl font-bold text-amber-600">' + nearCount + '</p></button>' +
+          '<button data-status-card="out" class="min-w-[170px] min-h-[88px] bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">❌ หมด</p><p class="text-2xl font-bold text-rose-700">' + outCount + '</p></button>' +
+          '<div class="min-w-[220px] bg-rose-50 rounded-2xl border border-rose-200 p-4 shadow-sm"><p class="text-xs text-rose-700 font-semibold">🚨 วันนี้ต้องทำ</p><p class="text-sm text-rose-700 mt-1">สั่งซื้อ <b>' + needPO + '</b></p><p class="text-sm text-rose-700">ของหมด <b>' + outCount + '</b></p></div>' +
+          '</div></div>';
+      }
 
       Array.prototype.slice.call(document.querySelectorAll('[data-status-card]')).forEach(function(btn){
         btn.addEventListener('click', function(){
@@ -1235,6 +1251,8 @@
           lineSubFilterMobile.value = 'all';
           brandFilterMobile.value = 'all';
           searchInput.value = '';
+          searchInputMobile.value = '';
+          searchClearBtnMobile.classList.add('hidden');
           applyFilters();
         });
         return;
@@ -1419,7 +1437,7 @@
         return hitSearch && hitCategory && hitLine && hitStatus && hitLineSub && hitBrand;
       });
 
-      var selectedSort = (window.innerWidth < 768 ? sortFilter.value : sortFilterDesktop.value) || 'default';
+      var selectedSort = (window.innerWidth >= 1024 ? sortFilter.value : sortFilterMobile.value) || 'default';
       if (selectedSort === 'needpo_desc') filtered.sort(function(a,b){ return safeNum(b.needToPO) - safeNum(a.needToPO); });
       if (selectedSort === 'stock_asc') filtered.sort(function(a,b){ return safeNum(a.stock) - safeNum(b.stock); });
       if (selectedSort === 'name_asc') filtered.sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
@@ -1436,10 +1454,10 @@
     lineSubFilterMobile.addEventListener('change', function(){ lineSubFilter.value = lineSubFilterMobile.value; applyFilters(); });
     brandFilterMobile.addEventListener('change', function(){ brandFilter.value = brandFilterMobile.value; applyFilters(); });
     sortFilter.addEventListener('change', applyFilters);
-    sortFilterDesktop.addEventListener('change', function(){ sortFilter.value = sortFilterDesktop.value; applyFilters(); });
-    searchInput.addEventListener('input', applyFilters);
-    searchInput.addEventListener('input', function(){ searchClearBtn.classList.toggle('hidden', !searchInput.value.trim()); });
-    searchClearBtn.addEventListener('click', function(){ searchInput.value = ''; searchClearBtn.classList.add('hidden'); applyFilters(); searchInput.focus(); });
+    sortFilterMobile.addEventListener('change', function(){ sortFilter.value = sortFilterMobile.value; applyFilters(); });
+    searchInput.addEventListener('input', function(){ searchInputMobile.value = searchInput.value; applyFilters(); });
+    searchInputMobile.addEventListener('input', function(){ searchInput.value = searchInputMobile.value; searchClearBtnMobile.classList.toggle('hidden', !searchInputMobile.value.trim()); applyFilters(); });
+    searchClearBtnMobile.addEventListener('click', function(){ searchInput.value = ''; searchInputMobile.value = ''; searchClearBtnMobile.classList.add('hidden'); applyFilters(); searchInputMobile.focus(); });
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
     tabTxn.addEventListener('click', switchToTxnPage);
