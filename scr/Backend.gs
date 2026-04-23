@@ -16,12 +16,24 @@ function buildErrorResponse(err) {
   var isDriveAuth = lower.indexOf('ไม่ได้รับอนุญาต') > -1 ||
     lower.indexOf('authorization') > -1 ||
     lower.indexOf('googleapis.com/auth/drive') > -1;
+  var isDriveServiceError = lower.indexOf('ข้อผิดพลาดของบริการ: ไดรฟ์') > -1 ||
+    lower.indexOf('service error: drive') > -1 ||
+    lower.indexOf('drive_service_error') > -1 ||
+    lower.indexOf('internal error encountered') > -1;
 
   if (isDriveAuth) {
     return {
       status: 'error',
       errorCode: 'DRIVE_AUTH_REQUIRED',
       message: 'ยังไม่ได้อนุญาตสิทธิ์ Google Drive ให้ Apps Script (DRIVE_AUTH_REQUIRED). กรุณาเปิด Apps Script แล้ว Run ฟังก์ชันที่ใช้ DriveApp 1 ครั้งเพื่ออนุญาตสิทธิ์ จากนั้น Deploy เว็บแอปใหม่และลองอีกครั้ง',
+      detail: msg
+    };
+  }
+  if (isDriveServiceError) {
+    return {
+      status: 'error',
+      errorCode: 'DRIVE_SERVICE_ERROR',
+      message: 'ระบบ Google Drive ขัดข้องชั่วคราว (DRIVE_SERVICE_ERROR) กรุณาลองอัปโหลดใหม่อีกครั้ง',
       detail: msg
     };
   }
@@ -362,7 +374,22 @@ function uploadImageToDrive(payload) {
     if (!oldFile.isTrashed()) oldFile.setTrashed(true);
   }
 
-  var file = folder.createFile(blob);
+  var file = null;
+  var createErr = null;
+  var maxCreateAttempts = 3;
+  for (var attempt = 0; attempt < maxCreateAttempts; attempt += 1) {
+    try {
+      file = folder.createFile(blob);
+      createErr = null;
+      break;
+    } catch (err) {
+      createErr = err;
+      if (attempt < maxCreateAttempts - 1) Utilities.sleep(250 * (attempt + 1));
+    }
+  }
+  if (!file) {
+    throw new Error('DRIVE_SERVICE_ERROR: ไม่สามารถสร้างไฟล์ใน Google Drive ได้ (' + (createErr && createErr.message ? createErr.message : 'unknown') + ')');
+  }
   var sharingWarning = '';
   try {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);

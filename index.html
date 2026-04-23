@@ -621,6 +621,9 @@
       if (message.indexOf('DRIVE_AUTH_REQUIRED') > -1) {
         return 'ยังไม่ได้อนุญาตสิทธิ์ Google Drive ให้ Apps Script กรุณาเข้า Apps Script > Run ฟังก์ชัน doGet หรือ uploadImageToDrive แล้วกด Allow จากนั้น Deploy เว็บแอปใหม่ก่อนลองอัปโหลดอีกครั้ง';
       }
+      if (message.indexOf('DRIVE_SERVICE_ERROR') > -1 || message.indexOf('ข้อผิดพลาดของบริการ: ไดรฟ์') > -1) {
+        return 'Google Drive ขัดข้องชั่วคราว กรุณาลองอัปโหลดใหม่อีกครั้งใน 10-30 วินาที';
+      }
       return message;
     }
 
