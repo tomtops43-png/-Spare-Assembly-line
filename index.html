@@ -465,6 +465,12 @@
       return normalized || FALLBACK_IMAGE;
     }
 
+    function getSecondaryDriveImageUrl(value) {
+      var fileId = extractDriveFileId(value);
+      if (!fileId) return '';
+      return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1200';
+    }
+
     function buildDriveViewUrl(fileId) {
       var id = String(fileId || '').trim();
       if (!id) return '';
@@ -480,9 +486,15 @@
 
     function bindImageFallback(imgEl) {
       if (!imgEl) return;
-      imgEl.addEventListener('error', function onImgError() {
+      imgEl.onerror = function onImgError() {
+        var secondary = imgEl.getAttribute('data-fallback-src') || '';
+        if (secondary) {
+          imgEl.setAttribute('data-fallback-src', '');
+          imgEl.src = secondary;
+          return;
+        }
         imgEl.src = FALLBACK_IMAGE;
-      }, { once: true });
+      };
     }
 
     function validateImageFile(file) {
@@ -1261,7 +1273,8 @@
       console.log('[item data render table]', data);
       tableBody.innerHTML = data.map(function(item) {
         var tableImageSrc = toSafeImageUrl(item.image_main_url);
-        console.log('[render table image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: tableImageSrc });
+        var tableFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
+        console.log('[render table image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: tableImageSrc, fallbackSrc: tableFallbackSrc });
         var isOut = item.stock === 0;
         var isLow = item.stock > 0 && item.min > 0 && item.stock < item.min;
         var isNear = item.stock > 0 && item.min > 0 && item.stock >= item.min && item.stock <= (item.min * 1.2);
@@ -1272,7 +1285,7 @@
           '<td class="py-3 pr-4 text-center">' +
             '<button type="button" data-view-no="' + item.no + '" class="group inline-block" title="ดูรูปและรายละเอียด">' +
               '<span class="block h-10 w-10 rounded-md border border-slate-200 bg-slate-100 overflow-hidden">' +
-                '<img loading="lazy" src="' + tableImageSrc + '" alt="part image" class="h-10 w-10 object-cover transition-transform duration-200 group-hover:scale-125" onerror="this.src=\'' + FALLBACK_IMAGE + '\'" />' +
+                '<img loading="lazy" src="' + tableImageSrc + '" data-fallback-src="' + (tableFallbackSrc || '') + '" alt="part image" class="h-10 w-10 object-cover transition-transform duration-200 group-hover:scale-125" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
               '</span>' +
             '</button>' +
           '</td>' +
@@ -1351,6 +1364,7 @@
       }
       mobileCardList.innerHTML = data.map(function(item) {
         var mobileImageSrc = toSafeImageUrl(item.image_main_url);
+        var mobileFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
         var isOut = item.stock === 0;
         var isLow = item.stock > 0 && item.min > 0 && item.stock < item.min;
         var isNear = item.stock > 0 && item.min > 0 && item.stock >= item.min && item.stock <= (item.min * 1.2);
@@ -1359,7 +1373,7 @@
         var needClass = item.needToPO > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
         return '<article class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">' +
           '<div class="flex gap-3">' +
-            '<img loading="lazy" src="' + mobileImageSrc + '" alt="thumb" class="h-12 w-12 rounded-lg border border-slate-200 object-cover bg-slate-100" onerror="this.src=\'' + FALLBACK_IMAGE + '\'" />' +
+            '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-12 w-12 rounded-lg border border-slate-200 object-cover bg-slate-100" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             '<div class="min-w-0 flex-1"><p class="font-semibold truncate">' + item.name + '</p><p class="text-xs text-slate-500">' + (item.model || '-') + '</p><p class="text-xs text-slate-500">' + (item.location || '-') + '</p></div>' +
             '<div class="text-right"><p class="text-2xl font-bold ' + stockClass + '">' + item.stock + '</p><p class="text-xs text-slate-500">Min/Max ' + item.min + '/' + item.max + '</p></div>' +
           '</div>' +
@@ -1389,13 +1403,15 @@
       document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
       var mainImg = document.getElementById('detailMainImage');
       var mainUrl = String(item.image_main_url || '').trim();
-      var mainOk = isDriveViewUrl(mainUrl);
-      var detailImageSrc = mainOk ? mainUrl : FALLBACK_IMAGE;
+      var detailImageSrc = toSafeImageUrl(mainUrl);
+      var mainOk = detailImageSrc !== FALLBACK_IMAGE;
+      var detailFallbackSrc = getSecondaryDriveImageUrl(mainUrl);
+      mainImg.setAttribute('data-fallback-src', detailFallbackSrc || '');
       mainImg.src = detailImageSrc;
       mainImg.classList.toggle('hidden', !mainOk);
       document.getElementById('detailMainEmpty').classList.toggle('hidden', mainOk);
       console.log('[render detail item]', item);
-      console.log('[render detail image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: detailImageSrc });
+      console.log('[render detail image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: detailImageSrc, fallbackSrc: detailFallbackSrc });
       bindImageFallback(mainImg);
       detailModal.classList.remove('hidden');
       detailModal.classList.add('flex');
