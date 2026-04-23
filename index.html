@@ -1883,10 +1883,26 @@
     }
 
     function closeDetailModal() {
+      if (detailModal.classList.contains('hidden')) return;
       detailModal.classList.add('hidden');
       detailModal.classList.remove('flex');
       detailModalCurrentNo = null;
       unlockBodyScroll();
+    }
+
+    function bindDetailModalCloseBehavior() {
+      var closeBtn = document.getElementById('closeDetailModal');
+      if (!closeBtn) return;
+
+      closeBtn.addEventListener('click', closeDetailModal);
+      detailModal.addEventListener('click', function(e) {
+        if (e.target === detailModal) closeDetailModal();
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        if (detailModal.classList.contains('hidden')) return;
+        closeDetailModal();
+      });
     }
 
     function openImageViewer(src) {
@@ -1900,17 +1916,6 @@
       imageViewer.classList.add('hidden');
       imageViewerImg.src = '';
       unlockBodyScroll();
-    }
-
-    function openImageViewer(src) {
-      if (!src || src === FALLBACK_IMAGE) return;
-      imageViewerImg.src = src;
-      imageViewer.classList.remove('hidden');
-    }
-
-    function closeImageViewer() {
-      imageViewer.classList.add('hidden');
-      imageViewerImg.src = '';
     }
 
     function renderPagination(totalItems) {
@@ -2083,13 +2088,10 @@
     manageForm.addEventListener('submit', submitManageItem);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
-    document.getElementById('closeDetailModal').addEventListener('click', closeDetailModal);
     editModal.addEventListener('click', function(e){
       if (e.target === editModal) closeEditModal();
     });
-    detailModal.addEventListener('click', function(e){
-      if (e.target === detailModal) closeDetailModal();
-    });
+    bindDetailModalCloseBehavior();
     closeImageViewerBtn.addEventListener('click', closeImageViewer);
     imageViewer.addEventListener('click', function(e) {
       if (e.target === imageViewer) closeImageViewer();
@@ -2097,7 +2099,6 @@
     document.addEventListener('keydown', function(e) {
       if (e.key !== 'Escape') return;
       if (!imageViewer.classList.contains('hidden')) return closeImageViewer();
-      if (!detailModal.classList.contains('hidden')) return closeDetailModal();
       if (!editModal.classList.contains('hidden')) return closeEditModal();
     });
     document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
