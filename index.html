@@ -510,6 +510,8 @@
         formData.append('line', currentLine);
         formData.append('imageType', kind);
         formData.append('itemName', itemName || '');
+        formData.append('partName', itemName || '');
+        formData.append('qty', '0');
         formData.append('file', file, file.name || (kind + '-' + itemId));
         formData.append('dataUrl', dataUrl);
         return fetch(getWriteApiUrl(), {
@@ -710,6 +712,7 @@
         dataUrl: payload.dataUrl || '',
         no: payload.no || '',
         name: payload.name || '',
+        partName: payload.partName || payload.name || '',
         model: payload.model || '',
         line: payload.line || '',
         category: payload.category || '',
@@ -726,6 +729,9 @@
         unit: payload.unit || '',
         stock: payload.stock || ''
       };
+      requestPayload.qty = Number(payload.qty !== undefined ? payload.qty : requestPayload.stock || 0);
+      if (!Number.isFinite(requestPayload.qty)) requestPayload.qty = 0;
+      console.log('[manageAction payload]', { action: action, partName: requestPayload.partName, qty: requestPayload.qty });
 
       var photoSize = String(requestPayload.photo || '').length;
       var shouldUsePost = photoSize > 1200;
@@ -738,6 +744,7 @@
         'sheet=' + encodeURIComponent(requestPayload.sheet),
         'no=' + encodeURIComponent(requestPayload.no),
         'name=' + encodeURIComponent(requestPayload.name),
+        'partName=' + encodeURIComponent(requestPayload.partName),
         'model=' + encodeURIComponent(requestPayload.model),
         'line=' + encodeURIComponent(requestPayload.line),
         'category=' + encodeURIComponent(requestPayload.category),
@@ -752,7 +759,8 @@
         'max=' + encodeURIComponent(requestPayload.max),
         'min=' + encodeURIComponent(requestPayload.min),
         'unit=' + encodeURIComponent(requestPayload.unit),
-        'stock=' + encodeURIComponent(requestPayload.stock)
+        'stock=' + encodeURIComponent(requestPayload.stock),
+        'qty=' + encodeURIComponent(String(requestPayload.qty))
       ].join('&');
 
       return loadJsonpWithFallback(function(base){ return base + '?' + query; });

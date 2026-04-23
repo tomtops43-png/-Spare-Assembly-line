@@ -567,15 +567,39 @@ function doGet(e) {
 // =============================
 function doPost(e) {
   try {
+    function parseMultipartFields(rawText, contentType) {
+      var out = {};
+      var m = String(contentType || '').match(/boundary=([^;]+)/i);
+      if (!m || !m[1]) return out;
+      var boundary = '--' + m[1];
+      var parts = String(rawText || '').split(boundary);
+      for (var i = 0; i < parts.length; i += 1) {
+        var part = parts[i];
+        if (!part || part === '--' || part === '--\r\n') continue;
+        var nameMatch = part.match(/name=\"([^\"]+)\"/i);
+        if (!nameMatch || !nameMatch[1]) continue;
+        var key = nameMatch[1];
+        var splitIndex = part.indexOf('\r\n\r\n');
+        if (splitIndex < 0) continue;
+        var value = part.substring(splitIndex + 4).replace(/\r\n--$/, '').replace(/\r\n$/, '');
+        if (!/filename=\"/i.test(part)) out[key] = value;
+      }
+      return out;
+    }
+
     var body = {};
     var raw = e && e.postData ? String(e.postData.contents || '') : '';
     try {
       body = raw ? JSON.parse(raw) : {};
     } catch (jsonErr) {
       body = e && e.parameter ? e.parameter : {};
+      if (!body || !Object.keys(body).length) {
+        body = parseMultipartFields(raw, e && e.postData ? e.postData.type : '');
+      }
       body.dataUrl = body.dataUrl || body.file || body.fileBase64 || '';
     }
     var action = body && body.action ? String(body.action) : '';
+    if (!action && (body.itemId || body.imageType || body.kind || body.dataUrl)) action = 'uploadImage';
     if (action === 'upsertItem') {
       return respond(upsertMainItem({
         sheetName: body.sheet || body.sheetName,
