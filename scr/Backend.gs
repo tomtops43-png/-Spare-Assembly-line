@@ -597,7 +597,7 @@ function doPost(e) {
         stock: body.stock
       }), e);
     }
-    if (action === 'uploadImage') {
+    if (action === 'uploadImage' || action === 'upload') {
       return respond(uploadImageToDrive(body), e);
     }
     if (action === 'deleteItem') {
@@ -608,6 +608,7 @@ function doPost(e) {
     }
     return respond(processTransaction(body), e);
   } catch (err) {
+    Logger.log('doPost error: ' + err);
     return respond({ status: 'error', message: err.message }, e);
   }
 }

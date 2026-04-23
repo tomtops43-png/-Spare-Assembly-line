@@ -599,6 +599,17 @@
       });
     }
 
+    function postJson(payload) {
+      return fetch(getWriteApiUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      });
+    }
+
 
 
 
@@ -677,6 +688,10 @@
       var requestPayload = {
         action: action,
         sheet: getCurrentSheetName(),
+        itemId: payload.itemId || payload.no || '',
+        imageType: payload.imageType || payload.kind || '',
+        kind: payload.kind || payload.imageType || '',
+        dataUrl: payload.dataUrl || '',
         no: payload.no || '',
         name: payload.name || '',
         model: payload.model || '',
@@ -684,11 +699,27 @@
         category: payload.category || '',
         brand: payload.brand || '',
         photo: payload.photo || '',
+        image_main: payload.image_main || '',
+        image_main_url: payload.image_main_url || '',
+        image_main_file_id: payload.image_main_file_id || '',
+        image_install: payload.image_install || '',
+        image_install_url: payload.image_install_url || '',
+        image_install_file_id: payload.image_install_file_id || '',
         max: payload.max || '',
         min: payload.min || '',
         unit: payload.unit || '',
         stock: payload.stock || ''
       };
+
+      if (action === 'uploadImage') {
+        return postJson(requestPayload).then(function(res) {
+          console.log('[uploadImage] response', res);
+          return res;
+        }).catch(function(err) {
+          console.error('[uploadImage] error', err, requestPayload);
+          throw err;
+        });
+      }
 
       var photoSize = String(requestPayload.photo || '').length;
       var shouldUsePost = photoSize > 1200;
@@ -706,6 +737,12 @@
         'category=' + encodeURIComponent(requestPayload.category),
         'brand=' + encodeURIComponent(requestPayload.brand),
         'photo=' + encodeURIComponent(requestPayload.photo),
+        'image_main=' + encodeURIComponent(requestPayload.image_main),
+        'image_main_url=' + encodeURIComponent(requestPayload.image_main_url),
+        'image_main_file_id=' + encodeURIComponent(requestPayload.image_main_file_id),
+        'image_install=' + encodeURIComponent(requestPayload.image_install),
+        'image_install_url=' + encodeURIComponent(requestPayload.image_install_url),
+        'image_install_file_id=' + encodeURIComponent(requestPayload.image_install_file_id),
         'max=' + encodeURIComponent(requestPayload.max),
         'min=' + encodeURIComponent(requestPayload.min),
         'unit=' + encodeURIComponent(requestPayload.unit),
