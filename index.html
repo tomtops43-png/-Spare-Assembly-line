@@ -48,12 +48,8 @@
         </div>
 
     <section id="stockPage" class="space-y-6 eng-gridline p-2 rounded-2xl">
-      <p id="updatedAtText" class="text-xs text-slate-500">อัปเดตล่าสุด: -</p>
+      <p id="updatedAtText" class="hidden text-xs text-slate-500"></p>
       <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
-      <section class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div id="topNeedPanel" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"></div>
-        <div id="recentActivityPanel" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow"></div>
-      </section>
 
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
         <div class="space-y-3 mb-4 lg:hidden">
@@ -83,12 +79,6 @@
             <option value="near">ใกล้หมด</option>
             <option value="out">หมด</option>
             <option value="ok">OK</option>
-          </select>
-          <select id="lineSubFilter" class="w-full lg:w-40 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
-            <option value="all">Line ย่อย: ทั้งหมด</option>
-            <option value="arc">Arc</option>
-            <option value="coil">Coil</option>
-            <option value="lug">Lug</option>
           </select>
           <select id="brandFilter" class="w-full lg:w-44 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="all">แบรนด์ทั้งหมด</option>
@@ -160,6 +150,7 @@
         <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
         <input id="mImageMain" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Image Main URL (Drive)" />
         <input id="mImageInstall" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Image Install URL (Drive)" />
+        <p id="mImageHint" class="md:col-span-2 text-xs text-amber-600 hidden">URL นี้อาจใช้แสดงรูปไม่ได้ (รองรับเฉพาะ Drive format ที่กำหนด)</p>
         <input id="mPhotoFile" type="file" accept="image/*" capture="environment" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
         <div class="md:col-span-2 grid grid-cols-2 gap-2">
           <div>
@@ -221,6 +212,7 @@
         <div><label class="text-xs text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Image Main URL (Drive)</label><input id="eImageMain" type="url" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Image Install URL (Drive)</label><input id="eImageInstall" type="url" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <p id="eImageHint" class="md:col-span-3 text-xs text-amber-600 hidden">URL นี้อาจใช้แสดงรูปไม่ได้ (รองรับเฉพาะ Drive format ที่กำหนด)</p>
         <div><label class="text-xs text-slate-500">Photo File (มือถือ/คอม)</label><input id="ePhotoFile" type="file" accept="image/*" capture="environment" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" /></div>
         <div><label class="text-xs text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
@@ -244,10 +236,12 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <img id="detailMainImage" src="/images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-cover bg-slate-100" />
+          <p id="detailMainEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูปหลัก</p>
           <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
         </div>
         <div>
           <img id="detailInstallImage" src="/images/no-image.svg" alt="install image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-cover bg-slate-100" />
+          <p id="detailInstallEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูปติดตั้ง</p>
           <p class="text-xs text-slate-500 mt-2">รูปติดตั้ง</p>
         </div>
       </div>
@@ -258,9 +252,6 @@
         <p><b>Location:</b> <span id="detailLocation">-</span></p>
         <p><b>Stock:</b> <span id="detailStock">0</span></p>
         <p><b>Min/Max:</b> <span id="detailMinMax">0/0</span></p>
-      </div>
-      <div class="mt-4 flex justify-end">
-        <button id="detailQuickIssueBtn" class="eng-primary-btn rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold">⚡ Quick Issue</button>
       </div>
     </div>
   </div>
@@ -278,32 +269,10 @@
         <option value="out">หมด</option>
         <option value="ok">OK</option>
       </select>
-      <select id="lineSubFilterMobile" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
-        <option value="all">Line ย่อย: ทั้งหมด</option>
-        <option value="arc">Arc</option>
-        <option value="coil">Coil</option>
-        <option value="lug">Lug</option>
-      </select>
       <select id="brandFilterMobile" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
         <option value="all">แบรนด์ทั้งหมด</option>
       </select>
       <button id="applyFilterSheetBtn" type="button" class="h-11 w-full rounded-xl bg-blue-600 text-white font-semibold">ใช้งาน Filter</button>
-    </div>
-  </div>
-
-  <div id="quickIssueModal" class="fixed inset-0 bg-white hidden z-50">
-    <div class="h-full flex flex-col p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-lg font-bold">⚡ Quick Issue</h3>
-        <button id="closeQuickIssueModal" class="h-10 px-3 rounded-lg bg-slate-100">ปิด</button>
-      </div>
-      <img id="quickIssueImage" src="/images/no-image.svg" alt="quick issue image" class="w-full h-48 rounded-xl border border-slate-200 object-cover bg-slate-100" />
-      <p id="quickIssueName" class="mt-3 font-semibold"></p>
-      <div class="mt-3">
-        <label class="text-sm text-slate-500">จำนวน</label>
-        <input id="quickIssueQty" type="number" min="1" step="1" value="1" class="mt-1 h-12 w-full rounded-xl border border-slate-300 px-4 text-lg" />
-      </div>
-      <button id="confirmQuickIssueBtn" class="mt-auto h-12 rounded-xl bg-blue-600 text-white font-semibold">ยืนยันเบิก</button>
     </div>
   </div>
 
@@ -327,7 +296,6 @@
     var paginationControls = document.getElementById('paginationControls');
     var categoryFilter = document.getElementById('categoryFilter');
     var statusFilter = document.getElementById('statusFilter');
-    var lineSubFilter = document.getElementById('lineSubFilter');
     var brandFilter = document.getElementById('brandFilter');
     var searchInput = document.getElementById('searchInput');
     var searchInputMobile = document.getElementById('searchInputMobile');
@@ -336,7 +304,6 @@
     var sortFilter = document.getElementById('sortFilter');
     var sortFilterMobile = document.getElementById('sortFilterMobile');
     var statusFilterMobile = document.getElementById('statusFilterMobile');
-    var lineSubFilterMobile = document.getElementById('lineSubFilterMobile');
     var brandFilterMobile = document.getElementById('brandFilterMobile');
     var filterSheet = document.getElementById('filterSheet');
     var openFilterSheetBtn = document.getElementById('openFilterSheetBtn');
@@ -380,10 +347,7 @@
     var editMessage = document.getElementById('editMessage');
     var editModalSubtitle = document.getElementById('editModalSubtitle');
     var detailModal = document.getElementById('detailModal');
-    var detailQuickIssueBtn = document.getElementById('detailQuickIssueBtn');
     var detailModalCurrentNo = null;
-    var quickIssueModal = document.getElementById('quickIssueModal');
-    var quickIssueCurrentNo = null;
     var currentLine = 'H9';
     var lineConfig = [
       { key: 'H9', color: '#2563eb' },
@@ -500,14 +464,28 @@
       }, { once: true });
     }
 
-    function bindDrivePreview(inputId, previewId) {
+    function bindDrivePreview(inputId, previewId, hintId) {
       var input = document.getElementById(inputId);
       var preview = document.getElementById(previewId);
+      var hint = hintId ? document.getElementById(hintId) : null;
       if (!input || !preview) return;
       bindImageFallback(preview);
       input.addEventListener('input', function() {
         var value = String(input.value || '').trim();
-        preview.src = isDriveViewUrl(value) ? value : FALLBACK_IMAGE;
+        var ok = isDriveViewUrl(value);
+        preview.src = ok ? value : FALLBACK_IMAGE;
+        if (hint) hint.classList.toggle('hidden', !value || ok);
+      });
+    }
+
+    function bindDriveHint(inputId, hintId) {
+      var input = document.getElementById(inputId);
+      var hint = document.getElementById(hintId);
+      if (!input || !hint) return;
+      input.addEventListener('input', function() {
+        var value = String(input.value || '').trim();
+        var ok = isDriveViewUrl(value);
+        hint.classList.toggle('hidden', !value || ok);
       });
     }
 
@@ -859,6 +837,13 @@
           populateCategoryOptions(partsData);
           populateBrandOptions(partsData);
           populatePartOptions(partsData);
+          if (partsData.length) {
+            var updatedAtText = document.getElementById('updatedAtText');
+            updatedAtText.textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH');
+            updatedAtText.classList.remove('hidden');
+          } else {
+            document.getElementById('updatedAtText').classList.add('hidden');
+          }
           applyFilters();
         })
         .catch(function(err) {
@@ -866,6 +851,7 @@
           tableBody.innerHTML = '<tr><td colspan="13" class="py-8 text-center text-rose-500">' + err.message + '<br><span class="text-xs text-slate-500">' + hint + '</span></td></tr>';
           mobileCardList.innerHTML = '<div class="py-8 text-center text-rose-500">' + err.message + '</div>';
           document.getElementById('stat-cards').innerHTML = '';
+          document.getElementById('updatedAtText').classList.add('hidden');
         });
     }
 
@@ -1192,7 +1178,6 @@
           '</td>' +
           '<td class="py-3 pr-4 text-center">' +
             '<button data-view-no="' + item.no + '" class="text-slate-600 font-semibold mr-2" title="ดูรายละเอียด">👁 View</button>' +
-            '<button data-quick-no="' + item.no + '" class="text-amber-600 font-semibold mr-2" title="เบิกด่วน">⚡</button>' +
             '<button data-edit-no="' + item.no + '" class="text-blue-600 font-semibold mr-2" title="แก้ไข">✏️</button>' +
             '<button data-delete-no="' + item.no + '" class="text-rose-600 font-semibold" title="ลบ">🗑️</button>' +
           '</td>' +
@@ -1205,14 +1190,6 @@
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (!found) return;
           openDetailModal(found);
-        });
-      });
-
-      Array.prototype.slice.call(tableBody.querySelectorAll('[data-quick-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(){
-          var no = btn.getAttribute('data-quick-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
-          openQuickIssueModal(found);
         });
       });
 
@@ -1245,10 +1222,8 @@
         if (resetBtn) resetBtn.addEventListener('click', function() {
           categoryFilter.value = 'all';
           statusFilter.value = 'all';
-          lineSubFilter.value = 'all';
           brandFilter.value = 'all';
           statusFilterMobile.value = 'all';
-          lineSubFilterMobile.value = 'all';
           brandFilterMobile.value = 'all';
           searchInput.value = '';
           searchInputMobile.value = '';
@@ -1271,9 +1246,8 @@
             '<div class="text-right"><p class="text-2xl font-bold ' + stockClass + '">' + item.stock + '</p><p class="text-xs text-slate-500">Min/Max ' + item.min + '/' + item.max + '</p></div>' +
           '</div>' +
           '<div class="mt-3 flex items-center justify-between"><span class="px-2 py-1 rounded-full text-xs font-semibold ' + needClass + '">' + needLabel + '</span><span class="text-xs text-slate-500">' + (item.brand || '-') + '</span></div>' +
-          '<div class="mt-3 grid grid-cols-2 gap-2">' +
-            '<button data-quick-no="' + item.no + '" class="h-11 rounded-xl bg-amber-500 text-white font-semibold">⚡ เบิกด่วน</button>' +
-            '<button data-view-no="' + item.no + '" class="h-11 rounded-xl border border-slate-300 bg-white font-semibold">👁 ดูรายละเอียด</button>' +
+          '<div class="mt-3">' +
+            '<button data-view-no="' + item.no + '" class="h-11 w-full rounded-xl border border-slate-300 bg-white font-semibold">👁 ดูรายละเอียด</button>' +
           '</div>' +
         '</article>';
       }).join('');
@@ -1285,54 +1259,6 @@
           if (found) openDetailModal(found);
         });
       });
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-quick-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(){
-          var no = btn.getAttribute('data-quick-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
-          openQuickIssueModal(found);
-        });
-      });
-    }
-
-    function quickIssueByItem(found) {
-      if (!found) return;
-      var qtyText = prompt('Quick Issue - ใส่จำนวนที่ต้องการเบิก', '1');
-      if (!qtyText) return;
-      var qty = Number(qtyText);
-      if (!qty || qty <= 0) return alert('จำนวนไม่ถูกต้อง');
-      callTransactionViaJsonp({
-        partNo: found.no,
-        partName: found.name,
-        model: found.model,
-        brand: found.brand,
-        category: found.category,
-        qty: qty,
-        type: 'Output',
-        unit: found.unit || 'PCS',
-        process: currentLine,
-        by: 'Quick Issue'
-      }).then(function(res){
-        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ไม่สำเร็จ');
-        loadPartsData();
-        if (!logPage.classList.contains('hidden')) loadLogData();
-        closeDetailModal();
-      }).catch(function(err){
-        alert('Quick Issue ไม่สำเร็จ: ' + err.message);
-      });
-    }
-
-    function openQuickIssueModal(item) {
-      if (!item) return;
-      quickIssueCurrentNo = item.no;
-      document.getElementById('quickIssueImage').src = toSafeImageUrl(item.image_main || item.photo);
-      document.getElementById('quickIssueName').textContent = item.name || '-';
-      document.getElementById('quickIssueQty').value = '1';
-      quickIssueModal.classList.remove('hidden');
-    }
-
-    function closeQuickIssueModal() {
-      quickIssueModal.classList.add('hidden');
-      quickIssueCurrentNo = null;
     }
 
     function openDetailModal(item) {
@@ -1345,8 +1271,16 @@
       document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
       var mainImg = document.getElementById('detailMainImage');
       var installImg = document.getElementById('detailInstallImage');
-      mainImg.src = toSafeImageUrl(item.image_main || item.photo);
-      installImg.src = toSafeImageUrl(item.image_install);
+      var mainUrl = String(item.image_main || item.photo || '').trim();
+      var installUrl = String(item.image_install || '').trim();
+      var mainOk = isDriveViewUrl(mainUrl);
+      var installOk = isDriveViewUrl(installUrl);
+      mainImg.src = mainOk ? mainUrl : FALLBACK_IMAGE;
+      installImg.src = installOk ? installUrl : FALLBACK_IMAGE;
+      mainImg.classList.toggle('hidden', !mainOk);
+      installImg.classList.toggle('hidden', !installOk);
+      document.getElementById('detailMainEmpty').classList.toggle('hidden', mainOk);
+      document.getElementById('detailInstallEmpty').classList.toggle('hidden', installOk);
       bindImageFallback(mainImg);
       bindImageFallback(installImg);
       detailModal.classList.remove('hidden');
@@ -1410,7 +1344,6 @@
       var keyword = searchInput.value.trim().toLowerCase();
       var category = categoryFilter.value;
       var selectedStatus = tableStatusMode !== 'all' ? tableStatusMode : statusFilter.value;
-      var selectedLineSub = lineSubFilter.value;
       var selectedBrand = brandFilter.value;
 
       var filtered = partsData.filter(function(item) {
@@ -1428,13 +1361,8 @@
           || (selectedStatus === 'low' && isLow)
           || (selectedStatus === 'near' && isNear)
           || (selectedStatus === 'ok' && !isOut && !isLow && !isNear);
-        var lowerLine = String(item.line || '').toLowerCase();
-        var hitLineSub = selectedLineSub === 'all'
-          || (selectedLineSub === 'arc' && lowerLine.indexOf('arc') > -1)
-          || (selectedLineSub === 'coil' && lowerLine.indexOf('coil') > -1)
-          || (selectedLineSub === 'lug' && lowerLine.indexOf('lug') > -1);
         var hitBrand = selectedBrand === 'all' || item.brand === selectedBrand;
-        return hitSearch && hitCategory && hitLine && hitStatus && hitLineSub && hitBrand;
+        return hitSearch && hitCategory && hitLine && hitStatus && hitBrand;
       });
 
       var selectedSort = (window.innerWidth >= 1024 ? sortFilter.value : sortFilterMobile.value) || 'default';
@@ -1448,10 +1376,8 @@
 
     categoryFilter.addEventListener('change', applyFilters);
     statusFilter.addEventListener('change', function(){ tableStatusMode = 'all'; applyFilters(); });
-    lineSubFilter.addEventListener('change', applyFilters);
     brandFilter.addEventListener('change', applyFilters);
     statusFilterMobile.addEventListener('change', function(){ statusFilter.value = statusFilterMobile.value; tableStatusMode = 'all'; applyFilters(); });
-    lineSubFilterMobile.addEventListener('change', function(){ lineSubFilter.value = lineSubFilterMobile.value; applyFilters(); });
     brandFilterMobile.addEventListener('change', function(){ brandFilter.value = brandFilterMobile.value; applyFilters(); });
     sortFilter.addEventListener('change', applyFilters);
     sortFilterMobile.addEventListener('change', function(){ sortFilter.value = sortFilterMobile.value; applyFilters(); });
@@ -1485,42 +1411,10 @@
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
     document.getElementById('closeDetailModal').addEventListener('click', closeDetailModal);
     document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
-    detailQuickIssueBtn.addEventListener('click', function() {
-      var found = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
-      openQuickIssueModal(found);
-    });
-    document.getElementById('closeQuickIssueModal').addEventListener('click', closeQuickIssueModal);
-    document.getElementById('confirmQuickIssueBtn').addEventListener('click', function() {
-      var found = partsData.filter(function(p){ return String(p.no) === String(quickIssueCurrentNo); })[0];
-      if (!found) return;
-      var qty = Number(document.getElementById('quickIssueQty').value || '1');
-      if (!qty || qty <= 0) return alert('จำนวนไม่ถูกต้อง');
-      callTransactionViaJsonp({
-        partNo: found.no,
-        partName: found.name,
-        model: found.model,
-        brand: found.brand,
-        category: found.category,
-        qty: qty,
-        type: 'Output',
-        unit: found.unit || 'PCS',
-        process: currentLine,
-        by: 'Quick Issue'
-      }).then(function(res){
-        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ไม่สำเร็จ');
-        loadPartsData();
-        if (!logPage.classList.contains('hidden')) loadLogData();
-        closeQuickIssueModal();
-        closeDetailModal();
-      }).catch(function(err){
-        alert('Quick Issue ไม่สำเร็จ: ' + err.message);
-      });
-    });
     openFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.remove('hidden'); });
     closeFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.add('hidden'); });
     applyFilterSheetBtn.addEventListener('click', function(){
       statusFilter.value = statusFilterMobile.value;
-      lineSubFilter.value = lineSubFilterMobile.value;
       brandFilter.value = brandFilterMobile.value;
       tableStatusMode = 'all';
       filterSheet.classList.add('hidden');
@@ -1529,8 +1423,10 @@
     editForm.addEventListener('submit', submitEditModal);
     bindPhotoFileInput('mPhotoFile', 'mImageMain');
     bindPhotoFileInput('ePhotoFile', 'eImageMain');
-    bindDrivePreview('mImageMain', 'mImageMainPreview');
-    bindDrivePreview('mImageInstall', 'mImageInstallPreview');
+    bindDrivePreview('mImageMain', 'mImageMainPreview', 'mImageHint');
+    bindDrivePreview('mImageInstall', 'mImageInstallPreview', 'mImageHint');
+    bindDriveHint('eImageMain', 'eImageHint');
+    bindDriveHint('eImageInstall', 'eImageHint');
     sheetSelector.addEventListener('change', function() {
       loadPartsData();
       if (!logPage.classList.contains('hidden')) loadLogData();
