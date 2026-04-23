@@ -282,13 +282,26 @@ function ensureColumnInContext(ctx, headerLabel, aliases) {
   return newColIndex;
 }
 
-function getOrCreateSparePartsFolder(itemId) {
-  var rootName = 'SpareParts';
-  var rootFolders = DriveApp.getFoldersByName(rootName);
-  var root = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(rootName);
+function getOrCreateChildFolder(parent, name) {
+  var folders = parent.getFoldersByName(name);
+  return folders.hasNext() ? folders.next() : parent.createFolder(name);
+}
+
+function getUploadTargetFolder(line, itemId, imageType) {
+  var ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
+  var root = DriveApp.getFolderById(ROOT_FOLDER_ID);
+  var safeLine = String(line || '').trim() || 'UnknownLine';
   var safeItemId = String(itemId || '').trim() || 'UNKNOWN';
-  var itemFolders = root.getFoldersByName(safeItemId);
-  return itemFolders.hasNext() ? itemFolders.next() : root.createFolder(safeItemId);
+  var typeName = imageType === 'install' ? 'install' : 'main';
+
+  var lineFolder = getOrCreateChildFolder(root, safeLine);
+  var itemFolder = getOrCreateChildFolder(lineFolder, 'item-' + safeItemId);
+  var typeFolder = getOrCreateChildFolder(itemFolder, typeName);
+
+  return {
+    folder: typeFolder,
+    drivePath: safeLine + '/item-' + safeItemId + '/' + typeName + '/'
+  };
 }
 
 function getDataUrlMimeType(dataUrl) {
@@ -298,8 +311,9 @@ function getDataUrlMimeType(dataUrl) {
 
 function uploadImageToDrive(payload) {
   var itemId = String(payload.itemId || payload.no || '').trim();
-  var kind = String(payload.kind || 'main').toLowerCase();
-  var dataUrl = String(payload.dataUrl || '');
+  var line = String(payload.line || payload.mainLine || '').trim();
+  var kind = String(payload.kind || payload.imageType || 'main').toLowerCase();
+  var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
   if (!itemId) throw new Error('ต้องมี itemId');
   if (!dataUrl) throw new Error('ไม่พบข้อมูลไฟล์');
   if (kind !== 'main' && kind !== 'install') throw new Error('kind ต้องเป็น main หรือ install');
@@ -312,13 +326,15 @@ function uploadImageToDrive(payload) {
   var base64Content = dataUrl.split(',')[1] || '';
   var bytes = Utilities.base64Decode(base64Content);
   var ext = mimeType === 'image/png' ? 'png' : (mimeType === 'image/webp' ? 'webp' : 'jpg');
-  var fileName = (kind === 'main' ? 'main-' : 'install-') + itemId + '.' + ext;
+  var fileName = (kind === 'main' ? 'main-' : 'install-') + Date.now() + '.' + ext;
   var blob = Utilities.newBlob(bytes, mimeType, fileName);
 
-  var folder = getOrCreateSparePartsFolder(itemId);
-  var existing = folder.getFilesByName(fileName);
+  var target = getUploadTargetFolder(line, itemId, kind);
+  var folder = target.folder;
+  var existing = folder.getFiles();
   while (existing.hasNext()) {
-    existing.next().setTrashed(true);
+    var oldFile = existing.next();
+    if (!oldFile.isTrashed()) oldFile.setTrashed(true);
   }
 
   var file = folder.createFile(blob);
@@ -329,8 +345,10 @@ function uploadImageToDrive(payload) {
     itemId: itemId,
     kind: kind,
     fileId: file.getId(),
+    imageUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
     viewUrl: 'https://drive.google.com/file/d/' + file.getId() + '/view',
-    directUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId()
+    directUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
+    drivePath: target.drivePath
   };
 }
 
@@ -548,7 +566,14 @@ function doGet(e) {
 // =============================
 function doPost(e) {
   try {
-    var body = JSON.parse(e.postData.contents);
+    var body = {};
+    var raw = e && e.postData ? String(e.postData.contents || '') : '';
+    try {
+      body = raw ? JSON.parse(raw) : {};
+    } catch (jsonErr) {
+      body = e && e.parameter ? e.parameter : {};
+      body.dataUrl = body.dataUrl || body.file || body.fileBase64 || '';
+    }
     var action = body && body.action ? String(body.action) : '';
     if (action === 'upsertItem') {
       return respond(upsertMainItem({

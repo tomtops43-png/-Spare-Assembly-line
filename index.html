@@ -153,11 +153,11 @@
         <div class="md:col-span-2 grid grid-cols-2 gap-2">
           <div>
             <p class="text-xs text-slate-500 mb-1">Preview Main</p>
-            <img id="mImageMainPreview" src="/images/no-image.svg" alt="preview main" class="h-20 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
+            <img id="mImageMainPreview" src="images/no-image.svg" alt="preview main" class="h-20 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
           </div>
           <div>
             <p class="text-xs text-slate-500 mb-1">Preview Install</p>
-            <img id="mImageInstallPreview" src="/images/no-image.svg" alt="preview install" class="h-20 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
+            <img id="mImageInstallPreview" src="images/no-image.svg" alt="preview install" class="h-20 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
           </div>
         </div>
         <input id="mMax" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Max" />
@@ -211,8 +211,8 @@
         <div><label class="text-xs text-slate-500">รูปหลัก</label><input id="eImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" capture="environment" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" /></div>
         <div><label class="text-xs text-slate-500">รูปติดตั้ง</label><input id="eImageInstallFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" capture="environment" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" /></div>
         <div class="md:col-span-3 grid grid-cols-2 gap-2">
-          <img id="eImageMainPreview" src="/images/no-image.svg" alt="edit main preview" class="h-24 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
-          <img id="eImageInstallPreview" src="/images/no-image.svg" alt="edit install preview" class="h-24 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
+          <img id="eImageMainPreview" src="images/no-image.svg" alt="edit main preview" class="h-24 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
+          <img id="eImageInstallPreview" src="images/no-image.svg" alt="edit install preview" class="h-24 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
         </div>
         <div><label class="text-xs text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
@@ -235,12 +235,12 @@
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <img id="detailMainImage" src="/images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-cover bg-slate-100" />
+          <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-cover bg-slate-100" />
           <p id="detailMainEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูปหลัก</p>
           <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
         </div>
         <div>
-          <img id="detailInstallImage" src="/images/no-image.svg" alt="install image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-cover bg-slate-100" />
+          <img id="detailInstallImage" src="images/no-image.svg" alt="install image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-cover bg-slate-100" />
           <p id="detailInstallEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูปติดตั้ง</p>
           <p class="text-xs text-slate-500 mt-2">รูปติดตั้ง</p>
         </div>
@@ -309,7 +309,7 @@
     var openFilterSheetBtn = document.getElementById('openFilterSheetBtn');
     var closeFilterSheetBtn = document.getElementById('closeFilterSheetBtn');
     var applyFilterSheetBtn = document.getElementById('applyFilterSheetBtn');
-    var FALLBACK_IMAGE = '/images/no-image.svg';
+    var FALLBACK_IMAGE = 'images/no-image.svg';
 
     var partsData = [];
     var partMap = {};
@@ -506,6 +506,8 @@
       return readFileAsDataUrl(file).then(function(dataUrl) {
         return callManageAction('uploadImage', {
           itemId: itemId,
+          line: currentLine,
+          imageType: kind,
           kind: kind,
           dataUrl: dataUrl
         });
