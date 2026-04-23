@@ -231,7 +231,7 @@
         <button id="closeDetailModal" class="text-slate-500">✕</button>
       </div>
       <div>
-        <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-cover bg-slate-100" />
+        <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1" />
         <p id="detailMainEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูป</p>
         <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
       </div>
@@ -266,6 +266,13 @@
           </section>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="imageViewer" class="fixed inset-0 z-[60] hidden bg-black bg-opacity-90 p-4">
+    <button id="closeImageViewer" type="button" class="absolute right-4 top-4 h-10 w-10 rounded-full bg-white/20 text-white text-2xl leading-none">×</button>
+    <div class="flex h-full w-full items-center justify-center">
+      <img id="imageViewerImg" src="" alt="full image" class="max-h-full max-w-full object-contain" />
     </div>
   </div>
 
@@ -362,6 +369,9 @@
     var editModalSubtitle = document.getElementById('editModalSubtitle');
     var detailModal = document.getElementById('detailModal');
     var detailModalCurrentNo = null;
+    var imageViewer = document.getElementById('imageViewer');
+    var imageViewerImg = document.getElementById('imageViewerImg');
+    var closeImageViewerBtn = document.getElementById('closeImageViewer');
     var currentLine = 'H9';
     var lineConfig = [
       { key: 'H9', color: '#2563eb' },
@@ -465,6 +475,41 @@
         image_main: mainImageUrl,
         photo: mainImageUrl,
         image_install_url: firstDefined([item.image_install_url, item.image_install, item.imageInstall], '')
+      };
+    }
+
+    function getNeedToOrder(item) {
+      var candidate = safeNum(firstDefined([item.needToPO, item.needToOrder], NaN));
+      if (Number.isFinite(candidate) && candidate >= 0) return candidate;
+      var maxValue = safeNum(item.max);
+      var stockValue = safeNum(item.stock);
+      return Math.max(maxValue - stockValue, 0);
+    }
+
+    function getStockStatus(item) {
+      var stockValue = safeNum(item.stock);
+      var minValue = safeNum(item.min);
+      if (stockValue === 0) return 'OUT';
+      if (stockValue > 0 && stockValue <= minValue) return 'LOW';
+      return 'OK';
+    }
+
+    function getStatusTone(status) {
+      if (status === 'OUT') {
+        return {
+          badgeClass: 'bg-rose-100 text-rose-700 ring-1 ring-rose-200 font-semibold',
+          textClass: 'text-rose-600'
+        };
+      }
+      if (status === 'LOW') {
+        return {
+          badgeClass: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 font-semibold',
+          textClass: 'text-amber-600'
+        };
+      }
+      return {
+        badgeClass: 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200',
+        textClass: 'text-emerald-600'
       };
     }
 
@@ -1255,11 +1300,11 @@
     }
 
     function renderStats(data) {
-      var lowCount = data.filter(function(item) { return item.stock > 0 && item.min > 0 && item.stock < item.min; }).length;
-      var nearCount = data.filter(function(item) { return item.stock > 0 && item.min > 0 && item.stock >= item.min && item.stock <= (item.min * 1.2); }).length;
-      var outCount = data.filter(function(item) { return item.stock === 0; }).length;
+      var lowCount = data.filter(function(item) { return getStockStatus(item) === 'LOW'; }).length;
+      var outCount = data.filter(function(item) { return getStockStatus(item) === 'OUT'; }).length;
+      var okCount = data.filter(function(item) { return getStockStatus(item) === 'OK'; }).length;
       var totalStockQty = data.reduce(function(sum, item){ return sum + safeNum(item.stock); }, 0);
-      var needPO = data.filter(function(item) { return item.needToPO > 0; }).length;
+      var needPO = data.filter(function(item) { return getNeedToOrder(item) > 0; }).length;
 
       if (window.innerWidth >= 1024) {
         document.getElementById('stat-cards').innerHTML =
@@ -1267,10 +1312,10 @@
             '<p class="text-xs text-rose-700 font-semibold">🚨 วันนี้ต้องทำ</p>' +
             '<p class="text-sm text-rose-700 mt-1">- สั่งซื้อ <b>' + needPO + '</b> รายการ</p>' +
             '<p class="text-sm text-rose-700">- ของหมด <b>' + outCount + '</b> รายการ</p>' +
-            '<p class="text-sm text-rose-700">- ต่ำกว่า Min <b>' + lowCount + '</b> รายการ</p>' +
+            '<p class="text-sm text-rose-700">- ต่ำ/ต้องเฝ้าระวัง <b>' + lowCount + '</b> รายการ</p>' +
           '</div>' +
           '<button data-status-card="low" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">🔴 ต่ำกว่า Min</p><p class="text-2xl font-bold text-rose-600">' + lowCount + '</p></button>' +
-          '<button data-status-card="near" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">⚠️ ใกล้หมด</p><p class="text-2xl font-bold text-amber-600">' + nearCount + '</p></button>' +
+          '<button data-status-card="near" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">⚠️ LOW</p><p class="text-2xl font-bold text-amber-600">' + lowCount + '</p></button>' +
           '<button data-status-card="out" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">❌ หมด</p><p class="text-2xl font-bold text-rose-700">' + outCount + '</p></button>' +
           '<button data-status-card="all" class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500">📦 Stock ทั้งหมด</p><p class="text-2xl font-bold text-blue-700">' + totalStockQty + '</p></button>';
       } else {
@@ -1278,9 +1323,9 @@
           '<div class="md:col-span-4 grid grid-cols-2 gap-2">' +
           '<button data-status-card="all" class="h-[92px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-[11px] text-slate-500 leading-none truncate">📦 Stock ทั้งหมด</p><p class="text-3xl leading-tight font-bold text-blue-700 mt-1">' + totalStockQty + '</p></button>' +
           '<button data-status-card="low" class="h-[92px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-[11px] text-slate-500 leading-none truncate">🔴 ต่ำกว่า Min</p><p class="text-3xl leading-tight font-bold text-rose-600 mt-1">' + lowCount + '</p></button>' +
-          '<button data-status-card="near" class="h-[92px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-[11px] text-slate-500 leading-none truncate">⚠️ ใกล้หมด</p><p class="text-3xl leading-tight font-bold text-amber-600 mt-1">' + nearCount + '</p></button>' +
+          '<button data-status-card="near" class="h-[92px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-[11px] text-slate-500 leading-none truncate">⚠️ LOW</p><p class="text-3xl leading-tight font-bold text-amber-600 mt-1">' + lowCount + '</p></button>' +
           '<button data-status-card="out" class="h-[92px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-[11px] text-slate-500 leading-none truncate">❌ หมด</p><p class="text-3xl leading-tight font-bold text-rose-700 mt-1">' + outCount + '</p></button>' +
-          '<div class="col-span-2 bg-rose-50 rounded-xl border border-rose-200 px-3 py-2 shadow-sm"><p class="text-[11px] text-rose-700 font-semibold">🚨 วันนี้ต้องทำ</p><p class="text-sm text-rose-700 mt-1 leading-tight">สั่งซื้อ <b>' + needPO + '</b> รายการ | ของหมด <b>' + outCount + '</b> รายการ</p></div>' +
+          '<div class="col-span-2 bg-rose-50 rounded-xl border border-rose-200 px-3 py-2 shadow-sm"><p class="text-[11px] text-rose-700 font-semibold">🚨 วันนี้ต้องทำ</p><p class="text-sm text-rose-700 mt-1 leading-tight">สั่งซื้อ <b>' + needPO + '</b> รายการ | OUT <b>' + outCount + '</b> | OK <b>' + okCount + '</b></p></div>' +
           '</div>';
       }
 
@@ -1305,17 +1350,15 @@
         var tableImageSrc = toSafeImageUrl(item.image_main_url);
         var tableFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
         console.log('[render table image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: tableImageSrc, fallbackSrc: tableFallbackSrc });
-        var isOut = item.stock === 0;
-        var isLow = item.stock > 0 && item.min > 0 && item.stock < item.min;
-        var isNear = item.stock > 0 && item.min > 0 && item.stock >= item.min && item.stock <= (item.min * 1.2);
-        var stockClass = isOut || isLow ? 'text-rose-600' : (isNear ? 'text-amber-600' : 'text-emerald-600');
-        var needLabel = item.needToPO > 0 ? 'ORDER ' + item.needToPO : 'OK';
-        var needClass = item.needToPO > 0 ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-200 font-bold' : 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200';
+        var status = getStockStatus(item);
+        var tone = getStatusTone(status);
+        var stockClass = tone.textClass;
+        var needToOrder = getNeedToOrder(item);
         return '<tr class="hover:bg-slate-50">' +
           '<td class="py-4 pr-4 text-center">' +
             '<button type="button" data-view-no="' + item.no + '" class="group inline-block" title="ดูรูปและรายละเอียด">' +
               '<span class="block h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden mx-auto">' +
-                '<img loading="lazy" src="' + tableImageSrc + '" data-fallback-src="' + (tableFallbackSrc || '') + '" alt="part image" class="h-14 w-14 object-cover object-center transition-transform duration-200 group-hover:scale-110" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+                '<img loading="lazy" src="' + tableImageSrc + '" data-fallback-src="' + (tableFallbackSrc || '') + '" alt="part image" class="h-14 w-14 object-contain object-center p-1 transition-transform duration-200 group-hover:scale-105" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
               '</span>' +
             '</button>' +
           '</td>' +
@@ -1332,9 +1375,10 @@
           '<td class="py-4 pr-4 text-center">' + item.min + '</td>' +
           '<td class="py-4 pr-4 text-center">' + item.max + '</td>' +
           '<td class="py-4 pr-4 text-center">' +
-            '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs ' + needClass + '">' +
-              needLabel +
+            '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs ' + tone.badgeClass + '">' +
+              status +
             '</span>' +
+            '<p class="text-[11px] text-slate-500 mt-1">Need to order: ' + needToOrder + '</p>' +
           '</td>' +
           '<td class="py-4 pr-4 text-center">' +
             '<div class="inline-flex items-center gap-3">' +
@@ -1398,33 +1442,22 @@
       mobileCardList.innerHTML = data.map(function(item) {
         var mobileImageSrc = toSafeImageUrl(item.image_main_url);
         var mobileFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
-        var isOut = item.stock === 0;
-        var isLow = item.stock > 0 && item.min > 0 && item.stock < item.min;
-        var isNear = item.stock > 0 && item.min > 0 && item.stock >= item.min && item.stock <= (item.min * 1.2);
-        var stockClass = isOut || isLow ? 'text-rose-600' : (isNear ? 'text-amber-600' : 'text-emerald-600');
-        var needLabel = 'OK';
-        var needClass = 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200';
-        if (isOut) {
-          needLabel = 'OUT';
-          needClass = 'bg-rose-100 text-rose-700 ring-1 ring-rose-200 font-semibold';
-        } else if (item.needToPO > 0) {
-          needLabel = 'ORDER ' + item.needToPO;
-          needClass = 'bg-rose-100 text-rose-700 ring-1 ring-rose-200 font-semibold';
-        } else if (isLow || isNear) {
-          needLabel = 'LOW';
-          needClass = 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 font-semibold';
-        }
+        var status = getStockStatus(item);
+        var tone = getStatusTone(status);
+        var stockClass = tone.textClass;
+        var needToOrder = getNeedToOrder(item);
         return '<article data-view-no="' + item.no + '" class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm cursor-pointer">' +
           '<div class="flex gap-3">' +
-            '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-11 w-11 rounded-lg border border-slate-200 object-cover bg-slate-100" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+            '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-11 w-11 rounded-lg border border-slate-200 object-contain bg-slate-50 p-0.5" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             '<div class="min-w-0 flex-1"><p class="font-semibold text-base leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + item.name + '</p><p class="text-sm text-slate-500 leading-tight mt-0.5">' + (item.model || '-') + '</p></div>' +
             '<div class="text-right"><p class="text-3xl leading-none font-bold ' + stockClass + '">' + item.stock + '</p><p class="text-[11px] text-slate-500 mt-1">Stock</p></div>' +
           '</div>' +
           '<div class="mt-2.5 grid grid-cols-3 items-center gap-2 text-sm">' +
-            '<span class="inline-flex items-center justify-center px-2 py-1 rounded-full text-[11px] ' + needClass + '">' + needLabel + '</span>' +
+            '<span class="inline-flex items-center justify-center px-2 py-1 rounded-full text-[11px] ' + tone.badgeClass + '">' + status + '</span>' +
             '<span class="text-center text-slate-600 text-xs font-medium">Min/Max ' + item.min + '/' + item.max + '</span>' +
             '<span class="text-right text-slate-700 text-sm font-medium truncate">' + (item.brand || '-') + '</span>' +
           '</div>' +
+          '<p class="mt-1 text-[11px] text-slate-500">Need to order: ' + needToOrder + '</p>' +
           '<div class="mt-2.5">' +
             '<button data-view-no="' + item.no + '" class="h-11 w-full rounded-xl border border-slate-300 bg-white font-semibold">👁 ดูรายละเอียด</button>' +
           '</div>' +
@@ -1451,18 +1484,19 @@
       document.getElementById('detailStock').textContent = String(item.stock || 0);
       document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
       var detailStatus = document.getElementById('detailStatus');
-      var needValue = safeNum(item.needToPO);
-      detailStatus.textContent = needValue > 0 ? ('ORDER ' + needValue) : 'OK';
-      detailStatus.className = needValue > 0
-        ? 'inline-flex items-center px-3 py-1 rounded-full text-xs bg-rose-100 text-rose-700 ring-1 ring-rose-200 font-semibold'
-        : 'inline-flex items-center px-3 py-1 rounded-full text-xs bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200 font-semibold';
+      var detailStatusValue = getStockStatus(item);
+      var detailTone = getStatusTone(detailStatusValue);
+      detailStatus.textContent = detailStatusValue;
+      detailStatus.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs ' + detailTone.badgeClass;
       var mainImg = document.getElementById('detailMainImage');
       var mainUrl = String(item.image_main_url || '').trim();
       var detailImageSrc = toSafeImageUrl(mainUrl);
       var mainOk = detailImageSrc !== FALLBACK_IMAGE;
       var detailFallbackSrc = getSecondaryDriveImageUrl(mainUrl);
       var detailMetaParts = [item.brand, item.category, item.line].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
-      document.getElementById('detailMeta').textContent = detailMetaParts.join(' • ');
+      var needToOrder = getNeedToOrder(item);
+      var metaText = detailMetaParts.join(' • ');
+      document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
       var isMobileView = window.innerWidth < 768;
       ['Model', 'Brand', 'Category', 'Line', 'Location'].forEach(function(field) {
         var valueEl = document.getElementById('detail' + field);
@@ -1477,7 +1511,7 @@
       mainImg.classList.toggle('cursor-zoom-in', mainOk);
       mainImg.onclick = function() {
         if (!mainOk) return;
-        window.open(mainImg.src, '_blank');
+        openImageViewer(mainImg.src);
       };
       mainImg.classList.toggle('hidden', !mainOk);
       document.getElementById('detailMainEmpty').classList.toggle('hidden', mainOk);
@@ -1492,6 +1526,17 @@
       detailModal.classList.add('hidden');
       detailModal.classList.remove('flex');
       detailModalCurrentNo = null;
+    }
+
+    function openImageViewer(src) {
+      if (!src || src === FALLBACK_IMAGE) return;
+      imageViewerImg.src = src;
+      imageViewer.classList.remove('hidden');
+    }
+
+    function closeImageViewer() {
+      imageViewer.classList.add('hidden');
+      imageViewerImg.src = '';
     }
 
     function renderPagination(totalItems) {
@@ -1554,20 +1599,17 @@
         var hitLine = LINE_SHEET_OPTIONS[currentLine]
           ? true
           : (currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1);
-        var isOut = item.stock === 0;
-        var isLow = item.stock > 0 && item.min > 0 && item.stock < item.min;
-        var isNear = item.stock > 0 && item.min > 0 && item.stock >= item.min && item.stock <= (item.min * 1.2);
+        var status = getStockStatus(item);
         var hitStatus = selectedStatus === 'all'
-          || (selectedStatus === 'out' && isOut)
-          || (selectedStatus === 'low' && isLow)
-          || (selectedStatus === 'near' && isNear)
-          || (selectedStatus === 'ok' && !isOut && !isLow && !isNear);
+          || (selectedStatus === 'out' && status === 'OUT')
+          || ((selectedStatus === 'low' || selectedStatus === 'near') && status === 'LOW')
+          || (selectedStatus === 'ok' && status === 'OK');
         var hitBrand = selectedBrand === 'all' || item.brand === selectedBrand;
         return hitSearch && hitCategory && hitLine && hitStatus && hitBrand;
       });
 
       var selectedSort = (window.innerWidth >= 1024 ? sortFilter.value : sortFilterMobile.value) || 'default';
-      if (selectedSort === 'needpo_desc') filtered.sort(function(a,b){ return safeNum(b.needToPO) - safeNum(a.needToPO); });
+      if (selectedSort === 'needpo_desc') filtered.sort(function(a,b){ return getNeedToOrder(b) - getNeedToOrder(a); });
       if (selectedSort === 'stock_asc') filtered.sort(function(a,b){ return safeNum(a.stock) - safeNum(b.stock); });
       if (selectedSort === 'name_asc') filtered.sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
 
@@ -1636,6 +1678,10 @@
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
     document.getElementById('closeDetailModal').addEventListener('click', closeDetailModal);
+    closeImageViewerBtn.addEventListener('click', closeImageViewer);
+    imageViewer.addEventListener('click', function(e) {
+      if (e.target === imageViewer) closeImageViewer();
+    });
     document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
     openFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.remove('hidden'); });
     closeFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.add('hidden'); });
