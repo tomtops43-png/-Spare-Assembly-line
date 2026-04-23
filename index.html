@@ -500,23 +500,29 @@
       });
     }
 
+
+    function mapUploadErrorMessage(err) {
+      var message = err && err.message ? String(err.message) : String(err || 'อัปโหลดรูปไม่สำเร็จ');
+      if (message.indexOf('DRIVE_AUTH_REQUIRED') > -1) {
+        return 'ยังไม่ได้อนุญาตสิทธิ์ Google Drive ให้ Apps Script กรุณาเข้า Apps Script > Run ฟังก์ชัน doGet หรือ uploadImageToDrive แล้วกด Allow จากนั้น Deploy เว็บแอปใหม่ก่อนลองอัปโหลดอีกครั้ง';
+      }
+      return message;
+    }
+
     function uploadImageFile(file, itemId, kind, itemName) {
       if (!file) return Promise.resolve(null);
       validateImageFile(file);
       return readFileAsDataUrl(file).then(function(dataUrl) {
-        var formData = new FormData();
-        formData.append('action', 'uploadImage');
-        formData.append('itemId', itemId);
-        formData.append('line', currentLine);
-        formData.append('imageType', kind);
-        formData.append('itemName', itemName || '');
-        formData.append('partName', itemName || '');
-        formData.append('qty', '0');
-        formData.append('file', file, file.name || (kind + '-' + itemId));
-        formData.append('dataUrl', dataUrl);
+        var payload = new URLSearchParams();
+        payload.append('action', 'uploadImage');
+        payload.append('itemId', itemId);
+        payload.append('line', currentLine);
+        payload.append('imageType', kind);
+        payload.append('itemName', itemName || '');
+        payload.append('dataUrl', dataUrl);
         return fetch(getWriteApiUrl(), {
           method: 'POST',
-          body: formData
+          body: payload
         }).then(function(res) {
           return res.text().then(function(text) {
             var parsed = null;
@@ -527,11 +533,15 @@
         });
       }).then(function(res) {
         console.log('[uploadImage] response', res);
-        if (!res || (res.ok !== true && res.status !== 'success')) throw new Error((res && res.message) || 'อัปโหลดรูปไม่สำเร็จ');
+        if (!res || (res.ok !== true && res.status !== 'success')) {
+          var backendError = (res && (res.message || res.detail)) || 'อัปโหลดรูปไม่สำเร็จ';
+          var composed = res && res.errorCode ? (res.errorCode + ': ' + backendError) : backendError;
+          throw new Error(composed);
+        }
         return res;
       }).catch(function(err) {
         console.error('[uploadImage] error', err);
-        throw err;
+        throw new Error(mapUploadErrorMessage(err));
       });
     }
 
