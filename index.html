@@ -739,6 +739,15 @@
       return baseUrl;
     }
 
+    function shouldUseJsonpTransport() {
+      try {
+        var apiOrigin = new URL(getWriteApiUrl(), window.location.href).origin;
+        return apiOrigin !== window.location.origin;
+      } catch (err) {
+        return true;
+      }
+    }
+
     function postJsonNoCors(payload) {
       return fetch(getWriteApiUrl(), {
         method: 'POST',
@@ -865,31 +874,33 @@
       requestPayload.qty = Number(payload.qty !== undefined ? payload.qty : requestPayload.stock || 0);
       if (!Number.isFinite(requestPayload.qty)) requestPayload.qty = 0;
       console.log('[manageAction payload]', { action: action, partName: requestPayload.partName, qty: requestPayload.qty });
-      // Prefer POST to avoid URL-length/encoding issues that make some rows fail intermittently.
+      var query = [
+        'action=' + encodeURIComponent(requestPayload.action),
+        'sheet=' + encodeURIComponent(requestPayload.sheet),
+        'no=' + encodeURIComponent(requestPayload.no),
+        'name=' + encodeURIComponent(requestPayload.name),
+        'partName=' + encodeURIComponent(requestPayload.partName),
+        'model=' + encodeURIComponent(requestPayload.model),
+        'line=' + encodeURIComponent(requestPayload.line),
+        'category=' + encodeURIComponent(requestPayload.category),
+        'brand=' + encodeURIComponent(requestPayload.brand),
+        // Keep only the canonical image fields to reduce URL size and JSONP failures.
+        'photo=' + encodeURIComponent(requestPayload.photo),
+        'image_main_url=' + encodeURIComponent(requestPayload.image_main_url),
+        'image_main_file_id=' + encodeURIComponent(requestPayload.image_main_file_id),
+        'image_install_url=' + encodeURIComponent(requestPayload.image_install_url),
+        'image_install_file_id=' + encodeURIComponent(requestPayload.image_install_file_id),
+        'max=' + encodeURIComponent(requestPayload.max),
+        'min=' + encodeURIComponent(requestPayload.min),
+        'unit=' + encodeURIComponent(requestPayload.unit),
+        'stock=' + encodeURIComponent(requestPayload.stock),
+        'qty=' + encodeURIComponent(String(requestPayload.qty))
+      ].join('&');
+
+      if (shouldUseJsonpTransport()) {
+        return loadJsonpWithFallback(function(base){ return base + '?' + query; });
+      }
       return postJson(requestPayload).catch(function() {
-        var query = [
-          'action=' + encodeURIComponent(requestPayload.action),
-          'sheet=' + encodeURIComponent(requestPayload.sheet),
-          'no=' + encodeURIComponent(requestPayload.no),
-          'name=' + encodeURIComponent(requestPayload.name),
-          'partName=' + encodeURIComponent(requestPayload.partName),
-          'model=' + encodeURIComponent(requestPayload.model),
-          'line=' + encodeURIComponent(requestPayload.line),
-          'category=' + encodeURIComponent(requestPayload.category),
-          'brand=' + encodeURIComponent(requestPayload.brand),
-          'photo=' + encodeURIComponent(requestPayload.photo),
-          'image_main=' + encodeURIComponent(requestPayload.image_main),
-          'image_main_url=' + encodeURIComponent(requestPayload.image_main_url),
-          'image_main_file_id=' + encodeURIComponent(requestPayload.image_main_file_id),
-          'image_install=' + encodeURIComponent(requestPayload.image_install),
-          'image_install_url=' + encodeURIComponent(requestPayload.image_install_url),
-          'image_install_file_id=' + encodeURIComponent(requestPayload.image_install_file_id),
-          'max=' + encodeURIComponent(requestPayload.max),
-          'min=' + encodeURIComponent(requestPayload.min),
-          'unit=' + encodeURIComponent(requestPayload.unit),
-          'stock=' + encodeURIComponent(requestPayload.stock),
-          'qty=' + encodeURIComponent(String(requestPayload.qty))
-        ].join('&');
         return loadJsonpWithFallback(function(base){ return base + '?' + query; });
       });
     }
@@ -909,21 +920,25 @@
         unit: payload.unit || '',
         by: payload.by || ''
       };
+      var query = [
+        'action=transact',
+        'sheet=' + encodeURIComponent(requestPayload.sheet),
+        'partNo=' + encodeURIComponent(requestPayload.partNo),
+        'type=' + encodeURIComponent(requestPayload.type),
+        'process=' + encodeURIComponent(requestPayload.process),
+        'category=' + encodeURIComponent(requestPayload.category),
+        'partName=' + encodeURIComponent(requestPayload.partName),
+        'model=' + encodeURIComponent(requestPayload.model),
+        'brand=' + encodeURIComponent(requestPayload.brand),
+        'qty=' + encodeURIComponent(requestPayload.qty),
+        'unit=' + encodeURIComponent(requestPayload.unit),
+        'by=' + encodeURIComponent(requestPayload.by)
+      ].join('&');
+
+      if (shouldUseJsonpTransport()) {
+        return loadJsonpWithFallback(function(base){ return base + '?' + query; });
+      }
       return postJson(requestPayload).catch(function() {
-        var query = [
-          'action=transact',
-          'sheet=' + encodeURIComponent(requestPayload.sheet),
-          'partNo=' + encodeURIComponent(requestPayload.partNo),
-          'type=' + encodeURIComponent(requestPayload.type),
-          'process=' + encodeURIComponent(requestPayload.process),
-          'category=' + encodeURIComponent(requestPayload.category),
-          'partName=' + encodeURIComponent(requestPayload.partName),
-          'model=' + encodeURIComponent(requestPayload.model),
-          'brand=' + encodeURIComponent(requestPayload.brand),
-          'qty=' + encodeURIComponent(requestPayload.qty),
-          'unit=' + encodeURIComponent(requestPayload.unit),
-          'by=' + encodeURIComponent(requestPayload.by)
-        ].join('&');
         return loadJsonpWithFallback(function(base){ return base + '?' + query; });
       });
     }
