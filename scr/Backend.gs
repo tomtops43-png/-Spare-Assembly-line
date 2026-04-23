@@ -9,6 +9,27 @@ var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Mod
 // =============================
 // HELPERS
 // =============================
+
+function buildErrorResponse(err) {
+  var msg = err && err.message ? String(err.message) : String(err || 'Unknown error');
+  var lower = msg.toLowerCase();
+  var isDriveAuth = lower.indexOf('ไม่ได้รับอนุญาต') > -1 ||
+    lower.indexOf('authorization') > -1 ||
+    lower.indexOf('googleapis.com/auth/drive') > -1 ||
+    lower.indexOf('driveapp') > -1;
+
+  if (isDriveAuth) {
+    return {
+      status: 'error',
+      errorCode: 'DRIVE_AUTH_REQUIRED',
+      message: 'ยังไม่ได้อนุญาตสิทธิ์ Google Drive ให้ Apps Script (DRIVE_AUTH_REQUIRED). กรุณาเปิด Apps Script แล้ว Run ฟังก์ชันที่ใช้ DriveApp 1 ครั้งเพื่ออนุญาตสิทธิ์ จากนั้น Deploy เว็บแอปใหม่และลองอีกครั้ง',
+      detail: msg
+    };
+  }
+
+  return { status: 'error', message: msg };
+}
+
 function normalizeHeaderName(header) {
   return String(header || '')
     .toLowerCase()
@@ -579,7 +600,7 @@ function doGet(e) {
 
     return respond(result, e);
   } catch (err) {
-    return respond({ status: 'error', message: err.message }, e);
+    return respond(buildErrorResponse(err), e);
   }
 }
 
@@ -658,7 +679,7 @@ function doPost(e) {
     return respond(processTransaction(body), e);
   } catch (err) {
     Logger.log('doPost error: ' + err);
-    return respond({ status: 'error', message: err.message }, e);
+    return respond(buildErrorResponse(err), e);
   }
 }
 
