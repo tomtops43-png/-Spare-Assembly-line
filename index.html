@@ -1261,18 +1261,13 @@
       var isOutput = txnType.value === 'Output';
       if (txnTypeOutputOption) txnTypeOutputOption.disabled = isOutOfStock;
 
-      if (isOutOfStock && isOutput) {
-        txnType.value = 'Input';
-        isOutput = false;
-      }
-
-      var shouldBlockSubmit = !!selected && stock <= 0 && isOutput;
+      var shouldBlockSubmit = isOutOfStock && isOutput;
       txnSubmitBtn.disabled = shouldBlockSubmit;
       txnSubmitBtn.classList.toggle('opacity-60', shouldBlockSubmit);
       txnSubmitBtn.classList.toggle('cursor-not-allowed', shouldBlockSubmit);
 
-      txnStockGuardMessage.classList.toggle('hidden', !isOutOfStock);
-      if (isOutOfStock) {
+      txnStockGuardMessage.classList.toggle('hidden', !shouldBlockSubmit);
+      if (shouldBlockSubmit) {
         txnStockGuardMessage.innerHTML = 'สินค้าหมดสต็อก ไม่สามารถเบิกออกได้<br>สามารถรับเข้าได้เท่านั้น';
       }
     }
