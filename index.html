@@ -50,6 +50,16 @@
 
     <section id="stockPage" class="space-y-6 eng-gridline p-2 rounded-2xl">
       <p id="updatedAtText" class="hidden text-xs text-slate-500"></p>
+      <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 md:p-4">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <button id="qaIssueBtn" class="h-11 rounded-xl bg-blue-600 text-white text-sm font-semibold">⚡ เบิกอะไหล่</button>
+          <button id="qaReceiveBtn" class="h-11 rounded-xl bg-emerald-600 text-white text-sm font-semibold">📥 รับเข้า</button>
+          <button id="qaOutBtn" class="h-11 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-sm font-semibold">❌ ดูของหมด</button>
+          <button id="qaLowBtn" class="h-11 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 text-sm font-semibold">⚠️ ต่ำกว่า Min</button>
+          <button id="qaManageBtn" class="h-11 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold col-span-2 md:col-span-1">🛠 จัดการรายการ</button>
+        </div>
+      </section>
+      <section id="stockTodayAlert" class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"></section>
       <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
 
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
@@ -339,6 +349,9 @@
         <option value="out">หมด</option>
         <option value="ok">OK</option>
       </select>
+      <select id="categoryFilterMobile" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
+        <option value="all">ทุกหมวดหมู่</option>
+      </select>
       <select id="brandFilterMobile" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
         <option value="all">แบรนด์ทั้งหมด</option>
       </select>
@@ -375,6 +388,7 @@
     var sortFilter = document.getElementById('sortFilter');
     var sortFilterMobile = document.getElementById('sortFilterMobile');
     var statusFilterMobile = document.getElementById('statusFilterMobile');
+    var categoryFilterMobile = document.getElementById('categoryFilterMobile');
     var brandFilterMobile = document.getElementById('brandFilterMobile');
     var filterSheet = document.getElementById('filterSheet');
     var openFilterSheetBtn = document.getElementById('openFilterSheetBtn');
@@ -409,6 +423,12 @@
     var txnBy = document.getElementById('txnBy');
     var txnProcess = document.getElementById('txnProcess');
     var txnMessage = document.getElementById('txnMessage');
+    var qaIssueBtn = document.getElementById('qaIssueBtn');
+    var qaReceiveBtn = document.getElementById('qaReceiveBtn');
+    var qaOutBtn = document.getElementById('qaOutBtn');
+    var qaLowBtn = document.getElementById('qaLowBtn');
+    var qaManageBtn = document.getElementById('qaManageBtn');
+    var stockTodayAlert = document.getElementById('stockTodayAlert');
     var stockPage = document.getElementById('stockPage');
     var logPage = document.getElementById('logPage');
     var tabStock = document.getElementById('tabStock');
@@ -1071,6 +1091,18 @@
       }, 50);
     }
 
+    function openTxnPageWithItem(no, txnMode) {
+      switchToTxnPage();
+      if (txnMode === 'Input' || txnMode === 'Output') txnType.value = txnMode;
+      if (no !== undefined && no !== null && no !== '') {
+        selectTxnItem(String(no));
+        renderTxnResultList();
+      }
+      setTimeout(function() {
+        txnQty.focus();
+      }, 120);
+    }
+
     function switchToLogPage() {
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
@@ -1499,6 +1531,7 @@
 
     function populateCategoryOptions(data) {
       categoryFilter.innerHTML = '<option value="all">ทุกหมวดหมู่</option>';
+      categoryFilterMobile.innerHTML = '<option value="all">ทุกหมวดหมู่</option>';
       var categories = Array.from(new Set(data.map(function(item) { return item.category; }))).sort();
 
       categories.forEach(function(cat) {
@@ -1506,6 +1539,10 @@
         option.value = cat;
         option.textContent = cat;
         categoryFilter.appendChild(option);
+        var mobileOption = document.createElement('option');
+        mobileOption.value = cat;
+        mobileOption.textContent = cat;
+        categoryFilterMobile.appendChild(mobileOption);
       });
     }
 
@@ -1531,6 +1568,10 @@
       var okCount = data.filter(function(item) { return getStockStatus(item) === 'OK'; }).length;
       var totalStockQty = data.reduce(function(sum, item){ return sum + safeNum(item.stock); }, 0);
       var needPO = data.filter(function(item) { return getNeedToOrder(item) > 0; }).length;
+      stockTodayAlert.classList.toggle('hidden', !(needPO > 0 || outCount > 0 || lowCount > 0));
+      if (needPO > 0 || outCount > 0 || lowCount > 0) {
+        stockTodayAlert.innerHTML = '🚨 <b>Today Alert</b> • ต้องสั่งซื้อ <b>' + needPO + '</b> • ของหมด <b>' + outCount + '</b> • ต่ำกว่า Min <b>' + lowCount + '</b>';
+      }
 
       if (window.innerWidth >= 1024) {
         document.getElementById('stat-cards').innerHTML =
@@ -1609,6 +1650,7 @@
           '<td class="py-4 pr-4 text-center">' +
             '<div class="inline-flex items-center gap-3">' +
               '<button data-view-no="' + item.no + '" class="text-slate-700 font-semibold" title="ดูรายละเอียด">👁 View</button>' +
+              '<button data-issue-no="' + item.no + '" class="text-emerald-600 font-semibold" title="เบิก/รับ">⚡ เบิก/รับ</button>' +
               '<button data-edit-no="' + item.no + '" class="text-blue-600 font-semibold" title="แก้ไข">✏️</button>' +
               '<button data-delete-no="' + item.no + '" class="text-rose-600 font-semibold" title="ลบ">🗑️</button>' +
             '</div>' +
@@ -1633,6 +1675,12 @@
         });
       });
 
+      Array.prototype.slice.call(tableBody.querySelectorAll('[data-issue-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(){
+          openTxnPageWithItem(btn.getAttribute('data-issue-no'), 'Output');
+        });
+      });
+
       Array.prototype.slice.call(tableBody.querySelectorAll('[data-delete-no]')).forEach(function(btn){
         btn.addEventListener('click', function(){
           var no = btn.getAttribute('data-delete-no');
@@ -1653,6 +1701,7 @@
         var resetBtn = document.getElementById('resetFilterBtn');
         if (resetBtn) resetBtn.addEventListener('click', function() {
           categoryFilter.value = 'all';
+          categoryFilterMobile.value = 'all';
           statusFilter.value = 'all';
           brandFilter.value = 'all';
           statusFilterMobile.value = 'all';
@@ -1684,8 +1733,13 @@
             '<span class="text-right text-slate-700 text-sm font-medium truncate">' + (item.brand || '-') + '</span>' +
           '</div>' +
           '<p class="mt-1 text-[11px] text-slate-500">Need to order: ' + needToOrder + '</p>' +
+          '<div class="mt-2.5 grid grid-cols-3 gap-2">' +
+            '<button data-view-no="' + item.no + '" class="h-11 rounded-xl border border-slate-300 bg-white text-sm font-semibold">👁 ดู</button>' +
+            '<button data-mobile-issue-no="' + item.no + '" class="h-11 rounded-xl bg-emerald-600 text-white text-sm font-semibold">⚡ เบิก</button>' +
+            '<button data-mobile-edit-no="' + item.no + '" class="h-11 rounded-xl border border-blue-300 text-blue-700 bg-blue-50 text-sm font-semibold">✏️ แก้ไข</button>' +
+          '</div>' +
           '<div class="mt-2.5">' +
-            '<button data-view-no="' + item.no + '" class="h-11 w-full rounded-xl border border-slate-300 bg-white font-semibold">👁 ดูรายละเอียด</button>' +
+            '<button data-mobile-delete-no="' + item.no + '" class="h-10 w-full rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">🗑️ ลบรายการ</button>' +
           '</div>' +
         '</article>';
       }).join('');
@@ -1695,6 +1749,33 @@
           var no = btn.getAttribute('data-view-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (found) openDetailModal(found);
+        });
+      });
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-mobile-issue-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          openTxnPageWithItem(btn.getAttribute('data-mobile-issue-no'), 'Output');
+        });
+      });
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-mobile-edit-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var no = btn.getAttribute('data-mobile-edit-no');
+          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          if (found) openEditModal(found);
+        });
+      });
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-mobile-delete-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var no = btn.getAttribute('data-mobile-delete-no');
+          if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
+          callManageAction('deleteItem', { no: no }).then(function(res){
+            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+            loadPartsData();
+          }).catch(function(err){
+            alert('ลบไม่สำเร็จ: ' + err.message);
+          });
         });
       });
     }
@@ -1846,6 +1927,7 @@
     categoryFilter.addEventListener('change', applyFilters);
     statusFilter.addEventListener('change', function(){ tableStatusMode = 'all'; applyFilters(); });
     brandFilter.addEventListener('change', applyFilters);
+    categoryFilterMobile.addEventListener('change', function(){ categoryFilter.value = categoryFilterMobile.value; applyFilters(); });
     statusFilterMobile.addEventListener('change', function(){ statusFilter.value = statusFilterMobile.value; tableStatusMode = 'all'; applyFilters(); });
     brandFilterMobile.addEventListener('change', function(){ brandFilter.value = brandFilterMobile.value; applyFilters(); });
     sortFilter.addEventListener('change', applyFilters);
@@ -1887,6 +1969,27 @@
       if (!txnSelectedImage.src) return;
       openImageViewer(txnSelectedImage.src);
     });
+    qaIssueBtn.addEventListener('click', function() {
+      openTxnPageWithItem('', 'Output');
+    });
+    qaReceiveBtn.addEventListener('click', function() {
+      openTxnPageWithItem('', 'Input');
+    });
+    qaOutBtn.addEventListener('click', function() {
+      switchToStockPage();
+      statusFilter.value = 'out';
+      statusFilterMobile.value = 'out';
+      tableStatusMode = 'all';
+      applyFilters(false);
+    });
+    qaLowBtn.addEventListener('click', function() {
+      switchToStockPage();
+      statusFilter.value = 'low';
+      statusFilterMobile.value = 'low';
+      tableStatusMode = 'all';
+      applyFilters(false);
+    });
+    qaManageBtn.addEventListener('click', switchToManagePage);
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
     tabTxn.addEventListener('click', switchToTxnPage);
@@ -1921,6 +2024,7 @@
     openFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.remove('hidden'); });
     closeFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.add('hidden'); });
     applyFilterSheetBtn.addEventListener('click', function(){
+      categoryFilter.value = categoryFilterMobile.value;
       statusFilter.value = statusFilterMobile.value;
       brandFilter.value = brandFilterMobile.value;
       tableStatusMode = 'all';
