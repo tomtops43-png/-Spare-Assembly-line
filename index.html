@@ -865,57 +865,67 @@
       requestPayload.qty = Number(payload.qty !== undefined ? payload.qty : requestPayload.stock || 0);
       if (!Number.isFinite(requestPayload.qty)) requestPayload.qty = 0;
       console.log('[manageAction payload]', { action: action, partName: requestPayload.partName, qty: requestPayload.qty });
-
-      var photoSize = String(requestPayload.photo || '').length;
-      var shouldUsePost = photoSize > 1200;
-      if (shouldUsePost) {
-        return postJsonNoCors(requestPayload);
-      }
-
-      var query = [
-        'action=' + encodeURIComponent(requestPayload.action),
-        'sheet=' + encodeURIComponent(requestPayload.sheet),
-        'no=' + encodeURIComponent(requestPayload.no),
-        'name=' + encodeURIComponent(requestPayload.name),
-        'partName=' + encodeURIComponent(requestPayload.partName),
-        'model=' + encodeURIComponent(requestPayload.model),
-        'line=' + encodeURIComponent(requestPayload.line),
-        'category=' + encodeURIComponent(requestPayload.category),
-        'brand=' + encodeURIComponent(requestPayload.brand),
-        'photo=' + encodeURIComponent(requestPayload.photo),
-        'image_main=' + encodeURIComponent(requestPayload.image_main),
-        'image_main_url=' + encodeURIComponent(requestPayload.image_main_url),
-        'image_main_file_id=' + encodeURIComponent(requestPayload.image_main_file_id),
-        'image_install=' + encodeURIComponent(requestPayload.image_install),
-        'image_install_url=' + encodeURIComponent(requestPayload.image_install_url),
-        'image_install_file_id=' + encodeURIComponent(requestPayload.image_install_file_id),
-        'max=' + encodeURIComponent(requestPayload.max),
-        'min=' + encodeURIComponent(requestPayload.min),
-        'unit=' + encodeURIComponent(requestPayload.unit),
-        'stock=' + encodeURIComponent(requestPayload.stock),
-        'qty=' + encodeURIComponent(String(requestPayload.qty))
-      ].join('&');
-
-      return loadJsonpWithFallback(function(base){ return base + '?' + query; });
+      // Prefer POST to avoid URL-length/encoding issues that make some rows fail intermittently.
+      return postJson(requestPayload).catch(function() {
+        var query = [
+          'action=' + encodeURIComponent(requestPayload.action),
+          'sheet=' + encodeURIComponent(requestPayload.sheet),
+          'no=' + encodeURIComponent(requestPayload.no),
+          'name=' + encodeURIComponent(requestPayload.name),
+          'partName=' + encodeURIComponent(requestPayload.partName),
+          'model=' + encodeURIComponent(requestPayload.model),
+          'line=' + encodeURIComponent(requestPayload.line),
+          'category=' + encodeURIComponent(requestPayload.category),
+          'brand=' + encodeURIComponent(requestPayload.brand),
+          'photo=' + encodeURIComponent(requestPayload.photo),
+          'image_main=' + encodeURIComponent(requestPayload.image_main),
+          'image_main_url=' + encodeURIComponent(requestPayload.image_main_url),
+          'image_main_file_id=' + encodeURIComponent(requestPayload.image_main_file_id),
+          'image_install=' + encodeURIComponent(requestPayload.image_install),
+          'image_install_url=' + encodeURIComponent(requestPayload.image_install_url),
+          'image_install_file_id=' + encodeURIComponent(requestPayload.image_install_file_id),
+          'max=' + encodeURIComponent(requestPayload.max),
+          'min=' + encodeURIComponent(requestPayload.min),
+          'unit=' + encodeURIComponent(requestPayload.unit),
+          'stock=' + encodeURIComponent(requestPayload.stock),
+          'qty=' + encodeURIComponent(String(requestPayload.qty))
+        ].join('&');
+        return loadJsonpWithFallback(function(base){ return base + '?' + query; });
+      });
     }
 
     function callTransactionViaJsonp(payload) {
-      var query = [
-        'action=transact',
-        'sheet=' + encodeURIComponent(getCurrentSheetName()),
-        'partNo=' + encodeURIComponent(payload.partNo || ''),
-        'type=' + encodeURIComponent(payload.type || ''),
-        'process=' + encodeURIComponent(payload.process || ''),
-        'category=' + encodeURIComponent(payload.category || ''),
-        'partName=' + encodeURIComponent(payload.partName || ''),
-        'model=' + encodeURIComponent(payload.model || ''),
-        'brand=' + encodeURIComponent(payload.brand || ''),
-        'qty=' + encodeURIComponent(String(payload.qty || '')),
-        'unit=' + encodeURIComponent(payload.unit || ''),
-        'by=' + encodeURIComponent(payload.by || '')
-      ].join('&');
-
-      return loadJsonpWithFallback(function(base){ return base + '?' + query; });
+      var requestPayload = {
+        action: 'transact',
+        sheet: getCurrentSheetName(),
+        partNo: payload.partNo || '',
+        type: payload.type || '',
+        process: payload.process || '',
+        category: payload.category || '',
+        partName: payload.partName || '',
+        model: payload.model || '',
+        brand: payload.brand || '',
+        qty: String(payload.qty || ''),
+        unit: payload.unit || '',
+        by: payload.by || ''
+      };
+      return postJson(requestPayload).catch(function() {
+        var query = [
+          'action=transact',
+          'sheet=' + encodeURIComponent(requestPayload.sheet),
+          'partNo=' + encodeURIComponent(requestPayload.partNo),
+          'type=' + encodeURIComponent(requestPayload.type),
+          'process=' + encodeURIComponent(requestPayload.process),
+          'category=' + encodeURIComponent(requestPayload.category),
+          'partName=' + encodeURIComponent(requestPayload.partName),
+          'model=' + encodeURIComponent(requestPayload.model),
+          'brand=' + encodeURIComponent(requestPayload.brand),
+          'qty=' + encodeURIComponent(requestPayload.qty),
+          'unit=' + encodeURIComponent(requestPayload.unit),
+          'by=' + encodeURIComponent(requestPayload.by)
+        ].join('&');
+        return loadJsonpWithFallback(function(base){ return base + '?' + query; });
+      });
     }
 
 
