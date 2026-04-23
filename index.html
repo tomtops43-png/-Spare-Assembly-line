@@ -406,6 +406,7 @@
       var min = safeNum(firstDefined([item.min, item.qtyMin], 0));
       var max = safeNum(firstDefined([item.max, item.qtyMax], 0));
       var needToPO = Math.max(min - stock, 0);
+      var mainFileId = firstDefined([item.image_main_file_id, item.imageMainFileId], '');
       var mainImageUrl = normalizeDriveImageUrl(firstDefined([
         item.image_main_url,
         item.imageMainUrl,
@@ -413,7 +414,8 @@
         item.imageMain,
         item.photo,
         item.image,
-        item.imageUrl
+        item.imageUrl,
+        mainFileId
       ], ''));
 
       return {
@@ -429,6 +431,7 @@
         max: max,
         needToPO: needToPO,
         image_main_url: mainImageUrl,
+        image_main_file_id: mainFileId,
         image_main: mainImageUrl,
         photo: mainImageUrl,
         image_install_url: firstDefined([item.image_install_url, item.image_install, item.imageInstall], '')
@@ -1073,6 +1076,7 @@
         console.log('[upload main response][edit]', mainRes);
         if (mainRes) {
           var normalizedMainUrl = pickMainImageUrl(mainRes);
+          console.log('[normalized image URL][edit]', normalizedMainUrl);
           if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
           payload.photo = normalizedMainUrl;
           payload.image_main = normalizedMainUrl;
@@ -1138,6 +1142,7 @@
         console.log('[upload main response][add]', mainRes);
         if (mainRes) {
           var normalizedMainUrl = pickMainImageUrl(mainRes);
+          console.log('[normalized image URL][add]', normalizedMainUrl);
           if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
           payload.photo = normalizedMainUrl;
           payload.image_main = normalizedMainUrl;
@@ -1255,6 +1260,8 @@
 
       console.log('[item data render table]', data);
       tableBody.innerHTML = data.map(function(item) {
+        var tableImageSrc = toSafeImageUrl(item.image_main_url);
+        console.log('[render table image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: tableImageSrc });
         var isOut = item.stock === 0;
         var isLow = item.stock > 0 && item.min > 0 && item.stock < item.min;
         var isNear = item.stock > 0 && item.min > 0 && item.stock >= item.min && item.stock <= (item.min * 1.2);
@@ -1265,7 +1272,7 @@
           '<td class="py-3 pr-4 text-center">' +
             '<button type="button" data-view-no="' + item.no + '" class="group inline-block" title="ดูรูปและรายละเอียด">' +
               '<span class="block h-10 w-10 rounded-md border border-slate-200 bg-slate-100 overflow-hidden">' +
-                '<img loading="lazy" src="' + toSafeImageUrl(item.image_main_url) + '" alt="part image" class="h-10 w-10 object-cover transition-transform duration-200 group-hover:scale-125" onerror="this.src=\'' + FALLBACK_IMAGE + '\'" />' +
+                '<img loading="lazy" src="' + tableImageSrc + '" alt="part image" class="h-10 w-10 object-cover transition-transform duration-200 group-hover:scale-125" onerror="this.src=\'' + FALLBACK_IMAGE + '\'" />' +
               '</span>' +
             '</button>' +
           '</td>' +
@@ -1343,6 +1350,7 @@
         return;
       }
       mobileCardList.innerHTML = data.map(function(item) {
+        var mobileImageSrc = toSafeImageUrl(item.image_main_url);
         var isOut = item.stock === 0;
         var isLow = item.stock > 0 && item.min > 0 && item.stock < item.min;
         var isNear = item.stock > 0 && item.min > 0 && item.stock >= item.min && item.stock <= (item.min * 1.2);
@@ -1351,7 +1359,7 @@
         var needClass = item.needToPO > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
         return '<article class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">' +
           '<div class="flex gap-3">' +
-            '<img loading="lazy" src="' + toSafeImageUrl(item.image_main_url) + '" alt="thumb" class="h-12 w-12 rounded-lg border border-slate-200 object-cover bg-slate-100" onerror="this.src=\'' + FALLBACK_IMAGE + '\'" />' +
+            '<img loading="lazy" src="' + mobileImageSrc + '" alt="thumb" class="h-12 w-12 rounded-lg border border-slate-200 object-cover bg-slate-100" onerror="this.src=\'' + FALLBACK_IMAGE + '\'" />' +
             '<div class="min-w-0 flex-1"><p class="font-semibold truncate">' + item.name + '</p><p class="text-xs text-slate-500">' + (item.model || '-') + '</p><p class="text-xs text-slate-500">' + (item.location || '-') + '</p></div>' +
             '<div class="text-right"><p class="text-2xl font-bold ' + stockClass + '">' + item.stock + '</p><p class="text-xs text-slate-500">Min/Max ' + item.min + '/' + item.max + '</p></div>' +
           '</div>' +
@@ -1382,10 +1390,12 @@
       var mainImg = document.getElementById('detailMainImage');
       var mainUrl = String(item.image_main_url || '').trim();
       var mainOk = isDriveViewUrl(mainUrl);
-      mainImg.src = mainOk ? mainUrl : FALLBACK_IMAGE;
+      var detailImageSrc = mainOk ? mainUrl : FALLBACK_IMAGE;
+      mainImg.src = detailImageSrc;
       mainImg.classList.toggle('hidden', !mainOk);
       document.getElementById('detailMainEmpty').classList.toggle('hidden', mainOk);
       console.log('[render detail item]', item);
+      console.log('[render detail image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: detailImageSrc });
       bindImageFallback(mainImg);
       detailModal.classList.remove('hidden');
       detailModal.classList.add('flex');
