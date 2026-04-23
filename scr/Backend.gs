@@ -331,6 +331,11 @@ function getDataUrlMimeType(dataUrl) {
 }
 
 function uploadImageToDrive(payload) {
+  payload = payload || {};
+  if (!payload.itemId && !payload.no && !payload.dataUrl && !payload.fileBase64) {
+    throw new Error('uploadImageToDrive ต้องรับ payload เช่น { itemId, line, imageType/kind, dataUrl }');
+  }
+
   var itemId = String(payload.itemId || payload.no || '').trim();
   var line = String(payload.line || payload.mainLine || '').trim();
   var kind = String(payload.kind || payload.imageType || 'main').toLowerCase();
