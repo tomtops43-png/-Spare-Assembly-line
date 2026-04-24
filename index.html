@@ -297,47 +297,49 @@
     </div>
   </div>
 
-  <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
-    <div class="relative bg-white w-full h-full md:h-auto md:max-h-[92vh] md:max-w-4xl md:rounded-2xl p-5 shadow-xl overflow-y-auto">
-      <button id="closeDetailModal" type="button" class="absolute right-4 top-4 z-30 h-9 w-9 rounded-full border border-slate-300 bg-white text-slate-600 text-xl leading-none shadow-sm">×</button>
-      <div class="flex items-center justify-between mb-4 pr-12">
+  <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-start md:items-center justify-center z-50 p-3 md:p-6 overflow-y-auto">
+    <div class="relative mt-4 mb-4 md:my-0 bg-white w-full md:max-w-4xl rounded-2xl shadow-xl overflow-hidden max-h-[calc(100vh-2rem)] md:max-h-[calc(100vh-4rem)]">
+      <div class="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-5">
         <h3 class="text-lg font-bold">รายละเอียดอะไหล่</h3>
+        <button id="closeDetailModal" type="button" class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 text-xl leading-none shadow-sm">×</button>
       </div>
-      <div>
-        <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1" />
-        <p id="detailMainEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูป</p>
-        <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
-      </div>
-      <div class="mt-4">
-        <div class="flex items-center justify-between gap-2">
-          <p id="detailName" class="text-xl md:text-2xl font-bold leading-tight">-</p>
-          <span id="detailStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-slate-100 text-slate-700">-</span>
+      <div class="overflow-y-auto max-h-[calc(100vh-9.5rem)] md:max-h-[calc(100vh-11rem)] px-4 pb-4 pt-3 md:px-5 md:pb-5">
+        <div>
+          <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1" />
+          <p id="detailMainEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูป</p>
+          <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
         </div>
-        <p id="detailMeta" class="mt-1 text-xs text-slate-500"></p>
-        <div class="mt-3 space-y-3">
-          <section>
-            <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลหลัก</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-              <div id="detailFieldModel" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Model</p><p id="detailModel" class="font-semibold text-base">-</p></div>
-              <div id="detailFieldBrand" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Brand</p><p id="detailBrand" class="font-semibold text-base">-</p></div>
-              <div id="detailFieldCategory" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Category</p><p id="detailCategory" class="font-semibold text-base">-</p></div>
-              <div id="detailFieldLine" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Line</p><p id="detailLine" class="font-semibold text-base">-</p></div>
-            </div>
-          </section>
-          <section>
-            <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">สถานะสต็อก</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-              <div id="detailFieldStock" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Stock</p><p id="detailStock" class="font-semibold text-base">0</p></div>
-              <div id="detailFieldMinMax" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Min/Max</p><p id="detailMinMax" class="font-semibold text-base">0/0</p></div>
-              <div id="detailFieldNeedToOrder" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Need to order</p><p id="detailNeedToOrder" class="font-semibold text-base">0</p></div>
-            </div>
-          </section>
-          <section>
-            <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลใช้งาน</p>
-            <div class="grid grid-cols-1 gap-2 text-sm">
-              <div id="detailFieldLocation" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Location</p><p id="detailLocation" class="font-semibold text-base">-</p></div>
-            </div>
-          </section>
+        <div class="mt-4">
+          <div class="flex items-center justify-between gap-2">
+            <p id="detailName" class="text-xl md:text-2xl font-bold leading-tight">-</p>
+            <span id="detailStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-slate-100 text-slate-700">-</span>
+          </div>
+          <p id="detailMeta" class="mt-1 text-xs text-slate-500"></p>
+          <div class="mt-3 space-y-3">
+            <section>
+              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลหลัก</p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <div id="detailFieldModel" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Model</p><p id="detailModel" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldBrand" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Brand</p><p id="detailBrand" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldCategory" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Category</p><p id="detailCategory" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldLine" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Line</p><p id="detailLine" class="font-semibold text-base">-</p></div>
+              </div>
+            </section>
+            <section>
+              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">สถานะสต็อก</p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <div id="detailFieldStock" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Stock</p><p id="detailStock" class="font-semibold text-base">0</p></div>
+                <div id="detailFieldMinMax" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Min/Max</p><p id="detailMinMax" class="font-semibold text-base">0/0</p></div>
+                <div id="detailFieldNeedToOrder" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Need to order</p><p id="detailNeedToOrder" class="font-semibold text-base">0</p></div>
+              </div>
+            </section>
+            <section>
+              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลใช้งาน</p>
+              <div class="grid grid-cols-1 gap-2 text-sm">
+                <div id="detailFieldLocation" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Location</p><p id="detailLocation" class="font-semibold text-base">-</p></div>
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </div>
@@ -1806,8 +1808,16 @@
         '</article>';
       }).join('');
 
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-view-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(){
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('article[data-view-no]')).forEach(function(card){
+        card.addEventListener('click', function(){
+          var no = card.getAttribute('data-view-no');
+          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          if (found) openDetailModal(found);
+        });
+      });
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
           var no = btn.getAttribute('data-view-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (found) openDetailModal(found);
