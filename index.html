@@ -1974,7 +1974,8 @@
     function openDetailModal(item) {
       console.debug('[view] modal render branch used', { no: item && item.no, source: 'openDetailModal' });
       if (!item) return;
-      if (!detailModal.classList.contains('hidden') && String(detailModalCurrentNo) === String(item.no)) {
+      var isModalOpen = !detailModal.classList.contains('hidden') && detailModal.classList.contains('flex');
+      if (isModalOpen && String(detailModalCurrentNo) === String(item.no)) {
         console.debug('[view] ignore duplicate open for same item', { no: item.no });
         return;
       }
@@ -2026,11 +2027,9 @@
         console.log('[render detail item]', item);
         console.log('[render detail image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: detailImageSrc, fallbackSrc: detailFallbackSrc });
         bindImageFallback(mainImg);
-        if (wasHidden) {
-          detailModal.classList.remove('hidden');
-          detailModal.classList.add('flex');
-          lockBodyScroll();
-        }
+        detailModal.classList.remove('hidden');
+        detailModal.classList.add('flex');
+        if (wasHidden) lockBodyScroll();
         console.debug('[view] modal open state changed', { hidden: detailModal.classList.contains('hidden'), currentNo: detailModalCurrentNo });
       } catch (err) {
         console.error('[view] any thrown error', err);
