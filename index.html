@@ -486,6 +486,16 @@
     ];
     var isLineMenuVisible = false;
 
+    function isModalShown(el) {
+      return !!(el && !el.classList.contains('hidden'));
+    }
+
+    function syncBodyScrollLock() {
+      var shouldLock = isModalShown(editModal) || isModalShown(detailModal) || isModalShown(imageViewer);
+      document.body.style.overflow = shouldLock ? 'hidden' : '';
+      if (!shouldLock) modalLockCount = 0;
+    }
+
     function lockBodyScroll() {
       modalLockCount += 1;
       document.body.style.overflow = 'hidden';
@@ -493,7 +503,7 @@
 
     function unlockBodyScroll() {
       modalLockCount = Math.max(0, modalLockCount - 1);
-      if (modalLockCount === 0) document.body.style.overflow = '';
+      syncBodyScrollLock();
     }
 
 
