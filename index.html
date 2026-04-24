@@ -297,9 +297,10 @@
     </div>
   </div>
 
-  <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
-    <div class="relative bg-white w-full h-full md:h-auto md:max-h-[92vh] md:max-w-4xl md:rounded-2xl p-5 shadow-xl overflow-y-auto">
-      <button id="closeDetailModal" type="button" class="absolute right-4 top-4 z-30 h-9 w-9 rounded-full border border-slate-300 bg-white text-slate-600 text-xl leading-none shadow-sm">×</button>
+  <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50 p-2 md:p-4">
+    <div class="relative bg-white w-full max-h-[94vh] md:max-h-[92vh] md:max-w-4xl rounded-2xl shadow-xl overflow-y-auto">
+      <button id="closeDetailModal" type="button" class="sticky ml-auto right-3 top-3 z-30 mr-3 mt-3 flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 text-xl leading-none shadow-sm">×</button>
+      <div class="px-4 pb-4 md:px-5 md:pb-5">
       <div class="flex items-center justify-between mb-4 pr-12">
         <h3 class="text-lg font-bold">รายละเอียดอะไหล่</h3>
       </div>
@@ -339,6 +340,7 @@
             </div>
           </section>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -1806,8 +1808,16 @@
         '</article>';
       }).join('');
 
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-view-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(){
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('article[data-view-no]')).forEach(function(card){
+        card.addEventListener('click', function(){
+          var no = card.getAttribute('data-view-no');
+          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          if (found) openDetailModal(found);
+        });
+      });
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
           var no = btn.getAttribute('data-view-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (found) openDetailModal(found);
