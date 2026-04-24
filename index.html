@@ -490,10 +490,12 @@
       return !!(el && !el.classList.contains('hidden'));
     }
 
+    function shouldLockDetailModal() {
+      return window.matchMedia('(min-width: 768px)').matches;
+    }
+
     function syncBodyScrollLock() {
-      // Keep body lock only for edit/image viewer. Detail modal should remain
-      // interactive without trapping the whole page when unexpected state drift happens.
-      var shouldLock = isModalShown(editModal) || isModalShown(imageViewer);
+      var shouldLock = isModalShown(editModal) || isModalShown(imageViewer) || (shouldLockDetailModal() && isModalShown(detailModal));
       document.body.style.overflow = shouldLock ? 'hidden' : '';
       if (!shouldLock) modalLockCount = 0;
     }
@@ -2019,6 +2021,7 @@
       if (wasHidden) {
         detailModal.classList.remove('hidden');
         detailModal.classList.add('flex');
+        if (shouldLockDetailModal()) lockBodyScroll();
       }
     }
 
@@ -2027,7 +2030,11 @@
       detailModal.classList.add('hidden');
       detailModal.classList.remove('flex');
       detailModalCurrentNo = null;
-      syncBodyScrollLock();
+      if (shouldLockDetailModal()) {
+        unlockBodyScroll();
+      } else {
+        syncBodyScrollLock();
+      }
     }
 
     function bindDetailModalCloseBehavior() {
