@@ -880,24 +880,36 @@
         var sep = url.indexOf('?') > -1 ? '&' : '?';
         var script = document.createElement('script');
         var timeoutMs = 10000;
+        var settled = false;
 
         var timeoutId = setTimeout(function() {
+          if (settled) return;
+          settled = true;
           cleanup();
           reject(new Error('โหลดข้อมูลเกินเวลาที่กำหนด (JSONP timeout)'));
         }, timeoutMs);
 
         function cleanup() {
           clearTimeout(timeoutId);
-          delete window[callbackName];
-          script.remove();
+          // Keep a no-op callback briefly to absorb late JSONP responses and
+          // avoid `Uncaught ReferenceError: partsCallback_xxx is not defined`.
+          window[callbackName] = function() {};
+          setTimeout(function() {
+            try { delete window[callbackName]; } catch (err) {}
+          }, 60000);
+          if (script && script.parentNode) script.parentNode.removeChild(script);
         }
 
         window[callbackName] = function(payload) {
+          if (settled) return;
+          settled = true;
           cleanup();
           resolve(payload);
         };
 
         script.onerror = function() {
+          if (settled) return;
+          settled = true;
           cleanup();
           reject(new Error('ไม่สามารถโหลดข้อมูล (JSONP) ได้'));
         };
