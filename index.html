@@ -298,14 +298,15 @@
   </div>
 
   <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
-    <div class="bg-white w-full h-full md:h-auto md:max-h-[92vh] md:max-w-4xl md:rounded-2xl p-5 shadow-xl overflow-y-auto">
-      <div class="sticky top-0 z-20 bg-white flex items-center justify-between mb-4 pb-2">
+    <button id="closeDetailModalFloating" type="button" class="fixed right-4 top-4 z-[70] h-10 w-10 rounded-full border border-slate-300 bg-white text-slate-700 text-2xl leading-none shadow-md">×</button>
+    <div class="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-2xl p-5 shadow-xl overflow-y-auto">
+      <div class="z-20 bg-white flex items-center justify-between mb-4 pb-2">
         <h3 class="text-lg font-bold">รายละเอียดอะไหล่</h3>
         <button id="closeDetailModal" type="button" class="h-9 w-9 rounded-full border border-slate-300 bg-white text-slate-600 text-xl leading-none shadow-sm">×</button>
       </div>
       <div class="space-y-4">
         <div>
-          <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-44 md:h-56 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1" />
+          <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-40 md:h-48 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1" />
           <p id="detailMainEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูป</p>
           <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
         </div>
@@ -2102,6 +2103,7 @@
     manageForm.addEventListener('submit', submitManageItem);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+    document.getElementById('closeDetailModalFloating').addEventListener('click', closeDetailModal);
     editModal.addEventListener('click', function(e){
       if (e.target === editModal) closeEditModal();
     });
