@@ -297,15 +297,16 @@
     </div>
   </div>
 
-  <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
-    <div class="bg-white w-full h-full md:h-auto md:max-h-[92vh] md:max-w-4xl md:rounded-2xl p-5 shadow-xl overflow-y-auto">
-      <div class="sticky top-0 z-20 bg-white flex items-center justify-between mb-4 pb-2">
+  <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50 relative">
+    <button id="closeDetailModalFloating" type="button" class="absolute right-6 top-6 z-[90] h-10 w-10 rounded-full border border-white/20 bg-slate-900 text-white text-2xl leading-none shadow-lg">×</button>
+    <div class="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-2xl p-5 shadow-xl overflow-y-auto">
+      <div class="z-20 bg-white flex items-center justify-between mb-4 pb-2">
         <h3 class="text-lg font-bold">รายละเอียดอะไหล่</h3>
         <button id="closeDetailModal" type="button" class="h-9 w-9 rounded-full border border-slate-300 bg-white text-slate-600 text-xl leading-none shadow-sm">×</button>
       </div>
       <div class="space-y-4">
         <div>
-          <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-44 md:h-56 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1" />
+          <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-40 md:h-48 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1" />
           <p id="detailMainEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูป</p>
           <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
         </div>
@@ -706,6 +707,46 @@
       });
     }
 
+    function drawImageToCanvas(dataUrl, maxEdge) {
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+          var width = img.naturalWidth || img.width;
+          var height = img.naturalHeight || img.height;
+          if (!width || !height) return reject(new Error('อ่านขนาดรูปไม่สำเร็จ'));
+          var scale = Math.min(1, maxEdge / Math.max(width, height));
+          var targetW = Math.max(1, Math.round(width * scale));
+          var targetH = Math.max(1, Math.round(height * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = targetW;
+          canvas.height = targetH;
+          var ctx = canvas.getContext('2d');
+          if (!ctx) return reject(new Error('ไม่สามารถเตรียม canvas สำหรับย่อรูปได้'));
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+          resolve(canvas);
+        };
+        img.onerror = function() { reject(new Error('โหลดรูปสำหรับย่อขนาดไม่สำเร็จ')); };
+        img.src = dataUrl;
+      });
+    }
+
+    function optimizeUploadDataUrl(file) {
+      return readFileAsDataUrl(file).then(function(dataUrl) {
+        var maxChars = 2_000_000; // ลดโอกาสชนข้อจำกัด payload ของ Apps Script gateway
+        var shouldShrink = file && file.size > 1200 * 1024;
+        if (!shouldShrink && dataUrl.length <= maxChars) return dataUrl;
+        return drawImageToCanvas(dataUrl, 1600).then(function(canvas) {
+          var type = /^image\/(png|jpe?g|webp)$/i.test(file.type || '') ? file.type : 'image/jpeg';
+          var quality = type === 'image/png' ? undefined : 0.82;
+          var compressed = canvas.toDataURL(type, quality);
+          if (compressed.length <= maxChars) return compressed;
+          return canvas.toDataURL('image/jpeg', 0.72);
+        }).catch(function() {
+          return dataUrl;
+        });
+      });
+    }
+
     function bindFilePreview(fileInputId, previewId) {
       var fileInput = document.getElementById(fileInputId);
       var preview = document.getElementById(previewId);
@@ -732,6 +773,9 @@
 
     function mapUploadErrorMessage(err) {
       var message = err && err.message ? String(err.message) : String(err || 'อัปโหลดรูปไม่สำเร็จ');
+      if (message === 'Failed to fetch' || message.indexOf('NetworkError') > -1 || message.indexOf('Load failed') > -1) {
+        return 'เชื่อมต่อ API สำหรับอัปโหลดรูปไม่สำเร็จ กรุณาตรวจสอบ URL Web App, Deploy เวอร์ชันล่าสุด และสิทธิ์การเข้าถึงของ Google Apps Script';
+      }
       if (message.indexOf('DRIVE_AUTH_REQUIRED') > -1) {
         return 'ยังไม่ได้อนุญาตสิทธิ์ Google Drive ให้ Apps Script กรุณาเข้า Apps Script > Run ฟังก์ชัน doGet หรือ uploadImageToDrive แล้วกด Allow จากนั้น Deploy เว็บแอปใหม่ก่อนลองอัปโหลดอีกครั้ง';
       }
@@ -744,25 +788,68 @@
     function uploadImageFile(file, itemId, kind, itemName) {
       if (!file) return Promise.resolve(null);
       validateImageFile(file);
-      return readFileAsDataUrl(file).then(function(dataUrl) {
-        var payload = new URLSearchParams();
-        payload.append('action', 'uploadImage');
-        payload.append('itemId', itemId);
-        payload.append('line', currentLine);
-        payload.append('imageType', kind);
-        payload.append('itemName', itemName || '');
-        payload.append('dataUrl', dataUrl);
-        return fetch(getWriteApiUrl(), {
-          method: 'POST',
-          body: payload
-        }).then(function(res) {
+      return optimizeUploadDataUrl(file).then(function(dataUrl) {
+        var requestBody = {
+          action: 'uploadImage',
+          itemId: itemId,
+          line: currentLine,
+          imageType: kind,
+          itemName: itemName || '',
+          dataUrl: dataUrl
+        };
+
+        function parseUploadResponse(res) {
           return res.text().then(function(text) {
             var parsed = null;
             try { parsed = text ? JSON.parse(text) : null; } catch (err) {}
             if (!res.ok) throw new Error((parsed && parsed.message) || ('HTTP ' + res.status));
             return parsed || { ok: false, message: 'invalid response' };
           });
-        });
+        }
+
+        function postAsJson(targetUrl) {
+          return fetch(targetUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          }).then(parseUploadResponse);
+        }
+
+        function postAsForm(targetUrl) {
+          var payload = new URLSearchParams();
+          payload.append('action', requestBody.action);
+          payload.append('itemId', requestBody.itemId);
+          payload.append('line', requestBody.line);
+          payload.append('imageType', requestBody.imageType);
+          payload.append('itemName', requestBody.itemName);
+          payload.append('dataUrl', requestBody.dataUrl);
+          return fetch(targetUrl, {
+            method: 'POST',
+            body: payload
+          }).then(parseUploadResponse);
+        }
+
+        function uploadOnce(targetUrl) {
+          return postAsJson(targetUrl).catch(function(jsonErr) {
+            // Fallback for older Apps Script deployments expecting form-style parameters.
+            return postAsForm(targetUrl).catch(function() {
+              throw jsonErr;
+            });
+          });
+        }
+
+        var candidates = getApiCandidates();
+        var idx = 0;
+        function runNext(lastErr) {
+          if (idx >= candidates.length) throw lastErr || new Error('อัปโหลดรูปไม่สำเร็จ');
+          var targetUrl = candidates[idx++];
+          return uploadOnce(targetUrl).then(function(res) {
+            ACTIVE_API_URL = targetUrl;
+            return res;
+          }).catch(runNext);
+        }
+
+        return runNext();
       }).then(function(res) {
         console.log('[uploadImage] response', res);
         if (!res || (res.ok !== true && res.status !== 'success')) {
@@ -818,14 +905,28 @@
       });
     }
 
+    function toExecUrl(url) {
+      var value = String(url || '').trim();
+      if (!value) return '';
+      if (value.indexOf('/dev') > -1) return value.replace('/dev', '/exec');
+      return value;
+    }
+
+    function withDevExecVariants(base) {
+      var primary = toExecUrl(base);
+      var out = [];
+      if (primary) out.push(primary);
+      if (primary && primary.indexOf('/exec') > -1) out.push(primary.replace('/exec', '/dev'));
+      if (primary && primary.indexOf('/dev') > -1) out.push(primary.replace('/dev', '/exec'));
+      return out;
+    }
+
     function getApiCandidates() {
       var baseUrl = LINE_API_URL_MAP[currentLine] || API_URL;
-      if (baseUrl.indexOf('/dev') > -1) baseUrl = baseUrl.replace('/dev', '/exec');
-      var candidates = [baseUrl];
-      if (baseUrl.indexOf('/exec') > -1) candidates.push(baseUrl.replace('/exec', '/dev'));
-      if (baseUrl.indexOf('/dev') > -1) candidates.push(baseUrl.replace('/dev', '/exec'));
-      if (API_URL && candidates.indexOf(API_URL) === -1) candidates.push(API_URL);
-      if (API_URL && API_URL.indexOf('/exec') > -1) candidates.push(API_URL.replace('/exec', '/dev'));
+      var candidates = []
+        .concat(withDevExecVariants(baseUrl))
+        .concat(withDevExecVariants(ACTIVE_API_URL))
+        .concat(withDevExecVariants(API_URL));
       return Array.from(new Set(candidates.filter(Boolean)));
     }
 
@@ -848,9 +949,16 @@
     }
 
     function getWriteApiUrl() {
-      var baseUrl = LINE_API_URL_MAP[currentLine] || API_URL;
-      if (baseUrl.indexOf('/dev') > -1) return baseUrl.replace('/dev', '/exec');
-      return baseUrl;
+      return getApiCandidates()[0] || toExecUrl(API_URL);
+    }
+
+    function shouldUseJsonpTransport() {
+      try {
+        var apiOrigin = new URL(getWriteApiUrl(), window.location.href).origin;
+        return apiOrigin !== window.location.origin;
+      } catch (err) {
+        return true;
+      }
     }
 
     function shouldUseJsonpTransport() {
@@ -2102,6 +2210,7 @@
     manageForm.addEventListener('submit', submitManageItem);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+    document.getElementById('closeDetailModalFloating').addEventListener('click', closeDetailModal);
     editModal.addEventListener('click', function(e){
       if (e.target === editModal) closeEditModal();
     });
