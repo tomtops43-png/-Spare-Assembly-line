@@ -490,12 +490,8 @@
       return !!(el && !el.classList.contains('hidden'));
     }
 
-    function shouldLockDetailModal() {
-      return window.matchMedia('(min-width: 768px)').matches;
-    }
-
     function syncBodyScrollLock() {
-      var shouldLock = isModalShown(editModal) || isModalShown(imageViewer) || (shouldLockDetailModal() && isModalShown(detailModal));
+      var shouldLock = isModalShown(editModal) || isModalShown(imageViewer) || isModalShown(detailModal);
       document.body.style.overflow = shouldLock ? 'hidden' : '';
       if (!shouldLock) modalLockCount = 0;
     }
@@ -2021,7 +2017,7 @@
       if (wasHidden) {
         detailModal.classList.remove('hidden');
         detailModal.classList.add('flex');
-        if (shouldLockDetailModal()) lockBodyScroll();
+        lockBodyScroll();
       }
     }
 
@@ -2030,11 +2026,7 @@
       detailModal.classList.add('hidden');
       detailModal.classList.remove('flex');
       detailModalCurrentNo = null;
-      if (shouldLockDetailModal()) {
-        unlockBodyScroll();
-      } else {
-        syncBodyScrollLock();
-      }
+      unlockBodyScroll();
     }
 
     function bindDetailModalCloseBehavior() {
