@@ -316,6 +316,19 @@
   <div id="loginModal" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 p-4">
     <div class="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
       <h3 class="text-lg font-bold mb-1">เข้าสู่ระบบ</h3>
+      <p class="text-xs text-slate-500 mb-3">ใช้บัญชีที่กำหนดใน Users sheet (default: admin / admin123)</p>
+      <form id="loginForm" class="space-y-3">
+        <input id="loginUsername" type="text" class="w-full rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Username" required />
+        <input id="loginPassword" type="password" class="w-full rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Password" required />
+        <button type="submit" class="h-11 w-full rounded-xl bg-blue-600 text-white font-semibold">Login</button>
+      </form>
+      <p id="loginMessage" class="mt-3 text-sm"></p>
+    </div>
+  </div>
+
+  <div id="loginModal" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 p-4">
+    <div class="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+      <h3 class="text-lg font-bold mb-1">เข้าสู่ระบบ</h3>
       <form id="loginForm" class="space-y-3">
         <input id="loginUsername" type="text" class="w-full rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Username" required />
         <input id="loginPassword" type="password" class="w-full rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Password" required />
@@ -952,6 +965,19 @@
       });
     }
 
+    function requestApi(payload) {
+      var requestPayload = Object.assign({}, payload || {});
+      var query = Object.keys(requestPayload).map(function(key) {
+        return encodeURIComponent(key) + '=' + encodeURIComponent(requestPayload[key] === undefined || requestPayload[key] === null ? '' : String(requestPayload[key]));
+      }).join('&');
+      if (shouldUseJsonpTransport()) {
+        return loadJsonpWithFallback(function(base) { return base + '?' + query; });
+      }
+      return postJson(requestPayload).catch(function() {
+        return loadJsonpWithFallback(function(base) { return base + '?' + query; });
+      });
+    }
+
     function withAuthPayload(payload) {
       var body = Object.assign({}, payload || {});
       if (authToken) body.authToken = authToken;
@@ -1001,12 +1027,11 @@
     }
 
     function login(username, password) {
-      var payload = new URLSearchParams();
-      payload.append('action', 'login');
-      payload.append('username', username);
-      payload.append('password', password);
-      return fetch(getWriteApiUrl(), { method: 'POST', body: payload })
-        .then(function(res) { return res.json(); })
+      return requestApi({
+        action: 'login',
+        username: username,
+        password: password
+      })
         .then(parseApiResponse)
         .then(function(data) {
           authToken = data.token;
@@ -1020,7 +1045,7 @@
 
     function checkSession() {
       if (!authToken) return Promise.reject(new Error('ยังไม่ได้ login'));
-      return postJson(withAuthPayload({ action: 'session' }))
+      return requestApi(withAuthPayload({ action: 'session' }))
         .then(parseApiResponse)
         .then(function(data) {
           currentUser = data.user;
@@ -1037,12 +1062,12 @@
       applyAuthorizationUi();
       document.getElementById('loginModal').classList.remove('hidden');
       if (!token) return Promise.resolve();
-      return postJson({ action: 'logout', authToken: token }).catch(function() {});
+      return requestApi({ action: 'logout', authToken: token }).catch(function() {});
     }
 
     function loadUsers() {
       if (!hasPermission('manage_users')) return Promise.resolve();
-      return postJson(withAuthPayload({ action: 'listUsers' }))
+      return requestApi(withAuthPayload({ action: 'listUsers' }))
         .then(parseApiResponse)
         .then(function(data) {
           var canDeleteUser = hasPermission('delete_user');
@@ -1076,7 +1101,7 @@
             btn.addEventListener('click', function() {
               var username = btn.getAttribute('data-delete-user');
               if (!confirm('ลบผู้ใช้ ' + username + ' ?')) return;
-              postJson(withAuthPayload({ action: 'deleteUser', username: username }))
+              requestApi(withAuthPayload({ action: 'deleteUser', username: username }))
                 .then(parseApiResponse)
                 .then(function() {
                   userManageMessage.className = 'text-sm mb-2 text-emerald-600';
@@ -1380,7 +1405,10 @@
       managePage.classList.add('hidden');
       adminPage.classList.remove('hidden');
       setTabStyles('admin');
-      loadUsers();
+      loadUsers().catch(function(err) {
+        userManageMessage.className = 'text-sm mb-2 text-rose-600';
+        userManageMessage.textContent = err && err.message ? err.message : 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ';
+      });
     }
 
     function loadPartsData() {
@@ -2390,7 +2418,7 @@
       });
       userManageMessage.className = 'text-sm mb-2 text-slate-500';
       userManageMessage.textContent = 'กำลังบันทึกผู้ใช้...';
-      postJson(payload).then(parseApiResponse).then(function() {
+      requestApi(payload).then(parseApiResponse).then(function() {
         userManageMessage.className = 'text-sm mb-2 text-emerald-600';
         userManageMessage.textContent = 'บันทึกผู้ใช้สำเร็จ';
         loadUsers();
