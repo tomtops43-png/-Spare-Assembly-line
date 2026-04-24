@@ -1844,8 +1844,13 @@
       });
 
       Array.prototype.slice.call(tableBody.querySelectorAll('[data-view-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(){
+        btn.addEventListener('click', function(e){
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
           var no = btn.getAttribute('data-view-no');
+          console.debug('[view] button click fired', { no: no, source: 'table' });
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (!found) return;
           openDetailModal(found);
@@ -1967,57 +1972,72 @@
     }
 
     function openDetailModal(item) {
+      console.debug('[view] modal render branch used', { no: item && item.no, source: 'openDetailModal' });
+      if (!item) return;
+      if (!detailModal.classList.contains('hidden') && String(detailModalCurrentNo) === String(item.no)) {
+        console.debug('[view] ignore duplicate open for same item', { no: item.no });
+        return;
+      }
       var wasHidden = detailModal.classList.contains('hidden');
       detailModalCurrentNo = item.no;
-      var detailModalPanel = detailModal.querySelector('.bg-white');
-      if (detailModalPanel) detailModalPanel.scrollTop = 0;
-      document.getElementById('detailName').textContent = item.name || '-';
-      document.getElementById('detailModel').textContent = item.model || '-';
-      document.getElementById('detailBrand').textContent = item.brand || '-';
-      document.getElementById('detailCategory').textContent = item.category || '-';
-      document.getElementById('detailLine').textContent = item.line || '-';
-      document.getElementById('detailLocation').textContent = item.location || '-';
-      document.getElementById('detailStock').textContent = String(item.stock || 0);
-      document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
-      document.getElementById('detailNeedToOrder').textContent = String(getNeedToOrder(item));
-      var detailStatus = document.getElementById('detailStatus');
-      var detailStatusValue = getStockStatus(item);
-      var detailTone = getStatusTone(detailStatusValue);
-      detailStatus.textContent = detailStatusValue;
-      detailStatus.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs ' + detailTone.badgeClass;
-      var mainImg = document.getElementById('detailMainImage');
-      var mainUrl = String(item.image_main_url || '').trim();
-      var detailImageSrc = toSafeImageUrl(mainUrl);
-      var mainOk = detailImageSrc !== FALLBACK_IMAGE;
-      var detailFallbackSrc = getSecondaryDriveImageUrl(mainUrl);
-      var detailMetaParts = [item.brand, item.category, item.line].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
-      var needToOrder = getNeedToOrder(item);
-      var metaText = detailMetaParts.join(' • ');
-      document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
-      ['Model', 'Brand', 'Category', 'Line', 'Location'].forEach(function(field) {
-        var valueEl = document.getElementById('detail' + field);
-        var container = document.getElementById('detailField' + field);
-        if (!valueEl || !container) return;
-        var valueText = String(valueEl.textContent || '').trim();
-        var shouldHide = (!valueText || valueText === '-');
-        container.classList.toggle('hidden', shouldHide);
-      });
-      mainImg.setAttribute('data-fallback-src', detailFallbackSrc || '');
-      mainImg.src = detailImageSrc;
-      mainImg.classList.toggle('cursor-zoom-in', mainOk);
-      mainImg.onclick = function() {
-        if (!mainOk) return;
-        openImageViewer(mainImg.src);
-      };
-      mainImg.classList.toggle('hidden', !mainOk);
-      document.getElementById('detailMainEmpty').classList.toggle('hidden', mainOk);
-      console.log('[render detail item]', item);
-      console.log('[render detail image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: detailImageSrc, fallbackSrc: detailFallbackSrc });
-      bindImageFallback(mainImg);
-      if (wasHidden) {
-        detailModal.classList.remove('hidden');
-        detailModal.classList.add('flex');
-        lockBodyScroll();
+      try {
+        var detailModalPanel = detailModal.querySelector('.bg-white');
+        if (detailModalPanel) detailModalPanel.scrollTop = 0;
+        document.getElementById('detailName').textContent = item.name || '-';
+        document.getElementById('detailModel').textContent = item.model || '-';
+        document.getElementById('detailBrand').textContent = item.brand || '-';
+        document.getElementById('detailCategory').textContent = item.category || '-';
+        document.getElementById('detailLine').textContent = item.line || '-';
+        document.getElementById('detailLocation').textContent = item.location || '-';
+        document.getElementById('detailStock').textContent = String(item.stock || 0);
+        document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
+        document.getElementById('detailNeedToOrder').textContent = String(getNeedToOrder(item));
+        var detailStatus = document.getElementById('detailStatus');
+        var detailStatusValue = getStockStatus(item);
+        var detailTone = getStatusTone(detailStatusValue);
+        detailStatus.textContent = detailStatusValue;
+        detailStatus.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs ' + detailTone.badgeClass;
+        var mainImg = document.getElementById('detailMainImage');
+        var mainUrl = String(item.image_main_url || '').trim();
+        var detailImageSrc = toSafeImageUrl(mainUrl);
+        var mainOk = detailImageSrc !== FALLBACK_IMAGE;
+        var detailFallbackSrc = getSecondaryDriveImageUrl(mainUrl);
+        var detailMetaParts = [item.brand, item.category, item.line].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
+        var needToOrder = getNeedToOrder(item);
+        var metaText = detailMetaParts.join(' • ');
+        document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
+        ['Model', 'Brand', 'Category', 'Line', 'Location'].forEach(function(field) {
+          var valueEl = document.getElementById('detail' + field);
+          var container = document.getElementById('detailField' + field);
+          if (!valueEl || !container) return;
+          var valueText = String(valueEl.textContent || '').trim();
+          var shouldHide = (!valueText || valueText === '-');
+          container.classList.toggle('hidden', shouldHide);
+        });
+        mainImg.setAttribute('data-fallback-src', detailFallbackSrc || '');
+        mainImg.src = detailImageSrc;
+        mainImg.classList.toggle('cursor-zoom-in', mainOk);
+        mainImg.onclick = function() {
+          if (!mainOk) return;
+          openImageViewer(mainImg.src);
+        };
+        mainImg.classList.toggle('hidden', !mainOk);
+        document.getElementById('detailMainEmpty').classList.toggle('hidden', mainOk);
+        console.log('[render detail item]', item);
+        console.log('[render detail image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: detailImageSrc, fallbackSrc: detailFallbackSrc });
+        bindImageFallback(mainImg);
+        if (wasHidden) {
+          detailModal.classList.remove('hidden');
+          detailModal.classList.add('flex');
+          lockBodyScroll();
+        }
+        console.debug('[view] modal open state changed', { hidden: detailModal.classList.contains('hidden'), currentNo: detailModalCurrentNo });
+      } catch (err) {
+        console.error('[view] any thrown error', err);
+        detailModal.classList.add('hidden');
+        detailModal.classList.remove('flex');
+        detailModalCurrentNo = null;
+        unlockBodyScroll();
       }
     }
 
@@ -2035,7 +2055,10 @@
 
       closeBtn.addEventListener('click', closeDetailModal);
       detailModal.addEventListener('click', function(e) {
-        if (e.target === detailModal) closeDetailModal();
+        if (e.target === detailModal) {
+          if (e) e.stopPropagation();
+          closeDetailModal();
+        }
       });
       document.addEventListener('keydown', function(e) {
         if (e.key !== 'Escape') return;
