@@ -98,6 +98,33 @@ function getOrCreateSheet(spreadsheet, sheetName) {
   return sheet;
 }
 
+function getTemplateHeaders(spreadsheet) {
+  var preferred = getSheetByFlexibleName(spreadsheet, SPARE_APP_CONFIG.readSheetName);
+  var sheets = preferred ? [preferred].concat(spreadsheet.getSheets().filter(function(s){ return s.getName() !== preferred.getName(); })) : spreadsheet.getSheets();
+
+  for (var i = 0; i < sheets.length; i += 1) {
+    var data = sheets[i].getDataRange().getValues();
+    if (!data || data.length === 0) continue;
+    var headerRowIndex = findHeaderRowIndex(data);
+    var headers = data[headerRowIndex] || [];
+    if (headers.length >= 8) return headers;
+  }
+
+  return ['NO', 'Name / Description', 'Model', 'Line', 'Category', 'Brand', 'Location', 'Unit', 'Stock', 'Min', 'Max', 'Need to PO', 'image_main_url', 'image_main_file_id', 'image_install_url', 'image_install_file_id'];
+}
+
+function ensureSheetWithTemplate(spreadsheet, sheetName) {
+  var sheet = getSheetByFlexibleName(spreadsheet, sheetName);
+  if (!sheet) sheet = spreadsheet.insertSheet(sheetName);
+
+  if (sheet.getLastRow() === 0) {
+    var headers = getTemplateHeaders(spreadsheet);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+
+  return sheet;
+}
+
 function ensureUsersSheetHeaders(sheet) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(USER_HEADERS);
@@ -433,10 +460,9 @@ function processTransaction(payload) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
   var resolvedSheetName = resolveReadSheetName({ sheet: payload.sheetName });
-  var mainSheet = getSheetByFlexibleName(spreadsheet, resolvedSheetName);
+  var mainSheet = ensureSheetWithTemplate(spreadsheet, resolvedSheetName);
 
   ensureLogSheetHeaders(historySheet);
-  if (!mainSheet) throw new Error('ไม่พบชีทชื่อ ' + resolvedSheetName);
   if (!payload.partName || !payload.qty) throw new Error('ต้องมี partName และ qty');
 
   var qty = Number(payload.qty);
@@ -447,7 +473,7 @@ function processTransaction(payload) {
   else signedQty = Math.abs(qty);
 
   var mainData = mainSheet.getDataRange().getValues();
-  if (!mainData.length) throw new Error('ไม่พบข้อมูลในชีทหลัก');
+  if (!mainData.length || mainData.length <= 1) throw new Error('ยังไม่มีข้อมูลอะไหล่ในชีท ' + resolvedSheetName);
 
   var headerRowIndex = findHeaderRowIndex(mainData);
   var headers = mainData[headerRowIndex];
@@ -523,11 +549,14 @@ function resolveReadSheetName(source) {
 
 function getMainSheetContext(sheetName) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = getSheetByFlexibleName(spreadsheet, sheetName);
-  if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + sheetName);
+  var sheet = ensureSheetWithTemplate(spreadsheet, sheetName);
 
   var data = sheet.getDataRange().getValues();
-  if (!data.length) throw new Error('ไม่พบข้อมูลในชีท ' + sheetName);
+  if (!data.length) {
+    var headers = getTemplateHeaders(spreadsheet);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    data = sheet.getDataRange().getValues();
+  }
 
   var headerRowIndex = findHeaderRowIndex(data);
   var headers = data[headerRowIndex];
@@ -880,11 +909,11 @@ function doGet(e) {
     }
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
-    var sheet = getSheetByFlexibleName(SpreadsheetApp.getActiveSpreadsheet(), sheetName);
-    if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + sheetName);
+    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ensureSheetWithTemplate(spreadsheet, sheetName);
 
     var data = sheet.getDataRange().getValues();
-    if (!data.length) return respond([], e);
+    if (!data.length || data.length <= 1) return respond([], e);
 
     var headerRowIndex = findHeaderRowIndex(data);
     var headers = data[headerRowIndex];
