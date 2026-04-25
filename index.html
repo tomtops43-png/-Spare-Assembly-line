@@ -65,15 +65,55 @@
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
-          <div id="sheetSelectorWrap" class="w-full mt-1 md:w-auto md:mt-0 md:ml-auto">
-            <select id="sheetSelector" class="rounded-lg border border-slate-300 px-3 py-2 bg-white text-sm">
-              <option value="Main List Stock">General</option>
-              <option value="Stock for MC">Stock for MC</option>
-            </select>
-          </div>
         </div>
 
-    <section id="stockPage" class="space-y-6 eng-gridline p-2 rounded-2xl">
+    <section id="stockPage" class="space-y-4 eng-gridline p-2 rounded-2xl">
+      <section id="stockStickyHeader" class="sticky top-0 z-40 -mx-2 border-b border-slate-200 bg-white/95 px-2 pb-3 pt-2 shadow-sm backdrop-blur">
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <div class="flex items-center justify-between gap-2 text-xs">
+            <div class="hidden md:flex items-center gap-1.5">
+              <button id="stockNavLogBtn" type="button" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">📜 Log ประวัติ</button>
+              <button id="stockNavManageBtn" type="button" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">🛠 จัดการรายการ</button>
+              <button id="stockNavAdminBtn" type="button" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">⚙️ Admin Panel</button>
+            </div>
+            <button id="stockUtilityMenuBtn" type="button" class="md:hidden rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">☰ เมนูลัด</button>
+            <div id="sheetSelectorWrap" class="ml-auto">
+              <select id="sheetSelector" class="rounded-lg border border-slate-300 px-3 py-1.5 bg-white text-xs">
+                <option value="Main List Stock">General</option>
+                <option value="Stock for MC">Stock for MC</option>
+              </select>
+            </div>
+          </div>
+          <div id="stockUtilityMenuMobile" class="mt-2 hidden md:hidden grid grid-cols-3 gap-2 text-xs">
+            <button id="stockNavLogBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">📜 Log</button>
+            <button id="stockNavManageBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">🛠 Manage</button>
+            <button id="stockNavAdminBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">⚙️ Admin</button>
+          </div>
+        </div>
+        <div class="mt-2 flex items-center gap-2">
+          <div class="inline-flex shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2">
+            <span class="text-lg">🏭</span>
+            <div class="leading-tight">
+              <p class="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Spare Parts</p>
+              <p class="text-xs font-bold text-blue-900">Stock Portal</p>
+            </div>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="relative md:hidden">
+              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+              <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-11 w-full rounded-xl border border-slate-300 pl-10 pr-12 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              <button id="searchClearBtnMobile" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-slate-100 text-slate-700 text-sm">×</button>
+            </div>
+            <div class="relative hidden md:block">
+              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+              <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-11 w-full rounded-xl border border-slate-300 pl-10 pr-10 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              <button id="searchClearBtn" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-slate-100 text-slate-700 text-sm">×</button>
+            </div>
+          </div>
+          <button id="openIssueCartBtnMobile" type="button" class="relative h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-3 text-blue-700 text-sm font-semibold md:hidden">🛒 <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+          <button id="openIssueCartBtn" type="button" class="relative hidden h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-4 text-blue-700 text-sm font-semibold md:inline-flex md:items-center">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+        </div>
+      </section>
       <p id="updatedAtText" class="hidden text-xs text-slate-500"></p>
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 md:p-4">
         <div class="hidden lg:flex items-center justify-between mb-3">
@@ -94,30 +134,17 @@
       <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="stat-cards"></section>
 
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
-        <div class="space-y-3 mb-4 lg:hidden sticky top-2 z-20 bg-white/95 backdrop-blur rounded-xl p-2 -mx-1">
-          <div class="relative">
-            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-            <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full rounded-xl border border-slate-300 pl-10 pr-12 py-3 text-base focus:ring-2 focus:ring-blue-500 outline-none" />
-            <button id="searchClearBtnMobile" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-100 text-slate-700 text-sm">×</button>
-          </div>
-          <div class="flex items-center gap-2">
-            <button id="openFilterSheetBtn" type="button" class="h-11 px-4 rounded-xl border border-slate-300 bg-white text-sm font-semibold">Filter</button>
-            <button id="openIssueCartBtnMobile" type="button" class="relative h-11 px-4 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-sm font-semibold">🛒 Cart <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
-            <select id="sortFilterMobile" class="h-11 flex-1 rounded-xl border border-slate-300 px-3 bg-white text-sm">
-              <option value="default">เรียงตามเดิม</option>
-              <option value="needpo_desc">Need to PO มากสุด</option>
-              <option value="stock_asc">Stock น้อยสุด</option>
-              <option value="name_asc">ชื่อ A-Z</option>
-            </select>
-          </div>
+        <div class="mb-4 flex items-center gap-2 md:hidden">
+          <button id="openFilterSheetBtn" type="button" class="h-10 px-4 rounded-xl border border-slate-300 bg-white text-sm font-semibold">Filter</button>
+          <select id="sortFilterMobile" class="h-10 flex-1 rounded-xl border border-slate-300 px-3 bg-white text-sm">
+            <option value="default">เรียงตามเดิม</option>
+            <option value="needpo_desc">Need to PO มากสุด</option>
+            <option value="stock_asc">Stock น้อยสุด</option>
+            <option value="name_asc">ชื่อ A-Z</option>
+          </select>
         </div>
 
-        <div class="hidden lg:flex lg:flex-row lg:items-center gap-3 lg:gap-4 mb-4">
-          <div class="relative w-full lg:flex-1">
-            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-            <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="w-full rounded-xl border border-slate-300 pl-10 pr-10 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
-            <button id="searchClearBtn" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-slate-100 text-slate-700 text-sm">×</button>
-          </div>
+        <div class="hidden md:flex md:flex-row md:items-center gap-3 md:gap-4 mb-4">
           <select id="categoryFilter" class="w-full lg:w-56 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="all">ทุกหมวดหมู่</option>
           </select>
@@ -616,6 +643,14 @@
     var tabLog = document.getElementById('tabLog');
     var tabManage = document.getElementById('tabManage');
     var tabAdmin = document.getElementById('tabAdmin');
+    var stockNavLogBtn = document.getElementById('stockNavLogBtn');
+    var stockNavManageBtn = document.getElementById('stockNavManageBtn');
+    var stockNavAdminBtn = document.getElementById('stockNavAdminBtn');
+    var stockNavLogBtnMobile = document.getElementById('stockNavLogBtnMobile');
+    var stockNavManageBtnMobile = document.getElementById('stockNavManageBtnMobile');
+    var stockNavAdminBtnMobile = document.getElementById('stockNavAdminBtnMobile');
+    var stockUtilityMenuBtn = document.getElementById('stockUtilityMenuBtn');
+    var stockUtilityMenuMobile = document.getElementById('stockUtilityMenuMobile');
     var lineMenuDockToggle = document.getElementById('lineMenuDockToggle');
     var lineMenuClose = document.getElementById('lineMenuClose');
     var lineMenuBackdrop = document.getElementById('lineMenuBackdrop');
@@ -1327,10 +1362,14 @@
       var canManageItems = hasPermission('manage_items');
       var canDeleteItems = hasPermission('delete_items');
       var canManageUsers = hasPermission('manage_users');
+      var navManage = [stockNavManageBtn, stockNavManageBtnMobile];
+      var navAdmin = [stockNavAdminBtn, stockNavAdminBtnMobile];
 
       tabManage.classList.toggle('hidden', !canManageItems);
       qaManageBtn.classList.toggle('hidden', !canManageItems);
       tabAdmin.classList.toggle('hidden', !canManageUsers);
+      navManage.forEach(function(el) { if (el) el.classList.toggle('hidden', !canManageItems); });
+      navAdmin.forEach(function(el) { if (el) el.classList.toggle('hidden', !canManageUsers); });
       if (!canManageUsers && !adminPage.classList.contains('hidden')) switchToStockPage();
       if (!canManageItems && !managePage.classList.contains('hidden')) switchToStockPage();
       renderAuthUserBox();
@@ -2739,6 +2778,25 @@
       tableStatusMode = 'all';
       applyFilters(false);
     });
+    function bindStockShortcut(btn, fn) {
+      if (!btn) return;
+      btn.addEventListener('click', function() {
+        fn();
+        if (stockUtilityMenuMobile) stockUtilityMenuMobile.classList.add('hidden');
+      });
+    }
+    bindStockShortcut(stockNavLogBtn, switchToLogPage);
+    bindStockShortcut(stockNavLogBtnMobile, switchToLogPage);
+    bindStockShortcut(stockNavManageBtn, switchToManagePage);
+    bindStockShortcut(stockNavManageBtnMobile, switchToManagePage);
+    bindStockShortcut(stockNavAdminBtn, switchToAdminPage);
+    bindStockShortcut(stockNavAdminBtnMobile, switchToAdminPage);
+    if (stockUtilityMenuBtn) {
+      stockUtilityMenuBtn.addEventListener('click', function() {
+        if (!stockUtilityMenuMobile) return;
+        stockUtilityMenuMobile.classList.toggle('hidden');
+      });
+    }
     qaManageBtn.addEventListener('click', switchToManagePage);
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
