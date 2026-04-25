@@ -102,6 +102,7 @@
           </div>
           <div class="flex items-center gap-2">
             <button id="openFilterSheetBtn" type="button" class="h-11 px-4 rounded-xl border border-slate-300 bg-white text-sm font-semibold">Filter</button>
+            <button id="openIssueCartBtnMobile" type="button" class="relative h-11 px-4 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-sm font-semibold">🛒 Cart <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
             <select id="sortFilterMobile" class="h-11 flex-1 rounded-xl border border-slate-300 px-3 bg-white text-sm">
               <option value="default">เรียงตามเดิม</option>
               <option value="needpo_desc">Need to PO มากสุด</option>
@@ -136,6 +137,7 @@
             <option value="stock_asc">Stock น้อยสุด</option>
             <option value="name_asc">ชื่อ A-Z</option>
           </select>
+          <button id="openIssueCartBtn" type="button" class="relative w-full lg:w-auto rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
         </div>
 
         <div id="mobileCardList" class="grid grid-cols-2 gap-3 lg:hidden"></div>
@@ -424,13 +426,14 @@
           <p id="detailMainEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูป</p>
           <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
         </div>
-        <div class="mt-4">
-          <div class="flex items-center justify-between gap-2">
-            <p id="detailName" class="text-xl md:text-2xl font-bold leading-tight">-</p>
-            <span id="detailStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-slate-100 text-slate-700">-</span>
-          </div>
-          <p id="detailMeta" class="mt-1 text-xs text-slate-500"></p>
-          <div class="mt-3 space-y-3">
+      <div class="mt-4">
+        <div class="flex items-center justify-between gap-2">
+          <p id="detailName" class="text-xl md:text-2xl font-bold leading-tight">-</p>
+          <span id="detailStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-slate-100 text-slate-700">-</span>
+        </div>
+        <p id="detailMeta" class="mt-1 text-xs text-slate-500"></p>
+        <button id="detailAddToCartBtn" type="button" class="mt-3 h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">🛒 Add to issue cart</button>
+        <div class="mt-3 space-y-3">
             <section>
               <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลหลัก</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
@@ -465,6 +468,22 @@
     <div class="flex h-full w-full items-center justify-center">
       <img id="imageViewerImg" src="" alt="full image" class="max-h-full max-w-full object-contain" />
     </div>
+  </div>
+
+  <div id="issueCartModal" class="fixed inset-0 z-[75] hidden">
+    <div id="issueCartBackdrop" class="absolute inset-0 bg-slate-900/45"></div>
+    <aside class="absolute bottom-0 left-0 right-0 max-h-[88vh] rounded-t-2xl border border-slate-200 bg-white p-4 md:bottom-0 md:left-auto md:right-0 md:top-0 md:h-full md:max-h-none md:w-[420px] md:rounded-none md:rounded-l-2xl md:p-5">
+      <div class="mb-3 flex items-center justify-between">
+        <h3 class="text-lg font-bold">🛒 Issue Cart</h3>
+        <button id="closeIssueCartBtn" type="button" class="h-9 w-9 rounded-full border border-slate-300 text-slate-600">×</button>
+      </div>
+      <div class="mb-3 flex items-center justify-between text-sm">
+        <p id="issueCartSummary" class="text-slate-600">0 รายการ</p>
+        <button id="clearIssueCartBtn" type="button" class="rounded-lg border border-rose-200 px-3 py-1.5 text-rose-700">ล้างทั้งหมด</button>
+      </div>
+      <div id="issueCartList" class="max-h-[58vh] space-y-2 overflow-y-auto md:max-h-[70vh]"></div>
+      <p id="issueCartHint" class="mt-3 text-xs text-slate-500">* ขั้นตอนนี้เป็นการเลือกชั่วคราว ยังไม่ตัด stock จริง</p>
+    </aside>
   </div>
 
   <div id="filterSheet" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 md:hidden">
@@ -527,6 +546,17 @@
     var openFilterSheetBtn = document.getElementById('openFilterSheetBtn');
     var closeFilterSheetBtn = document.getElementById('closeFilterSheetBtn');
     var applyFilterSheetBtn = document.getElementById('applyFilterSheetBtn');
+    var openIssueCartBtn = document.getElementById('openIssueCartBtn');
+    var openIssueCartBtnMobile = document.getElementById('openIssueCartBtnMobile');
+    var issueCartBadge = document.getElementById('issueCartBadge');
+    var issueCartBadgeMobile = document.getElementById('issueCartBadgeMobile');
+    var issueCartModal = document.getElementById('issueCartModal');
+    var issueCartBackdrop = document.getElementById('issueCartBackdrop');
+    var closeIssueCartBtn = document.getElementById('closeIssueCartBtn');
+    var clearIssueCartBtn = document.getElementById('clearIssueCartBtn');
+    var issueCartList = document.getElementById('issueCartList');
+    var issueCartSummary = document.getElementById('issueCartSummary');
+    var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
     var partsData = [];
@@ -535,6 +565,7 @@
     var currentPage = 1;
     var pageSize = 10;
     var tableStatusMode = 'all';
+    var issueCartState = {};
 
     var txnForm = document.getElementById('txnForm');
     var txnSearchInput = document.getElementById('txnSearchInput');
@@ -770,6 +801,134 @@
         showOutLabel: false,
         overlayLabelClass: ''
       };
+    }
+
+    function getIssueCartCount() {
+      return Object.keys(issueCartState).length;
+    }
+
+    function updateIssueCartBadges() {
+      var count = getIssueCartCount();
+      [issueCartBadge, issueCartBadgeMobile].forEach(function(el) {
+        if (!el) return;
+        el.textContent = String(count);
+        el.classList.toggle('hidden', count === 0);
+      });
+    }
+
+    function syncIssueCartWithStock() {
+      var nextState = {};
+      Object.keys(issueCartState).forEach(function(no) {
+        var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+        if (!found) return;
+        var stock = safeNum(found.stock);
+        if (stock <= 0) return;
+        var qty = Math.min(Math.max(1, safeNum(issueCartState[no])), stock);
+        nextState[no] = qty;
+      });
+      issueCartState = nextState;
+      updateIssueCartBadges();
+    }
+
+    function openIssueCart() {
+      issueCartModal.classList.remove('hidden');
+      lockBodyScroll();
+      renderIssueCart();
+    }
+
+    function closeIssueCart() {
+      issueCartModal.classList.add('hidden');
+      unlockBodyScroll();
+    }
+
+    function addItemToIssueCart(item, qtyToAdd) {
+      if (!item) return;
+      var stock = safeNum(item.stock);
+      if (stock <= 0) return;
+      var currentQty = safeNum(issueCartState[item.no] || 0);
+      var nextQty = Math.min(stock, Math.max(1, currentQty + safeNum(qtyToAdd || 1)));
+      issueCartState[item.no] = nextQty;
+      updateIssueCartBadges();
+      if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
+    }
+
+    function setIssueCartQty(no, qty) {
+      var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+      if (!found) return;
+      var stock = safeNum(found.stock);
+      if (stock <= 0) {
+        delete issueCartState[no];
+      } else {
+        var nextQty = Math.max(1, Math.min(stock, safeNum(qty)));
+        issueCartState[no] = nextQty;
+      }
+      updateIssueCartBadges();
+      renderIssueCart();
+    }
+
+    function removeFromIssueCart(no) {
+      delete issueCartState[no];
+      updateIssueCartBadges();
+      renderIssueCart();
+    }
+
+    function renderIssueCart() {
+      var entries = Object.keys(issueCartState).map(function(no) {
+        var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+        if (!found) return null;
+        return { item: found, qty: safeNum(issueCartState[no]) || 1 };
+      }).filter(Boolean);
+
+      issueCartSummary.textContent = entries.length + ' รายการ';
+      if (!entries.length) {
+        issueCartList.innerHTML = '<div class="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">ยังไม่มีรายการใน cart</div>';
+        return;
+      }
+
+      issueCartList.innerHTML = entries.map(function(entry) {
+        var item = entry.item;
+        var qty = Math.min(entry.qty, safeNum(item.stock));
+        var img = toSafeImageUrl(item.image_main_url);
+        var fallback = getSecondaryDriveImageUrl(item.image_main_url);
+        return '<article class="rounded-xl border border-slate-200 bg-white p-2.5">' +
+          '<div class="flex gap-2.5">' +
+            '<img src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+            '<div class="min-w-0 flex-1">' +
+              '<p class="truncate text-sm font-semibold text-slate-900">' + item.name + '</p>' +
+              '<p class="truncate text-xs text-slate-500">' + (item.model || '-') + '</p>' +
+              '<p class="text-xs text-slate-500">Stock: ' + item.stock + '</p>' +
+            '</div>' +
+          '</div>' +
+          '<div class="mt-2 flex items-center justify-between gap-2">' +
+            '<div class="inline-flex items-center rounded-lg border border-slate-300 overflow-hidden">' +
+              '<button data-cart-minus="' + item.no + '" class="h-8 w-8 bg-white text-slate-700">-</button>' +
+              '<span class="inline-flex h-8 min-w-[34px] items-center justify-center text-sm font-semibold">' + qty + '</span>' +
+              '<button data-cart-plus="' + item.no + '" class="h-8 w-8 bg-white text-slate-700">+</button>' +
+            '</div>' +
+            '<button data-cart-remove="' + item.no + '" class="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700">Remove</button>' +
+          '</div>' +
+        '</article>';
+      }).join('');
+
+      Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-minus]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var no = btn.getAttribute('data-cart-minus');
+          var qty = safeNum(issueCartState[no] || 1) - 1;
+          if (qty < 1) return removeFromIssueCart(no);
+          setIssueCartQty(no, qty);
+        });
+      });
+      Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-plus]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var no = btn.getAttribute('data-cart-plus');
+          setIssueCartQty(no, safeNum(issueCartState[no] || 1) + 1);
+        });
+      });
+      Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-remove]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          removeFromIssueCart(btn.getAttribute('data-cart-remove'));
+        });
+      });
     }
 
     function isDriveViewUrl(url) {
@@ -1534,6 +1693,8 @@
           if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
           renderTxnResultList();
           selectTxnItem(currentTxnItemNo);
+          syncIssueCartWithStock();
+          if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
           if (partsData.length) {
             var updatedAtText = document.getElementById('updatedAtText');
             updatedAtText.textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH');
@@ -2215,6 +2376,12 @@
       console.log('[render detail item]', item);
       console.log('[render detail image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: detailImageSrc, fallbackSrc: detailFallbackSrc });
       bindImageFallback(mainImg);
+      var canAddToCart = safeNum(item.stock) > 0;
+      if (detailAddToCartBtn) {
+        detailAddToCartBtn.disabled = !canAddToCart;
+        detailAddToCartBtn.classList.toggle('opacity-50', !canAddToCart);
+        detailAddToCartBtn.classList.toggle('cursor-not-allowed', !canAddToCart);
+      }
       detailModal.classList.remove('hidden');
       detailModal.classList.add('flex');
       lockBodyScroll();
@@ -2438,6 +2605,7 @@
     document.addEventListener('keydown', function(e) {
       if (e.key !== 'Escape') return;
       if (!imageViewer.classList.contains('hidden')) return closeImageViewer();
+      if (!issueCartModal.classList.contains('hidden')) return closeIssueCart();
       if (!editModal.classList.contains('hidden')) return closeEditModal();
     });
     document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
@@ -2450,6 +2618,21 @@
       tableStatusMode = 'all';
       filterSheet.classList.add('hidden');
       applyFilters();
+    });
+    if (openIssueCartBtn) openIssueCartBtn.addEventListener('click', openIssueCart);
+    if (openIssueCartBtnMobile) openIssueCartBtnMobile.addEventListener('click', openIssueCart);
+    if (issueCartBackdrop) issueCartBackdrop.addEventListener('click', closeIssueCart);
+    if (closeIssueCartBtn) closeIssueCartBtn.addEventListener('click', closeIssueCart);
+    if (clearIssueCartBtn) clearIssueCartBtn.addEventListener('click', function() {
+      issueCartState = {};
+      updateIssueCartBadges();
+      renderIssueCart();
+    });
+    if (detailAddToCartBtn) detailAddToCartBtn.addEventListener('click', function() {
+      if (!detailModalCurrentNo) return;
+      var found = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
+      if (!found) return;
+      addItemToIssueCart(found, 1);
     });
     editForm.addEventListener('submit', submitEditModal);
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
@@ -2518,6 +2701,7 @@
     });
     refreshUsersBtn.addEventListener('click', function() { loadUsers(); });
     applyEngineerJssTheme();
+    updateIssueCartBadges();
     renderLineTabs();
     applyLineTheme();
     updateLineMenuVisibility();
