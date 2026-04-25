@@ -482,6 +482,13 @@
         <button id="clearIssueCartBtn" type="button" class="rounded-lg border border-rose-200 px-3 py-1.5 text-rose-700">ล้างทั้งหมด</button>
       </div>
       <div id="issueCartList" class="max-h-[58vh] space-y-2 overflow-y-auto md:max-h-[70vh]"></div>
+      <div class="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <input id="issueCartBy" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="ผู้เบิก (required)" />
+        <input id="issueCartProcess" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="ไลน์/งาน" />
+        <input id="issueCartNote" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="หมายเหตุ (optional)" />
+        <button id="issueCartSubmitBtn" type="button" class="h-11 w-full rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white">✅ Confirm Issue Selected Items</button>
+        <p id="issueCartMessage" class="text-xs text-slate-500"></p>
+      </div>
       <p id="issueCartHint" class="mt-3 text-xs text-slate-500">* ขั้นตอนนี้เป็นการเลือกชั่วคราว ยังไม่ตัด stock จริง</p>
     </aside>
   </div>
@@ -556,6 +563,11 @@
     var clearIssueCartBtn = document.getElementById('clearIssueCartBtn');
     var issueCartList = document.getElementById('issueCartList');
     var issueCartSummary = document.getElementById('issueCartSummary');
+    var issueCartBy = document.getElementById('issueCartBy');
+    var issueCartProcess = document.getElementById('issueCartProcess');
+    var issueCartNote = document.getElementById('issueCartNote');
+    var issueCartSubmitBtn = document.getElementById('issueCartSubmitBtn');
+    var issueCartMessage = document.getElementById('issueCartMessage');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
@@ -566,6 +578,7 @@
     var pageSize = 10;
     var tableStatusMode = 'all';
     var issueCartState = {};
+    var issueCartSubmitting = false;
 
     var txnForm = document.getElementById('txnForm');
     var txnSearchInput = document.getElementById('txnSearchInput');
@@ -833,6 +846,8 @@
     function openIssueCart() {
       issueCartModal.classList.remove('hidden');
       lockBodyScroll();
+      if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
+      setIssueCartMessage('', 'muted');
       renderIssueCart();
     }
 
@@ -880,6 +895,12 @@
       }).filter(Boolean);
 
       issueCartSummary.textContent = entries.length + ' รายการ';
+      if (issueCartSubmitBtn && !issueCartSubmitting) {
+        var shouldDisable = !entries.length || !hasPermission('transact');
+        issueCartSubmitBtn.disabled = shouldDisable;
+        issueCartSubmitBtn.classList.toggle('opacity-60', shouldDisable);
+        issueCartSubmitBtn.classList.toggle('cursor-not-allowed', shouldDisable);
+      }
       if (!entries.length) {
         issueCartList.innerHTML = '<div class="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">ยังไม่มีรายการใน cart</div>';
         return;
@@ -929,6 +950,61 @@
           removeFromIssueCart(btn.getAttribute('data-cart-remove'));
         });
       });
+    }
+
+    function setIssueCartMessage(message, tone) {
+      if (!issueCartMessage) return;
+      var cls = 'text-xs ';
+      if (tone === 'error') cls += 'text-rose-600';
+      else if (tone === 'success') cls += 'text-emerald-600';
+      else cls += 'text-slate-500';
+      issueCartMessage.className = cls;
+      issueCartMessage.textContent = message || '';
+    }
+
+    function setIssueCartSubmitState(isSubmitting) {
+      issueCartSubmitting = !!isSubmitting;
+      if (!issueCartSubmitBtn) return;
+      issueCartSubmitBtn.disabled = !!isSubmitting;
+      issueCartSubmitBtn.classList.toggle('opacity-60', !!isSubmitting);
+      issueCartSubmitBtn.classList.toggle('cursor-not-allowed', !!isSubmitting);
+      issueCartSubmitBtn.textContent = isSubmitting ? 'กำลังบันทึกรายการ...' : '✅ Confirm Issue Selected Items';
+    }
+
+    function applyIssueCartAuthorizationUi() {
+      var canTransact = hasPermission('transact');
+      if (openIssueCartBtn) openIssueCartBtn.classList.toggle('hidden', !canTransact);
+      if (openIssueCartBtnMobile) openIssueCartBtnMobile.classList.toggle('hidden', !canTransact);
+      if (detailAddToCartBtn) detailAddToCartBtn.classList.toggle('hidden', !canTransact);
+      if (issueCartSubmitBtn) {
+        issueCartSubmitBtn.disabled = !canTransact || issueCartSubmitting;
+        issueCartSubmitBtn.classList.toggle('opacity-60', !canTransact || issueCartSubmitting);
+        issueCartSubmitBtn.classList.toggle('cursor-not-allowed', !canTransact || issueCartSubmitting);
+      }
+      if (!canTransact) setIssueCartMessage('คุณไม่มีสิทธิ์ทำรายการเบิก (transact)', 'error');
+    }
+
+    function getIssueCartEntries() {
+      return Object.keys(issueCartState).map(function(no) {
+        var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+        if (!found) return null;
+        return { no: String(no), item: found, qty: safeNum(issueCartState[no]) };
+      }).filter(Boolean);
+    }
+
+    function validateIssueCartSubmission(entries) {
+      if (!hasPermission('transact')) return 'คุณไม่มีสิทธิ์ทำรายการเบิก';
+      if (!entries.length) return 'ยังไม่มีรายการใน cart';
+      if (!issueCartBy || !String(issueCartBy.value || '').trim()) return 'กรุณาระบุผู้เบิก';
+      for (var i = 0; i < entries.length; i += 1) {
+        var entry = entries[i];
+        var qty = safeNum(entry.qty);
+        var stock = safeNum(entry.item.stock);
+        if (qty <= 0) return 'จำนวนต้องมากกว่า 0: ' + (entry.item.name || entry.no);
+        if (stock <= 0) return 'สินค้าหมดสต็อก: ' + (entry.item.name || entry.no);
+        if (qty > stock) return 'จำนวนเกิน stock: ' + (entry.item.name || entry.no) + ' (' + qty + ' > ' + stock + ')';
+      }
+      return '';
     }
 
     function isDriveViewUrl(url) {
@@ -1258,6 +1334,7 @@
       if (!canManageUsers && !adminPage.classList.contains('hidden')) switchToStockPage();
       if (!canManageItems && !managePage.classList.contains('hidden')) switchToStockPage();
       renderAuthUserBox();
+      applyIssueCartAuthorizationUi();
     }
 
     function parseApiResponse(res) {
@@ -1863,6 +1940,101 @@
           selectTxnItem(btn.getAttribute('data-txn-no'));
           renderTxnResultList();
         });
+      });
+    }
+
+    function createOutputTransactionPayload(item, qty, byValue, processValue, noteValue) {
+      var processText = processValue || item.line || '-';
+      if (noteValue) processText = processText + ' | note: ' + noteValue;
+      return {
+        partNo: item.no,
+        type: 'Output',
+        process: processText,
+        category: item.category || 'General',
+        partName: item.name,
+        model: item.model || '-',
+        brand: item.brand || '-',
+        qty: qty,
+        unit: item.unit || 'PCS',
+        by: byValue || 'Unknown'
+      };
+    }
+
+    function submitIssueCartTransactions() {
+      if (issueCartSubmitting) return;
+      var entries = getIssueCartEntries();
+      var validationError = validateIssueCartSubmission(entries);
+      if (validationError) {
+        setIssueCartMessage(validationError, 'error');
+        return;
+      }
+
+      var byValue = String(issueCartBy.value || '').trim();
+      var processValue = String((issueCartProcess && issueCartProcess.value) || '').trim();
+      var noteValue = String((issueCartNote && issueCartNote.value) || '').trim();
+      if (!confirm('ยืนยันการเบิก ' + entries.length + ' รายการ ?')) return;
+
+      setIssueCartSubmitState(true);
+      setIssueCartMessage('กำลังบันทึกรายการ 0/' + entries.length + ' ...', 'muted');
+
+      var idx = 0;
+      var successNos = [];
+      var failures = [];
+
+      function runNext() {
+        if (idx >= entries.length) return Promise.resolve();
+        var entry = entries[idx++];
+        var latestItem = partsData.filter(function(p){ return String(p.no) === String(entry.no); })[0];
+        if (!latestItem) {
+          failures.push((entry.item.name || entry.no) + ': ไม่พบข้อมูลล่าสุด');
+          return runNext();
+        }
+        var latestStock = safeNum(latestItem.stock);
+        var latestQty = safeNum(issueCartState[entry.no] || entry.qty);
+        if (latestQty <= 0 || latestStock <= 0 || latestQty > latestStock) {
+          failures.push((latestItem.name || entry.no) + ': stock ไม่พอสำหรับเบิก');
+          return runNext();
+        }
+        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, processValue, noteValue);
+        setIssueCartMessage('กำลังบันทึกรายการ ' + (idx - failures.length) + '/' + entries.length + ' ...', 'muted');
+        return callTransactionViaJsonp(payload).then(function(res) {
+          if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
+          successNos.push(entry.no);
+        }).catch(function(err) {
+          failures.push((latestItem.name || entry.no) + ': ' + (err && err.message ? err.message : 'บันทึกไม่สำเร็จ'));
+        }).then(runNext);
+      }
+
+      runNext().then(function() {
+        successNos.forEach(function(no) { delete issueCartState[no]; });
+        updateIssueCartBadges();
+        renderIssueCart();
+
+        if (successNos.length) {
+          loadPartsData();
+          loadLogData();
+          if (detailModalCurrentNo && successNos.indexOf(String(detailModalCurrentNo)) > -1) {
+            var updated = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
+            if (updated) {
+              document.getElementById('detailStock').textContent = String(updated.stock || 0);
+              document.getElementById('detailNeedToOrder').textContent = String(getNeedToOrder(updated));
+            }
+          }
+        }
+
+        if (!failures.length) {
+          setIssueCartMessage('บันทึกสำเร็จทั้งหมด ' + successNos.length + ' รายการ', 'success');
+          if (issueCartNote) issueCartNote.value = '';
+        } else if (successNos.length) {
+          setIssueCartMessage('สำเร็จ ' + successNos.length + ' รายการ, ไม่สำเร็จ ' + failures.length + ' รายการ: ' + failures.join(' | '), 'error');
+        } else {
+          setIssueCartMessage('บันทึกไม่สำเร็จ: ' + failures.join(' | '), 'error');
+        }
+      }).catch(function(err) {
+        setIssueCartMessage('บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+      }).finally(function() {
+        setIssueCartSubmitState(false);
+        applyIssueCartAuthorizationUi();
       });
     }
 
@@ -2627,12 +2799,15 @@
       issueCartState = {};
       updateIssueCartBadges();
       renderIssueCart();
+      setIssueCartMessage('', 'muted');
     });
+    if (issueCartSubmitBtn) issueCartSubmitBtn.addEventListener('click', submitIssueCartTransactions);
     if (detailAddToCartBtn) detailAddToCartBtn.addEventListener('click', function() {
       if (!detailModalCurrentNo) return;
       var found = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
       if (!found) return;
       addItemToIssueCart(found, 1);
+      setIssueCartMessage('เพิ่มลง cart แล้ว: ' + (found.name || found.no), 'success');
     });
     editForm.addEventListener('submit', submitEditModal);
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
