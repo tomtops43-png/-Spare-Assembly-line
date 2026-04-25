@@ -106,6 +106,8 @@
             <button id="stockNavManageBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">🛠 Manage</button>
             <button id="stockNavAdminBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">⚙️ Admin</button>
           </div>
+          <button id="openIssueCartBtnMobile" type="button" class="relative h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-3 text-blue-700 text-sm font-semibold md:hidden">🛒 <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+          <button id="openIssueCartBtn" type="button" class="relative hidden h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-4 text-blue-700 text-sm font-semibold md:inline-flex md:items-center">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
         </div>
         <div class="mt-2 flex flex-wrap items-center gap-2">
           <div class="inline-flex shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2">
@@ -175,6 +177,7 @@
             <option value="stock_asc">Stock น้อยสุด</option>
             <option value="name_asc">ชื่อ A-Z</option>
           </select>
+          <button id="openIssueCartBtn" type="button" class="relative w-full lg:w-auto rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
         </div>
 
         <div id="mobileCardList" class="grid grid-cols-2 gap-3 lg:hidden"></div>
@@ -1572,12 +1575,14 @@
       if (isLineMenuVisible) {
         lineMenuPanel.classList.remove('-translate-x-full');
         lineMenuBackdrop.classList.remove('hidden');
+        lineMenuDockToggle.classList.remove('hidden');
         lineMenuDockToggle.textContent = '✕';
         lineMenuDockToggle.setAttribute('aria-label', 'ซ่อน Line Menu');
         lineMenuDockToggle.setAttribute('title', 'ซ่อน Line Menu');
       } else {
         lineMenuPanel.classList.add('-translate-x-full');
         lineMenuBackdrop.classList.add('hidden');
+        lineMenuDockToggle.classList.remove('hidden');
         lineMenuDockToggle.textContent = '☰';
         lineMenuDockToggle.setAttribute('aria-label', 'เปิด Line Menu');
         lineMenuDockToggle.setAttribute('title', 'เปิด Line Menu');
@@ -1955,7 +1960,7 @@
 
       txnStockGuardMessage.classList.toggle('hidden', !shouldBlockSubmit);
       if (shouldBlockSubmit) {
-        txnStockGuardMessage.innerHTML = 'สินค้าหมดสต็อก ไม่สามารถเบิกออกได้<br>สามารถรับเข้าได้เท่านั้น';
+        txnStockGuardMessage.innerHTML = 'อะไหล่หมดสต็อก ไม่สามารถเบิกออกได้<br>สามารถรับเข้าได้เท่านั้น';
       }
     }
 
