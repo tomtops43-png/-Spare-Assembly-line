@@ -42,26 +42,32 @@
   <div id="appShell" class="hidden max-w-7xl mx-auto px-3 py-6 md:px-8 md:py-8">
     <header class="mb-3 md:mb-4">
       <div class="bg-white rounded-2xl border border-blue-100 p-4 md:p-5 shadow-[0_12px_32px_rgba(15,23,42,0.12)]">
-        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
-              <p id="headerLineLabel" class="text-[11px] md:text-xs text-blue-700 font-semibold tracking-[0.12em] uppercase">Current Line</p>
+              <p id="headerLineLabel" class="text-[11px] text-blue-700 font-semibold tracking-[0.12em] uppercase">Current Line</p>
               <span id="currentLineBadge" class="inline-flex items-center rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-bold text-white">H9</span>
             </div>
-            <h1 class="mt-2 text-2xl md:text-[34px] font-extrabold leading-tight text-slate-900">Spare Parts Catalog</h1>
-            <p class="mt-1 text-sm md:text-base text-slate-600">Production Assembly Line</p>
-            <p class="mt-2 text-xs md:text-sm text-slate-500">Manage stock, issue, receive, and monitor alerts.</p>
+            <h1 class="mt-2 text-[34px] md:text-[34px] font-extrabold leading-none text-slate-900">
+              <span class="md:hidden">Spare Parts</span>
+              <span class="hidden md:inline">Spare Parts Catalog</span>
+            </h1>
+            <p class="mt-1 text-sm md:text-base text-slate-600">
+              <span class="md:hidden">Stock Portal</span>
+              <span class="hidden md:inline">Production Assembly Line</span>
+            </p>
+            <p class="mt-2 hidden md:block text-sm text-slate-500">Manage stock, issue, receive, and monitor alerts.</p>
           </div>
-          <div id="authUserBox" class="hidden w-full md:w-auto">
-            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 md:min-w-[200px]">
-              <div class="flex items-center justify-between gap-3">
-                <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-lg text-white shadow-sm">👤</div>
+          <div id="authUserBox" class="hidden w-auto">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 md:min-w-[200px] md:px-3 md:py-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <div class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-base text-white shadow-sm">👤</div>
                 <div class="min-w-0 flex-1 text-right">
                   <p id="authUserName" class="truncate text-sm font-semibold text-slate-800">-</p>
                   <span id="authUserRole" class="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-700">-</span>
                 </div>
               </div>
-              <button id="logoutBtn" type="button" class="mt-2 h-9 w-full rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700">Logout</button>
+              <button id="logoutBtn" type="button" class="mt-2 h-8 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm font-semibold text-slate-700">Logout</button>
             </div>
           </div>
         </div>
