@@ -76,7 +76,7 @@
 
     <div class="grid grid-cols-1 gap-4 items-start">
       <div id="mainContentPanel" class="min-w-0">
-        <div class="flex flex-wrap gap-2 mb-4 items-center">
+        <div id="topNavTabs" class="flex gap-2 mb-4 items-center overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0">
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
@@ -109,17 +109,17 @@
           <button id="openIssueCartBtnMobile" type="button" class="relative h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-3 text-blue-700 text-sm font-semibold md:hidden">🛒 <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
           <button id="openIssueCartBtn" type="button" class="relative hidden h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-4 text-blue-700 text-sm font-semibold md:inline-flex md:items-center">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
         </div>
-        <div class="mt-2 flex flex-wrap items-center gap-2">
-          <div class="inline-flex shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2">
+        <div class="mt-2 grid gap-2 md:flex md:flex-wrap md:items-center">
+          <div class="hidden shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2 md:inline-flex">
             <span class="text-lg">🏭</span>
             <div class="leading-tight">
               <p class="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Spare Parts</p>
               <p class="text-xs font-bold text-blue-900">Stock Portal</p>
             </div>
           </div>
-          <button id="openIssueCartBtnMobile" type="button" class="relative ml-auto h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-3 text-blue-700 text-sm font-semibold md:hidden">🛒 <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+          <button id="openIssueCartBtnMobile" type="button" class="relative h-10 w-full rounded-xl border border-blue-300 bg-blue-50 px-4 text-blue-700 text-sm font-semibold md:hidden">🛒 Issue Cart <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
           <button id="openIssueCartBtn" type="button" class="relative hidden h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-4 text-blue-700 text-sm font-semibold md:inline-flex md:items-center">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
-          <div class="order-3 w-full min-w-0 md:order-none md:flex-1 md:w-auto">
+          <div class="order-1 w-full min-w-0 md:order-none md:flex-1 md:w-auto">
             <div class="relative md:hidden">
               <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
               <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-11 w-full rounded-xl border border-slate-300 pl-10 pr-12 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -1734,8 +1734,8 @@
     }
 
     function setTabStyles(active) {
-      var tabBaseClass = 'min-w-[calc(50%-0.25rem)] sm:min-w-0 sm:shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
-      var tabActiveClass = 'min-w-[calc(50%-0.25rem)] sm:min-w-0 sm:shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      var tabBaseClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      var tabActiveClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
       tabStock.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
       tabLog.className = tabBaseClass;
@@ -1748,6 +1748,7 @@
       if (active === 'admin') tabAdmin.className = tabActiveClass;
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
       tabAdmin.classList.toggle('hidden', !hasPermission('manage_users'));
+      tabTxn.classList.toggle('hidden', window.innerWidth < 768);
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
     }
 
@@ -2846,7 +2847,14 @@
         stockUtilityMenuMobile.classList.toggle('hidden');
       });
     }
-    window.addEventListener('resize', updateLineMenuVisibility);
+    window.addEventListener('resize', function() {
+      updateLineMenuVisibility();
+      if (!stockPage.classList.contains('hidden')) setTabStyles('stock');
+      else if (!txnPage.classList.contains('hidden')) setTabStyles('txn');
+      else if (!logPage.classList.contains('hidden')) setTabStyles('log');
+      else if (!managePage.classList.contains('hidden')) setTabStyles('manage');
+      else if (!adminPage.classList.contains('hidden')) setTabStyles('admin');
+    });
     qaManageBtn.addEventListener('click', switchToManagePage);
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
