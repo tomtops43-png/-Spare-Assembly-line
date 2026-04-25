@@ -26,7 +26,7 @@
     }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800">
+<body class="bg-slate-100 text-slate-800 overflow-x-hidden">
   <button id="lineMenuDockToggle" class="hidden z-40 mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-semibold text-slate-700 shadow-sm md:fixed md:left-3 md:top-24" aria-label="เปิด Line Menu" title="เปิด Line Menu">
     ☰
   </button>
@@ -39,7 +39,7 @@
     <div id="lineTabs" class="flex flex-col gap-2"></div>
   </aside>
 
-  <div id="appShell" class="hidden max-w-7xl mx-auto px-4 py-8 md:px-8">
+  <div id="appShell" class="hidden max-w-7xl mx-auto px-3 py-6 md:px-8 md:py-8">
     <header class="mb-3 md:mb-4">
       <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
         <div class="flex items-start justify-between gap-3">
@@ -59,7 +59,7 @@
 
     <div class="grid grid-cols-1 gap-4 items-start">
       <div id="mainContentPanel" class="min-w-0">
-        <div class="flex md:flex-wrap flex-nowrap overflow-x-auto gap-2 mb-4 items-center pb-1 md:pb-0">
+        <div class="flex flex-wrap gap-2 mb-4 items-center">
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
@@ -90,7 +90,7 @@
             <button id="stockNavAdminBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">⚙️ Admin</button>
           </div>
         </div>
-        <div class="mt-2 flex items-center gap-2">
+        <div class="mt-2 flex flex-wrap items-center gap-2">
           <div class="inline-flex shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2">
             <span class="text-lg">🏭</span>
             <div class="leading-tight">
@@ -98,7 +98,9 @@
               <p class="text-xs font-bold text-blue-900">Stock Portal</p>
             </div>
           </div>
-          <div class="min-w-0 flex-1">
+          <button id="openIssueCartBtnMobile" type="button" class="relative ml-auto h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-3 text-blue-700 text-sm font-semibold md:hidden">🛒 <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+          <button id="openIssueCartBtn" type="button" class="relative hidden h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-4 text-blue-700 text-sm font-semibold md:inline-flex md:items-center">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+          <div class="order-3 w-full min-w-0 md:order-none md:flex-1 md:w-auto">
             <div class="relative md:hidden">
               <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
               <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-11 w-full rounded-xl border border-slate-300 pl-10 pr-12 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -850,7 +852,7 @@
     function renderOutOfStockOverlay(textSizeClass) {
       var sizeClass = textSizeClass || 'text-xl';
       return '<div class="flex flex-col items-center justify-center gap-1.5">' +
-        '<p class="' + sizeClass + ' font-extrabold tracking-wide text-slate-900">อะไหล่หมด</p>' +
+        '<p class="' + sizeClass + ' font-extrabold tracking-wide text-slate-900">สินค้าหมด</p>' +
         '<span class="h-0.5 w-24 rounded-full bg-slate-900/80"></span>' +
       '</div>';
     }
@@ -1040,7 +1042,7 @@
         var qty = safeNum(entry.qty);
         var stock = safeNum(entry.item.stock);
         if (qty <= 0) return 'จำนวนต้องมากกว่า 0: ' + (entry.item.name || entry.no);
-        if (stock <= 0) return 'อะไหล่หมดสต็อก: ' + (entry.item.name || entry.no);
+        if (stock <= 0) return 'สินค้าหมดสต็อก: ' + (entry.item.name || entry.no);
         if (qty > stock) return 'จำนวนเกิน stock: ' + (entry.item.name || entry.no) + ' (' + qty + ' > ' + stock + ')';
       }
       return '';
@@ -1689,16 +1691,18 @@
     }
 
     function setTabStyles(active) {
-      tabStock.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
-      tabTxn.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
-      tabLog.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
-      tabManage.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
-      tabAdmin.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
-      if (active === 'stock') tabStock.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
-      if (active === 'txn') tabTxn.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
-      if (active === 'log') tabLog.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
-      if (active === 'manage') tabManage.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
-      if (active === 'admin') tabAdmin.className = 'shrink-0 whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      var tabBaseClass = 'min-w-[calc(50%-0.25rem)] sm:min-w-0 sm:shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      var tabActiveClass = 'min-w-[calc(50%-0.25rem)] sm:min-w-0 sm:shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      tabStock.className = tabBaseClass;
+      tabTxn.className = tabBaseClass;
+      tabLog.className = tabBaseClass;
+      tabManage.className = tabBaseClass;
+      tabAdmin.className = tabBaseClass;
+      if (active === 'stock') tabStock.className = tabActiveClass;
+      if (active === 'txn') tabTxn.className = tabActiveClass;
+      if (active === 'log') tabLog.className = tabActiveClass;
+      if (active === 'manage') tabManage.className = tabActiveClass;
+      if (active === 'admin') tabAdmin.className = tabActiveClass;
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
       tabAdmin.classList.toggle('hidden', !hasPermission('manage_users'));
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
