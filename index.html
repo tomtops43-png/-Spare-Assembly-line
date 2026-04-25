@@ -850,7 +850,7 @@
     function renderOutOfStockOverlay(textSizeClass) {
       var sizeClass = textSizeClass || 'text-xl';
       return '<div class="flex flex-col items-center justify-center gap-1.5">' +
-        '<p class="' + sizeClass + ' font-extrabold tracking-wide text-slate-900">สินค้าหมด</p>' +
+        '<p class="' + sizeClass + ' font-extrabold tracking-wide text-slate-900">อะไหล่หมด</p>' +
         '<span class="h-0.5 w-24 rounded-full bg-slate-900/80"></span>' +
       '</div>';
     }
@@ -1040,7 +1040,7 @@
         var qty = safeNum(entry.qty);
         var stock = safeNum(entry.item.stock);
         if (qty <= 0) return 'จำนวนต้องมากกว่า 0: ' + (entry.item.name || entry.no);
-        if (stock <= 0) return 'สินค้าหมดสต็อก: ' + (entry.item.name || entry.no);
+        if (stock <= 0) return 'อะไหล่หมดสต็อก: ' + (entry.item.name || entry.no);
         if (qty > stock) return 'จำนวนเกิน stock: ' + (entry.item.name || entry.no) + ' (' + qty + ' > ' + stock + ')';
       }
       return '';
@@ -1913,7 +1913,7 @@
 
       txnStockGuardMessage.classList.toggle('hidden', !shouldBlockSubmit);
       if (shouldBlockSubmit) {
-        txnStockGuardMessage.innerHTML = 'สินค้าหมดสต็อก ไม่สามารถเบิกออกได้<br>สามารถรับเข้าได้เท่านั้น';
+        txnStockGuardMessage.innerHTML = 'อะไหล่หมดสต็อก ไม่สามารถเบิกออกได้<br>สามารถรับเข้าได้เท่านั้น';
       }
     }
 
