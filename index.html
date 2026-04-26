@@ -24,6 +24,16 @@
         background: rgba(255, 255, 255, 0.18);
       }
     }
+    @media (max-width: 767px) {
+      body.line-menu-mobile-open #appShell {
+        visibility: hidden;
+      }
+      body.line-menu-mobile-open #lineMenuPanel,
+      body.line-menu-mobile-open #lineMenuBackdrop,
+      body.line-menu-mobile-open #lineMenuDockToggle {
+        visibility: visible;
+      }
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 overflow-x-hidden">
@@ -1371,6 +1381,7 @@
       document.body.classList.toggle('overflow-hidden', !isAuthenticated);
       lineMenuDockToggle.classList.toggle('hidden', !isAuthenticated);
       if (!isAuthenticated) {
+        document.body.classList.remove('line-menu-mobile-open');
         isLineMenuVisible = false;
         lineMenuBackdrop.classList.add('hidden');
         lineMenuPanel.classList.add('-translate-x-full');
@@ -1552,6 +1563,7 @@
     function updateLineMenuVisibility() {
       var isDesktop = window.innerWidth >= 768;
       if (isDesktop) {
+        document.body.classList.remove('line-menu-mobile-open');
         lineMenuBackdrop.classList.add('hidden');
         lineMenuDockToggle.classList.remove('hidden');
         if (isLineMenuVisible) {
@@ -1573,6 +1585,7 @@
       appShell.classList.remove('md:ml-72');
       lineMenuDockToggle.classList.remove('hidden');
       if (isLineMenuVisible) {
+        document.body.classList.add('line-menu-mobile-open');
         lineMenuPanel.classList.remove('-translate-x-full');
         lineMenuBackdrop.classList.remove('hidden');
         lineMenuDockToggle.classList.remove('hidden');
@@ -1580,6 +1593,7 @@
         lineMenuDockToggle.setAttribute('aria-label', 'ซ่อน Line Menu');
         lineMenuDockToggle.setAttribute('title', 'ซ่อน Line Menu');
       } else {
+        document.body.classList.remove('line-menu-mobile-open');
         lineMenuPanel.classList.add('-translate-x-full');
         lineMenuBackdrop.classList.add('hidden');
         lineMenuDockToggle.classList.remove('hidden');
