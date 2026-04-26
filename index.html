@@ -432,7 +432,11 @@
             </section>
             <section class="rounded-xl border border-slate-200 p-3">
               <h4 class="mb-2 text-sm font-semibold text-slate-700">การเข้าถึง line</h4>
-              <input id="uLineAccess" type="text" class="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" placeholder="เช่น H9, Arc Chute (UI placeholder)" />
+              <label class="mb-2 flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                <input id="uAllLinesAccess" type="checkbox" class="h-4 w-4" />
+                Full access ทุก line
+              </label>
+              <div id="lineAccessGrid" class="grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
             </section>
             <section class="rounded-xl border border-slate-200 p-3">
               <h4 class="mb-2 text-sm font-semibold text-slate-700">การจัดการบัญชี</h4>
@@ -441,6 +445,7 @@
                 <button id="resetUserBtn" type="button" class="h-10 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold">ล้างฟอร์ม</button>
                 <button id="deleteUserBtn" type="button" class="h-10 rounded-xl border border-rose-300 bg-rose-50 px-4 text-sm font-semibold text-rose-700">ลบผู้ใช้</button>
               </div>
+              <button id="resetRolePresetBtn" type="button" class="mt-2 h-9 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-xs font-semibold text-blue-700">Reset permissions ตาม role preset</button>
             </section>
           </form>
         </aside>
@@ -798,6 +803,7 @@
     var newUserBtn = document.getElementById('newUserBtn');
     var resetUserBtn = document.getElementById('resetUserBtn');
     var deleteUserBtn = document.getElementById('deleteUserBtn');
+    var resetRolePresetBtn = document.getElementById('resetRolePresetBtn');
     var adminEditorPanel = document.getElementById('adminEditorPanel');
     var closeAdminEditorMobileBtn = document.getElementById('closeAdminEditorMobileBtn');
     var selectedUserLabel = document.getElementById('selectedUserLabel');
@@ -807,6 +813,8 @@
     var userLineFilter = document.getElementById('userLineFilter');
     var userManageMessage = document.getElementById('userManageMessage');
     var permissionSummary = document.getElementById('permissionSummary');
+    var lineAccessGrid = document.getElementById('lineAccessGrid');
+    var uAllLinesAccess = document.getElementById('uAllLinesAccess');
     var adminUsersCache = [];
     var selectedAdminUser = null;
     var PERMISSION_GROUPS = [
@@ -844,6 +852,28 @@
         { key: 'manage_lug_screw', label: 'จัดการ Lug&Screw' }
       ]}
     ];
+    var LINE_OPTIONS = [
+      { key: 'h9', label: 'H9' },
+      { key: 'arc_chute', label: 'Arc Chute' },
+      { key: 'coil_winding', label: 'Coil Winding' },
+      { key: 'lug_screw', label: 'Lug&Screw' }
+    ];
+    var ROLE_PRESETS = {
+      admin: {
+        permissions: PERMISSION_GROUPS.reduce(function(acc, group) {
+          return acc.concat(group.items.map(function(item) { return item.key; }));
+        }, []),
+        lines: 'all'
+      },
+      leader: {
+        permissions: ['view_stock', 'view_detail', 'issue_part', 'receive_part', 'edit_item', 'view_logs', 'access_admin_panel', 'view_dashboard', 'view_alerts', 'use_issue_cart'],
+        lines: 'managed'
+      },
+      user: {
+        permissions: ['view_stock', 'view_detail', 'issue_part', 'use_issue_cart', 'view_alerts'],
+        lines: 'view'
+      }
+    };
     var PERMISSION_COMPAT_MAP = {
       manage_users: ['manage_users', 'manage_auth'],
       delete_users: ['delete_users', 'delete_user'],
@@ -1653,6 +1683,80 @@
       syncPermissionsJsonFromUI();
     }
 
+    function renderLineAccessControls() {
+      if (!lineAccessGrid) return;
+      lineAccessGrid.innerHTML = LINE_OPTIONS.map(function(line) {
+        return '<div class="rounded-lg border border-slate-200 bg-white p-2.5">' +
+          '<p class="text-xs font-semibold text-slate-700">' + line.label + '</p>' +
+          '<div class="mt-2 flex items-center gap-3 text-xs text-slate-600">' +
+            '<label class="inline-flex items-center gap-1.5"><input type="checkbox" data-line-view="' + line.key + '" class="h-4 w-4 rounded border-slate-300" /> View</label>' +
+            '<label class="inline-flex items-center gap-1.5"><input type="checkbox" data-line-manage="' + line.key + '" class="h-4 w-4 rounded border-slate-300" /> Manage</label>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      Array.prototype.slice.call(document.querySelectorAll('[data-line-view],[data-line-manage]')).forEach(function(input) {
+        input.addEventListener('change', syncPermissionsJsonFromUI);
+      });
+      if (uAllLinesAccess) {
+        uAllLinesAccess.addEventListener('change', function() {
+          if (uAllLinesAccess.checked) {
+            Array.prototype.slice.call(document.querySelectorAll('[data-line-view],[data-line-manage]')).forEach(function(input) {
+              input.checked = false;
+            });
+          }
+          syncPermissionsJsonFromUI();
+        });
+      }
+    }
+
+    function getSelectedLineAccessFromUI() {
+      if (uAllLinesAccess && uAllLinesAccess.checked) return { allLines: true, permissions: [] };
+      var items = [];
+      LINE_OPTIONS.forEach(function(line) {
+        var view = document.querySelector('[data-line-view="' + line.key + '"]');
+        var manage = document.querySelector('[data-line-manage="' + line.key + '"]');
+        if (view && view.checked) items.push('view_' + line.key);
+        if (manage && manage.checked) items.push('manage_' + line.key);
+      });
+      return { allLines: false, permissions: items };
+    }
+
+    function setLineAccessUIFromAllowList(allowList) {
+      var hasSpecific = false;
+      LINE_OPTIONS.forEach(function(line) {
+        var view = document.querySelector('[data-line-view="' + line.key + '"]');
+        var manage = document.querySelector('[data-line-manage="' + line.key + '"]');
+        var hasView = allowList.indexOf('view_' + line.key) !== -1;
+        var hasManage = allowList.indexOf('manage_' + line.key) !== -1;
+        if (view) view.checked = hasView;
+        if (manage) manage.checked = hasManage;
+        if (hasView || hasManage) hasSpecific = true;
+      });
+      if (uAllLinesAccess) uAllLinesAccess.checked = !hasSpecific;
+    }
+
+    function applyRolePreset(roleValue) {
+      var preset = ROLE_PRESETS[roleValue];
+      if (!preset) return;
+      Array.prototype.slice.call(document.querySelectorAll('[data-permission-key]')).forEach(function(input) {
+        input.checked = preset.permissions.indexOf(input.getAttribute('data-permission-key')) !== -1;
+      });
+      if (uAllLinesAccess) uAllLinesAccess.checked = preset.lines === 'all';
+      if (preset.lines !== 'all') {
+        LINE_OPTIONS.forEach(function(line) {
+          var view = document.querySelector('[data-line-view="' + line.key + '"]');
+          var manage = document.querySelector('[data-line-manage="' + line.key + '"]');
+          if (view) view.checked = preset.lines === 'view' || preset.lines === 'managed';
+          if (manage) manage.checked = preset.lines === 'managed';
+        });
+      } else {
+        Array.prototype.slice.call(document.querySelectorAll('[data-line-view],[data-line-manage]')).forEach(function(input) {
+          input.checked = false;
+        });
+      }
+      syncPermissionsJsonFromUI();
+    }
+
     function getSelectedPermissionsFromUI() {
       return Array.prototype.slice.call(document.querySelectorAll('[data-permission-key]:checked'))
         .map(function(input) { return input.getAttribute('data-permission-key'); });
@@ -1668,8 +1772,10 @@
 
     function syncPermissionsJsonFromUI() {
       var selected = getSelectedPermissionsFromUI();
+      var lineAccess = getSelectedLineAccessFromUI();
+      var selectedWithLines = selected.concat(lineAccess.permissions);
       var expandedAllowMap = {};
-      selected.forEach(function(key) {
+      selectedWithLines.forEach(function(key) {
         expandedAllowMap[key] = true;
         (PERMISSION_COMPAT_MAP[key] || []).forEach(function(alias) {
           expandedAllowMap[alias] = true;
@@ -1682,24 +1788,38 @@
         permissionSummary.textContent = 'Permission Summary: Limited Access (ยังไม่เปิดสิทธิ์)';
         return;
       }
-      if (selected.length >= 14) {
-        permissionSummary.textContent = 'Permission Summary: Full Access';
+      var lineSummary = lineAccess.allLines ? 'All lines' : (lineAccess.permissions.length ? lineAccess.permissions.join(', ').replace(/_/g, ' ') : 'No line access');
+      if (selected.length >= 14 && lineAccess.allLines) {
+        permissionSummary.textContent = 'Permission Summary: Full Access / ' + lineSummary;
         return;
       }
-      permissionSummary.textContent = 'Permission Summary: ' + selected.slice(0, 6).map(permissionLabelByKey).join(' / ') + (selected.length > 6 ? ' +' + (selected.length - 6) : '');
+      permissionSummary.textContent = 'Permission Summary: ' + selected.slice(0, 5).map(permissionLabelByKey).join(' / ') + (selected.length > 5 ? ' +' + (selected.length - 5) : '') + ' • ' + lineSummary;
     }
 
     function getPermissionSummary(user) {
       var parsed = parsePermissionsJsonSafe(user.permissionsJson);
-      return 'allow ' + parsed.allow.length + ' / deny ' + parsed.deny.length;
+      var labels = [];
+      if (isPermissionEnabled(parsed.allow, 'view_stock')) labels.push('View');
+      if (isPermissionEnabled(parsed.allow, 'issue_part')) labels.push('Issue');
+      if (isPermissionEnabled(parsed.allow, 'receive_part')) labels.push('Receive');
+      if (isPermissionEnabled(parsed.allow, 'edit_item')) labels.push('Edit');
+      if (isPermissionEnabled(parsed.allow, 'view_logs')) labels.push('Log');
+      if (labels.length >= 5) return 'Full access';
+      if (!labels.length) return 'Limited';
+      return labels.join(', ');
     }
 
     function getLineSummary(user) {
       var parsed = parsePermissionsJsonSafe(user.permissionsJson);
-      var lineTags = parsed.allow.filter(function(key) { return /^line[:_]/i.test(String(key || '')); })
-        .map(function(key) { return String(key).replace(/^line[:_]/i, ''); });
-      if (!lineTags.length) return 'ทุก line';
-      return lineTags.slice(0, 2).join(', ') + (lineTags.length > 2 ? ' +' + (lineTags.length - 2) : '');
+      var viewTags = [];
+      var manageTags = [];
+      LINE_OPTIONS.forEach(function(line) {
+        if (parsed.allow.indexOf('view_' + line.key) !== -1) viewTags.push(line.label);
+        if (parsed.allow.indexOf('manage_' + line.key) !== -1) manageTags.push(line.label);
+      });
+      if (!viewTags.length && !manageTags.length) return 'All lines';
+      if (manageTags.length && manageTags.length === LINE_OPTIONS.length) return 'All lines (manage)';
+      return (manageTags.length ? 'Manage: ' + manageTags.join(', ') : '') + (viewTags.length ? (manageTags.length ? ' | ' : '') + 'View: ' + viewTags.join(', ') : '');
     }
 
     function setUserEditorValues(user) {
@@ -1710,9 +1830,10 @@
       document.getElementById('uIsActive').checked = user ? !!user.isActive : true;
       document.getElementById('uPassword').value = '';
       document.getElementById('uDisplayName').value = user ? (user.displayName || '') : '';
-      document.getElementById('uLineAccess').value = user ? getLineSummary(user) : '';
       var parsedPermissions = parsePermissionsJsonSafe(user ? user.permissionsJson : '');
       setPermissionUIFromAllowList(parsedPermissions.allow);
+      setLineAccessUIFromAllowList(parsedPermissions.allow);
+      if (!user) applyRolePreset(document.getElementById('uRole').value);
       if (selectedUserLabel) selectedUserLabel.textContent = 'กำลังแก้ไข: ' + (username || 'ผู้ใช้ใหม่');
     }
 
@@ -1742,7 +1863,7 @@
         if (status === 'active' && !user.isActive) return false;
         if (status === 'inactive' && !!user.isActive) return false;
         if (line !== 'all') {
-          if (line === 'global' && lineSummary !== 'ทุก line') return false;
+          if (line === 'global' && lineSummary.toLowerCase().indexOf('all lines') === -1) return false;
           if (line !== 'global' && lineSummary.toLowerCase().indexOf(line.toLowerCase()) === -1) return false;
         }
         return true;
@@ -1817,10 +1938,11 @@
           adminUsersCache = data.users || [];
           var lineOptions = {};
           adminUsersCache.forEach(function(user) {
-            getLineSummary(user).split(',').forEach(function(tag) {
-              var clean = String(tag || '').trim();
-              if (!clean || clean === 'ทุก line') return;
-              lineOptions[clean] = true;
+            var parsed = parsePermissionsJsonSafe(user.permissionsJson);
+            LINE_OPTIONS.forEach(function(line) {
+              if (parsed.allow.indexOf('view_' + line.key) !== -1 || parsed.allow.indexOf('manage_' + line.key) !== -1) {
+                lineOptions[line.label] = true;
+              }
             });
           });
           var selectedLine = userLineFilter.value || 'all';
@@ -3367,6 +3489,13 @@
           userManageMessage.textContent = err.message;
         });
     });
+    document.getElementById('uRole').addEventListener('change', function() {
+      applyRolePreset(this.value);
+    });
+    if (resetRolePresetBtn) resetRolePresetBtn.addEventListener('click', function() {
+      applyRolePreset(document.getElementById('uRole').value);
+    });
+    renderLineAccessControls();
     renderPermissionControls();
     setUserEditorValues(null);
     applyEngineerJssTheme();
