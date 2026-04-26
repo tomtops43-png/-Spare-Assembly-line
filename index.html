@@ -2426,13 +2426,10 @@
           '<button data-status-card="near" class="bg-white rounded-xl border border-slate-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-slate-500">🧭 Need PO</p><p class="text-xl font-bold text-slate-800 mt-0.5">' + needPO + '</p></button>';
       } else {
         document.getElementById('stat-cards').innerHTML =
-          '<div class="md:col-span-4 grid grid-cols-2 gap-2">' +
-          '<button data-status-card="all" class="h-[92px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-[11px] text-slate-500 leading-none truncate">📦 Stock ทั้งหมด</p><p class="text-3xl leading-tight font-bold text-blue-700 mt-1">' + totalStockQty + '</p></button>' +
-          '<button data-status-card="low" class="h-[92px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-[11px] text-slate-500 leading-none truncate">🔴 ต่ำกว่า Min</p><p class="text-3xl leading-tight font-bold text-rose-600 mt-1">' + lowCount + '</p></button>' +
-          '<button data-status-card="near" class="h-[92px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-[11px] text-slate-500 leading-none truncate">⚠️ LOW</p><p class="text-3xl leading-tight font-bold text-amber-600 mt-1">' + lowCount + '</p></button>' +
-          '<button data-status-card="out" class="h-[92px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-[11px] text-slate-500 leading-none truncate">❌ อะไหล่หมด</p><p class="text-3xl leading-tight font-bold text-rose-700 mt-1">' + outCount + '</p></button>' +
-          '<div class="col-span-2 bg-rose-50 rounded-xl border border-rose-200 px-3 py-2 shadow-sm"><p class="text-[11px] text-rose-700 font-semibold">🚨 วันนี้ต้องทำ</p><p class="text-sm text-rose-700 mt-1 leading-tight">สั่งซื้อ <b>' + needPO + '</b> รายการ | อะไหล่หมด <b>' + outCount + '</b> | OK <b>' + okCount + '</b></p></div>' +
-          '</div>';
+          '<button data-status-card="all" class="h-[96px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500 leading-none">📦 Stock ทั้งหมด</p><p class="text-3xl leading-tight font-bold text-blue-700 mt-1">' + totalStockQty + '</p></button>' +
+          '<button data-status-card="out" class="h-[96px] bg-white rounded-xl border border-rose-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-xs text-rose-600 leading-none">❌ อะไหล่หมด</p><p class="text-3xl leading-tight font-bold text-rose-700 mt-1">' + outCount + '</p></button>' +
+          '<button data-status-card="low" class="h-[96px] bg-white rounded-xl border border-amber-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-xs text-amber-600 leading-none">⚠️ ต่ำกว่า Min</p><p class="text-3xl leading-tight font-bold text-amber-600 mt-1">' + lowCount + '</p></button>' +
+          '<button data-status-card="near" class="h-[96px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500 leading-none">🧭 Need PO</p><p class="text-3xl leading-tight font-bold text-slate-800 mt-1">' + needPO + '</p></button>';
       }
 
       Array.prototype.slice.call(document.querySelectorAll('[data-status-card]')).forEach(function(btn){
