@@ -116,8 +116,6 @@
             <button id="stockNavManageBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">🛠 Manage</button>
             <button id="stockNavAdminBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">⚙️ Admin</button>
           </div>
-          <button id="openIssueCartBtnMobile" type="button" class="relative h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-3 text-blue-700 text-sm font-semibold md:hidden">🛒 <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
-          <button id="openIssueCartBtn" type="button" class="relative hidden h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-4 text-blue-700 text-sm font-semibold md:inline-flex md:items-center">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
         </div>
         <div class="mt-2 grid gap-2 md:flex md:flex-wrap md:items-center">
           <div class="hidden shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2 md:inline-flex">
@@ -141,6 +139,13 @@
               <button id="searchClearBtn" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-slate-100 text-slate-700 text-sm">×</button>
             </div>
           </div>
+          <div id="stockUtilityMenuMobile" class="mt-2 hidden md:hidden grid grid-cols-3 gap-2 text-xs">
+            <button id="stockNavLogBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">📜 Log</button>
+            <button id="stockNavManageBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">🛠 Manage</button>
+            <button id="stockNavAdminBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">⚙️ Admin</button>
+          </div>
+          <button id="openIssueCartBtnMobile" type="button" class="relative h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-3 text-blue-700 text-sm font-semibold md:hidden">🛒 <span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+          <button id="openIssueCartBtn" type="button" class="relative hidden h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-4 text-blue-700 text-sm font-semibold md:inline-flex md:items-center">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
         </div>
       </section>
       <p id="updatedAtText" class="hidden text-xs text-slate-500"></p>
@@ -400,7 +405,30 @@
                   <input id="uIsActive" type="checkbox" class="h-4 w-4" checked /> Active
                 </label>
               </div>
-              <input id="uPermissionsJson" type="text" class="mt-2 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" placeholder='Permissions JSON เช่น {"allow":["delete_items"],"deny":[]}' />
+              <input id="uPermissionsJson" type="hidden" />
+              <div class="mt-3 space-y-3">
+                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5" open>
+                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">A. Stock Permissions</summary>
+                  <div id="permGroupStock" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                </details>
+                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5" open>
+                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">B. Item Permissions</summary>
+                  <div id="permGroupItem" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                </details>
+                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">C. Log / Dashboard Permissions</summary>
+                  <div id="permGroupDashboard" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                </details>
+                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">D. User / System Permissions</summary>
+                  <div id="permGroupSystem" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                </details>
+                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">E. Line Access Permissions</summary>
+                  <div id="permGroupLine" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                </details>
+              </div>
+              <div id="permissionSummary" class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800"></div>
             </section>
             <section class="rounded-xl border border-slate-200 p-3">
               <h4 class="mb-2 text-sm font-semibold text-slate-700">การเข้าถึง line</h4>
@@ -778,8 +806,58 @@
     var userStatusFilter = document.getElementById('userStatusFilter');
     var userLineFilter = document.getElementById('userLineFilter');
     var userManageMessage = document.getElementById('userManageMessage');
+    var permissionSummary = document.getElementById('permissionSummary');
     var adminUsersCache = [];
     var selectedAdminUser = null;
+    var PERMISSION_GROUPS = [
+      { key: 'stock', targetId: 'permGroupStock', title: 'Stock', items: [
+        { key: 'view_stock', label: 'ดู Stock' },
+        { key: 'view_detail', label: 'ดูรายละเอียด' },
+        { key: 'issue_part', label: 'เบิกอะไหล่' },
+        { key: 'receive_part', label: 'รับอะไหล่' },
+        { key: 'use_issue_cart', label: 'ใช้ Issue Cart' }
+      ]},
+      { key: 'item', targetId: 'permGroupItem', title: 'Item', items: [
+        { key: 'create_item', label: 'สร้างรายการ' },
+        { key: 'edit_item', label: 'แก้ไขรายการ' },
+        { key: 'delete_item', label: 'ลบรายการ' },
+        { key: 'manage_minmax', label: 'จัดการ Min/Max' },
+        { key: 'manage_item_image', label: 'จัดการรูปภาพ' }
+      ]},
+      { key: 'dashboard', targetId: 'permGroupDashboard', title: 'Log / Dashboard', items: [
+        { key: 'view_logs', label: 'ดู Log' },
+        { key: 'view_alerts', label: 'ดู Alerts' },
+        { key: 'view_dashboard', label: 'ดู Dashboard' },
+        { key: 'export_data', label: 'Export Data' }
+      ]},
+      { key: 'system', targetId: 'permGroupSystem', title: 'User / System', items: [
+        { key: 'manage_users', label: 'จัดการผู้ใช้' },
+        { key: 'delete_users', label: 'ลบผู้ใช้' },
+        { key: 'assign_permissions', label: 'กำหนดสิทธิ์' },
+        { key: 'access_admin_panel', label: 'เข้า Admin Panel' },
+        { key: 'reset_password', label: 'รีเซ็ตรหัสผ่าน' }
+      ]},
+      { key: 'line', targetId: 'permGroupLine', title: 'Line Access', items: [
+        { key: 'manage_h9', label: 'จัดการ H9' },
+        { key: 'manage_arc_chute', label: 'จัดการ Arc Chute' },
+        { key: 'manage_coil_winding', label: 'จัดการ Coil Winding' },
+        { key: 'manage_lug_screw', label: 'จัดการ Lug&Screw' }
+      ]}
+    ];
+    var PERMISSION_COMPAT_MAP = {
+      manage_users: ['manage_users', 'manage_auth'],
+      delete_users: ['delete_users', 'delete_user'],
+      access_admin_panel: ['access_admin_panel', 'manage_users'],
+      assign_permissions: ['assign_permissions', 'manage_auth'],
+      issue_part: ['issue_part', 'transact'],
+      receive_part: ['receive_part', 'transact'],
+      create_item: ['create_item', 'manage_items'],
+      edit_item: ['edit_item', 'manage_items'],
+      delete_item: ['delete_item', 'delete_items'],
+      manage_item_image: ['manage_item_image', 'manage_items'],
+      view_logs: ['view_logs'],
+      use_issue_cart: ['use_issue_cart']
+    };
     var appShell = document.getElementById('appShell');
     var loginModal = document.getElementById('loginModal');
     var lineConfig = [
@@ -1543,6 +1621,74 @@
       }
     }
 
+    function isPermissionEnabled(allowList, key) {
+      var keys = [key].concat(PERMISSION_COMPAT_MAP[key] || []);
+      return keys.some(function(alias) { return allowList.indexOf(alias) !== -1; });
+    }
+
+    function permissionLabelByKey(key) {
+      var found = null;
+      PERMISSION_GROUPS.forEach(function(group) {
+        group.items.forEach(function(item) {
+          if (item.key === key) found = item.label;
+        });
+      });
+      return found || key;
+    }
+
+    function renderPermissionControls() {
+      PERMISSION_GROUPS.forEach(function(group) {
+        var container = document.getElementById(group.targetId);
+        if (!container) return;
+        container.innerHTML = group.items.map(function(item) {
+          return '<label class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm">' +
+            '<span class="text-slate-700">' + item.label + '</span>' +
+            '<input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-permission-key="' + item.key + '" />' +
+          '</label>';
+        }).join('');
+      });
+      Array.prototype.slice.call(document.querySelectorAll('[data-permission-key]')).forEach(function(input) {
+        input.addEventListener('change', syncPermissionsJsonFromUI);
+      });
+      syncPermissionsJsonFromUI();
+    }
+
+    function getSelectedPermissionsFromUI() {
+      return Array.prototype.slice.call(document.querySelectorAll('[data-permission-key]:checked'))
+        .map(function(input) { return input.getAttribute('data-permission-key'); });
+    }
+
+    function setPermissionUIFromAllowList(allowList) {
+      Array.prototype.slice.call(document.querySelectorAll('[data-permission-key]')).forEach(function(input) {
+        var key = input.getAttribute('data-permission-key');
+        input.checked = isPermissionEnabled(allowList, key);
+      });
+      syncPermissionsJsonFromUI();
+    }
+
+    function syncPermissionsJsonFromUI() {
+      var selected = getSelectedPermissionsFromUI();
+      var expandedAllowMap = {};
+      selected.forEach(function(key) {
+        expandedAllowMap[key] = true;
+        (PERMISSION_COMPAT_MAP[key] || []).forEach(function(alias) {
+          expandedAllowMap[alias] = true;
+        });
+      });
+      var jsonValue = JSON.stringify({ allow: Object.keys(expandedAllowMap), deny: [] });
+      document.getElementById('uPermissionsJson').value = jsonValue;
+      if (!permissionSummary) return;
+      if (selected.length === 0) {
+        permissionSummary.textContent = 'Permission Summary: Limited Access (ยังไม่เปิดสิทธิ์)';
+        return;
+      }
+      if (selected.length >= 14) {
+        permissionSummary.textContent = 'Permission Summary: Full Access';
+        return;
+      }
+      permissionSummary.textContent = 'Permission Summary: ' + selected.slice(0, 6).map(permissionLabelByKey).join(' / ') + (selected.length > 6 ? ' +' + (selected.length - 6) : '');
+    }
+
     function getPermissionSummary(user) {
       var parsed = parsePermissionsJsonSafe(user.permissionsJson);
       return 'allow ' + parsed.allow.length + ' / deny ' + parsed.deny.length;
@@ -1562,10 +1708,11 @@
       document.getElementById('uUsername').value = username;
       document.getElementById('uRole').value = user ? user.role : 'user';
       document.getElementById('uIsActive').checked = user ? !!user.isActive : true;
-      document.getElementById('uPermissionsJson').value = user ? (user.permissionsJson || '{"allow":[],"deny":[]}') : '{"allow":[],"deny":[]}';
       document.getElementById('uPassword').value = '';
       document.getElementById('uDisplayName').value = user ? (user.displayName || '') : '';
       document.getElementById('uLineAccess').value = user ? getLineSummary(user) : '';
+      var parsedPermissions = parsePermissionsJsonSafe(user ? user.permissionsJson : '');
+      setPermissionUIFromAllowList(parsedPermissions.allow);
       if (selectedUserLabel) selectedUserLabel.textContent = 'กำลังแก้ไข: ' + (username || 'ผู้ใช้ใหม่');
     }
 
@@ -3220,6 +3367,7 @@
           userManageMessage.textContent = err.message;
         });
     });
+    renderPermissionControls();
     setUserEditorValues(null);
     applyEngineerJssTheme();
     updateIssueCartBadges();
