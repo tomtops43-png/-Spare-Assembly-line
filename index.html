@@ -321,38 +321,101 @@
     </section>
 
     <section id="adminPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6">
-      <div class="mb-3 flex items-center justify-between">
-        <h2 class="text-lg font-semibold">Admin Panel - จัดการผู้ใช้</h2>
-        <button id="refreshUsersBtn" type="button" class="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-semibold">รีเฟรช</button>
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Admin Panel</h2>
+          <p class="text-sm text-slate-500">จัดการผู้ใช้ / สิทธิ์การใช้งาน / การเข้าถึงไลน์</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="newUserBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm font-semibold text-blue-700">+ ผู้ใช้ใหม่</button>
+          <button id="refreshUsersBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">รีเฟรช</button>
+        </div>
       </div>
-      <form id="userForm" class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-        <input id="uUsername" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Username" required />
-        <input id="uPassword" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Password (ว่างได้ตอนแก้ไข)" />
-        <select id="uRole" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white">
-          <option value="user">user</option>
-          <option value="leader">leader</option>
-          <option value="admin">admin</option>
-        </select>
-        <label class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white text-sm flex items-center gap-2">
-          <input id="uIsActive" type="checkbox" class="h-4 w-4" checked /> Active
-        </label>
-        <input id="uPermissionsJson" type="text" class="md:col-span-2 rounded-xl border border-slate-300 px-3 py-2.5" placeholder='Permissions JSON เช่น {"allow":["delete_items"],"deny":[]}' />
-        <button id="saveUserBtn" type="submit" class="rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold">บันทึกผู้ใช้</button>
-      </form>
-      <p id="userManageMessage" class="text-sm mb-2"></p>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-slate-500 border-b border-slate-200">
-              <th class="py-2 pr-3">Username</th>
-              <th class="py-2 pr-3">Role</th>
-              <th class="py-2 pr-3">Active</th>
-              <th class="py-2 pr-3">Permissions</th>
-              <th class="py-2 pr-3 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody id="usersTable"></tbody>
-        </table>
+      <p id="userManageMessage" class="mb-3 text-sm"></p>
+      <div class="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+        <section class="rounded-2xl border border-slate-200 bg-slate-50 p-3 md:p-4">
+          <h3 class="mb-3 text-base font-semibold text-slate-800">รายชื่อผู้ใช้</h3>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <input id="userSearchInput" type="text" class="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm" placeholder="ค้นหา username" />
+            <select id="userRoleFilter" class="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+              <option value="all">Role ทั้งหมด</option>
+              <option value="user">user</option>
+              <option value="leader">leader</option>
+              <option value="admin">admin</option>
+            </select>
+            <select id="userStatusFilter" class="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+              <option value="all">Status ทั้งหมด</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <select id="userLineFilter" class="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+              <option value="all">Line ทั้งหมด</option>
+              <option value="global">ทุก line</option>
+            </select>
+          </div>
+          <div class="mt-3 hidden overflow-x-auto md:block">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 text-left text-slate-500">
+                  <th class="py-2 pr-3">Username</th>
+                  <th class="py-2 pr-3">Role</th>
+                  <th class="py-2 pr-3">Status</th>
+                  <th class="py-2 pr-3">Line</th>
+                  <th class="py-2 pr-3">Permissions</th>
+                  <th class="py-2 pr-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="usersTable"></tbody>
+            </table>
+          </div>
+          <div id="usersMobileList" class="mt-3 grid grid-cols-1 gap-2 md:hidden"></div>
+        </section>
+
+        <aside id="adminEditorPanel" class="fixed inset-0 z-[95] hidden overflow-y-auto bg-white p-4 md:static md:z-auto md:block md:overflow-visible md:rounded-2xl md:border md:border-slate-200 md:bg-white md:p-4">
+          <div class="mb-3 flex items-center justify-between">
+            <div>
+              <h3 class="text-base font-semibold text-slate-800">User Detail Editor</h3>
+              <p id="selectedUserLabel" class="text-xs text-slate-500">กำลังแก้ไข: ผู้ใช้ใหม่</p>
+            </div>
+            <button id="closeAdminEditorMobileBtn" type="button" class="h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold md:hidden">ปิด</button>
+          </div>
+          <form id="userForm" class="space-y-3">
+            <section class="rounded-xl border border-slate-200 p-3">
+              <h4 class="mb-2 text-sm font-semibold text-slate-700">ข้อมูลผู้ใช้</h4>
+              <div class="grid grid-cols-1 gap-2">
+                <input id="uUsername" type="text" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Username" required />
+                <input id="uDisplayName" type="text" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Display name (optional)" />
+                <input id="uPassword" type="text" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Password (ว่างได้ตอนแก้ไข)" />
+              </div>
+            </section>
+            <section class="rounded-xl border border-slate-200 p-3">
+              <h4 class="mb-2 text-sm font-semibold text-slate-700">สิทธิ์การใช้งาน</h4>
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <select id="uRole" class="h-10 rounded-xl border border-slate-300 px-3 text-sm bg-white">
+                  <option value="user">user</option>
+                  <option value="leader">leader</option>
+                  <option value="admin">admin</option>
+                </select>
+                <label class="h-10 rounded-xl border border-slate-300 px-3 bg-white text-sm flex items-center gap-2">
+                  <input id="uIsActive" type="checkbox" class="h-4 w-4" checked /> Active
+                </label>
+              </div>
+              <input id="uPermissionsJson" type="text" class="mt-2 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" placeholder='Permissions JSON เช่น {"allow":["delete_items"],"deny":[]}' />
+            </section>
+            <section class="rounded-xl border border-slate-200 p-3">
+              <h4 class="mb-2 text-sm font-semibold text-slate-700">การเข้าถึง line</h4>
+              <input id="uLineAccess" type="text" class="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" placeholder="เช่น H9, Arc Chute (UI placeholder)" />
+            </section>
+            <section class="rounded-xl border border-slate-200 p-3">
+              <h4 class="mb-2 text-sm font-semibold text-slate-700">การจัดการบัญชี</h4>
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <button id="saveUserBtn" type="submit" class="h-10 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white">บันทึก</button>
+                <button id="resetUserBtn" type="button" class="h-10 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold">ล้างฟอร์ม</button>
+                <button id="deleteUserBtn" type="button" class="h-10 rounded-xl border border-rose-300 bg-rose-50 px-4 text-sm font-semibold text-rose-700">ลบผู้ใช้</button>
+              </div>
+            </section>
+          </form>
+        </aside>
       </div>
     </section>
       </div>
@@ -701,9 +764,22 @@
     var currentUser = null;
     var modalLockCount = 0;
     var usersTable = document.getElementById('usersTable');
+    var usersMobileList = document.getElementById('usersMobileList');
     var userForm = document.getElementById('userForm');
     var refreshUsersBtn = document.getElementById('refreshUsersBtn');
+    var newUserBtn = document.getElementById('newUserBtn');
+    var resetUserBtn = document.getElementById('resetUserBtn');
+    var deleteUserBtn = document.getElementById('deleteUserBtn');
+    var adminEditorPanel = document.getElementById('adminEditorPanel');
+    var closeAdminEditorMobileBtn = document.getElementById('closeAdminEditorMobileBtn');
+    var selectedUserLabel = document.getElementById('selectedUserLabel');
+    var userSearchInput = document.getElementById('userSearchInput');
+    var userRoleFilter = document.getElementById('userRoleFilter');
+    var userStatusFilter = document.getElementById('userStatusFilter');
+    var userLineFilter = document.getElementById('userLineFilter');
     var userManageMessage = document.getElementById('userManageMessage');
+    var adminUsersCache = [];
+    var selectedAdminUser = null;
     var appShell = document.getElementById('appShell');
     var loginModal = document.getElementById('loginModal');
     var lineConfig = [
@@ -1455,55 +1531,161 @@
       return requestApi({ action: 'logout', authToken: token }).catch(function() {});
     }
 
+    function parsePermissionsJsonSafe(jsonText) {
+      try {
+        var obj = JSON.parse(jsonText || '{}');
+        return {
+          allow: Array.isArray(obj.allow) ? obj.allow : [],
+          deny: Array.isArray(obj.deny) ? obj.deny : []
+        };
+      } catch (err) {
+        return { allow: [], deny: [] };
+      }
+    }
+
+    function getPermissionSummary(user) {
+      var parsed = parsePermissionsJsonSafe(user.permissionsJson);
+      return 'allow ' + parsed.allow.length + ' / deny ' + parsed.deny.length;
+    }
+
+    function getLineSummary(user) {
+      var parsed = parsePermissionsJsonSafe(user.permissionsJson);
+      var lineTags = parsed.allow.filter(function(key) { return /^line[:_]/i.test(String(key || '')); })
+        .map(function(key) { return String(key).replace(/^line[:_]/i, ''); });
+      if (!lineTags.length) return 'ทุก line';
+      return lineTags.slice(0, 2).join(', ') + (lineTags.length > 2 ? ' +' + (lineTags.length - 2) : '');
+    }
+
+    function setUserEditorValues(user) {
+      var username = user ? user.username : '';
+      selectedAdminUser = username || null;
+      document.getElementById('uUsername').value = username;
+      document.getElementById('uRole').value = user ? user.role : 'user';
+      document.getElementById('uIsActive').checked = user ? !!user.isActive : true;
+      document.getElementById('uPermissionsJson').value = user ? (user.permissionsJson || '{"allow":[],"deny":[]}') : '{"allow":[],"deny":[]}';
+      document.getElementById('uPassword').value = '';
+      document.getElementById('uDisplayName').value = user ? (user.displayName || '') : '';
+      document.getElementById('uLineAccess').value = user ? getLineSummary(user) : '';
+      if (selectedUserLabel) selectedUserLabel.textContent = 'กำลังแก้ไข: ' + (username || 'ผู้ใช้ใหม่');
+    }
+
+    function openAdminEditorOnMobile() {
+      if (window.innerWidth >= 768) return;
+      adminEditorPanel.classList.remove('hidden');
+      lockBodyScroll();
+    }
+
+    function closeAdminEditorOnMobile() {
+      if (window.innerWidth >= 768) return;
+      if (!adminEditorPanel.classList.contains('hidden')) {
+        adminEditorPanel.classList.add('hidden');
+        unlockBodyScroll();
+      }
+    }
+
+    function applyUserFiltersAndRender() {
+      var search = (userSearchInput.value || '').toLowerCase().trim();
+      var role = userRoleFilter.value;
+      var status = userStatusFilter.value;
+      var line = userLineFilter.value;
+      var list = adminUsersCache.filter(function(user) {
+        var lineSummary = getLineSummary(user);
+        if (search && String(user.username || '').toLowerCase().indexOf(search) === -1) return false;
+        if (role !== 'all' && user.role !== role) return false;
+        if (status === 'active' && !user.isActive) return false;
+        if (status === 'inactive' && !!user.isActive) return false;
+        if (line !== 'all') {
+          if (line === 'global' && lineSummary !== 'ทุก line') return false;
+          if (line !== 'global' && lineSummary.toLowerCase().indexOf(line.toLowerCase()) === -1) return false;
+        }
+        return true;
+      });
+      var canDeleteUser = hasPermission('delete_user');
+      usersTable.innerHTML = list.map(function(user) {
+        var activeBadge = user.isActive
+          ? '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Active</span>'
+          : '<span class="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600">Inactive</span>';
+        return '<tr class="border-b border-slate-100">' +
+          '<td class="py-2 pr-3 font-medium">' + user.username + '</td>' +
+          '<td class="py-2 pr-3 uppercase">' + user.role + '</td>' +
+          '<td class="py-2 pr-3">' + activeBadge + '</td>' +
+          '<td class="py-2 pr-3 text-xs text-slate-600">' + getLineSummary(user) + '</td>' +
+          '<td class="py-2 pr-3 text-xs text-slate-600">' + getPermissionSummary(user) + '</td>' +
+          '<td class="py-2 pr-3 text-right">' +
+            '<button data-edit-user="' + user.username + '" class="h-8 rounded border border-slate-300 px-2 text-xs">เลือก</button>' +
+            (canDeleteUser ? '<button data-delete-user="' + user.username + '" class="ml-1 h-8 rounded border border-rose-300 px-2 text-xs text-rose-700">Delete</button>' : '') +
+          '</td>' +
+        '</tr>';
+      }).join('');
+      usersMobileList.innerHTML = list.map(function(user) {
+        var activeBadge = user.isActive ? 'Active' : 'Inactive';
+        return '<article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">' +
+          '<div class="flex items-start justify-between gap-2">' +
+            '<div><p class="text-sm font-semibold text-slate-900">' + user.username + '</p><p class="text-xs text-slate-500 uppercase">' + user.role + '</p></div>' +
+            '<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">' + activeBadge + '</span>' +
+          '</div>' +
+          '<p class="mt-1 text-xs text-slate-600">Line: ' + getLineSummary(user) + '</p>' +
+          '<p class="text-xs text-slate-500">Permissions: ' + getPermissionSummary(user) + '</p>' +
+          '<div class="mt-2 flex items-center gap-2">' +
+            '<button data-edit-user="' + user.username + '" class="h-8 flex-1 rounded-lg border border-blue-300 bg-blue-50 px-3 text-xs font-semibold text-blue-700">เปิดรายละเอียด</button>' +
+            (canDeleteUser ? '<button data-delete-user="' + user.username + '" class="h-8 rounded-lg border border-rose-300 px-3 text-xs font-semibold text-rose-700">ลบ</button>' : '') +
+          '</div>' +
+        '</article>';
+      }).join('');
+
+      Array.prototype.slice.call(document.querySelectorAll('[data-edit-user]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var selected = adminUsersCache.filter(function(u){ return u.username === btn.getAttribute('data-edit-user'); })[0];
+          if (!selected) return;
+          setUserEditorValues(selected);
+          openAdminEditorOnMobile();
+        });
+      });
+
+      Array.prototype.slice.call(document.querySelectorAll('[data-delete-user]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var username = btn.getAttribute('data-delete-user');
+          if (!confirm('ลบผู้ใช้ ' + username + ' ?')) return;
+          requestApi(withAuthPayload({ action: 'deleteUser', username: username }))
+            .then(parseApiResponse)
+            .then(function() {
+              userManageMessage.className = 'mb-3 text-sm text-emerald-600';
+              userManageMessage.textContent = 'ลบผู้ใช้สำเร็จ: ' + username;
+              if (selectedAdminUser === username) setUserEditorValues(null);
+              loadUsers();
+            })
+            .catch(function(err) {
+              userManageMessage.className = 'mb-3 text-sm text-rose-600';
+              userManageMessage.textContent = err.message;
+            });
+        });
+      });
+    }
+
     function loadUsers() {
       if (!hasPermission('manage_users')) return Promise.resolve();
       return requestApi(withAuthPayload({ action: 'listUsers' }))
         .then(parseApiResponse)
         .then(function(data) {
-          var canDeleteUser = hasPermission('delete_user');
-          usersTable.innerHTML = (data.users || []).map(function(user) {
-            var perms = user.permissionsJson || '{"allow":[],"deny":[]}';
-            return '<tr class="border-b border-slate-100">' +
-              '<td class="py-2 pr-3 font-medium">' + user.username + '</td>' +
-              '<td class="py-2 pr-3 uppercase">' + user.role + '</td>' +
-              '<td class="py-2 pr-3">' + (user.isActive ? 'Yes' : 'No') + '</td>' +
-              '<td class="py-2 pr-3 text-xs text-slate-600 break-all">' + perms + '</td>' +
-              '<td class="py-2 pr-3 text-right">' +
-                '<button data-edit-user="' + user.username + '" class="h-8 px-2 rounded border border-slate-300 text-xs">Edit</button>' +
-                (canDeleteUser ? '<button data-delete-user="' + user.username + '" class="ml-1 h-8 px-2 rounded border border-rose-300 text-rose-700 text-xs">Delete</button>' : '') +
-              '</td>' +
-            '</tr>';
-          }).join('');
-
-          Array.prototype.slice.call(usersTable.querySelectorAll('[data-edit-user]')).forEach(function(btn) {
-            btn.addEventListener('click', function() {
-              var selected = (data.users || []).filter(function(u){ return u.username === btn.getAttribute('data-edit-user'); })[0];
-              if (!selected) return;
-              document.getElementById('uUsername').value = selected.username;
-              document.getElementById('uRole').value = selected.role;
-              document.getElementById('uIsActive').checked = !!selected.isActive;
-              document.getElementById('uPermissionsJson').value = selected.permissionsJson || '{"allow":[],"deny":[]}';
-              document.getElementById('uPassword').value = '';
+          adminUsersCache = data.users || [];
+          var lineOptions = {};
+          adminUsersCache.forEach(function(user) {
+            getLineSummary(user).split(',').forEach(function(tag) {
+              var clean = String(tag || '').trim();
+              if (!clean || clean === 'ทุก line') return;
+              lineOptions[clean] = true;
             });
           });
-
-          Array.prototype.slice.call(usersTable.querySelectorAll('[data-delete-user]')).forEach(function(btn) {
-            btn.addEventListener('click', function() {
-              var username = btn.getAttribute('data-delete-user');
-              if (!confirm('ลบผู้ใช้ ' + username + ' ?')) return;
-              requestApi(withAuthPayload({ action: 'deleteUser', username: username }))
-                .then(parseApiResponse)
-                .then(function() {
-                  userManageMessage.className = 'text-sm mb-2 text-emerald-600';
-                  userManageMessage.textContent = 'ลบผู้ใช้สำเร็จ: ' + username;
-                  loadUsers();
-                })
-                .catch(function(err) {
-                  userManageMessage.className = 'text-sm mb-2 text-rose-600';
-                  userManageMessage.textContent = err.message;
-                });
-            });
-          });
+          var selectedLine = userLineFilter.value || 'all';
+          var optionsHtml = '<option value="all">Line ทั้งหมด</option><option value="global">ทุก line</option>' +
+            Object.keys(lineOptions).sort().map(function(line) {
+              return '<option value="' + line + '">' + line + '</option>';
+            }).join('');
+          userLineFilter.innerHTML = optionsHtml;
+          if (Array.prototype.some.call(userLineFilter.options, function(option){ return option.value === selectedLine; })) {
+            userLineFilter.value = selectedLine;
+          }
+          applyUserFiltersAndRender();
         });
     }
 
@@ -2991,18 +3173,54 @@
         isActive: document.getElementById('uIsActive').checked,
         permissionsJson: document.getElementById('uPermissionsJson').value || '{"allow":[],"deny":[]}'
       });
-      userManageMessage.className = 'text-sm mb-2 text-slate-500';
+      userManageMessage.className = 'mb-3 text-sm text-slate-500';
       userManageMessage.textContent = 'กำลังบันทึกผู้ใช้...';
       requestApi(payload).then(parseApiResponse).then(function() {
-        userManageMessage.className = 'text-sm mb-2 text-emerald-600';
+        selectedAdminUser = document.getElementById('uUsername').value;
+        userManageMessage.className = 'mb-3 text-sm text-emerald-600';
         userManageMessage.textContent = 'บันทึกผู้ใช้สำเร็จ';
         loadUsers();
+        closeAdminEditorOnMobile();
       }).catch(function(err) {
-        userManageMessage.className = 'text-sm mb-2 text-rose-600';
+        userManageMessage.className = 'mb-3 text-sm text-rose-600';
         userManageMessage.textContent = err.message;
       });
     });
     refreshUsersBtn.addEventListener('click', function() { loadUsers(); });
+    if (userSearchInput) userSearchInput.addEventListener('input', applyUserFiltersAndRender);
+    if (userRoleFilter) userRoleFilter.addEventListener('change', applyUserFiltersAndRender);
+    if (userStatusFilter) userStatusFilter.addEventListener('change', applyUserFiltersAndRender);
+    if (userLineFilter) userLineFilter.addEventListener('change', applyUserFiltersAndRender);
+    if (newUserBtn) newUserBtn.addEventListener('click', function() {
+      setUserEditorValues(null);
+      openAdminEditorOnMobile();
+    });
+    if (resetUserBtn) resetUserBtn.addEventListener('click', function() {
+      setUserEditorValues(null);
+    });
+    if (closeAdminEditorMobileBtn) closeAdminEditorMobileBtn.addEventListener('click', function() {
+      closeAdminEditorOnMobile();
+    });
+    if (deleteUserBtn) deleteUserBtn.addEventListener('click', function() {
+      if (!hasPermission('delete_user')) return;
+      var username = document.getElementById('uUsername').value;
+      if (!username) return;
+      if (!confirm('ลบผู้ใช้ ' + username + ' ?')) return;
+      requestApi(withAuthPayload({ action: 'deleteUser', username: username }))
+        .then(parseApiResponse)
+        .then(function() {
+          userManageMessage.className = 'mb-3 text-sm text-emerald-600';
+          userManageMessage.textContent = 'ลบผู้ใช้สำเร็จ: ' + username;
+          setUserEditorValues(null);
+          closeAdminEditorOnMobile();
+          loadUsers();
+        })
+        .catch(function(err) {
+          userManageMessage.className = 'mb-3 text-sm text-rose-600';
+          userManageMessage.textContent = err.message;
+        });
+    });
+    setUserEditorValues(null);
     applyEngineerJssTheme();
     updateIssueCartBadges();
     renderLineTabs();
