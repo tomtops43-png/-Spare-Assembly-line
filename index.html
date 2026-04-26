@@ -153,8 +153,8 @@
           <button id="qaReceiveBtn" class="hidden h-9 rounded-full bg-emerald-600 px-4 text-white text-sm font-semibold md:inline-flex">📥 รับเข้า</button>
         </div>
       </section>
-      <section id="stockTodayAlert" class="hidden rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 lg:px-5 lg:py-3"></section>
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-2" id="stat-cards"></section>
+      <section id="stockTodayAlert" class="hidden overflow-x-auto whitespace-nowrap rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[13px] text-rose-700 lg:px-5 lg:py-3 lg:text-sm"></section>
+      <section class="grid grid-cols-2 auto-rows-fr gap-3 lg:grid-cols-4 mb-2" id="stat-cards"></section>
 
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
         <div class="mb-4 flex items-center gap-2 md:hidden">
@@ -2426,10 +2426,10 @@
           '<button data-status-card="near" class="bg-white rounded-xl border border-slate-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-slate-500">🧭 Need PO</p><p class="text-xl font-bold text-slate-800 mt-0.5">' + needPO + '</p></button>';
       } else {
         document.getElementById('stat-cards').innerHTML =
-          '<button data-status-card="all" class="h-[96px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500 leading-none">📦 Stock ทั้งหมด</p><p class="text-3xl leading-tight font-bold text-blue-700 mt-1">' + totalStockQty + '</p></button>' +
-          '<button data-status-card="out" class="h-[96px] bg-white rounded-xl border border-rose-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-xs text-rose-600 leading-none">❌ อะไหล่หมด</p><p class="text-3xl leading-tight font-bold text-rose-700 mt-1">' + outCount + '</p></button>' +
-          '<button data-status-card="low" class="h-[96px] bg-white rounded-xl border border-amber-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-xs text-amber-600 leading-none">⚠️ ต่ำกว่า Min</p><p class="text-3xl leading-tight font-bold text-amber-600 mt-1">' + lowCount + '</p></button>' +
-          '<button data-status-card="near" class="h-[96px] bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm panel-shadow text-left"><p class="text-xs text-slate-500 leading-none">🧭 Need PO</p><p class="text-3xl leading-tight font-bold text-slate-800 mt-1">' + needPO + '</p></button>';
+          '<button data-status-card="all" class="min-h-[110px] bg-white rounded-2xl border border-slate-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-slate-600 leading-snug">📦 Stock ทั้งหมด</p><p class="text-[44px] leading-[1] font-extrabold text-blue-700 mt-2">' + totalStockQty + '</p></button>' +
+          '<button data-status-card="out" class="min-h-[110px] bg-white rounded-2xl border border-rose-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-rose-600 leading-snug">❌ อะไหล่หมด</p><p class="text-[44px] leading-[1] font-extrabold text-rose-700 mt-2">' + outCount + '</p></button>' +
+          '<button data-status-card="low" class="min-h-[110px] bg-white rounded-2xl border border-amber-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-amber-700 leading-snug">⚠️ ต่ำกว่า Min</p><p class="text-[44px] leading-[1] font-extrabold text-amber-600 mt-2">' + lowCount + '</p></button>' +
+          '<button data-status-card="near" class="min-h-[110px] bg-white rounded-2xl border border-slate-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-slate-600 leading-snug">🧭 Need PO</p><p class="text-[44px] leading-[1] font-extrabold text-slate-800 mt-2">' + needPO + '</p></button>';
       }
 
       Array.prototype.slice.call(document.querySelectorAll('[data-status-card]')).forEach(function(btn){
