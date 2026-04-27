@@ -193,6 +193,7 @@
             <option value="stock_asc">Stock น้อยสุด</option>
             <option value="name_asc">ชื่อ A-Z</option>
           </select>
+          <button id="openIssueCartBtn" type="button" class="relative w-full lg:w-auto rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
         </div>
 
         <div id="mobileCardList" class="grid grid-cols-2 gap-3 lg:hidden"></div>
@@ -2076,6 +2077,7 @@
         document.body.classList.add('line-menu-mobile-open');
         lineMenuPanel.classList.remove('-translate-x-full');
         lineMenuBackdrop.classList.remove('hidden');
+        lineMenuDockToggle.classList.remove('hidden');
         lineMenuDockToggle.textContent = '✕';
         lineMenuDockToggle.setAttribute('aria-label', 'ซ่อน Line Menu');
         lineMenuDockToggle.setAttribute('title', 'ซ่อน Line Menu');
@@ -2083,6 +2085,7 @@
         document.body.classList.remove('line-menu-mobile-open');
         lineMenuPanel.classList.add('-translate-x-full');
         lineMenuBackdrop.classList.add('hidden');
+        lineMenuDockToggle.classList.remove('hidden');
         lineMenuDockToggle.textContent = '☰';
         lineMenuDockToggle.setAttribute('aria-label', 'เปิด Line Menu');
         lineMenuDockToggle.setAttribute('title', 'เปิด Line Menu');
@@ -2497,7 +2500,7 @@
 
       txnStockGuardMessage.classList.toggle('hidden', !shouldBlockSubmit);
       if (shouldBlockSubmit) {
-        txnStockGuardMessage.innerHTML = 'สินค้าหมดสต็อก ไม่สามารถเบิกออกได้<br>สามารถรับเข้าได้เท่านั้น';
+        txnStockGuardMessage.innerHTML = 'อะไหล่หมดสต็อก ไม่สามารถเบิกออกได้<br>สามารถรับเข้าได้เท่านั้น';
       }
     }
 
@@ -3149,32 +3152,27 @@
           if (found) openDetailModal(found);
         });
       });
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var no = btn.getAttribute('data-view-no');
+          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          if (found) openDetailModal(found);
+        });
+      });
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          var no = btn.getAttribute('data-view-no');
+          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          if (found) openDetailModal(found);
+        });
+      });
       Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-mobile-issue-no]')).forEach(function(btn){
         btn.addEventListener('click', function(e){
           e.stopPropagation();
           openTxnPageWithItem(btn.getAttribute('data-mobile-issue-no'), 'Output');
-        });
-      });
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-mobile-edit-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(e){
-          e.preventDefault();
-          e.stopPropagation();
-          var no = btn.getAttribute('data-mobile-edit-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
-          if (found) openEditModal(found);
-        });
-      });
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-mobile-delete-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(e){
-          e.stopPropagation();
-          var no = btn.getAttribute('data-mobile-delete-no');
-          if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
-          callManageAction('deleteItem', { no: no }).then(function(res){
-            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
-            loadPartsData();
-          }).catch(function(err){
-            alert('ลบไม่สำเร็จ: ' + err.message);
-          });
         });
       });
     }
