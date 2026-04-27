@@ -1097,6 +1097,7 @@
       if (!filterSheet.classList.contains('hidden')) filterSheet.classList.add('hidden');
       issueCartModal.classList.remove('hidden');
       if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
+      if (stockPage) stockPage.classList.add('invisible');
       lockBodyScroll();
       if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
       setIssueCartMessage('', 'muted');
@@ -1107,6 +1108,7 @@
       if (!issueCartModal || issueCartModal.classList.contains('hidden')) return;
       issueCartModal.classList.add('hidden');
       if (stockStickyHeader) stockStickyHeader.classList.remove('hidden');
+      if (stockPage) stockPage.classList.remove('invisible');
       unlockBodyScroll();
     }
 
