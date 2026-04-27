@@ -1572,17 +1572,22 @@
     }
 
     function applyAuthorizationUi() {
+      var canViewLogs = hasPermission('view_logs');
       var canManageItems = hasPermission('manage_items');
       var canDeleteItems = hasPermission('delete_items');
       var canManageUsers = hasPermission('manage_users');
+      var navLog = [stockNavLogBtn, stockNavLogBtnMobile];
       var navManage = [stockNavManageBtn, stockNavManageBtnMobile];
       var navAdmin = [stockNavAdminBtn, stockNavAdminBtnMobile];
 
+      tabLog.classList.toggle('hidden', !canViewLogs);
       tabManage.classList.toggle('hidden', !canManageItems);
       qaManageBtn.classList.toggle('hidden', !canManageItems);
       tabAdmin.classList.toggle('hidden', !canManageUsers);
+      navLog.forEach(function(el) { if (el) el.classList.toggle('hidden', !canViewLogs); });
       navManage.forEach(function(el) { if (el) el.classList.toggle('hidden', !canManageItems); });
       navAdmin.forEach(function(el) { if (el) el.classList.toggle('hidden', !canManageUsers); });
+      if (!canViewLogs && !logPage.classList.contains('hidden')) switchToStockPage();
       if (!canManageUsers && !adminPage.classList.contains('hidden')) switchToStockPage();
       if (!canManageItems && !managePage.classList.contains('hidden')) switchToStockPage();
       renderAuthUserBox();
@@ -1770,13 +1775,30 @@
       var lineAccess = getSelectedLineAccessFromUI();
       var selectedWithLines = selected.concat(lineAccess.permissions);
       var expandedAllowMap = {};
+      var expandedDenyMap = {};
+      var allVisualPermissionKeys = Array.prototype.slice.call(document.querySelectorAll('[data-permission-key]'))
+        .map(function(input) { return input.getAttribute('data-permission-key'); });
+
       selectedWithLines.forEach(function(key) {
         expandedAllowMap[key] = true;
         (PERMISSION_COMPAT_MAP[key] || []).forEach(function(alias) {
           expandedAllowMap[alias] = true;
         });
       });
-      var jsonValue = JSON.stringify({ allow: Object.keys(expandedAllowMap), deny: [] });
+
+      allVisualPermissionKeys.forEach(function(key) {
+        if (selected.indexOf(key) !== -1) return;
+        expandedDenyMap[key] = true;
+        (PERMISSION_COMPAT_MAP[key] || []).forEach(function(alias) {
+          expandedDenyMap[alias] = true;
+        });
+      });
+
+      Object.keys(expandedAllowMap).forEach(function(key) {
+        delete expandedDenyMap[key];
+      });
+
+      var jsonValue = JSON.stringify({ allow: Object.keys(expandedAllowMap), deny: Object.keys(expandedDenyMap) });
       document.getElementById('uPermissionsJson').value = jsonValue;
       if (!permissionSummary) return;
       if (selected.length === 0) {
@@ -2063,6 +2085,10 @@
           btn.className = 'relative h-11 w-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-lg md:hidden';
           return;
         }
+        if (btn.id === 'openIssueCartBtn') {
+          btn.classList.add('hidden');
+          return;
+        }
         if (label.indexOf('issue cart') !== -1 && btn.id !== 'openIssueCartBtn') {
           btn.remove();
         }
@@ -2233,6 +2259,7 @@
       if (active === 'log') tabLog.className = tabActiveClass;
       if (active === 'manage') tabManage.className = tabActiveClass;
       if (active === 'admin') tabAdmin.className = tabActiveClass;
+      tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
       tabAdmin.classList.toggle('hidden', !hasPermission('manage_users'));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
@@ -2276,6 +2303,7 @@
     }
 
     function switchToLogPage() {
+      if (!hasPermission('view_logs')) return switchToStockPage();
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.remove('hidden');
@@ -2286,6 +2314,7 @@
     }
 
     function switchToManagePage() {
+      if (!hasPermission('manage_items')) return switchToStockPage();
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
@@ -2295,6 +2324,7 @@
     }
 
     function switchToAdminPage() {
+      if (!hasPermission('manage_users')) return switchToStockPage();
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
