@@ -3136,45 +3136,60 @@
         '</article>';
       }).join('');
 
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('article[data-view-no]')).forEach(function(card){
-        card.addEventListener('click', function(e){
-          if (e.target && e.target.closest && e.target.closest('button')) return;
+      mobileCardList.onclick = function(e) {
+        var target = e.target;
+        if (!target || !target.closest) return;
+
+        var editBtn = target.closest('[data-mobile-edit-no]');
+        if (editBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          var editNo = editBtn.getAttribute('data-mobile-edit-no');
+          var editFound = partsData.filter(function(p){ return String(p.no) === String(editNo); })[0];
+          if (editFound) openEditModal(editFound);
+          return;
+        }
+
+        var issueBtn = target.closest('[data-mobile-issue-no]');
+        if (issueBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          openTxnPageWithItem(issueBtn.getAttribute('data-mobile-issue-no'), 'Output');
+          return;
+        }
+
+        var deleteBtn = target.closest('[data-mobile-delete-no]');
+        if (deleteBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          var deleteNo = deleteBtn.getAttribute('data-mobile-delete-no');
+          if (!confirm('ยืนยันการลบรายการ NO: ' + deleteNo + ' ?')) return;
+          callManageAction('deleteItem', { no: deleteNo }).then(function(res){
+            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+            loadPartsData();
+          }).catch(function(err){
+            alert('ลบไม่สำเร็จ: ' + err.message);
+          });
+          return;
+        }
+
+        var viewBtn = target.closest('button[data-view-no]');
+        if (viewBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          var viewNo = viewBtn.getAttribute('data-view-no');
+          var viewFound = partsData.filter(function(p){ return String(p.no) === String(viewNo); })[0];
+          if (viewFound) openDetailModal(viewFound);
+          return;
+        }
+
+        var card = target.closest('article[data-view-no]');
+        if (card) {
           var no = card.getAttribute('data-view-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (found) openDetailModal(found);
-        });
-      });
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(e){
-          e.stopPropagation();
-          var no = btn.getAttribute('data-view-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
-          if (found) openDetailModal(found);
-        });
-      });
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(e){
-          e.stopPropagation();
-          var no = btn.getAttribute('data-view-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
-          if (found) openDetailModal(found);
-        });
-      });
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(e){
-          e.preventDefault();
-          e.stopPropagation();
-          var no = btn.getAttribute('data-view-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
-          if (found) openDetailModal(found);
-        });
-      });
-      Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-mobile-issue-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(e){
-          e.stopPropagation();
-          openTxnPageWithItem(btn.getAttribute('data-mobile-issue-no'), 'Output');
-        });
-      });
+        }
+      };
     }
 
     function openDetailModal(item) {
