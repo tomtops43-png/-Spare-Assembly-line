@@ -37,6 +37,9 @@
     body.edit-modal-open .out-stock-overlay {
       display: none !important;
     }
+    body.edit-modal-open #stockPage {
+      pointer-events: none;
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 overflow-x-hidden">
@@ -2732,13 +2735,18 @@
 
 
     function openEditModal(item) {
-      if (!editModal.classList.contains('hidden')) return;
+      if (!item) return;
       if (!issueCartModal.classList.contains('hidden')) closeIssueCart();
       if (!detailModal.classList.contains('hidden')) closeDetailModal();
       if (stockPage) stockPage.classList.remove('invisible');
       if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
       var topTabs = document.getElementById('topNavTabs');
       if (topTabs) topTabs.classList.add('hidden');
+      if (stockUtilityMenuMobile) stockUtilityMenuMobile.classList.add('hidden');
+      if (window.innerWidth < 768) {
+        isLineMenuVisible = false;
+        updateLineMenuVisibility();
+      }
       if (lineMenuDockToggle) lineMenuDockToggle.classList.add('hidden');
       document.getElementById('eNo').value = item.no || '';
       document.getElementById('eName').value = item.name || '';
@@ -3043,7 +3051,9 @@
       });
 
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(){
+        btn.addEventListener('click', function(e){
+          e.preventDefault();
+          e.stopPropagation();
           var no = btn.getAttribute('data-edit-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (found) openEditModal(found);
@@ -3152,6 +3162,7 @@
       });
       Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
         btn.addEventListener('click', function(e){
+          e.preventDefault();
           e.stopPropagation();
           var no = btn.getAttribute('data-view-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
