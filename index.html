@@ -1572,6 +1572,7 @@
       loginModal.classList.toggle('hidden', isAuthenticated);
       document.body.classList.toggle('overflow-hidden', !isAuthenticated);
       lineMenuDockToggle.classList.toggle('hidden', !isAuthenticated);
+      if (isAuthenticated) normalizeMobileHeaderCartUi();
       if (!isAuthenticated) {
         document.body.classList.remove('line-menu-mobile-open');
         isLineMenuVisible = false;
@@ -1605,6 +1606,7 @@
       if (!canManageItems && !managePage.classList.contains('hidden')) switchToStockPage();
       renderAuthUserBox();
       applyIssueCartAuthorizationUi();
+      normalizeMobileHeaderCartUi();
     }
 
     function parseApiResponse(res) {
