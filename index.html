@@ -3058,6 +3058,8 @@
         return;
       }
       mobileCardList.innerHTML = data.map(function(item) {
+        var canManageItems = hasPermission('manage_items');
+        var canDeleteItems = hasPermission('delete_items');
         var canTransact = hasPermission('transact');
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
         var mobileImageSrc = toSafeImageUrl(item.image_main_url);
@@ -3085,12 +3087,24 @@
             '<button data-view-no="' + item.no + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold">👁 ดู</button>' +
             (canIssue ? '<button data-mobile-issue-no="' + item.no + '" class="h-9 rounded-lg bg-emerald-600 text-white text-xs font-semibold">⚡ เบิก</button>' : (canTransact ? '<span class="h-9 rounded-lg border border-slate-300 bg-slate-100 text-xs text-slate-500 flex items-center justify-center font-semibold">อะไหล่หมด</span>' : '<span class="h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-400 flex items-center justify-center">No Access</span>')) +
           '</div>' +
+          (canManageItems || canDeleteItems ? '<div class="mt-2 grid grid-cols-2 gap-2">' +
+            (canManageItems ? '<button data-mobile-edit-no="' + item.no + '" class="h-9 rounded-lg border border-blue-200 bg-white text-xs font-semibold text-blue-700">✏️ Edit</button>' : '<span></span>') +
+            (canDeleteItems ? '<button data-mobile-delete-no="' + item.no + '" class="h-9 rounded-lg border border-rose-200 bg-white text-xs font-semibold text-rose-700">🗑️ Delete</button>' : '<span></span>') +
+          '</div>' : '') +
         '</article>';
       }).join('');
 
       Array.prototype.slice.call(mobileCardList.querySelectorAll('article[data-view-no]')).forEach(function(card){
         card.addEventListener('click', function(){
           var no = card.getAttribute('data-view-no');
+          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          if (found) openDetailModal(found);
+        });
+      });
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var no = btn.getAttribute('data-view-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (found) openDetailModal(found);
         });
