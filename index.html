@@ -1540,6 +1540,10 @@
       return !!(currentUser && currentUser.permissions && currentUser.permissions[permissionName]);
     }
 
+    function isAdminUser() {
+      return !!(currentUser && String(currentUser.role || '').toLowerCase() === 'admin');
+    }
+
     function renderAuthUserBox() {
       var authUserBox = document.getElementById('authUserBox');
       var authUserName = document.getElementById('authUserName');
@@ -1575,7 +1579,7 @@
       var canViewLogs = hasPermission('view_logs');
       var canManageItems = hasPermission('manage_items');
       var canDeleteItems = hasPermission('delete_items');
-      var canManageUsers = hasPermission('manage_users');
+      var canManageUsers = isAdminUser() && hasPermission('manage_users');
       var navLog = [stockNavLogBtn, stockNavLogBtnMobile];
       var navManage = [stockNavManageBtn, stockNavManageBtnMobile];
       var navAdmin = [stockNavAdminBtn, stockNavAdminBtnMobile];
@@ -2261,7 +2265,7 @@
       if (active === 'admin') tabAdmin.className = tabActiveClass;
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
-      tabAdmin.classList.toggle('hidden', !hasPermission('manage_users'));
+      tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
     }
@@ -2324,7 +2328,7 @@
     }
 
     function switchToAdminPage() {
-      if (!hasPermission('manage_users')) return switchToStockPage();
+      if (!(isAdminUser() && hasPermission('manage_users'))) return switchToStockPage();
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');

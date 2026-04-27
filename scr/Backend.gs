@@ -165,7 +165,7 @@ function getRoleDefaultPermissions(role) {
   };
   if (normalized === 'leader') return {
     view: true, transact: true, manage_items: true, delete_items: true,
-    manage_users: true, add_user: false, delete_user: false, manage_auth: true
+    manage_users: false, add_user: false, delete_user: false, manage_auth: false
   };
   return {
     view: true, transact: true, manage_items: false, delete_items: false,
@@ -322,8 +322,16 @@ function requirePermission(payload, permissionName) {
   return user;
 }
 
+function requireAdminUser(payload) {
+  var user = requirePermission(payload, 'manage_users');
+  if (normalizeRole(user.role) !== 'admin') {
+    throw new Error('เฉพาะ Admin เท่านั้นที่เข้าถึงหน้านี้ได้');
+  }
+  return user;
+}
+
 function listUsers(payload) {
-  requirePermission(payload, 'manage_users');
+  requireAdminUser(payload);
   return {
     status: 'success',
     users: getAllUsers().map(function(u) { return sanitizeUserForClient(u); })
@@ -331,7 +339,7 @@ function listUsers(payload) {
 }
 
 function upsertUser(payload) {
-  var actor = requirePermission(payload, 'manage_auth');
+  var actor = requireAdminUser(payload);
   var username = String(payload.username || '').trim();
   if (!username) throw new Error('ต้องระบุ username');
   var role = normalizeRole(payload.role || 'user');
@@ -359,7 +367,7 @@ function upsertUser(payload) {
 }
 
 function deleteUser(payload) {
-  var actor = requirePermission(payload, 'delete_user');
+  var actor = requireAdminUser(payload);
   var username = String(payload.username || '').trim();
   if (!username) throw new Error('ต้องระบุ username');
   if (username === actor.username) throw new Error('ไม่สามารถลบ user ตัวเองได้');
