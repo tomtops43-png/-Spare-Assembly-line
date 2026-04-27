@@ -2727,9 +2727,6 @@
 
 
     function openEditModal(item) {
-      if (!issueCartModal.classList.contains('hidden')) closeIssueCart();
-      if (!detailModal.classList.contains('hidden')) closeDetailModal();
-      if (stockPage) stockPage.classList.remove('invisible');
       document.getElementById('eNo').value = item.no || '';
       document.getElementById('eName').value = item.name || '';
       document.getElementById('eModel').value = item.model || '';
@@ -2747,10 +2744,6 @@
       editModal.classList.remove('hidden');
       editModal.classList.add('flex');
       lockBodyScroll();
-      setTimeout(function() {
-        var nameInput = document.getElementById('eName');
-        if (nameInput) nameInput.focus();
-      }, 50);
     }
 
     function closeEditModal() {
@@ -3111,8 +3104,7 @@
       }).join('');
 
       Array.prototype.slice.call(mobileCardList.querySelectorAll('article[data-view-no]')).forEach(function(card){
-        card.addEventListener('click', function(e){
-          if (e.target && e.target.closest && e.target.closest('button')) return;
+        card.addEventListener('click', function(){
           var no = card.getAttribute('data-view-no');
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (found) openDetailModal(found);
