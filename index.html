@@ -2049,6 +2049,21 @@
       }
     }
 
+    function normalizeMobileHeaderCartUi() {
+      if (window.innerWidth >= 768) return;
+      var stockHeader = document.getElementById('stockStickyHeader');
+      if (!stockHeader) return;
+      Array.prototype.slice.call(stockHeader.querySelectorAll('button')).forEach(function(btn) {
+        var label = String(btn.textContent || '').toLowerCase();
+        if (label.indexOf('issue cart') === -1 && btn.id !== 'openIssueCartBtnMobile') return;
+        if (btn.id === 'openIssueCartBtnMobile') {
+          btn.className = 'relative h-11 w-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-lg md:hidden';
+          return;
+        }
+        if (btn.id !== 'openIssueCartBtn') btn.remove();
+      });
+    }
+
     function getCurrentSheetName() {
       if (LINE_SHEET_OPTIONS[currentLine] && LINE_SHEET_OPTIONS[currentLine].length) {
         return sheetSelector.value || LINE_SHEET_OPTIONS[currentLine][0];
@@ -2219,6 +2234,7 @@
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('stock');
+      normalizeMobileHeaderCartUi();
     }
 
     function switchToTxnPage() {
@@ -3306,6 +3322,7 @@
     }
     window.addEventListener('resize', function() {
       updateLineMenuVisibility();
+      normalizeMobileHeaderCartUi();
       if (!stockPage.classList.contains('hidden')) setTabStyles('stock');
       else if (!txnPage.classList.contains('hidden')) setTabStyles('txn');
       else if (!logPage.classList.contains('hidden')) setTabStyles('log');
@@ -3322,20 +3339,24 @@
     lineMenuDockToggle.addEventListener('click', function() {
       isLineMenuVisible = !isLineMenuVisible;
       updateLineMenuVisibility();
+      normalizeMobileHeaderCartUi();
     });
     lineMenuClose.addEventListener('click', function() {
       isLineMenuVisible = false;
       updateLineMenuVisibility();
+      normalizeMobileHeaderCartUi();
     });
     lineMenuBackdrop.addEventListener('click', function() {
       isLineMenuVisible = false;
       updateLineMenuVisibility();
+      normalizeMobileHeaderCartUi();
     });
     lineTabs.addEventListener('click', function() {
       if (window.innerWidth >= 768) return;
       if (!isLineMenuVisible) return;
       isLineMenuVisible = false;
       updateLineMenuVisibility();
+      normalizeMobileHeaderCartUi();
     });
     manageForm.addEventListener('submit', submitManageItem);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
@@ -3498,6 +3519,7 @@
     renderLineTabs();
     applyLineTheme();
     updateLineMenuVisibility();
+    normalizeMobileHeaderCartUi();
     switchToStockPage();
     var rememberedUsername = localStorage.getItem('spare_login_username') || '';
     if (rememberedUsername) {
