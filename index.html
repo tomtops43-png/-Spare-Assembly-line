@@ -1096,7 +1096,7 @@
       if (!editModal.classList.contains('hidden')) closeEditModal();
       if (!filterSheet.classList.contains('hidden')) filterSheet.classList.add('hidden');
       issueCartModal.classList.remove('hidden');
-      if (stockStickyHeader) stockStickyHeader.classList.add('pointer-events-none');
+      if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
       lockBodyScroll();
       if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
       setIssueCartMessage('', 'muted');
@@ -1106,7 +1106,7 @@
     function closeIssueCart() {
       if (!issueCartModal || issueCartModal.classList.contains('hidden')) return;
       issueCartModal.classList.add('hidden');
-      if (stockStickyHeader) stockStickyHeader.classList.remove('pointer-events-none');
+      if (stockStickyHeader) stockStickyHeader.classList.remove('hidden');
       unlockBodyScroll();
     }
 
