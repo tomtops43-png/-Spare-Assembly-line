@@ -2050,17 +2050,29 @@
     }
 
     function normalizeMobileHeaderCartUi() {
-      if (window.innerWidth >= 768) return;
       var stockHeader = document.getElementById('stockStickyHeader');
       if (!stockHeader) return;
+      var isMobile = window.innerWidth < 768;
+      var desktopSearchWrap = searchInput ? searchInput.closest('.order-1') : null;
+      if (desktopSearchWrap) desktopSearchWrap.classList.toggle('hidden', isMobile);
+
+      if (!isMobile) return;
       Array.prototype.slice.call(stockHeader.querySelectorAll('button')).forEach(function(btn) {
         var label = String(btn.textContent || '').toLowerCase();
-        if (label.indexOf('issue cart') === -1 && btn.id !== 'openIssueCartBtnMobile') return;
         if (btn.id === 'openIssueCartBtnMobile') {
           btn.className = 'relative h-11 w-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-lg md:hidden';
           return;
         }
-        if (btn.id !== 'openIssueCartBtn') btn.remove();
+        if (label.indexOf('issue cart') !== -1 && btn.id !== 'openIssueCartBtn') {
+          btn.remove();
+        }
+      });
+
+      var mobileSearches = stockHeader.querySelectorAll('#searchInputMobile');
+      Array.prototype.slice.call(mobileSearches).forEach(function(input, idx) {
+        if (idx === 0) return;
+        var row = input.closest('.relative');
+        if (row && row.parentNode) row.parentNode.remove();
       });
     }
 
