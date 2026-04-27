@@ -2729,9 +2729,14 @@
 
 
     function openEditModal(item) {
+      if (!editModal.classList.contains('hidden')) return;
       if (!issueCartModal.classList.contains('hidden')) closeIssueCart();
       if (!detailModal.classList.contains('hidden')) closeDetailModal();
       if (stockPage) stockPage.classList.remove('invisible');
+      if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
+      var topTabs = document.getElementById('topNavTabs');
+      if (topTabs) topTabs.classList.add('hidden');
+      if (lineMenuDockToggle) lineMenuDockToggle.classList.add('hidden');
       document.getElementById('eNo').value = item.no || '';
       document.getElementById('eName').value = item.name || '';
       document.getElementById('eModel').value = item.model || '';
@@ -2758,6 +2763,10 @@
     function closeEditModal() {
       editModal.classList.add('hidden');
       editModal.classList.remove('flex');
+      if (stockStickyHeader) stockStickyHeader.classList.remove('hidden');
+      var topTabs = document.getElementById('topNavTabs');
+      if (topTabs) topTabs.classList.remove('hidden');
+      if (lineMenuDockToggle) lineMenuDockToggle.classList.toggle('hidden', !currentUser);
       unlockBodyScroll();
     }
 
