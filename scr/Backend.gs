@@ -4,7 +4,9 @@
 var SPARE_APP_CONFIG = this.SPARE_APP_CONFIG || {};
 SPARE_APP_CONFIG.readSheetName = SPARE_APP_CONFIG.readSheetName || 'Main List Stock';
 SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Log';
+SPARE_APP_CONFIG.usersSheetName = SPARE_APP_CONFIG.usersSheetName || 'Users';
 var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After'];
+var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
 
 // =============================
 // HELPERS
@@ -94,6 +96,286 @@ function getOrCreateSheet(spreadsheet, sheetName) {
   var sheet = spreadsheet.getSheetByName(sheetName);
   if (!sheet) sheet = spreadsheet.insertSheet(sheetName);
   return sheet;
+}
+
+function getTemplateHeaders(spreadsheet) {
+  var preferred = getSheetByFlexibleName(spreadsheet, SPARE_APP_CONFIG.readSheetName);
+  var sheets = preferred ? [preferred].concat(spreadsheet.getSheets().filter(function(s){ return s.getName() !== preferred.getName(); })) : spreadsheet.getSheets();
+
+  for (var i = 0; i < sheets.length; i += 1) {
+    var data = sheets[i].getDataRange().getValues();
+    if (!data || data.length === 0) continue;
+    var headerRowIndex = findHeaderRowIndex(data);
+    var headers = data[headerRowIndex] || [];
+    if (headers.length >= 8) return headers;
+  }
+
+  return ['NO', 'Name / Description', 'Model', 'Line', 'Category', 'Brand', 'Location', 'Unit', 'Stock', 'Min', 'Max', 'Need to PO', 'image_main_url', 'image_main_file_id', 'image_install_url', 'image_install_file_id'];
+}
+
+function ensureSheetWithTemplate(spreadsheet, sheetName) {
+  var sheet = getSheetByFlexibleName(spreadsheet, sheetName);
+  if (!sheet) sheet = spreadsheet.insertSheet(sheetName);
+
+  if (sheet.getLastRow() === 0) {
+    var headers = getTemplateHeaders(spreadsheet);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+
+  return sheet;
+}
+
+function ensureUsersSheetHeaders(sheet) {
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(USER_HEADERS);
+    return;
+  }
+  var firstRow = sheet.getRange(1, 1, 1, USER_HEADERS.length).getValues()[0];
+  var same = true;
+  for (var i = 0; i < USER_HEADERS.length; i += 1) {
+    if (String(firstRow[i] || '') !== USER_HEADERS[i]) {
+      same = false;
+      break;
+    }
+  }
+  if (!same) {
+    sheet.insertRowBefore(1);
+    sheet.getRange(1, 1, 1, USER_HEADERS.length).setValues([USER_HEADERS]);
+  }
+}
+
+function getUsersSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var usersSheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.usersSheetName);
+  ensureUsersSheetHeaders(usersSheet);
+  return usersSheet;
+}
+
+function normalizeRole(role) {
+  var val = String(role || 'user').toLowerCase().trim();
+  if (val === 'admin' || val === 'leader' || val === 'user') return val;
+  return 'user';
+}
+
+function getRoleDefaultPermissions(role) {
+  var normalized = normalizeRole(role);
+  if (normalized === 'admin') return {
+    view: true, transact: true, manage_items: true, delete_items: true,
+    manage_users: true, add_user: true, delete_user: true, manage_auth: true
+  };
+  if (normalized === 'leader') return {
+    view: true, transact: true, manage_items: true, delete_items: true,
+    manage_users: false, add_user: false, delete_user: false, manage_auth: false
+  };
+  return {
+    view: true, transact: true, manage_items: false, delete_items: false,
+    manage_users: false, add_user: false, delete_user: false, manage_auth: false
+  };
+}
+
+function parsePermissions(raw) {
+  if (!raw) return { allow: [], deny: [] };
+  try {
+    var parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return {
+      allow: Array.isArray(parsed.allow) ? parsed.allow : [],
+      deny: Array.isArray(parsed.deny) ? parsed.deny : []
+    };
+  } catch (err) {
+    return { allow: [], deny: [] };
+  }
+}
+
+function mergePermissions(base, custom) {
+  var out = {};
+  for (var key in base) out[key] = !!base[key];
+  (custom.allow || []).forEach(function(p) { out[p] = true; });
+  (custom.deny || []).forEach(function(p) { out[p] = false; });
+  return out;
+}
+
+function toBoolean(val, defaultValue) {
+  if (val === undefined || val === null || val === '') return !!defaultValue;
+  var s = String(val).toLowerCase().trim();
+  return !(s === 'false' || s === '0' || s === 'no');
+}
+
+function ensureDefaultAdminUser() {
+  var usersSheet = getUsersSheet();
+  if (usersSheet.getLastRow() > 1) return;
+  usersSheet.appendRow([
+    'admin',
+    'admin123',
+    'admin',
+    'true',
+    JSON.stringify({ allow: [], deny: [] }),
+    '',
+    ''
+  ]);
+}
+
+function getAllUsers() {
+  ensureDefaultAdminUser();
+  var usersSheet = getUsersSheet();
+  var data = usersSheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  return data.slice(1).map(function(row, idx) {
+    var role = normalizeRole(row[2]);
+    var custom = parsePermissions(row[4]);
+    return {
+      rowIndex: idx + 2,
+      username: String(row[0] || ''),
+      password: String(row[1] || ''),
+      role: role,
+      isActive: toBoolean(row[3], true),
+      permissionsJson: JSON.stringify(custom),
+      token: String(row[5] || ''),
+      tokenExpiry: String(row[6] || ''),
+      permissions: mergePermissions(getRoleDefaultPermissions(role), custom)
+    };
+  }).filter(function(u) { return !!u.username; });
+}
+
+function findUserByUsername(username) {
+  var target = String(username || '').trim();
+  if (!target) return null;
+  var users = getAllUsers();
+  for (var i = 0; i < users.length; i += 1) {
+    if (users[i].username === target) return users[i];
+  }
+  return null;
+}
+
+function findUserByToken(token) {
+  var target = String(token || '').trim();
+  if (!target) return null;
+  var users = getAllUsers();
+  var now = Date.now();
+  for (var i = 0; i < users.length; i += 1) {
+    var u = users[i];
+    var exp = Number(u.tokenExpiry || 0);
+    if (u.token === target && exp > now && u.isActive) return u;
+  }
+  return null;
+}
+
+function sanitizeUserForClient(user) {
+  return {
+    username: user.username,
+    role: user.role,
+    isActive: user.isActive,
+    permissions: user.permissions,
+    permissionsJson: user.permissionsJson
+  };
+}
+
+function loginUser(payload) {
+  var username = String(payload.username || '').trim();
+  var password = String(payload.password || '').trim();
+  if (!username || !password) throw new Error('กรุณาระบุ username และ password');
+  var user = findUserByUsername(username);
+  if (!user || !user.isActive) throw new Error('ไม่พบผู้ใช้หรือผู้ใช้ถูกปิดใช้งาน');
+  if (String(user.password) !== password) throw new Error('รหัสผ่านไม่ถูกต้อง');
+
+  var token = Utilities.getUuid() + '-' + Date.now();
+  var expiry = Date.now() + (8 * 60 * 60 * 1000);
+  var usersSheet = getUsersSheet();
+  usersSheet.getRange(user.rowIndex, 6).setValue(token);
+  usersSheet.getRange(user.rowIndex, 7).setValue(String(expiry));
+
+  user.token = token;
+  user.tokenExpiry = String(expiry);
+  return {
+    status: 'success',
+    token: token,
+    expiry: expiry,
+    user: sanitizeUserForClient(user)
+  };
+}
+
+function logoutUser(payload) {
+  var token = String(payload.authToken || payload.token || '').trim();
+  if (!token) return { status: 'success' };
+  var user = findUserByToken(token);
+  if (!user) return { status: 'success' };
+  var usersSheet = getUsersSheet();
+  usersSheet.getRange(user.rowIndex, 6).setValue('');
+  usersSheet.getRange(user.rowIndex, 7).setValue('');
+  return { status: 'success' };
+}
+
+function getSessionUser(payload) {
+  var token = String(payload.authToken || payload.token || '').trim();
+  if (!token) throw new Error('กรุณาเข้าสู่ระบบ');
+  var user = findUserByToken(token);
+  if (!user) throw new Error('session หมดอายุหรือไม่ถูกต้อง');
+  return { status: 'success', user: sanitizeUserForClient(user) };
+}
+
+function requirePermission(payload, permissionName) {
+  var session = getSessionUser(payload);
+  var user = findUserByUsername(session.user.username);
+  if (!user) throw new Error('ไม่พบผู้ใช้');
+  if (!user.permissions[permissionName]) {
+    throw new Error('ไม่มีสิทธิ์ใช้งานฟังก์ชันนี้ (' + permissionName + ')');
+  }
+  return user;
+}
+
+function requireAdminUser(payload) {
+  var user = requirePermission(payload, 'manage_users');
+  if (normalizeRole(user.role) !== 'admin') {
+    throw new Error('เฉพาะ Admin เท่านั้นที่เข้าถึงหน้านี้ได้');
+  }
+  return user;
+}
+
+function listUsers(payload) {
+  requireAdminUser(payload);
+  return {
+    status: 'success',
+    users: getAllUsers().map(function(u) { return sanitizeUserForClient(u); })
+  };
+}
+
+function upsertUser(payload) {
+  var actor = requireAdminUser(payload);
+  var username = String(payload.username || '').trim();
+  if (!username) throw new Error('ต้องระบุ username');
+  var role = normalizeRole(payload.role || 'user');
+  var isActive = toBoolean(payload.isActive, true);
+  var password = String(payload.password || '').trim();
+  var permissionsObj = parsePermissions(payload.permissionsJson || payload.permissions || '');
+  var permissionsJson = JSON.stringify(permissionsObj);
+
+  var usersSheet = getUsersSheet();
+  var existing = findUserByUsername(username);
+  if (existing) {
+    if (String(payload.password || '') !== '') {
+      usersSheet.getRange(existing.rowIndex, 2).setValue(password);
+    }
+    usersSheet.getRange(existing.rowIndex, 3).setValue(role);
+    usersSheet.getRange(existing.rowIndex, 4).setValue(String(isActive));
+    usersSheet.getRange(existing.rowIndex, 5).setValue(permissionsJson);
+    return { status: 'success', mode: 'update', username: username };
+  }
+
+  if (!actor.permissions.add_user) throw new Error('ไม่มีสิทธิ์เพิ่มผู้ใช้');
+  if (!password) throw new Error('ต้องระบุ password สำหรับผู้ใช้ใหม่');
+  usersSheet.appendRow([username, password, role, String(isActive), permissionsJson, '', '']);
+  return { status: 'success', mode: 'create', username: username };
+}
+
+function deleteUser(payload) {
+  var actor = requireAdminUser(payload);
+  var username = String(payload.username || '').trim();
+  if (!username) throw new Error('ต้องระบุ username');
+  if (username === actor.username) throw new Error('ไม่สามารถลบ user ตัวเองได้');
+  var existing = findUserByUsername(username);
+  if (!existing) throw new Error('ไม่พบผู้ใช้');
+  var usersSheet = getUsersSheet();
+  usersSheet.deleteRow(existing.rowIndex);
+  return { status: 'success', username: username };
 }
 
 function getSheetByFlexibleName(spreadsheet, requestedName) {
@@ -186,10 +468,9 @@ function processTransaction(payload) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
   var resolvedSheetName = resolveReadSheetName({ sheet: payload.sheetName });
-  var mainSheet = getSheetByFlexibleName(spreadsheet, resolvedSheetName);
+  var mainSheet = ensureSheetWithTemplate(spreadsheet, resolvedSheetName);
 
   ensureLogSheetHeaders(historySheet);
-  if (!mainSheet) throw new Error('ไม่พบชีทชื่อ ' + resolvedSheetName);
   if (!payload.partName || !payload.qty) throw new Error('ต้องมี partName และ qty');
 
   var qty = Number(payload.qty);
@@ -200,7 +481,7 @@ function processTransaction(payload) {
   else signedQty = Math.abs(qty);
 
   var mainData = mainSheet.getDataRange().getValues();
-  if (!mainData.length) throw new Error('ไม่พบข้อมูลในชีทหลัก');
+  if (!mainData.length || mainData.length <= 1) throw new Error('ยังไม่มีข้อมูลอะไหล่ในชีท ' + resolvedSheetName);
 
   var headerRowIndex = findHeaderRowIndex(mainData);
   var headers = mainData[headerRowIndex];
@@ -276,11 +557,14 @@ function resolveReadSheetName(source) {
 
 function getMainSheetContext(sheetName) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = getSheetByFlexibleName(spreadsheet, sheetName);
-  if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + sheetName);
+  var sheet = ensureSheetWithTemplate(spreadsheet, sheetName);
 
   var data = sheet.getDataRange().getValues();
-  if (!data.length) throw new Error('ไม่พบข้อมูลในชีท ' + sheetName);
+  if (!data.length) {
+    var headers = getTemplateHeaders(spreadsheet);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    data = sheet.getDataRange().getValues();
+  }
 
   var headerRowIndex = findHeaderRowIndex(data);
   var headers = data[headerRowIndex];
@@ -581,11 +865,32 @@ function getDriveAuthStatus() {
 function doGet(e) {
   try {
     var action = e && e.parameter ? e.parameter.action : '';
-    if (action === 'transact') return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
+    var authToken = e && e.parameter ? (e.parameter.authToken || e.parameter.token || '') : '';
+    var authPayload = { authToken: authToken };
+    if (action === 'login') return respond(loginUser({ username: e.parameter.username, password: e.parameter.password }), e);
+    if (action === 'logout') return respond(logoutUser(authPayload), e);
+    if (action === 'session') return respond(getSessionUser(authPayload), e);
+    if (action === 'listUsers') return respond(listUsers(authPayload), e);
+    if (action === 'upsertUser') return respond(upsertUser({
+      authToken: authToken,
+      username: e.parameter.username,
+      password: e.parameter.password,
+      role: e.parameter.role,
+      isActive: e.parameter.isActive,
+      permissionsJson: e.parameter.permissionsJson
+    }), e);
+    if (action === 'deleteUser') return respond(deleteUser({ authToken: authToken, username: e.parameter.username }), e);
+    requirePermission(authPayload, 'view');
+    if (action === 'transact') {
+      requirePermission(authPayload, 'transact');
+      return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
+    }
     if (action === 'logs') return respond(getLogRows(), e);
     if (action === 'authStatus') return respond(getDriveAuthStatus(), e);
     if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
-    if (action === 'upsertItem') return respond(upsertMainItem({
+    if (action === 'upsertItem') {
+      requirePermission(authPayload, 'manage_items');
+      return respond(upsertMainItem({
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
       name: e.parameter.name,
@@ -605,14 +910,18 @@ function doGet(e) {
       unit: e.parameter.unit,
       stock: e.parameter.stock
     }), e);
-    if (action === 'deleteItem') return respond(deleteMainItem({ sheetName: e.parameter.sheet, no: e.parameter.no }), e);
+    }
+    if (action === 'deleteItem') {
+      requirePermission(authPayload, 'delete_items');
+      return respond(deleteMainItem({ sheetName: e.parameter.sheet, no: e.parameter.no }), e);
+    }
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
-    var sheet = getSheetByFlexibleName(SpreadsheetApp.getActiveSpreadsheet(), sheetName);
-    if (!sheet) throw new Error('ไม่พบชีทชื่อ ' + sheetName);
+    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ensureSheetWithTemplate(spreadsheet, sheetName);
 
     var data = sheet.getDataRange().getValues();
-    if (!data.length) return respond([], e);
+    if (!data.length || data.length <= 1) return respond([], e);
 
     var headerRowIndex = findHeaderRowIndex(data);
     var headers = data[headerRowIndex];
@@ -693,8 +1002,36 @@ function doPost(e) {
       body.dataUrl = body.dataUrl || body.file || body.fileBase64 || '';
     }
     var action = body && body.action ? String(body.action) : '';
+    var authPayload = { authToken: body.authToken || body.token || '' };
     if (!action && (body.itemId || body.imageType || body.kind || body.dataUrl)) action = 'uploadImage';
+    if (action === 'login') {
+      return respond(loginUser({ username: body.username, password: body.password }), e);
+    }
+    if (action === 'logout') {
+      return respond(logoutUser(authPayload), e);
+    }
+    if (action === 'session') {
+      return respond(getSessionUser(authPayload), e);
+    }
+    if (action === 'listUsers') {
+      return respond(listUsers(authPayload), e);
+    }
+    if (action === 'upsertUser') {
+      return respond(upsertUser({
+        authToken: authPayload.authToken,
+        username: body.username,
+        password: body.password,
+        role: body.role,
+        isActive: body.isActive,
+        permissionsJson: body.permissionsJson
+      }), e);
+    }
+    if (action === 'deleteUser') {
+      return respond(deleteUser({ authToken: authPayload.authToken, username: body.username }), e);
+    }
+    requirePermission(authPayload, 'view');
     if (action === 'upsertItem') {
+      requirePermission(authPayload, 'manage_items');
       return respond(upsertMainItem({
         sheetName: body.sheet || body.sheetName,
         no: body.no,
@@ -717,6 +1054,7 @@ function doPost(e) {
       }), e);
     }
     if (action === 'uploadImage' || action === 'upload') {
+      requirePermission(authPayload, 'manage_items');
       return respond(uploadImageToDrive(body), e);
     }
     if (action === 'authStatus') {
@@ -726,11 +1064,13 @@ function doPost(e) {
       return respond(authorizeGoogleDriveAccess(), e);
     }
     if (action === 'deleteItem') {
+      requirePermission(authPayload, 'delete_items');
       return respond(deleteMainItem({
         sheetName: body.sheet || body.sheetName,
         no: body.no
       }), e);
     }
+    requirePermission(authPayload, 'transact');
     return respond(processTransaction(body), e);
   } catch (err) {
     Logger.log('doPost error: ' + err);
