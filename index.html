@@ -34,6 +34,9 @@
         visibility: visible;
       }
     }
+    body.edit-modal-open .out-stock-overlay {
+      display: none !important;
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 overflow-x-hidden">
@@ -1057,7 +1060,7 @@
 
     function renderOutOfStockOverlay(textSizeClass) {
       var sizeClass = textSizeClass || 'text-xl';
-      return '<div class="flex flex-col items-center justify-center gap-1.5">' +
+      return '<div class="out-stock-overlay flex flex-col items-center justify-center gap-1.5">' +
         '<p class="' + sizeClass + ' font-extrabold tracking-wide text-slate-900">อะไหล่หมด</p>' +
         '<span class="h-0.5 w-24 rounded-full bg-slate-900/80"></span>' +
       '</div>';
@@ -2753,6 +2756,7 @@
       editModalSubtitle.textContent = 'ชีต: ' + getCurrentSheetName() + ' | NO: ' + (item.no || '-');
       editModal.classList.remove('hidden');
       editModal.classList.add('flex');
+      document.body.classList.add('edit-modal-open');
       lockBodyScroll();
       setTimeout(function() {
         var nameInput = document.getElementById('eName');
@@ -2767,6 +2771,7 @@
       var topTabs = document.getElementById('topNavTabs');
       if (topTabs) topTabs.classList.remove('hidden');
       if (lineMenuDockToggle) lineMenuDockToggle.classList.toggle('hidden', !currentUser);
+      document.body.classList.remove('edit-modal-open');
       unlockBodyScroll();
     }
 
