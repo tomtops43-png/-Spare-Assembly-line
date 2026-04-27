@@ -1091,7 +1091,12 @@
     }
 
     function openIssueCart() {
+      if (!issueCartModal || !issueCartModal.classList.contains('hidden')) return;
+      if (!detailModal.classList.contains('hidden')) closeDetailModal();
+      if (!editModal.classList.contains('hidden')) closeEditModal();
+      if (!filterSheet.classList.contains('hidden')) filterSheet.classList.add('hidden');
       issueCartModal.classList.remove('hidden');
+      if (stockStickyHeader) stockStickyHeader.classList.add('pointer-events-none');
       lockBodyScroll();
       if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
       setIssueCartMessage('', 'muted');
@@ -1099,7 +1104,9 @@
     }
 
     function closeIssueCart() {
+      if (!issueCartModal || issueCartModal.classList.contains('hidden')) return;
       issueCartModal.classList.add('hidden');
+      if (stockStickyHeader) stockStickyHeader.classList.remove('pointer-events-none');
       unlockBodyScroll();
     }
 
@@ -3117,6 +3124,14 @@
           if (found) openDetailModal(found);
         });
       });
+      Array.prototype.slice.call(mobileCardList.querySelectorAll('button[data-view-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          var no = btn.getAttribute('data-view-no');
+          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          if (found) openDetailModal(found);
+        });
+      });
       Array.prototype.slice.call(mobileCardList.querySelectorAll('[data-mobile-issue-no]')).forEach(function(btn){
         btn.addEventListener('click', function(e){
           e.stopPropagation();
@@ -3126,6 +3141,7 @@
     }
 
     function openDetailModal(item) {
+      if (!issueCartModal.classList.contains('hidden')) return;
       detailModalCurrentNo = item.no;
       document.getElementById('detailName').textContent = item.name || '-';
       document.getElementById('detailModel').textContent = item.model || '-';
