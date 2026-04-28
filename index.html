@@ -289,6 +289,9 @@
         </div>
         <input id="mName" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Name" required />
         <input id="mModel" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Model" />
+        <select id="mSheet" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือกชีตปลายทาง</option>
+        </select>
         <select id="mLine" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
           <option value="">เลือก Main line</option>
         </select>
@@ -693,6 +696,7 @@
       'Lug&Screw': localStorage.getItem('spare_api_url_lug_screw') || ''
     };
     var LINE_SHEET_OPTIONS = {
+      'H9': ['Main List Stock', 'Stock for MC'],
       'Arc Chute': ['Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)'],
       'Coil Winding': ['Coil Winding'],
       'Lug&Screw': ['Lug&Screw']
@@ -811,6 +815,7 @@
     var imageViewerImg = document.getElementById('imageViewerImg');
     var closeImageViewerBtn = document.getElementById('closeImageViewer');
     var manageNoInput = document.getElementById('mNo');
+    var manageSheetSelect = document.getElementById('mSheet');
     var manageLineSelect = document.getElementById('mLine');
     var currentLine = 'H9';
     var authToken = localStorage.getItem('spare_auth_token') || '';
@@ -1028,6 +1033,26 @@
 
     function normalizeLineText(value) {
       return String(value || '').trim().toLowerCase();
+    }
+
+    function getSheetOptionsForCurrentLine() {
+      var options = LINE_SHEET_OPTIONS[currentLine];
+      if (Array.isArray(options) && options.length) return options.slice();
+      return ['Main List Stock', 'Stock for MC'];
+    }
+
+    function populateManageSheetOptions(forceDefault) {
+      if (!manageSheetSelect) return;
+      var previous = String(manageSheetSelect.value || '').trim();
+      var options = getSheetOptionsForCurrentLine();
+      var defaultSheet = options[0] || '';
+      var selected = (previous && options.indexOf(previous) > -1 && !forceDefault) ? previous : (sheetSelector.value || defaultSheet);
+      manageSheetSelect.innerHTML = ['<option value="">เลือกชีตปลายทาง</option>'].concat(options.map(function(sheet) {
+        var escaped = String(sheet).replace(/"/g, '&quot;');
+        return '<option value="' + escaped + '">' + sheet + '</option>';
+      })).join('');
+      if (selected && options.indexOf(selected) > -1) manageSheetSelect.value = selected;
+      else if (defaultSheet) manageSheetSelect.value = defaultSheet;
     }
 
     function isLineOptionValid(value) {
@@ -2229,7 +2254,7 @@
       var requestPayload = {
         authToken: authToken,
         action: action,
-        sheet: getCurrentSheetName(),
+        sheet: payload.sheet || getCurrentSheetName(),
         itemId: payload.itemId || payload.no || '',
         imageType: payload.imageType || payload.kind || '',
         kind: payload.kind || payload.imageType || '',
@@ -2437,6 +2462,7 @@
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('manage');
+      populateManageSheetOptions(true);
       populateManageLineOptions(true);
       applyAutoManageNo(false);
     }
@@ -2494,6 +2520,7 @@
           populateBrandOptions(partsData);
           populatePartOptions(partsData);
           populateTxnFilters(partsData);
+          populateManageSheetOptions(false);
           populateManageLineOptions(false);
           if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
           renderTxnResultList();
@@ -2953,7 +2980,13 @@
       event.preventDefault();
       if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
       var itemNo = document.getElementById('mNo').value.trim();
+      var selectedManageSheet = document.getElementById('mSheet').value.trim();
       var selectedManageLine = document.getElementById('mLine').value.trim();
+      if (!selectedManageSheet) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = 'กรุณาเลือกชีตปลายทางก่อนบันทึก';
+        return;
+      }
       if (!selectedManageLine) {
         manageMessage.className = 'mt-3 text-sm text-rose-600';
         manageMessage.textContent = 'กรุณาเลือก Main line ก่อนบันทึก';
@@ -2961,6 +2994,7 @@
       }
       var mainFile = document.getElementById('mImageMainFile').files[0];
       var payload = {
+        sheet: selectedManageSheet,
         no: itemNo,
         name: document.getElementById('mName').value.trim(),
         model: document.getElementById('mModel').value.trim(),
@@ -3002,6 +3036,7 @@
         if ((res.mode || '').toLowerCase() === 'create') {
           manageForm.reset();
           document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
+          populateManageSheetOptions(true);
           populateManageLineOptions(true);
           applyAutoManageNo(true);
         }
@@ -3563,6 +3598,19 @@
     if (manageLineSelect) {
       manageLineSelect.addEventListener('change', function() {
         applyAutoManageNo(true);
+      });
+    }
+    if (manageSheetSelect) {
+      manageSheetSelect.addEventListener('change', function() {
+        var selected = String(manageSheetSelect.value || '').trim();
+        if (!selected) return;
+        if (sheetSelector.value !== selected) {
+          sheetSelector.value = selected;
+          loadPartsData();
+          if (!logPage.classList.contains('hidden')) loadLogData();
+        } else {
+          applyAutoManageNo(true);
+        }
       });
     }
     if (stockUtilityMenuBtn) {
