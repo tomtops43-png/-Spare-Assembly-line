@@ -289,11 +289,11 @@
         </div>
         <input id="mName" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Name" required />
         <input id="mModel" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Model" />
-        <select id="mSheet" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
-          <option value="">เลือกชีตปลายทาง</option>
-        </select>
         <select id="mLine" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
-          <option value="">เลือก Main line</option>
+          <option value="">เลือก LINE MAIN</option>
+        </select>
+        <select id="mSheet" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือกชีตย่อยของ LINE MAIN</option>
         </select>
         <input id="mCategory" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Category" />
         <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
@@ -1035,19 +1035,20 @@
       return String(value || '').trim().toLowerCase();
     }
 
-    function getSheetOptionsForCurrentLine() {
-      var options = LINE_SHEET_OPTIONS[currentLine];
+    function getSheetOptionsForLine(lineKey) {
+      var options = LINE_SHEET_OPTIONS[lineKey];
       if (Array.isArray(options) && options.length) return options.slice();
       return ['Main List Stock', 'Stock for MC'];
     }
 
-    function populateManageSheetOptions(forceDefault) {
+    function populateManageSheetOptions(forceDefault, lineKey) {
       if (!manageSheetSelect) return;
+      var selectedLineKey = lineKey || (manageLineSelect ? String(manageLineSelect.value || '').trim() : '') || currentLine;
       var previous = String(manageSheetSelect.value || '').trim();
-      var options = getSheetOptionsForCurrentLine();
+      var options = getSheetOptionsForLine(selectedLineKey);
       var defaultSheet = options[0] || '';
       var selected = (previous && options.indexOf(previous) > -1 && !forceDefault) ? previous : (sheetSelector.value || defaultSheet);
-      manageSheetSelect.innerHTML = ['<option value="">เลือกชีตปลายทาง</option>'].concat(options.map(function(sheet) {
+      manageSheetSelect.innerHTML = ['<option value="">เลือกชีตย่อยของ LINE MAIN</option>'].concat(options.map(function(sheet) {
         var escaped = String(sheet).replace(/"/g, '&quot;');
         return '<option value="' + escaped + '">' + sheet + '</option>';
       })).join('');
@@ -1055,35 +1056,13 @@
       else if (defaultSheet) manageSheetSelect.value = defaultSheet;
     }
 
-    function isLineOptionValid(value) {
-      var text = normalizeLineText(value);
-      return !!text && text !== '-';
-    }
-
-    function getManageLineOptions() {
-      var dynamicOptions = Array.from(new Set(partsData.map(function(item) {
-        return String(item && item.line || '').trim();
-      }).filter(isLineOptionValid)));
-      var staticOptions = ['H9-All', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
-      return Array.from(new Set(staticOptions.concat(dynamicOptions)));
-    }
-
-    function pickDefaultManageLine(options) {
-      var normalizedCurrentLine = normalizeLineText(currentLine);
-      if (!options.length) return '';
-      var matched = options.filter(function(option) {
-        return normalizeLineText(option).indexOf(normalizedCurrentLine) > -1;
-      })[0];
-      return matched || options[0];
-    }
-
     function populateManageLineOptions(forceDefault) {
       if (!manageLineSelect) return;
       var previous = String(manageLineSelect.value || '').trim();
-      var options = getManageLineOptions();
-      var defaultLine = pickDefaultManageLine(options);
+      var options = lineConfig.map(function(item) { return item.key; });
+      var defaultLine = options.indexOf(currentLine) > -1 ? currentLine : options[0];
       var selected = (previous && options.indexOf(previous) > -1 && !forceDefault) ? previous : defaultLine;
-      var html = ['<option value="">เลือก Main line</option>'].concat(options.map(function(line) {
+      var html = ['<option value="">เลือก LINE MAIN</option>'].concat(options.map(function(line) {
         var escaped = line.replace(/"/g, '&quot;');
         return '<option value="' + escaped + '">' + line + '</option>';
       }));
@@ -1103,7 +1082,7 @@
       var targetLine = normalizeLineText(selectedLine);
       var rows = (Array.isArray(existingItems) ? existingItems : []).filter(function(item) {
         if (!targetLine) return true;
-        return normalizeLineText(item && item.line) === targetLine;
+        return normalizeLineText(item && item.line).indexOf(targetLine) > -1;
       });
       var numericRows = rows.map(function(item) {
         return extractTrailingNumber(item && item.no);
@@ -2462,8 +2441,8 @@
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('manage');
-      populateManageSheetOptions(true);
       populateManageLineOptions(true);
+      populateManageSheetOptions(true);
       applyAutoManageNo(false);
     }
 
@@ -2520,8 +2499,8 @@
           populateBrandOptions(partsData);
           populatePartOptions(partsData);
           populateTxnFilters(partsData);
-          populateManageSheetOptions(false);
           populateManageLineOptions(false);
+          populateManageSheetOptions(false);
           if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
           renderTxnResultList();
           selectTxnItem(currentTxnItemNo);
@@ -3036,8 +3015,8 @@
         if ((res.mode || '').toLowerCase() === 'create') {
           manageForm.reset();
           document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
-          populateManageSheetOptions(true);
           populateManageLineOptions(true);
+          populateManageSheetOptions(true);
           applyAutoManageNo(true);
         }
         loadPartsData();
@@ -3597,6 +3576,19 @@
     }
     if (manageLineSelect) {
       manageLineSelect.addEventListener('change', function() {
+        var selectedMainLine = String(manageLineSelect.value || '').trim();
+        if (!selectedMainLine) return;
+        currentLine = selectedMainLine;
+        renderLineTabs();
+        applyLineTheme();
+        populateManageSheetOptions(true, selectedMainLine);
+        var selectedSheet = String((manageSheetSelect && manageSheetSelect.value) || '').trim();
+        if (selectedSheet) {
+          sheetSelector.value = selectedSheet;
+          loadPartsData();
+          if (!logPage.classList.contains('hidden')) loadLogData();
+          return;
+        }
         applyAutoManageNo(true);
       });
     }
