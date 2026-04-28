@@ -295,6 +295,7 @@
         <select id="mSheet" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
           <option value="">เลือกชีตย่อยของ LINE MAIN</option>
         </select>
+        <input id="mLocation" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Location (เช่น SP-H9-A1-1)" />
         <input id="mCategory" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Category" />
         <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
         <div>
@@ -556,6 +557,7 @@
         <div><label class="text-xs text-slate-500">Name / Description</label><input id="eName" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
         <div><label class="text-xs text-slate-500">Model</label><input id="eModel" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Location</label><input id="eLocation" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div>
@@ -2262,6 +2264,7 @@
         partName: payload.partName || payload.name || '',
         model: payload.model || '',
         line: payload.line || '',
+        location: payload.location || '',
         category: payload.category || '',
         brand: payload.brand || '',
         photo: payload.photo || '',
@@ -2287,6 +2290,7 @@
         'partName=' + encodeURIComponent(requestPayload.partName),
         'model=' + encodeURIComponent(requestPayload.model),
         'line=' + encodeURIComponent(requestPayload.line),
+        'location=' + encodeURIComponent(requestPayload.location),
         'category=' + encodeURIComponent(requestPayload.category),
         'brand=' + encodeURIComponent(requestPayload.brand),
         // Keep only the canonical image fields to reduce URL size and JSONP failures.
@@ -2876,6 +2880,7 @@
       document.getElementById('eName').value = item.name || '';
       document.getElementById('eModel').value = item.model || '';
       document.getElementById('eLine').value = item.line || '';
+      document.getElementById('eLocation').value = item.location || '';
       document.getElementById('eCategory').value = item.category || '';
       document.getElementById('eBrand').value = item.brand || '';
       document.getElementById('eImageMainFile').value = '';
@@ -2918,6 +2923,7 @@
         name: document.getElementById('eName').value.trim(),
         model: document.getElementById('eModel').value.trim(),
         line: document.getElementById('eLine').value.trim(),
+        location: document.getElementById('eLocation').value.trim(),
         category: document.getElementById('eCategory').value.trim(),
         brand: document.getElementById('eBrand').value.trim(),
         photo: oldItem.image_main_url || oldItem.image_main || oldItem.photo || '',
@@ -2997,6 +3003,7 @@
         name: document.getElementById('mName').value.trim(),
         model: document.getElementById('mModel').value.trim(),
         line: selectedManageLine,
+        location: document.getElementById('mLocation').value.trim(),
         category: document.getElementById('mCategory').value.trim(),
         brand: document.getElementById('mBrand').value.trim(),
         photo: '',
