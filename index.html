@@ -283,23 +283,25 @@
     <section id="managePage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
       <h2 class="text-lg font-semibold mb-3">จัดการรายการอะไหล่ (เพิ่ม/แก้ไข/ลบ)</h2>
       <form id="manageForm" class="grid grid-cols-1 md:grid-cols-6 gap-3">
-        <input id="mNo" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="NO (เช่น ID-001)" required />
+        <div>
+          <input id="mNo" type="text" class="w-full rounded-xl border border-slate-300 px-3 py-2.5" placeholder="NO (รันอัตโนมัติ เช่น ID-001)" required />
+          <p class="mt-1 text-[11px] text-slate-500">ระบบจะรันเลขให้อัตโนมัติจากข้อมูลเดิม (ยังสามารถแก้ไขได้)</p>
+        </div>
         <input id="mName" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Name" required />
         <input id="mModel" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Model" />
-        <input id="mLine" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Main line" />
+        <select id="mLine" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือก LINE MAIN</option>
+        </select>
+        <select id="mSheet" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือกชีตย่อยของ LINE MAIN</option>
+        </select>
         <input id="mCategory" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Category" />
         <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
         <div>
           <label class="text-xs text-slate-500">รูปหลัก</label>
-          <div class="mt-1 grid grid-cols-1 gap-2">
-            <div>
-              <p class="text-[11px] text-slate-500 mb-1">เลือกจากแกลลอรี่</p>
-              <input id="mImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white w-full" />
-            </div>
-            <div>
-              <p class="text-[11px] text-slate-500 mb-1">ถ่ายภาพจากกล้อง</p>
-              <input id="mImageMainCamera" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" capture="environment" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white w-full" />
-            </div>
+          <div class="mt-1">
+            <p class="text-[11px] text-slate-500 mb-1">เลือกรูปภาพ</p>
+            <input id="mImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white w-full" />
           </div>
         </div>
                 <div class="md:col-span-2">
@@ -558,15 +560,9 @@
         <div><label class="text-xs text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div>
           <label class="text-xs text-slate-500">รูปหลัก</label>
-          <div class="mt-1 grid grid-cols-1 gap-2">
-            <div>
-              <p class="text-[11px] text-slate-500 mb-1">เลือกจากแกลลอรี่</p>
-              <input id="eImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
-            </div>
-            <div>
-              <p class="text-[11px] text-slate-500 mb-1">ถ่ายภาพจากกล้อง</p>
-              <input id="eImageMainCamera" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" capture="environment" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
-            </div>
+          <div class="mt-1">
+            <p class="text-[11px] text-slate-500 mb-1">เลือกรูปภาพ</p>
+            <input id="eImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
           </div>
         </div>
                 <div class="md:col-span-3">
@@ -700,6 +696,7 @@
       'Lug&Screw': localStorage.getItem('spare_api_url_lug_screw') || ''
     };
     var LINE_SHEET_OPTIONS = {
+      'H9': ['Main List Stock', 'Stock for MC'],
       'Arc Chute': ['Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)'],
       'Coil Winding': ['Coil Winding'],
       'Lug&Screw': ['Lug&Screw']
@@ -817,10 +814,14 @@
     var imageViewer = document.getElementById('imageViewer');
     var imageViewerImg = document.getElementById('imageViewerImg');
     var closeImageViewerBtn = document.getElementById('closeImageViewer');
+    var manageNoInput = document.getElementById('mNo');
+    var manageSheetSelect = document.getElementById('mSheet');
+    var manageLineSelect = document.getElementById('mLine');
     var currentLine = 'H9';
     var authToken = localStorage.getItem('spare_auth_token') || '';
     var currentUser = null;
     var modalLockCount = 0;
+    var lastAutoGeneratedManageNo = '';
     var usersTable = document.getElementById('usersTable');
     var usersMobileList = document.getElementById('usersMobileList');
     var userForm = document.getElementById('userForm');
@@ -1028,6 +1029,80 @@
         photo: mainImageUrl,
         image_install_url: firstDefined([item.image_install_url, item.image_install, item.imageInstall], '')
       };
+    }
+
+    function normalizeLineText(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function getSheetOptionsForLine(lineKey) {
+      var options = LINE_SHEET_OPTIONS[lineKey];
+      if (Array.isArray(options) && options.length) return options.slice();
+      return ['Main List Stock', 'Stock for MC'];
+    }
+
+    function populateManageSheetOptions(forceDefault, lineKey) {
+      if (!manageSheetSelect) return;
+      var selectedLineKey = lineKey || (manageLineSelect ? String(manageLineSelect.value || '').trim() : '') || currentLine;
+      var previous = String(manageSheetSelect.value || '').trim();
+      var options = getSheetOptionsForLine(selectedLineKey);
+      var defaultSheet = options[0] || '';
+      var selected = (previous && options.indexOf(previous) > -1 && !forceDefault) ? previous : (sheetSelector.value || defaultSheet);
+      manageSheetSelect.innerHTML = ['<option value="">เลือกชีตย่อยของ LINE MAIN</option>'].concat(options.map(function(sheet) {
+        var escaped = String(sheet).replace(/"/g, '&quot;');
+        return '<option value="' + escaped + '">' + sheet + '</option>';
+      })).join('');
+      if (selected && options.indexOf(selected) > -1) manageSheetSelect.value = selected;
+      else if (defaultSheet) manageSheetSelect.value = defaultSheet;
+    }
+
+    function populateManageLineOptions(forceDefault) {
+      if (!manageLineSelect) return;
+      var previous = String(manageLineSelect.value || '').trim();
+      var options = lineConfig.map(function(item) { return item.key; });
+      var defaultLine = options.indexOf(currentLine) > -1 ? currentLine : options[0];
+      var selected = (previous && options.indexOf(previous) > -1 && !forceDefault) ? previous : defaultLine;
+      var html = ['<option value="">เลือก LINE MAIN</option>'].concat(options.map(function(line) {
+        var escaped = line.replace(/"/g, '&quot;');
+        return '<option value="' + escaped + '">' + line + '</option>';
+      }));
+      manageLineSelect.innerHTML = html.join('');
+      if (selected) manageLineSelect.value = selected;
+    }
+
+    function extractTrailingNumber(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return NaN;
+      if (/^\d+$/.test(raw)) return Number(raw);
+      var match = raw.match(/(\d+)(?!.*\d)/);
+      return match ? Number(match[1]) : NaN;
+    }
+
+    function suggestNextManageNo(existingItems, selectedLine) {
+      var targetLine = normalizeLineText(selectedLine);
+      var rows = (Array.isArray(existingItems) ? existingItems : []).filter(function(item) {
+        if (!targetLine) return true;
+        return normalizeLineText(item && item.line).indexOf(targetLine) > -1;
+      });
+      var numericRows = rows.map(function(item) {
+        return extractTrailingNumber(item && item.no);
+      }).filter(function(no) {
+        return Number.isFinite(no);
+      });
+      if (!numericRows.length) return '1';
+      return String(Math.max.apply(null, numericRows) + 1);
+    }
+
+    function applyAutoManageNo(forceUpdate) {
+      if (!manageNoInput) return;
+      var currentValue = String(manageNoInput.value || '').trim();
+      var shouldOverwrite = !!forceUpdate || !currentValue || currentValue === lastAutoGeneratedManageNo;
+      if (!shouldOverwrite) return;
+      var selectedLine = manageLineSelect ? manageLineSelect.value : '';
+      var suggested = suggestNextManageNo(partsData, selectedLine);
+      if (!suggested) return;
+      manageNoInput.value = suggested;
+      lastAutoGeneratedManageNo = suggested;
     }
 
     function getNeedToOrder(item) {
@@ -2158,7 +2233,7 @@
       var requestPayload = {
         authToken: authToken,
         action: action,
-        sheet: getCurrentSheetName(),
+        sheet: payload.sheet || getCurrentSheetName(),
         itemId: payload.itemId || payload.no || '',
         imageType: payload.imageType || payload.kind || '',
         kind: payload.kind || payload.imageType || '',
@@ -2366,6 +2441,9 @@
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('manage');
+      populateManageLineOptions(true);
+      populateManageSheetOptions(true);
+      applyAutoManageNo(false);
     }
 
     function switchToAdminPage() {
@@ -2421,10 +2499,13 @@
           populateBrandOptions(partsData);
           populatePartOptions(partsData);
           populateTxnFilters(partsData);
+          populateManageLineOptions(false);
+          populateManageSheetOptions(false);
           if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
           renderTxnResultList();
           selectTxnItem(currentTxnItemNo);
           syncIssueCartWithStock();
+          applyAutoManageNo(false);
           if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
           if (partsData.length) {
             var updatedAtText = document.getElementById('updatedAtText');
@@ -2779,7 +2860,6 @@
       document.getElementById('eCategory').value = item.category || '';
       document.getElementById('eBrand').value = item.brand || '';
       document.getElementById('eImageMainFile').value = '';
-      document.getElementById('eImageMainCamera').value = '';
       document.getElementById('eImageMainPreview').src = toSafeImageUrl(item.image_main_url);
       document.getElementById('eMax').value = item.max || '';
       document.getElementById('eMin').value = item.min || '';
@@ -2813,7 +2893,7 @@
       if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
       var itemNo = document.getElementById('eNo').value.trim();
       var oldItem = partsData.filter(function(p){ return String(p.no) === String(itemNo); })[0] || {};
-      var mainFile = document.getElementById('eImageMainFile').files[0] || document.getElementById('eImageMainCamera').files[0];
+      var mainFile = document.getElementById('eImageMainFile').files[0];
       var payload = {
         no: itemNo,
         name: document.getElementById('eName').value.trim(),
@@ -2879,12 +2959,25 @@
       event.preventDefault();
       if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
       var itemNo = document.getElementById('mNo').value.trim();
-      var mainFile = document.getElementById('mImageMainFile').files[0] || document.getElementById('mImageMainCamera').files[0];
+      var selectedManageSheet = document.getElementById('mSheet').value.trim();
+      var selectedManageLine = document.getElementById('mLine').value.trim();
+      if (!selectedManageSheet) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = 'กรุณาเลือกชีตปลายทางก่อนบันทึก';
+        return;
+      }
+      if (!selectedManageLine) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = 'กรุณาเลือก Main line ก่อนบันทึก';
+        return;
+      }
+      var mainFile = document.getElementById('mImageMainFile').files[0];
       var payload = {
+        sheet: selectedManageSheet,
         no: itemNo,
         name: document.getElementById('mName').value.trim(),
         model: document.getElementById('mModel').value.trim(),
-        line: document.getElementById('mLine').value.trim(),
+        line: selectedManageLine,
         category: document.getElementById('mCategory').value.trim(),
         brand: document.getElementById('mBrand').value.trim(),
         photo: '',
@@ -2919,6 +3012,13 @@
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
         manageMessage.className = 'mt-3 text-sm text-emerald-600';
         manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no;
+        if ((res.mode || '').toLowerCase() === 'create') {
+          manageForm.reset();
+          document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
+          populateManageLineOptions(true);
+          populateManageSheetOptions(true);
+          applyAutoManageNo(true);
+        }
         loadPartsData();
       }).catch(function(err) {
         manageMessage.className = 'mt-3 text-sm text-rose-600';
@@ -3467,6 +3567,44 @@
     bindStockShortcut(stockNavManageBtnMobile, switchToManagePage);
     bindStockShortcut(stockNavAdminBtn, switchToAdminPage);
     bindStockShortcut(stockNavAdminBtnMobile, switchToAdminPage);
+    if (manageNoInput) {
+      manageNoInput.addEventListener('input', function() {
+        var current = String(manageNoInput.value || '').trim();
+        if (!current || current === lastAutoGeneratedManageNo) return;
+        lastAutoGeneratedManageNo = '';
+      });
+    }
+    if (manageLineSelect) {
+      manageLineSelect.addEventListener('change', function() {
+        var selectedMainLine = String(manageLineSelect.value || '').trim();
+        if (!selectedMainLine) return;
+        currentLine = selectedMainLine;
+        renderLineTabs();
+        applyLineTheme();
+        populateManageSheetOptions(true, selectedMainLine);
+        var selectedSheet = String((manageSheetSelect && manageSheetSelect.value) || '').trim();
+        if (selectedSheet) {
+          sheetSelector.value = selectedSheet;
+          loadPartsData();
+          if (!logPage.classList.contains('hidden')) loadLogData();
+          return;
+        }
+        applyAutoManageNo(true);
+      });
+    }
+    if (manageSheetSelect) {
+      manageSheetSelect.addEventListener('change', function() {
+        var selected = String(manageSheetSelect.value || '').trim();
+        if (!selected) return;
+        if (sheetSelector.value !== selected) {
+          sheetSelector.value = selected;
+          loadPartsData();
+          if (!logPage.classList.contains('hidden')) loadLogData();
+        } else {
+          applyAutoManageNo(true);
+        }
+      });
+    }
     if (stockUtilityMenuBtn) {
       stockUtilityMenuBtn.addEventListener('click', function() {
         if (!stockUtilityMenuMobile) return;
@@ -3559,9 +3697,7 @@
     });
     editForm.addEventListener('submit', submitEditModal);
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
-    bindFilePreview('mImageMainCamera', 'mImageMainPreview');
     bindFilePreview('eImageMainFile', 'eImageMainPreview');
-    bindFilePreview('eImageMainCamera', 'eImageMainPreview');
     sheetSelector.addEventListener('change', function() {
       loadPartsData();
       if (!logPage.classList.contains('hidden')) loadLogData();
