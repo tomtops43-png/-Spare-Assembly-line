@@ -289,7 +289,9 @@
         </div>
         <input id="mName" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Name" required />
         <input id="mModel" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Model" />
-        <input id="mLine" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Main line" />
+        <select id="mLine" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือก Main line</option>
+        </select>
         <input id="mCategory" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Category" />
         <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
         <div>
@@ -809,6 +811,7 @@
     var imageViewerImg = document.getElementById('imageViewerImg');
     var closeImageViewerBtn = document.getElementById('closeImageViewer');
     var manageNoInput = document.getElementById('mNo');
+    var manageLineSelect = document.getElementById('mLine');
     var currentLine = 'H9';
     var authToken = localStorage.getItem('spare_auth_token') || '';
     var currentUser = null;
@@ -1023,58 +1026,67 @@
       };
     }
 
-    function parseManageNoPattern(value) {
-      var raw = String(value || '').trim();
-      if (!raw) return null;
-      var match = raw.match(/^(.*?)(\d+)(?!.*\d)$/);
-      if (!match) return null;
-      return {
-        raw: raw,
-        prefix: match[1] || '',
-        number: Number(match[2]),
-        width: String(match[2]).length
-      };
+    function normalizeLineText(value) {
+      return String(value || '').trim().toLowerCase();
     }
 
-    function suggestNextManageNo(existingItems, seedValue) {
-      var records = Array.isArray(existingItems) ? existingItems : [];
-      var parsedRows = records.map(function(item) {
-        return parseManageNoPattern(item && item.no);
-      }).filter(function(parsed) {
-        return parsed && Number.isFinite(parsed.number);
+    function isLineOptionValid(value) {
+      var text = normalizeLineText(value);
+      return !!text && text !== '-';
+    }
+
+    function getManageLineOptions() {
+      var dynamicOptions = Array.from(new Set(partsData.map(function(item) {
+        return String(item && item.line || '').trim();
+      }).filter(isLineOptionValid)));
+      var staticOptions = ['H9-All', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+      return Array.from(new Set(staticOptions.concat(dynamicOptions)));
+    }
+
+    function pickDefaultManageLine(options) {
+      var normalizedCurrentLine = normalizeLineText(currentLine);
+      if (!options.length) return '';
+      var matched = options.filter(function(option) {
+        return normalizeLineText(option).indexOf(normalizedCurrentLine) > -1;
+      })[0];
+      return matched || options[0];
+    }
+
+    function populateManageLineOptions(forceDefault) {
+      if (!manageLineSelect) return;
+      var previous = String(manageLineSelect.value || '').trim();
+      var options = getManageLineOptions();
+      var defaultLine = pickDefaultManageLine(options);
+      var selected = (previous && options.indexOf(previous) > -1 && !forceDefault) ? previous : defaultLine;
+      var html = ['<option value="">เลือก Main line</option>'].concat(options.map(function(line) {
+        var escaped = line.replace(/"/g, '&quot;');
+        return '<option value="' + escaped + '">' + line + '</option>';
+      }));
+      manageLineSelect.innerHTML = html.join('');
+      if (selected) manageLineSelect.value = selected;
+    }
+
+    function extractTrailingNumber(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return NaN;
+      if (/^\d+$/.test(raw)) return Number(raw);
+      var match = raw.match(/(\d+)(?!.*\d)/);
+      return match ? Number(match[1]) : NaN;
+    }
+
+    function suggestNextManageNo(existingItems, selectedLine) {
+      var targetLine = normalizeLineText(selectedLine);
+      var rows = (Array.isArray(existingItems) ? existingItems : []).filter(function(item) {
+        if (!targetLine) return true;
+        return normalizeLineText(item && item.line) === targetLine;
       });
-
-      var seedPattern = parseManageNoPattern(seedValue);
-      var defaultPrefix = (seedPattern && seedPattern.prefix) ? seedPattern.prefix : 'ID-';
-      var defaultWidth = (seedPattern && seedPattern.width) ? seedPattern.width : 3;
-
-      if (!parsedRows.length) {
-        return defaultPrefix + String(1).padStart(defaultWidth, '0');
-      }
-
-      var prefixStats = {};
-      parsedRows.forEach(function(row) {
-        var key = row.prefix;
-        if (!prefixStats[key]) prefixStats[key] = { count: 0, maxNumber: 0, maxWidth: 1 };
-        prefixStats[key].count += 1;
-        if (row.number > prefixStats[key].maxNumber) prefixStats[key].maxNumber = row.number;
-        if (row.width > prefixStats[key].maxWidth) prefixStats[key].maxWidth = row.width;
+      var numericRows = rows.map(function(item) {
+        return extractTrailingNumber(item && item.no);
+      }).filter(function(no) {
+        return Number.isFinite(no);
       });
-
-      var preferredPrefix = defaultPrefix;
-      if (!prefixStats[preferredPrefix]) {
-        var bestPrefix = Object.keys(prefixStats).sort(function(a, b) {
-          var countDiff = prefixStats[b].count - prefixStats[a].count;
-          if (countDiff !== 0) return countDiff;
-          return prefixStats[b].maxNumber - prefixStats[a].maxNumber;
-        })[0] || defaultPrefix;
-        preferredPrefix = bestPrefix;
-      }
-
-      var stat = prefixStats[preferredPrefix] || { maxNumber: 0, maxWidth: defaultWidth };
-      var nextNumber = stat.maxNumber + 1;
-      var width = Math.max(stat.maxWidth, defaultWidth, String(nextNumber).length);
-      return preferredPrefix + String(nextNumber).padStart(width, '0');
+      if (!numericRows.length) return '1';
+      return String(Math.max.apply(null, numericRows) + 1);
     }
 
     function applyAutoManageNo(forceUpdate) {
@@ -1082,7 +1094,8 @@
       var currentValue = String(manageNoInput.value || '').trim();
       var shouldOverwrite = !!forceUpdate || !currentValue || currentValue === lastAutoGeneratedManageNo;
       if (!shouldOverwrite) return;
-      var suggested = suggestNextManageNo(partsData, currentValue);
+      var selectedLine = manageLineSelect ? manageLineSelect.value : '';
+      var suggested = suggestNextManageNo(partsData, selectedLine);
       if (!suggested) return;
       manageNoInput.value = suggested;
       lastAutoGeneratedManageNo = suggested;
@@ -2424,6 +2437,7 @@
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('manage');
+      populateManageLineOptions(true);
       applyAutoManageNo(false);
     }
 
@@ -2480,6 +2494,7 @@
           populateBrandOptions(partsData);
           populatePartOptions(partsData);
           populateTxnFilters(partsData);
+          populateManageLineOptions(false);
           if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
           renderTxnResultList();
           selectTxnItem(currentTxnItemNo);
@@ -2938,12 +2953,18 @@
       event.preventDefault();
       if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
       var itemNo = document.getElementById('mNo').value.trim();
+      var selectedManageLine = document.getElementById('mLine').value.trim();
+      if (!selectedManageLine) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = 'กรุณาเลือก Main line ก่อนบันทึก';
+        return;
+      }
       var mainFile = document.getElementById('mImageMainFile').files[0];
       var payload = {
         no: itemNo,
         name: document.getElementById('mName').value.trim(),
         model: document.getElementById('mModel').value.trim(),
-        line: document.getElementById('mLine').value.trim(),
+        line: selectedManageLine,
         category: document.getElementById('mCategory').value.trim(),
         brand: document.getElementById('mBrand').value.trim(),
         photo: '',
@@ -2981,6 +3002,7 @@
         if ((res.mode || '').toLowerCase() === 'create') {
           manageForm.reset();
           document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
+          populateManageLineOptions(true);
           applyAutoManageNo(true);
         }
         loadPartsData();
@@ -3536,6 +3558,11 @@
         var current = String(manageNoInput.value || '').trim();
         if (!current || current === lastAutoGeneratedManageNo) return;
         lastAutoGeneratedManageNo = '';
+      });
+    }
+    if (manageLineSelect) {
+      manageLineSelect.addEventListener('change', function() {
+        applyAutoManageNo(true);
       });
     }
     if (stockUtilityMenuBtn) {
