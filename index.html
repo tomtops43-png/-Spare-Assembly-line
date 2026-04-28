@@ -153,8 +153,6 @@
       <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
         <div class="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
           <button id="qaIssueBtn" class="h-11 w-full rounded-xl bg-blue-600 px-4 text-white text-sm font-semibold shadow-sm md:h-9 md:w-auto md:rounded-full md:text-sm">⚡ เบิกอะไหล่</button>
-          <button id="qaOutBtn" class="h-11 w-full rounded-xl bg-rose-50 text-rose-700 border border-rose-200 px-4 text-sm font-semibold md:h-9 md:w-auto md:rounded-full md:text-sm">❌ อะไหล่หมด</button>
-          <button id="qaLowBtn" class="h-11 w-full rounded-xl bg-amber-50 text-amber-700 border border-amber-200 px-4 text-sm font-semibold md:h-9 md:w-auto md:rounded-full md:text-sm">⚠️ ต่ำกว่า Min</button>
           <button id="qaManageBtn" class="h-11 w-full rounded-xl bg-slate-100 text-slate-700 px-4 text-sm font-semibold md:h-9 md:w-auto md:rounded-full md:text-sm">🛠 จัดการรายการ</button>
           <button id="qaReceiveBtn" style="background-color:#059669;border-color:#047857;color:#ffffff;" class="inline-flex h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-4 text-sm font-semibold shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 md:h-9 md:w-auto md:rounded-full md:text-sm"><span aria-hidden="true">📥</span><span>รับเข้า</span></button>
         </div>
@@ -775,8 +773,6 @@
     var txnSubmitBtn = document.getElementById('txnSubmitBtn');
     var qaIssueBtn = document.getElementById('qaIssueBtn');
     var qaReceiveBtn = document.getElementById('qaReceiveBtn');
-    var qaOutBtn = document.getElementById('qaOutBtn');
-    var qaLowBtn = document.getElementById('qaLowBtn');
     var qaManageBtn = document.getElementById('qaManageBtn');
     var stockTodayAlert = document.getElementById('stockTodayAlert');
     var stockPage = document.getElementById('stockPage');
@@ -3565,20 +3561,6 @@
     });
     qaReceiveBtn.addEventListener('click', function() {
       openTxnPageWithItem('', 'Input');
-    });
-    qaOutBtn.addEventListener('click', function() {
-      switchToStockPage();
-      statusFilter.value = 'out';
-      statusFilterMobile.value = 'out';
-      tableStatusMode = 'all';
-      applyFilters(false);
-    });
-    qaLowBtn.addEventListener('click', function() {
-      switchToStockPage();
-      statusFilter.value = 'low';
-      statusFilterMobile.value = 'low';
-      tableStatusMode = 'all';
-      applyFilters(false);
     });
     function bindStockShortcut(btn, fn) {
       if (!btn) return;
