@@ -696,6 +696,44 @@ function uploadImageToDrive(payload) {
   };
 }
 
+function extractNumericNo(value) {
+  var raw = String(value || '').trim();
+  if (!raw) return NaN;
+  if (/^\d+$/.test(raw)) return Number(raw);
+  var match = raw.match(/(\d+)(?!.*\d)/);
+  return match ? Number(match[1]) : NaN;
+}
+
+function getNextNoBySheet(sheetName) {
+  var targetSheet = resolveReadSheetName({ sheet: sheetName });
+  var ctx = getMainSheetContext(targetSheet);
+  var noCol = ctx.map.no;
+  var maxNo = 0;
+
+  if (noCol === undefined) {
+    return {
+      status: 'success',
+      sheet: targetSheet,
+      nextNo: '1',
+      maxNo: 0,
+      scannedRows: 0
+    };
+  }
+
+  for (var i = 0; i < ctx.rows.length; i += 1) {
+    var candidate = extractNumericNo(ctx.rows[i][noCol]);
+    if (Number.isFinite(candidate) && candidate > maxNo) maxNo = candidate;
+  }
+
+  return {
+    status: 'success',
+    sheet: targetSheet,
+    nextNo: String(maxNo + 1),
+    maxNo: maxNo,
+    scannedRows: ctx.rows.length
+  };
+}
+
 function upsertMainItem(payload) {
   var sheetName = resolveReadSheetName({ sheet: payload.sheetName });
   var ctx = getMainSheetContext(sheetName);
@@ -886,6 +924,10 @@ function doGet(e) {
       return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
     }
     if (action === 'logs') return respond(getLogRows(), e);
+    if (action === 'nextNo') {
+      requirePermission(authPayload, 'manage_items');
+      return respond(getNextNoBySheet(e.parameter.sheet), e);
+    }
     if (action === 'authStatus') return respond(getDriveAuthStatus(), e);
     if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
     if (action === 'upsertItem') {
