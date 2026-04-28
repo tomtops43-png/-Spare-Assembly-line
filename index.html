@@ -660,6 +660,39 @@
     </aside>
   </div>
 
+  <div id="quickIssueModal" class="fixed inset-0 z-[130] hidden">
+    <div id="quickIssueBackdrop" class="absolute inset-0 bg-slate-900/45"></div>
+    <div class="absolute inset-x-0 bottom-0 mx-auto w-full max-w-lg rounded-t-3xl bg-white p-4 shadow-2xl">
+      <div class="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200"></div>
+      <div id="quickIssueSelectedCard" class="rounded-2xl border border-slate-200 bg-white p-3">
+        <div class="flex items-center gap-3">
+          <div class="h-20 w-20 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+            <img id="quickIssueImage" src="" alt="quick issue item" class="h-full w-full object-contain bg-slate-50 p-1.5" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <p id="quickIssueName" class="text-lg font-semibold leading-tight truncate">-</p>
+            <p id="quickIssueModel" class="mt-1 text-sm text-slate-600">Model: -</p>
+            <p id="quickIssueNo" class="text-sm text-slate-600">รหัส: -</p>
+            <div class="mt-2 flex items-center gap-2">
+              <span id="quickIssueStatus" class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold">-</span>
+              <span id="quickIssueStock" class="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-sm font-semibold text-blue-700">Stock: 0 PCS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <form id="quickIssueForm" class="mt-4 space-y-3">
+        <select id="quickIssueType" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+          <option value="Output">เบิกออก</option>
+        </select>
+        <input id="quickIssueQty" type="number" min="1" step="1" inputmode="numeric" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="จำนวน" required />
+        <input id="quickIssueBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ผู้เบิก/ผู้รับ" required />
+        <input id="quickIssueProcess" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ไลน์/งาน" />
+        <button id="quickIssueSubmitBtn" type="submit" class="h-12 w-full rounded-xl bg-blue-600 px-4 text-xl font-semibold text-white">บันทึกรายการ</button>
+        <p id="quickIssueMessage" class="text-sm text-slate-500"></p>
+      </form>
+    </div>
+  </div>
+
   <div id="filterSheet" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 md:hidden">
     <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 space-y-3">
       <div class="flex items-center justify-between">
@@ -736,6 +769,22 @@
     var issueCartNote = document.getElementById('issueCartNote');
     var issueCartSubmitBtn = document.getElementById('issueCartSubmitBtn');
     var issueCartMessage = document.getElementById('issueCartMessage');
+    var quickIssueModal = document.getElementById('quickIssueModal');
+    var quickIssueBackdrop = document.getElementById('quickIssueBackdrop');
+    var quickIssueSelectedCard = document.getElementById('quickIssueSelectedCard');
+    var quickIssueImage = document.getElementById('quickIssueImage');
+    var quickIssueName = document.getElementById('quickIssueName');
+    var quickIssueModel = document.getElementById('quickIssueModel');
+    var quickIssueNo = document.getElementById('quickIssueNo');
+    var quickIssueStatus = document.getElementById('quickIssueStatus');
+    var quickIssueStock = document.getElementById('quickIssueStock');
+    var quickIssueForm = document.getElementById('quickIssueForm');
+    var quickIssueType = document.getElementById('quickIssueType');
+    var quickIssueQty = document.getElementById('quickIssueQty');
+    var quickIssueBy = document.getElementById('quickIssueBy');
+    var quickIssueProcess = document.getElementById('quickIssueProcess');
+    var quickIssueSubmitBtn = document.getElementById('quickIssueSubmitBtn');
+    var quickIssueMessage = document.getElementById('quickIssueMessage');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
@@ -747,6 +796,8 @@
     var tableStatusMode = 'all';
     var issueCartState = {};
     var issueCartSubmitting = false;
+    var currentQuickIssueItemNo = '';
+    var quickIssueSubmitting = false;
 
     var txnForm = document.getElementById('txnForm');
     var txnSearchInput = document.getElementById('txnSearchInput');
@@ -2792,6 +2843,143 @@
       });
     }
 
+    function showQuickToast(message, tone) {
+      var existing = document.getElementById('quickActionToast');
+      if (existing) existing.remove();
+      var toast = document.createElement('div');
+      toast.id = 'quickActionToast';
+      toast.className = 'fixed left-1/2 top-4 z-[160] -translate-x-1/2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg ' + (tone === 'success' ? 'bg-emerald-600' : 'bg-slate-800');
+      toast.textContent = message || 'บันทึกสำเร็จ';
+      document.body.appendChild(toast);
+      setTimeout(function() {
+        if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 1800);
+    }
+
+    function setQuickIssueSubmitState(isSubmitting) {
+      quickIssueSubmitting = !!isSubmitting;
+      if (!quickIssueSubmitBtn) return;
+      quickIssueSubmitBtn.disabled = quickIssueSubmitting;
+      quickIssueSubmitBtn.classList.toggle('opacity-60', quickIssueSubmitting);
+      quickIssueSubmitBtn.classList.toggle('cursor-not-allowed', quickIssueSubmitting);
+      quickIssueSubmitBtn.textContent = quickIssueSubmitting ? 'กำลังบันทึกรายการ...' : 'บันทึกรายการ';
+    }
+
+    function getCurrentQuickIssueItem() {
+      if (!currentQuickIssueItemNo) return null;
+      return partMap[String(currentQuickIssueItemNo)] || null;
+    }
+
+    function closeQuickIssueModal() {
+      if (!quickIssueModal || quickIssueModal.classList.contains('hidden')) return;
+      quickIssueModal.classList.add('hidden');
+      currentQuickIssueItemNo = '';
+      if (quickIssueForm) quickIssueForm.reset();
+      if (quickIssueMessage) {
+        quickIssueMessage.className = 'text-sm text-slate-500';
+        quickIssueMessage.textContent = '';
+      }
+      setQuickIssueSubmitState(false);
+    }
+
+    function openQuickIssueModal(no) {
+      if (!quickIssueModal) return;
+      var item = partMap[String(no || '')];
+      if (!item) return;
+      currentQuickIssueItemNo = String(item.no || '');
+      var status = getStockStatus(item);
+      var tone = getStatusTone(status);
+      var normalizedImage = toSafeImageUrl(item.image_main_url);
+      var secondaryFallback = getSecondaryDriveImageUrl(item.image_main_url);
+      quickIssueImage.src = normalizedImage;
+      quickIssueImage.setAttribute('data-fallback-src', secondaryFallback || '');
+      bindImageFallback(quickIssueImage);
+      quickIssueName.textContent = item.name || '-';
+      quickIssueModel.textContent = 'Model: ' + (item.model || '-');
+      quickIssueNo.textContent = 'รหัส: ' + (item.no || '-');
+      quickIssueStatus.textContent = status;
+      quickIssueStatus.className = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + tone.badgeClass;
+      quickIssueStock.textContent = 'Stock: ' + (item.stock || 0) + ' ' + (item.unit || 'PCS');
+      quickIssueType.value = 'Output';
+      quickIssueQty.value = '';
+      quickIssueBy.value = '';
+      quickIssueProcess.value = item.line || currentLine || '';
+      quickIssueMessage.className = 'text-sm text-slate-500';
+      quickIssueMessage.textContent = '';
+      setQuickIssueSubmitState(false);
+      var outOfStock = Number(item.stock || 0) <= 0;
+      quickIssueSubmitBtn.disabled = outOfStock;
+      quickIssueSubmitBtn.classList.toggle('opacity-60', outOfStock);
+      quickIssueSubmitBtn.classList.toggle('cursor-not-allowed', outOfStock);
+      if (outOfStock) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'อะไหล่หมดสต็อก ไม่สามารถเบิกออกได้';
+      }
+      quickIssueModal.classList.remove('hidden');
+      setTimeout(function() {
+        if (!outOfStock) quickIssueQty.focus();
+      }, 40);
+    }
+
+    function submitQuickIssue(event) {
+      event.preventDefault();
+      if (quickIssueSubmitting) return;
+      var item = getCurrentQuickIssueItem();
+      var qty = Number(quickIssueQty.value || 0);
+      var by = String(quickIssueBy.value || '').trim();
+      var process = String(quickIssueProcess.value || '').trim();
+      if (!item) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'ไม่พบรายการอะไหล่ที่เลือก';
+        return;
+      }
+      if (!qty || qty <= 0) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'จำนวนต้องมากกว่า 0';
+        return;
+      }
+      if (qty > Number(item.stock || 0)) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'จำนวนเบิกมากกว่า stock ปัจจุบัน';
+        return;
+      }
+      if (!by) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'กรุณาระบุผู้เบิก/ผู้รับ';
+        return;
+      }
+      var payload = {
+        partNo: item.no,
+        type: quickIssueType.value || 'Output',
+        process: process || item.line || currentLine || '-',
+        category: item.category || 'General',
+        partName: item.name,
+        model: item.model || '-',
+        brand: item.brand || '-',
+        qty: qty,
+        unit: item.unit || 'PCS',
+        by: by
+      };
+      setQuickIssueSubmitState(true);
+      quickIssueMessage.className = 'text-sm text-slate-500';
+      quickIssueMessage.textContent = 'กำลังบันทึกรายการ...';
+      callTransactionViaJsonp(payload).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) ? res.message : 'บันทึกไม่สำเร็จ');
+        var updatedStock = Number(res.stockAfter);
+        item.stock = isNaN(updatedStock) ? Number(item.stock || 0) - qty : updatedStock;
+        applyFilters(false);
+        showQuickToast('บันทึกสำเร็จ', 'success');
+        closeQuickIssueModal();
+        loadPartsData();
+        if (!logPage.classList.contains('hidden')) loadLogData();
+      }).catch(function(err) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : 'Unknown error');
+      }).finally(function() {
+        setQuickIssueSubmitState(false);
+      });
+    }
+
     function submitTransaction(event) {
       event.preventDefault();
 
@@ -3301,7 +3489,7 @@
         if (issueBtn) {
           e.preventDefault();
           e.stopPropagation();
-          openTxnPageWithItem(issueBtn.getAttribute('data-mobile-issue-no'), 'Output');
+          openQuickIssueModal(issueBtn.getAttribute('data-mobile-issue-no'));
           return;
         }
 
@@ -3561,6 +3749,16 @@
     });
     qaReceiveBtn.addEventListener('click', function() {
       openTxnPageWithItem('', 'Input');
+    });
+    if (quickIssueBackdrop) quickIssueBackdrop.addEventListener('click', closeQuickIssueModal);
+    if (quickIssueModal) {
+      quickIssueModal.addEventListener('click', function(e) {
+        if (e.target === quickIssueModal) closeQuickIssueModal();
+      });
+    }
+    if (quickIssueForm) quickIssueForm.addEventListener('submit', submitQuickIssue);
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeQuickIssueModal();
     });
     function bindStockShortcut(btn, fn) {
       if (!btn) return;
