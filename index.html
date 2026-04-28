@@ -128,6 +128,10 @@
             <button id="stockNavManageBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">🛠 Manage</button>
             <button id="stockNavAdminBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">⚙️ Admin</button>
           </div>
+          <div id="stockLineLockBar" class="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 md:hidden">
+            <p id="stockLineLockLabel" class="text-[11px] font-semibold tracking-[0.08em] text-blue-700 uppercase">LINE MAIN</p>
+            <p id="stockLineLockText" class="mt-0.5 text-lg font-extrabold text-blue-900 leading-none">H9</p>
+          </div>
         </div>
         <div class="mt-2 grid gap-2 md:flex md:flex-wrap md:items-center">
           <div class="hidden shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2 md:inline-flex">
@@ -855,6 +859,9 @@
     var stockNavAdminBtnMobile = document.getElementById('stockNavAdminBtnMobile');
     var stockUtilityMenuBtn = document.getElementById('stockUtilityMenuBtn');
     var stockUtilityMenuMobile = document.getElementById('stockUtilityMenuMobile');
+    var stockLineLockBar = document.getElementById('stockLineLockBar');
+    var stockLineLockLabel = document.getElementById('stockLineLockLabel');
+    var stockLineLockText = document.getElementById('stockLineLockText');
     var lineMenuDockToggle = document.getElementById('lineMenuDockToggle');
     var lineMenuClose = document.getElementById('lineMenuClose');
     var lineMenuBackdrop = document.getElementById('lineMenuBackdrop');
@@ -2180,6 +2187,17 @@
 
 
 
+    function updateStockLineLockBar() {
+      if (!stockLineLockBar || !stockLineLockText) return;
+      var active = lineConfig.filter(function(item){ return item.key === currentLine; })[0] || lineConfig[0];
+      stockLineLockText.textContent = currentLine || '-';
+      stockLineLockBar.style.borderColor = active.color + '55';
+      stockLineLockBar.style.backgroundColor = active.color + '1A';
+      stockLineLockBar.style.boxShadow = 'inset 0 0 0 1px ' + active.color + '22';
+      stockLineLockText.style.color = active.color;
+      if (stockLineLockLabel) stockLineLockLabel.style.color = active.color;
+    }
+
     function applyLineTheme() {
       var active = lineConfig.filter(function(item){ return item.key === currentLine; })[0] || lineConfig[0];
       document.documentElement.style.setProperty('--line-accent', active.color);
@@ -2188,6 +2206,7 @@
       if (headerHint) headerHint.textContent = 'CURRENT LINE';
       var currentLineBadge = document.getElementById('currentLineBadge');
       if (currentLineBadge) currentLineBadge.textContent = currentLine;
+      updateStockLineLockBar();
       syncSheetSelectorForCurrentLine();
     }
 
