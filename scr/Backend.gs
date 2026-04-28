@@ -696,6 +696,44 @@ function uploadImageToDrive(payload) {
   };
 }
 
+function extractNumericNo(value) {
+  var raw = String(value || '').trim();
+  if (!raw) return NaN;
+  if (/^\d+$/.test(raw)) return Number(raw);
+  var match = raw.match(/(\d+)(?!.*\d)/);
+  return match ? Number(match[1]) : NaN;
+}
+
+function getNextNoBySheet(sheetName) {
+  var targetSheet = resolveReadSheetName({ sheet: sheetName });
+  var ctx = getMainSheetContext(targetSheet);
+  var noCol = ctx.map.no;
+  var maxNo = 0;
+
+  if (noCol === undefined) {
+    return {
+      status: 'success',
+      sheet: targetSheet,
+      nextNo: '1',
+      maxNo: 0,
+      scannedRows: 0
+    };
+  }
+
+  for (var i = 0; i < ctx.rows.length; i += 1) {
+    var candidate = extractNumericNo(ctx.rows[i][noCol]);
+    if (Number.isFinite(candidate) && candidate > maxNo) maxNo = candidate;
+  }
+
+  return {
+    status: 'success',
+    sheet: targetSheet,
+    nextNo: String(maxNo + 1),
+    maxNo: maxNo,
+    scannedRows: ctx.rows.length
+  };
+}
+
 function upsertMainItem(payload) {
   var sheetName = resolveReadSheetName({ sheet: payload.sheetName });
   var ctx = getMainSheetContext(sheetName);
@@ -714,7 +752,8 @@ function upsertMainItem(payload) {
     no: findCol(['no']),
     name: findCol(['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp']),
     model: findCol(['model', 'codeno', 'jrcodeno']),
-    line: findCol(['mainline', 'line', 'location', 'jrlocation']),
+    line: findCol(['mainline', 'line']),
+    location: findCol(['location', 'jrlocation']),
     category: findCol(['category']),
     brand: findCol(['brand']),
     photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic']),
@@ -735,6 +774,9 @@ function upsertMainItem(payload) {
   }
   if (fieldCols.line === undefined) {
     fieldCols.line = ensureColumnInContext(ctx, 'Line', ['line', 'mainline']);
+  }
+  if (fieldCols.location === undefined) {
+    fieldCols.location = ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
   }
   if (fieldCols.category === undefined) {
     fieldCols.category = ensureColumnInContext(ctx, 'Category', ['category']);
@@ -773,6 +815,7 @@ function upsertMainItem(payload) {
     name: payload.name || '',
     model: payload.model || '',
     line: payload.line || '',
+    location: payload.location || '',
     category: payload.category || '',
     brand: payload.brand || '',
     photo: payload.photo || '',
@@ -886,6 +929,10 @@ function doGet(e) {
       return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
     }
     if (action === 'logs') return respond(getLogRows(), e);
+    if (action === 'nextNo') {
+      requirePermission(authPayload, 'manage_items');
+      return respond(getNextNoBySheet(e.parameter.sheet), e);
+    }
     if (action === 'authStatus') return respond(getDriveAuthStatus(), e);
     if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
     if (action === 'upsertItem') {
@@ -896,6 +943,7 @@ function doGet(e) {
       name: e.parameter.name,
       model: e.parameter.model,
       line: e.parameter.line,
+      location: e.parameter.location,
       category: e.parameter.category,
       brand: e.parameter.brand,
       photo: e.parameter.photo,
@@ -937,7 +985,7 @@ function doGet(e) {
         no: pickRowValue(row, map, ['no'], index + 1),
         name: pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '-'),
         model: pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '-'),
-        line: pickRowValue(row, map, ['mainline', 'line', 'location', 'jrlocation'], '-'),
+        line: pickRowValue(row, map, ['mainline', 'line'], '-'),
         location: pickRowValue(row, map, ['location', 'jrlocation'], '-'),
         category: pickRowValue(row, map, ['category'], 'General'),
         brand: pickRowValue(row, map, ['brand'], '-'),
@@ -1038,6 +1086,7 @@ function doPost(e) {
         name: body.name,
         model: body.model,
         line: body.line,
+        location: body.location,
         category: body.category,
         brand: body.brand,
         photo: body.photo,
