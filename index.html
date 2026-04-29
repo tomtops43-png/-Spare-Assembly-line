@@ -3228,6 +3228,7 @@
         unit: document.getElementById('eUnit').value.trim(),
         stock: document.getElementById('eStock').value.trim()
       };
+      console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       editMessage.className = 'mt-3 text-sm text-slate-500';
       editMessage.textContent = 'กำลังอัปโหลดรูปและบันทึก...';
       uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()).then(function(mainRes){
@@ -3308,6 +3309,7 @@
         unit: document.getElementById('mUnit').value.trim(),
         stock: document.getElementById('mStock').value.trim()
       };
+      console.log('[location][manage payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       manageMessage.className = 'mt-3 text-sm text-slate-500';
       manageMessage.textContent = 'กำลังอัปโหลดรูปและบันทึกรายการ...';
       uploadImageFile(mainFile, itemNo, 'main', document.getElementById('mName').value.trim()).then(function(mainRes) {
@@ -3645,6 +3647,7 @@
       document.getElementById('detailCategory').textContent = item.category || '-';
       document.getElementById('detailLine').textContent = item.line || '-';
       document.getElementById('detailLocation').textContent = item.location || '-';
+      console.log('[location][detail render]', { no: item.no, location: item.location, sheet: getCurrentSheetName() });
       document.getElementById('detailStock').textContent = String(item.stock || 0);
       document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
       document.getElementById('detailNeedToOrder').textContent = String(getNeedToOrder(item));

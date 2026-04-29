@@ -7,6 +7,7 @@ SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Log';
 SPARE_APP_CONFIG.usersSheetName = SPARE_APP_CONFIG.usersSheetName || 'Users';
 var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After'];
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
+var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
 
 // =============================
 // HELPERS
@@ -77,6 +78,25 @@ function getLocationOverride(sheetName, noValue) {
   var props = PropertiesService.getScriptProperties();
   var key = getLocationOverrideKey(sheetName, noValue);
   return String(props.getProperty(key) || '').trim();
+}
+
+function ensureLocationColumnForSheet(sheetName) {
+  var targetSheet = String(sheetName || '').trim();
+  if (!targetSheet) return;
+  var ctx = getMainSheetContext(targetSheet);
+  ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
+}
+
+function ensureLocationColumnsForAllKnownSheets() {
+  var candidates = [SPARE_APP_CONFIG.readSheetName].concat(STOCK_LOCATION_SHEETS);
+  var uniqueSheets = Array.from(new Set(candidates.filter(function(name) { return !!String(name || '').trim(); })));
+  uniqueSheets.forEach(function(sheetName) {
+    try {
+      ensureLocationColumnForSheet(sheetName);
+    } catch (err) {
+      Logger.log('ensureLocationColumnsForAllKnownSheets warning [' + sheetName + ']: ' + (err && err.message ? err.message : err));
+    }
+  });
 }
 
 function pickRowValue(row, map, keys, fallbackValue) {
@@ -851,6 +871,7 @@ function upsertMainItem(payload) {
     unit: payload.unit || '',
     stock: payload.stock || ''
   };
+  Logger.log('[upsertMainItem] sheet=%s no=%s location=%s', sheetName, noValue, values.location);
   setLocationOverride(sheetName, noValue, values.location);
 
   if (targetIndex > -1) {
@@ -960,6 +981,7 @@ function doGet(e) {
     if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
+      ensureLocationColumnsForAllKnownSheets();
       return respond(upsertMainItem({
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
@@ -988,6 +1010,7 @@ function doGet(e) {
     }
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
+    ensureLocationColumnsForAllKnownSheets();
     var ctx = getMainSheetContext(sheetName);
     ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
     var map = ctx.map;
@@ -1101,6 +1124,7 @@ function doPost(e) {
     requirePermission(authPayload, 'view');
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
+      ensureLocationColumnsForAllKnownSheets();
       return respond(upsertMainItem({
         sheetName: body.sheet || body.sheetName,
         no: body.no,
