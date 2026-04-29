@@ -3192,7 +3192,7 @@
       }).then(function(res){
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
         editMessage.className = 'mt-3 text-sm text-emerald-600';
-        editMessage.textContent = 'บันทึกสำเร็จ';
+        editMessage.textContent = 'บันทึกสำเร็จ (sheet: ' + (res.sheet || getCurrentSheetName()) + ', location: ' + (res.location || '-') + ')';
         loadPartsData();
         setTimeout(closeEditModal, 400);
       }).catch(function(err){
@@ -3272,7 +3272,7 @@
       }).then(function(res) {
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
         manageMessage.className = 'mt-3 text-sm text-emerald-600';
-        manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no + ' (sheet: ' + selectedManageSheet + ')';
+        manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no + ' (sheet: ' + (res.sheet || selectedManageSheet) + ', location: ' + (res.location || '-') + ')';
         if (sheetSelector && sheetSelector.value !== selectedManageSheet) {
           sheetSelector.value = selectedManageSheet;
         }

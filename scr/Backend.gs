@@ -838,7 +838,7 @@ function upsertMainItem(payload) {
         ctx.sheet.getRange(sheetRow, fieldCols[key] + 1).setValue(values[key]);
       }
     }
-    return { status: 'success', mode: 'update', no: noValue };
+    return { status: 'success', mode: 'update', no: noValue, sheet: sheetName, location: values.location };
   }
 
   var newRow = new Array(ctx.headers.length);
@@ -847,7 +847,7 @@ function upsertMainItem(payload) {
     if (fieldCols[k] !== undefined) newRow[fieldCols[k]] = values[k];
   }
   ctx.sheet.appendRow(newRow);
-  return { status: 'success', mode: 'create', no: noValue };
+  return { status: 'success', mode: 'create', no: noValue, sheet: sheetName, location: values.location };
 }
 
 function deleteMainItem(payload) {
