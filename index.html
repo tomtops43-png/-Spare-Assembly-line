@@ -1664,6 +1664,22 @@
       return Array.from(new Set(candidates.filter(Boolean)));
     }
 
+    function getManageApiCandidates() {
+      var candidates = [];
+      if (DEFAULT_API_URL) candidates.push(DEFAULT_API_URL);
+      if (API_URL) candidates.push(API_URL);
+      var lineApi = LINE_API_URL_MAP[currentLine];
+      if (lineApi) candidates.push(lineApi);
+      candidates = candidates.reduce(function(acc, url) {
+        if (!url) return acc;
+        acc.push(url);
+        if (url.indexOf('/exec') > -1) acc.push(url.replace('/exec', '/dev'));
+        if (url.indexOf('/dev') > -1) acc.push(url.replace('/dev', '/exec'));
+        return acc;
+      }, []);
+      return Array.from(new Set(candidates.filter(Boolean)));
+    }
+
     function loadJsonpWithFallback(queryBuilder) {
       var candidates = getApiCandidates();
       var idx = 0;
@@ -1697,6 +1713,15 @@
       }
     }
 
+    function shouldUseJsonpTransportForUrl(url) {
+      try {
+        var apiOrigin = new URL(url, window.location.href).origin;
+        return apiOrigin !== window.location.origin;
+      } catch (err) {
+        return true;
+      }
+    }
+
     function postJsonNoCors(payload) {
       return fetch(getWriteApiUrl(), {
         method: 'POST',
@@ -1709,10 +1734,13 @@
     }
 
     function postJson(payload) {
-      return fetch(getWriteApiUrl(), {
+      var targetUrl = (payload && payload.__url) ? payload.__url : getWriteApiUrl();
+      var requestBody = Object.assign({}, payload || {});
+      if (requestBody.__url) delete requestBody.__url;
+      return fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(requestBody)
       }).then(function(res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
@@ -2391,12 +2419,37 @@
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
 
-      if (shouldUseJsonpTransport()) {
-        return loadJsonpWithFallback(function(base){ return base + '?' + query; });
+      var manageCandidates = getManageApiCandidates();
+      function runManageCandidate(index, lastErr) {
+        if (index >= manageCandidates.length) throw lastErr || new Error('ไม่สามารถบันทึกข้อมูลได้');
+        var base = manageCandidates[index];
+        var targetUrl = base + '?' + query;
+        var requestPayloadWithUrl = Object.assign({}, requestPayload, { __url: base });
+        if (shouldUseJsonpTransportForUrl(base)) {
+          return loadViaJsonp(targetUrl).catch(function() {
+            return loadByFetch(targetUrl);
+          }).then(function(res) {
+            ACTIVE_API_URL = base;
+            return res;
+          }).catch(function(err) {
+            return runManageCandidate(index + 1, err);
+          });
+        }
+        return postJson(requestPayloadWithUrl).then(function(res) {
+          ACTIVE_API_URL = base;
+          return res;
+        }).catch(function() {
+          return loadViaJsonp(targetUrl).catch(function() {
+            return loadByFetch(targetUrl);
+          }).then(function(res) {
+            ACTIVE_API_URL = base;
+            return res;
+          }).catch(function(err) {
+            return runManageCandidate(index + 1, err);
+          });
+        });
       }
-      return postJson(requestPayload).catch(function() {
-        return loadJsonpWithFallback(function(base){ return base + '?' + query; });
-      });
+      return runManageCandidate(0);
     }
 
     function callTransactionViaJsonp(payload) {
