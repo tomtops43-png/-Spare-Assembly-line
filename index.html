@@ -565,6 +565,7 @@
       </div>
       <form id="editForm" class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div><label class="text-xs text-slate-500">NO</label><input id="eNo" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
+        <div><label class="text-xs text-slate-500">Sheet</label><input id="eSheet" class="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-600" readonly /></div>
         <div><label class="text-xs text-slate-500">Name / Description</label><input id="eName" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
         <div><label class="text-xs text-slate-500">Model</label><input id="eModel" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
@@ -3111,6 +3112,7 @@
       }
       if (lineMenuDockToggle) lineMenuDockToggle.classList.add('hidden');
       document.getElementById('eNo').value = item.no || '';
+      document.getElementById('eSheet').value = getCurrentSheetName();
       document.getElementById('eName').value = item.name || '';
       document.getElementById('eModel').value = item.model || '';
       document.getElementById('eLine').value = item.line || '';
@@ -3153,7 +3155,7 @@
       var oldItem = partsData.filter(function(p){ return String(p.no) === String(itemNo); })[0] || {};
       var mainFile = document.getElementById('eImageMainFile').files[0];
       var payload = {
-        sheet: getCurrentSheetName(),
+        sheet: document.getElementById('eSheet').value.trim() || getCurrentSheetName(),
         no: itemNo,
         name: document.getElementById('eName').value.trim(),
         model: document.getElementById('eModel').value.trim(),
@@ -3205,7 +3207,7 @@
       var no = document.getElementById('eNo').value.trim();
       if (!no) return;
       if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
-      callManageAction('deleteItem', { no: no }).then(function(res){
+      callManageAction('deleteItem', { sheet: document.getElementById('eSheet').value.trim() || getCurrentSheetName(), no: no }).then(function(res){
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
         loadPartsData();
         closeEditModal();
@@ -3299,7 +3301,7 @@
       }
       manageMessage.className = 'mt-3 text-sm text-slate-500';
       manageMessage.textContent = 'กำลังลบรายการ...';
-      callManageAction('deleteItem', { no: no }).then(function(res) {
+      callManageAction('deleteItem', { sheet: getCurrentSheetName(), no: no }).then(function(res) {
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
         manageMessage.className = 'mt-3 text-sm text-emerald-600';
         manageMessage.textContent = 'ลบสำเร็จ: ' + no;
@@ -3459,7 +3461,7 @@
         btn.addEventListener('click', function(){
           var no = btn.getAttribute('data-delete-no');
           if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
-          callManageAction('deleteItem', { no: no }).then(function(res){
+          callManageAction('deleteItem', { sheet: getCurrentSheetName(), no: no }).then(function(res){
             if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
             loadPartsData();
           }).catch(function(err){
@@ -3553,7 +3555,7 @@
           e.stopPropagation();
           var deleteNo = deleteBtn.getAttribute('data-mobile-delete-no');
           if (!confirm('ยืนยันการลบรายการ NO: ' + deleteNo + ' ?')) return;
-          callManageAction('deleteItem', { no: deleteNo }).then(function(res){
+          callManageAction('deleteItem', { sheet: getCurrentSheetName(), no: deleteNo }).then(function(res){
             if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
             loadPartsData();
           }).catch(function(err){
