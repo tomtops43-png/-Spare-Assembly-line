@@ -965,16 +965,11 @@ function doGet(e) {
     }
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
-    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ensureSheetWithTemplate(spreadsheet, sheetName);
-
-    var data = sheet.getDataRange().getValues();
-    if (!data.length || data.length <= 1) return respond([], e);
-
-    var headerRowIndex = findHeaderRowIndex(data);
-    var headers = data[headerRowIndex];
-    var rows = data.slice(headerRowIndex + 1);
-    var map = buildHeaderIndexMap(headers);
+    var ctx = getMainSheetContext(sheetName);
+    ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
+    var map = ctx.map;
+    var rows = ctx.rows;
+    if (!rows.length) return respond([], e);
 
     var result = rows.map(function (row, index) {
       var stockValue = Number(pickRowValue(row, map, ['stockqty', 'qtystock', 'qoh', 'stock'], 0)) || 0;
