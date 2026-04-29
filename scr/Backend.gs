@@ -58,6 +58,27 @@ function buildHeaderIndexMap(headers) {
   return map;
 }
 
+function getLocationOverrideKey(sheetName, noValue) {
+  return 'location_override::' + String(sheetName || '').trim() + '::' + String(noValue || '').trim();
+}
+
+function setLocationOverride(sheetName, noValue, locationValue) {
+  var props = PropertiesService.getScriptProperties();
+  var key = getLocationOverrideKey(sheetName, noValue);
+  var normalized = String(locationValue || '').trim();
+  if (!normalized || normalized === '-') {
+    props.deleteProperty(key);
+    return;
+  }
+  props.setProperty(key, normalized);
+}
+
+function getLocationOverride(sheetName, noValue) {
+  var props = PropertiesService.getScriptProperties();
+  var key = getLocationOverrideKey(sheetName, noValue);
+  return String(props.getProperty(key) || '').trim();
+}
+
 function pickRowValue(row, map, keys, fallbackValue) {
   for (var i = 0; i < keys.length; i += 1) {
     var idx = map[keys[i]];
@@ -830,6 +851,7 @@ function upsertMainItem(payload) {
     unit: payload.unit || '',
     stock: payload.stock || ''
   };
+  setLocationOverride(sheetName, noValue, values.location);
 
   if (targetIndex > -1) {
     var sheetRow = ctx.headerRowIndex + 2 + targetIndex;
@@ -862,6 +884,7 @@ function deleteMainItem(payload) {
     if (String(ctx.rows[i][noCol]) === noValue) {
       var rowNumber = ctx.headerRowIndex + 2 + i;
       ctx.sheet.deleteRow(rowNumber);
+      setLocationOverride(sheetName, noValue, '');
       return { status: 'success', mode: 'delete', no: noValue };
     }
   }
@@ -976,12 +999,15 @@ function doGet(e) {
       var minValue = Number(pickRowValue(row, map, ['min', 'qtymin'], 0)) || 0;
       var needToPOValue = Math.max(minValue - stockValue, 0);
 
+      var noText = String(pickRowValue(row, map, ['no'], index + 1));
+      var rawLocation = pickRowValue(row, map, ['location', 'jrlocation'], '-');
+      var locationOverride = getLocationOverride(sheetName, noText);
       return {
-        no: pickRowValue(row, map, ['no'], index + 1),
+        no: noText,
         name: pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '-'),
         model: pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '-'),
         line: pickRowValue(row, map, ['mainline', 'line'], '-'),
-        location: pickRowValue(row, map, ['location', 'jrlocation'], '-'),
+        location: locationOverride || rawLocation,
         category: pickRowValue(row, map, ['category'], 'General'),
         brand: pickRowValue(row, map, ['brand'], '-'),
         stock: stockValue,
