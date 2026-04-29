@@ -3153,6 +3153,7 @@
       var oldItem = partsData.filter(function(p){ return String(p.no) === String(itemNo); })[0] || {};
       var mainFile = document.getElementById('eImageMainFile').files[0];
       var payload = {
+        sheet: getCurrentSheetName(),
         no: itemNo,
         name: document.getElementById('eName').value.trim(),
         model: document.getElementById('eModel').value.trim(),
@@ -3603,7 +3604,7 @@
       var needToOrder = getNeedToOrder(item);
       var metaText = detailMetaParts.join(' • ');
       document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
-      ['Model', 'Brand', 'Category', 'Line', 'Location'].forEach(function(field) {
+      ['Model', 'Brand', 'Category', 'Line'].forEach(function(field) {
         var valueEl = document.getElementById('detail' + field);
         var container = document.getElementById('detailField' + field);
         if (!valueEl || !container) return;
@@ -3611,6 +3612,8 @@
         var shouldHide = (!valueText || valueText === '-');
         container.classList.toggle('hidden', shouldHide);
       });
+      var detailFieldLocation = document.getElementById('detailFieldLocation');
+      if (detailFieldLocation) detailFieldLocation.classList.remove('hidden');
       mainImg.setAttribute('data-fallback-src', detailFallbackSrc || '');
       mainImg.src = detailImageSrc;
       mainImg.classList.toggle('cursor-zoom-in', mainOk);
