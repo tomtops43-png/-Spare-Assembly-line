@@ -3272,7 +3272,10 @@
       }).then(function(res) {
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
         manageMessage.className = 'mt-3 text-sm text-emerald-600';
-        manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no;
+        manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no + ' (sheet: ' + selectedManageSheet + ')';
+        if (sheetSelector && sheetSelector.value !== selectedManageSheet) {
+          sheetSelector.value = selectedManageSheet;
+        }
         if ((res.mode || '').toLowerCase() === 'create') {
           manageForm.reset();
           document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
