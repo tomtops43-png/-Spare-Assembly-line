@@ -1867,6 +1867,7 @@
       var navAdmin = [stockNavAdminBtn, stockNavAdminBtnMobile];
 
       tabLog.classList.toggle('hidden', !canViewLogs);
+      tabPrReport.classList.toggle('hidden', !canViewLogs);
       tabManage.classList.toggle('hidden', !canManageItems);
       qaManageBtn.classList.toggle('hidden', !canManageItems);
       tabAdmin.classList.toggle('hidden', !canManageUsers);
@@ -1874,6 +1875,7 @@
       navManage.forEach(function(el) { if (el) el.classList.toggle('hidden', !canManageItems); });
       navAdmin.forEach(function(el) { if (el) el.classList.toggle('hidden', !canManageUsers); });
       if (!canViewLogs && !logPage.classList.contains('hidden')) switchToStockPage();
+      if (!canViewLogs && !prReportPage.classList.contains('hidden')) switchToStockPage();
       if (!canManageUsers && !adminPage.classList.contains('hidden')) switchToStockPage();
       if (!canManageItems && !managePage.classList.contains('hidden')) switchToStockPage();
       renderAuthUserBox();
