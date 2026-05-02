@@ -163,6 +163,7 @@
         </div>
       </section>
       <p id="updatedAtText" class="hidden text-xs text-slate-500"></p>
+      <p id="searchScopeHint" class="hidden text-xs text-blue-700"></p>
       <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
         <div class="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
           <button id="qaIssueBtn" class="h-11 w-full rounded-xl bg-blue-600 px-4 text-white text-sm font-semibold shadow-sm md:h-9 md:w-auto md:rounded-full md:text-sm">⚡ เบิกอะไหล่</button>
@@ -863,6 +864,7 @@
     var stockNavAdminBtnMobile = document.getElementById('stockNavAdminBtnMobile');
     var stockUtilityMenuBtn = document.getElementById('stockUtilityMenuBtn');
     var stockUtilityMenuMobile = document.getElementById('stockUtilityMenuMobile');
+    var searchScopeHint = document.getElementById('searchScopeHint');
     var stockLineLockBar = document.getElementById('stockLineLockBar');
     var stockLineLockLabel = document.getElementById('stockLineLockLabel');
     var stockLineLockText = document.getElementById('stockLineLockText');
@@ -1090,6 +1092,7 @@
         name: firstDefined([item.name, item.partName], '-'),
         model: firstDefined([item.model], '-'),
         line: firstDefined([item.line, item.mainLine, item.process], '-'),
+        subLine: firstDefined([item.__sourceSheet, item.sheet, item.subLine], ''),
         location: firstDefined([item.location, item.jrLocation], '-'),
         category: firstDefined([item.category], 'General'),
         brand: firstDefined([item.brand], '-'),
@@ -2625,36 +2628,40 @@
       mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
 
-      loadJsonpWithFallback(function(base){
-        var query = '?sheet=' + encodeURIComponent(getCurrentSheetName());
-        return base + appendAuthToQuery(query);
-      })
-        .catch(function() {
-          return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(getCurrentSheetName())));
-        })
-        .then(function(rawData) {
+      var activeSheets = getSheetOptionsForLine(currentLine);
+      var totalSheets = activeSheets.length;
+      Promise.all(activeSheets.map(function(sheetName, idx) {
+        return loadJsonpWithFallback(function(base){
+          var query = '?sheet=' + encodeURIComponent(sheetName);
+          return base + appendAuthToQuery(query);
+        }).catch(function() {
+          return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)));
+        }).then(function(rawData) {
           if (rawData && rawData.status === 'error') {
             var msg = rawData.message || 'API ตอบกลับ error';
             if (msg.indexOf('เข้าสู่ระบบ') > -1 || msg.indexOf('session') > -1) {
               logout();
             }
-            var isMissingSheet = msg.indexOf('ไม่พบชีทชื่อ') > -1;
-            if (isMissingSheet && ACTIVE_API_URL !== API_URL) {
-              return loadViaJsonp(API_URL + appendAuthToQuery("?sheet=" + encodeURIComponent(getCurrentSheetName())));
-            }
             throw new Error(msg);
           }
-          if (!Array.isArray(rawData)) {
-            throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
-          }
-
+          if (!Array.isArray(rawData)) return [];
+          return rawData.map(function(item) {
+            item.__sourceSheet = sheetName;
+            return item;
+          });
+        }).finally(function() {
+          desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
+          mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
+        });
+      })).then(function(sheetChunks) {
+          var rawData = [].concat.apply([], sheetChunks);
           return normalizeRecordsInBatches(rawData, function(done, total) {
             var progress = 'กำลังประมวลผลข้อมูล... ' + done + '/' + total;
             desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">' + progress + '</div>';
             mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">' + progress + '</div>';
           });
         })
-        .then(function(normalizedData) {
+        }).then(function(normalizedData) {
           partsData = normalizedData.filter(function(item) {
             return item.name && item.name !== '-';
           });
@@ -3487,6 +3494,7 @@
           '<div class="mt-3 min-h-[62px] ' + visualState.contentClass + '">' +
             '<p class="font-semibold text-[15px] text-slate-900 leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + item.name + '</p>' +
             '<p class="text-xs text-slate-500 mt-1 truncate">' + (item.model || '-') + '</p>' +
+            '<p class="text-[11px] text-blue-700 mt-1 truncate">Sub-line: ' + (item.subLine || '-') + '</p>' +
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
             '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs ' + tone.badgeClass + '">' + status + '</span>' +
@@ -3590,6 +3598,7 @@
           '<div class="mt-2 ' + visualState.contentClass + '">' +
             '<p class="font-semibold text-[15px] leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.5rem;">' + item.name + '</p>' +
             '<p class="mt-1 text-xs text-slate-500 truncate">' + (item.model || '-') + '</p>' +
+            '<p class="mt-1 text-[11px] text-blue-700 truncate">Sub-line: ' + (item.subLine || '-') + '</p>' +
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
             '<span class="inline-flex items-center justify-center px-2 py-1 rounded-full text-[10px] font-semibold ' + tone.badgeClass + '">' + status + '</span>' +
@@ -3811,14 +3820,27 @@
       var category = categoryFilter.value;
       var selectedStatus = tableStatusMode !== 'all' ? tableStatusMode : statusFilter.value;
       var selectedBrand = brandFilter.value;
+      var selectedSheet = getCurrentSheetName();
+      var hasKeyword = !!keyword;
+
+      if (searchScopeHint) {
+        if (hasKeyword) {
+          searchScopeHint.textContent = 'กำลังค้นหาในทุกไลน์ย่อยของ ' + currentLine;
+          searchScopeHint.classList.remove('hidden');
+        } else {
+          searchScopeHint.classList.add('hidden');
+        }
+      }
 
       var filtered = partsData.filter(function(item) {
         var hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().indexOf(keyword) > -1;
         var hitCategory = category === 'all' || item.category === category;
         var lineText = String(item.line || '').toLowerCase();
-        var hitLine = LINE_SHEET_OPTIONS[currentLine]
+        var withinMainLine = LINE_SHEET_OPTIONS[currentLine]
           ? true
           : (currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1);
+        var hitSubLine = !hasKeyword ? (String(item.subLine || selectedSheet) === String(selectedSheet)) : true;
+        var hitLine = withinMainLine && hitSubLine;
         var status = getStockStatus(item);
         var hitStatus = selectedStatus === 'all'
           || (selectedStatus === 'out' && status === 'OUT')
