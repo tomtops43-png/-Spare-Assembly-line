@@ -40,6 +40,12 @@
     body.edit-modal-open #stockPage {
       pointer-events: none;
     }
+    body.quick-issue-open #stockStickyHeader,
+    body.quick-issue-open #lineMenuDockToggle,
+    body.quick-issue-open #lineMenuPanel,
+    body.quick-issue-open #lineMenuBackdrop {
+      display: none !important;
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 overflow-x-hidden">
@@ -96,6 +102,7 @@
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
+          <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
         </div>
@@ -121,6 +128,13 @@
             <button id="stockNavLogBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">📜 Log</button>
             <button id="stockNavManageBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">🛠 Manage</button>
             <button id="stockNavAdminBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">⚙️ Admin</button>
+          </div>
+          <div id="stockLineLockBar" class="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 md:hidden">
+            <p class="flex flex-nowrap items-center gap-2 overflow-hidden text-base font-extrabold leading-none whitespace-nowrap">
+              <span id="stockLineLockLabel" class="shrink-0 text-[15px] tracking-[0.03em] uppercase whitespace-nowrap">LINE MAIN</span>
+              <span class="text-slate-400">:</span>
+              <span id="stockLineLockText" class="min-w-0 truncate whitespace-nowrap">H9</span>
+            </p>
           </div>
         </div>
         <div class="mt-2 grid gap-2 md:flex md:flex-wrap md:items-center">
@@ -150,13 +164,12 @@
         </div>
       </section>
       <p id="updatedAtText" class="hidden text-xs text-slate-500"></p>
+      <p id="searchScopeHint" class="hidden text-xs text-blue-700"></p>
       <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
         <div class="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
           <button id="qaIssueBtn" class="h-11 w-full rounded-xl bg-blue-600 px-4 text-white text-sm font-semibold shadow-sm md:h-9 md:w-auto md:rounded-full md:text-sm">⚡ เบิกอะไหล่</button>
-          <button id="qaOutBtn" class="h-11 w-full rounded-xl bg-rose-50 text-rose-700 border border-rose-200 px-4 text-sm font-semibold md:h-9 md:w-auto md:rounded-full md:text-sm">❌ อะไหล่หมด</button>
-          <button id="qaLowBtn" class="h-11 w-full rounded-xl bg-amber-50 text-amber-700 border border-amber-200 px-4 text-sm font-semibold md:h-9 md:w-auto md:rounded-full md:text-sm">⚠️ ต่ำกว่า Min</button>
           <button id="qaManageBtn" class="h-11 w-full rounded-xl bg-slate-100 text-slate-700 px-4 text-sm font-semibold md:h-9 md:w-auto md:rounded-full md:text-sm">🛠 จัดการรายการ</button>
-          <button id="qaReceiveBtn" class="hidden h-9 rounded-full bg-emerald-600 px-4 text-white text-sm font-semibold md:inline-flex">📥 รับเข้า</button>
+          <button id="qaReceiveBtn" style="background-color:#059669;border-color:#047857;color:#ffffff;" class="inline-flex h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-4 text-sm font-semibold shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 md:h-9 md:w-auto md:rounded-full md:text-sm"><span aria-hidden="true">📥</span><span>รับเข้า</span></button>
         </div>
       </section>
       <section id="stockTodayAlert" class="hidden overflow-x-auto whitespace-nowrap rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[13px] text-rose-700 lg:px-5 lg:py-3 lg:text-sm"></section>
@@ -193,7 +206,6 @@
             <option value="stock_asc">Stock น้อยสุด</option>
             <option value="name_asc">ชื่อ A-Z</option>
           </select>
-          <button id="openIssueCartBtn" type="button" class="relative w-full lg:w-auto rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
         </div>
 
         <div id="mobileCardList" class="grid grid-cols-2 gap-3 lg:hidden"></div>
@@ -283,23 +295,26 @@
     <section id="managePage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
       <h2 class="text-lg font-semibold mb-3">จัดการรายการอะไหล่ (เพิ่ม/แก้ไข/ลบ)</h2>
       <form id="manageForm" class="grid grid-cols-1 md:grid-cols-6 gap-3">
-        <input id="mNo" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="NO (เช่น ID-001)" required />
+        <div>
+          <input id="mNo" type="text" class="w-full rounded-xl border border-slate-300 px-3 py-2.5" placeholder="NO (รันอัตโนมัติ เช่น ID-001)" required />
+          <p class="mt-1 text-[11px] text-slate-500">ระบบจะรันเลขให้อัตโนมัติจากข้อมูลเดิม (ยังสามารถแก้ไขได้)</p>
+        </div>
         <input id="mName" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Name" required />
         <input id="mModel" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Model" />
-        <input id="mLine" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Main line" />
+        <select id="mLine" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือก LINE MAIN</option>
+        </select>
+        <select id="mSheet" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
+          <option value="">เลือกชีตย่อยของ LINE MAIN</option>
+        </select>
+        <input id="mLocation" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Location (เช่น SP-H9-A1-1)" />
         <input id="mCategory" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Category" />
         <input id="mBrand" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Brand" />
         <div>
           <label class="text-xs text-slate-500">รูปหลัก</label>
-          <div class="mt-1 grid grid-cols-1 gap-2">
-            <div>
-              <p class="text-[11px] text-slate-500 mb-1">เลือกจากแกลลอรี่</p>
-              <input id="mImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white w-full" />
-            </div>
-            <div>
-              <p class="text-[11px] text-slate-500 mb-1">ถ่ายภาพจากกล้อง</p>
-              <input id="mImageMainCamera" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" capture="environment" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white w-full" />
-            </div>
+          <div class="mt-1">
+            <p class="text-[11px] text-slate-500 mb-1">เลือกรูปภาพ</p>
+            <input id="mImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white w-full" />
           </div>
         </div>
                 <div class="md:col-span-2">
@@ -335,6 +350,40 @@
           </thead>
           <tbody id="logTable" class="divide-y divide-slate-100"></tbody>
         </table>
+      </div>
+    </section>
+
+    <section id="prReportPage" class="hidden space-y-4 bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow p-4 md:p-6">
+      <h2 class="text-xl font-bold">Purchase Request Report Generator</h2>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-slate-200 p-3">
+          <p class="font-semibold mb-2">1) Scope</p>
+          <div class="grid grid-cols-1 gap-2 text-sm">
+            <input id="prPeriod" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Request Period (e.g. May 2026)" />
+            <div class="grid grid-cols-2 gap-2"><input id="prFrom" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /><input id="prTo" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /></div>
+            <input id="prPreparedBy" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Prepared by" />
+            <input id="prDepartment" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Department" value="Production / Maintenance" />
+            <label><input id="prIncludeOut" type="checkbox" checked /> Include out-of-stock</label>
+            <label><input id="prIncludeBelow" type="checkbox" checked /> Include below-min</label>
+            <label><input id="prIncludeUsage" type="checkbox" checked /> Include usage-based</label>
+            <label><input id="prCriticalOnly" type="checkbox" /> Critical only</label>
+            <button id="prRunBtn" type="button" class="h-10 rounded-lg bg-blue-600 text-white font-semibold">Generate Candidates</button>
+          </div>
+        </div>
+        <div class="rounded-xl border border-slate-200 p-3 lg:col-span-2">
+          <p class="font-semibold mb-2">2) Candidate List (Review / Edit)</p>
+          <div id="prCandidateList" class="space-y-2 max-h-[360px] overflow-auto"></div>
+        </div>
+      </div>
+      <div class="rounded-xl border border-slate-200 p-3">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+          <p class="font-semibold">3) Report Preview</p>
+          <div class="flex gap-2">
+            <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
+            <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Print / PDF</button>
+          </div>
+        </div>
+        <div id="prReportPreview" class="prose prose-sm max-w-none"></div>
       </div>
     </section>
 
@@ -551,22 +600,18 @@
       </div>
       <form id="editForm" class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div><label class="text-xs text-slate-500">NO</label><input id="eNo" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
+        <div><label class="text-xs text-slate-500">Sheet</label><input id="eSheet" class="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-600" readonly /></div>
         <div><label class="text-xs text-slate-500">Name / Description</label><input id="eName" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
         <div><label class="text-xs text-slate-500">Model</label><input id="eModel" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Location</label><input id="eLocation" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div>
           <label class="text-xs text-slate-500">รูปหลัก</label>
-          <div class="mt-1 grid grid-cols-1 gap-2">
-            <div>
-              <p class="text-[11px] text-slate-500 mb-1">เลือกจากแกลลอรี่</p>
-              <input id="eImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
-            </div>
-            <div>
-              <p class="text-[11px] text-slate-500 mb-1">ถ่ายภาพจากกล้อง</p>
-              <input id="eImageMainCamera" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" capture="environment" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
-            </div>
+          <div class="mt-1">
+            <p class="text-[11px] text-slate-500 mb-1">เลือกรูปภาพ</p>
+            <input id="eImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
           </div>
         </div>
                 <div class="md:col-span-3">
@@ -657,11 +702,51 @@
         <input id="issueCartBy" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="ผู้เบิก (required)" />
         <input id="issueCartProcess" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="ไลน์/งาน" />
         <input id="issueCartNote" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="หมายเหตุ (optional)" />
-        <button id="issueCartSubmitBtn" type="button" class="h-11 w-full rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white">✅ Confirm Issue Selected Items</button>
+        <button id="issueCartSubmitBtn" type="button" style="background-color:#2563eb;border-color:#1d4ed8;color:#ffffff;" class="h-11 w-full rounded-lg border px-4 text-sm font-semibold shadow-sm">บันทึกรายการ</button>
         <p id="issueCartMessage" class="text-xs text-slate-500"></p>
       </div>
       <p id="issueCartHint" class="mt-3 text-xs text-slate-500">* ขั้นตอนนี้เป็นการเลือกชั่วคราว ยังไม่ตัด stock จริง</p>
     </aside>
+  </div>
+
+  <div id="quickIssueModal" class="fixed inset-0 z-[210] hidden bg-white">
+    <div id="quickIssueBackdrop" class="absolute inset-0 bg-white"></div>
+    <div class="relative z-10 flex h-full w-full flex-col overflow-y-auto bg-white p-4">
+      <div class="mb-3 flex items-center justify-between border-b border-slate-200 pb-2">
+        <h3 class="text-lg font-bold text-slate-900">⚡ เบิกอะไหล่</h3>
+        <button id="quickIssueCloseBtn" type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-xl text-slate-700">×</button>
+      </div>
+      <div id="quickIssueSelectedCard" class="rounded-2xl border border-slate-200 bg-white p-3">
+        <div class="flex items-center gap-3">
+          <div class="h-20 w-20 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+            <img id="quickIssueImage" src="" alt="quick issue item" class="h-full w-full object-contain bg-slate-50 p-1.5" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <p id="quickIssueName" class="text-lg font-semibold leading-tight truncate">-</p>
+            <p id="quickIssueModel" class="mt-1 text-sm text-slate-600">Model: -</p>
+            <p id="quickIssueNo" class="text-sm text-slate-600">รหัส: -</p>
+            <div class="mt-2 flex items-center gap-2">
+              <span id="quickIssueStatus" class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold">-</span>
+              <span id="quickIssueStock" class="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-sm font-semibold text-blue-700">Stock: 0 PCS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <form id="quickIssueForm" class="mt-4 flex min-h-0 flex-1 flex-col">
+        <div class="space-y-3">
+        <select id="quickIssueType" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+          <option value="Output">เบิกออก</option>
+        </select>
+        <input id="quickIssueQty" type="number" min="1" step="1" inputmode="numeric" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="จำนวน" required />
+        <input id="quickIssueBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ผู้เบิก/ผู้รับ" required />
+        <input id="quickIssueProcess" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ไลน์/งาน" />
+        </div>
+        <div class="mt-auto pt-4">
+          <button id="quickIssueSubmitBtn" type="submit" class="h-12 w-full rounded-xl bg-blue-600 px-4 text-xl font-semibold text-white">บันทึกรายการ</button>
+          <p id="quickIssueMessage" class="mt-2 text-sm text-slate-500"></p>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div id="filterSheet" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 md:hidden">
@@ -700,6 +785,7 @@
       'Lug&Screw': localStorage.getItem('spare_api_url_lug_screw') || ''
     };
     var LINE_SHEET_OPTIONS = {
+      'H9': ['Main List Stock', 'Stock for MC'],
       'Arc Chute': ['Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)'],
       'Coil Winding': ['Coil Winding'],
       'Lug&Screw': ['Lug&Screw']
@@ -739,6 +825,30 @@
     var issueCartNote = document.getElementById('issueCartNote');
     var issueCartSubmitBtn = document.getElementById('issueCartSubmitBtn');
     var issueCartMessage = document.getElementById('issueCartMessage');
+    var quickIssueModal = document.getElementById('quickIssueModal');
+    var quickIssueBackdrop = document.getElementById('quickIssueBackdrop');
+    var quickIssueCloseBtn = document.getElementById('quickIssueCloseBtn');
+    var quickIssueSelectedCard = document.getElementById('quickIssueSelectedCard');
+    var quickIssueImage = document.getElementById('quickIssueImage');
+    var quickIssueName = document.getElementById('quickIssueName');
+    var quickIssueModel = document.getElementById('quickIssueModel');
+    var quickIssueNo = document.getElementById('quickIssueNo');
+    var quickIssueStatus = document.getElementById('quickIssueStatus');
+    var quickIssueStock = document.getElementById('quickIssueStock');
+    var quickIssueForm = document.getElementById('quickIssueForm');
+    var quickIssueType = document.getElementById('quickIssueType');
+    var quickIssueQty = document.getElementById('quickIssueQty');
+    var quickIssueBy = document.getElementById('quickIssueBy');
+    var quickIssueProcess = document.getElementById('quickIssueProcess');
+    var quickIssueSubmitBtn = document.getElementById('quickIssueSubmitBtn');
+    var quickIssueMessage = document.getElementById('quickIssueMessage');
+    var prReportPage = document.getElementById('prReportPage');
+    var tabPrReport = document.getElementById('tabPrReport');
+    var prRunBtn = document.getElementById('prRunBtn');
+    var prBuildReportBtn = document.getElementById('prBuildReportBtn');
+    var prPrintBtn = document.getElementById('prPrintBtn');
+    var prCandidateList = document.getElementById('prCandidateList');
+    var prReportPreview = document.getElementById('prReportPreview');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
@@ -750,6 +860,10 @@
     var tableStatusMode = 'all';
     var issueCartState = {};
     var issueCartSubmitting = false;
+    var currentQuickIssueItemNo = '';
+    var quickIssueSubmitting = false;
+    var logCache = [];
+    var prCandidateState = [];
 
     var txnForm = document.getElementById('txnForm');
     var txnSearchInput = document.getElementById('txnSearchInput');
@@ -776,8 +890,6 @@
     var txnSubmitBtn = document.getElementById('txnSubmitBtn');
     var qaIssueBtn = document.getElementById('qaIssueBtn');
     var qaReceiveBtn = document.getElementById('qaReceiveBtn');
-    var qaOutBtn = document.getElementById('qaOutBtn');
-    var qaLowBtn = document.getElementById('qaLowBtn');
     var qaManageBtn = document.getElementById('qaManageBtn');
     var stockTodayAlert = document.getElementById('stockTodayAlert');
     var stockPage = document.getElementById('stockPage');
@@ -795,6 +907,10 @@
     var stockNavAdminBtnMobile = document.getElementById('stockNavAdminBtnMobile');
     var stockUtilityMenuBtn = document.getElementById('stockUtilityMenuBtn');
     var stockUtilityMenuMobile = document.getElementById('stockUtilityMenuMobile');
+    var searchScopeHint = document.getElementById('searchScopeHint');
+    var stockLineLockBar = document.getElementById('stockLineLockBar');
+    var stockLineLockLabel = document.getElementById('stockLineLockLabel');
+    var stockLineLockText = document.getElementById('stockLineLockText');
     var lineMenuDockToggle = document.getElementById('lineMenuDockToggle');
     var lineMenuClose = document.getElementById('lineMenuClose');
     var lineMenuBackdrop = document.getElementById('lineMenuBackdrop');
@@ -817,10 +933,14 @@
     var imageViewer = document.getElementById('imageViewer');
     var imageViewerImg = document.getElementById('imageViewerImg');
     var closeImageViewerBtn = document.getElementById('closeImageViewer');
+    var manageNoInput = document.getElementById('mNo');
+    var manageSheetSelect = document.getElementById('mSheet');
+    var manageLineSelect = document.getElementById('mLine');
     var currentLine = 'H9';
     var authToken = localStorage.getItem('spare_auth_token') || '';
     var currentUser = null;
     var modalLockCount = 0;
+    var lastAutoGeneratedManageNo = '';
     var usersTable = document.getElementById('usersTable');
     var usersMobileList = document.getElementById('usersMobileList');
     var userForm = document.getElementById('userForm');
@@ -1015,6 +1135,7 @@
         name: firstDefined([item.name, item.partName], '-'),
         model: firstDefined([item.model], '-'),
         line: firstDefined([item.line, item.mainLine, item.process], '-'),
+        subLine: firstDefined([item.__sourceSheet, item.sheet, item.subLine], ''),
         location: firstDefined([item.location, item.jrLocation], '-'),
         category: firstDefined([item.category], 'General'),
         brand: firstDefined([item.brand], '-'),
@@ -1028,6 +1149,99 @@
         photo: mainImageUrl,
         image_install_url: firstDefined([item.image_install_url, item.image_install, item.imageInstall], '')
       };
+    }
+
+    function normalizeLineText(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function getSheetOptionsForLine(lineKey) {
+      var options = LINE_SHEET_OPTIONS[lineKey];
+      if (Array.isArray(options) && options.length) return options.slice();
+      return ['Main List Stock', 'Stock for MC'];
+    }
+
+    function populateManageSheetOptions(forceDefault, lineKey) {
+      if (!manageSheetSelect) return;
+      var selectedLineKey = lineKey || (manageLineSelect ? String(manageLineSelect.value || '').trim() : '') || currentLine;
+      var previous = String(manageSheetSelect.value || '').trim();
+      var options = getSheetOptionsForLine(selectedLineKey);
+      var defaultSheet = options[0] || '';
+      var selected = (previous && options.indexOf(previous) > -1 && !forceDefault) ? previous : (sheetSelector.value || defaultSheet);
+      manageSheetSelect.innerHTML = ['<option value="">เลือกชีตย่อยของ LINE MAIN</option>'].concat(options.map(function(sheet) {
+        var escaped = String(sheet).replace(/"/g, '&quot;');
+        return '<option value="' + escaped + '">' + sheet + '</option>';
+      })).join('');
+      if (selected && options.indexOf(selected) > -1) manageSheetSelect.value = selected;
+      else if (defaultSheet) manageSheetSelect.value = defaultSheet;
+    }
+
+    function populateManageLineOptions(forceDefault) {
+      if (!manageLineSelect) return;
+      var previous = String(manageLineSelect.value || '').trim();
+      var options = lineConfig.map(function(item) { return item.key; });
+      var defaultLine = options.indexOf(currentLine) > -1 ? currentLine : options[0];
+      var selected = (previous && options.indexOf(previous) > -1 && !forceDefault) ? previous : defaultLine;
+      var html = ['<option value="">เลือก LINE MAIN</option>'].concat(options.map(function(line) {
+        var escaped = line.replace(/"/g, '&quot;');
+        return '<option value="' + escaped + '">' + line + '</option>';
+      }));
+      manageLineSelect.innerHTML = html.join('');
+      if (selected) manageLineSelect.value = selected;
+    }
+
+    function extractTrailingNumber(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return NaN;
+      if (/^\d+$/.test(raw)) return Number(raw);
+      var match = raw.match(/(\d+)(?!.*\d)/);
+      return match ? Number(match[1]) : NaN;
+    }
+
+    function suggestNextManageNo(existingItems) {
+      var rows = Array.isArray(existingItems) ? existingItems : [];
+      var numericRows = rows.map(function(item) {
+        return extractTrailingNumber(item && item.no);
+      }).filter(function(no) {
+        return Number.isFinite(no);
+      });
+      if (!numericRows.length) return '1';
+      return String(Math.max.apply(null, numericRows) + 1);
+    }
+
+    function requestNextNoForSheet(sheetName) {
+      var targetSheet = String(sheetName || '').trim();
+      if (!targetSheet) return Promise.resolve('');
+      return loadJsonpWithFallback(function(base) {
+        var query = '?action=nextNo&sheet=' + encodeURIComponent(targetSheet);
+        return base + appendAuthToQuery(query);
+      }).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ไม่สามารถคำนวณเลข NO ได้');
+        return String(res.nextNo || '').trim();
+      });
+    }
+
+    function applyAutoManageNo(forceUpdate) {
+      if (!manageNoInput) return;
+      var currentValue = String(manageNoInput.value || '').trim();
+      var shouldOverwrite = !!forceUpdate || !currentValue || currentValue === lastAutoGeneratedManageNo;
+      if (!shouldOverwrite) return;
+      var selectedSheet = manageSheetSelect ? String(manageSheetSelect.value || '').trim() : '';
+      var suggested = suggestNextManageNo(partsData);
+      if (!suggested) return;
+      manageNoInput.value = suggested;
+      lastAutoGeneratedManageNo = suggested;
+      requestNextNoForSheet(selectedSheet).then(function(serverNextNo) {
+        if (!serverNextNo) return;
+        if (manageSheetSelect && String(manageSheetSelect.value || '').trim() !== selectedSheet) return;
+        var liveValue = String(manageNoInput.value || '').trim();
+        var canReplace = !!forceUpdate || !liveValue || liveValue === lastAutoGeneratedManageNo || liveValue === suggested;
+        if (!canReplace) return;
+        manageNoInput.value = serverNextNo;
+        lastAutoGeneratedManageNo = serverNextNo;
+      }).catch(function() {
+        // Keep local fallback value when backend nextNo is unavailable.
+      });
     }
 
     function getNeedToOrder(item) {
@@ -1254,7 +1468,7 @@
       issueCartSubmitBtn.disabled = !!isSubmitting;
       issueCartSubmitBtn.classList.toggle('opacity-60', !!isSubmitting);
       issueCartSubmitBtn.classList.toggle('cursor-not-allowed', !!isSubmitting);
-      issueCartSubmitBtn.textContent = isSubmitting ? 'กำลังบันทึกรายการ...' : '✅ Confirm Issue Selected Items';
+      issueCartSubmitBtn.textContent = isSubmitting ? 'กำลังบันทึกรายการ...' : 'บันทึกรายการ';
     }
 
     function applyIssueCartAuthorizationUi() {
@@ -1496,6 +1710,22 @@
       return Array.from(new Set(candidates.filter(Boolean)));
     }
 
+    function getManageApiCandidates() {
+      var candidates = [];
+      if (DEFAULT_API_URL) candidates.push(DEFAULT_API_URL);
+      if (API_URL) candidates.push(API_URL);
+      var lineApi = LINE_API_URL_MAP[currentLine];
+      if (lineApi) candidates.push(lineApi);
+      candidates = candidates.reduce(function(acc, url) {
+        if (!url) return acc;
+        acc.push(url);
+        if (url.indexOf('/exec') > -1) acc.push(url.replace('/exec', '/dev'));
+        if (url.indexOf('/dev') > -1) acc.push(url.replace('/dev', '/exec'));
+        return acc;
+      }, []);
+      return Array.from(new Set(candidates.filter(Boolean)));
+    }
+
     function loadJsonpWithFallback(queryBuilder) {
       var candidates = getApiCandidates();
       var idx = 0;
@@ -1529,6 +1759,15 @@
       }
     }
 
+    function shouldUseJsonpTransportForUrl(url) {
+      try {
+        var apiOrigin = new URL(url, window.location.href).origin;
+        return apiOrigin !== window.location.origin;
+      } catch (err) {
+        return true;
+      }
+    }
+
     function postJsonNoCors(payload) {
       return fetch(getWriteApiUrl(), {
         method: 'POST',
@@ -1541,10 +1780,13 @@
     }
 
     function postJson(payload) {
-      return fetch(getWriteApiUrl(), {
+      var targetUrl = (payload && payload.__url) ? payload.__url : getWriteApiUrl();
+      var requestBody = Object.assign({}, payload || {});
+      if (requestBody.__url) delete requestBody.__url;
+      return fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(requestBody)
       }).then(function(res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
@@ -2023,6 +2265,17 @@
 
 
 
+    function updateStockLineLockBar() {
+      if (!stockLineLockBar || !stockLineLockText) return;
+      var active = lineConfig.filter(function(item){ return item.key === currentLine; })[0] || lineConfig[0];
+      stockLineLockText.textContent = currentLine || '-';
+      stockLineLockBar.style.borderColor = active.color + '55';
+      stockLineLockBar.style.backgroundColor = active.color + '1A';
+      stockLineLockBar.style.boxShadow = 'inset 0 0 0 1px ' + active.color + '22';
+      stockLineLockText.style.color = active.color;
+      if (stockLineLockLabel) stockLineLockLabel.style.color = active.color;
+    }
+
     function applyLineTheme() {
       var active = lineConfig.filter(function(item){ return item.key === currentLine; })[0] || lineConfig[0];
       document.documentElement.style.setProperty('--line-accent', active.color);
@@ -2031,6 +2284,7 @@
       if (headerHint) headerHint.textContent = 'CURRENT LINE';
       var currentLineBadge = document.getElementById('currentLineBadge');
       if (currentLineBadge) currentLineBadge.textContent = currentLine;
+      updateStockLineLockBar();
       syncSheetSelectorForCurrentLine();
     }
 
@@ -2158,7 +2412,7 @@
       var requestPayload = {
         authToken: authToken,
         action: action,
-        sheet: getCurrentSheetName(),
+        sheet: payload.sheet || getCurrentSheetName(),
         itemId: payload.itemId || payload.no || '',
         imageType: payload.imageType || payload.kind || '',
         kind: payload.kind || payload.imageType || '',
@@ -2168,6 +2422,7 @@
         partName: payload.partName || payload.name || '',
         model: payload.model || '',
         line: payload.line || '',
+        location: payload.location || '',
         category: payload.category || '',
         brand: payload.brand || '',
         photo: payload.photo || '',
@@ -2193,6 +2448,7 @@
         'partName=' + encodeURIComponent(requestPayload.partName),
         'model=' + encodeURIComponent(requestPayload.model),
         'line=' + encodeURIComponent(requestPayload.line),
+        'location=' + encodeURIComponent(requestPayload.location),
         'category=' + encodeURIComponent(requestPayload.category),
         'brand=' + encodeURIComponent(requestPayload.brand),
         // Keep only the canonical image fields to reduce URL size and JSONP failures.
@@ -2209,12 +2465,37 @@
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
 
-      if (shouldUseJsonpTransport()) {
-        return loadJsonpWithFallback(function(base){ return base + '?' + query; });
+      var manageCandidates = getManageApiCandidates();
+      function runManageCandidate(index, lastErr) {
+        if (index >= manageCandidates.length) throw lastErr || new Error('ไม่สามารถบันทึกข้อมูลได้');
+        var base = manageCandidates[index];
+        var targetUrl = base + '?' + query;
+        var requestPayloadWithUrl = Object.assign({}, requestPayload, { __url: base });
+        if (shouldUseJsonpTransportForUrl(base)) {
+          return loadViaJsonp(targetUrl).catch(function() {
+            return loadByFetch(targetUrl);
+          }).then(function(res) {
+            ACTIVE_API_URL = base;
+            return res;
+          }).catch(function(err) {
+            return runManageCandidate(index + 1, err);
+          });
+        }
+        return postJson(requestPayloadWithUrl).then(function(res) {
+          ACTIVE_API_URL = base;
+          return res;
+        }).catch(function() {
+          return loadViaJsonp(targetUrl).catch(function() {
+            return loadByFetch(targetUrl);
+          }).then(function(res) {
+            ACTIVE_API_URL = base;
+            return res;
+          }).catch(function(err) {
+            return runManageCandidate(index + 1, err);
+          });
+        });
       }
-      return postJson(requestPayload).catch(function() {
-        return loadJsonpWithFallback(function(base){ return base + '?' + query; });
-      });
+      return runManageCandidate(0);
     }
 
     function callTransactionViaJsonp(payload) {
@@ -2283,6 +2564,7 @@
         .then(function(rawData) {
           if (rawData && rawData.status === 'error') throw new Error(rawData.message || 'โหลด log ไม่สำเร็จ');
           if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูล Log ไม่ถูกต้อง');
+          logCache = rawData.slice();
           renderLogTable(rawData);
         })
         .catch(function(err) {
@@ -2297,15 +2579,18 @@
       tabStock.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
       tabLog.className = tabBaseClass;
+      tabPrReport.className = tabBaseClass;
       tabManage.className = tabBaseClass;
       tabAdmin.className = tabBaseClass;
       if (active === 'stock') tabStock.className = tabActiveClass;
       if (active === 'txn') tabTxn.className = tabActiveClass;
       if (active === 'log') tabLog.className = tabActiveClass;
+      if (active === 'pr') tabPrReport.className = tabActiveClass;
       if (active === 'manage') tabManage.className = tabActiveClass;
       if (active === 'admin') tabAdmin.className = tabActiveClass;
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
+      tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
@@ -2315,6 +2600,7 @@
       stockPage.classList.remove('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('stock');
@@ -2325,6 +2611,7 @@
       stockPage.classList.add('hidden');
       txnPage.classList.remove('hidden');
       logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('txn');
@@ -2352,6 +2639,7 @@
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.remove('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('log');
@@ -2363,9 +2651,13 @@
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('manage');
+      populateManageLineOptions(true);
+      populateManageSheetOptions(true);
+      applyAutoManageNo(false);
     }
 
     function switchToAdminPage() {
@@ -2373,6 +2665,7 @@
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.remove('hidden');
       setTabStyles('admin');
@@ -2382,37 +2675,110 @@
       });
     }
 
+    function switchToPrReportPage() {
+      if (!hasPermission('view_logs')) return switchToStockPage();
+      stockPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
+      prReportPage.classList.remove('hidden');
+      setTabStyles('pr');
+    }
+
+    function buildUsageMap(fromDate, toDate) {
+      var map = {};
+      logCache.forEach(function(l) {
+        var t = new Date(l.timestamp || l.date || '');
+        if (fromDate && t < fromDate) return;
+        if (toDate && t > toDate) return;
+        if (String(l.type || '').toLowerCase().indexOf('output') === -1) return;
+        var key = String((l.partNo || l.no || '')).trim();
+        if (!key) return;
+        map[key] = (map[key] || 0) + Number(l.qty || 0);
+      });
+      return map;
+    }
+
+    function runPrCandidateSelection() {
+      var fromDate = document.getElementById('prFrom').value ? new Date(document.getElementById('prFrom').value) : null;
+      var toDate = document.getElementById('prTo').value ? new Date(document.getElementById('prTo').value + 'T23:59:59') : null;
+      var includeOut = document.getElementById('prIncludeOut').checked;
+      var includeBelow = document.getElementById('prIncludeBelow').checked;
+      var includeUsage = document.getElementById('prIncludeUsage').checked;
+      var criticalOnly = document.getElementById('prCriticalOnly').checked;
+      var usage = buildUsageMap(fromDate, toDate);
+      prCandidateState = partsData.map(function(i) {
+        var stock = Number(i.stock || 0), min = Number(i.min || 0), max = Number(i.max || 0);
+        var need = Number(i.needToOrder || i.need_to_order || Math.max((max || min) - stock, 0));
+        var reasons = [];
+        if (includeOut && stock <= 0) reasons.push('Out-of-stock');
+        if (includeBelow && stock <= min) reasons.push('Below MIN');
+        if (need > 0) reasons.push('Need to order > 0');
+        var recentUsage = Number(usage[String(i.no || '')] || 0);
+        if (includeUsage && recentUsage >= Math.max(5, min)) reasons.push('High usage (' + recentUsage + ' issued)');
+        var critical = String(i.criticalLevel || i.critical || '').trim() || (stock <= 0 ? 'High' : 'Medium');
+        if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
+        if (!reasons.length) return null;
+        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: i.mainLine || currentLine, subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, reason: reasons.join(', '), unitPrice: Number(i.unitPrice || 0), machineStation: i.machineStation || '', purpose: '' };
+      }).filter(Boolean);
+      renderPrCandidates();
+    }
+
+    function renderPrCandidates() {
+      if (!prCandidateState.length) { prCandidateList.innerHTML = '<p class="text-sm text-slate-500">No candidates found.</p>'; return; }
+      prCandidateList.innerHTML = prCandidateState.map(function(c, idx){
+        return '<label class="block rounded-lg border border-slate-200 p-2 text-sm">' +
+          '<div class="flex items-start gap-2"><input data-pr-select="' + idx + '" type="checkbox" ' + (c.selected ? 'checked' : '') + ' class="mt-1"/><div class="min-w-0 flex-1"><p class="font-semibold">' + c.name + ' (' + c.no + ')</p><p class="text-xs text-slate-500">' + c.category + ' • ' + c.brand + ' • ' + c.model + ' • ' + c.line + '/' + c.subLine + '</p><p class="text-xs text-amber-700">' + c.reason + '</p></div></div>' +
+          '<div class="mt-2 grid grid-cols-2 md:grid-cols-5 gap-2">' +
+          '<input data-pr-qty="' + idx + '" type="number" value="' + c.suggestedQty + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Qty"/>' +
+          '<input data-pr-critical="' + idx + '" value="' + c.critical + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Critical"/>' +
+          '<input data-pr-price="' + idx + '" type="number" value="' + c.unitPrice + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Unit price"/>' +
+          '<input data-pr-machine="' + idx + '" value="' + c.machineStation + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Machine/Station"/>' +
+          '<input data-pr-purpose="' + idx + '" value="' + c.purpose + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Reason/Purpose"/>' +
+          '</div></label>';
+      }).join('');
+    }
+
     function loadPartsData() {
       desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
 
-      loadJsonpWithFallback(function(base){
-        var query = '?sheet=' + encodeURIComponent(getCurrentSheetName());
-        return base + appendAuthToQuery(query);
-      })
-        .catch(function() {
-          return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(getCurrentSheetName())));
-        })
-        .then(function(rawData) {
+      var activeSheets = getSheetOptionsForLine(currentLine);
+      var totalSheets = activeSheets.length;
+      Promise.all(activeSheets.map(function(sheetName, idx) {
+        return loadJsonpWithFallback(function(base){
+          var query = '?sheet=' + encodeURIComponent(sheetName);
+          return base + appendAuthToQuery(query);
+        }).catch(function() {
+          return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)));
+        }).then(function(rawData) {
           if (rawData && rawData.status === 'error') {
             var msg = rawData.message || 'API ตอบกลับ error';
             if (msg.indexOf('เข้าสู่ระบบ') > -1 || msg.indexOf('session') > -1) {
               logout();
             }
-            var isMissingSheet = msg.indexOf('ไม่พบชีทชื่อ') > -1;
-            if (isMissingSheet && ACTIVE_API_URL !== API_URL) {
-              return loadViaJsonp(API_URL + appendAuthToQuery("?sheet=" + encodeURIComponent(getCurrentSheetName())));
-            }
             throw new Error(msg);
           }
-          if (!Array.isArray(rawData)) {
-            throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
-          }
-
-          partsData = rawData.map(function(item, index) {
-            return normalizeRecord(item, index);
-          }).filter(function(item) {
+          if (!Array.isArray(rawData)) return [];
+          return rawData.map(function(item) {
+            item.__sourceSheet = sheetName;
+            return item;
+          });
+        }).finally(function() {
+          desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
+          mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
+        });
+      })).then(function(sheetChunks) {
+          var rawData = [].concat.apply([], sheetChunks);
+          return normalizeRecordsInBatches(rawData, function(done, total) {
+            var progress = 'กำลังประมวลผลข้อมูล... ' + done + '/' + total;
+            desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">' + progress + '</div>';
+            mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">' + progress + '</div>';
+          });
+        }).then(function(normalizedData) {
+          partsData = normalizedData.filter(function(item) {
             return item.name && item.name !== '-';
           });
 
@@ -2421,10 +2787,14 @@
           populateBrandOptions(partsData);
           populatePartOptions(partsData);
           populateTxnFilters(partsData);
+          populateManageLineOptions(false);
+          populateManageSheetOptions(false);
           if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
-          renderTxnResultList();
+          if (!txnPage.classList.contains('hidden')) renderTxnResultList();
+          else txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">เปิดหน้าเบิก/รับเพื่อโหลดรายการ</div>';
           selectTxnItem(currentTxnItemNo);
           syncIssueCartWithStock();
+          applyAutoManageNo(false);
           if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
           if (partsData.length) {
             var updatedAtText = document.getElementById('updatedAtText');
@@ -2443,6 +2813,25 @@
           document.getElementById('stat-cards').innerHTML = '';
           document.getElementById('updatedAtText').classList.add('hidden');
         });
+    }
+
+    function normalizeRecordsInBatches(rawData, onProgress) {
+      var list = Array.isArray(rawData) ? rawData : [];
+      var total = list.length;
+      var chunkSize = 120;
+      var cursor = 0;
+      var output = new Array(total);
+      return new Promise(function(resolve) {
+        function runChunk() {
+          var end = Math.min(cursor + chunkSize, total);
+          for (var i = cursor; i < end; i += 1) output[i] = normalizeRecord(list[i], i);
+          cursor = end;
+          if (onProgress) onProgress(cursor, total);
+          if (cursor >= total) return resolve(output);
+          setTimeout(runChunk, 0);
+        }
+        runChunk();
+      });
     }
 
 
@@ -2692,6 +3081,157 @@
       });
     }
 
+    function showQuickToast(message, tone) {
+      var existing = document.getElementById('quickActionToast');
+      if (existing) existing.remove();
+      var toast = document.createElement('div');
+      toast.id = 'quickActionToast';
+      toast.className = 'fixed left-1/2 top-4 z-[160] -translate-x-1/2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg ' + (tone === 'success' ? 'bg-emerald-600' : 'bg-slate-800');
+      toast.textContent = message || 'บันทึกสำเร็จ';
+      document.body.appendChild(toast);
+      setTimeout(function() {
+        if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 1800);
+    }
+
+    function setQuickIssueSubmitState(isSubmitting) {
+      quickIssueSubmitting = !!isSubmitting;
+      if (!quickIssueSubmitBtn) return;
+      quickIssueSubmitBtn.disabled = quickIssueSubmitting;
+      quickIssueSubmitBtn.classList.toggle('opacity-60', quickIssueSubmitting);
+      quickIssueSubmitBtn.classList.toggle('cursor-not-allowed', quickIssueSubmitting);
+      quickIssueSubmitBtn.textContent = quickIssueSubmitting ? 'กำลังบันทึกรายการ...' : 'บันทึกรายการ';
+    }
+
+    function getCurrentQuickIssueItem() {
+      if (!currentQuickIssueItemNo) return null;
+      return partMap[String(currentQuickIssueItemNo)] || null;
+    }
+
+    function closeQuickIssueModal() {
+      if (!quickIssueModal || quickIssueModal.classList.contains('hidden')) return;
+      quickIssueModal.classList.add('hidden');
+      document.body.classList.remove('quick-issue-open');
+      unlockBodyScroll();
+      currentQuickIssueItemNo = '';
+      if (quickIssueForm) quickIssueForm.reset();
+      if (quickIssueMessage) {
+        quickIssueMessage.className = 'text-sm text-slate-500';
+        quickIssueMessage.textContent = '';
+      }
+      setQuickIssueSubmitState(false);
+    }
+
+    function openQuickIssueModal(no) {
+      if (!quickIssueModal) return;
+      var item = partMap[String(no || '')];
+      if (!item) return;
+      if (detailModal && !detailModal.classList.contains('hidden')) closeDetailModal();
+      if (issueCartModal && !issueCartModal.classList.contains('hidden')) closeIssueCart();
+      if (editModal && !editModal.classList.contains('hidden')) closeEditModal();
+      if (stockUtilityMenuMobile) stockUtilityMenuMobile.classList.add('hidden');
+      if (lineMenuBackdrop) lineMenuBackdrop.classList.add('hidden');
+      if (lineMenuPanel) lineMenuPanel.classList.add('-translate-x-full');
+      if (window.innerWidth < 768) {
+        isLineMenuVisible = false;
+        updateLineMenuVisibility();
+      }
+      currentQuickIssueItemNo = String(item.no || '');
+      var status = getStockStatus(item);
+      var tone = getStatusTone(status);
+      var normalizedImage = toSafeImageUrl(item.image_main_url);
+      var secondaryFallback = getSecondaryDriveImageUrl(item.image_main_url);
+      quickIssueImage.src = normalizedImage;
+      quickIssueImage.setAttribute('data-fallback-src', secondaryFallback || '');
+      bindImageFallback(quickIssueImage);
+      quickIssueName.textContent = item.name || '-';
+      quickIssueModel.textContent = 'Model: ' + (item.model || '-');
+      quickIssueNo.textContent = 'รหัส: ' + (item.no || '-');
+      quickIssueStatus.textContent = status;
+      quickIssueStatus.className = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + tone.badgeClass;
+      quickIssueStock.textContent = 'Stock: ' + (item.stock || 0) + ' ' + (item.unit || 'PCS');
+      quickIssueType.value = 'Output';
+      quickIssueQty.value = '';
+      quickIssueBy.value = '';
+      quickIssueProcess.value = item.line || currentLine || '';
+      quickIssueMessage.className = 'text-sm text-slate-500';
+      quickIssueMessage.textContent = '';
+      setQuickIssueSubmitState(false);
+      var outOfStock = Number(item.stock || 0) <= 0;
+      quickIssueSubmitBtn.disabled = outOfStock;
+      quickIssueSubmitBtn.classList.toggle('opacity-60', outOfStock);
+      quickIssueSubmitBtn.classList.toggle('cursor-not-allowed', outOfStock);
+      if (outOfStock) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'อะไหล่หมดสต็อก ไม่สามารถเบิกออกได้';
+      }
+      document.body.classList.add('quick-issue-open');
+      lockBodyScroll();
+      quickIssueModal.classList.remove('hidden');
+      setTimeout(function() {
+        if (!outOfStock) quickIssueQty.focus();
+      }, 40);
+    }
+
+    function submitQuickIssue(event) {
+      event.preventDefault();
+      if (quickIssueSubmitting) return;
+      var item = getCurrentQuickIssueItem();
+      var qty = Number(quickIssueQty.value || 0);
+      var by = String(quickIssueBy.value || '').trim();
+      var process = String(quickIssueProcess.value || '').trim();
+      if (!item) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'ไม่พบรายการอะไหล่ที่เลือก';
+        return;
+      }
+      if (!qty || qty <= 0) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'จำนวนต้องมากกว่า 0';
+        return;
+      }
+      if (qty > Number(item.stock || 0)) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'จำนวนเบิกมากกว่า stock ปัจจุบัน';
+        return;
+      }
+      if (!by) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'กรุณาระบุผู้เบิก/ผู้รับ';
+        return;
+      }
+      var payload = {
+        partNo: item.no,
+        type: quickIssueType.value || 'Output',
+        process: process || item.line || currentLine || '-',
+        category: item.category || 'General',
+        partName: item.name,
+        model: item.model || '-',
+        brand: item.brand || '-',
+        qty: qty,
+        unit: item.unit || 'PCS',
+        by: by
+      };
+      setQuickIssueSubmitState(true);
+      quickIssueMessage.className = 'text-sm text-slate-500';
+      quickIssueMessage.textContent = 'กำลังบันทึกรายการ...';
+      callTransactionViaJsonp(payload).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) ? res.message : 'บันทึกไม่สำเร็จ');
+        var updatedStock = Number(res.stockAfter);
+        item.stock = isNaN(updatedStock) ? Number(item.stock || 0) - qty : updatedStock;
+        applyFilters(false);
+        showQuickToast('บันทึกสำเร็จ', 'success');
+        closeQuickIssueModal();
+        loadPartsData();
+        if (!logPage.classList.contains('hidden')) loadLogData();
+      }).catch(function(err) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : 'Unknown error');
+      }).finally(function() {
+        setQuickIssueSubmitState(false);
+      });
+    }
+
     function submitTransaction(event) {
       event.preventDefault();
 
@@ -2773,13 +3313,14 @@
       }
       if (lineMenuDockToggle) lineMenuDockToggle.classList.add('hidden');
       document.getElementById('eNo').value = item.no || '';
+      document.getElementById('eSheet').value = getCurrentSheetName();
       document.getElementById('eName').value = item.name || '';
       document.getElementById('eModel').value = item.model || '';
       document.getElementById('eLine').value = item.line || '';
+      document.getElementById('eLocation').value = item.location || '';
       document.getElementById('eCategory').value = item.category || '';
       document.getElementById('eBrand').value = item.brand || '';
       document.getElementById('eImageMainFile').value = '';
-      document.getElementById('eImageMainCamera').value = '';
       document.getElementById('eImageMainPreview').src = toSafeImageUrl(item.image_main_url);
       document.getElementById('eMax').value = item.max || '';
       document.getElementById('eMin').value = item.min || '';
@@ -2813,12 +3354,14 @@
       if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
       var itemNo = document.getElementById('eNo').value.trim();
       var oldItem = partsData.filter(function(p){ return String(p.no) === String(itemNo); })[0] || {};
-      var mainFile = document.getElementById('eImageMainFile').files[0] || document.getElementById('eImageMainCamera').files[0];
+      var mainFile = document.getElementById('eImageMainFile').files[0];
       var payload = {
+        sheet: document.getElementById('eSheet').value.trim() || getCurrentSheetName(),
         no: itemNo,
         name: document.getElementById('eName').value.trim(),
         model: document.getElementById('eModel').value.trim(),
         line: document.getElementById('eLine').value.trim(),
+        location: document.getElementById('eLocation').value.trim(),
         category: document.getElementById('eCategory').value.trim(),
         brand: document.getElementById('eBrand').value.trim(),
         photo: oldItem.image_main_url || oldItem.image_main || oldItem.photo || '',
@@ -2833,6 +3376,7 @@
         unit: document.getElementById('eUnit').value.trim(),
         stock: document.getElementById('eStock').value.trim()
       };
+      console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       editMessage.className = 'mt-3 text-sm text-slate-500';
       editMessage.textContent = 'กำลังอัปโหลดรูปและบันทึก...';
       uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()).then(function(mainRes){
@@ -2852,7 +3396,7 @@
       }).then(function(res){
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
         editMessage.className = 'mt-3 text-sm text-emerald-600';
-        editMessage.textContent = 'บันทึกสำเร็จ';
+        editMessage.textContent = 'บันทึกสำเร็จ (sheet: ' + (res.sheet || getCurrentSheetName()) + ', location: ' + (res.location || '-') + ')';
         loadPartsData();
         setTimeout(closeEditModal, 400);
       }).catch(function(err){
@@ -2865,7 +3409,7 @@
       var no = document.getElementById('eNo').value.trim();
       if (!no) return;
       if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
-      callManageAction('deleteItem', { no: no }).then(function(res){
+      callManageAction('deleteItem', { sheet: document.getElementById('eSheet').value.trim() || getCurrentSheetName(), no: no }).then(function(res){
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
         loadPartsData();
         closeEditModal();
@@ -2879,12 +3423,26 @@
       event.preventDefault();
       if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
       var itemNo = document.getElementById('mNo').value.trim();
-      var mainFile = document.getElementById('mImageMainFile').files[0] || document.getElementById('mImageMainCamera').files[0];
+      var selectedManageSheet = document.getElementById('mSheet').value.trim();
+      var selectedManageLine = document.getElementById('mLine').value.trim();
+      if (!selectedManageSheet) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = 'กรุณาเลือกชีตปลายทางก่อนบันทึก';
+        return;
+      }
+      if (!selectedManageLine) {
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = 'กรุณาเลือก Main line ก่อนบันทึก';
+        return;
+      }
+      var mainFile = document.getElementById('mImageMainFile').files[0];
       var payload = {
+        sheet: selectedManageSheet,
         no: itemNo,
         name: document.getElementById('mName').value.trim(),
         model: document.getElementById('mModel').value.trim(),
-        line: document.getElementById('mLine').value.trim(),
+        line: selectedManageLine,
+        location: document.getElementById('mLocation').value.trim(),
         category: document.getElementById('mCategory').value.trim(),
         brand: document.getElementById('mBrand').value.trim(),
         photo: '',
@@ -2899,6 +3457,7 @@
         unit: document.getElementById('mUnit').value.trim(),
         stock: document.getElementById('mStock').value.trim()
       };
+      console.log('[location][manage payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       manageMessage.className = 'mt-3 text-sm text-slate-500';
       manageMessage.textContent = 'กำลังอัปโหลดรูปและบันทึกรายการ...';
       uploadImageFile(mainFile, itemNo, 'main', document.getElementById('mName').value.trim()).then(function(mainRes) {
@@ -2918,7 +3477,17 @@
       }).then(function(res) {
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
         manageMessage.className = 'mt-3 text-sm text-emerald-600';
-        manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no;
+        manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no + ' (sheet: ' + (res.sheet || selectedManageSheet) + ', location: ' + (res.location || '-') + ')';
+        if (sheetSelector && sheetSelector.value !== selectedManageSheet) {
+          sheetSelector.value = selectedManageSheet;
+        }
+        if ((res.mode || '').toLowerCase() === 'create') {
+          manageForm.reset();
+          document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
+          populateManageLineOptions(true);
+          populateManageSheetOptions(true);
+          applyAutoManageNo(true);
+        }
         loadPartsData();
       }).catch(function(err) {
         manageMessage.className = 'mt-3 text-sm text-rose-600';
@@ -2935,7 +3504,7 @@
       }
       manageMessage.className = 'mt-3 text-sm text-slate-500';
       manageMessage.textContent = 'กำลังลบรายการ...';
-      callManageAction('deleteItem', { no: no }).then(function(res) {
+      callManageAction('deleteItem', { sheet: getCurrentSheetName(), no: no }).then(function(res) {
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
         manageMessage.className = 'mt-3 text-sm text-emerald-600';
         manageMessage.textContent = 'ลบสำเร็จ: ' + no;
@@ -3041,6 +3610,7 @@
           '<div class="mt-3 min-h-[62px] ' + visualState.contentClass + '">' +
             '<p class="font-semibold text-[15px] text-slate-900 leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + item.name + '</p>' +
             '<p class="text-xs text-slate-500 mt-1 truncate">' + (item.model || '-') + '</p>' +
+            '<p class="text-[11px] text-blue-700 mt-1 truncate">Sub-line: ' + (item.subLine || '-') + '</p>' +
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
             '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs ' + tone.badgeClass + '">' + status + '</span>' +
@@ -3095,7 +3665,7 @@
         btn.addEventListener('click', function(){
           var no = btn.getAttribute('data-delete-no');
           if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
-          callManageAction('deleteItem', { no: no }).then(function(res){
+          callManageAction('deleteItem', { sheet: getCurrentSheetName(), no: no }).then(function(res){
             if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
             loadPartsData();
           }).catch(function(err){
@@ -3144,6 +3714,7 @@
           '<div class="mt-2 ' + visualState.contentClass + '">' +
             '<p class="font-semibold text-[15px] leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.5rem;">' + item.name + '</p>' +
             '<p class="mt-1 text-xs text-slate-500 truncate">' + (item.model || '-') + '</p>' +
+            '<p class="mt-1 text-[11px] text-blue-700 truncate">Sub-line: ' + (item.subLine || '-') + '</p>' +
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
             '<span class="inline-flex items-center justify-center px-2 py-1 rounded-full text-[10px] font-semibold ' + tone.badgeClass + '">' + status + '</span>' +
@@ -3179,7 +3750,7 @@
         if (issueBtn) {
           e.preventDefault();
           e.stopPropagation();
-          openTxnPageWithItem(issueBtn.getAttribute('data-mobile-issue-no'), 'Output');
+          openQuickIssueModal(issueBtn.getAttribute('data-mobile-issue-no'));
           return;
         }
 
@@ -3189,7 +3760,7 @@
           e.stopPropagation();
           var deleteNo = deleteBtn.getAttribute('data-mobile-delete-no');
           if (!confirm('ยืนยันการลบรายการ NO: ' + deleteNo + ' ?')) return;
-          callManageAction('deleteItem', { no: deleteNo }).then(function(res){
+          callManageAction('deleteItem', { sheet: getCurrentSheetName(), no: deleteNo }).then(function(res){
             if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
             loadPartsData();
           }).catch(function(err){
@@ -3226,6 +3797,7 @@
       document.getElementById('detailCategory').textContent = item.category || '-';
       document.getElementById('detailLine').textContent = item.line || '-';
       document.getElementById('detailLocation').textContent = item.location || '-';
+      console.log('[location][detail render]', { no: item.no, location: item.location, sheet: getCurrentSheetName() });
       document.getElementById('detailStock').textContent = String(item.stock || 0);
       document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
       document.getElementById('detailNeedToOrder').textContent = String(getNeedToOrder(item));
@@ -3243,7 +3815,7 @@
       var needToOrder = getNeedToOrder(item);
       var metaText = detailMetaParts.join(' • ');
       document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
-      ['Model', 'Brand', 'Category', 'Line', 'Location'].forEach(function(field) {
+      ['Model', 'Brand', 'Category', 'Line'].forEach(function(field) {
         var valueEl = document.getElementById('detail' + field);
         var container = document.getElementById('detailField' + field);
         if (!valueEl || !container) return;
@@ -3251,6 +3823,8 @@
         var shouldHide = (!valueText || valueText === '-');
         container.classList.toggle('hidden', shouldHide);
       });
+      var detailFieldLocation = document.getElementById('detailFieldLocation');
+      if (detailFieldLocation) detailFieldLocation.classList.remove('hidden');
       mainImg.setAttribute('data-fallback-src', detailFallbackSrc || '');
       mainImg.src = detailImageSrc;
       mainImg.classList.toggle('cursor-zoom-in', mainOk);
@@ -3362,14 +3936,27 @@
       var category = categoryFilter.value;
       var selectedStatus = tableStatusMode !== 'all' ? tableStatusMode : statusFilter.value;
       var selectedBrand = brandFilter.value;
+      var selectedSheet = getCurrentSheetName();
+      var hasKeyword = !!keyword;
+
+      if (searchScopeHint) {
+        if (hasKeyword) {
+          searchScopeHint.textContent = 'กำลังค้นหาในทุกไลน์ย่อยของ ' + currentLine;
+          searchScopeHint.classList.remove('hidden');
+        } else {
+          searchScopeHint.classList.add('hidden');
+        }
+      }
 
       var filtered = partsData.filter(function(item) {
         var hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().indexOf(keyword) > -1;
         var hitCategory = category === 'all' || item.category === category;
         var lineText = String(item.line || '').toLowerCase();
-        var hitLine = LINE_SHEET_OPTIONS[currentLine]
+        var withinMainLine = LINE_SHEET_OPTIONS[currentLine]
           ? true
           : (currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1);
+        var hitSubLine = !hasKeyword ? (String(item.subLine || selectedSheet) === String(selectedSheet)) : true;
+        var hitLine = withinMainLine && hitSubLine;
         var status = getStockStatus(item);
         var hitStatus = selectedStatus === 'all'
           || (selectedStatus === 'out' && status === 'OUT')
@@ -3440,19 +4027,16 @@
     qaReceiveBtn.addEventListener('click', function() {
       openTxnPageWithItem('', 'Input');
     });
-    qaOutBtn.addEventListener('click', function() {
-      switchToStockPage();
-      statusFilter.value = 'out';
-      statusFilterMobile.value = 'out';
-      tableStatusMode = 'all';
-      applyFilters(false);
-    });
-    qaLowBtn.addEventListener('click', function() {
-      switchToStockPage();
-      statusFilter.value = 'low';
-      statusFilterMobile.value = 'low';
-      tableStatusMode = 'all';
-      applyFilters(false);
+    if (quickIssueBackdrop) quickIssueBackdrop.addEventListener('click', closeQuickIssueModal);
+    if (quickIssueCloseBtn) quickIssueCloseBtn.addEventListener('click', closeQuickIssueModal);
+    if (quickIssueModal) {
+      quickIssueModal.addEventListener('click', function(e) {
+        if (e.target === quickIssueModal) closeQuickIssueModal();
+      });
+    }
+    if (quickIssueForm) quickIssueForm.addEventListener('submit', submitQuickIssue);
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeQuickIssueModal();
     });
     function bindStockShortcut(btn, fn) {
       if (!btn) return;
@@ -3467,6 +4051,44 @@
     bindStockShortcut(stockNavManageBtnMobile, switchToManagePage);
     bindStockShortcut(stockNavAdminBtn, switchToAdminPage);
     bindStockShortcut(stockNavAdminBtnMobile, switchToAdminPage);
+    if (manageNoInput) {
+      manageNoInput.addEventListener('input', function() {
+        var current = String(manageNoInput.value || '').trim();
+        if (!current || current === lastAutoGeneratedManageNo) return;
+        lastAutoGeneratedManageNo = '';
+      });
+    }
+    if (manageLineSelect) {
+      manageLineSelect.addEventListener('change', function() {
+        var selectedMainLine = String(manageLineSelect.value || '').trim();
+        if (!selectedMainLine) return;
+        currentLine = selectedMainLine;
+        renderLineTabs();
+        applyLineTheme();
+        populateManageSheetOptions(true, selectedMainLine);
+        var selectedSheet = String((manageSheetSelect && manageSheetSelect.value) || '').trim();
+        if (selectedSheet) {
+          sheetSelector.value = selectedSheet;
+          loadPartsData();
+          if (!logPage.classList.contains('hidden')) loadLogData();
+          return;
+        }
+        applyAutoManageNo(true);
+      });
+    }
+    if (manageSheetSelect) {
+      manageSheetSelect.addEventListener('change', function() {
+        var selected = String(manageSheetSelect.value || '').trim();
+        if (!selected) return;
+        if (sheetSelector.value !== selected) {
+          sheetSelector.value = selected;
+          loadPartsData();
+          if (!logPage.classList.contains('hidden')) loadLogData();
+        } else {
+          applyAutoManageNo(true);
+        }
+      });
+    }
     if (stockUtilityMenuBtn) {
       stockUtilityMenuBtn.addEventListener('click', function() {
         if (!stockUtilityMenuMobile) return;
@@ -3479,6 +4101,7 @@
       if (!stockPage.classList.contains('hidden')) setTabStyles('stock');
       else if (!txnPage.classList.contains('hidden')) setTabStyles('txn');
       else if (!logPage.classList.contains('hidden')) setTabStyles('log');
+      else if (!prReportPage.classList.contains('hidden')) setTabStyles('pr');
       else if (!managePage.classList.contains('hidden')) setTabStyles('manage');
       else if (!adminPage.classList.contains('hidden')) setTabStyles('admin');
     });
@@ -3487,6 +4110,7 @@
     tabStock.addEventListener('click', switchToStockPage);
     tabTxn.addEventListener('click', switchToTxnPage);
     tabLog.addEventListener('click', switchToLogPage);
+    tabPrReport.addEventListener('click', switchToPrReportPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
     lineMenuDockToggle.addEventListener('click', function() {
@@ -3559,9 +4183,38 @@
     });
     editForm.addEventListener('submit', submitEditModal);
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
-    bindFilePreview('mImageMainCamera', 'mImageMainPreview');
+    if (prRunBtn) prRunBtn.addEventListener('click', runPrCandidateSelection);
+    if (prCandidateList) prCandidateList.addEventListener('input', function(e) {
+      var idx = Number((e.target.dataset.prQty || e.target.dataset.prCritical || e.target.dataset.prPrice || e.target.dataset.prMachine || e.target.dataset.prPurpose || e.target.dataset.prSelect || -1));
+      if (idx < 0 || !prCandidateState[idx]) return;
+      var c = prCandidateState[idx];
+      if (e.target.dataset.prSelect !== undefined) c.selected = !!e.target.checked;
+      if (e.target.dataset.prQty !== undefined) c.suggestedQty = Number(e.target.value || 0);
+      if (e.target.dataset.prCritical !== undefined) c.critical = e.target.value;
+      if (e.target.dataset.prPrice !== undefined) c.unitPrice = Number(e.target.value || 0);
+      if (e.target.dataset.prMachine !== undefined) c.machineStation = e.target.value;
+      if (e.target.dataset.prPurpose !== undefined) c.purpose = e.target.value;
+    });
+    if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
+      var selected = prCandidateState.filter(function(c){ return c.selected; });
+      if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
+      var total = selected.reduce(function(sum, c){ return sum + (Number(c.suggestedQty||0) * Number(c.unitPrice||0)); }, 0);
+      var outCount = selected.filter(function(c){ return c.stock <= 0; }).length;
+      var highCount = selected.filter(function(c){ return String(c.critical).toLowerCase().indexOf('high') > -1 || String(c.critical).toLowerCase().indexOf('critical') > -1; }).length;
+      var lines = Array.from(new Set(selected.map(function(c){ return c.line; }))).join(', ');
+      prReportPreview.innerHTML = '<article id=\"prPrintableReport\" class=\"text-sm\">' +
+        '<h1 class=\"text-xl font-bold\">Purchase Request Supporting Report</h1>' +
+        '<p><b>Request Period:</b> ' + (document.getElementById('prPeriod').value || '-') + ' | <b>Submission Date:</b> ' + new Date().toISOString().slice(0,10) + '</p>' +
+        '<p><b>Prepared by:</b> ' + (document.getElementById('prPreparedBy').value || '-') + ' | <b>Department:</b> ' + (document.getElementById('prDepartment').value || '-') + '</p>' +
+        '<h2 class=\"font-semibold mt-3\">Executive Summary</h2><ul><li>Total listed items: ' + selected.length + '</li><li>Out-of-stock items: ' + outCount + '</li><li>High/Critical items: ' + highCount + '</li><li>Estimated total amount: ' + total.toLocaleString() + '</li></ul>' +
+        '<h2 class=\"font-semibold mt-3\">Purpose of Request</h2><p>This request covers spare parts and production support tools for ' + lines + ' to prevent downtime and sustain production continuity.</p>' +
+        '<h2 class=\"font-semibold mt-3\">Risk if Not Purchased</h2><p>Current stock status indicates replenishment risk (especially out-of-stock and below-min items), which may impact maintenance SLA and production uptime.</p>' +
+        '<h2 class=\"font-semibold mt-3\">Detailed Requested Item List</h2><table class=\"w-full text-xs border-collapse\"><thead><tr><th class=\"border p-1\">No.</th><th class=\"border p-1\">Category</th><th class=\"border p-1\">Line</th><th class=\"border p-1\">Machine</th><th class=\"border p-1\">Description</th><th class=\"border p-1\">Brand</th><th class=\"border p-1\">Model</th><th class=\"border p-1\">Qty</th><th class=\"border p-1\">Critical</th><th class=\"border p-1\">Unit Price</th><th class=\"border p-1\">Total</th><th class=\"border p-1\">Reason</th></tr></thead><tbody>' +
+        selected.map(function(c, i){ var amt=(Number(c.suggestedQty||0)*Number(c.unitPrice||0)); return '<tr><td class=\"border p-1\">'+(i+1)+'</td><td class=\"border p-1\">'+c.category+'</td><td class=\"border p-1\">'+c.line+'/'+c.subLine+'</td><td class=\"border p-1\">'+(c.machineStation||'-')+'</td><td class=\"border p-1\">'+c.name+'</td><td class=\"border p-1\">'+c.brand+'</td><td class=\"border p-1\">'+c.model+'</td><td class=\"border p-1\">'+c.suggestedQty+'</td><td class=\"border p-1\">'+c.critical+'</td><td class=\"border p-1\">'+Number(c.unitPrice||0).toLocaleString()+'</td><td class=\"border p-1\">'+amt.toLocaleString()+'</td><td class=\"border p-1\">'+(c.purpose||c.reason)+'</td></tr>'; }).join('') +
+        '</tbody></table></article>';
+    });
+    if (prPrintBtn) prPrintBtn.addEventListener('click', function(){ window.print(); });
     bindFilePreview('eImageMainFile', 'eImageMainPreview');
-    bindFilePreview('eImageMainCamera', 'eImageMainPreview');
     sheetSelector.addEventListener('change', function() {
       loadPartsData();
       if (!logPage.classList.contains('hidden')) loadLogData();
