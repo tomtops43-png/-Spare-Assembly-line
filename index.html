@@ -2648,9 +2648,14 @@
             throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
           }
 
-          partsData = rawData.map(function(item, index) {
-            return normalizeRecord(item, index);
-          }).filter(function(item) {
+          return normalizeRecordsInBatches(rawData, function(done, total) {
+            var progress = 'กำลังประมวลผลข้อมูล... ' + done + '/' + total;
+            desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">' + progress + '</div>';
+            mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">' + progress + '</div>';
+          });
+        })
+        .then(function(normalizedData) {
+          partsData = normalizedData.filter(function(item) {
             return item.name && item.name !== '-';
           });
 
@@ -2662,7 +2667,8 @@
           populateManageLineOptions(false);
           populateManageSheetOptions(false);
           if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
-          renderTxnResultList();
+          if (!txnPage.classList.contains('hidden')) renderTxnResultList();
+          else txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">เปิดหน้าเบิก/รับเพื่อโหลดรายการ</div>';
           selectTxnItem(currentTxnItemNo);
           syncIssueCartWithStock();
           applyAutoManageNo(false);
@@ -2684,6 +2690,25 @@
           document.getElementById('stat-cards').innerHTML = '';
           document.getElementById('updatedAtText').classList.add('hidden');
         });
+    }
+
+    function normalizeRecordsInBatches(rawData, onProgress) {
+      var list = Array.isArray(rawData) ? rawData : [];
+      var total = list.length;
+      var chunkSize = 120;
+      var cursor = 0;
+      var output = new Array(total);
+      return new Promise(function(resolve) {
+        function runChunk() {
+          var end = Math.min(cursor + chunkSize, total);
+          for (var i = cursor; i < end; i += 1) output[i] = normalizeRecord(list[i], i);
+          cursor = end;
+          if (onProgress) onProgress(cursor, total);
+          if (cursor >= total) return resolve(output);
+          setTimeout(runChunk, 0);
+        }
+        runChunk();
+      });
     }
 
 
