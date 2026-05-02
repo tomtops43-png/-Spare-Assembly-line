@@ -102,6 +102,7 @@
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
+          <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
         </div>
@@ -349,6 +350,40 @@
           </thead>
           <tbody id="logTable" class="divide-y divide-slate-100"></tbody>
         </table>
+      </div>
+    </section>
+
+    <section id="prReportPage" class="hidden space-y-4 bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow p-4 md:p-6">
+      <h2 class="text-xl font-bold">Purchase Request Report Generator</h2>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-slate-200 p-3">
+          <p class="font-semibold mb-2">1) Scope</p>
+          <div class="grid grid-cols-1 gap-2 text-sm">
+            <input id="prPeriod" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Request Period (e.g. May 2026)" />
+            <div class="grid grid-cols-2 gap-2"><input id="prFrom" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /><input id="prTo" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /></div>
+            <input id="prPreparedBy" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Prepared by" />
+            <input id="prDepartment" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Department" value="Production / Maintenance" />
+            <label><input id="prIncludeOut" type="checkbox" checked /> Include out-of-stock</label>
+            <label><input id="prIncludeBelow" type="checkbox" checked /> Include below-min</label>
+            <label><input id="prIncludeUsage" type="checkbox" checked /> Include usage-based</label>
+            <label><input id="prCriticalOnly" type="checkbox" /> Critical only</label>
+            <button id="prRunBtn" type="button" class="h-10 rounded-lg bg-blue-600 text-white font-semibold">Generate Candidates</button>
+          </div>
+        </div>
+        <div class="rounded-xl border border-slate-200 p-3 lg:col-span-2">
+          <p class="font-semibold mb-2">2) Candidate List (Review / Edit)</p>
+          <div id="prCandidateList" class="space-y-2 max-h-[360px] overflow-auto"></div>
+        </div>
+      </div>
+      <div class="rounded-xl border border-slate-200 p-3">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+          <p class="font-semibold">3) Report Preview</p>
+          <div class="flex gap-2">
+            <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
+            <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Print / PDF</button>
+          </div>
+        </div>
+        <div id="prReportPreview" class="prose prose-sm max-w-none"></div>
       </div>
     </section>
 
@@ -807,6 +842,13 @@
     var quickIssueProcess = document.getElementById('quickIssueProcess');
     var quickIssueSubmitBtn = document.getElementById('quickIssueSubmitBtn');
     var quickIssueMessage = document.getElementById('quickIssueMessage');
+    var prReportPage = document.getElementById('prReportPage');
+    var tabPrReport = document.getElementById('tabPrReport');
+    var prRunBtn = document.getElementById('prRunBtn');
+    var prBuildReportBtn = document.getElementById('prBuildReportBtn');
+    var prPrintBtn = document.getElementById('prPrintBtn');
+    var prCandidateList = document.getElementById('prCandidateList');
+    var prReportPreview = document.getElementById('prReportPreview');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
@@ -820,6 +862,8 @@
     var issueCartSubmitting = false;
     var currentQuickIssueItemNo = '';
     var quickIssueSubmitting = false;
+    var logCache = [];
+    var prCandidateState = [];
 
     var txnForm = document.getElementById('txnForm');
     var txnSearchInput = document.getElementById('txnSearchInput');
@@ -2520,6 +2564,7 @@
         .then(function(rawData) {
           if (rawData && rawData.status === 'error') throw new Error(rawData.message || 'โหลด log ไม่สำเร็จ');
           if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูล Log ไม่ถูกต้อง');
+          logCache = rawData.slice();
           renderLogTable(rawData);
         })
         .catch(function(err) {
@@ -2534,15 +2579,18 @@
       tabStock.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
       tabLog.className = tabBaseClass;
+      tabPrReport.className = tabBaseClass;
       tabManage.className = tabBaseClass;
       tabAdmin.className = tabBaseClass;
       if (active === 'stock') tabStock.className = tabActiveClass;
       if (active === 'txn') tabTxn.className = tabActiveClass;
       if (active === 'log') tabLog.className = tabActiveClass;
+      if (active === 'pr') tabPrReport.className = tabActiveClass;
       if (active === 'manage') tabManage.className = tabActiveClass;
       if (active === 'admin') tabAdmin.className = tabActiveClass;
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
+      tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
@@ -2552,6 +2600,7 @@
       stockPage.classList.remove('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('stock');
@@ -2562,6 +2611,7 @@
       stockPage.classList.add('hidden');
       txnPage.classList.remove('hidden');
       logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('txn');
@@ -2589,6 +2639,7 @@
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.remove('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('log');
@@ -2600,6 +2651,7 @@
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('manage');
@@ -2613,6 +2665,7 @@
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.remove('hidden');
       setTabStyles('admin');
@@ -2620,6 +2673,71 @@
         userManageMessage.className = 'text-sm mb-2 text-rose-600';
         userManageMessage.textContent = err && err.message ? err.message : 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ';
       });
+    }
+
+    function switchToPrReportPage() {
+      if (!hasPermission('view_logs')) return switchToStockPage();
+      stockPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
+      prReportPage.classList.remove('hidden');
+      setTabStyles('pr');
+    }
+
+    function buildUsageMap(fromDate, toDate) {
+      var map = {};
+      logCache.forEach(function(l) {
+        var t = new Date(l.timestamp || l.date || '');
+        if (fromDate && t < fromDate) return;
+        if (toDate && t > toDate) return;
+        if (String(l.type || '').toLowerCase().indexOf('output') === -1) return;
+        var key = String((l.partNo || l.no || '')).trim();
+        if (!key) return;
+        map[key] = (map[key] || 0) + Number(l.qty || 0);
+      });
+      return map;
+    }
+
+    function runPrCandidateSelection() {
+      var fromDate = document.getElementById('prFrom').value ? new Date(document.getElementById('prFrom').value) : null;
+      var toDate = document.getElementById('prTo').value ? new Date(document.getElementById('prTo').value + 'T23:59:59') : null;
+      var includeOut = document.getElementById('prIncludeOut').checked;
+      var includeBelow = document.getElementById('prIncludeBelow').checked;
+      var includeUsage = document.getElementById('prIncludeUsage').checked;
+      var criticalOnly = document.getElementById('prCriticalOnly').checked;
+      var usage = buildUsageMap(fromDate, toDate);
+      prCandidateState = partsData.map(function(i) {
+        var stock = Number(i.stock || 0), min = Number(i.min || 0), max = Number(i.max || 0);
+        var need = Number(i.needToOrder || i.need_to_order || Math.max((max || min) - stock, 0));
+        var reasons = [];
+        if (includeOut && stock <= 0) reasons.push('Out-of-stock');
+        if (includeBelow && stock <= min) reasons.push('Below MIN');
+        if (need > 0) reasons.push('Need to order > 0');
+        var recentUsage = Number(usage[String(i.no || '')] || 0);
+        if (includeUsage && recentUsage >= Math.max(5, min)) reasons.push('High usage (' + recentUsage + ' issued)');
+        var critical = String(i.criticalLevel || i.critical || '').trim() || (stock <= 0 ? 'High' : 'Medium');
+        if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
+        if (!reasons.length) return null;
+        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: i.mainLine || currentLine, subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, reason: reasons.join(', '), unitPrice: Number(i.unitPrice || 0), machineStation: i.machineStation || '', purpose: '' };
+      }).filter(Boolean);
+      renderPrCandidates();
+    }
+
+    function renderPrCandidates() {
+      if (!prCandidateState.length) { prCandidateList.innerHTML = '<p class="text-sm text-slate-500">No candidates found.</p>'; return; }
+      prCandidateList.innerHTML = prCandidateState.map(function(c, idx){
+        return '<label class="block rounded-lg border border-slate-200 p-2 text-sm">' +
+          '<div class="flex items-start gap-2"><input data-pr-select="' + idx + '" type="checkbox" ' + (c.selected ? 'checked' : '') + ' class="mt-1"/><div class="min-w-0 flex-1"><p class="font-semibold">' + c.name + ' (' + c.no + ')</p><p class="text-xs text-slate-500">' + c.category + ' • ' + c.brand + ' • ' + c.model + ' • ' + c.line + '/' + c.subLine + '</p><p class="text-xs text-amber-700">' + c.reason + '</p></div></div>' +
+          '<div class="mt-2 grid grid-cols-2 md:grid-cols-5 gap-2">' +
+          '<input data-pr-qty="' + idx + '" type="number" value="' + c.suggestedQty + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Qty"/>' +
+          '<input data-pr-critical="' + idx + '" value="' + c.critical + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Critical"/>' +
+          '<input data-pr-price="' + idx + '" type="number" value="' + c.unitPrice + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Unit price"/>' +
+          '<input data-pr-machine="' + idx + '" value="' + c.machineStation + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Machine/Station"/>' +
+          '<input data-pr-purpose="' + idx + '" value="' + c.purpose + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Reason/Purpose"/>' +
+          '</div></label>';
+      }).join('');
     }
 
     function loadPartsData() {
@@ -3983,6 +4101,7 @@
       if (!stockPage.classList.contains('hidden')) setTabStyles('stock');
       else if (!txnPage.classList.contains('hidden')) setTabStyles('txn');
       else if (!logPage.classList.contains('hidden')) setTabStyles('log');
+      else if (!prReportPage.classList.contains('hidden')) setTabStyles('pr');
       else if (!managePage.classList.contains('hidden')) setTabStyles('manage');
       else if (!adminPage.classList.contains('hidden')) setTabStyles('admin');
     });
@@ -3991,6 +4110,7 @@
     tabStock.addEventListener('click', switchToStockPage);
     tabTxn.addEventListener('click', switchToTxnPage);
     tabLog.addEventListener('click', switchToLogPage);
+    tabPrReport.addEventListener('click', switchToPrReportPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
     lineMenuDockToggle.addEventListener('click', function() {
@@ -4063,6 +4183,37 @@
     });
     editForm.addEventListener('submit', submitEditModal);
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
+    if (prRunBtn) prRunBtn.addEventListener('click', runPrCandidateSelection);
+    if (prCandidateList) prCandidateList.addEventListener('input', function(e) {
+      var idx = Number((e.target.dataset.prQty || e.target.dataset.prCritical || e.target.dataset.prPrice || e.target.dataset.prMachine || e.target.dataset.prPurpose || e.target.dataset.prSelect || -1));
+      if (idx < 0 || !prCandidateState[idx]) return;
+      var c = prCandidateState[idx];
+      if (e.target.dataset.prSelect !== undefined) c.selected = !!e.target.checked;
+      if (e.target.dataset.prQty !== undefined) c.suggestedQty = Number(e.target.value || 0);
+      if (e.target.dataset.prCritical !== undefined) c.critical = e.target.value;
+      if (e.target.dataset.prPrice !== undefined) c.unitPrice = Number(e.target.value || 0);
+      if (e.target.dataset.prMachine !== undefined) c.machineStation = e.target.value;
+      if (e.target.dataset.prPurpose !== undefined) c.purpose = e.target.value;
+    });
+    if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
+      var selected = prCandidateState.filter(function(c){ return c.selected; });
+      if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
+      var total = selected.reduce(function(sum, c){ return sum + (Number(c.suggestedQty||0) * Number(c.unitPrice||0)); }, 0);
+      var outCount = selected.filter(function(c){ return c.stock <= 0; }).length;
+      var highCount = selected.filter(function(c){ return String(c.critical).toLowerCase().indexOf('high') > -1 || String(c.critical).toLowerCase().indexOf('critical') > -1; }).length;
+      var lines = Array.from(new Set(selected.map(function(c){ return c.line; }))).join(', ');
+      prReportPreview.innerHTML = '<article id=\"prPrintableReport\" class=\"text-sm\">' +
+        '<h1 class=\"text-xl font-bold\">Purchase Request Supporting Report</h1>' +
+        '<p><b>Request Period:</b> ' + (document.getElementById('prPeriod').value || '-') + ' | <b>Submission Date:</b> ' + new Date().toISOString().slice(0,10) + '</p>' +
+        '<p><b>Prepared by:</b> ' + (document.getElementById('prPreparedBy').value || '-') + ' | <b>Department:</b> ' + (document.getElementById('prDepartment').value || '-') + '</p>' +
+        '<h2 class=\"font-semibold mt-3\">Executive Summary</h2><ul><li>Total listed items: ' + selected.length + '</li><li>Out-of-stock items: ' + outCount + '</li><li>High/Critical items: ' + highCount + '</li><li>Estimated total amount: ' + total.toLocaleString() + '</li></ul>' +
+        '<h2 class=\"font-semibold mt-3\">Purpose of Request</h2><p>This request covers spare parts and production support tools for ' + lines + ' to prevent downtime and sustain production continuity.</p>' +
+        '<h2 class=\"font-semibold mt-3\">Risk if Not Purchased</h2><p>Current stock status indicates replenishment risk (especially out-of-stock and below-min items), which may impact maintenance SLA and production uptime.</p>' +
+        '<h2 class=\"font-semibold mt-3\">Detailed Requested Item List</h2><table class=\"w-full text-xs border-collapse\"><thead><tr><th class=\"border p-1\">No.</th><th class=\"border p-1\">Category</th><th class=\"border p-1\">Line</th><th class=\"border p-1\">Machine</th><th class=\"border p-1\">Description</th><th class=\"border p-1\">Brand</th><th class=\"border p-1\">Model</th><th class=\"border p-1\">Qty</th><th class=\"border p-1\">Critical</th><th class=\"border p-1\">Unit Price</th><th class=\"border p-1\">Total</th><th class=\"border p-1\">Reason</th></tr></thead><tbody>' +
+        selected.map(function(c, i){ var amt=(Number(c.suggestedQty||0)*Number(c.unitPrice||0)); return '<tr><td class=\"border p-1\">'+(i+1)+'</td><td class=\"border p-1\">'+c.category+'</td><td class=\"border p-1\">'+c.line+'/'+c.subLine+'</td><td class=\"border p-1\">'+(c.machineStation||'-')+'</td><td class=\"border p-1\">'+c.name+'</td><td class=\"border p-1\">'+c.brand+'</td><td class=\"border p-1\">'+c.model+'</td><td class=\"border p-1\">'+c.suggestedQty+'</td><td class=\"border p-1\">'+c.critical+'</td><td class=\"border p-1\">'+Number(c.unitPrice||0).toLocaleString()+'</td><td class=\"border p-1\">'+amt.toLocaleString()+'</td><td class=\"border p-1\">'+(c.purpose||c.reason)+'</td></tr>'; }).join('') +
+        '</tbody></table></article>';
+    });
+    if (prPrintBtn) prPrintBtn.addEventListener('click', function(){ window.print(); });
     bindFilePreview('eImageMainFile', 'eImageMainPreview');
     sheetSelector.addEventListener('change', function() {
       loadPartsData();
