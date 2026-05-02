@@ -7,6 +7,7 @@ SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Log';
 SPARE_APP_CONFIG.usersSheetName = SPARE_APP_CONFIG.usersSheetName || 'Users';
 var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After'];
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
+var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
 
 // =============================
 // HELPERS
@@ -56,6 +57,46 @@ function buildHeaderIndexMap(headers) {
     map[normalizeHeaderName(headers[i])] = i;
   }
   return map;
+}
+
+function getLocationOverrideKey(sheetName, noValue) {
+  return 'location_override::' + String(sheetName || '').trim() + '::' + String(noValue || '').trim();
+}
+
+function setLocationOverride(sheetName, noValue, locationValue) {
+  var props = PropertiesService.getScriptProperties();
+  var key = getLocationOverrideKey(sheetName, noValue);
+  var normalized = String(locationValue || '').trim();
+  if (!normalized || normalized === '-') {
+    props.deleteProperty(key);
+    return;
+  }
+  props.setProperty(key, normalized);
+}
+
+function getLocationOverride(sheetName, noValue) {
+  var props = PropertiesService.getScriptProperties();
+  var key = getLocationOverrideKey(sheetName, noValue);
+  return String(props.getProperty(key) || '').trim();
+}
+
+function ensureLocationColumnForSheet(sheetName) {
+  var targetSheet = String(sheetName || '').trim();
+  if (!targetSheet) return;
+  var ctx = getMainSheetContext(targetSheet);
+  ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
+}
+
+function ensureLocationColumnsForAllKnownSheets() {
+  var candidates = [SPARE_APP_CONFIG.readSheetName].concat(STOCK_LOCATION_SHEETS);
+  var uniqueSheets = Array.from(new Set(candidates.filter(function(name) { return !!String(name || '').trim(); })));
+  uniqueSheets.forEach(function(sheetName) {
+    try {
+      ensureLocationColumnForSheet(sheetName);
+    } catch (err) {
+      Logger.log('ensureLocationColumnsForAllKnownSheets warning [' + sheetName + ']: ' + (err && err.message ? err.message : err));
+    }
+  });
 }
 
 function pickRowValue(row, map, keys, fallbackValue) {
@@ -696,6 +737,44 @@ function uploadImageToDrive(payload) {
   };
 }
 
+function extractNumericNo(value) {
+  var raw = String(value || '').trim();
+  if (!raw) return NaN;
+  if (/^\d+$/.test(raw)) return Number(raw);
+  var match = raw.match(/(\d+)(?!.*\d)/);
+  return match ? Number(match[1]) : NaN;
+}
+
+function getNextNoBySheet(sheetName) {
+  var targetSheet = resolveReadSheetName({ sheet: sheetName });
+  var ctx = getMainSheetContext(targetSheet);
+  var noCol = ctx.map.no;
+  var maxNo = 0;
+
+  if (noCol === undefined) {
+    return {
+      status: 'success',
+      sheet: targetSheet,
+      nextNo: '1',
+      maxNo: 0,
+      scannedRows: 0
+    };
+  }
+
+  for (var i = 0; i < ctx.rows.length; i += 1) {
+    var candidate = extractNumericNo(ctx.rows[i][noCol]);
+    if (Number.isFinite(candidate) && candidate > maxNo) maxNo = candidate;
+  }
+
+  return {
+    status: 'success',
+    sheet: targetSheet,
+    nextNo: String(maxNo + 1),
+    maxNo: maxNo,
+    scannedRows: ctx.rows.length
+  };
+}
+
 function upsertMainItem(payload) {
   var sheetName = resolveReadSheetName({ sheet: payload.sheetName });
   var ctx = getMainSheetContext(sheetName);
@@ -714,7 +793,8 @@ function upsertMainItem(payload) {
     no: findCol(['no']),
     name: findCol(['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp']),
     model: findCol(['model', 'codeno', 'jrcodeno']),
-    line: findCol(['mainline', 'line', 'location', 'jrlocation']),
+    line: findCol(['mainline', 'line']),
+    location: findCol(['location', 'jrlocation']),
     category: findCol(['category']),
     brand: findCol(['brand']),
     photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic']),
@@ -735,6 +815,9 @@ function upsertMainItem(payload) {
   }
   if (fieldCols.line === undefined) {
     fieldCols.line = ensureColumnInContext(ctx, 'Line', ['line', 'mainline']);
+  }
+  if (fieldCols.location === undefined) {
+    fieldCols.location = ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
   }
   if (fieldCols.category === undefined) {
     fieldCols.category = ensureColumnInContext(ctx, 'Category', ['category']);
@@ -773,6 +856,7 @@ function upsertMainItem(payload) {
     name: payload.name || '',
     model: payload.model || '',
     line: payload.line || '',
+    location: payload.location || '',
     category: payload.category || '',
     brand: payload.brand || '',
     photo: payload.photo || '',
@@ -787,6 +871,8 @@ function upsertMainItem(payload) {
     unit: payload.unit || '',
     stock: payload.stock || ''
   };
+  Logger.log('[upsertMainItem] sheet=%s no=%s location=%s', sheetName, noValue, values.location);
+  setLocationOverride(sheetName, noValue, values.location);
 
   if (targetIndex > -1) {
     var sheetRow = ctx.headerRowIndex + 2 + targetIndex;
@@ -795,7 +881,7 @@ function upsertMainItem(payload) {
         ctx.sheet.getRange(sheetRow, fieldCols[key] + 1).setValue(values[key]);
       }
     }
-    return { status: 'success', mode: 'update', no: noValue };
+    return { status: 'success', mode: 'update', no: noValue, sheet: sheetName, location: values.location };
   }
 
   var newRow = new Array(ctx.headers.length);
@@ -804,7 +890,7 @@ function upsertMainItem(payload) {
     if (fieldCols[k] !== undefined) newRow[fieldCols[k]] = values[k];
   }
   ctx.sheet.appendRow(newRow);
-  return { status: 'success', mode: 'create', no: noValue };
+  return { status: 'success', mode: 'create', no: noValue, sheet: sheetName, location: values.location };
 }
 
 function deleteMainItem(payload) {
@@ -819,6 +905,7 @@ function deleteMainItem(payload) {
     if (String(ctx.rows[i][noCol]) === noValue) {
       var rowNumber = ctx.headerRowIndex + 2 + i;
       ctx.sheet.deleteRow(rowNumber);
+      setLocationOverride(sheetName, noValue, '');
       return { status: 'success', mode: 'delete', no: noValue };
     }
   }
@@ -886,16 +973,22 @@ function doGet(e) {
       return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
     }
     if (action === 'logs') return respond(getLogRows(), e);
+    if (action === 'nextNo') {
+      requirePermission(authPayload, 'manage_items');
+      return respond(getNextNoBySheet(e.parameter.sheet), e);
+    }
     if (action === 'authStatus') return respond(getDriveAuthStatus(), e);
     if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
+      ensureLocationColumnsForAllKnownSheets();
       return respond(upsertMainItem({
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
       name: e.parameter.name,
       model: e.parameter.model,
       line: e.parameter.line,
+      location: e.parameter.location,
       category: e.parameter.category,
       brand: e.parameter.brand,
       photo: e.parameter.photo,
@@ -917,28 +1010,27 @@ function doGet(e) {
     }
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
-    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ensureSheetWithTemplate(spreadsheet, sheetName);
-
-    var data = sheet.getDataRange().getValues();
-    if (!data.length || data.length <= 1) return respond([], e);
-
-    var headerRowIndex = findHeaderRowIndex(data);
-    var headers = data[headerRowIndex];
-    var rows = data.slice(headerRowIndex + 1);
-    var map = buildHeaderIndexMap(headers);
+    ensureLocationColumnsForAllKnownSheets();
+    var ctx = getMainSheetContext(sheetName);
+    ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
+    var map = ctx.map;
+    var rows = ctx.rows;
+    if (!rows.length) return respond([], e);
 
     var result = rows.map(function (row, index) {
       var stockValue = Number(pickRowValue(row, map, ['stockqty', 'qtystock', 'qoh', 'stock'], 0)) || 0;
       var minValue = Number(pickRowValue(row, map, ['min', 'qtymin'], 0)) || 0;
       var needToPOValue = Math.max(minValue - stockValue, 0);
 
+      var noText = String(pickRowValue(row, map, ['no'], index + 1));
+      var rawLocation = pickRowValue(row, map, ['location', 'jrlocation'], '-');
+      var locationOverride = getLocationOverride(sheetName, noText);
       return {
-        no: pickRowValue(row, map, ['no'], index + 1),
+        no: noText,
         name: pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '-'),
         model: pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '-'),
-        line: pickRowValue(row, map, ['mainline', 'line', 'location', 'jrlocation'], '-'),
-        location: pickRowValue(row, map, ['location', 'jrlocation'], '-'),
+        line: pickRowValue(row, map, ['mainline', 'line'], '-'),
+        location: locationOverride || rawLocation,
         category: pickRowValue(row, map, ['category'], 'General'),
         brand: pickRowValue(row, map, ['brand'], '-'),
         stock: stockValue,
@@ -1032,12 +1124,14 @@ function doPost(e) {
     requirePermission(authPayload, 'view');
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
+      ensureLocationColumnsForAllKnownSheets();
       return respond(upsertMainItem({
         sheetName: body.sheet || body.sheetName,
         no: body.no,
         name: body.name,
         model: body.model,
         line: body.line,
+        location: body.location,
         category: body.category,
         brand: body.brand,
         photo: body.photo,
