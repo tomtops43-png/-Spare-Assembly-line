@@ -2454,7 +2454,12 @@
         max: payload.max || '',
         min: payload.min || '',
         unit: payload.unit || '',
-        stock: payload.stock || ''
+        stock: payload.stock || '',
+        unit_price: payload.unit_price || '',
+        currency: payload.currency || 'THB',
+        supplier: payload.supplier || '',
+        price_updated_at: payload.price_updated_at || '',
+        price_remark: payload.price_remark || ''
       };
       requestPayload.qty = Number(payload.qty !== undefined ? payload.qty : requestPayload.stock || 0);
       if (!Number.isFinite(requestPayload.qty)) requestPayload.qty = 0;
@@ -2480,6 +2485,11 @@
         'min=' + encodeURIComponent(requestPayload.min),
         'unit=' + encodeURIComponent(requestPayload.unit),
         'stock=' + encodeURIComponent(requestPayload.stock),
+        'unit_price=' + encodeURIComponent(requestPayload.unit_price),
+        'currency=' + encodeURIComponent(requestPayload.currency),
+        'supplier=' + encodeURIComponent(requestPayload.supplier),
+        'price_updated_at=' + encodeURIComponent(requestPayload.price_updated_at),
+        'price_remark=' + encodeURIComponent(requestPayload.price_remark),
         'qty=' + encodeURIComponent(String(requestPayload.qty)),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
