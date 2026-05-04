@@ -2613,7 +2613,7 @@
       var requestPayload = {
         authToken: authToken,
         action: 'transact',
-        sheet: getCurrentSheetName(),
+        sheet: payload.sheetName || getCurrentSheetName(),
         partNo: payload.partNo || '',
         type: payload.type || '',
         process: payload.process || '',
@@ -3007,9 +3007,19 @@
     function populatePartOptions(data) {
       partMap = {};
       data.forEach(function(item, idx) {
-        var key = String(item.no || idx + 1);
+        var key = getItemIdentityKey(item) || String(item.no || idx + 1);
         partMap[key] = item;
       });
+    }
+    function resolveTxnItemKey(input) {
+      var raw = String(input || '').trim();
+      if (!raw) return '';
+      if (partMap[raw]) return raw;
+      var sheetName = getCurrentSheetName();
+      var found = partsData.filter(function(p){
+        return String(p.no) === raw && String(p.__sourceSheet || p.subLine || '') === String(sheetName || '');
+      })[0] || partsData.filter(function(p){ return String(p.no) === raw; })[0];
+      return found ? getItemIdentityKey(found) : raw;
     }
 
     function populateTxnFilters(data) {
@@ -3039,7 +3049,7 @@
     }
 
     function selectTxnItem(no) {
-      currentTxnItemNo = String(no || '');
+      currentTxnItemNo = resolveTxnItemKey(no);
       var selected = getSelectedTxnItem();
       txnSelectedCard.classList.toggle('hidden', !selected);
       txnSelectedEmpty.classList.toggle('hidden', !!selected);
@@ -3127,9 +3137,10 @@
       txnResultList.innerHTML = list.map(function(item) {
         var status = getStockStatus(item);
         var tone = getStatusTone(status);
-        var active = currentTxnItemNo && String(currentTxnItemNo) === String(item.no);
+        var txnKey = getItemIdentityKey(item);
+        var active = currentTxnItemNo && String(currentTxnItemNo) === String(txnKey);
         var cardBorder = active ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200';
-        return '<button type="button" data-txn-no="' + item.no + '" class="text-left rounded-2xl border ' + cardBorder + ' bg-white p-3 shadow-sm hover:shadow transition">' +
+        return '<button type="button" data-txn-key="' + txnKey + '" class="text-left rounded-2xl border ' + cardBorder + ' bg-white p-3 shadow-sm hover:shadow transition">' +
           '<div class="flex gap-3">' +
           '<img src="' + toSafeImageUrl(item.image_main_url) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + getSecondaryDriveImageUrl(item.image_main_url) + '" />' +
           '<div class="min-w-0 flex-1">' +
@@ -3147,9 +3158,9 @@
       Array.prototype.slice.call(txnResultList.querySelectorAll('img')).forEach(function(img) {
         bindImageFallback(img);
       });
-      Array.prototype.slice.call(txnResultList.querySelectorAll('[data-txn-no]')).forEach(function(btn) {
+      Array.prototype.slice.call(txnResultList.querySelectorAll('[data-txn-key]')).forEach(function(btn) {
         btn.addEventListener('click', function() {
-          selectTxnItem(btn.getAttribute('data-txn-no'));
+          selectTxnItem(btn.getAttribute('data-txn-key'));
           renderTxnResultList();
         });
       });
@@ -3168,7 +3179,8 @@
         brand: item.brand || '-',
         qty: qty,
         unit: item.unit || 'PCS',
-        by: byValue || 'Unknown'
+        by: byValue || 'Unknown',
+        sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
     }
 
@@ -3379,7 +3391,8 @@
         brand: item.brand || '-',
         qty: qty,
         unit: item.unit || 'PCS',
-        by: by
+        by: by,
+        sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
       setQuickIssueSubmitState(true);
       quickIssueMessage.className = 'text-sm text-slate-500';
@@ -3433,7 +3446,8 @@
         brand: selected.brand || '-',
         qty: qty,
         unit: selected.unit || 'PCS',
-        by: txnBy.value || 'Unknown'
+        by: txnBy.value || 'Unknown',
+        sheetName: selected.__sourceSheet || selected.subLine || getCurrentSheetName()
       };
 
       txnMessage.className = 'mt-3 text-sm text-slate-500';
