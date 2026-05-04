@@ -1894,7 +1894,12 @@ function getIssueCartEntries() {
 
         function cleanup() {
           clearTimeout(timeoutId);
-          delete window[callbackName];
+          // Keep a no-op callback briefly to avoid late JSONP responses
+          // throwing `... is not defined` after timeout/fallback has completed.
+          window[callbackName] = function() {};
+          setTimeout(function() {
+            try { delete window[callbackName]; } catch (err) { window[callbackName] = undefined; }
+          }, 30000);
           script.remove();
         }
 
