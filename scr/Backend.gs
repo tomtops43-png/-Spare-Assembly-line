@@ -1023,7 +1023,11 @@ function doGet(e) {
     requirePermission(authPayload, 'view');
     if (action === 'transact') {
       requirePermission(authPayload, 'transact');
-      return respond(processTransaction(parseTransactionPayloadFromGet(e)), e);
+      var txnPayload = parseTransactionPayloadFromGet(e);
+      var txnType = String(txnPayload.type || '');
+      if (txnType.indexOf('Input') > -1) requirePermission(authPayload, 'receive_part');
+      if (txnType.indexOf('Output') > -1) requirePermission(authPayload, 'issue_part');
+      return respond(processTransaction(txnPayload), e);
     }
     if (action === 'logs') return respond(getLogRows(), e);
     if (action === 'nextNo') {
@@ -1236,6 +1240,9 @@ function doPost(e) {
       }), e);
     }
     requirePermission(authPayload, 'transact');
+    var postTxnType = String(body.type || '');
+    if (postTxnType.indexOf('Input') > -1) requirePermission(authPayload, 'receive_part');
+    if (postTxnType.indexOf('Output') > -1) requirePermission(authPayload, 'issue_part');
     return respond(processTransaction(body), e);
   } catch (err) {
     Logger.log('doPost error: ' + err);

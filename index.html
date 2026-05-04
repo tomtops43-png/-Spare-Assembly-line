@@ -1493,7 +1493,7 @@
 
       issueCartSummary.textContent = entries.length + ' รายการ';
       if (issueCartSubmitBtn && !issueCartSubmitting) {
-        var shouldDisable = !entries.length || !hasPermission('transact');
+        var shouldDisable = !entries.length || !canIssuePart();
         issueCartSubmitBtn.disabled = shouldDisable;
         issueCartSubmitBtn.classList.toggle('opacity-60', shouldDisable);
         issueCartSubmitBtn.classList.toggle('cursor-not-allowed', shouldDisable);
@@ -1569,19 +1569,29 @@
     }
 
     function applyIssueCartAuthorizationUi() {
-      var canTransact = hasPermission('transact');
-      if (openIssueCartBtn) openIssueCartBtn.classList.toggle('hidden', !canTransact);
-      if (openIssueCartBtnMobile) openIssueCartBtnMobile.classList.toggle('hidden', !canTransact);
-      if (detailAddToCartBtn) detailAddToCartBtn.classList.toggle('hidden', !canTransact);
+      var canIssue = canIssuePart();
+      if (openIssueCartBtn) openIssueCartBtn.classList.toggle('hidden', !canIssue);
+      if (openIssueCartBtnMobile) openIssueCartBtnMobile.classList.toggle('hidden', !canIssue);
+      if (detailAddToCartBtn) detailAddToCartBtn.classList.toggle('hidden', !canIssue);
       if (issueCartSubmitBtn) {
-        issueCartSubmitBtn.disabled = !canTransact || issueCartSubmitting;
-        issueCartSubmitBtn.classList.toggle('opacity-60', !canTransact || issueCartSubmitting);
-        issueCartSubmitBtn.classList.toggle('cursor-not-allowed', !canTransact || issueCartSubmitting);
+        issueCartSubmitBtn.disabled = !canIssue || issueCartSubmitting;
+        issueCartSubmitBtn.classList.toggle('opacity-60', !canIssue || issueCartSubmitting);
+        issueCartSubmitBtn.classList.toggle('cursor-not-allowed', !canIssue || issueCartSubmitting);
       }
-      if (!canTransact) setIssueCartMessage('คุณไม่มีสิทธิ์ทำรายการเบิก (transact)', 'error');
+      if (!canIssue) setIssueCartMessage('คุณไม่มีสิทธิ์ทำรายการเบิก', 'error');
     }
 
-    function getIssueCartEntries() {
+    
+    function applyReceivePermissionUi() {
+      var canReceive = canReceivePart();
+      if (qaReceiveBtn) qaReceiveBtn.classList.toggle('hidden', !canReceive);
+      if (txnType && txnType.querySelector('option[value="Input"]')) {
+        txnType.querySelector('option[value="Input"]').disabled = !canReceive;
+        if (!canReceive && txnType.value === 'Input') txnType.value = 'Output';
+      }
+    }
+
+function getIssueCartEntries() {
       return Object.keys(issueCartState).map(function(no) {
         var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
         if (!found) return null;
@@ -1590,7 +1600,7 @@
     }
 
     function validateIssueCartSubmission(entries) {
-      if (!hasPermission('transact')) return 'คุณไม่มีสิทธิ์ทำรายการเบิก';
+      if (!canIssuePart()) return 'คุณไม่มีสิทธิ์ทำรายการเบิก';
       if (!entries.length) return 'ยังไม่มีรายการใน cart';
       if (!issueCartBy || !String(issueCartBy.value || '').trim()) return 'กรุณาระบุผู้เบิก';
       for (var i = 0; i < entries.length; i += 1) {
@@ -1914,9 +1924,20 @@
       return query + '&authToken=' + encodeURIComponent(authToken);
     }
 
+    var PERMISSION_ALIASES = {
+      issue_part: ['issue_part', 'issue', 'issue_item', 'stock.issue', 'stock.issue_part'],
+      receive_part: ['receive_part', 'receive', 'receive_item', 'stock.receive', 'stock.receive_part']
+    };
     function hasPermission(permissionName) {
-      return !!(currentUser && currentUser.permissions && currentUser.permissions[permissionName]);
+      if (!(currentUser && currentUser.permissions)) return false;
+      var aliases = PERMISSION_ALIASES[permissionName] || [permissionName];
+      for (var i = 0; i < aliases.length; i += 1) {
+        if (currentUser.permissions[aliases[i]]) return true;
+      }
+      return false;
     }
+    function canIssuePart() { return hasPermission('issue_part'); }
+    function canReceivePart() { return hasPermission('receive_part'); }
 
     function isAdminUser() {
       return !!(currentUser && String(currentUser.role || '').toLowerCase() === 'admin');
@@ -1977,6 +1998,7 @@
       if (!canManageItems && !managePage.classList.contains('hidden')) switchToStockPage();
       renderAuthUserBox();
       applyIssueCartAuthorizationUi();
+      applyReceivePermissionUi();
       normalizeMobileHeaderCartUi();
     }
 
@@ -2734,6 +2756,7 @@
 
     function openTxnPageWithItem(no, txnMode) {
       switchToTxnPage();
+      if (txnMode === 'Input' && !canReceivePart()) txnMode = 'Output';
       if (txnMode === 'Input' || txnMode === 'Output') txnType.value = txnMode;
       if (no !== undefined && no !== null && no !== '') {
         selectTxnItem(String(no));
@@ -3259,6 +3282,7 @@
       }).finally(function() {
         setIssueCartSubmitState(false);
         applyIssueCartAuthorizationUi();
+      applyReceivePermissionUi();
       });
     }
 
@@ -3792,7 +3816,7 @@
       desktopCardGrid.innerHTML = data.map(function(item) {
         var canManageItems = hasPermission('manage_items');
         var canDeleteItems = hasPermission('delete_items');
-        var canTransact = hasPermission('transact');
+        var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
         var imageSrc = toSafeImageUrl(item.image_main_url);
         var fallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
@@ -3896,7 +3920,7 @@
       mobileCardList.innerHTML = data.map(function(item) {
         var canManageItems = hasPermission('manage_items');
         var canDeleteItems = hasPermission('delete_items');
-        var canTransact = hasPermission('transact');
+        var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
         var mobileImageSrc = toSafeImageUrl(item.image_main_url);
         var mobileFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
@@ -4238,6 +4262,7 @@
       openTxnPageWithItem('', 'Output');
     });
     qaReceiveBtn.addEventListener('click', function() {
+      if (!canReceivePart()) return;
       openTxnPageWithItem('', 'Input');
     });
     if (quickIssueBackdrop) quickIssueBackdrop.addEventListener('click', closeQuickIssueModal);
