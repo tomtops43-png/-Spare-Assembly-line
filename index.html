@@ -1204,6 +1204,23 @@
     function normalizeLineText(value) {
       return String(value || '').trim().toLowerCase();
     }
+    function formatBangkokDateTime(value) {
+      if (value === undefined || value === null || value === '') return '-';
+      var dt = new Date(value);
+      if (!isNaN(dt.getTime())) {
+        return dt.toLocaleString('th-TH', {
+          timeZone: 'Asia/Bangkok',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+      }
+      return String(value);
+    }
     function getItemIdentityKey(item) {
       var no = item && item.no !== undefined ? String(item.no).trim() : '';
       var sub = item ? String(item.subLine || item.__sourceSheet || '').trim() : '';
@@ -3994,7 +4011,7 @@
       document.getElementById('detailUnitPrice').textContent = unitPriceText;
       document.getElementById('detailCurrency').textContent = item.currency || 'THB';
       document.getElementById('detailSupplier').textContent = item.supplier || '-';
-      document.getElementById('detailPriceUpdatedAt').textContent = item.price_updated_at || '-';
+      document.getElementById('detailPriceUpdatedAt').textContent = formatBangkokDateTime(item.price_updated_at);
       document.getElementById('detailPriceRemark').textContent = item.price_remark || '-';
       document.getElementById('detailRemark').textContent = item.remark || '-';
       var detailMetaParts = [item.brand, item.category, item.line, (item.subLine || item.__sourceSheet || '')].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
@@ -4409,7 +4426,7 @@
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
       var preparedBy = document.getElementById('prPreparedBy').value || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
-      var submissionDate = new Date().toISOString().slice(0,10);
+      var submissionDate = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
       var normalized = selected.map(function(c) {
         var qty = asNum(c.suggestedQty || c.qty || 0);
         var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
