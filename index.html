@@ -3096,6 +3096,7 @@ function getIssueCartEntries() {
       })).then(function(sheetChunks) {
           var rawData = [].concat.apply([], sheetChunks);
           return normalizeRecordsInBatches(rawData, function(done, total) {
+            if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
             var progress = 'กำลังประมวลผลข้อมูล... ' + done + '/' + total;
             desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">' + progress + '</div>';
             mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">' + progress + '</div>';
