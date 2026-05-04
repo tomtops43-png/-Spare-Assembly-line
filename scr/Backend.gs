@@ -570,7 +570,8 @@ function processTransaction(payload) {
     var noMatch = payload.partNo !== undefined && String(rowNo) === String(payload.partNo);
     var nameMatch = String(rowName) === String(payload.partName);
     var modelMatch = !payload.model || String(rowModel) === String(payload.model);
-    if (noMatch || (nameMatch && modelMatch)) {
+    var strictNoMatch = noMatch && modelMatch && (!payload.partName || nameMatch);
+    if (strictNoMatch || (nameMatch && modelMatch)) {
       targetIndex = i;
       break;
     }
