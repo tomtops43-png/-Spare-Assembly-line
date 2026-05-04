@@ -679,8 +679,27 @@
             </section>
             <section>
               <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลใช้งาน</p>
-              <div class="grid grid-cols-1 gap-2 text-sm">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                 <div id="detailFieldLocation" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Location</p><p id="detailLocation" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldNo" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">NO</p><p id="detailNo" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldUnit" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Unit</p><p id="detailUnit" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldSubLine" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Sub-line / Sheet</p><p id="detailSubLine" class="font-semibold text-base">-</p></div>
+              </div>
+            </section>
+            <section>
+              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลราคา</p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <div id="detailFieldUnitPrice" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Unit Price</p><p id="detailUnitPrice" class="font-semibold text-base">To be confirmed</p></div>
+                <div id="detailFieldCurrency" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Currency</p><p id="detailCurrency" class="font-semibold text-base">THB</p></div>
+                <div id="detailFieldSupplier" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Supplier</p><p id="detailSupplier" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldPriceUpdatedAt" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Price Updated At</p><p id="detailPriceUpdatedAt" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldPriceRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Price Remark</p><p id="detailPriceRemark" class="font-semibold text-base">-</p></div>
+              </div>
+            </section>
+            <section>
+              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลเพิ่มเติม</p>
+              <div class="grid grid-cols-1 gap-2 text-sm">
+                <div id="detailFieldRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Remark</p><p id="detailRemark" class="font-semibold text-base">-</p></div>
               </div>
             </section>
           </div>
@@ -1149,6 +1168,8 @@
         location: firstDefined([item.location, item.jrLocation], '-'),
         category: firstDefined([item.category], 'General'),
         brand: firstDefined([item.brand], '-'),
+        unit: firstDefined([item.unit], 'PCS'),
+        remark: firstDefined([item.remark], ''),
         stock: stock,
         min: min,
         max: max,
@@ -3844,13 +3865,16 @@
       if (!issueCartModal.classList.contains('hidden')) return;
       detailModalCurrentNo = item.no;
       document.getElementById('detailName').textContent = item.name || '-';
+      document.getElementById('detailNo').textContent = item.no || '-';
       document.getElementById('detailModel').textContent = item.model || '-';
       document.getElementById('detailBrand').textContent = item.brand || '-';
       document.getElementById('detailCategory').textContent = item.category || '-';
       document.getElementById('detailLine').textContent = item.line || '-';
+      document.getElementById('detailSubLine').textContent = item.subLine || item.__sourceSheet || '-';
+      document.getElementById('detailUnit').textContent = item.unit || 'PCS';
       document.getElementById('detailLocation').textContent = item.location || '-';
       console.log('[location][detail render]', { no: item.no, location: item.location, sheet: getCurrentSheetName() });
-      document.getElementById('detailStock').textContent = String(item.stock || 0);
+      document.getElementById('detailStock').textContent = String(item.stock || 0) + ' ' + (item.unit || 'PCS');
       document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
       document.getElementById('detailNeedToOrder').textContent = String(getNeedToOrder(item));
       var detailStatus = document.getElementById('detailStatus');
@@ -3863,7 +3887,17 @@
       var detailImageSrc = toSafeImageUrl(mainUrl);
       var mainOk = detailImageSrc !== FALLBACK_IMAGE;
       var detailFallbackSrc = getSecondaryDriveImageUrl(mainUrl);
-      var detailMetaParts = [item.brand, item.category, item.line].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
+      var rawUnitPrice = firstDefined([item.unit_price, item.unitPrice], '');
+      var hasUnitPrice = rawUnitPrice !== '' && rawUnitPrice !== null && rawUnitPrice !== undefined;
+      var unitPriceNum = hasUnitPrice ? Number(rawUnitPrice) : NaN;
+      var unitPriceText = (hasUnitPrice && Number.isFinite(unitPriceNum)) ? unitPriceNum.toLocaleString() : 'To be confirmed';
+      document.getElementById('detailUnitPrice').textContent = unitPriceText;
+      document.getElementById('detailCurrency').textContent = item.currency || 'THB';
+      document.getElementById('detailSupplier').textContent = item.supplier || '-';
+      document.getElementById('detailPriceUpdatedAt').textContent = item.price_updated_at || '-';
+      document.getElementById('detailPriceRemark').textContent = item.price_remark || '-';
+      document.getElementById('detailRemark').textContent = item.remark || '-';
+      var detailMetaParts = [item.brand, item.category, item.line, (item.subLine || item.__sourceSheet || '')].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
       var needToOrder = getNeedToOrder(item);
       var metaText = detailMetaParts.join(' • ');
       document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
