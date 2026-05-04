@@ -9,7 +9,8 @@
       var segments = window.location.pathname.split('/').filter(Boolean);
       var repoName = segments.length ? segments[0] : '';
       var fallbackPath = repoName ? '/' + repoName + '/' : '/';
-      window.location.replace(fallbackPath);
+      var target = fallbackPath + window.location.search + window.location.hash;
+      window.location.replace(target);
     })();
   </script>
 </head>
