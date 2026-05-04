@@ -3411,11 +3411,16 @@ function getIssueCartEntries() {
           return runNext();
         }
         var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, processValue, noteValue);
+        var beforeStock = Number(latestItem.stock || 0);
+        latestItem.stock = Math.max(0, beforeStock - latestQty);
+        applyFilters(false);
         setIssueCartMessage('กำลังบันทึกรายการ ' + (idx - failures.length) + '/' + entries.length + ' ...', 'muted');
         return callTransactionViaJsonp(payload).then(function(res) {
           if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
           successNos.push(entry.no);
         }).catch(function(err) {
+          latestItem.stock = beforeStock;
+          applyFilters(false);
           failures.push((latestItem.name || entry.no) + ': ' + (err && err.message ? err.message : 'บันทึกไม่สำเร็จ'));
         }).then(runNext);
       }
@@ -3652,6 +3657,10 @@ function getIssueCartEntries() {
 
       txnMessage.className = 'mt-3 text-sm text-slate-500';
       txnMessage.textContent = 'กำลังบันทึกรายการ...';
+      var beforeStock = Number(selected.stock || 0);
+      var optimisticStock = payload.type === 'Input' ? beforeStock + qty : beforeStock - qty;
+      selected.stock = optimisticStock;
+      applyFilters(false);
 
       callTransactionViaJsonp(payload).then(function(res) {
         if (!res || res.status !== 'success') {
@@ -3676,6 +3685,8 @@ function getIssueCartEntries() {
         });
         if (!logPage.classList.contains('hidden')) loadLogData();
       }).catch(function(err) {
+        selected.stock = beforeStock;
+        applyFilters(false);
         txnMessage.className = 'mt-3 text-sm text-rose-600';
         txnMessage.textContent = 'บันทึกไม่สำเร็จ: ' + err.message;
       });
