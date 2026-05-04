@@ -1221,7 +1221,9 @@
       var no = item && item.no !== undefined ? String(item.no).trim() : '';
       var sub = item ? String(item.subLine || item.__sourceSheet || '').trim() : '';
       var model = item && item.model !== undefined ? String(item.model).trim() : '';
-      return [no, sub, model].join('::');
+      var name = item && item.name !== undefined ? String(item.name).trim() : '';
+      var location = item && item.location !== undefined ? String(item.location).trim() : '';
+      return [no, sub, model, name, location].join('::');
     }
     function findItemByIdentityKey(key) {
       var target = String(key || '').trim();
