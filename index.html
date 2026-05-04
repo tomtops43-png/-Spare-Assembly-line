@@ -1204,6 +1204,16 @@
     function normalizeLineText(value) {
       return String(value || '').trim().toLowerCase();
     }
+    function canonicalLineName(value) {
+      var raw = String(value || '').trim();
+      var n = normalizeLineText(raw);
+      if (!n || n === '-' || n === 'all') return currentLine || 'Assembly Line';
+      if (n === 'arcchut' || n === 'arc chute' || n === 'arcchute') return 'Arc Chute';
+      if (n === 'coilwinding' || n === 'coil winding') return 'Coil Winding';
+      if (n === 'lug&screw' || n === 'lugscrew' || n === 'lug & screw') return 'Lug&Screw';
+      if (n === 'h9') return 'H9';
+      return raw;
+    }
 
     function getSheetOptionsForLine(lineKey) {
       var options = LINE_SHEET_OPTIONS[lineKey];
@@ -2833,12 +2843,13 @@
           if (criticalFlag.indexOf('critical') > -1 || criticalFlag === 'y' || criticalFlag === 'yes' || criticalFlag === 'true') critical = 'Critical';
           else if (stock <= 0) critical = isToolFamily ? 'High' : 'Critical';
           else if (stock <= min) critical = isToolFamily ? 'Medium' : 'High';
-          else critical = isToolFamily ? 'Low' : 'Medium';
+          else if (need > 0) critical = isToolFamily ? 'Low' : 'Medium';
+          else critical = 'Low';
         }
         if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: i.line || i.mainLine || currentLine, subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
+        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
       }).filter(Boolean);
       renderPrCandidates();
       }).catch(function(err) {
@@ -4366,7 +4377,7 @@
         var raw = String(url || '').trim();
         if (!raw) return '';
         var m = raw.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
-        var normalized = m && m[1] ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w800') : raw;
+        var normalized = m && m[1] ? ('https://drive.google.com/uc?export=view&id=' + m[1]) : raw;
         if (typeof toSafeImageUrl === 'function') return toSafeImageUrl(normalized);
         return normalized;
       }
@@ -4382,7 +4393,7 @@
         return {
           no: c.no || '-',
           category: c.category || '-',
-          line: c.line || '-',
+          line: canonicalLineName(c.line || '-'),
           subLine: c.subLine || '-',
           machineStation: c.machineStation || '-',
           name: c.name || '-',
@@ -4418,6 +4429,7 @@
       var pricedRows = normalized.filter(function(c){ return c.unitPrice !== null; });
       var unpricedRows = normalized.filter(function(c){ return c.unitPrice === null; });
       var totalAmount = pricedRows.reduce(function(sum, c){ return sum + c.amount; }, 0);
+      var pendingPriceCount = unpricedRows.length;
       var byLine = {};
       normalized.forEach(function(c) {
         var key = c.line || '-';
@@ -4435,7 +4447,7 @@
         console.debug('[PR] image url:', c.name, c.image || 'NO_IMAGE');
         var fallbackImage = (typeof getSecondaryDriveImageUrl === 'function' ? getSecondaryDriveImageUrl(c.image || '') : '');
         var picCell = c.image ? '<img src=\"'+esc(c.image)+'\" data-fallback-src=\"'+esc(fallbackImage || '')+'\" alt=\"'+esc(c.name)+'\" />' : 'No Image';
-        return '<tr><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model)+'</td><td>'+esc(c.qty)+'</td><td>'+picCell+'</td></tr>';
+        return picCell;
       }
       function sectionRows(rows, cols) {
         if (!rows.length) return '<tr><td colspan=\"'+cols+'\" class=\"empty\">No selected items in this section</td></tr>';
@@ -4450,8 +4462,8 @@
           var rows = lineMap[lineName];
           var lineSubtotal = rows.filter(function(r){ return r.amount !== null; }).reduce(function(sum, r){ return sum + r.amount; }, 0);
           html += '<tr><td colspan=\"12\" style=\"background:#f8fafc;font-weight:700;\">Line: ' + esc(lineName) + ' (' + rows.length + ' items)</td></tr>';
-          html += rows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'/'+esc(c.subLine)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice !== null ? c.unitPrice.toLocaleString() : 'To be confirmed')+'</td><td>'+(c.amount !== null ? c.amount.toLocaleString() : 'To be confirmed')+'</td><td>'+esc(c.currency || 'THB')+'</td><td>'+esc(c.supplier || '-')+'</td><td>'+esc(c.priceUpdatedAt || '-')+'</td><td>'+esc(c.reason)+'</td></tr>'; }).join('');
-          html += '<tr><td colspan=\"7\" style=\"text-align:right;font-weight:700;\">Subtotal (' + esc(lineName) + ')</td><td style=\"font-weight:700;\">' + (lineSubtotal ? lineSubtotal.toLocaleString() : 'To be confirmed') + '</td><td colspan=\"4\"></td></tr>';
+          html += rows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice !== null ? c.unitPrice.toLocaleString() : 'TBC')+'</td><td>'+(c.amount !== null ? c.amount.toLocaleString() : 'TBC')+'</td><td>'+esc(c.reason)+'</td></tr>'; }).join('');
+          html += '<tr><td colspan=\"6\" style=\"text-align:right;font-weight:700;\">Subtotal (' + esc(lineName) + ')</td><td style=\"font-weight:700;\">' + (lineSubtotal ? lineSubtotal.toLocaleString() : 'TBC') + '</td><td></td></tr>';
         });
         return html;
       }
@@ -4462,7 +4474,7 @@
         items.forEach(function(c){ (lineMap[c.line || '-'] = lineMap[c.line || '-'] || []).push(c); });
         Object.keys(lineMap).forEach(function(lineName) {
           html += '<tr><td colspan=\"5\" style=\"background:#f8fafc;font-weight:700;\">Line: ' + esc(lineName) + '</td></tr>';
-          html += lineMap[lineName].map(imageRow).join('');
+          html += lineMap[lineName].map(function(c){ return '<tr><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.supplier || '-')+'</td><td>'+esc(c.priceUpdatedAt || '-')+'</td><td>'+imageRow(c)+'</td></tr>'; }).join('');
         });
         return html;
       }
@@ -4472,16 +4484,16 @@
         '<h2>1. Purpose of Request</h2><p>This report is prepared to support Purchase Request approval for spare parts, maintenance tools, and production support tools for the Assembly Line.</p>' +
         '<h2>2. Production Scope</h2><table><thead><tr><th>No.</th><th>Line / Area</th><th>Scope Description</th></tr></thead><tbody>' + lines.map(function(l, i){ return '<tr><td>'+(i+1)+'</td><td>'+l+'</td><td>Assembly process and production support</td></tr>'; }).join('') + '</tbody></table>' +
         '<h2>3. Background and Necessity</h2><p>Based on current stock status and transaction usage history, several items require replenishment to prevent machine downtime and maintain production continuity.</p>' +
-        '<h2>4. Executive Summary of Requested Items</h2><table><thead><tr><th>Category</th><th>Quantity Summary</th><th>Purpose</th></tr></thead><tbody><tr><td>Maintenance Tools / Production Support Tools</td><td>'+toolRows.length+' items</td><td>Machine setup, repair and support activities</td></tr><tr><td>Machine Spare Parts</td><td>'+spareRows.length+' items</td><td>Critical replacements for production continuity</td></tr><tr><td>Total listed items</td><td>'+normalized.length+' items</td><td>Items with price: '+pricedRows.length+' / Items without price: '+unpricedRows.length+'</td></tr><tr><td>Estimated total amount</td><td>'+(pricedRows.length ? totalAmount.toLocaleString() : 'To be confirmed by Purchasing')+'</td><td>Currency: '+(normalized[0] ? normalized[0].currency : 'THB')+' | Note: items without price require purchasing confirmation</td></tr></tbody></table>' +
+        '<h2>4. Executive Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Covered lines</td><td>'+lines.join(' / ')+'</td></tr><tr><td>Known Amount ('+(normalized[0] ? normalized[0].currency : 'THB')+')</td><td>'+(pricedRows.length ? totalAmount.toLocaleString() : 'TBC')+'</td></tr><tr><td>Pending Price Items</td><td>'+pendingPriceCount+' items</td></tr><tr><td>Approval Note</td><td>Items with pending price require Purchasing confirmation.</td></tr></tbody></table>' +
         '<h2>5. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support or non-urgent replacement.</td></tr></tbody></table>' +
         '<h2>6. Risk if Not Purchased</h2><p>Out-of-stock items: '+outCount+'. High/Critical items: '+highCount+'. Delayed replenishment may impact uptime, troubleshooting speed, and on-time delivery.</p>' +
         '<h2>7. Expected Benefits After Purchase</h2><p>Reduced downtime, improved maintenance response time, stable production continuity, and lower emergency purchase costs.</p>' +
         '<h2>8. Justification for Approval</h2><p>Requested items are directly related to production support, maintenance, troubleshooting, and quality control based on current demand and issue frequency.</p>' +
         '<h2>9. Approval Request Statement</h2><p>We would like to request approval to proceed with this Purchase Request to ensure safe and continuous production operations.</p>' +
-        '<h2>10. Detailed Requested Item List</h2><h3>10.1 Maintenance Tools / Production Support Tools</h3><table><thead><tr><th>No.</th><th>Category</th><th>Description</th><th>Line / Area</th><th>Request Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Currency</th><th>Supplier</th><th>Price Updated At</th><th>Reason / Purpose</th></tr></thead><tbody>' + renderLineGroupedDetailRows(toolRows, 12) + '</tbody></table>' +
-        '<h3>10.2 Machine Spare Parts</h3><table><thead><tr><th>No.</th><th>Category</th><th>Description</th><th>Line / Area</th><th>Request Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Currency</th><th>Supplier</th><th>Price Updated At</th><th>Reason / Purpose</th></tr></thead><tbody>' + renderLineGroupedDetailRows(spareRows, 12) + '</tbody></table>' +
-        '<h3>Annex A: Tool Request with Main Image</h3><table><thead><tr><th>Description</th><th>Brand</th><th>Model No.</th><th>Qty</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(toolRows) + '</tbody></table>' +
-        '<h3>Annex B: Spare Part Request with Main Image</h3><table><thead><tr><th>Description</th><th>Brand</th><th>Model No.</th><th>Qty</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(spareRows) + '</tbody></table>' +
+        '<h2>10. Detailed Requested Item List</h2><h3>10.1 Maintenance Tools / Production Support Tools</h3><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(toolRows, 8) + '</tbody></table>' +
+        '<h3>10.2 Machine Spare Parts</h3><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(spareRows, 8) + '</tbody></table>' +
+        '<h3>Annex A: Tools (Supplier / Price Date / Picture)</h3><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(toolRows) + '</tbody></table>' +
+        '<h3>Annex B: Spare Parts (Supplier / Price Date / Picture)</h3><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(spareRows) + '</tbody></table>' +
         '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
@@ -4493,7 +4505,7 @@
       var selected = prCandidateState.filter(function(c){ return c.selected; });
       if (!selected.length) return;
       var docHtml = buildDocumentGradeReport(selected);
-      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:break-word}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
+      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
       var win = window.open('', '_blank');
       win.document.write('<html><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
       win.document.close();
