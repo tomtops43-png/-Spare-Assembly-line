@@ -4200,23 +4200,78 @@
       if (e.target.dataset.prPurpose !== undefined) c.purpose = e.target.value;
     });
     function buildDocumentGradeReport(selected) {
+      function esc(v) {
+        return String(v === undefined || v === null ? '' : v)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+      function asNum(v) {
+        var n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+      }
+      function normalizeImageUrl(url) {
+        var raw = String(url || '').trim();
+        if (!raw) return '';
+        var m = raw.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
+        if (m && m[1]) return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w800';
+        return raw;
+      }
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
       var preparedBy = document.getElementById('prPreparedBy').value || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
       var submissionDate = new Date().toISOString().slice(0,10);
-      var lines = Array.from(new Set(selected.map(function(c){ return c.line; })));
-      var outCount = selected.filter(function(c){ return c.stock <= 0; }).length;
-      var highCount = selected.filter(function(c){ return String(c.critical).toLowerCase().indexOf('high') > -1 || String(c.critical).toLowerCase().indexOf('critical') > -1; }).length;
-      var toolRows = selected.filter(function(c){ return String(c.category || '').toLowerCase().indexOf('tool') > -1; });
-      var spareRows = selected.filter(function(c){ return String(c.category || '').toLowerCase().indexOf('spare') > -1 || String(c.category || '').toLowerCase().indexOf('part') > -1; });
-      var totalAmount = selected.reduce(function(sum, c){ return sum + (Number(c.suggestedQty||0) * Number(c.unitPrice||0)); }, 0);
+      var normalized = selected.map(function(c) {
+        var qty = asNum(c.suggestedQty || c.qty || 0);
+        var price = asNum(c.unitPrice || c.price || 0);
+        var image = normalizeImageUrl(c.mainImage || c.image_main_url || c.imageUrlMain || c.imageMain || c.image || '');
+        return {
+          no: c.no || '-',
+          category: c.category || '-',
+          line: c.line || '-',
+          subLine: c.subLine || '-',
+          machineStation: c.machineStation || '-',
+          name: c.name || '-',
+          brand: c.brand || '-',
+          model: c.model || '-',
+          qty: qty > 0 ? qty : 1,
+          critical: c.critical || '-',
+          unitPrice: price,
+          amount: (qty > 0 ? qty : 1) * price,
+          reason: c.purpose || c.reason || '-',
+          stock: asNum(c.stock),
+          image: image
+        };
+      });
+      var lines = Array.from(new Set(normalized.map(function(c){ return c.line; })));
+      var outCount = normalized.filter(function(c){ return c.stock <= 0; }).length;
+      var highCount = normalized.filter(function(c){ return String(c.critical).toLowerCase().indexOf('high') > -1 || String(c.critical).toLowerCase().indexOf('critical') > -1; }).length;
+      var toolRows = [];
+      var spareRows = [];
+      normalized.forEach(function(c) {
+        var cat = String(c.category || '').toLowerCase();
+        var isTool = /(tool|maintenance|support|fixture|equipment)/.test(cat);
+        var isSpare = /(spare|part|sensor|cylinder|switch|bearing|relay|valve|motor)/.test(cat);
+        if (isTool && !isSpare) toolRows.push(c);
+        else if (isSpare && !isTool) spareRows.push(c);
+        else if (isTool && isSpare) spareRows.push(c);
+        else if (c.stock <= 0 || c.critical.toLowerCase().indexOf('critical') > -1) spareRows.push(c);
+        else toolRows.push(c);
+      });
+      var totalAmount = normalized.reduce(function(sum, c){ return sum + c.amount; }, 0);
+      console.debug('[PR] selectedItems count:', normalized.length);
+      console.debug('[PR] selectedItems payload:', normalized);
+      console.debug('[PR] categorized toolItems/sparePartItems:', toolRows.length, spareRows.length);
       function rowHtml(c, i) {
-        var amt = Number(c.suggestedQty||0) * Number(c.unitPrice||0);
-        return '<tr><td>'+(i+1)+'</td><td>'+c.category+'</td><td>'+c.line+'/'+c.subLine+'</td><td>'+(c.machineStation||'All')+'</td><td>'+c.name+'</td><td>'+c.brand+'</td><td>'+c.model+'</td><td>'+c.suggestedQty+'</td><td>'+c.critical+'</td><td>'+Number(c.unitPrice||0).toLocaleString()+'</td><td>'+amt.toLocaleString()+'</td><td>'+(c.purpose||c.reason)+'</td></tr>';
+        return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+esc(c.line)+'/'+esc(c.subLine)+'</td><td>'+esc(c.machineStation || 'All')+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice ? c.unitPrice.toLocaleString() : '-')+'</td><td>'+(c.amount ? c.amount.toLocaleString() : '-')+'</td><td>'+esc(c.reason)+'</td></tr>';
       }
       function imageRow(c) {
-        var img = c.mainImage || c.image || FALLBACK_IMAGE;
-        return '<tr><td>'+c.name+'</td><td>'+c.brand+'</td><td>'+c.model+'</td><td>'+c.suggestedQty+'</td><td><img src=\"'+img+'\" alt=\"'+c.name+'\"/></td></tr>';
+        console.debug('[PR] image url:', c.name, c.image || 'NO_IMAGE');
+        var picCell = c.image ? '<img src=\"'+esc(c.image)+'\" alt=\"'+esc(c.name)+'\" onerror=\"this.replaceWith(document.createTextNode(\\'No Image\\'))\"/>' : 'No Image';
+        return '<tr><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model)+'</td><td>'+esc(c.qty)+'</td><td>'+picCell+'</td></tr>';
+      }
+      function sectionRows(rows, cols) {
+        if (!rows.length) return '<tr><td colspan=\"'+cols+'\" class=\"empty\">No selected items in this section</td></tr>';
+        return rows;
       }
       return '<div class=\"pr-doc\">' +
         '<div class=\"top-note\">Purchase Request Supporting Report | Assembly Line</div><h1>PURCHASE REQUEST SUPPORTING REPORT</h1><h3>Spare Parts, Maintenance Tools and Production Support Tools</h3><p class=\"center\">Assembly Line: '+lines.join(' / ')+'</p>' +
@@ -4224,16 +4279,16 @@
         '<h2>1. Purpose of Request</h2><p>This report is prepared to support Purchase Request approval for spare parts, maintenance tools, and production support tools for the Assembly Line.</p>' +
         '<h2>2. Production Scope</h2><table><thead><tr><th>No.</th><th>Line / Area</th><th>Scope Description</th></tr></thead><tbody>' + lines.map(function(l, i){ return '<tr><td>'+(i+1)+'</td><td>'+l+'</td><td>Assembly process and production support</td></tr>'; }).join('') + '</tbody></table>' +
         '<h2>3. Background and Necessity</h2><p>Based on current stock status and transaction usage history, several items require replenishment to prevent machine downtime and maintain production continuity.</p>' +
-        '<h2>4. Executive Summary of Requested Items</h2><table><thead><tr><th>Category</th><th>Quantity Summary</th><th>Purpose</th></tr></thead><tbody><tr><td>Maintenance Tools / Production Support Tools</td><td>'+toolRows.length+' items</td><td>Machine setup, repair and support activities</td></tr><tr><td>Machine Spare Parts</td><td>'+spareRows.length+' items</td><td>Critical replacements for production continuity</td></tr><tr><td>Total Listed Items</td><td>'+selected.length+' items</td><td>Estimated amount: '+totalAmount.toLocaleString()+'</td></tr></tbody></table>' +
+        '<h2>4. Executive Summary of Requested Items</h2><table><thead><tr><th>Category</th><th>Quantity Summary</th><th>Purpose</th></tr></thead><tbody><tr><td>Maintenance Tools / Production Support Tools</td><td>'+toolRows.length+' items</td><td>Machine setup, repair and support activities</td></tr><tr><td>Machine Spare Parts</td><td>'+spareRows.length+' items</td><td>Critical replacements for production continuity</td></tr><tr><td>Total Listed Items</td><td>'+normalized.length+' items</td><td>Estimated amount: '+totalAmount.toLocaleString()+'</td></tr></tbody></table>' +
         '<h2>5. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support or non-urgent replacement.</td></tr></tbody></table>' +
         '<h2>6. Risk if Not Purchased</h2><p>Out-of-stock items: '+outCount+'. High/Critical items: '+highCount+'. Delayed replenishment may impact uptime, troubleshooting speed, and on-time delivery.</p>' +
         '<h2>7. Expected Benefits After Purchase</h2><p>Reduced downtime, improved maintenance response time, stable production continuity, and lower emergency purchase costs.</p>' +
         '<h2>8. Justification for Approval</h2><p>Requested items are directly related to production support, maintenance, troubleshooting, and quality control based on current demand and issue frequency.</p>' +
         '<h2>9. Approval Request Statement</h2><p>We would like to request approval to proceed with this Purchase Request to ensure safe and continuous production operations.</p>' +
-        '<h2>10. Detailed Requested Item List</h2><h3>10.1 Maintenance Tools / Production Support Tools</h3><table><thead><tr><th>No.</th><th>Category</th><th>Line / Area</th><th>Machine / Station</th><th>Description</th><th>Brand</th><th>Model / Spec</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr></thead><tbody>' + toolRows.map(rowHtml).join('') + '</tbody></table>' +
-        '<h3>10.2 Machine Spare Parts</h3><table><thead><tr><th>No.</th><th>Category</th><th>Line / Area</th><th>Machine / Station</th><th>Description</th><th>Brand</th><th>Model / Spec</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr></thead><tbody>' + spareRows.map(rowHtml).join('') + '</tbody></table>' +
-        '<h3>Annex A: Tool Request with Main Image</h3><table><thead><tr><th>Description</th><th>Brand</th><th>Model No.</th><th>Qty</th><th>Picture</th></tr></thead><tbody>' + toolRows.map(imageRow).join('') + '</tbody></table>' +
-        '<h3>Annex B: Spare Part Request with Main Image</h3><table><thead><tr><th>Description</th><th>Brand</th><th>Model No.</th><th>Qty</th><th>Picture</th></tr></thead><tbody>' + spareRows.map(imageRow).join('') + '</tbody></table>' +
+        '<h2>10. Detailed Requested Item List</h2><h3>10.1 Maintenance Tools / Production Support Tools</h3><table><thead><tr><th>No.</th><th>Category</th><th>Line / Area</th><th>Machine / Station</th><th>Description</th><th>Brand</th><th>Model / Spec</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr></thead><tbody>' + sectionRows(toolRows.map(rowHtml).join(''), 12) + '</tbody></table>' +
+        '<h3>10.2 Machine Spare Parts</h3><table><thead><tr><th>No.</th><th>Category</th><th>Line / Area</th><th>Machine / Station</th><th>Description</th><th>Brand</th><th>Model / Spec</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr></thead><tbody>' + sectionRows(spareRows.map(rowHtml).join(''), 12) + '</tbody></table>' +
+        '<h3>Annex A: Tool Request with Main Image</h3><table><thead><tr><th>Description</th><th>Brand</th><th>Model No.</th><th>Qty</th><th>Picture</th></tr></thead><tbody>' + sectionRows(toolRows.map(imageRow).join(''), 5) + '</tbody></table>' +
+        '<h3>Annex B: Spare Part Request with Main Image</h3><table><thead><tr><th>Description</th><th>Brand</th><th>Model No.</th><th>Qty</th><th>Picture</th></tr></thead><tbody>' + sectionRows(spareRows.map(imageRow).join(''), 5) + '</tbody></table>' +
         '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
