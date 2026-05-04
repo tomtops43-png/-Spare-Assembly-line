@@ -4266,7 +4266,7 @@
       }
       function imageRow(c) {
         console.debug('[PR] image url:', c.name, c.image || 'NO_IMAGE');
-        var picCell = c.image ? '<img src=\"'+esc(c.image)+'\" alt=\"'+esc(c.name)+'\" onerror=\"this.replaceWith(document.createTextNode(\\'No Image\\'))\"/>' : 'No Image';
+        var picCell = c.image ? '<img src=\"'+esc(c.image)+'\" alt=\"'+esc(c.name)+'\" />' : 'No Image';
         return '<tr><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model)+'</td><td>'+esc(c.qty)+'</td><td>'+picCell+'</td></tr>';
       }
       function sectionRows(rows, cols) {
