@@ -325,6 +325,11 @@
         <input id="mMin" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Min" />
         <input id="mUnit" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Unit" />
         <input id="mStock" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Stock" />
+        <input id="mUnitPrice" type="number" step="0.01" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Unit Price" />
+        <input id="mCurrency" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Currency" value="THB" />
+        <input id="mSupplier" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Supplier" />
+        <input id="mPriceUpdatedAt" type="date" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Price Updated At" />
+        <input id="mPriceRemark" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Price Remark" />
         <div class="md:col-span-2 flex gap-2">
           <button id="btnSaveItem" type="submit" class="eng-primary-btn flex-1 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold">บันทึก/อัปเดต</button>
           <button id="btnDeleteItem" type="button" class="flex-1 rounded-xl bg-rose-600 text-white px-4 py-2.5 font-semibold">ลบ</button>
@@ -363,6 +368,18 @@
             <div class="grid grid-cols-2 gap-2"><input id="prFrom" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /><input id="prTo" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /></div>
             <input id="prPreparedBy" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Prepared by" />
             <input id="prDepartment" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Department" value="Production / Maintenance" />
+            <select id="prMode" class="h-10 rounded-lg border border-slate-300 px-3 bg-white">
+              <option value="assembly_monthly" selected>Assembly Monthly PR (All lines)</option>
+              <option value="line_specific">Line-specific PR</option>
+              <option value="urgent">Urgent PR (Stock 0 / Critical)</option>
+            </select>
+            <select id="prLineFilter" class="h-10 rounded-lg border border-slate-300 px-3 bg-white hidden">
+              <option value="all">All lines</option>
+              <option value="H9">H9</option>
+              <option value="Arc Chute">Arc Chute</option>
+              <option value="Coil Winding">Coil Winding</option>
+              <option value="Lug&Screw">Lug&Screw</option>
+            </select>
             <label><input id="prIncludeOut" type="checkbox" checked /> Include out-of-stock</label>
             <label><input id="prIncludeBelow" type="checkbox" checked /> Include below-min</label>
             <label><input id="prIncludeUsage" type="checkbox" checked /> Include usage-based</label>
@@ -621,6 +638,11 @@
         <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Unit</label><input id="eUnit" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Qty / Stock</label><input id="eStock" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Unit Price</label><input id="eUnitPrice" type="number" step="0.01" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Currency</label><input id="eCurrency" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" value="THB" /></div>
+        <div><label class="text-xs text-slate-500">Supplier</label><input id="eSupplier" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Price Updated At</label><input id="ePriceUpdatedAt" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+        <div><label class="text-xs text-slate-500">Price Remark</label><input id="ePriceRemark" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div class="md:col-span-3 flex gap-2">
           <button type="submit" class="eng-primary-btn flex-1 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold">บันทึก</button>
           <button id="deleteEditItem" type="button" class="flex-1 rounded-xl bg-rose-600 text-white px-4 py-2.5 font-semibold">ลบ</button>
@@ -669,8 +691,27 @@
             </section>
             <section>
               <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลใช้งาน</p>
-              <div class="grid grid-cols-1 gap-2 text-sm">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                 <div id="detailFieldLocation" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Location</p><p id="detailLocation" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldNo" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">NO</p><p id="detailNo" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldUnit" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Unit</p><p id="detailUnit" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldSubLine" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Sub-line / Sheet</p><p id="detailSubLine" class="font-semibold text-base">-</p></div>
+              </div>
+            </section>
+            <section>
+              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลราคา</p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <div id="detailFieldUnitPrice" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Unit Price</p><p id="detailUnitPrice" class="font-semibold text-base">To be confirmed</p></div>
+                <div id="detailFieldCurrency" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Currency</p><p id="detailCurrency" class="font-semibold text-base">THB</p></div>
+                <div id="detailFieldSupplier" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Supplier</p><p id="detailSupplier" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldPriceUpdatedAt" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Price Updated At</p><p id="detailPriceUpdatedAt" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldPriceRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Price Remark</p><p id="detailPriceRemark" class="font-semibold text-base">-</p></div>
+              </div>
+            </section>
+            <section>
+              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลเพิ่มเติม</p>
+              <div class="grid grid-cols-1 gap-2 text-sm">
+                <div id="detailFieldRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Remark</p><p id="detailRemark" class="font-semibold text-base">-</p></div>
               </div>
             </section>
           </div>
@@ -747,6 +788,17 @@
         </div>
       </form>
     </div>
+  </div>
+  <div id="uploadQueuePanel" class="fixed bottom-4 right-4 z-[260] hidden w-[320px] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+    <div class="flex items-center justify-between">
+      <p class="text-sm font-semibold text-slate-800">Background Upload Queue</p>
+      <span id="uploadQueueBadge" class="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">0</span>
+    </div>
+    <p id="uploadQueueCurrent" class="mt-2 text-xs text-slate-600">Idle</p>
+    <div class="mt-2 h-2 w-full rounded bg-slate-200">
+      <div id="uploadQueueProgressBar" class="h-2 rounded bg-blue-600" style="width:0%"></div>
+    </div>
+    <p id="uploadQueuePending" class="mt-2 text-xs text-slate-500">Pending: 0</p>
   </div>
 
   <div id="filterSheet" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 md:hidden">
@@ -844,12 +896,19 @@
     var quickIssueMessage = document.getElementById('quickIssueMessage');
     var prReportPage = document.getElementById('prReportPage');
     var tabPrReport = document.getElementById('tabPrReport');
+    var prMode = document.getElementById('prMode');
+    var prLineFilter = document.getElementById('prLineFilter');
     var prRunBtn = document.getElementById('prRunBtn');
     var prBuildReportBtn = document.getElementById('prBuildReportBtn');
     var prPrintBtn = document.getElementById('prPrintBtn');
     var prCandidateList = document.getElementById('prCandidateList');
     var prReportPreview = document.getElementById('prReportPreview');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
+    var uploadQueuePanel = document.getElementById('uploadQueuePanel');
+    var uploadQueueBadge = document.getElementById('uploadQueueBadge');
+    var uploadQueueCurrent = document.getElementById('uploadQueueCurrent');
+    var uploadQueueProgressBar = document.getElementById('uploadQueueProgressBar');
+    var uploadQueuePending = document.getElementById('uploadQueuePending');
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
     var partsData = [];
@@ -864,6 +923,9 @@
     var quickIssueSubmitting = false;
     var logCache = [];
     var prCandidateState = [];
+    var uploadJobQueue = [];
+    var activeUploadJob = null;
+    var partsLoadRequestSeq = 0;
 
     var txnForm = document.getElementById('txnForm');
     var txnSearchInput = document.getElementById('txnSearchInput');
@@ -1104,6 +1166,49 @@
       var parsed = Number(value);
       return Number.isFinite(parsed) ? parsed : 0;
     }
+    function updateUploadQueueUi() {
+      if (!uploadQueuePanel) return;
+      var pending = uploadJobQueue.length;
+      var active = activeUploadJob;
+      var visible = !!active || pending > 0;
+      uploadQueuePanel.classList.toggle('hidden', !visible);
+      if (uploadQueueBadge) uploadQueueBadge.textContent = String(pending + (active ? 1 : 0));
+      if (uploadQueuePending) uploadQueuePending.textContent = 'Pending: ' + pending;
+      if (!active) {
+        if (uploadQueueCurrent) uploadQueueCurrent.textContent = 'Idle';
+        if (uploadQueueProgressBar) uploadQueueProgressBar.style.width = '0%';
+        return;
+      }
+      if (uploadQueueCurrent) uploadQueueCurrent.textContent = active.label + ' • ' + Math.round(active.progress || 0) + '%';
+      if (uploadQueueProgressBar) uploadQueueProgressBar.style.width = Math.max(0, Math.min(100, active.progress || 0)) + '%';
+    }
+    function enqueueUploadJob(job) {
+      uploadJobQueue.push(job);
+      updateUploadQueueUi();
+      processNextUploadJob();
+    }
+    function processNextUploadJob() {
+      if (activeUploadJob || !uploadJobQueue.length) return;
+      var next = uploadJobQueue.shift();
+      activeUploadJob = { label: next.label || 'Uploading', progress: 1 };
+      updateUploadQueueUi();
+      function setProgress(p) {
+        if (!activeUploadJob) return;
+        activeUploadJob.progress = p;
+        updateUploadQueueUi();
+      }
+      Promise.resolve().then(function() { return next.run(setProgress); }).then(function() {
+        if (activeUploadJob) activeUploadJob.progress = 100;
+      }).catch(function(err) {
+        console.error('[upload job failed]', err);
+      }).finally(function() {
+        setTimeout(function() {
+          activeUploadJob = null;
+          updateUploadQueueUi();
+          processNextUploadJob();
+        }, 400);
+      });
+    }
 
     function firstDefined(values, fallbackValue) {
       for (var i = 0; i < values.length; i += 1) {
@@ -1139,6 +1244,8 @@
         location: firstDefined([item.location, item.jrLocation], '-'),
         category: firstDefined([item.category], 'General'),
         brand: firstDefined([item.brand], '-'),
+        unit: firstDefined([item.unit], 'PCS'),
+        remark: firstDefined([item.remark], ''),
         stock: stock,
         min: min,
         max: max,
@@ -1147,18 +1254,124 @@
         image_main_file_id: mainFileId,
         image_main: mainImageUrl,
         photo: mainImageUrl,
-        image_install_url: firstDefined([item.image_install_url, item.image_install, item.imageInstall], '')
+        image_install_url: firstDefined([item.image_install_url, item.image_install, item.imageInstall], ''),
+        unit_price: firstDefined([item.unit_price], ''),
+        currency: firstDefined([item.currency], 'THB'),
+        supplier: firstDefined([item.supplier], ''),
+        price_updated_at: firstDefined([item.price_updated_at], ''),
+        price_remark: firstDefined([item.price_remark], '')
       };
     }
 
     function normalizeLineText(value) {
       return String(value || '').trim().toLowerCase();
     }
+    function formatBangkokDateTime(value) {
+      if (value === undefined || value === null || value === '') return '-';
+      var dt = new Date(value);
+      if (!isNaN(dt.getTime())) {
+        return dt.toLocaleDateString('th-TH', {
+          timeZone: 'Asia/Bangkok',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+      }
+      return String(value);
+    }
+    function getItemIdentityKey(item) {
+      var no = item && item.no !== undefined ? String(item.no).trim() : '';
+      var sub = item ? String(item.subLine || item.__sourceSheet || '').trim() : '';
+      var model = item && item.model !== undefined ? String(item.model).trim() : '';
+      var name = item && item.name !== undefined ? String(item.name).trim() : '';
+      var location = item && item.location !== undefined ? String(item.location).trim() : '';
+      return [no, sub, model, name, location].join('::');
+    }
+    function findItemByIdentityKey(key) {
+      var target = String(key || '').trim();
+      if (!target) return null;
+      for (var i = 0; i < partsData.length; i += 1) {
+        if (getItemIdentityKey(partsData[i]) === target) return partsData[i];
+      }
+      return null;
+    }
+    function mapLine(lineName) {
+      var raw = String(lineName || '').trim();
+      var n = normalizeLineText(raw);
+      if (!n) return 'H9';
+      if (n.indexOf('h9') > -1) return 'H9';
+      if (n.indexOf('arc') > -1) return 'Arc Chute';
+      if (n.indexOf('coil') > -1) return 'Coil Winding';
+      if (n.indexOf('lug') > -1) return 'Lug&Screw';
+      return 'H9';
+    }
+    function canonicalLineName(value) {
+      var raw = String(value || '').trim();
+      var n = normalizeLineText(raw);
+      if (!n || n === '-' || n === 'all') return currentLine || 'Assembly Line';
+      if (n === 'arcchut' || n === 'arc chute' || n === 'arcchute') return 'Arc Chute';
+      if (n === 'coilwinding' || n === 'coil winding') return 'Coil Winding';
+      if (n === 'lug&screw' || n === 'lugscrew' || n === 'lug & screw') return 'Lug&Screw';
+      if (n === 'h9') return 'H9';
+      return mapLine(raw);
+    }
 
     function getSheetOptionsForLine(lineKey) {
       var options = LINE_SHEET_OPTIONS[lineKey];
       if (Array.isArray(options) && options.length) return options.slice();
       return ['Main List Stock', 'Stock for MC'];
+    }
+    function getLineCacheKey(lineKey) {
+      return 'spare_parts_cache::' + String(lineKey || currentLine || 'H9');
+    }
+    function loadLineCache(lineKey) {
+      try {
+        var raw = localStorage.getItem(getLineCacheKey(lineKey));
+        if (!raw) return null;
+        var parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.items)) return null;
+        return parsed;
+      } catch (err) {
+        return null;
+      }
+    }
+    function saveLineCache(lineKey, items) {
+      try {
+        localStorage.setItem(getLineCacheKey(lineKey), JSON.stringify({
+          updatedAt: Date.now(),
+          items: items || []
+        }));
+      } catch (err) {
+        console.warn('saveLineCache failed', err);
+      }
+    }
+    function applyLoadedPartsData(normalizedData) {
+      partsData = normalizedData.filter(function(item) {
+        return item.name && item.name !== '-';
+      });
+
+      console.log('[item data after save/load]', partsData);
+      populateCategoryOptions(partsData);
+      populateBrandOptions(partsData);
+      populatePartOptions(partsData);
+      populateTxnFilters(partsData);
+      populateManageLineOptions(false);
+      populateManageSheetOptions(false);
+      if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
+      if (!txnPage.classList.contains('hidden')) renderTxnResultList();
+      else txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">เปิดหน้าเบิก/รับเพื่อโหลดรายการ</div>';
+      selectTxnItem(currentTxnItemNo);
+      syncIssueCartWithStock();
+      applyAutoManageNo(false);
+      if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
+      if (partsData.length) {
+        var updatedAtText = document.getElementById('updatedAtText');
+        updatedAtText.textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH');
+        updatedAtText.classList.remove('hidden');
+      } else {
+        document.getElementById('updatedAtText').classList.add('hidden');
+      }
+      applyFilters();
     }
 
     function populateManageSheetOptions(forceDefault, lineKey) {
@@ -1396,7 +1609,7 @@
 
       issueCartSummary.textContent = entries.length + ' รายการ';
       if (issueCartSubmitBtn && !issueCartSubmitting) {
-        var shouldDisable = !entries.length || !hasPermission('transact');
+        var shouldDisable = !entries.length || !canIssuePart();
         issueCartSubmitBtn.disabled = shouldDisable;
         issueCartSubmitBtn.classList.toggle('opacity-60', shouldDisable);
         issueCartSubmitBtn.classList.toggle('cursor-not-allowed', shouldDisable);
@@ -1472,19 +1685,29 @@
     }
 
     function applyIssueCartAuthorizationUi() {
-      var canTransact = hasPermission('transact');
-      if (openIssueCartBtn) openIssueCartBtn.classList.toggle('hidden', !canTransact);
-      if (openIssueCartBtnMobile) openIssueCartBtnMobile.classList.toggle('hidden', !canTransact);
-      if (detailAddToCartBtn) detailAddToCartBtn.classList.toggle('hidden', !canTransact);
+      var canIssue = canIssuePart();
+      if (openIssueCartBtn) openIssueCartBtn.classList.toggle('hidden', !canIssue);
+      if (openIssueCartBtnMobile) openIssueCartBtnMobile.classList.toggle('hidden', !canIssue);
+      if (detailAddToCartBtn) detailAddToCartBtn.classList.toggle('hidden', !canIssue);
       if (issueCartSubmitBtn) {
-        issueCartSubmitBtn.disabled = !canTransact || issueCartSubmitting;
-        issueCartSubmitBtn.classList.toggle('opacity-60', !canTransact || issueCartSubmitting);
-        issueCartSubmitBtn.classList.toggle('cursor-not-allowed', !canTransact || issueCartSubmitting);
+        issueCartSubmitBtn.disabled = !canIssue || issueCartSubmitting;
+        issueCartSubmitBtn.classList.toggle('opacity-60', !canIssue || issueCartSubmitting);
+        issueCartSubmitBtn.classList.toggle('cursor-not-allowed', !canIssue || issueCartSubmitting);
       }
-      if (!canTransact) setIssueCartMessage('คุณไม่มีสิทธิ์ทำรายการเบิก (transact)', 'error');
+      if (!canIssue) setIssueCartMessage('คุณไม่มีสิทธิ์ทำรายการเบิก', 'error');
     }
 
-    function getIssueCartEntries() {
+    
+    function applyReceivePermissionUi() {
+      var canReceive = canReceivePart();
+      if (qaReceiveBtn) qaReceiveBtn.classList.toggle('hidden', !canReceive);
+      if (txnType && txnType.querySelector('option[value="Input"]')) {
+        txnType.querySelector('option[value="Input"]').disabled = !canReceive;
+        if (!canReceive && txnType.value === 'Input') txnType.value = 'Output';
+      }
+    }
+
+function getIssueCartEntries() {
       return Object.keys(issueCartState).map(function(no) {
         var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
         if (!found) return null;
@@ -1493,7 +1716,7 @@
     }
 
     function validateIssueCartSubmission(entries) {
-      if (!hasPermission('transact')) return 'คุณไม่มีสิทธิ์ทำรายการเบิก';
+      if (!canIssuePart()) return 'คุณไม่มีสิทธิ์ทำรายการเบิก';
       if (!entries.length) return 'ยังไม่มีรายการใน cart';
       if (!issueCartBy || !String(issueCartBy.value || '').trim()) return 'กรุณาระบุผู้เบิก';
       for (var i = 0; i < entries.length; i += 1) {
@@ -1672,7 +1895,12 @@
 
         function cleanup() {
           clearTimeout(timeoutId);
-          delete window[callbackName];
+          // Keep a no-op callback briefly to avoid late JSONP responses
+          // throwing `... is not defined` after timeout/fallback has completed.
+          window[callbackName] = function() {};
+          setTimeout(function() {
+            try { delete window[callbackName]; } catch (err) { window[callbackName] = undefined; }
+          }, 30000);
           script.remove();
         }
 
@@ -1817,9 +2045,20 @@
       return query + '&authToken=' + encodeURIComponent(authToken);
     }
 
+    var PERMISSION_ALIASES = {
+      issue_part: ['issue_part', 'issue', 'issue_item', 'stock.issue', 'stock.issue_part'],
+      receive_part: ['receive_part', 'receive', 'receive_item', 'stock.receive', 'stock.receive_part']
+    };
     function hasPermission(permissionName) {
-      return !!(currentUser && currentUser.permissions && currentUser.permissions[permissionName]);
+      if (!(currentUser && currentUser.permissions)) return false;
+      var aliases = PERMISSION_ALIASES[permissionName] || [permissionName];
+      for (var i = 0; i < aliases.length; i += 1) {
+        if (currentUser.permissions[aliases[i]]) return true;
+      }
+      return false;
     }
+    function canIssuePart() { return hasPermission('issue_part'); }
+    function canReceivePart() { return hasPermission('receive_part'); }
 
     function isAdminUser() {
       return !!(currentUser && String(currentUser.role || '').toLowerCase() === 'admin');
@@ -1880,6 +2119,7 @@
       if (!canManageItems && !managePage.classList.contains('hidden')) switchToStockPage();
       renderAuthUserBox();
       applyIssueCartAuthorizationUi();
+      applyReceivePermissionUi();
       normalizeMobileHeaderCartUi();
     }
 
@@ -2439,7 +2679,12 @@
         max: payload.max || '',
         min: payload.min || '',
         unit: payload.unit || '',
-        stock: payload.stock || ''
+        stock: payload.stock || '',
+        unit_price: payload.unit_price || '',
+        currency: payload.currency || 'THB',
+        supplier: payload.supplier || '',
+        price_updated_at: payload.price_updated_at || '',
+        price_remark: payload.price_remark || ''
       };
       requestPayload.qty = Number(payload.qty !== undefined ? payload.qty : requestPayload.stock || 0);
       if (!Number.isFinite(requestPayload.qty)) requestPayload.qty = 0;
@@ -2465,6 +2710,11 @@
         'min=' + encodeURIComponent(requestPayload.min),
         'unit=' + encodeURIComponent(requestPayload.unit),
         'stock=' + encodeURIComponent(requestPayload.stock),
+        'unit_price=' + encodeURIComponent(requestPayload.unit_price),
+        'currency=' + encodeURIComponent(requestPayload.currency),
+        'supplier=' + encodeURIComponent(requestPayload.supplier),
+        'price_updated_at=' + encodeURIComponent(requestPayload.price_updated_at),
+        'price_remark=' + encodeURIComponent(requestPayload.price_remark),
         'qty=' + encodeURIComponent(String(requestPayload.qty)),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
@@ -2506,7 +2756,7 @@
       var requestPayload = {
         authToken: authToken,
         action: 'transact',
-        sheet: getCurrentSheetName(),
+        sheet: payload.sheetName || getCurrentSheetName(),
         partNo: payload.partNo || '',
         type: payload.type || '',
         process: payload.process || '',
@@ -2627,6 +2877,7 @@
 
     function openTxnPageWithItem(no, txnMode) {
       switchToTxnPage();
+      if (txnMode === 'Input' && !canReceivePart()) txnMode = 'Output';
       if (txnMode === 'Input' || txnMode === 'Output') txnType.value = txnMode;
       if (no !== undefined && no !== null && no !== '') {
         selectTxnItem(String(no));
@@ -2704,7 +2955,51 @@
       return map;
     }
 
+    function getAllLineKeys() {
+      return Object.keys(LINE_SHEET_OPTIONS || {});
+    }
+
+    function getAllPrSheetTargets() {
+      var out = [];
+      getAllLineKeys().forEach(function(lineKey) {
+        (LINE_SHEET_OPTIONS[lineKey] || []).forEach(function(sheet) {
+          out.push({ line: lineKey, sheet: sheet });
+        });
+      });
+      return out;
+    }
+
+    function loadPrSourceItems(mode, lineFilterValue) {
+      var targets = [];
+      if (mode === 'line_specific' && lineFilterValue && lineFilterValue !== 'all') {
+        targets = (LINE_SHEET_OPTIONS[lineFilterValue] || []).map(function(sheet) {
+          return { line: lineFilterValue, sheet: sheet };
+        });
+      } else {
+        targets = getAllPrSheetTargets();
+      }
+      if (!targets.length) return Promise.resolve(partsData.slice());
+      return Promise.all(targets.map(function(t) {
+        var lineApi = LINE_API_URL_MAP[t.line] || API_URL;
+        return loadByFetch(lineApi + appendAuthToQuery('?sheet=' + encodeURIComponent(t.sheet))).then(function(rawData) {
+          if (!Array.isArray(rawData)) return [];
+          return rawData.map(function(item) {
+            item.__sourceSheet = t.sheet;
+            item.line = item.line || t.line;
+            return item;
+          });
+        }).catch(function() { return []; });
+      })).then(function(chunks) {
+        var combined = [].concat.apply([], chunks);
+        return normalizeRecordsInBatches(combined).then(function(normalized) {
+          return normalized.filter(function(item) { return item.name && item.name !== '-'; });
+        });
+      });
+    }
+
     function runPrCandidateSelection() {
+      var mode = prMode ? String(prMode.value || 'assembly_monthly') : 'assembly_monthly';
+      var lineFilterValue = prLineFilter ? String(prLineFilter.value || 'all') : 'all';
       var fromDate = document.getElementById('prFrom').value ? new Date(document.getElementById('prFrom').value) : null;
       var toDate = document.getElementById('prTo').value ? new Date(document.getElementById('prTo').value + 'T23:59:59') : null;
       var includeOut = document.getElementById('prIncludeOut').checked;
@@ -2712,7 +3007,8 @@
       var includeUsage = document.getElementById('prIncludeUsage').checked;
       var criticalOnly = document.getElementById('prCriticalOnly').checked;
       var usage = buildUsageMap(fromDate, toDate);
-      prCandidateState = partsData.map(function(i) {
+      loadPrSourceItems(mode, lineFilterValue).then(function(sourceItems) {
+      prCandidateState = sourceItems.map(function(i) {
         var stock = Number(i.stock || 0), min = Number(i.min || 0), max = Number(i.max || 0);
         var need = Number(i.needToOrder || i.need_to_order || Math.max((max || min) - stock, 0));
         var reasons = [];
@@ -2728,13 +3024,18 @@
           if (criticalFlag.indexOf('critical') > -1 || criticalFlag === 'y' || criticalFlag === 'yes' || criticalFlag === 'true') critical = 'Critical';
           else if (stock <= 0) critical = isToolFamily ? 'High' : 'Critical';
           else if (stock <= min) critical = isToolFamily ? 'Medium' : 'High';
-          else critical = isToolFamily ? 'Low' : 'Medium';
+          else if (need > 0) critical = isToolFamily ? 'Low' : 'Medium';
+          else critical = 'Low';
         }
+        if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: i.mainLine || currentLine, subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, reason: reasons.join(', '), unitPrice: Number(i.unitPrice || 0), machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
+        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
       }).filter(Boolean);
       renderPrCandidates();
+      }).catch(function(err) {
+        prCandidateList.innerHTML = '<p class=\"text-sm text-rose-600\">Generate candidates failed: ' + (err && err.message ? err.message : err) + '</p>';
+      });
     }
 
     function renderPrCandidates() {
@@ -2753,9 +3054,18 @@
     }
 
     function loadPartsData() {
+      var requestSeq = ++partsLoadRequestSeq;
+      var hasAppliedCache = false;
       desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
+      var cachePayload = loadLineCache(currentLine);
+      if (cachePayload && cachePayload.items && cachePayload.items.length) {
+        hasAppliedCache = true;
+        desktopCardGrid.innerHTML = '<div class="col-span-full py-2 text-center text-slate-400 text-xs">โหลดจาก cache... กำลัง sync ข้อมูลล่าสุด</div>';
+        mobileCardList.innerHTML = '<div class="py-2 text-center text-slate-400 text-xs">โหลดจาก cache... กำลัง sync ข้อมูลล่าสุด</div>';
+        applyLoadedPartsData(cachePayload.items);
+      }
 
       var activeSheets = getSheetOptionsForLine(currentLine);
       var totalSheets = activeSheets.length;
@@ -2779,6 +3089,7 @@
             return item;
           });
         }).finally(function() {
+          if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
           desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
           mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
         });
@@ -2790,34 +3101,12 @@
             mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">' + progress + '</div>';
           });
         }).then(function(normalizedData) {
-          partsData = normalizedData.filter(function(item) {
-            return item.name && item.name !== '-';
-          });
-
-          console.log('[item data after save/load]', partsData);
-          populateCategoryOptions(partsData);
-          populateBrandOptions(partsData);
-          populatePartOptions(partsData);
-          populateTxnFilters(partsData);
-          populateManageLineOptions(false);
-          populateManageSheetOptions(false);
-          if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
-          if (!txnPage.classList.contains('hidden')) renderTxnResultList();
-          else txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">เปิดหน้าเบิก/รับเพื่อโหลดรายการ</div>';
-          selectTxnItem(currentTxnItemNo);
-          syncIssueCartWithStock();
-          applyAutoManageNo(false);
-          if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
-          if (partsData.length) {
-            var updatedAtText = document.getElementById('updatedAtText');
-            updatedAtText.textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH');
-            updatedAtText.classList.remove('hidden');
-          } else {
-            document.getElementById('updatedAtText').classList.add('hidden');
-          }
-          applyFilters();
+          if (requestSeq !== partsLoadRequestSeq) return;
+          applyLoadedPartsData(normalizedData);
+          saveLineCache(currentLine, normalizedData);
         })
         .catch(function(err) {
+          if (requestSeq !== partsLoadRequestSeq) return;
           var hint = 'ตรวจสอบ Apps Script Deployment: ต้องตั้งสิทธิ์เป็น Anyone และ deploy เวอร์ชันล่าสุด';
           desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-rose-500">' + err.message + '<br><span class="text-xs text-slate-500">' + hint + '</span></div>';
           mobileCardList.innerHTML = '<div class="py-8 text-center text-rose-500">' + err.message + '</div>';
@@ -2850,9 +3139,19 @@
     function populatePartOptions(data) {
       partMap = {};
       data.forEach(function(item, idx) {
-        var key = String(item.no || idx + 1);
+        var key = getItemIdentityKey(item) || String(item.no || idx + 1);
         partMap[key] = item;
       });
+    }
+    function resolveTxnItemKey(input) {
+      var raw = String(input || '').trim();
+      if (!raw) return '';
+      if (partMap[raw]) return raw;
+      var sheetName = getCurrentSheetName();
+      var found = partsData.filter(function(p){
+        return String(p.no) === raw && String(p.__sourceSheet || p.subLine || '') === String(sheetName || '');
+      })[0] || partsData.filter(function(p){ return String(p.no) === raw; })[0];
+      return found ? getItemIdentityKey(found) : raw;
     }
 
     function populateTxnFilters(data) {
@@ -2882,7 +3181,7 @@
     }
 
     function selectTxnItem(no) {
-      currentTxnItemNo = String(no || '');
+      currentTxnItemNo = resolveTxnItemKey(no);
       var selected = getSelectedTxnItem();
       txnSelectedCard.classList.toggle('hidden', !selected);
       txnSelectedEmpty.classList.toggle('hidden', !!selected);
@@ -2970,9 +3269,10 @@
       txnResultList.innerHTML = list.map(function(item) {
         var status = getStockStatus(item);
         var tone = getStatusTone(status);
-        var active = currentTxnItemNo && String(currentTxnItemNo) === String(item.no);
+        var txnKey = getItemIdentityKey(item);
+        var active = currentTxnItemNo && String(currentTxnItemNo) === String(txnKey);
         var cardBorder = active ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200';
-        return '<button type="button" data-txn-no="' + item.no + '" class="text-left rounded-2xl border ' + cardBorder + ' bg-white p-3 shadow-sm hover:shadow transition">' +
+        return '<button type="button" data-txn-key="' + txnKey + '" class="text-left rounded-2xl border ' + cardBorder + ' bg-white p-3 shadow-sm hover:shadow transition">' +
           '<div class="flex gap-3">' +
           '<img src="' + toSafeImageUrl(item.image_main_url) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + getSecondaryDriveImageUrl(item.image_main_url) + '" />' +
           '<div class="min-w-0 flex-1">' +
@@ -2990,9 +3290,9 @@
       Array.prototype.slice.call(txnResultList.querySelectorAll('img')).forEach(function(img) {
         bindImageFallback(img);
       });
-      Array.prototype.slice.call(txnResultList.querySelectorAll('[data-txn-no]')).forEach(function(btn) {
+      Array.prototype.slice.call(txnResultList.querySelectorAll('[data-txn-key]')).forEach(function(btn) {
         btn.addEventListener('click', function() {
-          selectTxnItem(btn.getAttribute('data-txn-no'));
+          selectTxnItem(btn.getAttribute('data-txn-key'));
           renderTxnResultList();
         });
       });
@@ -3011,7 +3311,8 @@
         brand: item.brand || '-',
         qty: qty,
         unit: item.unit || 'PCS',
-        by: byValue || 'Unknown'
+        by: byValue || 'Unknown',
+        sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
     }
 
@@ -3090,6 +3391,7 @@
       }).finally(function() {
         setIssueCartSubmitState(false);
         applyIssueCartAuthorizationUi();
+      applyReceivePermissionUi();
       });
     }
 
@@ -3222,7 +3524,8 @@
         brand: item.brand || '-',
         qty: qty,
         unit: item.unit || 'PCS',
-        by: by
+        by: by,
+        sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
       setQuickIssueSubmitState(true);
       quickIssueMessage.className = 'text-sm text-slate-500';
@@ -3276,7 +3579,8 @@
         brand: selected.brand || '-',
         qty: qty,
         unit: selected.unit || 'PCS',
-        by: txnBy.value || 'Unknown'
+        by: txnBy.value || 'Unknown',
+        sheetName: selected.__sourceSheet || selected.subLine || getCurrentSheetName()
       };
 
       txnMessage.className = 'mt-3 text-sm text-slate-500';
@@ -3338,6 +3642,11 @@
       document.getElementById('eMin').value = item.min || '';
       document.getElementById('eUnit').value = item.unit || '';
       document.getElementById('eStock').value = item.stock || '';
+      document.getElementById('eUnitPrice').value = item.unit_price || '';
+      document.getElementById('eCurrency').value = item.currency || 'THB';
+      document.getElementById('eSupplier').value = item.supplier || '';
+      document.getElementById('ePriceUpdatedAt').value = item.price_updated_at || '';
+      document.getElementById('ePriceRemark').value = item.price_remark || '';
       editMessage.textContent = '';
       editModalSubtitle.textContent = 'ชีต: ' + getCurrentSheetName() + ' | NO: ' + (item.no || '-');
       editModal.classList.remove('hidden');
@@ -3386,34 +3695,39 @@
         max: document.getElementById('eMax').value.trim(),
         min: document.getElementById('eMin').value.trim(),
         unit: document.getElementById('eUnit').value.trim(),
-        stock: document.getElementById('eStock').value.trim()
+        stock: document.getElementById('eStock').value.trim(),
+        unit_price: document.getElementById('eUnitPrice').value.trim(),
+        currency: document.getElementById('eCurrency').value.trim() || 'THB',
+        supplier: document.getElementById('eSupplier').value.trim(),
+        price_updated_at: document.getElementById('ePriceUpdatedAt').value.trim(),
+        price_remark: document.getElementById('ePriceRemark').value.trim()
       };
       console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
-      editMessage.className = 'mt-3 text-sm text-slate-500';
-      editMessage.textContent = 'กำลังอัปโหลดรูปและบันทึก...';
-      uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()).then(function(mainRes){
-        console.log('[upload main response][edit]', mainRes);
-        if (mainRes) {
-          var normalizedMainUrl = pickMainImageUrl(mainRes);
-          console.log('[normalized image URL][edit]', normalizedMainUrl);
-          if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
-          payload.photo = normalizedMainUrl;
-          payload.image_main = normalizedMainUrl;
-          payload.image_main_url = normalizedMainUrl;
-          payload.image_main_file_id = mainRes.fileId || '';
-          document.getElementById('eImageMainPreview').src = normalizedMainUrl;
+      editMessage.className = 'mt-3 text-sm text-emerald-600';
+      editMessage.textContent = 'เข้าคิวบันทึกรายการแล้ว ระบบจะอัปโหลดต่อเบื้องหลัง';
+      closeEditModal();
+      enqueueUploadJob({
+        label: 'Edit #' + itemNo,
+        run: function(setProgress) {
+          setProgress(10);
+          return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()).then(function(mainRes){
+            setProgress(55);
+            if (mainRes) {
+              var normalizedMainUrl = pickMainImageUrl(mainRes);
+              if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
+              payload.photo = normalizedMainUrl;
+              payload.image_main = normalizedMainUrl;
+              payload.image_main_url = normalizedMainUrl;
+              payload.image_main_file_id = mainRes.fileId || '';
+            }
+            setProgress(80);
+            return callManageAction('upsertItem', payload);
+          }).then(function(res){
+            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
+            setProgress(100);
+            loadPartsData();
+          });
         }
-        console.log('[save payload][edit]', payload);
-        return callManageAction('upsertItem', payload);
-      }).then(function(res){
-        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
-        editMessage.className = 'mt-3 text-sm text-emerald-600';
-        editMessage.textContent = 'บันทึกสำเร็จ (sheet: ' + (res.sheet || getCurrentSheetName()) + ', location: ' + (res.location || '-') + ')';
-        loadPartsData();
-        setTimeout(closeEditModal, 400);
-      }).catch(function(err){
-        editMessage.className = 'mt-3 text-sm text-rose-600';
-        editMessage.textContent = err.message;
       });
     }
 
@@ -3467,43 +3781,46 @@
         max: document.getElementById('mMax').value.trim(),
         min: document.getElementById('mMin').value.trim(),
         unit: document.getElementById('mUnit').value.trim(),
-        stock: document.getElementById('mStock').value.trim()
+        stock: document.getElementById('mStock').value.trim(),
+        unit_price: document.getElementById('mUnitPrice').value.trim(),
+        currency: document.getElementById('mCurrency').value.trim() || 'THB',
+        supplier: document.getElementById('mSupplier').value.trim(),
+        price_updated_at: document.getElementById('mPriceUpdatedAt').value.trim(),
+        price_remark: document.getElementById('mPriceRemark').value.trim()
       };
       console.log('[location][manage payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
-      manageMessage.className = 'mt-3 text-sm text-slate-500';
-      manageMessage.textContent = 'กำลังอัปโหลดรูปและบันทึกรายการ...';
-      uploadImageFile(mainFile, itemNo, 'main', document.getElementById('mName').value.trim()).then(function(mainRes) {
-        console.log('[upload main response][add]', mainRes);
-        if (mainRes) {
-          var normalizedMainUrl = pickMainImageUrl(mainRes);
-          console.log('[normalized image URL][add]', normalizedMainUrl);
-          if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
-          payload.photo = normalizedMainUrl;
-          payload.image_main = normalizedMainUrl;
-          payload.image_main_url = normalizedMainUrl;
-          payload.image_main_file_id = mainRes.fileId || '';
-          document.getElementById('mImageMainPreview').src = normalizedMainUrl;
+      manageMessage.className = 'mt-3 text-sm text-emerald-600';
+      manageMessage.textContent = 'เข้าคิวบันทึกรายการแล้ว ระบบจะอัปโหลดต่อเบื้องหลัง';
+      enqueueUploadJob({
+        label: 'Save #' + itemNo,
+        run: function(setProgress) {
+          setProgress(10);
+          return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('mName').value.trim()).then(function(mainRes) {
+            setProgress(55);
+            if (mainRes) {
+              var normalizedMainUrl = pickMainImageUrl(mainRes);
+              if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
+              payload.photo = normalizedMainUrl;
+              payload.image_main = normalizedMainUrl;
+              payload.image_main_url = normalizedMainUrl;
+              payload.image_main_file_id = mainRes.fileId || '';
+            }
+            setProgress(80);
+            return callManageAction('upsertItem', payload);
+          }).then(function(res) {
+            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
+            if (sheetSelector && sheetSelector.value !== selectedManageSheet) sheetSelector.value = selectedManageSheet;
+            if ((res.mode || '').toLowerCase() === 'create') {
+              manageForm.reset();
+              document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
+              populateManageLineOptions(true);
+              populateManageSheetOptions(true);
+              applyAutoManageNo(true);
+            }
+            setProgress(100);
+            loadPartsData();
+          });
         }
-        console.log('[save payload][add]', payload);
-        return callManageAction('upsertItem', payload);
-      }).then(function(res) {
-        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
-        manageMessage.className = 'mt-3 text-sm text-emerald-600';
-        manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no + ' (sheet: ' + (res.sheet || selectedManageSheet) + ', location: ' + (res.location || '-') + ')';
-        if (sheetSelector && sheetSelector.value !== selectedManageSheet) {
-          sheetSelector.value = selectedManageSheet;
-        }
-        if ((res.mode || '').toLowerCase() === 'create') {
-          manageForm.reset();
-          document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
-          populateManageLineOptions(true);
-          populateManageSheetOptions(true);
-          applyAutoManageNo(true);
-        }
-        loadPartsData();
-      }).catch(function(err) {
-        manageMessage.className = 'mt-3 text-sm text-rose-600';
-        manageMessage.textContent = err.message;
       });
     }
 
@@ -3606,7 +3923,7 @@
       desktopCardGrid.innerHTML = data.map(function(item) {
         var canManageItems = hasPermission('manage_items');
         var canDeleteItems = hasPermission('delete_items');
-        var canTransact = hasPermission('transact');
+        var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
         var imageSrc = toSafeImageUrl(item.image_main_url);
         var fallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
@@ -3614,7 +3931,8 @@
         var tone = getStatusTone(status);
         var stockClass = tone.textClass;
         var visualState = getCardVisualState(item);
-        return '<article data-row-no="' + item.no + '" class="relative rounded-2xl border p-3 shadow-sm transition hover:shadow-md cursor-pointer ' + visualState.cardClass + '">' +
+        var itemKey = getItemIdentityKey(item);
+        return '<article data-row-key="' + itemKey + '" class="relative rounded-2xl border p-3 shadow-sm transition hover:shadow-md cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-50">' +
             '<img loading="lazy" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain object-center p-2 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-2xl') + '</div>' : '') +
@@ -3629,40 +3947,40 @@
             '<span class="font-bold text-base ' + stockClass + '">Stock ' + item.stock + '</span>' +
           '</div>' +
           '<div class="mt-3 grid grid-cols-1 gap-2">' +
-            '<button data-view-no="' + item.no + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold">👁 ดูรายละเอียด</button>' +
+            '<button data-view-key="' + itemKey + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold">👁 ดูรายละเอียด</button>' +
             (canIssue ? '<button data-issue-no="' + item.no + '" class="h-9 rounded-lg bg-emerald-600 text-white text-xs font-semibold">⚡ เพิ่มลงรายการเบิก</button>' : (canTransact ? '<span class="h-9 rounded-lg border border-slate-300 bg-slate-100 text-xs text-slate-500 flex items-center justify-center font-semibold">อะไหล่หมด</span>' : '<span class="h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-400 flex items-center justify-center">No Access</span>')) +
           '</div>' +
           (canManageItems || canDeleteItems ? '<div class="mt-2 flex items-center justify-end gap-2">' +
-            (canManageItems ? '<button data-edit-no="' + item.no + '" class="h-7 rounded-md border border-blue-200 px-2 text-[11px] text-blue-700 font-semibold">✏️ Edit</button>' : '') +
+            (canManageItems ? '<button data-edit-key="' + itemKey + '" class="h-7 rounded-md border border-blue-200 px-2 text-[11px] text-blue-700 font-semibold">✏️ Edit</button>' : '') +
             (canDeleteItems ? '<button data-delete-no="' + item.no + '" class="h-7 rounded-md border border-rose-200 px-2 text-[11px] text-rose-700 font-semibold">🗑️ Delete</button>' : '') +
           '</div>' : '') +
         '</article>';
       }).join('');
 
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('article[data-row-no]')).forEach(function(row){
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('article[data-row-key]')).forEach(function(row){
         row.addEventListener('click', function(e){
           if (e.target.closest('button')) return;
-          var no = row.getAttribute('data-row-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          var key = row.getAttribute('data-row-key');
+          var found = findItemByIdentityKey(key);
           if (found) openDetailModal(found);
         });
       });
 
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-view-no]')).forEach(function(btn){
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-view-key]')).forEach(function(btn){
         btn.addEventListener('click', function(){
-          var no = btn.getAttribute('data-view-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          var key = btn.getAttribute('data-view-key');
+          var found = findItemByIdentityKey(key);
           if (!found) return;
           openDetailModal(found);
         });
       });
 
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-no]')).forEach(function(btn){
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-key]')).forEach(function(btn){
         btn.addEventListener('click', function(e){
           e.preventDefault();
           e.stopPropagation();
-          var no = btn.getAttribute('data-edit-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          var key = btn.getAttribute('data-edit-key');
+          var found = findItemByIdentityKey(key);
           if (found) openEditModal(found);
         });
       });
@@ -3709,7 +4027,7 @@
       mobileCardList.innerHTML = data.map(function(item) {
         var canManageItems = hasPermission('manage_items');
         var canDeleteItems = hasPermission('delete_items');
-        var canTransact = hasPermission('transact');
+        var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
         var mobileImageSrc = toSafeImageUrl(item.image_main_url);
         var mobileFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
@@ -3718,7 +4036,8 @@
         var stockClass = tone.textClass;
         var needToOrder = getNeedToOrder(item);
         var visualState = getCardVisualState(item);
-        return '<article data-view-no="' + item.no + '" class="relative rounded-2xl border p-2.5 shadow-sm cursor-pointer ' + visualState.cardClass + '">' +
+        var itemKey = getItemIdentityKey(item);
+        return '<article data-view-key="' + itemKey + '" class="relative rounded-2xl border p-2.5 shadow-sm cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-50">' +
             '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain bg-slate-50 p-1.5 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-lg') + '</div>' : '') +
@@ -3734,11 +4053,11 @@
           '</div>' +
           '<p class="mt-1 text-[11px] text-slate-500 ' + visualState.contentClass + '">Need to order: ' + needToOrder + '</p>' +
           '<div class="mt-2 grid grid-cols-2 gap-2">' +
-            '<button data-view-no="' + item.no + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold">👁 ดู</button>' +
+            '<button data-view-key="' + itemKey + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold">👁 ดู</button>' +
             (canIssue ? '<button data-mobile-issue-no="' + item.no + '" class="h-9 rounded-lg bg-emerald-600 text-white text-xs font-semibold">⚡ เบิก</button>' : (canTransact ? '<span class="h-9 rounded-lg border border-slate-300 bg-slate-100 text-xs text-slate-500 flex items-center justify-center font-semibold">อะไหล่หมด</span>' : '<span class="h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-400 flex items-center justify-center">No Access</span>')) +
           '</div>' +
           (canManageItems || canDeleteItems ? '<div class="mt-2 grid grid-cols-2 gap-2">' +
-            (canManageItems ? '<button data-mobile-edit-no="' + item.no + '" class="h-9 rounded-lg border border-blue-200 bg-white text-xs font-semibold text-blue-700">✏️ Edit</button>' : '<span></span>') +
+            (canManageItems ? '<button data-mobile-edit-key="' + itemKey + '" class="h-9 rounded-lg border border-blue-200 bg-white text-xs font-semibold text-blue-700">✏️ Edit</button>' : '<span></span>') +
             (canDeleteItems ? '<button data-mobile-delete-no="' + item.no + '" class="h-9 rounded-lg border border-rose-200 bg-white text-xs font-semibold text-rose-700">🗑️ Delete</button>' : '<span></span>') +
           '</div>' : '') +
         '</article>';
@@ -3748,12 +4067,12 @@
         var target = e.target;
         if (!target || !target.closest) return;
 
-        var editBtn = target.closest('[data-mobile-edit-no]');
+        var editBtn = target.closest('[data-mobile-edit-key]');
         if (editBtn) {
           e.preventDefault();
           e.stopPropagation();
-          var editNo = editBtn.getAttribute('data-mobile-edit-no');
-          var editFound = partsData.filter(function(p){ return String(p.no) === String(editNo); })[0];
+          var editKey = editBtn.getAttribute('data-mobile-edit-key');
+          var editFound = findItemByIdentityKey(editKey);
           if (editFound) openEditModal(editFound);
           return;
         }
@@ -3781,20 +4100,20 @@
           return;
         }
 
-        var viewBtn = target.closest('button[data-view-no]');
+        var viewBtn = target.closest('button[data-view-key]');
         if (viewBtn) {
           e.preventDefault();
           e.stopPropagation();
-          var viewNo = viewBtn.getAttribute('data-view-no');
-          var viewFound = partsData.filter(function(p){ return String(p.no) === String(viewNo); })[0];
+          var viewKey = viewBtn.getAttribute('data-view-key');
+          var viewFound = findItemByIdentityKey(viewKey);
           if (viewFound) openDetailModal(viewFound);
           return;
         }
 
-        var card = target.closest('article[data-view-no]');
+        var card = target.closest('article[data-view-key]');
         if (card) {
-          var no = card.getAttribute('data-view-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+          var key = card.getAttribute('data-view-key');
+          var found = findItemByIdentityKey(key);
           if (found) openDetailModal(found);
         }
       };
@@ -3804,13 +4123,16 @@
       if (!issueCartModal.classList.contains('hidden')) return;
       detailModalCurrentNo = item.no;
       document.getElementById('detailName').textContent = item.name || '-';
+      document.getElementById('detailNo').textContent = item.no || '-';
       document.getElementById('detailModel').textContent = item.model || '-';
       document.getElementById('detailBrand').textContent = item.brand || '-';
       document.getElementById('detailCategory').textContent = item.category || '-';
       document.getElementById('detailLine').textContent = item.line || '-';
+      document.getElementById('detailSubLine').textContent = item.subLine || item.__sourceSheet || '-';
+      document.getElementById('detailUnit').textContent = item.unit || 'PCS';
       document.getElementById('detailLocation').textContent = item.location || '-';
       console.log('[location][detail render]', { no: item.no, location: item.location, sheet: getCurrentSheetName() });
-      document.getElementById('detailStock').textContent = String(item.stock || 0);
+      document.getElementById('detailStock').textContent = String(item.stock || 0) + ' ' + (item.unit || 'PCS');
       document.getElementById('detailMinMax').textContent = String(item.min || 0) + '/' + String(item.max || 0);
       document.getElementById('detailNeedToOrder').textContent = String(getNeedToOrder(item));
       var detailStatus = document.getElementById('detailStatus');
@@ -3823,7 +4145,17 @@
       var detailImageSrc = toSafeImageUrl(mainUrl);
       var mainOk = detailImageSrc !== FALLBACK_IMAGE;
       var detailFallbackSrc = getSecondaryDriveImageUrl(mainUrl);
-      var detailMetaParts = [item.brand, item.category, item.line].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
+      var rawUnitPrice = firstDefined([item.unit_price, item.unitPrice], '');
+      var hasUnitPrice = rawUnitPrice !== '' && rawUnitPrice !== null && rawUnitPrice !== undefined;
+      var unitPriceNum = hasUnitPrice ? Number(rawUnitPrice) : NaN;
+      var unitPriceText = (hasUnitPrice && Number.isFinite(unitPriceNum)) ? unitPriceNum.toLocaleString() : 'To be confirmed';
+      document.getElementById('detailUnitPrice').textContent = unitPriceText;
+      document.getElementById('detailCurrency').textContent = item.currency || 'THB';
+      document.getElementById('detailSupplier').textContent = item.supplier || '-';
+      document.getElementById('detailPriceUpdatedAt').textContent = formatBangkokDateTime(item.price_updated_at);
+      document.getElementById('detailPriceRemark').textContent = item.price_remark || '-';
+      document.getElementById('detailRemark').textContent = item.remark || '-';
+      var detailMetaParts = [item.brand, item.category, item.line, (item.subLine || item.__sourceSheet || '')].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
       var needToOrder = getNeedToOrder(item);
       var metaText = detailMetaParts.join(' • ');
       document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
@@ -4037,6 +4369,7 @@
       openTxnPageWithItem('', 'Output');
     });
     qaReceiveBtn.addEventListener('click', function() {
+      if (!canReceivePart()) return;
       openTxnPageWithItem('', 'Input');
     });
     if (quickIssueBackdrop) quickIssueBackdrop.addEventListener('click', closeQuickIssueModal);
@@ -4196,6 +4529,14 @@
     editForm.addEventListener('submit', submitEditModal);
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
     if (prRunBtn) prRunBtn.addEventListener('click', runPrCandidateSelection);
+    if (prMode) prMode.addEventListener('change', function() {
+      var mode = String(prMode.value || 'assembly_monthly');
+      if (prLineFilter) prLineFilter.classList.toggle('hidden', mode !== 'line_specific');
+      if (mode === 'urgent') {
+        document.getElementById('prIncludeOut').checked = true;
+        document.getElementById('prCriticalOnly').checked = true;
+      }
+    });
     if (prCandidateList) prCandidateList.addEventListener('input', function(e) {
       var idx = Number((e.target.dataset.prQty || e.target.dataset.prCritical || e.target.dataset.prPrice || e.target.dataset.prMachine || e.target.dataset.prPurpose || e.target.dataset.prSelect || -1));
       if (idx < 0 || !prCandidateState[idx]) return;
@@ -4221,22 +4562,23 @@
         var raw = String(url || '').trim();
         if (!raw) return '';
         var m = raw.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
-        var normalized = m && m[1] ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w800') : raw;
-        if (typeof toSafeImageUrl === 'function') return toSafeImageUrl(normalized);
+        var normalized = m && m[1] ? ('https://drive.google.com/uc?export=view&id=' + m[1]) : raw;
         return normalized;
       }
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
       var preparedBy = document.getElementById('prPreparedBy').value || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
-      var submissionDate = new Date().toISOString().slice(0,10);
+      var submissionDate = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' });
       var normalized = selected.map(function(c) {
         var qty = asNum(c.suggestedQty || c.qty || 0);
-        var price = asNum(c.unitPrice || c.price || 0);
+        var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
+        var priceNum = rawPrice === '' ? NaN : asNum(rawPrice);
+        var price = (Number.isFinite(priceNum) && priceNum > 0) ? priceNum : null;
         var image = normalizeImageUrl(c.mainImage || c.image_main_url || c.imageUrlMain || c.imageMain || c.image || '');
         return {
           no: c.no || '-',
           category: c.category || '-',
-          line: c.line || '-',
+          line: canonicalLineName(c.line || '-'),
           subLine: c.subLine || '-',
           machineStation: c.machineStation || '-',
           name: c.name || '-',
@@ -4245,13 +4587,17 @@
           qty: qty > 0 ? qty : 1,
           critical: c.critical || '-',
           unitPrice: price,
-          amount: (qty > 0 ? qty : 1) * price,
+          currency: c.currency || 'THB',
+          supplier: c.supplier || '-',
+          priceUpdatedAt: c.priceUpdatedAt || c.price_updated_at || '-',
+          amount: price === null ? null : (qty > 0 ? qty : 1) * price,
           reason: c.purpose || c.reason || '-',
           stock: asNum(c.stock),
           image: image
         };
       });
-      var lines = Array.from(new Set(normalized.map(function(c){ return c.line; })));
+      var lineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+      var lines = lineOrder.filter(function(l){ return normalized.some(function(c){ return c.line === l; }); });
       var outCount = normalized.filter(function(c){ return c.stock <= 0; }).length;
       var highCount = normalized.filter(function(c){ return String(c.critical).toLowerCase().indexOf('high') > -1 || String(c.critical).toLowerCase().indexOf('critical') > -1; }).length;
       var toolRows = [];
@@ -4266,23 +4612,58 @@
         else if (c.stock <= 0 || c.critical.toLowerCase().indexOf('critical') > -1) spareRows.push(c);
         else toolRows.push(c);
       });
-      var pricedRows = normalized.filter(function(c){ return c.unitPrice > 0; });
+      var pricedRows = normalized.filter(function(c){ return c.unitPrice !== null; });
+      var unpricedRows = normalized.filter(function(c){ return c.unitPrice === null; });
       var totalAmount = pricedRows.reduce(function(sum, c){ return sum + c.amount; }, 0);
+      var pendingPriceCount = unpricedRows.length;
       console.debug('[PR] selectedItems count:', normalized.length);
       console.debug('[PR] selectedItems payload:', normalized);
       console.debug('[PR] categorized toolItems/sparePartItems:', toolRows.length, spareRows.length);
-      function rowHtml(c, i) {
-        return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+esc(c.line)+'/'+esc(c.subLine)+'</td><td>'+esc(c.machineStation || 'All')+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice ? c.unitPrice.toLocaleString() : '-')+'</td><td>'+(c.amount ? c.amount.toLocaleString() : '-')+'</td><td>'+esc(c.reason)+'</td></tr>';
-      }
       function imageRow(c) {
         console.debug('[PR] image url:', c.name, c.image || 'NO_IMAGE');
         var fallbackImage = (typeof getSecondaryDriveImageUrl === 'function' ? getSecondaryDriveImageUrl(c.image || '') : '');
         var picCell = c.image ? '<img src=\"'+esc(c.image)+'\" data-fallback-src=\"'+esc(fallbackImage || '')+'\" alt=\"'+esc(c.name)+'\" />' : 'No Image';
-        return '<tr><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model)+'</td><td>'+esc(c.qty)+'</td><td>'+picCell+'</td></tr>';
+        return picCell;
       }
       function sectionRows(rows, cols) {
         if (!rows.length) return '<tr><td colspan=\"'+cols+'\" class=\"empty\">No selected items in this section</td></tr>';
         return rows;
+      }
+      function renderLineGroupedDetailRows(items, cols) {
+        if (!items.length) return '<tr><td colspan=\"'+cols+'\" class=\"empty\">No selected items in this section</td></tr>';
+        var html = '';
+        var lineMap = {};
+        items.forEach(function(c){ (lineMap[c.line || '-'] = lineMap[c.line || '-'] || []).push(c); });
+        Object.keys(lineMap).forEach(function(lineName) {
+          var rows = lineMap[lineName];
+          var lineSubtotal = rows.filter(function(r){ return r.amount !== null; }).reduce(function(sum, r){ return sum + r.amount; }, 0);
+          html += '<tr><td colspan=\"8\" style=\"background:#f8fafc;font-weight:700;\">Line: ' + esc(lineName) + ' (' + rows.length + ' items)</td></tr>';
+          html += rows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice !== null ? c.unitPrice.toLocaleString() : 'TBC')+'</td><td>'+(c.amount !== null ? c.amount.toLocaleString() : 'TBC')+'</td><td>'+esc(c.reason)+'</td></tr>'; }).join('');
+          html += '<tr><td colspan=\"6\" style=\"text-align:right;font-weight:700;\">Subtotal (' + esc(lineName) + ')</td><td style=\"font-weight:700;\">' + (lineSubtotal ? lineSubtotal.toLocaleString() : 'TBC') + '</td><td></td></tr>';
+        });
+        return html;
+      }
+      function renderLineGroupedAnnexRows(items) {
+        if (!items.length) return '<tr><td colspan=\"5\" class=\"empty\">No selected items in this section</td></tr>';
+        var html = '';
+        var lineMap = {};
+        items.forEach(function(c){ (lineMap[c.line || '-'] = lineMap[c.line || '-'] || []).push(c); });
+        Object.keys(lineMap).forEach(function(lineName) {
+          html += '<tr><td colspan=\"5\" style=\"background:#f8fafc;font-weight:700;\">Line: ' + esc(lineName) + '</td></tr>';
+          html += lineMap[lineName].map(function(c){ return '<tr><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.supplier || '-')+'</td><td>'+esc(c.priceUpdatedAt || '-')+'</td><td>'+imageRow(c)+'</td></tr>'; }).join('');
+        });
+        return html;
+      }
+      function renderSummaryByLineRows() {
+        return ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'].map(function(lineName) {
+          var rows = normalized.filter(function(c){ return c.line === lineName; });
+          var qtySum = rows.reduce(function(sum, r){ return sum + Number(r.qty || 0); }, 0);
+          var criticalCount = rows.filter(function(r){ var lv = String(r.critical || '').toLowerCase(); return lv.indexOf('high') > -1 || lv.indexOf('critical') > -1; }).length;
+          var needPoCount = rows.filter(function(r){ return Number(r.stock || 0) <= Number(r.min || 0); }).length;
+          var knownAmount = rows.filter(function(r){ return r.amount !== null; }).reduce(function(sum, r){ return sum + r.amount; }, 0);
+          var tbcCount = rows.filter(function(r){ return r.amount === null; }).length;
+          return '<tr><td>'+esc(lineName)+'</td><td>'+rows.length+'</td><td>'+qtySum+'</td><td>'+criticalCount+'</td><td>'+needPoCount+'</td><td>'+(knownAmount ? knownAmount.toLocaleString() : 'TBC')+'</td><td>'+tbcCount+'</td></tr>';
+        }).join('');
       }
       return '<div class=\"pr-doc\">' +
         '<div class=\"top-note\">Purchase Request Supporting Report | Assembly Line</div><h1>PURCHASE REQUEST SUPPORTING REPORT</h1><h3>Spare Parts, Maintenance Tools and Production Support Tools</h3><p class=\"center\">Assembly Line: '+lines.join(' / ')+'</p>' +
@@ -4290,16 +4671,17 @@
         '<h2>1. Purpose of Request</h2><p>This report is prepared to support Purchase Request approval for spare parts, maintenance tools, and production support tools for the Assembly Line.</p>' +
         '<h2>2. Production Scope</h2><table><thead><tr><th>No.</th><th>Line / Area</th><th>Scope Description</th></tr></thead><tbody>' + lines.map(function(l, i){ return '<tr><td>'+(i+1)+'</td><td>'+l+'</td><td>Assembly process and production support</td></tr>'; }).join('') + '</tbody></table>' +
         '<h2>3. Background and Necessity</h2><p>Based on current stock status and transaction usage history, several items require replenishment to prevent machine downtime and maintain production continuity.</p>' +
-        '<h2>4. Executive Summary of Requested Items</h2><table><thead><tr><th>Category</th><th>Quantity Summary</th><th>Purpose</th></tr></thead><tbody><tr><td>Maintenance Tools / Production Support Tools</td><td>'+toolRows.length+' items</td><td>Machine setup, repair and support activities</td></tr><tr><td>Machine Spare Parts</td><td>'+spareRows.length+' items</td><td>Critical replacements for production continuity</td></tr><tr><td>Total Listed Items</td><td>'+normalized.length+' items</td><td>'+(pricedRows.length ? ('Estimated amount: ' + totalAmount.toLocaleString()) : 'Estimated amount: To be confirmed by Purchasing')+'</td></tr></tbody></table>' +
+        '<h2>4. Executive Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Covered main lines</td><td>'+lines.join(' / ')+'</td></tr><tr><td>Known Amount ('+(normalized[0] ? normalized[0].currency : 'THB')+')</td><td>'+(pricedRows.length ? totalAmount.toLocaleString() : 'TBC')+'</td></tr><tr><td>Pending Price Items</td><td>'+pendingPriceCount+' items</td></tr><tr><td>Approval Note</td><td>Items with pending price require Purchasing confirmation.</td></tr></tbody></table>' +
+        '<h3>4.1 Summary by Line</h3><table><thead><tr><th>Main Line</th><th>Items</th><th>Total Qty</th><th>High/Critical</th><th>Need PO</th><th>Known Amount</th><th>TBC Items</th></tr></thead><tbody>' + renderSummaryByLineRows() + '</tbody></table>' +
         '<h2>5. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support or non-urgent replacement.</td></tr></tbody></table>' +
         '<h2>6. Risk if Not Purchased</h2><p>Out-of-stock items: '+outCount+'. High/Critical items: '+highCount+'. Delayed replenishment may impact uptime, troubleshooting speed, and on-time delivery.</p>' +
         '<h2>7. Expected Benefits After Purchase</h2><p>Reduced downtime, improved maintenance response time, stable production continuity, and lower emergency purchase costs.</p>' +
         '<h2>8. Justification for Approval</h2><p>Requested items are directly related to production support, maintenance, troubleshooting, and quality control based on current demand and issue frequency.</p>' +
         '<h2>9. Approval Request Statement</h2><p>We would like to request approval to proceed with this Purchase Request to ensure safe and continuous production operations.</p>' +
-        '<h2>10. Detailed Requested Item List</h2><h3>10.1 Maintenance Tools / Production Support Tools</h3><table><thead><tr><th>No.</th><th>Category</th><th>Description</th><th>Line / Area</th><th>Request Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr></thead><tbody>' + sectionRows(toolRows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'/'+esc(c.subLine)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice ? c.unitPrice.toLocaleString() : 'To be confirmed')+'</td><td>'+(c.amount ? c.amount.toLocaleString() : 'To be confirmed')+'</td><td>'+esc(c.reason)+'</td></tr>'; }).join(''), 9) + '</tbody></table>' +
-        '<h3>10.2 Machine Spare Parts</h3><table><thead><tr><th>No.</th><th>Category</th><th>Description</th><th>Line / Area</th><th>Request Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr></thead><tbody>' + sectionRows(spareRows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'/'+esc(c.subLine)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice ? c.unitPrice.toLocaleString() : 'To be confirmed')+'</td><td>'+(c.amount ? c.amount.toLocaleString() : 'To be confirmed')+'</td><td>'+esc(c.reason)+'</td></tr>'; }).join(''), 9) + '</tbody></table>' +
-        '<h3>Annex A: Tool Request with Main Image</h3><table><thead><tr><th>Description</th><th>Brand</th><th>Model No.</th><th>Qty</th><th>Picture</th></tr></thead><tbody>' + sectionRows(toolRows.map(imageRow).join(''), 5) + '</tbody></table>' +
-        '<h3>Annex B: Spare Part Request with Main Image</h3><table><thead><tr><th>Description</th><th>Brand</th><th>Model No.</th><th>Qty</th><th>Picture</th></tr></thead><tbody>' + sectionRows(spareRows.map(imageRow).join(''), 5) + '</tbody></table>' +
+        '<h2>10. Detailed Requested Item List</h2><h3>10.1 Maintenance Tools / Production Support Tools</h3><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(toolRows, 8) + '</tbody></table>' +
+        '<h3>10.2 Machine Spare Parts</h3><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(spareRows, 8) + '</tbody></table>' +
+        '<h3>Annex A: Tools (Supplier / Price Date / Picture)</h3><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(toolRows) + '</tbody></table>' +
+        '<h3>Annex B: Spare Parts (Supplier / Price Date / Picture)</h3><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(spareRows) + '</tbody></table>' +
         '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
@@ -4311,9 +4693,9 @@
       var selected = prCandidateState.filter(function(c){ return c.selected; });
       if (!selected.length) return;
       var docHtml = buildDocumentGradeReport(selected);
-      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:break-word}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
+      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
       var win = window.open('', '_blank');
-      win.document.write('<html><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
+      win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
       win.document.close();
       setTimeout(function(){
         var imgs = win.document.querySelectorAll('img[data-fallback-src]');
@@ -4321,9 +4703,8 @@
           img.onerror = function() {
             var fb = img.getAttribute('data-fallback-src');
             if (fb && img.src !== fb) { img.src = fb; return; }
-            var txt = win.document.createTextNode('No Image');
-            img.parentNode.replaceChild(txt, img);
-          };
+                img.style.display = 'none';
+              };
         });
       }, 120);
       setTimeout(function(){ win.print(); }, 350);
