@@ -3053,13 +3053,15 @@ function getIssueCartEntries() {
       }).join('');
     }
 
-    function loadPartsData() {
+    function loadPartsData(options) {
+      var opts = options || {};
+      var skipCache = !!opts.skipCache;
       var requestSeq = ++partsLoadRequestSeq;
       var hasAppliedCache = false;
       desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
-      var cachePayload = loadLineCache(currentLine);
+      var cachePayload = skipCache ? null : loadLineCache(currentLine);
       if (cachePayload && cachePayload.items && cachePayload.items.length) {
         hasAppliedCache = true;
         desktopCardGrid.innerHTML = '<div class="col-span-full py-2 text-center text-slate-400 text-xs">โหลดจาก cache... กำลัง sync ข้อมูลล่าสุด</div>';
@@ -3429,7 +3431,7 @@ function getIssueCartEntries() {
             return { no: entry.no, sheetName: source.__sourceSheet || source.subLine || getCurrentSheetName() };
           });
           refreshItemsFromServer(refreshRefs).then(function(updated) {
-            if (!updated) loadPartsData();
+            if (!updated) loadPartsData({ skipCache: true });
           });
           loadLogData();
           if (detailModalCurrentNo && successNos.indexOf(String(detailModalCurrentNo)) > -1) {
@@ -3601,7 +3603,7 @@ function getIssueCartEntries() {
         showQuickToast('บันทึกสำเร็จ', 'success');
         closeQuickIssueModal();
         refreshItemsFromServer([{ no: item.no, sheetName: payload.sheetName }]).then(function(updated) {
-          if (!updated) loadPartsData();
+          if (!updated) loadPartsData({ skipCache: true });
         });
         if (!logPage.classList.contains('hidden')) loadLogData();
       }).catch(function(err) {
@@ -3670,7 +3672,7 @@ function getIssueCartEntries() {
         txnStatusFilter.value = preservedStatus;
         txnInStockOnly.checked = preservedInStockOnly;
         refreshItemsFromServer([{ no: selected.no, sheetName: payload.sheetName }]).then(function(updated) {
-          if (!updated) loadPartsData();
+          if (!updated) loadPartsData({ skipCache: true });
         });
         if (!logPage.classList.contains('hidden')) loadLogData();
       }).catch(function(err) {
