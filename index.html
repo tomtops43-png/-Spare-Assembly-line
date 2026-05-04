@@ -1320,6 +1320,58 @@
       if (Array.isArray(options) && options.length) return options.slice();
       return ['Main List Stock', 'Stock for MC'];
     }
+    function getLineCacheKey(lineKey) {
+      return 'spare_parts_cache::' + String(lineKey || currentLine || 'H9');
+    }
+    function loadLineCache(lineKey) {
+      try {
+        var raw = localStorage.getItem(getLineCacheKey(lineKey));
+        if (!raw) return null;
+        var parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.items)) return null;
+        return parsed;
+      } catch (err) {
+        return null;
+      }
+    }
+    function saveLineCache(lineKey, items) {
+      try {
+        localStorage.setItem(getLineCacheKey(lineKey), JSON.stringify({
+          updatedAt: Date.now(),
+          items: items || []
+        }));
+      } catch (err) {
+        console.warn('saveLineCache failed', err);
+      }
+    }
+    function applyLoadedPartsData(normalizedData) {
+      partsData = normalizedData.filter(function(item) {
+        return item.name && item.name !== '-';
+      });
+
+      console.log('[item data after save/load]', partsData);
+      populateCategoryOptions(partsData);
+      populateBrandOptions(partsData);
+      populatePartOptions(partsData);
+      populateTxnFilters(partsData);
+      populateManageLineOptions(false);
+      populateManageSheetOptions(false);
+      if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
+      if (!txnPage.classList.contains('hidden')) renderTxnResultList();
+      else txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">เปิดหน้าเบิก/รับเพื่อโหลดรายการ</div>';
+      selectTxnItem(currentTxnItemNo);
+      syncIssueCartWithStock();
+      applyAutoManageNo(false);
+      if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
+      if (partsData.length) {
+        var updatedAtText = document.getElementById('updatedAtText');
+        updatedAtText.textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH');
+        updatedAtText.classList.remove('hidden');
+      } else {
+        document.getElementById('updatedAtText').classList.add('hidden');
+      }
+      applyFilters();
+    }
 
     function populateManageSheetOptions(forceDefault, lineKey) {
       if (!manageSheetSelect) return;
@@ -2999,6 +3051,12 @@ function getIssueCartEntries() {
       desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
+      var cachePayload = loadLineCache(currentLine);
+      if (cachePayload && cachePayload.items && cachePayload.items.length) {
+        desktopCardGrid.innerHTML = '<div class="col-span-full py-2 text-center text-slate-400 text-xs">โหลดจาก cache... กำลัง sync ข้อมูลล่าสุด</div>';
+        mobileCardList.innerHTML = '<div class="py-2 text-center text-slate-400 text-xs">โหลดจาก cache... กำลัง sync ข้อมูลล่าสุด</div>';
+        applyLoadedPartsData(cachePayload.items);
+      }
 
       var activeSheets = getSheetOptionsForLine(currentLine);
       var totalSheets = activeSheets.length;
@@ -3033,32 +3091,8 @@ function getIssueCartEntries() {
             mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">' + progress + '</div>';
           });
         }).then(function(normalizedData) {
-          partsData = normalizedData.filter(function(item) {
-            return item.name && item.name !== '-';
-          });
-
-          console.log('[item data after save/load]', partsData);
-          populateCategoryOptions(partsData);
-          populateBrandOptions(partsData);
-          populatePartOptions(partsData);
-          populateTxnFilters(partsData);
-          populateManageLineOptions(false);
-          populateManageSheetOptions(false);
-          if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
-          if (!txnPage.classList.contains('hidden')) renderTxnResultList();
-          else txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">เปิดหน้าเบิก/รับเพื่อโหลดรายการ</div>';
-          selectTxnItem(currentTxnItemNo);
-          syncIssueCartWithStock();
-          applyAutoManageNo(false);
-          if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
-          if (partsData.length) {
-            var updatedAtText = document.getElementById('updatedAtText');
-            updatedAtText.textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH');
-            updatedAtText.classList.remove('hidden');
-          } else {
-            document.getElementById('updatedAtText').classList.add('hidden');
-          }
-          applyFilters();
+          applyLoadedPartsData(normalizedData);
+          saveLineCache(currentLine, normalizedData);
         })
         .catch(function(err) {
           var hint = 'ตรวจสอบ Apps Script Deployment: ต้องตั้งสิทธิ์เป็น Anyone และ deploy เวอร์ชันล่าสุด';
