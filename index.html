@@ -925,6 +925,7 @@
     var prCandidateState = [];
     var uploadJobQueue = [];
     var activeUploadJob = null;
+    var partsLoadRequestSeq = 0;
 
     var txnForm = document.getElementById('txnForm');
     var txnSearchInput = document.getElementById('txnSearchInput');
@@ -3053,11 +3054,14 @@ function getIssueCartEntries() {
     }
 
     function loadPartsData() {
+      var requestSeq = ++partsLoadRequestSeq;
+      var hasAppliedCache = false;
       desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
       var cachePayload = loadLineCache(currentLine);
       if (cachePayload && cachePayload.items && cachePayload.items.length) {
+        hasAppliedCache = true;
         desktopCardGrid.innerHTML = '<div class="col-span-full py-2 text-center text-slate-400 text-xs">โหลดจาก cache... กำลัง sync ข้อมูลล่าสุด</div>';
         mobileCardList.innerHTML = '<div class="py-2 text-center text-slate-400 text-xs">โหลดจาก cache... กำลัง sync ข้อมูลล่าสุด</div>';
         applyLoadedPartsData(cachePayload.items);
@@ -3085,6 +3089,7 @@ function getIssueCartEntries() {
             return item;
           });
         }).finally(function() {
+          if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
           desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
           mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
         });
@@ -3096,10 +3101,12 @@ function getIssueCartEntries() {
             mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">' + progress + '</div>';
           });
         }).then(function(normalizedData) {
+          if (requestSeq !== partsLoadRequestSeq) return;
           applyLoadedPartsData(normalizedData);
           saveLineCache(currentLine, normalizedData);
         })
         .catch(function(err) {
+          if (requestSeq !== partsLoadRequestSeq) return;
           var hint = 'ตรวจสอบ Apps Script Deployment: ต้องตั้งสิทธิ์เป็น Anyone และ deploy เวอร์ชันล่าสุด';
           desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-rose-500">' + err.message + '<br><span class="text-xs text-slate-500">' + hint + '</span></div>';
           mobileCardList.innerHTML = '<div class="py-8 text-center text-rose-500">' + err.message + '</div>';
