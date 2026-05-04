@@ -1902,6 +1902,7 @@
           localStorage.setItem('spare_auth_token', authToken);
           setAuthScreen(true);
           applyAuthorizationUi();
+          switchToStockPage();
           return data;
         });
     }
@@ -1913,6 +1914,7 @@
         .then(function(data) {
           currentUser = data.user;
           applyAuthorizationUi();
+          switchToStockPage();
           return data.user;
         });
     }
