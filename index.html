@@ -3117,6 +3117,62 @@ function getIssueCartEntries() {
         });
     }
 
+
+    function refreshItemsFromServer(itemRefs) {
+      var refs = (itemRefs || []).filter(function(ref) { return ref && ref.no; });
+      if (!refs.length) return Promise.resolve(false);
+      var sheetMap = {};
+      refs.forEach(function(ref) {
+        var sheet = String(ref.sheetName || getCurrentSheetName() || '').trim();
+        if (!sheet) return;
+        if (!sheetMap[sheet]) sheetMap[sheet] = {};
+        sheetMap[sheet][String(ref.no)] = true;
+      });
+      var sheets = Object.keys(sheetMap);
+      if (!sheets.length) return Promise.resolve(false);
+      return Promise.all(sheets.map(function(sheetName) {
+        return loadJsonpWithFallback(function(base){
+          var query = '?sheet=' + encodeURIComponent(sheetName);
+          return base + appendAuthToQuery(query);
+        }).catch(function() {
+          return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)));
+        }).then(function(rawData) {
+          if (!Array.isArray(rawData)) return [];
+          return rawData.map(function(item) { item.__sourceSheet = sheetName; return item; });
+        });
+      })).then(function(sheetChunks) {
+        var fetched = [].concat.apply([], sheetChunks);
+        var byNoAndSheet = {};
+        fetched.forEach(function(raw, idx) {
+          var normalized = normalizeRecord(raw, idx);
+          var key = String(normalized.no || '') + '::' + String(normalized.__sourceSheet || normalized.subLine || getCurrentSheetName());
+          byNoAndSheet[key] = normalized;
+        });
+        var changed = false;
+        refs.forEach(function(ref) {
+          var key = String(ref.no) + '::' + String(ref.sheetName || getCurrentSheetName());
+          var next = byNoAndSheet[key] || null;
+          for (var i = 0; i < partsData.length; i += 1) {
+            var item = partsData[i];
+            var itemKey = String(item.no || '') + '::' + String(item.__sourceSheet || item.subLine || getCurrentSheetName());
+            if (itemKey !== key) continue;
+            changed = true;
+            if (next) partsData[i] = next;
+            else partsData.splice(i, 1);
+            break;
+          }
+        });
+        if (changed) {
+          saveLineCache(currentLine, partsData);
+          applyLoadedPartsData(partsData.slice());
+        }
+        return changed;
+      }).catch(function(err) {
+        console.warn('refreshItemsFromServer failed', err);
+        return false;
+      });
+    }
+
     function normalizeRecordsInBatches(rawData, onProgress) {
       var list = Array.isArray(rawData) ? rawData : [];
       var total = list.length;
@@ -3368,7 +3424,13 @@ function getIssueCartEntries() {
         renderIssueCart();
 
         if (successNos.length) {
-          loadPartsData();
+          var refreshRefs = entries.filter(function(entry){ return successNos.indexOf(entry.no) > -1; }).map(function(entry){
+            var source = entry.item || {};
+            return { no: entry.no, sheetName: source.__sourceSheet || source.subLine || getCurrentSheetName() };
+          });
+          refreshItemsFromServer(refreshRefs).then(function(updated) {
+            if (!updated) loadPartsData();
+          });
           loadLogData();
           if (detailModalCurrentNo && successNos.indexOf(String(detailModalCurrentNo)) > -1) {
             var updated = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
@@ -3538,7 +3600,9 @@ function getIssueCartEntries() {
         applyFilters(false);
         showQuickToast('บันทึกสำเร็จ', 'success');
         closeQuickIssueModal();
-        loadPartsData();
+        refreshItemsFromServer([{ no: item.no, sheetName: payload.sheetName }]).then(function(updated) {
+          if (!updated) loadPartsData();
+        });
         if (!logPage.classList.contains('hidden')) loadLogData();
       }).catch(function(err) {
         quickIssueMessage.className = 'text-sm text-rose-600';
@@ -3605,7 +3669,9 @@ function getIssueCartEntries() {
         txnBrandFilter.value = preservedBrand;
         txnStatusFilter.value = preservedStatus;
         txnInStockOnly.checked = preservedInStockOnly;
-        loadPartsData();
+        refreshItemsFromServer([{ no: selected.no, sheetName: payload.sheetName }]).then(function(updated) {
+          if (!updated) loadPartsData();
+        });
         if (!logPage.classList.contains('hidden')) loadLogData();
       }).catch(function(err) {
         txnMessage.className = 'mt-3 text-sm text-rose-600';
