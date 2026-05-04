@@ -1208,15 +1208,11 @@
       if (value === undefined || value === null || value === '') return '-';
       var dt = new Date(value);
       if (!isNaN(dt.getTime())) {
-        return dt.toLocaleString('th-TH', {
+        return dt.toLocaleDateString('th-TH', {
           timeZone: 'Asia/Bangkok',
           year: 'numeric',
           month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
+          day: '2-digit'
         });
       }
       return String(value);
@@ -4426,7 +4422,7 @@
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
       var preparedBy = document.getElementById('prPreparedBy').value || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
-      var submissionDate = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+      var submissionDate = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' });
       var normalized = selected.map(function(c) {
         var qty = asNum(c.suggestedQty || c.qty || 0);
         var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
