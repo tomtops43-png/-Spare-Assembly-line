@@ -99,6 +99,32 @@ function ensureLocationColumnsForAllKnownSheets() {
   });
 }
 
+
+function ensurePriceColumnsForSheet(sheetName) {
+  var targetSheet = String(sheetName || '').trim();
+  if (!targetSheet) return;
+  var ctx = getMainSheetContext(targetSheet);
+  ensureColumnInContext(ctx, 'Unit Price', ['unitprice', 'unit_price']);
+  ensureColumnInContext(ctx, 'Currency', ['currency']);
+  ensureColumnInContext(ctx, 'Supplier', ['supplier']);
+  ensureColumnInContext(ctx, 'Price Updated At', ['priceupdatedat', 'price_updated_at']);
+  ensureColumnInContext(ctx, 'Price Remark', ['priceremark', 'price_remark']);
+}
+
+function ensurePriceColumnsForAllKnownSheets() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var discoveredSheets = spreadsheet.getSheets().map(function(s) { return s.getName(); });
+  var candidates = [SPARE_APP_CONFIG.readSheetName].concat(STOCK_LOCATION_SHEETS).concat(discoveredSheets);
+  var uniqueSheets = Array.from(new Set(candidates.filter(function(name) { return !!String(name || '').trim(); })));
+  uniqueSheets.forEach(function(sheetName) {
+    try {
+      ensurePriceColumnsForSheet(sheetName);
+    } catch (err) {
+      Logger.log('ensurePriceColumnsForAllKnownSheets warning [' + sheetName + ']: ' + (err && err.message ? err.message : err));
+    }
+  });
+}
+
 function pickRowValue(row, map, keys, fallbackValue) {
   for (var i = 0; i < keys.length; i += 1) {
     var idx = map[keys[i]];
@@ -807,7 +833,12 @@ function upsertMainItem(payload) {
     max: findCol(['max', 'qtymax']),
     min: findCol(['min', 'qtymin']),
     unit: findCol(['unit']),
-    stock: findCol(['stockqty', 'qtystock', 'qoh', 'stock', 'initialstock'])
+    stock: findCol(['stockqty', 'qtystock', 'qoh', 'stock', 'initialstock']),
+    unit_price: findCol(['unitprice', 'unit_price']),
+    currency: findCol(['currency']),
+    supplier: findCol(['supplier']),
+    price_updated_at: findCol(['priceupdatedat', 'price_updated_at']),
+    price_remark: findCol(['priceremark', 'price_remark'])
   };
 
   if (fieldCols.brand === undefined) {
@@ -837,6 +868,22 @@ function upsertMainItem(payload) {
   if (fieldCols.image_install_url === undefined) {
     fieldCols.image_install_url = ensureColumnInContext(ctx, 'image_install_url', ['image_install_url', 'imageinstallurl']);
   }
+  if (fieldCols.unit_price === undefined) {
+    fieldCols.unit_price = ensureColumnInContext(ctx, 'Unit Price', ['unitprice', 'unit_price']);
+  }
+  if (fieldCols.currency === undefined) {
+    fieldCols.currency = ensureColumnInContext(ctx, 'Currency', ['currency']);
+  }
+  if (fieldCols.supplier === undefined) {
+    fieldCols.supplier = ensureColumnInContext(ctx, 'Supplier', ['supplier']);
+  }
+  if (fieldCols.price_updated_at === undefined) {
+    fieldCols.price_updated_at = ensureColumnInContext(ctx, 'Price Updated At', ['priceupdatedat', 'price_updated_at']);
+  }
+  if (fieldCols.price_remark === undefined) {
+    fieldCols.price_remark = ensureColumnInContext(ctx, 'Price Remark', ['priceremark', 'price_remark']);
+  }
+
   if (fieldCols.image_install_file_id === undefined) {
     fieldCols.image_install_file_id = ensureColumnInContext(ctx, 'image_install_file_id', ['image_install_file_id', 'imageinstallfileid']);
   }
@@ -869,7 +916,12 @@ function upsertMainItem(payload) {
     max: payload.max || '',
     min: payload.min || '',
     unit: payload.unit || '',
-    stock: payload.stock || ''
+    stock: payload.stock || '',
+    unit_price: payload.unit_price === undefined ? '' : payload.unit_price,
+    currency: payload.currency || 'THB',
+    supplier: payload.supplier || '',
+    price_updated_at: payload.price_updated_at || '',
+    price_remark: payload.price_remark || ''
   };
   Logger.log('[upsertMainItem] sheet=%s no=%s location=%s', sheetName, noValue, values.location);
   setLocationOverride(sheetName, noValue, values.location);
@@ -982,6 +1034,7 @@ function doGet(e) {
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
       ensureLocationColumnsForAllKnownSheets();
+      ensurePriceColumnsForAllKnownSheets();
       return respond(upsertMainItem({
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
@@ -1001,7 +1054,12 @@ function doGet(e) {
       max: e.parameter.max,
       min: e.parameter.min,
       unit: e.parameter.unit,
-      stock: e.parameter.stock
+      stock: e.parameter.stock,
+      unit_price: e.parameter.unit_price,
+      currency: e.parameter.currency,
+      supplier: e.parameter.supplier,
+      price_updated_at: e.parameter.price_updated_at,
+      price_remark: e.parameter.price_remark
     }), e);
     }
     if (action === 'deleteItem') {
@@ -1011,6 +1069,7 @@ function doGet(e) {
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
     ensureLocationColumnsForAllKnownSheets();
+      ensurePriceColumnsForAllKnownSheets();
     var ctx = getMainSheetContext(sheetName);
     ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
     var map = ctx.map;
@@ -1045,7 +1104,12 @@ function doGet(e) {
         image_main_url: pickRowValue(row, map, ['image_main_url', 'imagemainurl', 'image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
         image_main_file_id: pickRowValue(row, map, ['image_main_file_id', 'imagemainfileid'], ''),
         image_install_url: pickRowValue(row, map, ['image_install_url', 'imageinstallurl', 'image_install', 'imageinstall', 'installimage', 'install_image'], ''),
-        image_install_file_id: pickRowValue(row, map, ['image_install_file_id', 'imageinstallfileid'], '')
+        image_install_file_id: pickRowValue(row, map, ['image_install_file_id', 'imageinstallfileid'], ''),
+        unit_price: pickRowValue(row, map, ['unitprice', 'unit_price'], ''),
+        currency: pickRowValue(row, map, ['currency'], 'THB'),
+        supplier: pickRowValue(row, map, ['supplier'], ''),
+        price_updated_at: pickRowValue(row, map, ['priceupdatedat', 'price_updated_at'], ''),
+        price_remark: pickRowValue(row, map, ['priceremark', 'price_remark'], '')
       };
     }).filter(function (item) {
       return item.name && item.name !== '-';
@@ -1125,6 +1189,7 @@ function doPost(e) {
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
       ensureLocationColumnsForAllKnownSheets();
+      ensurePriceColumnsForAllKnownSheets();
       return respond(upsertMainItem({
         sheetName: body.sheet || body.sheetName,
         no: body.no,
@@ -1144,7 +1209,12 @@ function doPost(e) {
         max: body.max,
         min: body.min,
         unit: body.unit,
-        stock: body.stock
+        stock: body.stock,
+        unit_price: body.unit_price,
+        currency: body.currency,
+        supplier: body.supplier,
+        price_updated_at: body.price_updated_at,
+        price_remark: body.price_remark
       }), e);
     }
     if (action === 'uploadImage' || action === 'upload') {
