@@ -789,6 +789,17 @@
       </form>
     </div>
   </div>
+  <div id="uploadQueuePanel" class="fixed bottom-4 right-4 z-[260] hidden w-[320px] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+    <div class="flex items-center justify-between">
+      <p class="text-sm font-semibold text-slate-800">Background Upload Queue</p>
+      <span id="uploadQueueBadge" class="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">0</span>
+    </div>
+    <p id="uploadQueueCurrent" class="mt-2 text-xs text-slate-600">Idle</p>
+    <div class="mt-2 h-2 w-full rounded bg-slate-200">
+      <div id="uploadQueueProgressBar" class="h-2 rounded bg-blue-600" style="width:0%"></div>
+    </div>
+    <p id="uploadQueuePending" class="mt-2 text-xs text-slate-500">Pending: 0</p>
+  </div>
 
   <div id="filterSheet" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 md:hidden">
     <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 space-y-3">
@@ -893,6 +904,11 @@
     var prCandidateList = document.getElementById('prCandidateList');
     var prReportPreview = document.getElementById('prReportPreview');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
+    var uploadQueuePanel = document.getElementById('uploadQueuePanel');
+    var uploadQueueBadge = document.getElementById('uploadQueueBadge');
+    var uploadQueueCurrent = document.getElementById('uploadQueueCurrent');
+    var uploadQueueProgressBar = document.getElementById('uploadQueueProgressBar');
+    var uploadQueuePending = document.getElementById('uploadQueuePending');
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
     var partsData = [];
@@ -907,6 +923,8 @@
     var quickIssueSubmitting = false;
     var logCache = [];
     var prCandidateState = [];
+    var uploadJobQueue = [];
+    var activeUploadJob = null;
 
     var txnForm = document.getElementById('txnForm');
     var txnSearchInput = document.getElementById('txnSearchInput');
@@ -1146,6 +1164,49 @@
     function safeNum(value) {
       var parsed = Number(value);
       return Number.isFinite(parsed) ? parsed : 0;
+    }
+    function updateUploadQueueUi() {
+      if (!uploadQueuePanel) return;
+      var pending = uploadJobQueue.length;
+      var active = activeUploadJob;
+      var visible = !!active || pending > 0;
+      uploadQueuePanel.classList.toggle('hidden', !visible);
+      if (uploadQueueBadge) uploadQueueBadge.textContent = String(pending + (active ? 1 : 0));
+      if (uploadQueuePending) uploadQueuePending.textContent = 'Pending: ' + pending;
+      if (!active) {
+        if (uploadQueueCurrent) uploadQueueCurrent.textContent = 'Idle';
+        if (uploadQueueProgressBar) uploadQueueProgressBar.style.width = '0%';
+        return;
+      }
+      if (uploadQueueCurrent) uploadQueueCurrent.textContent = active.label + ' • ' + Math.round(active.progress || 0) + '%';
+      if (uploadQueueProgressBar) uploadQueueProgressBar.style.width = Math.max(0, Math.min(100, active.progress || 0)) + '%';
+    }
+    function enqueueUploadJob(job) {
+      uploadJobQueue.push(job);
+      updateUploadQueueUi();
+      processNextUploadJob();
+    }
+    function processNextUploadJob() {
+      if (activeUploadJob || !uploadJobQueue.length) return;
+      var next = uploadJobQueue.shift();
+      activeUploadJob = { label: next.label || 'Uploading', progress: 1 };
+      updateUploadQueueUi();
+      function setProgress(p) {
+        if (!activeUploadJob) return;
+        activeUploadJob.progress = p;
+        updateUploadQueueUi();
+      }
+      Promise.resolve().then(function() { return next.run(setProgress); }).then(function() {
+        if (activeUploadJob) activeUploadJob.progress = 100;
+      }).catch(function(err) {
+        console.error('[upload job failed]', err);
+      }).finally(function() {
+        setTimeout(function() {
+          activeUploadJob = null;
+          updateUploadQueueUi();
+          processNextUploadJob();
+        }, 400);
+      });
     }
 
     function firstDefined(values, fallbackValue) {
@@ -3596,31 +3657,31 @@ function getIssueCartEntries() {
         price_remark: document.getElementById('ePriceRemark').value.trim()
       };
       console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
-      editMessage.className = 'mt-3 text-sm text-slate-500';
-      editMessage.textContent = 'กำลังอัปโหลดรูปและบันทึก...';
-      uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()).then(function(mainRes){
-        console.log('[upload main response][edit]', mainRes);
-        if (mainRes) {
-          var normalizedMainUrl = pickMainImageUrl(mainRes);
-          console.log('[normalized image URL][edit]', normalizedMainUrl);
-          if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
-          payload.photo = normalizedMainUrl;
-          payload.image_main = normalizedMainUrl;
-          payload.image_main_url = normalizedMainUrl;
-          payload.image_main_file_id = mainRes.fileId || '';
-          document.getElementById('eImageMainPreview').src = normalizedMainUrl;
+      editMessage.className = 'mt-3 text-sm text-emerald-600';
+      editMessage.textContent = 'เข้าคิวบันทึกรายการแล้ว ระบบจะอัปโหลดต่อเบื้องหลัง';
+      closeEditModal();
+      enqueueUploadJob({
+        label: 'Edit #' + itemNo,
+        run: function(setProgress) {
+          setProgress(10);
+          return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()).then(function(mainRes){
+            setProgress(55);
+            if (mainRes) {
+              var normalizedMainUrl = pickMainImageUrl(mainRes);
+              if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
+              payload.photo = normalizedMainUrl;
+              payload.image_main = normalizedMainUrl;
+              payload.image_main_url = normalizedMainUrl;
+              payload.image_main_file_id = mainRes.fileId || '';
+            }
+            setProgress(80);
+            return callManageAction('upsertItem', payload);
+          }).then(function(res){
+            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
+            setProgress(100);
+            loadPartsData();
+          });
         }
-        console.log('[save payload][edit]', payload);
-        return callManageAction('upsertItem', payload);
-      }).then(function(res){
-        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
-        editMessage.className = 'mt-3 text-sm text-emerald-600';
-        editMessage.textContent = 'บันทึกสำเร็จ (sheet: ' + (res.sheet || getCurrentSheetName()) + ', location: ' + (res.location || '-') + ')';
-        loadPartsData();
-        setTimeout(closeEditModal, 400);
-      }).catch(function(err){
-        editMessage.className = 'mt-3 text-sm text-rose-600';
-        editMessage.textContent = err.message;
       });
     }
 
@@ -3682,40 +3743,38 @@ function getIssueCartEntries() {
         price_remark: document.getElementById('mPriceRemark').value.trim()
       };
       console.log('[location][manage payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
-      manageMessage.className = 'mt-3 text-sm text-slate-500';
-      manageMessage.textContent = 'กำลังอัปโหลดรูปและบันทึกรายการ...';
-      uploadImageFile(mainFile, itemNo, 'main', document.getElementById('mName').value.trim()).then(function(mainRes) {
-        console.log('[upload main response][add]', mainRes);
-        if (mainRes) {
-          var normalizedMainUrl = pickMainImageUrl(mainRes);
-          console.log('[normalized image URL][add]', normalizedMainUrl);
-          if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
-          payload.photo = normalizedMainUrl;
-          payload.image_main = normalizedMainUrl;
-          payload.image_main_url = normalizedMainUrl;
-          payload.image_main_file_id = mainRes.fileId || '';
-          document.getElementById('mImageMainPreview').src = normalizedMainUrl;
+      manageMessage.className = 'mt-3 text-sm text-emerald-600';
+      manageMessage.textContent = 'เข้าคิวบันทึกรายการแล้ว ระบบจะอัปโหลดต่อเบื้องหลัง';
+      enqueueUploadJob({
+        label: 'Save #' + itemNo,
+        run: function(setProgress) {
+          setProgress(10);
+          return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('mName').value.trim()).then(function(mainRes) {
+            setProgress(55);
+            if (mainRes) {
+              var normalizedMainUrl = pickMainImageUrl(mainRes);
+              if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
+              payload.photo = normalizedMainUrl;
+              payload.image_main = normalizedMainUrl;
+              payload.image_main_url = normalizedMainUrl;
+              payload.image_main_file_id = mainRes.fileId || '';
+            }
+            setProgress(80);
+            return callManageAction('upsertItem', payload);
+          }).then(function(res) {
+            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
+            if (sheetSelector && sheetSelector.value !== selectedManageSheet) sheetSelector.value = selectedManageSheet;
+            if ((res.mode || '').toLowerCase() === 'create') {
+              manageForm.reset();
+              document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
+              populateManageLineOptions(true);
+              populateManageSheetOptions(true);
+              applyAutoManageNo(true);
+            }
+            setProgress(100);
+            loadPartsData();
+          });
         }
-        console.log('[save payload][add]', payload);
-        return callManageAction('upsertItem', payload);
-      }).then(function(res) {
-        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
-        manageMessage.className = 'mt-3 text-sm text-emerald-600';
-        manageMessage.textContent = 'สำเร็จ: ' + (res.mode || 'update') + ' ' + payload.no + ' (sheet: ' + (res.sheet || selectedManageSheet) + ', location: ' + (res.location || '-') + ')';
-        if (sheetSelector && sheetSelector.value !== selectedManageSheet) {
-          sheetSelector.value = selectedManageSheet;
-        }
-        if ((res.mode || '').toLowerCase() === 'create') {
-          manageForm.reset();
-          document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
-          populateManageLineOptions(true);
-          populateManageSheetOptions(true);
-          applyAutoManageNo(true);
-        }
-        loadPartsData();
-      }).catch(function(err) {
-        manageMessage.className = 'mt-3 text-sm text-rose-600';
-        manageMessage.textContent = err.message;
       });
     }
 
