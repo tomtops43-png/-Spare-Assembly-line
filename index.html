@@ -2206,11 +2206,13 @@ function getIssueCartEntries() {
     }
 
     function login(username, password) {
-      return requestApi({
-        action: 'login',
-        username: username,
-        password: password
-      })
+      var payload = { action: 'login', username: username, password: password };
+      var authPromise = shouldUseJsonpTransport()
+        ? loadJsonpWithFallback(function(base) {
+            return base + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password);
+          })
+        : requestApi(payload);
+      return authPromise
         .then(parseApiResponse)
         .then(function(data) {
           authToken = data.token;
@@ -2220,6 +2222,30 @@ function getIssueCartEntries() {
           applyAuthorizationUi();
           switchToStockPage();
           return data;
+        })
+        .catch(function(err) {
+          var msg = String(err && err.message ? err.message : err || '');
+          if (msg.indexOf('JSONP') > -1 || msg.indexOf('โหลดข้อมูล API ไม่สำเร็จ') > -1) {
+            // retry once using hard-coded default endpoint in case localStorage API URL is stale
+            localStorage.removeItem('spare_api_url');
+            API_URL = DEFAULT_API_URL;
+            ACTIVE_API_URL = DEFAULT_API_URL;
+            LINE_API_URL_MAP.H9 = DEFAULT_API_URL;
+            return loadJsonpWithFallback(function(base) {
+              return normalizeApiUrl(DEFAULT_API_URL) + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password);
+            }).then(parseApiResponse).then(function(data) {
+              authToken = data.token;
+              currentUser = data.user;
+              localStorage.setItem('spare_auth_token', authToken);
+              setAuthScreen(true);
+              applyAuthorizationUi();
+              switchToStockPage();
+              return data;
+            }).catch(function() {
+              throw new Error('ไม่สามารถเชื่อม Apps Script ได้ (JSONP). ตรวจสอบ Deploy URL: ' + DEFAULT_API_URL);
+            });
+          }
+          throw err;
         });
     }
 
