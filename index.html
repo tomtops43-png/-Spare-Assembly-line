@@ -3039,6 +3039,17 @@ function getIssueCartEntries() {
       requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
         if (rows && rows.status === 'error') throw new Error(rows.message || 'โหลดรายการคำขอไม่สำเร็จ');
         rows = Array.isArray(rows) ? rows : [];
+        rows = rows.filter(function(r) {
+          return String(r.request_id || '').trim() || String(r.item_name || '').trim() || String(r.status || '').trim();
+        }).map(function(r) {
+          if (!r.request_id) r.request_id = '-';
+          if (!r.item_name) r.item_name = '-';
+          if (!r.status) r.status = 'Pending';
+          return r;
+        });
+        rows.sort(function(a, b) {
+          return new Date(String(b.requested_date || b.updated_at || 0)).getTime() - new Date(String(a.requested_date || a.updated_at || 0)).getTime();
+        });
         var pending = rows.filter(function(r){ return String(r.status||'') === 'Pending'; });
         var urgent = rows.filter(function(r){ var p = String(r.priority || '').toLowerCase(); return p === 'urgent' || p === 'critical'; });
         document.getElementById('roPendingCount').textContent = String(pending.length);
