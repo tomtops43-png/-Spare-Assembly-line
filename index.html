@@ -856,6 +856,17 @@
 
 
   <script>
+    (function installLegacyRuntimeGuard() {
+      window.addEventListener('error', function(ev) {
+        var message = String((ev && ev.message) || '');
+        if (message.indexOf('normalizeApiUrl is not defined') === -1) return;
+        try {
+          var fresh = new URL(window.location.href);
+          fresh.searchParams.set('v', String(Date.now()));
+          window.location.replace(fresh.toString());
+        } catch (err) {}
+      });
+    })();
     var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzC-syvCpyq2uTVyceNQvr_XcnWIG50st2EraVJezpDqr72-dBbcyLhYFbRyqsbIC9vyg/exec';
     // Backward-compatible shim: some cached clients may still reference this helper.
     function normalizeApiUrl(url) { return String(url || '').trim(); }
