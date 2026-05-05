@@ -103,7 +103,7 @@
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
-          <button id="tabRequestOrder" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">ขอซื้ออะไหล่ <span id="requestPendingBadge" class="ml-1 hidden rounded-full bg-rose-500 px-2 py-0.5 text-[10px] text-white">0</span></button>
+          <button id="tabRequestOrder" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">ขอซื้ออะไหล่ <span id="requestPendingBadge" class="ml-2 hidden rounded-full border-2 border-white bg-rose-600 px-2.5 py-0.5 text-[11px] font-extrabold text-white shadow-lg animate-pulse">0</span></button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เพิ่มรายการเข้าระบบ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
         </div>
@@ -217,38 +217,44 @@
 
     <section id="requestOrderPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow p-4 md:p-6 mb-6">
       <h2 class="text-xl font-bold mb-3">ขอซื้ออะไหล่</h2>
-      <div class="grid md:grid-cols-2 gap-4">
-        <form id="requestOrderForm" class="space-y-2 border border-slate-200 rounded-xl p-3">
-          <input id="roItemSearch" placeholder="ค้นหาอะไหล่: ชื่อ / รุ่น / ยี่ห้อ / ไลน์ / ตำแหน่ง" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
-          <label class="flex items-center gap-2 text-sm text-slate-700"><input id="roNewItemToggle" type="checkbox" class="h-4 w-4" /> ไม่พบรายการในระบบ (ขอเพิ่มอะไหล่ใหม่)</label>
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <form id="requestOrderForm" class="space-y-3 border border-slate-200 rounded-xl p-3 xl:col-span-4">
+          <label class="text-sm font-semibold text-slate-700">ค้นหาอะไหล่</label>
+          <input id="roItemSearch" placeholder="ค้นหาอะไหล่" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
           <div id="roItemSearchResults" class="max-h-48 overflow-auto rounded border border-slate-200 bg-white text-sm"></div>
           <div id="roSelectedCard" class="hidden rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm md:text-sm"></div>
-          <div id="roNewItemFields" class="hidden space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <input id="roNewItemName" placeholder="ชื่ออะไหล่ใหม่" class="w-full rounded border px-3 py-2" />
-            <input id="roNewItemModel" placeholder="Model" class="w-full rounded border px-3 py-2" />
-            <input id="roNewItemBrand" placeholder="ยี่ห้อ" class="rounded border px-3 py-2" />
-          </div>
           <input id="roQty" type="number" min="1" placeholder="จำนวนที่ต้องการ" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" required />
           <select id="roReasonPreset" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm">
-            <option value="อะไหล่หมด">อะไหล่หมด</option><option value="ต่ำกว่า Min">ต่ำกว่า Min</option><option value="ใช้ซ่อมเครื่อง">ใช้ซ่อมเครื่อง</option><option value="เตรียมเป็น Spare">เตรียมเป็น Spare</option><option value="อื่นๆ">อื่นๆ</option>
+            <option value="">เลือกเหตุผล</option><option value="อะไหล่หมด">อะไหล่หมด</option><option value="ต่ำกว่าขั้นต่ำ">ต่ำกว่าขั้นต่ำ</option><option value="ใช้ซ่อมเครื่อง">ใช้ซ่อมเครื่อง</option><option value="เตรียมอะไหล่สำรอง">เตรียมอะไหล่สำรอง</option><option value="อื่นๆ">อื่นๆ</option>
           </select>
           <input id="roReasonOther" placeholder="ระบุเหตุผลเพิ่มเติม" class="hidden h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
           <input id="roRemark" placeholder="หมายเหตุ (ไม่บังคับ)" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
-          <label class="block text-sm text-slate-700">แนบรูปภาพ (ไม่บังคับ)</label>
+          <label class="text-sm font-semibold text-slate-700">แนบรูปภาพ (ไม่บังคับ)</label>
           <input id="roAttachmentFile" type="file" accept="image/*" class="h-11 w-full rounded border px-3 py-2 bg-white text-sm" />
           <img id="roAttachmentPreview" class="hidden h-24 w-24 rounded border object-cover" />
           <button class="h-12 w-full rounded bg-blue-600 text-base font-semibold text-white md:h-10 md:text-sm">ส่งคำขอซื้อ</button>
         </form>
-        <div class="border border-slate-200 rounded-xl p-3">
-          <div class="flex items-center justify-between mb-2"><h3 class="font-semibold">รายการคำขอซื้อ (ฝั่งแอดมิน)</h3><button id="roRefreshBtn" class="text-sm px-2 py-1 border rounded">รีเฟรช</button></div>
-          <div class="mb-2 grid grid-cols-2 gap-2 text-xs">
-            <div class="rounded bg-amber-50 border border-amber-200 px-2 py-1">Pending: <b id="roPendingCount">0</b></div>
-            <div class="rounded bg-rose-50 border border-rose-200 px-2 py-1">Urgent/Critical: <b id="roUrgentCount">0</b></div>
+
+        <div class="border border-slate-200 rounded-xl p-3 xl:col-span-8">
+          <div class="flex items-center justify-between mb-2"><h3 class="font-semibold">รายการรอดำเนินการ (ผู้ดูแล)</h3><button id="roRefreshBtn" class="text-sm px-2 py-1 border rounded">รีเฟรช</button></div>
+          <div class="mb-2 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+            <div class="rounded-xl border border-amber-300 bg-amber-100 px-3 py-2 font-semibold text-amber-900 shadow-sm">🟠 รอดำเนินการ: <b id="roPendingCount">0</b> ออร์เดอร์</div>
+            <div class="rounded-xl border border-rose-300 bg-rose-100 px-3 py-2 font-semibold text-rose-900 shadow-sm">🔴 ด่วน/วิกฤติ: <b id="roUrgentCount">0</b> ออร์เดอร์</div>
           </div>
           <select id="roStatusFilter" class="mb-2 w-full rounded border px-2 py-1 text-sm">
-            <option value="all">ทุกสถานะ</option><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="On Hold">On Hold</option><option value="Converted to PR">Converted to PR</option><option value="Rejected">Rejected</option><option value="Purchased">Purchased</option><option value="Received">Received</option><option value="Closed">Closed</option>
+            <option value="all">ทุกสถานะ</option><option value="Pending">รอดำเนินการ</option><option value="Approved">อนุมัติแล้ว</option><option value="On Hold">พักรายการ</option><option value="Converted to PR">แปลงเป็น PR แล้ว</option><option value="Rejected">ปฏิเสธ</option><option value="Purchased">สั่งซื้อแล้ว</option><option value="Received">รับเข้าแล้ว</option><option value="Closed">ปิดรายการ</option>
           </select>
           <div id="roList" class="space-y-2 text-sm"></div>
+        </div>
+      </div>
+
+      <div id="roDetailModal" class="fixed inset-0 z-50 hidden bg-black/40 p-0 md:p-6">
+        <div class="h-full w-full overflow-auto bg-white p-4 md:mx-auto md:h-auto md:max-w-3xl md:rounded-xl">
+          <div class="mb-3 flex items-center justify-between">
+            <h3 id="roDetailTitle" class="text-lg font-bold">รายการของผู้ขอ</h3>
+            <button id="roDetailClose" type="button" class="rounded border px-3 py-1">ปิด</button>
+          </div>
+          <div id="roDetailList" class="space-y-2"></div>
         </div>
       </div>
     </section>
@@ -304,7 +310,7 @@
                 <img id="txnSelectedImage" src="images/no-image.svg" alt="selected item" class="h-20 w-20 lg:h-28 lg:w-28 rounded-lg border border-slate-200 object-contain bg-slate-100 cursor-zoom-in" />
                 <div class="min-w-0 flex-1">
                   <p id="txnSelectedName" class="text-sm lg:text-lg font-semibold text-slate-900 leading-tight">-</p>
-                  <p id="txnSelectedModel" class="text-xs lg:text-sm text-slate-500 mt-1">Model: -</p>
+                  <p id="txnSelectedModel" class="text-xs lg:text-sm text-slate-500 mt-1">รุ่น: -</p>
                   <p id="txnSelectedNo" class="text-xs text-slate-500 mt-0.5">รหัส: -</p>
                   <div class="mt-3 flex items-center gap-2 flex-wrap">
                     <span id="txnSelectedStatus" class="inline-flex items-center rounded-full px-2 py-1 text-[11px] bg-slate-100 text-slate-600">-</span>
@@ -803,7 +809,7 @@
           </div>
           <div class="min-w-0 flex-1">
             <p id="quickIssueName" class="text-lg font-semibold leading-tight truncate">-</p>
-            <p id="quickIssueModel" class="mt-1 text-sm text-slate-600">Model: -</p>
+            <p id="quickIssueModel" class="mt-1 text-sm text-slate-600">รุ่น: -</p>
             <p id="quickIssueNo" class="text-sm text-slate-600">รหัส: -</p>
             <div class="mt-2 flex items-center gap-2">
               <span id="quickIssueStatus" class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold">-</span>
@@ -1102,7 +1108,7 @@
         { key: 'view_dashboard', label: 'ดู Dashboard' },
         { key: 'export_data', label: 'Export Data' }
       ]},
-      { key: 'request_order', targetId: 'permGroupRequestOrder', title: 'Request Order', items: [
+      { key: 'request_order', targetId: 'permGroupRequestOrder', title: 'ขอซื้ออะไหล่', items: [
         { key: 'request_order_create', label: 'สร้างคำขอซื้อ' },
         { key: 'request_order_view_own', label: 'ดูคำขอตัวเอง' },
         { key: 'request_order_view_all', label: 'ดูคำขอทั้งหมด' },
@@ -3030,20 +3036,30 @@ function getIssueCartEntries() {
       applyAutoManageNo(false);
     }
 
+    function toThaiRequestStatus(status) {
+      var map = {
+        'Pending': 'รอดำเนินการ',
+        'Approved': 'อนุมัติแล้ว',
+        'Rejected': 'ปฏิเสธ',
+        'On Hold': 'พักรายการ',
+        'Converted to PR': 'แปลงเป็น PR แล้ว',
+        'Purchased': 'สั่งซื้อแล้ว',
+        'Received': 'รับเข้าแล้ว',
+        'Closed': 'ปิดรายการ'
+      };
+      return map[String(status || '')] || String(status || '-');
+    }
+
     function loadOrderRequests() {
       var roList = document.getElementById('roList');
       var badge = document.getElementById('requestPendingBadge');
       var statusFilter = document.getElementById('roStatusFilter');
       if (!roList) return;
-      roList.innerHTML = 'Loading...';
+      roList.innerHTML = 'กำลังโหลด...';
       requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
         if (rows && rows.status === 'error') throw new Error(rows.message || 'โหลดรายการคำขอไม่สำเร็จ');
         rows = Array.isArray(rows) ? rows : [];
-        rows = rows.filter(function(r) {
-          return String(r.request_id || '').trim() || String(r.item_name || '').trim() || String(r.status || '').trim();
-        }).map(function(r) {
-          if (!r.request_id) r.request_id = '-';
-          if (!r.item_name) r.item_name = '-';
+        rows = rows.map(function(r) {
           if (!r.status) r.status = 'Pending';
           return r;
         });
@@ -3056,22 +3072,75 @@ function getIssueCartEntries() {
         document.getElementById('roUrgentCount').textContent = String(urgent.length);
         badge.textContent = String(pending.length);
         badge.classList.toggle('hidden', pending.length === 0);
+
         var filtered = rows;
         if (statusFilter && statusFilter.value !== 'all') filtered = rows.filter(function(r){ return String(r.status || '') === statusFilter.value; });
-        if (!filtered.length) { roList.innerHTML = '<p class="text-slate-400">ยังไม่มีคำขอ</p>'; return; }
-        roList.innerHTML = filtered.map(function(r) {
-          var actionBtns = hasPermission('request_order_approve') ? '<button data-id="'+r.request_id+'" data-act="approve" class="rounded border px-2 py-1.5">Approve</button> <button data-id="'+r.request_id+'" data-act="hold" class="rounded border px-2 py-1.5">Hold</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestPurchased" class="rounded border px-2 py-1.5">Purchased</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestReceived" class="rounded border px-2 py-1.5">Received</button>' : '';
-          actionBtns += hasPermission('request_order_reject') ? ' <button data-id="'+r.request_id+'" data-act="reject" class="rounded border px-2 py-1.5">Reject</button>' : '';
-          actionBtns += hasPermission('request_order_convert_pr') ? ' <button data-id="'+r.request_id+'" data-act="convert" class="rounded border px-2 py-1.5">Convert to PR</button>' : '';
-          actionBtns += hasPermission('request_order_close') ? ' <button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="rounded border px-2 py-1.5">Close</button>' : '';
-          return '<div class="border rounded p-2"><p class="font-semibold">'+(r.request_id||'-')+' • '+(r.item_name||'-')+' ('+(r.priority||'-')+')</p><p>Line: '+(r.line||'-')+' | Qty: '+(r.request_qty||0)+' | By: '+(r.requested_by||'-')+'</p><p>'+ (r.reason||'-') +'</p><p>Status: <b>'+(r.status||'-')+'</b></p><div class="mt-1 flex flex-wrap gap-1.5 text-xs">'+actionBtns+'</div></div>';
+        var grouped = {};
+        filtered.forEach(function(r) {
+          var key = String(r.requested_by || '').trim() || '__missing__';
+          grouped[key] = grouped[key] || [];
+          grouped[key].push(r);
+        });
+        var groupKeys = Object.keys(grouped);
+        if (!groupKeys.length) { roList.innerHTML = '<p class="text-slate-400">ยังไม่มีคำขอ</p>'; return; }
+        var groupedEntries = groupKeys.map(function(name){ return { name: name, items: grouped[name] || [] }; });
+        window.__roGroupedEntries = groupedEntries;
+        roList.innerHTML = groupedEntries.map(function(entry, gIdx) {
+          var name = entry.name;
+          var items = entry.items || [];
+          var urgentCount = items.filter(function(r){ var p = String(r.priority || '').toLowerCase(); return p === 'urgent' || p === 'critical'; }).length;
+          var lines = Array.from(new Set(items.map(function(r){ return String(r.line || '-').trim() || '-'; }))).join(', ');
+          var latest = items.reduce(function(acc, r){ var d = new Date(r.requested_date || r.updated_at || 0).getTime(); return d > acc ? d : acc; }, 0);
+          var latestText = latest ? new Date(latest).toLocaleDateString('th-TH') : '-';
+          var displayName = name === '__missing__' ? 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' : name;
+          return '<div class="rounded-xl border p-3">' +
+            '<p class="font-semibold">👤 ' + displayName + '</p>' +
+            '<p class="text-xs text-slate-600">จำนวนรายการรอดำเนินการ: ' + items.length + '</p>' +
+            '<p class="text-xs text-slate-600">รายการด่วน: ' + urgentCount + '</p>' +
+            '<p class="text-xs text-slate-600">ไลน์ที่เกี่ยวข้อง: ' + lines + '</p>' +
+            '<p class="text-xs text-slate-600">วันที่ล่าสุด: ' + latestText + '</p>' +
+            '<button type="button" data-group-idx="' + gIdx + '" class="mt-2 rounded bg-slate-900 px-3 py-1.5 text-white">ดูรายการ</button>' +
+          '</div>';
         }).join('');
+        
       }).catch(function(err) {
         roList.innerHTML = '<p class="text-rose-600">โหลดรายการคำขอไม่สำเร็จ: ' + (err && err.message ? err.message : err) + '</p>';
       });
     }
 
-    function inferRequestPriority(stock, min) {
+    function openRequestDetailByRequester(groupIdx) {
+      var groupedEntries = window.__roGroupedEntries || [];
+      var entry = groupedEntries[Number(groupIdx)] || { name: '', items: [] };
+      var name = entry.name || '';
+      var items = entry.items || [];
+      var detailModal = document.getElementById('roDetailModal');
+      var detailTitle = document.getElementById('roDetailTitle');
+      var detailList = document.getElementById('roDetailList');
+      if (!detailModal || !detailList || !detailTitle) return;
+      window.__roActiveGroupIdx = Number(groupIdx);
+      detailTitle.textContent = 'รายการของ: ' + (name === '__missing__' ? 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' : name);
+      detailList.innerHTML = items.map(function(r, idx) {
+        var invalid = !String(r.item_name || '').trim() || Number(r.request_qty || 0) <= 0 || !String(r.requested_by || '').trim();
+        var warning = invalid ? '<p class="text-xs text-rose-600 font-semibold">ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ</p>' : '';
+        var actions = '';
+        if (hasPermission('request_order_approve')) actions += '<button data-id="'+r.request_id+'" data-act="approve" class="rounded border px-2 py-1.5">อนุมัติ</button> <button data-id="'+r.request_id+'" data-act="hold" class="rounded border px-2 py-1.5">พักรายการ</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestPurchased" class="rounded border px-2 py-1.5">สั่งซื้อแล้ว</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestReceived" class="rounded border px-2 py-1.5">รับเข้าแล้ว</button> ';
+        if (hasPermission('request_order_reject')) actions += '<button data-id="'+r.request_id+'" data-act="reject" class="rounded border px-2 py-1.5">ปฏิเสธ</button> ';
+        if (hasPermission('request_order_convert_pr')) actions += '<button data-id="'+r.request_id+'" data-act="convert" class="rounded border px-2 py-1.5">แปลงเป็น PR</button> ';
+        if (hasPermission('request_order_close')) actions += '<button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="rounded border px-2 py-1.5">ปิดรายการ</button>';
+        return '<div class="rounded-xl border p-3">' +
+          '<p class="font-semibold">' + (idx + 1) + '. ' + (r.item_name || '-') + '</p>' +
+          '<p class="text-sm">จำนวน: ' + (r.request_qty || 0) + '</p>' +
+          '<p class="text-sm">ไลน์: ' + (r.line || '-') + '</p>' +
+          '<p class="text-sm">เหตุผล: ' + (r.reason || '-') + '</p>' +
+          '<p class="text-sm">สถานะ: <b>' + toThaiRequestStatus(r.status) + '</b></p>' +
+          '<div class="mt-2">' + ((r.attachment_url || r.image_main_url) ? '<img src="' + (r.attachment_url || r.image_main_url) + '" class="h-24 w-24 rounded border object-cover"/>' : '<span class="text-xs text-slate-400">ไม่มีรูปแนบ</span>') + '</div>' + warning +
+          '<div class="mt-2 flex flex-wrap gap-1.5 text-xs">' + actions + '</div>' +
+        '</div>';
+      }).join('') || '<p class="text-slate-400">ไม่พบรายการ</p>';
+      detailModal.classList.remove('hidden');
+    }
+
+function inferRequestPriority(stock, min) {
       var s = Number(stock || 0), m = Number(min || 0);
       if (s <= 0) return 'Critical';
       if (s <= m) return 'Urgent';
@@ -3094,10 +3163,10 @@ function getIssueCartEntries() {
       card.innerHTML = '<div class="flex gap-3 items-start">' +
         '<img src="' + (item.image_main || item.photo || 'images/no-image.svg') + '" class="h-16 w-16 rounded border bg-white object-contain"/>' +
         '<div class="min-w-0"><p class="font-semibold">' + (item.name || '-') + '</p>' +
-        '<p class="text-xs text-slate-600">Model: ' + (item.model || '-') + ' | Line: ' + (item.line || '-') + '</p>' +
+        '<p class="text-xs text-slate-600">รุ่น: ' + (item.model || '-') + ' | ไลน์: ' + (item.line || '-') + '</p>' +
         '<p class="text-xs text-slate-600">ยี่ห้อ: ' + (item.brand || '-') + '</p>' +
-        '<p class="text-xs text-slate-700">Stock: <b>' + (item.stock || 0) + '</b> | Min/Max: ' + (item.min || 0) + '/' + (item.max || 0) + '</p>' +
-        '<p class="text-xs">Status: <b>' + getStockItemStatusLabel(item.stock, item.min) + '</b> | Location: ' + (item.location || '-') + '</p>' +
+        '<p class="text-xs text-slate-700">จำนวนคงเหลือ: <b>' + (item.stock || 0) + '</b> | ขั้นต่ำ/สูงสุด: ' + (item.min || 0) + '/' + (item.max || 0) + '</p>' +
+        '<p class="text-xs">สถานะ: <b>' + getStockItemStatusLabel(item.stock, item.min) + '</b> | ตำแหน่ง: ' + (item.location || '-') + '</p>' +
         '</div></div>';
     }
 
@@ -3490,7 +3559,7 @@ function getIssueCartEntries() {
       txnSelectedImage.setAttribute('data-fallback-src', secondaryFallback || '');
       bindImageFallback(txnSelectedImage);
       txnSelectedName.textContent = selected.name || '-';
-      txnSelectedModel.textContent = 'Model: ' + (selected.model || '-');
+      txnSelectedModel.textContent = 'รุ่น: ' + (selected.model || '-');
       txnSelectedNo.textContent = 'รหัส: ' + (selected.no || '-');
       txnSelectedStatus.textContent = status;
       txnSelectedStatus.className = 'inline-flex items-center rounded-full px-2 py-1 text-[11px] ' + tone.badgeClass;
@@ -3566,7 +3635,7 @@ function getIssueCartEntries() {
           '<img src="' + toSafeImageUrl(item.image_main_url) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + getSecondaryDriveImageUrl(item.image_main_url) + '" />' +
           '<div class="min-w-0 flex-1">' +
           '<p class="text-sm font-semibold text-slate-900 truncate">' + (item.name || '-') + '</p>' +
-          '<p class="text-xs text-slate-500 truncate mt-1">Model: ' + (item.model || '-') + ' • #' + (item.no || '-') + '</p>' +
+          '<p class="text-xs text-slate-500 truncate mt-1">รุ่น: ' + (item.model || '-') + ' • #' + (item.no || '-') + '</p>' +
           '<div class="mt-2 flex items-center justify-between gap-2">' +
           '<span class="inline-flex items-center rounded-full px-2 py-1 text-[11px] ' + tone.badgeClass + '">' + status + '</span>' +
           '<span class="text-xs font-semibold text-blue-700">Stock: ' + (item.stock || 0) + ' ' + (item.unit || 'PCS') + '</span>' +
@@ -3759,7 +3828,7 @@ function getIssueCartEntries() {
       quickIssueImage.setAttribute('data-fallback-src', secondaryFallback || '');
       bindImageFallback(quickIssueImage);
       quickIssueName.textContent = item.name || '-';
-      quickIssueModel.textContent = 'Model: ' + (item.model || '-');
+      quickIssueModel.textContent = 'รุ่น: ' + (item.model || '-');
       quickIssueNo.textContent = 'รหัส: ' + (item.no || '-');
       quickIssueStatus.textContent = status;
       quickIssueStatus.className = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + tone.badgeClass;
@@ -5131,10 +5200,22 @@ function getIssueCartEntries() {
     if (roRefreshBtn) roRefreshBtn.addEventListener('click', loadOrderRequests);
     if (roStatusFilter) roStatusFilter.addEventListener('change', loadOrderRequests);
     if (roListEl) roListEl.addEventListener('click', function(e){
+      var btn = e.target.closest('[data-group-idx]');
+      var groupIdx = btn ? btn.getAttribute('data-group-idx') : '';
+      if (groupIdx !== '') return openRequestDetailByRequester(groupIdx);
+    });
+    var roDetailModal = document.getElementById('roDetailModal');
+    var roDetailClose = document.getElementById('roDetailClose');
+    var roDetailList = document.getElementById('roDetailList');
+    if (roDetailClose && roDetailModal) roDetailClose.addEventListener('click', function(){ roDetailModal.classList.add('hidden'); });
+    if (roDetailList) roDetailList.addEventListener('click', function(e){
       var id = e.target.getAttribute('data-id'); var act = e.target.getAttribute('data-act'); if (!id || !act) return;
-      if (act === 'convert') return requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] })).then(loadOrderRequests);
-      var actionNameMap = { approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' };
-      requestApi(withAuthPayload({ action: actionNameMap[act] || act, request_id: id })).then(loadOrderRequests);
+      var run = act === 'convert'
+        ? requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] }))
+        : requestApi(withAuthPayload({ action: ({ approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' }[act] || act), request_id: id }));
+      run.then(function(){ loadOrderRequests(); }).then(function(){
+        if (window.__roActiveGroupIdx !== undefined) openRequestDetailByRequester(window.__roActiveGroupIdx);
+      });
     });
     document.getElementById('loginForm').addEventListener('submit', function(e) {
       e.preventDefault();

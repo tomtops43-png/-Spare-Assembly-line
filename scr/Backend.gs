@@ -254,7 +254,8 @@ function ensureOrderRequestsSheetReady(payload) {
 
 function createOrderRequest(payload) {
   try {
-    var user = getRequiredUserFromToken({ authToken: payload.authToken });
+    var session = getSessionUser({ authToken: payload.authToken });
+    var user = findUserByUsername(session.user.username);
     requirePermission({ authToken: payload.authToken }, 'request_order_create');
     var sheet = getOrderRequestSheet();
     var now = new Date();
@@ -276,7 +277,8 @@ function createOrderRequest(payload) {
 
 function getOrderRequests(payload) {
   try {
-    var user = getRequiredUserFromToken({ authToken: payload.authToken });
+    var session = getSessionUser({ authToken: payload.authToken });
+    var user = findUserByUsername(session.user.username);
     var canViewAll = hasPermissionForUser(user, 'request_order_view_all');
     var canViewOwn = hasPermissionForUser(user, 'request_order_view_own');
     if (!canViewAll && !canViewOwn) throw new Error('ไม่มีสิทธิ์ดูคำขอซื้อ');
@@ -295,7 +297,9 @@ function getOrderRequests(payload) {
 }
 
 function updateOrderRequestStatus(payload, nextStatus) {
-  var user = getRequiredUserFromToken({ authToken: payload.authToken });
+  if (ORDER_REQUEST_STATUSES.indexOf(nextStatus) === -1) throw new Error('สถานะไม่ถูกต้อง: ' + nextStatus);
+  var session = getSessionUser({ authToken: payload.authToken });
+  var user = findUserByUsername(session.user.username);
   var sheet = getOrderRequestSheet();
   var values = sheet.getDataRange().getValues();
   var headers = values[0];
@@ -1423,4 +1427,3 @@ function respond(data, e) {
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
-  if (ORDER_REQUEST_STATUSES.indexOf(nextStatus) === -1) throw new Error('สถานะไม่ถูกต้อง: ' + nextStatus);
