@@ -1035,6 +1035,8 @@
     var requestOrderPage = document.getElementById('requestOrderPage');
     var roSelectedItem = null;
     var roSearchResultState = [];
+    var roSearchPool = [];
+    var roSearchPoolLoaded = false;
     var managePage = document.getElementById('managePage');
     var adminPage = document.getElementById('adminPage');
     var logTable = document.getElementById('logTable');
@@ -3088,10 +3090,44 @@ function getIssueCartEntries() {
         '</div></div>';
     }
 
+    function loadRequestOrderSearchPool() {
+      if (roSearchPoolLoaded && roSearchPool.length) return Promise.resolve(roSearchPool);
+      var allSheets = [];
+      Object.keys(LINE_SHEET_OPTIONS || {}).forEach(function(lineKey) {
+        (LINE_SHEET_OPTIONS[lineKey] || []).forEach(function(sheetName) { allSheets.push(sheetName); });
+      });
+      allSheets = Array.from(new Set(allSheets));
+      if (!allSheets.length) {
+        roSearchPoolLoaded = true;
+        roSearchPool = (partsData || []).slice();
+        return Promise.resolve(roSearchPool);
+      }
+      var tasks = allSheets.map(function(sheetName) {
+        return loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)); })
+          .then(function(rows) { return Array.isArray(rows) ? rows : []; })
+          .catch(function() { return []; });
+      });
+      return Promise.all(tasks).then(function(resultSets) {
+        var merged = [];
+        resultSets.forEach(function(arr) { merged = merged.concat(arr); });
+        if (!merged.length) merged = (partsData || []).slice();
+        var dedup = {};
+        roSearchPool = merged.filter(function(item) {
+          var key = [item.no, item.name, item.model, item.line].join('::');
+          if (dedup[key]) return false;
+          dedup[key] = true;
+          return true;
+        });
+        roSearchPoolLoaded = true;
+        return roSearchPool;
+      });
+    }
+
     function switchToRequestOrderPage() {
       stockPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
       setTabStyles('request-order');
+      loadRequestOrderSearchPool();
       loadOrderRequests();
     }
 
@@ -5019,7 +5055,8 @@ function getIssueCartEntries() {
       roItemSearch.addEventListener('input', function() {
         var q = String(roItemSearch.value || '').trim().toLowerCase();
         if (!q) { roSearchResultState = []; roItemSearchResults.innerHTML = ''; return; }
-        var filtered = (partsData || []).filter(function(p) {
+        var source = (roSearchPool && roSearchPool.length) ? roSearchPool : (partsData || []);
+        var filtered = source.filter(function(p) {
           var blob = [p.name, p.model, p.brand, p.line, p.location].join(' ').toLowerCase();
           return blob.indexOf(q) > -1;
         }).slice(0, 20);
