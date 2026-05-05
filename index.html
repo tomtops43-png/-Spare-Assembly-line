@@ -3139,6 +3139,7 @@ function getIssueCartEntries() {
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
       setTabStyles('request-order');
       loadRequestOrderSearchPool();
+      requestApi(withAuthPayload({ action: 'ensureOrderRequestsSheet' })).catch(function() {});
       loadOrderRequests();
     }
 

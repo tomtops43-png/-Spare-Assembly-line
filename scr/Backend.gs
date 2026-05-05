@@ -241,6 +241,17 @@ function toRequestObject(headers, row) {
   return out;
 }
 
+function ensureOrderRequestsSheetReady(payload) {
+  try {
+    requirePermission({ authToken: payload.authToken }, 'view');
+    var sheet = getOrderRequestSheet();
+    return { status: 'success', sheet: sheet.getName(), ready: true };
+  } catch (err) {
+    Logger.log('ensureOrderRequestsSheetReady error: ' + (err && err.message ? err.message : err));
+    throw err;
+  }
+}
+
 function createOrderRequest(payload) {
   try {
     var user = getRequiredUserFromToken({ authToken: payload.authToken });
@@ -1141,6 +1152,7 @@ function doGet(e) {
     if (action === 'deleteUser') return respond(deleteUser({ authToken: authToken, username: e.parameter.username }), e);
     if (action === 'createOrderRequest') return respond(createOrderRequest(e.parameter), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(e.parameter), e);
+    if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
     if (action === 'rejectOrderRequest') return respond(rejectOrderRequest(e.parameter), e);
     if (action === 'holdOrderRequest') return respond(holdOrderRequest(e.parameter), e);
@@ -1320,6 +1332,7 @@ function doPost(e) {
     }
     if (action === 'createOrderRequest') return respond(createOrderRequest(body), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(body), e);
+    if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(body), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(body), e);
     if (action === 'rejectOrderRequest') return respond(rejectOrderRequest(body), e);
     if (action === 'holdOrderRequest') return respond(holdOrderRequest(body), e);
