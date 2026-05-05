@@ -3034,6 +3034,7 @@ function getIssueCartEntries() {
       if (!roList) return;
       roList.innerHTML = 'Loading...';
       requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
+        if (rows && rows.status === 'error') throw new Error(rows.message || 'โหลดรายการคำขอไม่สำเร็จ');
         rows = Array.isArray(rows) ? rows : [];
         var pending = rows.filter(function(r){ return String(r.status||'') === 'Pending'; });
         var urgent = rows.filter(function(r){ var p = String(r.priority || '').toLowerCase(); return p === 'urgent' || p === 'critical'; });
@@ -3051,6 +3052,8 @@ function getIssueCartEntries() {
           actionBtns += hasPermission('request_order_close') ? ' <button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="rounded border px-2 py-1.5">Close</button>' : '';
           return '<div class="border rounded p-2"><p class="font-semibold">'+(r.request_id||'-')+' • '+(r.item_name||'-')+' ('+(r.priority||'-')+')</p><p>Line: '+(r.line||'-')+' | Qty: '+(r.request_qty||0)+' | By: '+(r.requested_by||'-')+'</p><p>'+ (r.reason||'-') +'</p><p>Status: <b>'+(r.status||'-')+'</b></p><div class="mt-1 flex flex-wrap gap-1.5 text-xs">'+actionBtns+'</div></div>';
         }).join('');
+      }).catch(function(err) {
+        roList.innerHTML = '<p class="text-rose-600">โหลดรายการคำขอไม่สำเร็จ: ' + (err && err.message ? err.message : err) + '</p>';
       });
     }
 
@@ -5059,7 +5062,17 @@ function getIssueCartEntries() {
         remark: document.getElementById('roRemark').value,
         attachment_url: roAttachmentDataUrl
       });
-      requestApi(payload).then(function(){ e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); if (roNewItemFields) roNewItemFields.classList.add('hidden'); loadOrderRequests(); });
+      var submitBtn = requestOrderFormEl.querySelector('button[type="submit"], button');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'กำลังส่ง...'; }
+      requestApi(payload).then(function(res){
+        if (res && res.status === 'error') throw new Error(res.message || 'ส่งคำขอไม่สำเร็จ');
+        alert('ส่งคำขอซื้อเรียบร้อย');
+        e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); if (roNewItemFields) roNewItemFields.classList.add('hidden'); loadOrderRequests();
+      }).catch(function(err) {
+        alert('ส่งคำขอไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+      }).finally(function() {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งคำขอซื้อ'; }
+      });
     });
     var roRefreshBtn = document.getElementById('roRefreshBtn');
     var roStatusFilter = document.getElementById('roStatusFilter');
