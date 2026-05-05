@@ -325,15 +325,23 @@ function markOrderRequestReceived(payload) { requirePermission({ authToken: payl
 function convertOrderRequestsToPR(payload) {
   requirePermission({ authToken: payload.authToken }, 'request_order_convert_pr');
   var ids = Array.isArray(payload.request_ids) ? payload.request_ids : [];
+  if (!ids.length) throw new Error('ต้องมี request_ids อย่างน้อย 1 รายการ');
   var convertedPrId = payload.converted_pr_id || ('PR-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss'));
+  var sheet = getOrderRequestSheet();
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0] || [];
+  var idxRid = headers.indexOf('request_id');
+  var idxPr = headers.indexOf('converted_pr_id');
+  if (idxRid === -1 || idxPr === -1) throw new Error('โครงสร้างชีท OrderRequests ไม่ถูกต้อง');
+
   ids.forEach(function(id) {
     updateOrderRequestStatus({ authToken: payload.authToken, request_id: id, admin_comment: payload.admin_comment || '' }, 'Converted to PR');
-    var sheet = getOrderRequestSheet();
-    var values = sheet.getDataRange().getValues();
-    var headers = values[0];
-    var idxRid = headers.indexOf('request_id');
-    var idxPr = headers.indexOf('converted_pr_id');
-    for (var i = 1; i < values.length; i += 1) if (String(values[i][idxRid]) === String(id)) sheet.getRange(i + 1, idxPr + 1).setValue(convertedPrId);
+    for (var i = 1; i < values.length; i += 1) {
+      if (String(values[i][idxRid]) === String(id)) {
+        sheet.getRange(i + 1, idxPr + 1).setValue(convertedPrId);
+        break;
+      }
+    }
   });
   return { status: 'success', converted_pr_id: convertedPrId, count: ids.length };
 }
