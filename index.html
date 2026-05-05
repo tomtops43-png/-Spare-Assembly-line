@@ -229,14 +229,17 @@
           </select>
           <input id="roReasonOther" placeholder="ระบุเหตุผลเพิ่มเติม" class="hidden h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
           <input id="roRemark" placeholder="หมายเหตุ (ไม่บังคับ)" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
+          <label class="text-sm font-semibold text-slate-700">แนบรูปภาพ (ไม่บังคับ)</label>
+          <input id="roAttachmentFile" type="file" accept="image/*" class="h-11 w-full rounded border px-3 py-2 bg-white text-sm" />
+          <img id="roAttachmentPreview" class="hidden h-24 w-24 rounded border object-cover" />
           <button class="h-12 w-full rounded bg-blue-600 text-base font-semibold text-white md:h-10 md:text-sm">ส่งคำขอซื้อ</button>
         </form>
 
         <div class="border border-slate-200 rounded-xl p-3 xl:col-span-8">
           <div class="flex items-center justify-between mb-2"><h3 class="font-semibold">รายการรอดำเนินการ (ผู้ดูแล)</h3><button id="roRefreshBtn" class="text-sm px-2 py-1 border rounded">รีเฟรช</button></div>
-          <div class="mb-2 grid grid-cols-2 gap-2 text-xs">
-            <div class="rounded bg-amber-50 border border-amber-200 px-2 py-1">รอดำเนินการ: <b id="roPendingCount">0</b></div>
-            <div class="rounded bg-rose-50 border border-rose-200 px-2 py-1">ด่วน/วิกฤติ: <b id="roUrgentCount">0</b></div>
+          <div class="mb-2 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+            <div class="rounded-xl border border-amber-300 bg-amber-100 px-3 py-2 font-semibold text-amber-900 shadow-sm">🟠 รอดำเนินการ: <b id="roPendingCount">0</b> ออร์เดอร์</div>
+            <div class="rounded-xl border border-rose-300 bg-rose-100 px-3 py-2 font-semibold text-rose-900 shadow-sm">🔴 ด่วน/วิกฤติ: <b id="roUrgentCount">0</b> ออร์เดอร์</div>
           </div>
           <select id="roStatusFilter" class="mb-2 w-full rounded border px-2 py-1 text-sm">
             <option value="all">ทุกสถานะ</option><option value="Pending">รอดำเนินการ</option><option value="Approved">อนุมัติแล้ว</option><option value="On Hold">พักรายการ</option><option value="Converted to PR">แปลงเป็น PR แล้ว</option><option value="Rejected">ปฏิเสธ</option><option value="Purchased">สั่งซื้อแล้ว</option><option value="Received">รับเข้าแล้ว</option><option value="Closed">ปิดรายการ</option>
@@ -3124,7 +3127,8 @@ function getIssueCartEntries() {
           '<p class="text-sm">จำนวน: ' + (r.request_qty || 0) + '</p>' +
           '<p class="text-sm">ไลน์: ' + (r.line || '-') + '</p>' +
           '<p class="text-sm">เหตุผล: ' + (r.reason || '-') + '</p>' +
-          '<p class="text-sm">สถานะ: <b>' + toThaiRequestStatus(r.status) + '</b></p>' + warning +
+          '<p class="text-sm">สถานะ: <b>' + toThaiRequestStatus(r.status) + '</b></p>' +
+          '<div class="mt-2">' + ((r.attachment_url || r.image_main_url) ? '<img src="' + (r.attachment_url || r.image_main_url) + '" class="h-24 w-24 rounded border object-cover"/>' : '<span class="text-xs text-slate-400">ไม่มีรูปแนบ</span>') + '</div>' + warning +
           '<div class="mt-2 flex flex-wrap gap-1.5 text-xs">' + actions + '</div>' +
         '</div>';
       }).join('') || '<p class="text-slate-400">ไม่พบรายการ</p>';
@@ -5191,7 +5195,8 @@ function inferRequestPriority(stock, min) {
     if (roRefreshBtn) roRefreshBtn.addEventListener('click', loadOrderRequests);
     if (roStatusFilter) roStatusFilter.addEventListener('change', loadOrderRequests);
     if (roListEl) roListEl.addEventListener('click', function(e){
-      var viewer = e.target.getAttribute('data-viewer');
+      var btn = e.target.closest('[data-viewer]');
+      var viewer = btn ? btn.getAttribute('data-viewer') : '';
       if (viewer) return openRequestDetailByRequester(viewer);
     });
     var roDetailModal = document.getElementById('roDetailModal');
