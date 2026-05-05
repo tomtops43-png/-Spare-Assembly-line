@@ -219,15 +219,21 @@
       <h2 class="text-xl font-bold mb-3">Request Order / ขอซื้ออะไหล่</h2>
       <div class="grid md:grid-cols-2 gap-4">
         <form id="requestOrderForm" class="space-y-2 border border-slate-200 rounded-xl p-3">
-          <input id="roItemName" placeholder="Item / อะไหล่" class="w-full rounded border px-3 py-2" required />
-          <input id="roModel" placeholder="Model" class="w-full rounded border px-3 py-2" />
-          <input id="roLine" placeholder="Line" class="w-full rounded border px-3 py-2" />
-          <div class="grid grid-cols-3 gap-2"><input id="roStock" type="number" placeholder="Current Stock" class="rounded border px-2 py-2"/><input id="roMin" type="number" placeholder="Min" class="rounded border px-2 py-2"/><input id="roMax" type="number" placeholder="Max" class="rounded border px-2 py-2"/></div>
-          <input id="roQty" type="number" placeholder="Request Qty" class="w-full rounded border px-3 py-2" required />
-          <textarea id="roReason" placeholder="Reason / เหตุผลที่ขอซื้อ" class="w-full rounded border px-3 py-2" required></textarea>
-          <select id="roPriority" class="w-full rounded border px-3 py-2"><option>Normal</option><option>Urgent</option><option>Critical</option></select>
-          <input id="roExpectedDate" type="date" class="w-full rounded border px-3 py-2" />
-          <input id="roRemark" placeholder="Remark" class="w-full rounded border px-3 py-2" />
+          <input id="roItemSearch" placeholder="ค้นหาอะไหล่: name / model / brand / line / location" class="w-full rounded border px-3 py-2" />
+          <label class="flex items-center gap-2 text-sm text-slate-700"><input id="roNewItemToggle" type="checkbox" class="h-4 w-4" /> ไม่พบรายการในระบบ (New Item Request)</label>
+          <div id="roItemSearchResults" class="max-h-40 overflow-auto rounded border border-slate-200 bg-white text-sm"></div>
+          <div id="roSelectedCard" class="hidden rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm"></div>
+          <div id="roNewItemFields" class="hidden space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <input id="roNewItemName" placeholder="ชื่ออะไหล่ใหม่" class="w-full rounded border px-3 py-2" />
+            <input id="roNewItemModel" placeholder="Model" class="w-full rounded border px-3 py-2" />
+            <div class="grid grid-cols-2 gap-2"><input id="roNewItemBrand" placeholder="Brand" class="rounded border px-3 py-2" /><input id="roNewItemCategory" placeholder="Category" class="rounded border px-3 py-2" /></div>
+          </div>
+          <input id="roQty" type="number" min="1" placeholder="Request Qty" class="w-full rounded border px-3 py-2" required />
+          <select id="roReasonPreset" class="w-full rounded border px-3 py-2">
+            <option value="อะไหล่หมด">อะไหล่หมด</option><option value="ต่ำกว่า Min">ต่ำกว่า Min</option><option value="ใช้ซ่อมเครื่อง">ใช้ซ่อมเครื่อง</option><option value="เตรียมเป็น Spare">เตรียมเป็น Spare</option><option value="อื่นๆ">อื่นๆ</option>
+          </select>
+          <input id="roReasonOther" placeholder="ระบุเหตุผลเพิ่มเติม" class="hidden w-full rounded border px-3 py-2" />
+          <input id="roRemark" placeholder="Remark (optional)" class="w-full rounded border px-3 py-2" />
           <button class="w-full rounded bg-blue-600 text-white py-2 font-semibold">Submit Request</button>
         </form>
         <div class="border border-slate-200 rounded-xl p-3">
@@ -867,7 +873,7 @@
         } catch (err) {}
       });
     })();
-    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
+    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzC-syvCpyq2uTVyceNQvr_XcnWIG50st2EraVJezpDqr72-dBbcyLhYFbRyqsbIC9vyg/exec';
     // Backward-compatible shim: some cached clients may still reference this helper.
     function normalizeApiUrl(url) { return String(url || '').trim(); }
     var API_URL = DEFAULT_API_URL;
@@ -1024,6 +1030,7 @@
     var sheetSelector = document.getElementById('sheetSelector');
     var txnPage = document.getElementById('txnPage');
     var requestOrderPage = document.getElementById('requestOrderPage');
+    var roSelectedItem = null;
     var managePage = document.getElementById('managePage');
     var adminPage = document.getElementById('adminPage');
     var logTable = document.getElementById('logTable');
@@ -3043,6 +3050,36 @@ function getIssueCartEntries() {
       });
     }
 
+    function inferRequestPriority(stock, min) {
+      var s = Number(stock || 0), m = Number(min || 0);
+      if (s <= 0) return 'Critical';
+      if (s <= m) return 'Urgent';
+      return 'Normal';
+    }
+
+    function getStockItemStatusLabel(stock, min) {
+      if (Number(stock || 0) <= 0) return 'อะไหล่หมด';
+      if (Number(stock || 0) <= Number(min || 0)) return 'ต่ำกว่า Min';
+      return 'OK';
+    }
+
+    function renderRoSelectedCard(item) {
+      var card = document.getElementById('roSelectedCard');
+      if (!card) return;
+      if (!item) { card.classList.add('hidden'); card.innerHTML = ''; return; }
+      var suggestedQty = Math.max(Number(item.min || 0) - Number(item.stock || 0), 1);
+      document.getElementById('roQty').value = suggestedQty;
+      card.classList.remove('hidden');
+      card.innerHTML = '<div class="flex gap-3 items-start">' +
+        '<img src="' + (item.image_main || item.photo || 'images/no-image.svg') + '" class="h-16 w-16 rounded border bg-white object-contain"/>' +
+        '<div class="min-w-0"><p class="font-semibold">' + (item.name || '-') + '</p>' +
+        '<p class="text-xs text-slate-600">Model: ' + (item.model || '-') + ' | Line: ' + (item.line || '-') + '</p>' +
+        '<p class="text-xs text-slate-600">Brand: ' + (item.brand || '-') + ' | Category: ' + (item.category || '-') + '</p>' +
+        '<p class="text-xs text-slate-700">Stock: <b>' + (item.stock || 0) + '</b> | Min/Max: ' + (item.min || 0) + '/' + (item.max || 0) + '</p>' +
+        '<p class="text-xs">Status: <b>' + getStockItemStatusLabel(item.stock, item.min) + '</b> | Location: ' + (item.location || '-') + '</p>' +
+        '</div></div>';
+    }
+
     function switchToRequestOrderPage() {
       stockPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
@@ -4930,24 +4967,76 @@ function getIssueCartEntries() {
       loadPartsData();
       if (!logPage.classList.contains('hidden')) loadLogData();
     });
+    var roReasonPreset = document.getElementById('roReasonPreset');
+    var roReasonOther = document.getElementById('roReasonOther');
+    var roItemSearch = document.getElementById('roItemSearch');
+    var roItemSearchResults = document.getElementById('roItemSearchResults');
+    var roNewItemToggle = document.getElementById('roNewItemToggle');
+    var roNewItemFields = document.getElementById('roNewItemFields');
+    if (roNewItemToggle && roNewItemFields) {
+      roNewItemToggle.addEventListener('change', function() {
+        var enabled = !!roNewItemToggle.checked;
+        roNewItemFields.classList.toggle('hidden', !enabled);
+        if (enabled) {
+          roSelectedItem = null;
+          renderRoSelectedCard(null);
+          if (roItemSearchResults) roItemSearchResults.innerHTML = '';
+        }
+      });
+    }
+    if (roReasonPreset && roReasonOther) {
+      roReasonPreset.addEventListener('change', function() {
+        roReasonOther.classList.toggle('hidden', roReasonPreset.value !== 'อื่นๆ');
+      });
+    }
+    if (roItemSearch && roItemSearchResults) {
+      roItemSearch.addEventListener('input', function() {
+        var q = String(roItemSearch.value || '').trim().toLowerCase();
+        if (!q) { roItemSearchResults.innerHTML = ''; return; }
+        var filtered = (partsData || []).filter(function(p) {
+          var blob = [p.name, p.model, p.brand, p.line, p.location].join(' ').toLowerCase();
+          return blob.indexOf(q) > -1;
+        }).slice(0, 20);
+        roItemSearchResults.innerHTML = filtered.map(function(item) {
+          return '<button type="button" data-no="' + item.no + '" class="block w-full border-b px-3 py-2 text-left hover:bg-slate-50">' + (item.name || '-') + ' <span class="text-xs text-slate-500">(' + (item.model || '-') + ')</span></button>';
+        }).join('') || '<p class="px-3 py-2 text-slate-400">ไม่พบรายการ</p>';
+      });
+      roItemSearchResults.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-no]');
+        if (!btn) return;
+        var no = btn.getAttribute('data-no');
+        roSelectedItem = (partsData || []).filter(function(p){ return String(p.no) === String(no); })[0] || null;
+        renderRoSelectedCard(roSelectedItem);
+        roItemSearch.value = roSelectedItem ? (roSelectedItem.name || '') : '';
+        roItemSearchResults.innerHTML = '';
+      });
+    }
     var requestOrderFormEl = document.getElementById('requestOrderForm');
     if (requestOrderFormEl) requestOrderFormEl.addEventListener('submit', function(e){
       e.preventDefault();
+      var isNewItemMode = !!(roNewItemToggle && roNewItemToggle.checked);
+      if (!isNewItemMode && !roSelectedItem) return alert('กรุณาเลือกอะไหล่จากรายการก่อน');
+      var qty = Number(document.getElementById('roQty').value || 0);
+      if (!qty || qty <= 0) return alert('Request Qty ต้องมากกว่า 0');
+      var reason = roReasonPreset && roReasonPreset.value === 'อื่นๆ' ? String((roReasonOther && roReasonOther.value) || '').trim() : (roReasonPreset ? roReasonPreset.value : '');
+      if (!reason) return alert('กรุณาระบุเหตุผล');
       var payload = withAuthPayload({
         action: 'createOrderRequest',
-        item_name: document.getElementById('roItemName').value,
-        model: document.getElementById('roModel').value,
-        line: document.getElementById('roLine').value || currentLine,
-        current_stock: document.getElementById('roStock').value,
-        min: document.getElementById('roMin').value,
-        max: document.getElementById('roMax').value,
-        request_qty: document.getElementById('roQty').value,
-        reason: document.getElementById('roReason').value,
-        priority: document.getElementById('roPriority').value,
-        expected_use_date: document.getElementById('roExpectedDate').value,
+        item_id: isNewItemMode ? '' : roSelectedItem.no,
+        item_name: isNewItemMode ? document.getElementById('roNewItemName').value : roSelectedItem.name,
+        model: isNewItemMode ? document.getElementById('roNewItemModel').value : roSelectedItem.model,
+        brand: isNewItemMode ? document.getElementById('roNewItemBrand').value : roSelectedItem.brand,
+        category: isNewItemMode ? document.getElementById('roNewItemCategory').value : roSelectedItem.category,
+        line: isNewItemMode ? currentLine : (roSelectedItem.line || currentLine),
+        current_stock: isNewItemMode ? 0 : roSelectedItem.stock,
+        min: isNewItemMode ? 0 : roSelectedItem.min,
+        max: isNewItemMode ? 0 : roSelectedItem.max,
+        request_qty: qty,
+        reason: reason,
+        priority: isNewItemMode ? 'Normal' : inferRequestPriority(roSelectedItem.stock, roSelectedItem.min),
         remark: document.getElementById('roRemark').value
       });
-      requestApi(payload).then(function(){ e.target.reset(); loadOrderRequests(); });
+      requestApi(payload).then(function(){ e.target.reset(); roSelectedItem = null; renderRoSelectedCard(null); if (roNewItemFields) roNewItemFields.classList.add('hidden'); loadOrderRequests(); });
     });
     var roRefreshBtn = document.getElementById('roRefreshBtn');
     var roStatusFilter = document.getElementById('roStatusFilter');
