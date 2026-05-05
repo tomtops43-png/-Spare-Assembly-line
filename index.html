@@ -2875,20 +2875,20 @@ function getIssueCartEntries() {
       tabTxn.className = tabBaseClass;
       tabLog.className = tabBaseClass;
       tabPrReport.className = tabBaseClass;
-      tabRequestOrder.className = tabBaseClass;
+      if (tabRequestOrder) tabRequestOrder.className = tabBaseClass;
       tabManage.className = tabBaseClass;
       tabAdmin.className = tabBaseClass;
       if (active === 'stock') tabStock.className = tabActiveClass;
       if (active === 'txn') tabTxn.className = tabActiveClass;
       if (active === 'log') tabLog.className = tabActiveClass;
       if (active === 'pr') tabPrReport.className = tabActiveClass;
-      if (active === 'request-order') tabRequestOrder.className = tabActiveClass;
+      if (active === 'request-order' && tabRequestOrder) tabRequestOrder.className = tabActiveClass;
       if (active === 'manage') tabManage.className = tabActiveClass;
       if (active === 'admin') tabAdmin.className = tabActiveClass;
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
       tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
-      tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
+      if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
@@ -2897,7 +2897,7 @@ function getIssueCartEntries() {
     function switchToStockPage() {
       stockPage.classList.remove('hidden');
       txnPage.classList.add('hidden');
-      requestOrderPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
@@ -2909,7 +2909,7 @@ function getIssueCartEntries() {
     function switchToTxnPage() {
       stockPage.classList.add('hidden');
       txnPage.classList.remove('hidden');
-      requestOrderPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
@@ -2939,7 +2939,7 @@ function getIssueCartEntries() {
       if (!hasPermission('view_logs')) return switchToStockPage();
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
-      requestOrderPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.remove('hidden');
       prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
@@ -2991,7 +2991,7 @@ function getIssueCartEntries() {
 
     function switchToRequestOrderPage() {
       stockPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
-      requestOrderPage.classList.remove('hidden');
+      if (requestOrderPage) requestOrderPage.classList.remove('hidden');
       setTabStyles('request-order');
       loadOrderRequests();
     }
@@ -4617,7 +4617,7 @@ function getIssueCartEntries() {
     tabTxn.addEventListener('click', switchToTxnPage);
     tabLog.addEventListener('click', switchToLogPage);
     tabPrReport.addEventListener('click', switchToPrReportPage);
-    tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
+    if (tabRequestOrder) tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
     lineMenuDockToggle.addEventListener('click', function() {
@@ -4876,7 +4876,8 @@ function getIssueCartEntries() {
       loadPartsData();
       if (!logPage.classList.contains('hidden')) loadLogData();
     });
-    document.getElementById('requestOrderForm').addEventListener('submit', function(e){
+    var requestOrderFormEl = document.getElementById('requestOrderForm');
+    if (requestOrderFormEl) requestOrderFormEl.addEventListener('submit', function(e){
       e.preventDefault();
       var payload = withAuthPayload({
         action: 'createOrderRequest',
@@ -4894,9 +4895,12 @@ function getIssueCartEntries() {
       });
       requestApi(payload).then(function(){ e.target.reset(); loadOrderRequests(); });
     });
-    document.getElementById('roRefreshBtn').addEventListener('click', loadOrderRequests);
-    document.getElementById('roStatusFilter').addEventListener('change', loadOrderRequests);
-    document.getElementById('roList').addEventListener('click', function(e){
+    var roRefreshBtn = document.getElementById('roRefreshBtn');
+    var roStatusFilter = document.getElementById('roStatusFilter');
+    var roListEl = document.getElementById('roList');
+    if (roRefreshBtn) roRefreshBtn.addEventListener('click', loadOrderRequests);
+    if (roStatusFilter) roStatusFilter.addEventListener('change', loadOrderRequests);
+    if (roListEl) roListEl.addEventListener('click', function(e){
       var id = e.target.getAttribute('data-id'); var act = e.target.getAttribute('data-act'); if (!id || !act) return;
       if (act === 'convert') return requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] })).then(loadOrderRequests);
       var actionNameMap = { approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' };
