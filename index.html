@@ -857,6 +857,8 @@
 
   <script>
     var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzC-syvCpyq2uTVyceNQvr_XcnWIG50st2EraVJezpDqr72-dBbcyLhYFbRyqsbIC9vyg/exec';
+    // Backward-compatible shim: some cached clients may still reference this helper.
+    function normalizeApiUrl(url) { return String(url || '').trim(); }
     var API_URL = DEFAULT_API_URL;
     var ACTIVE_API_URL = API_URL;
     var LINE_API_URL_MAP = {
