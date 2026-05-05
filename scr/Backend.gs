@@ -9,6 +9,7 @@ SPARE_APP_CONFIG.requestSheetName = SPARE_APP_CONFIG.requestSheetName || 'OrderR
 var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After'];
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
 var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at'];
+var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
 
 // =============================
@@ -292,6 +293,9 @@ function updateOrderRequestStatus(payload, nextStatus) {
 function approveOrderRequest(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_approve'); return updateOrderRequestStatus(payload, 'Approved'); }
 function rejectOrderRequest(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_reject'); return updateOrderRequestStatus(payload, 'Rejected'); }
 function holdOrderRequest(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_approve'); return updateOrderRequestStatus(payload, 'On Hold'); }
+function closeOrderRequest(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_close'); return updateOrderRequestStatus(payload, 'Closed'); }
+function markOrderRequestPurchased(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_approve'); return updateOrderRequestStatus(payload, 'Purchased'); }
+function markOrderRequestReceived(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_approve'); return updateOrderRequestStatus(payload, 'Received'); }
 function convertOrderRequestsToPR(payload) {
   requirePermission({ authToken: payload.authToken }, 'request_order_convert_pr');
   var ids = Array.isArray(payload.request_ids) ? payload.request_ids : [];
@@ -318,15 +322,21 @@ function getRoleDefaultPermissions(role) {
   var normalized = normalizeRole(role);
   if (normalized === 'admin') return {
     view: true, transact: true, manage_items: true, delete_items: true,
-    manage_users: true, add_user: true, delete_user: true, manage_auth: true
+    manage_users: true, add_user: true, delete_user: true, manage_auth: true,
+    request_order_create: true, request_order_view_own: true, request_order_view_all: true,
+    request_order_approve: true, request_order_reject: true, request_order_convert_pr: true, request_order_close: true
   };
   if (normalized === 'leader') return {
     view: true, transact: true, manage_items: true, delete_items: true,
-    manage_users: false, add_user: false, delete_user: false, manage_auth: false
+    manage_users: false, add_user: false, delete_user: false, manage_auth: false,
+    request_order_create: true, request_order_view_own: true, request_order_view_all: false,
+    request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false
   };
   return {
     view: true, transact: true, manage_items: false, delete_items: false,
-    manage_users: false, add_user: false, delete_user: false, manage_auth: false
+    manage_users: false, add_user: false, delete_user: false, manage_auth: false,
+    request_order_create: true, request_order_view_own: true, request_order_view_all: false,
+    request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false
   };
 }
 
@@ -1119,6 +1129,9 @@ function doGet(e) {
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
     if (action === 'rejectOrderRequest') return respond(rejectOrderRequest(e.parameter), e);
     if (action === 'holdOrderRequest') return respond(holdOrderRequest(e.parameter), e);
+    if (action === 'closeOrderRequest') return respond(closeOrderRequest(e.parameter), e);
+    if (action === 'markOrderRequestPurchased') return respond(markOrderRequestPurchased(e.parameter), e);
+    if (action === 'markOrderRequestReceived') return respond(markOrderRequestReceived(e.parameter), e);
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(e.parameter, e.parameter.status), e);
     requirePermission(authPayload, 'view');
     if (action === 'transact') {
@@ -1295,6 +1308,9 @@ function doPost(e) {
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(body), e);
     if (action === 'rejectOrderRequest') return respond(rejectOrderRequest(body), e);
     if (action === 'holdOrderRequest') return respond(holdOrderRequest(body), e);
+    if (action === 'closeOrderRequest') return respond(closeOrderRequest(body), e);
+    if (action === 'markOrderRequestPurchased') return respond(markOrderRequestPurchased(body), e);
+    if (action === 'markOrderRequestReceived') return respond(markOrderRequestReceived(body), e);
     if (action === 'convertOrderRequestsToPR') return respond(convertOrderRequestsToPR(body), e);
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(body, body.status), e);
     requirePermission(authPayload, 'view');
@@ -1371,3 +1387,4 @@ function respond(data, e) {
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
+  if (ORDER_REQUEST_STATUSES.indexOf(nextStatus) === -1) throw new Error('สถานะไม่ถูกต้อง: ' + nextStatus);

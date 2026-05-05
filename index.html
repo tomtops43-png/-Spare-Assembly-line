@@ -232,6 +232,13 @@
         </form>
         <div class="border border-slate-200 rounded-xl p-3">
           <div class="flex items-center justify-between mb-2"><h3 class="font-semibold">Admin Pending Request List</h3><button id="roRefreshBtn" class="text-sm px-2 py-1 border rounded">Refresh</button></div>
+          <div class="mb-2 grid grid-cols-2 gap-2 text-xs">
+            <div class="rounded bg-amber-50 border border-amber-200 px-2 py-1">Pending: <b id="roPendingCount">0</b></div>
+            <div class="rounded bg-rose-50 border border-rose-200 px-2 py-1">Urgent/Critical: <b id="roUrgentCount">0</b></div>
+          </div>
+          <select id="roStatusFilter" class="mb-2 w-full rounded border px-2 py-1 text-sm">
+            <option value="all">ทุกสถานะ</option><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="On Hold">On Hold</option><option value="Converted to PR">Converted to PR</option><option value="Rejected">Rejected</option><option value="Purchased">Purchased</option><option value="Received">Received</option><option value="Closed">Closed</option>
+          </select>
           <div id="roList" class="space-y-2 text-sm"></div>
         </div>
       </div>
@@ -919,6 +926,7 @@
     var quickIssueMessage = document.getElementById('quickIssueMessage');
     var prReportPage = document.getElementById('prReportPage');
     var tabPrReport = document.getElementById('tabPrReport');
+    var tabRequestOrder = document.getElementById('tabRequestOrder');
     var prMode = document.getElementById('prMode');
     var prLineFilter = document.getElementById('prLineFilter');
     var prRunBtn = document.getElementById('prRunBtn');
@@ -1106,11 +1114,11 @@
         lines: 'all'
       },
       leader: {
-        permissions: ['view_stock', 'view_detail', 'issue_part', 'receive_part', 'edit_item', 'view_logs', 'access_admin_panel', 'view_dashboard', 'view_alerts', 'use_issue_cart'],
+        permissions: ['view_stock', 'view_detail', 'issue_part', 'receive_part', 'edit_item', 'view_logs', 'access_admin_panel', 'view_dashboard', 'view_alerts', 'use_issue_cart', 'request_order_create', 'request_order_view_own'],
         lines: 'managed'
       },
       user: {
-        permissions: ['view_stock', 'view_detail', 'issue_part', 'use_issue_cart', 'view_alerts'],
+        permissions: ['view_stock', 'view_detail', 'issue_part', 'use_issue_cart', 'view_alerts', 'request_order_create', 'request_order_view_own'],
         lines: 'view'
       }
     };
@@ -2957,18 +2965,26 @@ function getIssueCartEntries() {
     function loadOrderRequests() {
       var roList = document.getElementById('roList');
       var badge = document.getElementById('requestPendingBadge');
+      var statusFilter = document.getElementById('roStatusFilter');
       if (!roList) return;
       roList.innerHTML = 'Loading...';
       requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
         rows = Array.isArray(rows) ? rows : [];
         var pending = rows.filter(function(r){ return String(r.status||'') === 'Pending'; });
+        var urgent = rows.filter(function(r){ var p = String(r.priority || '').toLowerCase(); return p === 'urgent' || p === 'critical'; });
+        document.getElementById('roPendingCount').textContent = String(pending.length);
+        document.getElementById('roUrgentCount').textContent = String(urgent.length);
         badge.textContent = String(pending.length);
         badge.classList.toggle('hidden', pending.length === 0);
-        if (!rows.length) { roList.innerHTML = '<p class="text-slate-400">ยังไม่มีคำขอ</p>'; return; }
-        roList.innerHTML = rows.map(function(r) {
-          var actionBtns = hasPermission('request_order_approve') ? '<button data-id="'+r.request_id+'" data-act="approve" class="px-2 py-1 border rounded">Approve</button> <button data-id="'+r.request_id+'" data-act="hold" class="px-2 py-1 border rounded">Hold</button>' : '';
+        var filtered = rows;
+        if (statusFilter && statusFilter.value !== 'all') filtered = rows.filter(function(r){ return String(r.status || '') === statusFilter.value; });
+        if (!filtered.length) { roList.innerHTML = '<p class="text-slate-400">ยังไม่มีคำขอ</p>'; return; }
+        roList.innerHTML = filtered.map(function(r) {
+          var actionBtns = hasPermission('request_order_approve') ? '<button data-id="'+r.request_id+'" data-act="approve" class="px-2 py-1 border rounded">Approve</button> <button data-id="'+r.request_id+'" data-act="hold" class="px-2 py-1 border rounded">Hold</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestPurchased" class="px-2 py-1 border rounded">Purchased</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestReceived" class="px-2 py-1 border rounded">Received</button>' : '';
           actionBtns += hasPermission('request_order_reject') ? ' <button data-id="'+r.request_id+'" data-act="reject" class="px-2 py-1 border rounded">Reject</button>' : '';
-          return '<div class="border rounded p-2"><p class="font-semibold">'+(r.request_id||'-')+' • '+(r.item_name||'-')+' ('+(r.priority||'-')+')</p><p>'+ (r.reason||'-') +'</p><p>Status: <b>'+(r.status||'-')+'</b></p><div class="mt-1">'+actionBtns+'</div></div>';
+          actionBtns += hasPermission('request_order_convert_pr') ? ' <button data-id="'+r.request_id+'" data-act="convert" class="px-2 py-1 border rounded">Convert to PR</button>' : '';
+          actionBtns += hasPermission('request_order_close') ? ' <button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="px-2 py-1 border rounded">Close</button>' : '';
+          return '<div class="border rounded p-2"><p class="font-semibold">'+(r.request_id||'-')+' • '+(r.item_name||'-')+' ('+(r.priority||'-')+')</p><p>Line: '+(r.line||'-')+' | Qty: '+(r.request_qty||0)+' | By: '+(r.requested_by||'-')+'</p><p>'+ (r.reason||'-') +'</p><p>Status: <b>'+(r.status||'-')+'</b></p><div class="mt-1">'+actionBtns+'</div></div>';
         }).join('');
       });
     }
@@ -4879,9 +4895,12 @@ function getIssueCartEntries() {
       requestApi(payload).then(function(){ e.target.reset(); loadOrderRequests(); });
     });
     document.getElementById('roRefreshBtn').addEventListener('click', loadOrderRequests);
+    document.getElementById('roStatusFilter').addEventListener('change', loadOrderRequests);
     document.getElementById('roList').addEventListener('click', function(e){
       var id = e.target.getAttribute('data-id'); var act = e.target.getAttribute('data-act'); if (!id || !act) return;
-      requestApi(withAuthPayload({ action: act + 'OrderRequest', request_id: id })).then(loadOrderRequests);
+      if (act === 'convert') return requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] })).then(loadOrderRequests);
+      var actionNameMap = { approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' };
+      requestApi(withAuthPayload({ action: actionNameMap[act] || act, request_id: id })).then(loadOrderRequests);
     });
     document.getElementById('loginForm').addEventListener('submit', function(e) {
       e.preventDefault();
