@@ -856,20 +856,14 @@
 
 
   <script>
-    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
-    function normalizeApiUrl(url) {
-      var val = String(url || '').trim();
-      if (!val) return '';
-      if (val.indexOf('/dev') > -1) val = val.replace('/dev', '/exec');
-      return val;
-    }
-    var API_URL = normalizeApiUrl(localStorage.getItem('spare_api_url') || DEFAULT_API_URL) || DEFAULT_API_URL;
+    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzC-syvCpyq2uTVyceNQvr_XcnWIG50st2EraVJezpDqr72-dBbcyLhYFbRyqsbIC9vyg/exec';
+    var API_URL = DEFAULT_API_URL;
     var ACTIVE_API_URL = API_URL;
     var LINE_API_URL_MAP = {
       'H9': API_URL,
-      'Arc Chute': localStorage.getItem('spare_api_url_arc_chute') || '',
-      'Coil Winding': localStorage.getItem('spare_api_url_coil_winding') || '',
-      'Lug&Screw': localStorage.getItem('spare_api_url_lug_screw') || ''
+      'Arc Chute': '',
+      'Coil Winding': '',
+      'Lug&Screw': ''
     };
     var LINE_SHEET_OPTIONS = {
       'H9': ['Main List Stock', 'Stock for MC'],
