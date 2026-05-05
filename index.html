@@ -103,6 +103,7 @@
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
+          <button id="tabRequestOrder" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">ขอซื้ออะไหล่ <span id="requestPendingBadge" class="ml-1 hidden rounded-full bg-rose-500 px-2 py-0.5 text-[10px] text-white">0</span></button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">จัดการรายการ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
         </div>
@@ -212,6 +213,44 @@
         <div id="desktopCardGrid" class="hidden lg:grid lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3"></div>
         <div id="paginationControls" class="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm"></div>
       </section>
+    </section>
+
+    <section id="requestOrderPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow p-4 md:p-6 mb-6">
+      <h2 class="text-xl font-bold mb-3">ขอซื้ออะไหล่</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <form id="requestOrderForm" class="space-y-2 border border-slate-200 rounded-xl p-3">
+          <input id="roItemSearch" placeholder="ค้นหาอะไหล่: ชื่อ / รุ่น / ยี่ห้อ / ไลน์ / ตำแหน่ง" class="w-full rounded border px-3 py-2" />
+          <label class="flex items-center gap-2 text-sm text-slate-700"><input id="roNewItemToggle" type="checkbox" class="h-4 w-4" /> ไม่พบรายการในระบบ (ขอเพิ่มอะไหล่ใหม่)</label>
+          <div id="roItemSearchResults" class="max-h-40 overflow-auto rounded border border-slate-200 bg-white text-sm"></div>
+          <div id="roSelectedCard" class="hidden rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm"></div>
+          <div id="roNewItemFields" class="hidden space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <input id="roNewItemName" placeholder="ชื่ออะไหล่ใหม่" class="w-full rounded border px-3 py-2" />
+            <input id="roNewItemModel" placeholder="Model" class="w-full rounded border px-3 py-2" />
+            <input id="roNewItemBrand" placeholder="ยี่ห้อ" class="rounded border px-3 py-2" />
+          </div>
+          <input id="roQty" type="number" min="1" placeholder="จำนวนที่ต้องการ" class="w-full rounded border px-3 py-2" required />
+          <select id="roReasonPreset" class="w-full rounded border px-3 py-2">
+            <option value="อะไหล่หมด">อะไหล่หมด</option><option value="ต่ำกว่า Min">ต่ำกว่า Min</option><option value="ใช้ซ่อมเครื่อง">ใช้ซ่อมเครื่อง</option><option value="เตรียมเป็น Spare">เตรียมเป็น Spare</option><option value="อื่นๆ">อื่นๆ</option>
+          </select>
+          <input id="roReasonOther" placeholder="ระบุเหตุผลเพิ่มเติม" class="hidden w-full rounded border px-3 py-2" />
+          <input id="roRemark" placeholder="หมายเหตุ (ไม่บังคับ)" class="w-full rounded border px-3 py-2" />
+          <label class="block text-sm text-slate-700">แนบรูปภาพ (ไม่บังคับ)</label>
+          <input id="roAttachmentFile" type="file" accept="image/*" class="w-full rounded border px-3 py-2 bg-white" />
+          <img id="roAttachmentPreview" class="hidden h-24 w-24 rounded border object-cover" />
+          <button class="w-full rounded bg-blue-600 text-white py-2 font-semibold">ส่งคำขอซื้อ</button>
+        </form>
+        <div class="border border-slate-200 rounded-xl p-3">
+          <div class="flex items-center justify-between mb-2"><h3 class="font-semibold">รายการคำขอซื้อ (ฝั่งแอดมิน)</h3><button id="roRefreshBtn" class="text-sm px-2 py-1 border rounded">รีเฟรช</button></div>
+          <div class="mb-2 grid grid-cols-2 gap-2 text-xs">
+            <div class="rounded bg-amber-50 border border-amber-200 px-2 py-1">Pending: <b id="roPendingCount">0</b></div>
+            <div class="rounded bg-rose-50 border border-rose-200 px-2 py-1">Urgent/Critical: <b id="roUrgentCount">0</b></div>
+          </div>
+          <select id="roStatusFilter" class="mb-2 w-full rounded border px-2 py-1 text-sm">
+            <option value="all">ทุกสถานะ</option><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="On Hold">On Hold</option><option value="Converted to PR">Converted to PR</option><option value="Rejected">Rejected</option><option value="Purchased">Purchased</option><option value="Received">Received</option><option value="Closed">Closed</option>
+          </select>
+          <div id="roList" class="space-y-2 text-sm"></div>
+        </div>
+      </div>
     </section>
 
     <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
@@ -826,15 +865,27 @@
 
 
   <script>
-    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzC-syvCpyq2uTVyceNQvr_XcnWIG50st2EraVJezpDqr72-dBbcyLhYFbRyqsbIC9vyg/exec';
-    var API_URL = localStorage.getItem('spare_api_url') || DEFAULT_API_URL;
-    if (API_URL.indexOf('/dev') > -1) API_URL = API_URL.replace('/dev', '/exec');
+    (function installLegacyRuntimeGuard() {
+      window.addEventListener('error', function(ev) {
+        var message = String((ev && ev.message) || '');
+        if (message.indexOf('normalizeApiUrl is not defined') === -1) return;
+        try {
+          var fresh = new URL(window.location.href);
+          fresh.searchParams.set('v', String(Date.now()));
+          window.location.replace(fresh.toString());
+        } catch (err) {}
+      });
+    })();
+    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
+    // Backward-compatible shim: some cached clients may still reference this helper.
+    function normalizeApiUrl(url) { return String(url || '').trim(); }
+    var API_URL = DEFAULT_API_URL;
     var ACTIVE_API_URL = API_URL;
     var LINE_API_URL_MAP = {
       'H9': API_URL,
-      'Arc Chute': localStorage.getItem('spare_api_url_arc_chute') || '',
-      'Coil Winding': localStorage.getItem('spare_api_url_coil_winding') || '',
-      'Lug&Screw': localStorage.getItem('spare_api_url_lug_screw') || ''
+      'Arc Chute': '',
+      'Coil Winding': '',
+      'Lug&Screw': ''
     };
     var LINE_SHEET_OPTIONS = {
       'H9': ['Main List Stock', 'Stock for MC'],
@@ -896,6 +947,7 @@
     var quickIssueMessage = document.getElementById('quickIssueMessage');
     var prReportPage = document.getElementById('prReportPage');
     var tabPrReport = document.getElementById('tabPrReport');
+    var tabRequestOrder = document.getElementById('tabRequestOrder');
     var prMode = document.getElementById('prMode');
     var prLineFilter = document.getElementById('prLineFilter');
     var prRunBtn = document.getElementById('prRunBtn');
@@ -980,6 +1032,8 @@
     var sheetSelectorWrap = document.getElementById('sheetSelectorWrap');
     var sheetSelector = document.getElementById('sheetSelector');
     var txnPage = document.getElementById('txnPage');
+    var requestOrderPage = document.getElementById('requestOrderPage');
+    var roSelectedItem = null;
     var managePage = document.getElementById('managePage');
     var adminPage = document.getElementById('adminPage');
     var logTable = document.getElementById('logTable');
@@ -1045,6 +1099,15 @@
         { key: 'view_dashboard', label: 'ดู Dashboard' },
         { key: 'export_data', label: 'Export Data' }
       ]},
+      { key: 'request_order', targetId: 'permGroupRequestOrder', title: 'Request Order', items: [
+        { key: 'request_order_create', label: 'สร้างคำขอซื้อ' },
+        { key: 'request_order_view_own', label: 'ดูคำขอตัวเอง' },
+        { key: 'request_order_view_all', label: 'ดูคำขอทั้งหมด' },
+        { key: 'request_order_approve', label: 'อนุมัติ/พักคำขอ' },
+        { key: 'request_order_reject', label: 'ปฏิเสธคำขอ' },
+        { key: 'request_order_convert_pr', label: 'Convert เป็น PR' },
+        { key: 'request_order_close', label: 'ปิดคำขอ' }
+      ]},
       { key: 'system', targetId: 'permGroupSystem', title: 'User / System', items: [
         { key: 'manage_users', label: 'จัดการผู้ใช้' },
         { key: 'delete_users', label: 'ลบผู้ใช้' },
@@ -1073,11 +1136,11 @@
         lines: 'all'
       },
       leader: {
-        permissions: ['view_stock', 'view_detail', 'issue_part', 'receive_part', 'edit_item', 'view_logs', 'access_admin_panel', 'view_dashboard', 'view_alerts', 'use_issue_cart'],
+        permissions: ['view_stock', 'view_detail', 'issue_part', 'receive_part', 'edit_item', 'view_logs', 'access_admin_panel', 'view_dashboard', 'view_alerts', 'use_issue_cart', 'request_order_create', 'request_order_view_own'],
         lines: 'managed'
       },
       user: {
-        permissions: ['view_stock', 'view_detail', 'issue_part', 'use_issue_cart', 'view_alerts'],
+        permissions: ['view_stock', 'view_detail', 'issue_part', 'use_issue_cart', 'view_alerts', 'request_order_create', 'request_order_view_own'],
         lines: 'view'
       }
     };
@@ -1931,10 +1994,12 @@ function getIssueCartEntries() {
       var baseUrl = LINE_API_URL_MAP[currentLine] || API_URL;
       if (baseUrl.indexOf('/dev') > -1) baseUrl = baseUrl.replace('/dev', '/exec');
       var candidates = [baseUrl];
-      if (baseUrl.indexOf('/exec') > -1) candidates.push(baseUrl.replace('/exec', '/dev'));
-      if (baseUrl.indexOf('/dev') > -1) candidates.push(baseUrl.replace('/dev', '/exec'));
+      if (!shouldUseJsonpTransportForUrl(baseUrl)) {
+        if (baseUrl.indexOf('/exec') > -1) candidates.push(baseUrl.replace('/exec', '/dev'));
+        if (baseUrl.indexOf('/dev') > -1) candidates.push(baseUrl.replace('/dev', '/exec'));
+      }
       if (API_URL && candidates.indexOf(API_URL) === -1) candidates.push(API_URL);
-      if (API_URL && API_URL.indexOf('/exec') > -1) candidates.push(API_URL.replace('/exec', '/dev'));
+      if (API_URL && API_URL.indexOf('/exec') > -1 && !shouldUseJsonpTransportForUrl(API_URL)) candidates.push(API_URL.replace('/exec', '/dev'));
       return Array.from(new Set(candidates.filter(Boolean)));
     }
 
@@ -1961,8 +2026,9 @@ function getIssueCartEntries() {
         if (idx >= candidates.length) throw lastErr || new Error('โหลดข้อมูล API ไม่สำเร็จ');
         var base = candidates[idx++];
         var targetUrl = queryBuilder(base);
-        return loadViaJsonp(targetUrl).catch(function() {
-          // fallback for endpoints/environments that do not return JSONP callback
+        return loadViaJsonp(targetUrl).catch(function(err) {
+          // Only fallback to fetch when same-origin; cross-origin fetch will hit CORS.
+          if (shouldUseJsonpTransportForUrl(base)) throw err;
           return loadByFetch(targetUrl);
         }).then(function(res) {
           ACTIVE_API_URL = base;
@@ -2049,12 +2115,25 @@ function getIssueCartEntries() {
       issue_part: ['issue_part', 'issue', 'issue_item', 'stock.issue', 'stock.issue_part'],
       receive_part: ['receive_part', 'receive', 'receive_item', 'stock.receive', 'stock.receive_part']
     };
+    function hasRequestOrderRoleFallback(permissionName) {
+      if (!(currentUser && currentUser.role)) return false;
+      var role = String(currentUser.role || '').toLowerCase();
+      if (role === 'admin') return permissionName.indexOf('request_order_') === 0;
+      if (role === 'leader' || role === 'engineer') {
+        return ['request_order_view_all', 'request_order_approve', 'request_order_reject', 'request_order_create', 'request_order_view_own'].indexOf(permissionName) > -1;
+      }
+      if (role === 'user' || role === 'technician') {
+        return permissionName === 'request_order_create' || permissionName === 'request_order_view_own';
+      }
+      return false;
+    }
     function hasPermission(permissionName) {
       if (!(currentUser && currentUser.permissions)) return false;
       var aliases = PERMISSION_ALIASES[permissionName] || [permissionName];
       for (var i = 0; i < aliases.length; i += 1) {
         if (currentUser.permissions[aliases[i]]) return true;
       }
+      if (permissionName.indexOf('request_order_') === 0) return hasRequestOrderRoleFallback(permissionName);
       return false;
     }
     function canIssuePart() { return hasPermission('issue_part'); }
@@ -2834,17 +2913,20 @@ function getIssueCartEntries() {
       tabTxn.className = tabBaseClass;
       tabLog.className = tabBaseClass;
       tabPrReport.className = tabBaseClass;
+      if (tabRequestOrder) tabRequestOrder.className = tabBaseClass;
       tabManage.className = tabBaseClass;
       tabAdmin.className = tabBaseClass;
       if (active === 'stock') tabStock.className = tabActiveClass;
       if (active === 'txn') tabTxn.className = tabActiveClass;
       if (active === 'log') tabLog.className = tabActiveClass;
       if (active === 'pr') tabPrReport.className = tabActiveClass;
+      if (active === 'request-order' && tabRequestOrder) tabRequestOrder.className = tabActiveClass;
       if (active === 'manage') tabManage.className = tabActiveClass;
       if (active === 'admin') tabAdmin.className = tabActiveClass;
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
       tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
+      if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
@@ -2853,6 +2935,7 @@ function getIssueCartEntries() {
     function switchToStockPage() {
       stockPage.classList.remove('hidden');
       txnPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
@@ -2864,6 +2947,7 @@ function getIssueCartEntries() {
     function switchToTxnPage() {
       stockPage.classList.add('hidden');
       txnPage.classList.remove('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
@@ -2893,6 +2977,7 @@ function getIssueCartEntries() {
       if (!hasPermission('view_logs')) return switchToStockPage();
       stockPage.classList.add('hidden');
       txnPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.remove('hidden');
       prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
@@ -2913,6 +2998,70 @@ function getIssueCartEntries() {
       populateManageLineOptions(true);
       populateManageSheetOptions(true);
       applyAutoManageNo(false);
+    }
+
+    function loadOrderRequests() {
+      var roList = document.getElementById('roList');
+      var badge = document.getElementById('requestPendingBadge');
+      var statusFilter = document.getElementById('roStatusFilter');
+      if (!roList) return;
+      roList.innerHTML = 'Loading...';
+      requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
+        rows = Array.isArray(rows) ? rows : [];
+        var pending = rows.filter(function(r){ return String(r.status||'') === 'Pending'; });
+        var urgent = rows.filter(function(r){ var p = String(r.priority || '').toLowerCase(); return p === 'urgent' || p === 'critical'; });
+        document.getElementById('roPendingCount').textContent = String(pending.length);
+        document.getElementById('roUrgentCount').textContent = String(urgent.length);
+        badge.textContent = String(pending.length);
+        badge.classList.toggle('hidden', pending.length === 0);
+        var filtered = rows;
+        if (statusFilter && statusFilter.value !== 'all') filtered = rows.filter(function(r){ return String(r.status || '') === statusFilter.value; });
+        if (!filtered.length) { roList.innerHTML = '<p class="text-slate-400">ยังไม่มีคำขอ</p>'; return; }
+        roList.innerHTML = filtered.map(function(r) {
+          var actionBtns = hasPermission('request_order_approve') ? '<button data-id="'+r.request_id+'" data-act="approve" class="px-2 py-1 border rounded">Approve</button> <button data-id="'+r.request_id+'" data-act="hold" class="px-2 py-1 border rounded">Hold</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestPurchased" class="px-2 py-1 border rounded">Purchased</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestReceived" class="px-2 py-1 border rounded">Received</button>' : '';
+          actionBtns += hasPermission('request_order_reject') ? ' <button data-id="'+r.request_id+'" data-act="reject" class="px-2 py-1 border rounded">Reject</button>' : '';
+          actionBtns += hasPermission('request_order_convert_pr') ? ' <button data-id="'+r.request_id+'" data-act="convert" class="px-2 py-1 border rounded">Convert to PR</button>' : '';
+          actionBtns += hasPermission('request_order_close') ? ' <button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="px-2 py-1 border rounded">Close</button>' : '';
+          return '<div class="border rounded p-2"><p class="font-semibold">'+(r.request_id||'-')+' • '+(r.item_name||'-')+' ('+(r.priority||'-')+')</p><p>Line: '+(r.line||'-')+' | Qty: '+(r.request_qty||0)+' | By: '+(r.requested_by||'-')+'</p><p>'+ (r.reason||'-') +'</p><p>Status: <b>'+(r.status||'-')+'</b></p><div class="mt-1">'+actionBtns+'</div></div>';
+        }).join('');
+      });
+    }
+
+    function inferRequestPriority(stock, min) {
+      var s = Number(stock || 0), m = Number(min || 0);
+      if (s <= 0) return 'Critical';
+      if (s <= m) return 'Urgent';
+      return 'Normal';
+    }
+
+    function getStockItemStatusLabel(stock, min) {
+      if (Number(stock || 0) <= 0) return 'อะไหล่หมด';
+      if (Number(stock || 0) <= Number(min || 0)) return 'ต่ำกว่า Min';
+      return 'OK';
+    }
+
+    function renderRoSelectedCard(item) {
+      var card = document.getElementById('roSelectedCard');
+      if (!card) return;
+      if (!item) { card.classList.add('hidden'); card.innerHTML = ''; return; }
+      var suggestedQty = Math.max(Number(item.min || 0) - Number(item.stock || 0), 1);
+      document.getElementById('roQty').value = suggestedQty;
+      card.classList.remove('hidden');
+      card.innerHTML = '<div class="flex gap-3 items-start">' +
+        '<img src="' + (item.image_main || item.photo || 'images/no-image.svg') + '" class="h-16 w-16 rounded border bg-white object-contain"/>' +
+        '<div class="min-w-0"><p class="font-semibold">' + (item.name || '-') + '</p>' +
+        '<p class="text-xs text-slate-600">Model: ' + (item.model || '-') + ' | Line: ' + (item.line || '-') + '</p>' +
+        '<p class="text-xs text-slate-600">ยี่ห้อ: ' + (item.brand || '-') + '</p>' +
+        '<p class="text-xs text-slate-700">Stock: <b>' + (item.stock || 0) + '</b> | Min/Max: ' + (item.min || 0) + '/' + (item.max || 0) + '</p>' +
+        '<p class="text-xs">Status: <b>' + getStockItemStatusLabel(item.stock, item.min) + '</b> | Location: ' + (item.location || '-') + '</p>' +
+        '</div></div>';
+    }
+
+    function switchToRequestOrderPage() {
+      stockPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.remove('hidden');
+      setTabStyles('request-order');
+      loadOrderRequests();
     }
 
     function switchToAdminPage() {
@@ -4536,6 +4685,7 @@ function getIssueCartEntries() {
     tabTxn.addEventListener('click', switchToTxnPage);
     tabLog.addEventListener('click', switchToLogPage);
     tabPrReport.addEventListener('click', switchToPrReportPage);
+    if (tabRequestOrder) tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
     lineMenuDockToggle.addEventListener('click', function() {
@@ -4793,6 +4943,105 @@ function getIssueCartEntries() {
     sheetSelector.addEventListener('change', function() {
       loadPartsData();
       if (!logPage.classList.contains('hidden')) loadLogData();
+    });
+    var roReasonPreset = document.getElementById('roReasonPreset');
+    var roReasonOther = document.getElementById('roReasonOther');
+    var roItemSearch = document.getElementById('roItemSearch');
+    var roItemSearchResults = document.getElementById('roItemSearchResults');
+    var roNewItemToggle = document.getElementById('roNewItemToggle');
+    var roNewItemFields = document.getElementById('roNewItemFields');
+    var roAttachmentFile = document.getElementById('roAttachmentFile');
+    var roAttachmentPreview = document.getElementById('roAttachmentPreview');
+    var roAttachmentDataUrl = '';
+    if (roAttachmentFile && roAttachmentPreview) {
+      roAttachmentFile.addEventListener('change', function() {
+        var file = roAttachmentFile.files && roAttachmentFile.files[0];
+        if (!file) { roAttachmentDataUrl = ''; roAttachmentPreview.classList.add('hidden'); return; }
+        var reader = new FileReader();
+        reader.onload = function() {
+          roAttachmentDataUrl = String(reader.result || '');
+          roAttachmentPreview.src = roAttachmentDataUrl;
+          roAttachmentPreview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    if (roNewItemToggle && roNewItemFields) {
+      roNewItemToggle.addEventListener('change', function() {
+        var enabled = !!roNewItemToggle.checked;
+        roNewItemFields.classList.toggle('hidden', !enabled);
+        if (enabled) {
+          roSelectedItem = null;
+          renderRoSelectedCard(null);
+          if (roItemSearchResults) roItemSearchResults.innerHTML = '';
+        }
+      });
+    }
+    if (roReasonPreset && roReasonOther) {
+      roReasonPreset.addEventListener('change', function() {
+        roReasonOther.classList.toggle('hidden', roReasonPreset.value !== 'อื่นๆ');
+      });
+    }
+    if (roItemSearch && roItemSearchResults) {
+      roItemSearch.addEventListener('input', function() {
+        var q = String(roItemSearch.value || '').trim().toLowerCase();
+        if (!q) { roItemSearchResults.innerHTML = ''; return; }
+        var filtered = (partsData || []).filter(function(p) {
+          var blob = [p.name, p.model, p.brand, p.line, p.location].join(' ').toLowerCase();
+          return blob.indexOf(q) > -1;
+        }).slice(0, 20);
+        roItemSearchResults.innerHTML = filtered.map(function(item) {
+          return '<button type="button" data-no="' + item.no + '" class="block w-full border-b px-3 py-2 text-left hover:bg-slate-50">' + (item.name || '-') + ' <span class="text-xs text-slate-500">(' + (item.model || '-') + ')</span></button>';
+        }).join('') || '<p class="px-3 py-2 text-slate-400">ไม่พบรายการ</p>';
+      });
+      roItemSearchResults.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-no]');
+        if (!btn) return;
+        var no = btn.getAttribute('data-no');
+        roSelectedItem = (partsData || []).filter(function(p){ return String(p.no) === String(no); })[0] || null;
+        renderRoSelectedCard(roSelectedItem);
+        roItemSearch.value = roSelectedItem ? (roSelectedItem.name || '') : '';
+        roItemSearchResults.innerHTML = '';
+      });
+    }
+    var requestOrderFormEl = document.getElementById('requestOrderForm');
+    if (requestOrderFormEl) requestOrderFormEl.addEventListener('submit', function(e){
+      e.preventDefault();
+      var isNewItemMode = !!(roNewItemToggle && roNewItemToggle.checked);
+      if (!isNewItemMode && !roSelectedItem) return alert('กรุณาเลือกอะไหล่จากรายการก่อน');
+      var qty = Number(document.getElementById('roQty').value || 0);
+      if (!qty || qty <= 0) return alert('จำนวนที่ต้องการต้องมากกว่า 0');
+      var reason = roReasonPreset && roReasonPreset.value === 'อื่นๆ' ? String((roReasonOther && roReasonOther.value) || '').trim() : (roReasonPreset ? roReasonPreset.value : '');
+      if (!reason) return alert('กรุณาระบุเหตุผล');
+      var payload = withAuthPayload({
+        action: 'createOrderRequest',
+        item_id: isNewItemMode ? '' : roSelectedItem.no,
+        item_name: isNewItemMode ? document.getElementById('roNewItemName').value : roSelectedItem.name,
+        model: isNewItemMode ? document.getElementById('roNewItemModel').value : roSelectedItem.model,
+        brand: isNewItemMode ? document.getElementById('roNewItemBrand').value : roSelectedItem.brand,
+        category: isNewItemMode ? '' : roSelectedItem.category,
+        line: isNewItemMode ? currentLine : (roSelectedItem.line || currentLine),
+        current_stock: isNewItemMode ? 0 : roSelectedItem.stock,
+        min: isNewItemMode ? 0 : roSelectedItem.min,
+        max: isNewItemMode ? 0 : roSelectedItem.max,
+        request_qty: qty,
+        reason: reason,
+        priority: isNewItemMode ? 'Normal' : inferRequestPriority(roSelectedItem.stock, roSelectedItem.min),
+        remark: document.getElementById('roRemark').value,
+        attachment_url: roAttachmentDataUrl
+      });
+      requestApi(payload).then(function(){ e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); if (roNewItemFields) roNewItemFields.classList.add('hidden'); loadOrderRequests(); });
+    });
+    var roRefreshBtn = document.getElementById('roRefreshBtn');
+    var roStatusFilter = document.getElementById('roStatusFilter');
+    var roListEl = document.getElementById('roList');
+    if (roRefreshBtn) roRefreshBtn.addEventListener('click', loadOrderRequests);
+    if (roStatusFilter) roStatusFilter.addEventListener('change', loadOrderRequests);
+    if (roListEl) roListEl.addEventListener('click', function(e){
+      var id = e.target.getAttribute('data-id'); var act = e.target.getAttribute('data-act'); if (!id || !act) return;
+      if (act === 'convert') return requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] })).then(loadOrderRequests);
+      var actionNameMap = { approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' };
+      requestApi(withAuthPayload({ action: actionNameMap[act] || act, request_id: id })).then(loadOrderRequests);
     });
     document.getElementById('loginForm').addEventListener('submit', function(e) {
       e.preventDefault();
