@@ -857,8 +857,13 @@
 
   <script>
     var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzC-syvCpyq2uTVyceNQvr_XcnWIG50st2EraVJezpDqr72-dBbcyLhYFbRyqsbIC9vyg/exec';
-    var API_URL = localStorage.getItem('spare_api_url') || DEFAULT_API_URL;
-    if (API_URL.indexOf('/dev') > -1) API_URL = API_URL.replace('/dev', '/exec');
+    function normalizeApiUrl(url) {
+      var val = String(url || '').trim();
+      if (!val) return '';
+      if (val.indexOf('/dev') > -1) val = val.replace('/dev', '/exec');
+      return val;
+    }
+    var API_URL = normalizeApiUrl(localStorage.getItem('spare_api_url') || DEFAULT_API_URL) || DEFAULT_API_URL;
     var ACTIVE_API_URL = API_URL;
     var LINE_API_URL_MAP = {
       'H9': API_URL,
@@ -2194,7 +2199,24 @@ function getIssueCartEntries() {
         .catch(function(err) {
           var msg = String(err && err.message ? err.message : err || '');
           if (msg.indexOf('JSONP') > -1 || msg.indexOf('โหลดข้อมูล API ไม่สำเร็จ') > -1) {
-            throw new Error('ไม่สามารถเชื่อม Apps Script ได้ (JSONP). กรุณาใช้ URL /exec และตั้งสิทธิ์ Deploy เป็น Anyone');
+            // retry once using hard-coded default endpoint in case localStorage API URL is stale
+            localStorage.removeItem('spare_api_url');
+            API_URL = DEFAULT_API_URL;
+            ACTIVE_API_URL = DEFAULT_API_URL;
+            LINE_API_URL_MAP.H9 = DEFAULT_API_URL;
+            return loadJsonpWithFallback(function(base) {
+              return normalizeApiUrl(DEFAULT_API_URL) + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password);
+            }).then(parseApiResponse).then(function(data) {
+              authToken = data.token;
+              currentUser = data.user;
+              localStorage.setItem('spare_auth_token', authToken);
+              setAuthScreen(true);
+              applyAuthorizationUi();
+              switchToStockPage();
+              return data;
+            }).catch(function() {
+              throw new Error('ไม่สามารถเชื่อม Apps Script ได้ (JSONP). ตรวจสอบ Deploy URL: ' + DEFAULT_API_URL);
+            });
           }
           throw err;
         });
