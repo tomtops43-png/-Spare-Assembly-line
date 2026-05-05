@@ -1034,6 +1034,7 @@
     var txnPage = document.getElementById('txnPage');
     var requestOrderPage = document.getElementById('requestOrderPage');
     var roSelectedItem = null;
+    var roSearchResultState = [];
     var managePage = document.getElementById('managePage');
     var adminPage = document.getElementById('adminPage');
     var logTable = document.getElementById('logTable');
@@ -1949,7 +1950,7 @@ function getIssueCartEntries() {
         var callbackName = 'partsCallback_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
         var sep = url.indexOf('?') > -1 ? '&' : '?';
         var script = document.createElement('script');
-        var timeoutMs = 10000;
+        var timeoutMs = 25000;
 
         var timeoutId = setTimeout(function() {
           cleanup();
@@ -5017,20 +5018,21 @@ function getIssueCartEntries() {
     if (roItemSearch && roItemSearchResults) {
       roItemSearch.addEventListener('input', function() {
         var q = String(roItemSearch.value || '').trim().toLowerCase();
-        if (!q) { roItemSearchResults.innerHTML = ''; return; }
+        if (!q) { roSearchResultState = []; roItemSearchResults.innerHTML = ''; return; }
         var filtered = (partsData || []).filter(function(p) {
           var blob = [p.name, p.model, p.brand, p.line, p.location].join(' ').toLowerCase();
           return blob.indexOf(q) > -1;
         }).slice(0, 20);
-        roItemSearchResults.innerHTML = filtered.map(function(item) {
-          return '<button type="button" data-no="' + item.no + '" class="block w-full border-b px-3 py-2.5 text-left text-sm hover:bg-slate-50">' + (item.name || '-') + ' <span class="text-xs text-slate-500">(' + (item.model || '-') + ')</span></button>';
+        roSearchResultState = filtered.slice();
+        roItemSearchResults.innerHTML = filtered.map(function(item, idx) {
+          return '<button type="button" data-idx="' + idx + '" class="block w-full border-b px-3 py-2.5 text-left text-sm hover:bg-slate-50">' + (item.name || '-') + ' <span class="text-xs text-slate-500">(' + (item.model || '-') + ')</span></button>';
         }).join('') || '<p class="px-3 py-2 text-slate-400">ไม่พบรายการ</p>';
       });
       roItemSearchResults.addEventListener('click', function(e) {
-        var btn = e.target.closest('[data-no]');
+        var btn = e.target.closest('[data-idx]');
         if (!btn) return;
-        var no = btn.getAttribute('data-no');
-        roSelectedItem = (partsData || []).filter(function(p){ return String(p.no) === String(no); })[0] || null;
+        var idx = Number(btn.getAttribute('data-idx'));
+        roSelectedItem = Number.isFinite(idx) ? (roSearchResultState[idx] || null) : null;
         renderRoSelectedCard(roSelectedItem);
         roItemSearch.value = roSelectedItem ? (roSelectedItem.name || '') : '';
         roItemSearchResults.innerHTML = '';
