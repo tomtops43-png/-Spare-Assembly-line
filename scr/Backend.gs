@@ -1423,3 +1423,4 @@ function respond(data, e) {
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
+  if (ORDER_REQUEST_STATUSES.indexOf(nextStatus) === -1) throw new Error('สถานะไม่ถูกต้อง: ' + nextStatus);
