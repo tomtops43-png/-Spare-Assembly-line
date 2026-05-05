@@ -103,7 +103,7 @@
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
-          <button id="tabRequestOrder" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">ขอซื้ออะไหล่ <span id="requestPendingBadge" class="ml-1 hidden rounded-full bg-rose-500 px-2 py-0.5 text-[10px] text-white">0</span></button>
+          <button id="tabRequestOrder" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">ขอซื้ออะไหล่ <span id="requestPendingBadge" class="ml-2 hidden rounded-full border-2 border-white bg-rose-600 px-2.5 py-0.5 text-[11px] font-extrabold text-white shadow-lg animate-pulse">0</span></button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เพิ่มรายการเข้าระบบ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
         </div>
@@ -3083,8 +3083,11 @@ function getIssueCartEntries() {
         });
         var groupKeys = Object.keys(grouped);
         if (!groupKeys.length) { roList.innerHTML = '<p class="text-slate-400">ยังไม่มีคำขอ</p>'; return; }
-        roList.innerHTML = groupKeys.map(function(name) {
-          var items = grouped[name] || [];
+        var groupedEntries = groupKeys.map(function(name){ return { name: name, items: grouped[name] || [] }; });
+        window.__roGroupedEntries = groupedEntries;
+        roList.innerHTML = groupedEntries.map(function(entry, gIdx) {
+          var name = entry.name;
+          var items = entry.items || [];
           var urgentCount = items.filter(function(r){ var p = String(r.priority || '').toLowerCase(); return p === 'urgent' || p === 'critical'; }).length;
           var lines = Array.from(new Set(items.map(function(r){ return String(r.line || '-').trim() || '-'; }))).join(', ');
           var latest = items.reduce(function(acc, r){ var d = new Date(r.requested_date || r.updated_at || 0).getTime(); return d > acc ? d : acc; }, 0);
@@ -3096,23 +3099,25 @@ function getIssueCartEntries() {
             '<p class="text-xs text-slate-600">รายการด่วน: ' + urgentCount + '</p>' +
             '<p class="text-xs text-slate-600">ไลน์ที่เกี่ยวข้อง: ' + lines + '</p>' +
             '<p class="text-xs text-slate-600">วันที่ล่าสุด: ' + latestText + '</p>' +
-            '<button data-viewer="' + encodeURIComponent(name) + '" class="mt-2 rounded bg-slate-900 px-3 py-1.5 text-white">ดูรายการ</button>' +
+            '<button type="button" data-group-idx="' + gIdx + '" class="mt-2 rounded bg-slate-900 px-3 py-1.5 text-white">ดูรายการ</button>' +
           '</div>';
         }).join('');
-        window.__roGroupedData = grouped;
+        
       }).catch(function(err) {
         roList.innerHTML = '<p class="text-rose-600">โหลดรายการคำขอไม่สำเร็จ: ' + (err && err.message ? err.message : err) + '</p>';
       });
     }
 
-    function openRequestDetailByRequester(rawName) {
-      var grouped = window.__roGroupedData || {};
-      var name = decodeURIComponent(rawName || '');
-      var items = grouped[name] || [];
+    function openRequestDetailByRequester(groupIdx) {
+      var groupedEntries = window.__roGroupedEntries || [];
+      var entry = groupedEntries[Number(groupIdx)] || { name: '', items: [] };
+      var name = entry.name || '';
+      var items = entry.items || [];
       var detailModal = document.getElementById('roDetailModal');
       var detailTitle = document.getElementById('roDetailTitle');
       var detailList = document.getElementById('roDetailList');
       if (!detailModal || !detailList || !detailTitle) return;
+      window.__roActiveGroupIdx = Number(groupIdx);
       detailTitle.textContent = 'รายการของ: ' + (name === '__missing__' ? 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' : name);
       detailList.innerHTML = items.map(function(r, idx) {
         var invalid = !String(r.item_name || '').trim() || Number(r.request_qty || 0) <= 0 || !String(r.requested_by || '').trim();
@@ -5195,9 +5200,9 @@ function inferRequestPriority(stock, min) {
     if (roRefreshBtn) roRefreshBtn.addEventListener('click', loadOrderRequests);
     if (roStatusFilter) roStatusFilter.addEventListener('change', loadOrderRequests);
     if (roListEl) roListEl.addEventListener('click', function(e){
-      var btn = e.target.closest('[data-viewer]');
-      var viewer = btn ? btn.getAttribute('data-viewer') : '';
-      if (viewer) return openRequestDetailByRequester(viewer);
+      var btn = e.target.closest('[data-group-idx]');
+      var groupIdx = btn ? btn.getAttribute('data-group-idx') : '';
+      if (groupIdx !== '') return openRequestDetailByRequester(groupIdx);
     });
     var roDetailModal = document.getElementById('roDetailModal');
     var roDetailClose = document.getElementById('roDetailClose');
@@ -5209,9 +5214,7 @@ function inferRequestPriority(stock, min) {
         ? requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] }))
         : requestApi(withAuthPayload({ action: ({ approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' }[act] || act), request_id: id }));
       run.then(function(){ loadOrderRequests(); }).then(function(){
-        var currentTitle = document.getElementById('roDetailTitle');
-        var name = currentTitle ? String(currentTitle.textContent || '').replace('รายการของ: ', '') : '';
-        if (name) openRequestDetailByRequester(encodeURIComponent(name === 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' ? '__missing__' : name));
+        if (window.__roActiveGroupIdx !== undefined) openRequestDetailByRequester(window.__roActiveGroupIdx);
       });
     });
     document.getElementById('loginForm').addEventListener('submit', function(e) {
