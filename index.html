@@ -1972,10 +1972,12 @@ function getIssueCartEntries() {
       var baseUrl = LINE_API_URL_MAP[currentLine] || API_URL;
       if (baseUrl.indexOf('/dev') > -1) baseUrl = baseUrl.replace('/dev', '/exec');
       var candidates = [baseUrl];
-      if (baseUrl.indexOf('/exec') > -1) candidates.push(baseUrl.replace('/exec', '/dev'));
-      if (baseUrl.indexOf('/dev') > -1) candidates.push(baseUrl.replace('/dev', '/exec'));
+      if (!shouldUseJsonpTransportForUrl(baseUrl)) {
+        if (baseUrl.indexOf('/exec') > -1) candidates.push(baseUrl.replace('/exec', '/dev'));
+        if (baseUrl.indexOf('/dev') > -1) candidates.push(baseUrl.replace('/dev', '/exec'));
+      }
       if (API_URL && candidates.indexOf(API_URL) === -1) candidates.push(API_URL);
-      if (API_URL && API_URL.indexOf('/exec') > -1) candidates.push(API_URL.replace('/exec', '/dev'));
+      if (API_URL && API_URL.indexOf('/exec') > -1 && !shouldUseJsonpTransportForUrl(API_URL)) candidates.push(API_URL.replace('/exec', '/dev'));
       return Array.from(new Set(candidates.filter(Boolean)));
     }
 
@@ -2002,8 +2004,9 @@ function getIssueCartEntries() {
         if (idx >= candidates.length) throw lastErr || new Error('โหลดข้อมูล API ไม่สำเร็จ');
         var base = candidates[idx++];
         var targetUrl = queryBuilder(base);
-        return loadViaJsonp(targetUrl).catch(function() {
-          // fallback for endpoints/environments that do not return JSONP callback
+        return loadViaJsonp(targetUrl).catch(function(err) {
+          // Only fallback to fetch when same-origin; cross-origin fetch will hit CORS.
+          if (shouldUseJsonpTransportForUrl(base)) throw err;
           return loadByFetch(targetUrl);
         }).then(function(res) {
           ACTIVE_API_URL = base;
