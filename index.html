@@ -856,7 +856,7 @@
 
 
   <script>
-    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzux-h9XBiryXx2TBdgH1FpIiMf0Jr3FHEO09XvAO70a6Qfk2JQXe4yoF56P_FdROF48w/exec';
+    var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzC-syvCpyq2uTVyceNQvr_XcnWIG50st2EraVJezpDqr72-dBbcyLhYFbRyqsbIC9vyg/exec';
     function normalizeApiUrl(url) {
       var val = String(url || '').trim();
       if (!val) return '';
@@ -2098,12 +2098,25 @@ function getIssueCartEntries() {
       issue_part: ['issue_part', 'issue', 'issue_item', 'stock.issue', 'stock.issue_part'],
       receive_part: ['receive_part', 'receive', 'receive_item', 'stock.receive', 'stock.receive_part']
     };
+    function hasRequestOrderRoleFallback(permissionName) {
+      if (!(currentUser && currentUser.role)) return false;
+      var role = String(currentUser.role || '').toLowerCase();
+      if (role === 'admin') return permissionName.indexOf('request_order_') === 0;
+      if (role === 'leader' || role === 'engineer') {
+        return ['request_order_view_all', 'request_order_approve', 'request_order_reject', 'request_order_create', 'request_order_view_own'].indexOf(permissionName) > -1;
+      }
+      if (role === 'user' || role === 'technician') {
+        return permissionName === 'request_order_create' || permissionName === 'request_order_view_own';
+      }
+      return false;
+    }
     function hasPermission(permissionName) {
       if (!(currentUser && currentUser.permissions)) return false;
       var aliases = PERMISSION_ALIASES[permissionName] || [permissionName];
       for (var i = 0; i < aliases.length; i += 1) {
         if (currentUser.permissions[aliases[i]]) return true;
       }
+      if (permissionName.indexOf('request_order_') === 0) return hasRequestOrderRoleFallback(permissionName);
       return false;
     }
     function canIssuePart() { return hasPermission('issue_part'); }
