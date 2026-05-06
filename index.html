@@ -3281,6 +3281,7 @@ function getIssueCartEntries() {
     function closeRequestOrderDetailModal() {
       var roDetailModalEl = document.getElementById('roDetailModal');
       if (roDetailModalEl) roDetailModalEl.classList.add('hidden');
+      window.__roActiveGroupIdx = undefined;
       document.body.classList.remove('overflow-hidden');
     }
 
@@ -3350,7 +3351,10 @@ function inferRequestPriority(stock, min) {
     function switchToRequestOrderPage() {
       stockPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
+      window.__roActiveGroupIdx = undefined;
       closeRequestOrderDetailModal();
+      var roImageModalEl = document.getElementById('roImageModal');
+      if (roImageModalEl) roImageModalEl.classList.add('hidden');
       setTabStyles('request-order');
       loadRequestOrderSearchPool();
       requestApi(withAuthPayload({ action: 'ensureOrderRequestsSheet' })).catch(function() {});
