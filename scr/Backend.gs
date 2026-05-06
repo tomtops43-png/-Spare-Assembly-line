@@ -310,6 +310,28 @@ function uploadOrderRequestAttachmentToDrive(payload) {
   return 'https://drive.google.com/uc?export=view&id=' + file.getId();
 }
 
+function uploadRequestAttachment(payload) {
+  var session = getSessionUser({ authToken: payload.authToken });
+  var user = findUserByUsername(session.user.username);
+  requirePermission({ authToken: payload.authToken }, 'request_order_create');
+  var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
+  if (!dataUrl) throw new Error('ไม่พบข้อมูลรูปภาพ');
+  var requestId = 'REQUPLOAD-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+  var attachmentUrl = uploadOrderRequestAttachmentToDrive({
+    dataUrl: dataUrl,
+    requestId: requestId,
+    line: payload.line || '',
+    requestedBy: user.username || ''
+  });
+  var fileIdMatch = attachmentUrl.match(/id=([^&]+)/);
+  return {
+    status: 'success',
+    attachment_url: attachmentUrl,
+    file_id: fileIdMatch ? fileIdMatch[1] : '',
+    view_url: fileIdMatch ? ('https://drive.google.com/file/d/' + fileIdMatch[1] + '/view') : ''
+  };
+}
+
 function getOrderRequests(payload) {
   try {
     var session = getSessionUser({ authToken: payload.authToken });
@@ -1198,6 +1220,7 @@ function doGet(e) {
     }), e);
     if (action === 'deleteUser') return respond(deleteUser({ authToken: authToken, username: e.parameter.username }), e);
     if (action === 'createOrderRequest') return respond(createOrderRequest(e.parameter), e);
+    if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(e.parameter), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(e.parameter), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
@@ -1378,6 +1401,7 @@ function doPost(e) {
       return respond(deleteUser({ authToken: authPayload.authToken, username: body.username }), e);
     }
     if (action === 'createOrderRequest') return respond(createOrderRequest(body), e);
+    if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(body), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(body), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(body), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(body), e);

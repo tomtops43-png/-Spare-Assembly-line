@@ -244,6 +244,7 @@
           <input id="roRemark" placeholder="หมายเหตุ (ไม่บังคับ)" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
           <label class="text-sm font-semibold text-slate-700">แนบรูปภาพ (ไม่บังคับ)</label>
           <input id="roAttachmentFile" type="file" accept="image/*" class="h-11 w-full rounded border px-3 py-2 bg-white text-sm" />
+          <p id="roAttachmentInfo" class="text-xs text-slate-500">ยังไม่ได้แนบรูป</p>
           <img id="roAttachmentPreview" class="hidden h-24 w-24 rounded border object-cover" />
           <button class="h-12 w-full rounded bg-blue-600 text-base font-semibold text-white md:h-10 md:text-sm">ส่งคำขอซื้อ</button>
         </form>
@@ -5139,27 +5140,46 @@ function inferRequestPriority(stock, min) {
     var roExistingItemFields = document.getElementById('roExistingItemFields');
     var roAttachmentFile = document.getElementById('roAttachmentFile');
     var roAttachmentPreview = document.getElementById('roAttachmentPreview');
+    var roAttachmentInfo = document.getElementById('roAttachmentInfo');
     var roAttachmentDataUrl = '';
+    var roAttachmentMimeType = '';
+    var roAttachmentFileName = '';
+    function formatBytes(bytes) {
+      var b = Number(bytes || 0);
+      if (b < 1024) return b + ' B';
+      if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+      return (b / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+    function estimateDataUrlBytes(dataUrl) {
+      var base64 = String(dataUrl || '').split(',')[1] || '';
+      return Math.floor((base64.length * 3) / 4);
+    }
     function resizeImageForUpload(file) {
       return new Promise(function(resolve, reject) {
+        var allowed = { 'image/jpeg': true, 'image/png': true, 'image/webp': true };
+        if (!allowed[file.type]) return reject(new Error('รองรับเฉพาะไฟล์ jpg, png, webp'));
         var reader = new FileReader();
         reader.onload = function() {
           var img = new Image();
           img.onload = function() {
-            var maxSide = 1280;
-            var w = img.width || 1;
-            var h = img.height || 1;
-            var scale = Math.min(1, maxSide / Math.max(w, h));
-            var targetW = Math.max(1, Math.round(w * scale));
-            var targetH = Math.max(1, Math.round(h * scale));
-            var canvas = document.createElement('canvas');
-            canvas.width = targetW;
-            canvas.height = targetH;
-            var ctx = canvas.getContext('2d');
-            if (!ctx) return reject(new Error('ไม่สามารถประมวลผลรูปภาพได้'));
-            ctx.drawImage(img, 0, 0, targetW, targetH);
-            var quality = 0.75;
-            var out = canvas.toDataURL('image/jpeg', quality);
+            var attempts = [{ maxSide: 1280, quality: 0.72 }, { maxSide: 960, quality: 0.6 }];
+            var out = '';
+            for (var i = 0; i < attempts.length; i += 1) {
+              var cfg = attempts[i];
+              var w = img.width || 1;
+              var h = img.height || 1;
+              var scale = Math.min(1, cfg.maxSide / Math.max(w, h));
+              var targetW = Math.max(1, Math.round(w * scale));
+              var targetH = Math.max(1, Math.round(h * scale));
+              var canvas = document.createElement('canvas');
+              canvas.width = targetW;
+              canvas.height = targetH;
+              var ctx = canvas.getContext('2d');
+              if (!ctx) return reject(new Error('ไม่สามารถประมวลผลรูปภาพได้'));
+              ctx.drawImage(img, 0, 0, targetW, targetH);
+              out = canvas.toDataURL('image/jpeg', cfg.quality);
+              if (estimateDataUrlBytes(out) <= 700 * 1024 || i === attempts.length - 1) break;
+            }
             resolve(out);
           };
           img.onerror = function() { reject(new Error('ไฟล์รูปภาพไม่ถูกต้อง')); };
@@ -5172,14 +5192,19 @@ function inferRequestPriority(stock, min) {
     if (roAttachmentFile && roAttachmentPreview) {
       roAttachmentFile.addEventListener('change', function() {
         var file = roAttachmentFile.files && roAttachmentFile.files[0];
-        if (!file) { roAttachmentDataUrl = ''; roAttachmentPreview.classList.add('hidden'); return; }
+        if (!file) { roAttachmentDataUrl = ''; roAttachmentPreview.classList.add('hidden'); if (roAttachmentInfo) roAttachmentInfo.textContent = 'ยังไม่ได้แนบรูป'; return; }
+        if (roAttachmentInfo) roAttachmentInfo.textContent = 'ระบบกำลังบีบอัดรูปภาพก่อนส่ง...';
         resizeImageForUpload(file).then(function(dataUrl) {
           roAttachmentDataUrl = String(dataUrl || '');
+          roAttachmentMimeType = 'image/jpeg';
+          roAttachmentFileName = file.name || ('request-' + Date.now() + '.jpg');
           roAttachmentPreview.src = roAttachmentDataUrl;
           roAttachmentPreview.classList.remove('hidden');
+          if (roAttachmentInfo) roAttachmentInfo.textContent = 'ขนาดก่อนบีบอัด: ' + formatBytes(file.size) + ' | หลังบีบอัด: ' + formatBytes(estimateDataUrlBytes(roAttachmentDataUrl));
         }).catch(function(err) {
           roAttachmentDataUrl = '';
           roAttachmentPreview.classList.add('hidden');
+          if (roAttachmentInfo) roAttachmentInfo.textContent = 'แนบรูปไม่สำเร็จ';
           alert((err && err.message ? err.message : 'ประมวลผลรูปไม่สำเร็จ') + ' กรุณาเลือกรูปใหม่');
         });
       });
@@ -5251,17 +5276,25 @@ function inferRequestPriority(stock, min) {
         reason: reason,
         priority: isNewItemMode ? 'Normal' : inferRequestPriority(roSelectedItem.stock, roSelectedItem.min),
         remark: document.getElementById('roRemark').value,
-        attachment_url: roAttachmentDataUrl
+        attachment_url: ''
       });
       var submitBtn = requestOrderFormEl.querySelector('button[type="submit"], button');
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'กำลังส่ง...'; }
-      var submitPromise = (roAttachmentDataUrl && shouldUseJsonpTransport())
-        ? postJsonNoCors(payload).then(function() {
-            return new Promise(function(resolve) {
-              setTimeout(function(){ resolve({ status: 'success', transport: 'no-cors' }); }, 900);
-            });
-          })
-        : requestApi(payload);
+      var submitPromise = Promise.resolve().then(function() {
+        if (!roAttachmentDataUrl) return null;
+        return postJson(withAuthPayload({
+          action: 'uploadRequestAttachment',
+          fileName: roAttachmentFileName || ('request-' + Date.now() + '.jpg'),
+          mimeType: roAttachmentMimeType || 'image/jpeg',
+          dataUrl: roAttachmentDataUrl
+        })).then(function(uploadRes) {
+          if (!uploadRes || uploadRes.status !== 'success') throw new Error((uploadRes && uploadRes.message) || 'อัปโหลดรูปไม่สำเร็จ');
+          payload.attachment_url = uploadRes.attachment_url || '';
+          return uploadRes;
+        });
+      }).then(function() {
+        return postJson(payload);
+      });
       submitPromise.then(function(res){
         if (res && res.status === 'error') throw new Error(res.message || 'ส่งคำขอไม่สำเร็จ');
         alert('ส่งคำขอซื้อเรียบร้อย');
