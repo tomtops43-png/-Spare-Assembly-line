@@ -3278,6 +3278,12 @@ function getIssueCartEntries() {
       document.body.classList.add('overflow-hidden');
     }
 
+    function closeRequestOrderDetailModal() {
+      var roDetailModalEl = document.getElementById('roDetailModal');
+      if (roDetailModalEl) roDetailModalEl.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+
 function inferRequestPriority(stock, min) {
       var s = Number(stock || 0), m = Number(min || 0);
       if (s <= 0) return 'Critical';
@@ -3344,6 +3350,7 @@ function inferRequestPriority(stock, min) {
     function switchToRequestOrderPage() {
       stockPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
+      closeRequestOrderDetailModal();
       setTabStyles('request-order');
       loadRequestOrderSearchPool();
       requestApi(withAuthPayload({ action: 'ensureOrderRequestsSheet' })).catch(function() {});
@@ -5430,12 +5437,8 @@ function inferRequestPriority(stock, min) {
     var roImageModal = document.getElementById('roImageModal');
     var roImageModalClose = document.getElementById('roImageModalClose');
     var roImageModalPreview = document.getElementById('roImageModalPreview');
-    function closeRoDetailModal() {
-      if (roDetailModal) roDetailModal.classList.add('hidden');
-      document.body.classList.remove('overflow-hidden');
-    }
-    if (roDetailClose && roDetailModal) roDetailClose.addEventListener('click', closeRoDetailModal);
-    if (roDetailModal) roDetailModal.addEventListener('click', function(e){ if (e.target === roDetailModal) closeRoDetailModal(); });
+    if (roDetailClose && roDetailModal) roDetailClose.addEventListener('click', closeRequestOrderDetailModal);
+    if (roDetailModal) roDetailModal.addEventListener('click', function(e){ if (e.target === roDetailModal) closeRequestOrderDetailModal(); });
     if (roImageModalClose && roImageModal) roImageModalClose.addEventListener('click', function(){ roImageModal.classList.add('hidden'); });
     if (roImageModal) roImageModal.addEventListener('click', function(e){ if (e.target === roImageModal) roImageModal.classList.add('hidden'); });
     if (roImageModalPreview) {
