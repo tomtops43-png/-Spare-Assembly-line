@@ -2282,10 +2282,15 @@ function getIssueCartEntries() {
       if (count > 0) {
         badge.textContent = count > 99 ? '99+' : String(count);
         badge.classList.remove('hidden');
+        badge.style.display = 'inline-flex';
+        badge.style.opacity = '1';
+        badge.style.visibility = 'visible';
       } else {
         badge.classList.add('hidden');
+        badge.style.display = 'none';
       }
       console.log('requestOrderBadgeCount:', requestOrderBadgeCount);
+      console.log(document.getElementById('requestOrderNavBadge'));
       console.log(btn.contains(badge));
     }
 
@@ -3108,6 +3113,7 @@ function getIssueCartEntries() {
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
+      updateRequestOrderBadgeUI(requestOrderBadgeCount);
     }
 
     function switchToStockPage() {
