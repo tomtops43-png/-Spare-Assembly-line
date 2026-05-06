@@ -5413,7 +5413,7 @@ function inferRequestPriority(stock, min) {
       });
       submitPromise.then(function(res){
         if (res && res.status === 'error') throw new Error(res.message || 'ส่งคำขอไม่สำเร็จ');
-        alert('ส่งคำขอซื้อเรียบร้อย');
+        alert('ส่งคำขอซื้อเรียบร้อย • สถานะ: รอการอนุมัติ');
         e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests(); refreshRequestOrderBadgeCount();
       }).catch(function(err) {
         var rawMessage = err && err.message ? err.message : String(err || '');
@@ -5473,11 +5473,23 @@ function inferRequestPriority(stock, min) {
         return;
       }
       var id = e.target.getAttribute('data-id'); var act = e.target.getAttribute('data-act'); if (!id || !act) return;
+      var actionBtn = e.target;
+      var originalText = actionBtn.textContent;
+      actionBtn.disabled = true;
+      actionBtn.textContent = 'กำลังส่ง...';
       var run = act === 'convert'
         ? requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] }))
         : requestApi(withAuthPayload({ action: ({ approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' }[act] || act), request_id: id }));
-      run.then(function(){ loadOrderRequests(); return refreshRequestOrderBadgeCount(); }).then(function(){
+      run.then(function(){
+        alert('บันทึกคำสั่งเรียบร้อย • สถานะรอการอนุมัติ/อัปเดตเหมือนระบบ e-mail');
+        loadOrderRequests(); return refreshRequestOrderBadgeCount();
+      }).then(function(){
         if (window.__roActiveGroupIdx !== undefined) openRequestDetailByRequester(window.__roActiveGroupIdx);
+      }).catch(function(err) {
+        alert('อัปเดตสถานะไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+      }).finally(function() {
+        actionBtn.disabled = false;
+        actionBtn.textContent = originalText;
       });
     });
     document.getElementById('loginForm').addEventListener('submit', function(e) {
