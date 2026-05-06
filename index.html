@@ -5626,6 +5626,8 @@ function inferRequestPriority(stock, min) {
     setAuthScreen(false);
     var appSplash = document.getElementById('appSplash');
     var appSplashText = document.getElementById('appSplashText');
+    var splashStartedAt = Date.now();
+    var splashMinVisibleMs = 1200;
     var splashSlowTimer = setTimeout(function() {
       if (appSplash && !appSplash.classList.contains('hidden') && appSplashText) {
         appSplashText.textContent = 'กำลังเชื่อมต่อระบบ กรุณารอสักครู่...';
@@ -5634,8 +5636,12 @@ function inferRequestPriority(stock, min) {
     function hideAppSplash() {
       if (!appSplash) return;
       clearTimeout(splashSlowTimer);
-      appSplash.classList.add('splash-fade-out');
-      setTimeout(function(){ appSplash.classList.add('hidden'); }, 500);
+      var elapsed = Date.now() - splashStartedAt;
+      var wait = Math.max(0, splashMinVisibleMs - elapsed);
+      setTimeout(function() {
+        appSplash.classList.add('splash-fade-out');
+        setTimeout(function(){ appSplash.classList.add('hidden'); }, 500);
+      }, wait);
     }
     checkSession().then(function() {
       setAuthScreen(true);
