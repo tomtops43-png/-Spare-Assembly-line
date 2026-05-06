@@ -2245,19 +2245,23 @@ function getIssueCartEntries() {
 
     function updateRequestOrderBadgeUI() {
       var btn = document.getElementById('requestOrderNavBtn');
-      var badge = document.getElementById('requestOrderNavBadge');
-      if (!badge || !btn) {
+      if (!btn) {
         console.warn('requestOrderNavBadge not found inside requestOrderNavBtn');
         return;
       }
-      if (!btn.contains(badge)) {
-        btn.appendChild(badge);
-      }
-      var duplicates = document.querySelectorAll('#requestOrderNavBadge');
-      if (duplicates.length > 1) {
-        duplicates.forEach(function(node, idx) {
-          if (idx > 0 && node && node.parentNode) node.parentNode.removeChild(node);
+      var allBadges = document.querySelectorAll('#requestOrderNavBadge');
+      if (allBadges.length) {
+        allBadges.forEach(function(node) {
+          if (node.parentNode !== btn && node.parentNode) node.parentNode.removeChild(node);
         });
+      }
+      var badge = btn.querySelector('#requestOrderNavBadge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'requestOrderNavBadge';
+        badge.className = 'request-order-nav-badge hidden';
+        badge.textContent = '0';
+        btn.appendChild(badge);
       }
       var count = Number(requestOrderBadgeCount || 0);
       if (count > 0) {
