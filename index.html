@@ -104,7 +104,7 @@
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
           <button id="tabRequestOrder" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">ขอซื้ออะไหล่ <span id="requestPendingBadge" class="ml-2 hidden rounded-full border-2 border-white bg-rose-600 px-2.5 py-0.5 text-[11px] font-extrabold text-white shadow-lg animate-pulse">0</span></button>
-          <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เพิ่มรายการเข้าระบบ</button>
+          <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-yellow-700 bg-yellow-600 text-white text-sm font-semibold">เพิ่มรายการเข้าระบบ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
         </div>
 
@@ -114,7 +114,7 @@
           <div class="flex items-center justify-between gap-2 text-xs">
             <div class="hidden md:flex items-center gap-1.5">
               <button id="stockNavLogBtn" type="button" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">📜 Log ประวัติ</button>
-              <button id="stockNavManageBtn" type="button" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">🛠 เพิ่มรายการเข้าระบบ</button>
+              <button id="stockNavManageBtn" type="button" class="rounded-md border border-yellow-700 bg-yellow-600 px-2.5 py-1 text-white">🛠 เพิ่มรายการเข้าระบบ</button>
               <button id="stockNavAdminBtn" type="button" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">⚙️ Admin Panel</button>
             </div>
             <button id="stockUtilityMenuBtn" type="button" class="md:hidden rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">☰ เมนูลัด</button>
@@ -127,7 +127,7 @@
           </div>
           <div id="stockUtilityMenuMobile" class="mt-2 hidden md:hidden grid grid-cols-3 gap-2 text-xs">
             <button id="stockNavLogBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">📜 Log</button>
-            <button id="stockNavManageBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">🛠 เพิ่มรายการ</button>
+            <button id="stockNavManageBtnMobile" type="button" class="rounded-md border border-yellow-700 bg-yellow-600 px-2 py-1.5 text-white">🛠 เพิ่มรายการ</button>
             <button id="stockNavAdminBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">⚙️ Admin</button>
           </div>
           <div id="stockLineLockBar" class="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 md:hidden">
@@ -169,7 +169,7 @@
       <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
         <div class="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
           <button id="qaIssueBtn" class="h-11 w-full rounded-xl bg-blue-600 px-4 text-white text-sm font-semibold shadow-sm md:h-9 md:w-auto md:rounded-full md:text-sm">⚡ เบิกอะไหล่</button>
-          <button id="qaManageBtn" class="h-11 w-full rounded-xl bg-slate-100 text-slate-700 px-4 text-sm font-semibold md:h-9 md:w-auto md:rounded-full md:text-sm">🛠 เพิ่มรายการเข้าระบบ</button>
+          <button id="qaManageBtn" class="h-11 w-full rounded-xl border border-yellow-700 bg-yellow-600 px-4 text-sm font-semibold text-white shadow-sm md:h-9 md:w-auto md:rounded-full md:text-sm">🛠 เพิ่มรายการเข้าระบบ</button>
           <button id="qaReceiveBtn" style="background-color:#059669;border-color:#047857;color:#ffffff;" class="inline-flex h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-4 text-sm font-semibold shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 md:h-9 md:w-auto md:rounded-full md:text-sm"><span aria-hidden="true">📥</span><span>รับเข้า</span></button>
         </div>
       </section>
@@ -255,6 +255,14 @@
             <button id="roDetailClose" type="button" class="rounded border px-3 py-1">ปิด</button>
           </div>
           <div id="roDetailList" class="space-y-2"></div>
+        </div>
+      </div>
+      <div id="roImageModal" class="fixed inset-0 z-[60] hidden bg-black/70 p-4">
+        <div class="flex h-full w-full items-center justify-center">
+          <div class="relative max-h-full max-w-4xl">
+            <button id="roImageModalClose" type="button" class="absolute -right-2 -top-2 rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-800 shadow">ปิด</button>
+            <img id="roImageModalPreview" src="" alt="ภาพแนบคำขอซื้อ" class="max-h-[85vh] max-w-[92vw] rounded-xl border border-white/30 bg-white object-contain shadow-2xl" />
+          </div>
         </div>
       </div>
     </section>
@@ -3093,13 +3101,21 @@ function getIssueCartEntries() {
           var latest = items.reduce(function(acc, r){ var d = new Date(r.requested_date || r.updated_at || 0).getTime(); return d > acc ? d : acc; }, 0);
           var latestText = latest ? new Date(latest).toLocaleDateString('th-TH') : '-';
           var displayName = name === '__missing__' ? 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' : name;
-          return '<div class="rounded-xl border p-3">' +
-            '<p class="font-semibold">👤 ' + displayName + '</p>' +
-            '<p class="text-xs text-slate-600">จำนวนรายการรอดำเนินการ: ' + items.length + '</p>' +
-            '<p class="text-xs text-slate-600">รายการด่วน: ' + urgentCount + '</p>' +
-            '<p class="text-xs text-slate-600">ไลน์ที่เกี่ยวข้อง: ' + lines + '</p>' +
-            '<p class="text-xs text-slate-600">วันที่ล่าสุด: ' + latestText + '</p>' +
-            '<button type="button" data-group-idx="' + gIdx + '" class="mt-2 rounded bg-slate-900 px-3 py-1.5 text-white">ดูรายการ</button>' +
+          return '<div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">' +
+            '<div class="flex items-start justify-between gap-2">' +
+              '<div class="min-w-0">' +
+                '<p class="font-semibold text-base">👤 ' + displayName + '</p>' +
+                '<p class="text-xs text-slate-600">ไลน์ที่เกี่ยวข้อง: ' + lines + '</p>' +
+                '<p class="text-xs text-slate-500">อัปเดตล่าสุด: ' + latestText + '</p>' +
+              '</div>' +
+              '<span class="inline-flex min-w-[28px] items-center justify-center rounded-full bg-blue-600 px-2 py-1 text-xs font-extrabold text-white shadow-sm">' + items.length + '</span>' +
+            '</div>' +
+            '<div class="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">' +
+              '💬 มีคำสั่งซื้อจากผู้ใช้นี้ <b>' + items.length + '</b> ข้อความ' + (urgentCount > 0 ? ' • ด่วน <b>' + urgentCount + '</b>' : '') +
+            '</div>' +
+            '<div class="mt-2 flex flex-wrap gap-2">' +
+              '<button type="button" data-group-idx="' + gIdx + '" class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white">ดูรายละเอียด</button>' +
+            '</div>' +
           '</div>';
         }).join('');
         
@@ -3133,7 +3149,7 @@ function getIssueCartEntries() {
           '<p class="text-sm">ไลน์: ' + (r.line || '-') + '</p>' +
           '<p class="text-sm">เหตุผล: ' + (r.reason || '-') + '</p>' +
           '<p class="text-sm">สถานะ: <b>' + toThaiRequestStatus(r.status) + '</b></p>' +
-          '<div class="mt-2">' + ((r.attachment_url || r.image_main_url) ? '<img src="' + (r.attachment_url || r.image_main_url) + '" class="h-24 w-24 rounded border object-cover"/>' : '<span class="text-xs text-slate-400">ไม่มีรูปแนบ</span>') + '</div>' + warning +
+          '<div class="mt-2">' + ((r.attachment_url || r.image_main_url) ? '<div class="flex items-center gap-2"><img src="' + (r.attachment_url || r.image_main_url) + '" class="h-24 w-24 rounded border object-cover"/><button type="button" data-view-image="' + (r.attachment_url || r.image_main_url) + '" class="rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700">ดูรูปขนาดใหญ่</button></div>' : '<span class="text-xs text-slate-400">ไม่มีรูปแนบ</span>') + '</div>' + warning +
           '<div class="mt-2 flex flex-wrap gap-1.5 text-xs">' + actions + '</div>' +
         '</div>';
       }).join('') || '<p class="text-slate-400">ไม่พบรายการ</p>';
@@ -5207,8 +5223,19 @@ function inferRequestPriority(stock, min) {
     var roDetailModal = document.getElementById('roDetailModal');
     var roDetailClose = document.getElementById('roDetailClose');
     var roDetailList = document.getElementById('roDetailList');
+    var roImageModal = document.getElementById('roImageModal');
+    var roImageModalClose = document.getElementById('roImageModalClose');
+    var roImageModalPreview = document.getElementById('roImageModalPreview');
     if (roDetailClose && roDetailModal) roDetailClose.addEventListener('click', function(){ roDetailModal.classList.add('hidden'); });
+    if (roImageModalClose && roImageModal) roImageModalClose.addEventListener('click', function(){ roImageModal.classList.add('hidden'); });
+    if (roImageModal) roImageModal.addEventListener('click', function(e){ if (e.target === roImageModal) roImageModal.classList.add('hidden'); });
     if (roDetailList) roDetailList.addEventListener('click', function(e){
+      var imageBtn = e.target.closest('[data-view-image]');
+      if (imageBtn && roImageModal && roImageModalPreview) {
+        roImageModalPreview.src = imageBtn.getAttribute('data-view-image') || '';
+        roImageModal.classList.remove('hidden');
+        return;
+      }
       var id = e.target.getAttribute('data-id'); var act = e.target.getAttribute('data-act'); if (!id || !act) return;
       var run = act === 'convert'
         ? requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] }))
