@@ -5453,6 +5453,7 @@ function inferRequestPriority(stock, min) {
     if (roImageModalPreview) {
       roImageModalPreview.onerror = function() {
         var src = roImageModalPreview.getAttribute('src') || '';
+        if (!src || (roImageModal && roImageModal.classList.contains('hidden'))) return;
         roImageModal.classList.add('hidden');
         if (src) window.open(src, '_blank', 'noopener');
         alert('ไม่สามารถแสดงรูปในหน้าป๊อปอัปได้ ระบบจะเปิดรูปในแท็บใหม่');
