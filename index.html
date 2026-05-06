@@ -51,7 +51,7 @@
       position: absolute; top: -8px; right: -8px; min-width: 24px; height: 24px; padding: 0 6px;
       border-radius: 999px; background: #2563eb; color: #fff; border: 2px solid #fff;
       box-shadow: 0 2px 6px rgba(0,0,0,0.25); display: inline-flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 700; z-index: 50; pointer-events: none;
+      font-size: 13px; font-weight: 700; z-index: 10; pointer-events: none;
     }
     .request-order-nav-badge.hidden { display: none !important; }
   </style>
@@ -2226,10 +2226,20 @@ function getIssueCartEntries() {
     }
 
     function updateRequestOrderBadgeUI() {
+      var btn = document.getElementById('requestOrderNavBtn');
       var badge = document.getElementById('requestOrderNavBadge');
-      if (!badge) {
-        console.warn('requestOrderNavBadge element not found');
+      if (!badge || !btn) {
+        console.warn('requestOrderNavBadge not found inside requestOrderNavBtn');
         return;
+      }
+      if (!btn.contains(badge)) {
+        btn.appendChild(badge);
+      }
+      var duplicates = document.querySelectorAll('#requestOrderNavBadge');
+      if (duplicates.length > 1) {
+        duplicates.forEach(function(node, idx) {
+          if (idx > 0 && node && node.parentNode) node.parentNode.removeChild(node);
+        });
       }
       var count = Number(requestOrderBadgeCount || 0);
       if (count > 0) {
@@ -2239,7 +2249,7 @@ function getIssueCartEntries() {
         badge.classList.add('hidden');
       }
       console.log('requestOrderBadgeCount:', requestOrderBadgeCount);
-      console.log('badge element:', document.getElementById('requestOrderNavBadge'));
+      console.log(btn.contains(badge));
     }
 
     function refreshRequestOrderBadgeCount() {
