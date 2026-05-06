@@ -3094,6 +3094,7 @@ function getIssueCartEntries() {
       if (active === 'log') tabLog.className = tabActiveClass;
       if (active === 'pr') tabPrReport.className = tabActiveClass;
       if (active === 'request-order' && tabRequestOrder) tabRequestOrder.className = tabActiveClass;
+      if (tabRequestOrder) tabRequestOrder.classList.add('request-order-nav-btn', 'relative', 'overflow-visible');
       if (active === 'manage') tabManage.className = tabActiveClass;
       if (active === 'admin') tabAdmin.className = tabActiveClass;
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
