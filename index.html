@@ -146,7 +146,7 @@
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
-          <button id="requestOrderNavBtn" class="eng-tab request-order-nav-btn px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white"><span>ขอซื้ออะไหล่</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span></button>
+          <button id="requestOrderNavBtn" class="eng-tab request-order-nav-btn relative overflow-visible px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white"><span>ขอซื้ออะไหล่</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span></button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-yellow-700 bg-yellow-600 text-white text-sm font-semibold">เพิ่มรายการเข้าระบบ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
         </div>
@@ -2260,23 +2260,13 @@ function getIssueCartEntries() {
 
     function updateRequestOrderBadgeUI() {
       var btn = document.getElementById('requestOrderNavBtn');
-      if (!btn) {
-        console.warn('requestOrderNavBadge not found inside requestOrderNavBtn');
+      var badge = document.getElementById('requestOrderNavBadge');
+      console.log('btn exists', !!btn);
+      console.log('badge exists', !!badge);
+      console.log('badge inside btn', btn && badge ? btn.contains(badge) : false);
+      if (!btn || !badge || !btn.contains(badge)) {
+        console.warn('request order nav template is invalid: badge must exist inside requestOrderNavBtn');
         return;
-      }
-      var allBadges = document.querySelectorAll('#requestOrderNavBadge');
-      if (allBadges.length) {
-        allBadges.forEach(function(node) {
-          if (node.parentNode !== btn && node.parentNode) node.parentNode.removeChild(node);
-        });
-      }
-      var badge = btn.querySelector('#requestOrderNavBadge');
-      if (!badge) {
-        badge = document.createElement('span');
-        badge.id = 'requestOrderNavBadge';
-        badge.className = 'request-order-nav-badge hidden';
-        badge.textContent = '0';
-        btn.appendChild(badge);
       }
       var count = Number(requestOrderBadgeCount || 0);
       if (count > 0) {
