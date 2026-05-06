@@ -103,7 +103,7 @@
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
-          <button id="tabRequestOrder" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">ขอซื้ออะไหล่ <span id="requestPendingBadge" class="ml-2 hidden rounded-full border-2 border-white bg-rose-600 px-2.5 py-0.5 text-[11px] font-extrabold text-white shadow-lg animate-pulse">0</span></button>
+          <button id="tabRequestOrder" class="eng-tab relative px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">ขอซื้ออะไหล่ <span id="requestPendingBadge" class="pointer-events-none hidden absolute -right-2 -top-2 z-10 min-h-[20px] min-w-[20px] items-center justify-center rounded-full border border-white bg-blue-600 px-1.5 text-[10px] font-extrabold leading-none text-white shadow-sm">0</span></button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-yellow-700 bg-yellow-600 text-white text-sm font-semibold">เพิ่มรายการเข้าระบบ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
         </div>
@@ -3095,8 +3095,9 @@ function getIssueCartEntries() {
         var urgent = rows.filter(function(r){ var p = String(r.priority || '').toLowerCase(); return p === 'urgent' || p === 'critical'; });
         document.getElementById('roPendingCount').textContent = String(pending.length);
         document.getElementById('roUrgentCount').textContent = String(urgent.length);
-        badge.textContent = String(pending.length);
+        badge.textContent = pending.length > 99 ? '99+' : String(pending.length);
         badge.classList.toggle('hidden', pending.length === 0);
+        badge.classList.toggle('inline-flex', pending.length > 0);
 
         var filtered = rows;
         if (statusFilter && statusFilter.value !== 'all') filtered = rows.filter(function(r){ return String(r.status || '') === statusFilter.value; });
