@@ -260,11 +260,20 @@ function createOrderRequest(payload) {
     var sheet = getOrderRequestSheet();
     var now = new Date();
     var requestId = 'REQ-' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+    var attachmentUrl = String(payload.attachment_url || '');
+    if (/^data:image\//i.test(attachmentUrl)) {
+      attachmentUrl = uploadOrderRequestAttachmentToDrive({
+        dataUrl: attachmentUrl,
+        requestId: requestId,
+        line: payload.line || '',
+        requestedBy: user.username || ''
+      });
+    }
     var row = [
       requestId, payload.requested_date || now.toISOString(), user.username, user.role,
       payload.item_id || '', payload.item_name || '', payload.model || '', payload.brand || '', payload.category || '',
       payload.line || '', Number(payload.current_stock || 0), Number(payload.min || 0), Number(payload.max || 0), Number(payload.request_qty || 0),
-      payload.priority || 'Normal', payload.reason || '', payload.expected_use_date || '', payload.remark || '', payload.attachment_url || '',
+      payload.priority || 'Normal', payload.reason || '', payload.expected_use_date || '', payload.remark || '', attachmentUrl,
       'Pending', '', '', '', '', now.toISOString()
     ];
     sheet.appendRow(row);
@@ -273,6 +282,32 @@ function createOrderRequest(payload) {
     Logger.log('createOrderRequest error: ' + (err && err.message ? err.message : err));
     throw err;
   }
+}
+
+function uploadOrderRequestAttachmentToDrive(payload) {
+  var dataUrl = String(payload.dataUrl || '');
+  if (!dataUrl) return '';
+  var mimeType = getDataUrlMimeType(dataUrl);
+  if (!mimeType) throw new Error('รูปแบบไฟล์แนบไม่ถูกต้อง');
+  var allowed = { 'image/jpeg': true, 'image/png': true, 'image/webp': true };
+  if (!allowed[mimeType]) throw new Error('ไฟล์แนบรองรับเฉพาะ jpg, png, webp');
+
+  var root = DriveApp.getFolderById('1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3');
+  var reqRoot = getOrCreateChildFolder(root, 'order-requests');
+  var lineFolder = getOrCreateChildFolder(reqRoot, String(payload.line || 'UnknownLine'));
+  var requesterFolder = getOrCreateChildFolder(lineFolder, String(payload.requestedBy || 'unknown-user'));
+
+  var ext = mimeType === 'image/png' ? 'png' : (mimeType === 'image/webp' ? 'webp' : 'jpg');
+  var fileName = String(payload.requestId || ('REQ-' + Date.now())) + '-' + Date.now() + '.' + ext;
+  var base64Content = dataUrl.split(',')[1] || '';
+  var blob = Utilities.newBlob(Utilities.base64Decode(base64Content), mimeType, fileName);
+  var file = requesterFolder.createFile(blob);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    Logger.log('uploadOrderRequestAttachmentToDrive setSharing warning: ' + (err && err.message ? err.message : err));
+  }
+  return 'https://drive.google.com/uc?export=view&id=' + file.getId();
 }
 
 function getOrderRequests(payload) {
