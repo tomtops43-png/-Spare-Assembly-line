@@ -74,9 +74,24 @@
       #roDetailModal { padding: 8px; align-items: stretch; }
       #roDetailPanel { width: 100%; max-height: calc(100vh - 16px); border-radius: 14px; }
     }
+    .splash-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg,#f1f5f9 0%,#eef2ff 100%); }
+    .splash-card { text-align: center; padding: 24px; }
+    .splash-spinner { width: 42px; height: 42px; border-radius: 999px; border: 4px solid #bfdbfe; border-top-color: #2563eb; animation: splash-spin .9s linear infinite; margin: 14px auto; }
+    .splash-fade-out { opacity: 0; transition: opacity .45s ease; pointer-events: none; }
+    @keyframes splash-spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 overflow-x-hidden">
+  <div id="appSplash" class="splash-overlay">
+    <div class="splash-card">
+      <div class="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-2xl text-white shadow-lg">🏭</div>
+      <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-700">Current Line</p>
+      <h2 class="mt-1 text-2xl font-extrabold text-slate-900">Spare Parts Catalog</h2>
+      <p class="text-sm text-slate-600">Production Assembly Line</p>
+      <div class="splash-spinner"></div>
+      <p id="appSplashText" class="text-sm font-semibold text-slate-600">กำลังโหลดข้อมูล...</p>
+    </div>
+  </div>
   <button id="lineMenuDockToggle" class="hidden fixed left-3 top-3 z-[75] mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-semibold text-slate-700 shadow-sm md:top-24" aria-label="เปิด Line Menu" title="เปิด Line Menu">
     ☰
   </button>
@@ -126,7 +141,7 @@
 
     <div class="grid grid-cols-1 gap-4 items-start">
       <div id="mainContentPanel" class="min-w-0">
-        <div id="topNavTabs" class="flex gap-2 mb-4 items-center overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0">
+        <div id="topNavTabs" class="flex gap-2 mb-4 items-center overflow-x-auto overflow-y-visible pb-1 md:flex-wrap md:overflow-visible md:pb-0">
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
@@ -5609,11 +5624,26 @@ function inferRequestPriority(stock, min) {
       document.getElementById('loginRemember').checked = true;
     }
     setAuthScreen(false);
+    var appSplash = document.getElementById('appSplash');
+    var appSplashText = document.getElementById('appSplashText');
+    var splashSlowTimer = setTimeout(function() {
+      if (appSplash && !appSplash.classList.contains('hidden') && appSplashText) {
+        appSplashText.textContent = 'กำลังเชื่อมต่อระบบ กรุณารอสักครู่...';
+      }
+    }, 10000);
+    function hideAppSplash() {
+      if (!appSplash) return;
+      clearTimeout(splashSlowTimer);
+      appSplash.classList.add('splash-fade-out');
+      setTimeout(function(){ appSplash.classList.add('hidden'); }, 500);
+    }
     checkSession().then(function() {
       setAuthScreen(true);
       loadPartsData();
+      hideAppSplash();
     }).catch(function() {
       setAuthScreen(false);
+      hideAppSplash();
     });
   </script>
 </body>
