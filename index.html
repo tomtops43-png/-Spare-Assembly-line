@@ -3173,7 +3173,7 @@ function getIssueCartEntries() {
           '<p class="text-sm">เหตุผล: ' + (r.reason || '-') + '</p>' +
           '<p class="text-sm">หมายเหตุ: ' + (r.remark || '-') + '</p>' +
           '<p class="text-sm">สถานะ: <b>' + toThaiRequestStatus(r.status) + '</b></p>' +
-          '<div class="mt-2">' + ((r.attachment_url || r.image_main_url) ? '<div class="flex items-center gap-2"><img src="' + (r.attachment_url || r.image_main_url) + '" class="h-24 w-24 rounded border object-cover"/><button type="button" data-view-image="' + (r.attachment_url || r.image_main_url) + '" class="rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700">ดูรูปขนาดใหญ่</button></div>' : '<span class="text-xs text-slate-400">ไม่มีรูปแนบ</span>') + '</div>' + warning +
+          '<div class="mt-2">' + ((r.attachment_url || r.image_main_url) ? '<div class="flex items-center gap-2"><img src="' + (r.attachment_url || r.image_main_url) + '" class="h-24 w-24 rounded border object-cover" onerror="this.style.display=\'none\'; this.nextElementSibling.classList.remove(\'hidden\');"/><a href="' + (r.attachment_url || r.image_main_url) + '" target="_blank" rel="noopener" class="hidden rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-700">เปิดรูปในแท็บใหม่</a><button type="button" data-view-image="' + (r.attachment_url || r.image_main_url) + '" class="rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700">ดูรูปขนาดใหญ่</button></div>' : '<span class="text-xs text-slate-400">ไม่มีรูปแนบ</span>') + '</div>' + warning +
           '<div class="mt-2 flex flex-wrap gap-1.5 text-xs">' + actions + '</div>' +
         '</div>';
       }).join('') || '<p class="text-slate-400">ไม่พบรายการ</p>';
@@ -5165,7 +5165,7 @@ function inferRequestPriority(stock, min) {
         reader.onload = function() {
           var img = new Image();
           img.onload = function() {
-            var attempts = [{ maxSide: 1280, quality: 0.72 }, { maxSide: 960, quality: 0.6 }];
+            var attempts = [{ maxSide: 1280, quality: 0.72 }, { maxSide: 960, quality: 0.6 }, { maxSide: 640, quality: 0.45 }, { maxSide: 480, quality: 0.4 }];
             var out = '';
             for (var i = 0; i < attempts.length; i += 1) {
               var cfg = attempts[i];
@@ -5181,7 +5181,7 @@ function inferRequestPriority(stock, min) {
               if (!ctx) return reject(new Error('ไม่สามารถประมวลผลรูปภาพได้'));
               ctx.drawImage(img, 0, 0, targetW, targetH);
               out = canvas.toDataURL('image/jpeg', cfg.quality);
-              if (estimateDataUrlBytes(out) <= 700 * 1024 || i === attempts.length - 1) break;
+              if (estimateDataUrlBytes(out) <= 120 * 1024 || i === attempts.length - 1) break;
             }
             resolve(out);
           };
@@ -5285,12 +5285,14 @@ function inferRequestPriority(stock, min) {
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'กำลังส่ง...'; }
       var submitPromise = Promise.resolve().then(function() {
         if (!roAttachmentDataUrl) return null;
-        return postJson(withAuthPayload({
+        var uploadPayload = withAuthPayload({
           action: 'uploadRequestAttachment',
           fileName: roAttachmentFileName || ('request-' + Date.now() + '.jpg'),
           mimeType: roAttachmentMimeType || 'image/jpeg',
           dataUrl: roAttachmentDataUrl
-        })).then(function(uploadRes) {
+        });
+        var uploadPromise = shouldUseJsonpTransport() ? requestApi(uploadPayload) : postJson(uploadPayload);
+        return uploadPromise.then(function(uploadRes) {
           if (!uploadRes || uploadRes.status !== 'success') throw new Error((uploadRes && uploadRes.message) || 'อัปโหลดรูปไม่สำเร็จ');
           payload.attachment_url = uploadRes.attachment_url || '';
           return uploadRes;
@@ -5336,11 +5338,26 @@ function inferRequestPriority(stock, min) {
     if (roDetailClose && roDetailModal) roDetailClose.addEventListener('click', function(){ roDetailModal.classList.add('hidden'); });
     if (roImageModalClose && roImageModal) roImageModalClose.addEventListener('click', function(){ roImageModal.classList.add('hidden'); });
     if (roImageModal) roImageModal.addEventListener('click', function(e){ if (e.target === roImageModal) roImageModal.classList.add('hidden'); });
+    if (roImageModalPreview) {
+      roImageModalPreview.onerror = function() {
+        var src = roImageModalPreview.getAttribute('src') || '';
+        roImageModal.classList.add('hidden');
+        if (src) window.open(src, '_blank', 'noopener');
+        alert('ไม่สามารถแสดงรูปในหน้าป๊อปอัปได้ ระบบจะเปิดรูปในแท็บใหม่');
+      };
+    }
     if (roDetailList) roDetailList.addEventListener('click', function(e){
       var imageBtn = e.target.closest('[data-view-image]');
       if (imageBtn && roImageModal && roImageModalPreview) {
-        roImageModalPreview.src = imageBtn.getAttribute('data-view-image') || '';
+        var targetSrc = imageBtn.getAttribute('data-view-image') || '';
+        roImageModalPreview.src = targetSrc;
         roImageModal.classList.remove('hidden');
+        setTimeout(function() {
+          if (!roImageModal.classList.contains('hidden') && !roImageModalPreview.complete && targetSrc) {
+            roImageModal.classList.add('hidden');
+            window.open(targetSrc, '_blank', 'noopener');
+          }
+        }, 3500);
         return;
       }
       var id = e.target.getAttribute('data-id'); var act = e.target.getAttribute('data-act'); if (!id || !act) return;
