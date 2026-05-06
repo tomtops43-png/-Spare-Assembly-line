@@ -1975,6 +1975,29 @@ function getIssueCartEntries() {
       });
     }
 
+    function uploadRequestAttachmentData(dataUrl, fileName, mimeType) {
+      if (!dataUrl) return Promise.resolve({ status: 'success', attachment_url: '' });
+      var payload = new URLSearchParams();
+      payload.append('action', 'uploadRequestAttachment');
+      payload.append('fileName', fileName || ('request-' + Date.now() + '.jpg'));
+      payload.append('mimeType', mimeType || 'image/jpeg');
+      payload.append('dataUrl', dataUrl);
+      if (authToken) payload.append('authToken', authToken);
+      return fetch(getWriteApiUrl(), { method: 'POST', body: payload }).then(function(res) {
+        return res.text().then(function(text) {
+          var parsed = null;
+          try { parsed = text ? JSON.parse(text) : null; } catch (err) {}
+          if (!res.ok) throw new Error((parsed && parsed.message) || ('HTTP ' + res.status));
+          return parsed || { status: 'error', message: 'invalid response' };
+        });
+      }).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'อัปโหลดรูปคำขอซื้อไม่สำเร็จ');
+        return res;
+      }).catch(function(err) {
+        throw new Error(mapUploadErrorMessage(err));
+      });
+    }
+
     function loadViaJsonp(url) {
       return new Promise(function(resolve, reject) {
         var callbackName = 'partsCallback_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
@@ -5286,14 +5309,11 @@ function inferRequestPriority(stock, min) {
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'กำลังส่ง...'; }
       var submitPromise = Promise.resolve().then(function() {
         if (!roAttachmentDataUrl) return null;
-        var uploadPayload = withAuthPayload({
-          action: 'uploadRequestAttachment',
-          fileName: roAttachmentFileName || ('request-' + Date.now() + '.jpg'),
-          mimeType: roAttachmentMimeType || 'image/jpeg',
-          dataUrl: roAttachmentDataUrl
-        });
-        var uploadPromise = shouldUseJsonpTransport() ? requestApi(uploadPayload) : postJson(uploadPayload);
-        return uploadPromise.then(function(uploadRes) {
+        return uploadRequestAttachmentData(
+          roAttachmentDataUrl,
+          roAttachmentFileName || ('request-' + Date.now() + '.jpg'),
+          roAttachmentMimeType || 'image/jpeg'
+        ).then(function(uploadRes) {
           if (!uploadRes || uploadRes.status !== 'success') throw new Error((uploadRes && uploadRes.message) || 'อัปโหลดรูปไม่สำเร็จ');
           payload.attachment_url = uploadRes.attachment_url || '';
           return uploadRes;
