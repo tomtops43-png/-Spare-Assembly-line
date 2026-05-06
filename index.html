@@ -143,6 +143,7 @@
       <div id="mainContentPanel" class="min-w-0">
         <div id="topNavTabs" class="flex gap-2 mb-4 items-center overflow-x-auto overflow-y-visible pb-1 md:flex-wrap md:overflow-visible md:pb-0">
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
+          <button id="tabDashboard" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Dashboard</button>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
@@ -320,6 +321,39 @@
             <button id="roImageModalClose" type="button" class="absolute -right-2 -top-2 rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-800 shadow">ปิด</button>
             <img id="roImageModalPreview" src="" alt="ภาพแนบคำขอซื้อ" class="max-h-[85vh] max-w-[92vw] rounded-xl border border-white/30 bg-white object-contain shadow-2xl" />
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="dashboardPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow p-4 md:p-6 mb-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-xl font-bold">ภาพรวมอะไหล่ (Dashboard)</h2>
+          <p class="text-sm text-slate-500">Phase 1 • ใช้ข้อมูล Stock ที่หน้าเว็บมีอยู่แล้ว</p>
+        </div>
+        <button id="dashboardRefreshBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700">รีเฟรช</button>
+      </div>
+      <div id="dashboardSummary" class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7"></div>
+      <div class="mt-4 rounded-xl border border-slate-200">
+        <div id="dashboardLoading" class="px-3 py-3 text-sm text-slate-500">กำลังโหลดข้อมูล...</div>
+        <div id="dashboardEmpty" class="hidden px-3 py-3 text-sm text-slate-500">ไม่มีข้อมูล</div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs sm:text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-left">
+                <th class="px-2 py-2">Line / Sheet</th>
+                <th class="px-2 py-2">NO</th>
+                <th class="px-2 py-2">Part Name</th>
+                <th class="px-2 py-2">Model</th>
+                <th class="px-2 py-2">Stock</th>
+                <th class="px-2 py-2">Min</th>
+                <th class="px-2 py-2">Need to PO</th>
+                <th class="px-2 py-2">Location</th>
+                <th class="px-2 py-2">Risk Reason</th>
+              </tr>
+            </thead>
+            <tbody id="dashboardRiskBody"></tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -1080,6 +1114,7 @@
     var stockPage = document.getElementById('stockPage');
     var logPage = document.getElementById('logPage');
     var tabStock = document.getElementById('tabStock');
+    var tabDashboard = document.getElementById('tabDashboard');
     var tabTxn = document.getElementById('tabTxn');
     var tabLog = document.getElementById('tabLog');
     var tabManage = document.getElementById('tabManage');
@@ -1103,6 +1138,7 @@
     var sheetSelectorWrap = document.getElementById('sheetSelectorWrap');
     var sheetSelector = document.getElementById('sheetSelector');
     var txnPage = document.getElementById('txnPage');
+    var dashboardPage = document.getElementById('dashboardPage');
     var requestOrderPage = document.getElementById('requestOrderPage');
     var roSelectedItem = null;
     var roSearchResultState = [];
@@ -3083,6 +3119,7 @@ function getIssueCartEntries() {
       var tabBaseClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
       var tabActiveClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
       tabStock.className = tabBaseClass;
+      if (tabDashboard) tabDashboard.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
       tabLog.className = tabBaseClass;
       tabPrReport.className = tabBaseClass;
@@ -3090,6 +3127,7 @@ function getIssueCartEntries() {
       tabManage.className = tabBaseClass;
       tabAdmin.className = tabBaseClass;
       if (active === 'stock') tabStock.className = tabActiveClass;
+      if (active === 'dashboard' && tabDashboard) tabDashboard.className = tabActiveClass;
       if (active === 'txn') tabTxn.className = tabActiveClass;
       if (active === 'log') tabLog.className = tabActiveClass;
       if (active === 'pr') tabPrReport.className = tabActiveClass;
@@ -3103,12 +3141,14 @@ function getIssueCartEntries() {
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
+      if (tabDashboard) tabDashboard.classList.remove('hidden');
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
       updateRequestOrderBadgeUI(requestOrderBadgeCount);
     }
 
     function switchToStockPage() {
       stockPage.classList.remove('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
@@ -3121,6 +3161,7 @@ function getIssueCartEntries() {
 
     function switchToTxnPage() {
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.remove('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
@@ -3151,6 +3192,7 @@ function getIssueCartEntries() {
     function switchToLogPage() {
       if (!hasPermission('view_logs')) return switchToStockPage();
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.remove('hidden');
@@ -3164,6 +3206,7 @@ function getIssueCartEntries() {
     function switchToManagePage() {
       if (!hasPermission('manage_items')) return switchToStockPage();
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
@@ -3365,8 +3408,78 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    function renderDashboardPhase1() {
+      var summaryEl = document.getElementById('dashboardSummary');
+      var loadingEl = document.getElementById('dashboardLoading');
+      var emptyEl = document.getElementById('dashboardEmpty');
+      var bodyEl = document.getElementById('dashboardRiskBody');
+      if (!summaryEl || !loadingEl || !emptyEl || !bodyEl) return;
+      loadingEl.classList.remove('hidden');
+      emptyEl.classList.add('hidden');
+      var rows = Array.isArray(partsData) ? partsData : [];
+      function card(title, value) {
+        return '<div class="rounded-lg border border-slate-200 p-2"><p class="text-[11px] text-slate-500">' + title + '</p><p class="text-lg font-bold">' + value + '</p></div>';
+      }
+      if (!rows.length) {
+        summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', 0) + card('จำนวน Stock รวม', 0) + card('รายการ Stock = 0', 0) + card('รายการ Stock < Min', 0) + card('รายการ Need to PO > 0', 0) + card('รายการไม่มี Location', 0) + card('รายการไม่มีรูปภาพ', 0);
+        bodyEl.innerHTML = '';
+        loadingEl.classList.add('hidden');
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      function num(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
+      var totalStock = 0, outZero = 0, lowMin = 0, needPoCount = 0, noLocation = 0, noImage = 0;
+      var riskRows = [];
+      rows.forEach(function(item) {
+        var stock = num(item.stock), min = num(item.min), need = num(item.need_to_po || (min - stock));
+        totalStock += stock;
+        if (stock <= 0) outZero++;
+        if (stock < min) lowMin++;
+        if (need > 0) needPoCount++;
+        if (!String(item.location || '').trim()) noLocation++;
+        if (!String(item.image_main || item.photo || '').trim()) noImage++;
+        var reasons = [];
+        if (stock <= 0) reasons.push('Stock = 0');
+        if (stock < min) reasons.push('Stock < Min');
+        if (need > 0) reasons.push('Need to PO > 0');
+        if (!String(item.location || '').trim()) reasons.push('ไม่มี Location');
+        if (!String(item.image_main || item.photo || '').trim()) reasons.push('ไม่มีรูปภาพ');
+        if (reasons.length) riskRows.push({ item: item, need: need, reason: reasons.join(', ') });
+      });
+      summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', rows.length.toLocaleString('th-TH')) + card('จำนวน Stock รวม', totalStock.toLocaleString('th-TH')) + card('รายการ Stock = 0', outZero.toLocaleString('th-TH')) + card('รายการ Stock < Min', lowMin.toLocaleString('th-TH')) + card('รายการ Need to PO > 0', needPoCount.toLocaleString('th-TH')) + card('รายการไม่มี Location', noLocation.toLocaleString('th-TH')) + card('รายการไม่มีรูปภาพ', noImage.toLocaleString('th-TH'));
+      bodyEl.innerHTML = riskRows.slice(0, 500).map(function(row) {
+        var r = row.item;
+        return '<tr class="border-b">' +
+          '<td class="px-2 py-2">' + (r.line || '-') + ' / ' + (r.sheet || (sheetSelector ? sheetSelector.value : '-') || '-') + '</td>' +
+          '<td class="px-2 py-2">' + (r.no || '-') + '</td>' +
+          '<td class="px-2 py-2">' + (r.name || '-') + '</td>' +
+          '<td class="px-2 py-2">' + (r.model || '-') + '</td>' +
+          '<td class="px-2 py-2">' + num(r.stock) + '</td>' +
+          '<td class="px-2 py-2">' + num(r.min) + '</td>' +
+          '<td class="px-2 py-2">' + row.need + '</td>' +
+          '<td class="px-2 py-2">' + (r.location || '-') + '</td>' +
+          '<td class="px-2 py-2">' + row.reason + '</td>' +
+        '</tr>';
+      }).join('');
+      loadingEl.classList.add('hidden');
+      emptyEl.classList.toggle('hidden', riskRows.length > 0);
+    }
+
+    function switchToDashboardPage() {
+      stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.remove('hidden');
+      txnPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
+      setTabStyles('dashboard');
+      renderDashboardPhase1();
+    }
+
     function switchToRequestOrderPage() {
-      stockPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
+      stockPage.classList.add('hidden'); if (dashboardPage) dashboardPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
       window.__roActiveGroupIdx = undefined;
       closeRequestOrderDetailModal();
@@ -3381,6 +3494,7 @@ function inferRequestPriority(stock, min) {
     function switchToAdminPage() {
       if (!(isAdminUser() && hasPermission('manage_users'))) return switchToStockPage();
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
@@ -3397,6 +3511,7 @@ function inferRequestPriority(stock, min) {
     function switchToPrReportPage() {
       if (!hasPermission('view_logs')) return switchToStockPage();
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
       managePage.classList.add('hidden');
@@ -4989,6 +5104,7 @@ function inferRequestPriority(stock, min) {
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
       if (!stockPage.classList.contains('hidden')) setTabStyles('stock');
+      else if (dashboardPage && !dashboardPage.classList.contains('hidden')) setTabStyles('dashboard');
       else if (!txnPage.classList.contains('hidden')) setTabStyles('txn');
       else if (!logPage.classList.contains('hidden')) setTabStyles('log');
       else if (!prReportPage.classList.contains('hidden')) setTabStyles('pr');
@@ -4998,12 +5114,15 @@ function inferRequestPriority(stock, min) {
     qaManageBtn.addEventListener('click', switchToManagePage);
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
+    if (tabDashboard) tabDashboard.addEventListener('click', switchToDashboardPage);
     tabTxn.addEventListener('click', switchToTxnPage);
     tabLog.addEventListener('click', switchToLogPage);
     tabPrReport.addEventListener('click', switchToPrReportPage);
     if (tabRequestOrder) tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
+    var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
+    if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', renderDashboardPhase1);
     lineMenuDockToggle.addEventListener('click', function() {
       isLineMenuVisible = !isLineMenuVisible;
       updateLineMenuVisibility();
