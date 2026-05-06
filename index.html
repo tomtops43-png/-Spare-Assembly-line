@@ -5255,7 +5255,14 @@ function inferRequestPriority(stock, min) {
       });
       var submitBtn = requestOrderFormEl.querySelector('button[type="submit"], button');
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'กำลังส่ง...'; }
-      requestApi(payload).then(function(res){
+      var submitPromise = (roAttachmentDataUrl && shouldUseJsonpTransport())
+        ? postJsonNoCors(payload).then(function() {
+            return new Promise(function(resolve) {
+              setTimeout(function(){ resolve({ status: 'success', transport: 'no-cors' }); }, 900);
+            });
+          })
+        : requestApi(payload);
+      submitPromise.then(function(res){
         if (res && res.status === 'error') throw new Error(res.message || 'ส่งคำขอไม่สำเร็จ');
         alert('ส่งคำขอซื้อเรียบร้อย');
         e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests();
