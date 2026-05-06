@@ -54,6 +54,25 @@
       font-size: 13px; font-weight: 700; z-index: 10; pointer-events: none;
     }
     .request-order-nav-badge.hidden { display: none !important; }
+    #roDetailModal {
+      position: fixed; inset: 0; z-index: 9999; background: rgba(15, 23, 42, 0.45);
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    #roDetailPanel {
+      width: min(1100px, calc(100vw - 32px)); max-height: calc(100vh - 48px); background: #fff;
+      border-radius: 16px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    #roDetailHeader {
+      flex-shrink: 0; position: sticky; top: 0; background: #fff; z-index: 2; border-bottom: 1px solid #e5e7eb;
+    }
+    #roDetailList {
+      flex: 1 1 auto; min-height: 0; overflow-y: auto; max-height: none; padding: 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+    @media (max-width: 640px) {
+      #roDetailModal { padding: 8px; align-items: stretch; }
+      #roDetailPanel { width: 100%; max-height: calc(100vh - 16px); border-radius: 14px; }
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 overflow-x-hidden">
@@ -270,15 +289,13 @@
         </div>
       </div>
 
-      <div id="roDetailModal" class="fixed inset-0 z-50 hidden bg-black/40 p-2 md:p-4">
-        <div class="flex h-full w-full items-center justify-center overflow-y-auto">
-          <div id="roDetailPanel" class="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white">
-            <div id="roDetailHeader" class="sticky top-0 z-10 mb-0 flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+      <div id="roDetailModal" class="hidden">
+        <div id="roDetailPanel">
+            <div id="roDetailHeader" class="mb-0 flex items-center justify-between px-4 py-3">
               <h3 id="roDetailTitle" class="text-lg font-bold">รายการของผู้ขอ</h3>
               <button id="roDetailClose" type="button" class="rounded border px-3 py-1">ปิด</button>
             </div>
-            <div id="roDetailList" class="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3"></div>
-          </div>
+            <div id="roDetailList" class="space-y-2"></div>
         </div>
       </div>
       <div id="roImageModal" class="fixed inset-0 z-[60] hidden bg-black/70 p-4">
