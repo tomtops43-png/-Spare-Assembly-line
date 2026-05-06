@@ -5140,17 +5140,48 @@ function inferRequestPriority(stock, min) {
     var roAttachmentFile = document.getElementById('roAttachmentFile');
     var roAttachmentPreview = document.getElementById('roAttachmentPreview');
     var roAttachmentDataUrl = '';
+    function resizeImageForUpload(file) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function() {
+          var img = new Image();
+          img.onload = function() {
+            var maxSide = 1280;
+            var w = img.width || 1;
+            var h = img.height || 1;
+            var scale = Math.min(1, maxSide / Math.max(w, h));
+            var targetW = Math.max(1, Math.round(w * scale));
+            var targetH = Math.max(1, Math.round(h * scale));
+            var canvas = document.createElement('canvas');
+            canvas.width = targetW;
+            canvas.height = targetH;
+            var ctx = canvas.getContext('2d');
+            if (!ctx) return reject(new Error('ไม่สามารถประมวลผลรูปภาพได้'));
+            ctx.drawImage(img, 0, 0, targetW, targetH);
+            var quality = 0.75;
+            var out = canvas.toDataURL('image/jpeg', quality);
+            resolve(out);
+          };
+          img.onerror = function() { reject(new Error('ไฟล์รูปภาพไม่ถูกต้อง')); };
+          img.src = String(reader.result || '');
+        };
+        reader.onerror = function() { reject(new Error('อ่านไฟล์รูปไม่สำเร็จ')); };
+        reader.readAsDataURL(file);
+      });
+    }
     if (roAttachmentFile && roAttachmentPreview) {
       roAttachmentFile.addEventListener('change', function() {
         var file = roAttachmentFile.files && roAttachmentFile.files[0];
         if (!file) { roAttachmentDataUrl = ''; roAttachmentPreview.classList.add('hidden'); return; }
-        var reader = new FileReader();
-        reader.onload = function() {
-          roAttachmentDataUrl = String(reader.result || '');
+        resizeImageForUpload(file).then(function(dataUrl) {
+          roAttachmentDataUrl = String(dataUrl || '');
           roAttachmentPreview.src = roAttachmentDataUrl;
           roAttachmentPreview.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
+        }).catch(function(err) {
+          roAttachmentDataUrl = '';
+          roAttachmentPreview.classList.add('hidden');
+          alert((err && err.message ? err.message : 'ประมวลผลรูปไม่สำเร็จ') + ' กรุณาเลือกรูปใหม่');
+        });
       });
     }
     function applyRoRequestTypeUi() {
@@ -5229,7 +5260,12 @@ function inferRequestPriority(stock, min) {
         alert('ส่งคำขอซื้อเรียบร้อย');
         e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests();
       }).catch(function(err) {
-        alert('ส่งคำขอไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+        var rawMessage = err && err.message ? err.message : String(err || '');
+        if (/JSONP/i.test(rawMessage)) {
+          alert('ส่งคำขอไม่สำเร็จ: ขนาดข้อมูลรูปภาพอาจใหญ่เกินไปหรือเครือข่ายไม่เสถียร กรุณาลองรูปที่เล็กลงแล้วส่งใหม่');
+        } else {
+          alert('ส่งคำขอไม่สำเร็จ: ' + rawMessage);
+        }
       }).finally(function() {
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งคำขอซื้อ'; }
       });
