@@ -2110,11 +2110,14 @@ function getIssueCartEntries() {
       if (requestBody.__url) delete requestBody.__url;
       return fetch(targetUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(requestBody)
       }).then(function(res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
+        return res.text().then(function(txt) {
+          try { return JSON.parse(txt); } catch (err) { throw new Error('รูปแบบข้อมูลตอบกลับไม่ถูกต้อง'); }
+        });
       });
     }
 
@@ -5301,6 +5304,10 @@ function inferRequestPriority(stock, min) {
         e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests();
       }).catch(function(err) {
         var rawMessage = err && err.message ? err.message : String(err || '');
+        if (/load failed/i.test(rawMessage)) {
+          alert('ส่งคำขอไม่สำเร็จ: การเชื่อมต่อกับ Apps Script ถูกบล็อก (Load failed) กรุณา Deploy เว็บแอปล่าสุดและตรวจสอบสิทธิ์การเข้าถึง');
+          return;
+        }
         if (/JSONP/i.test(rawMessage)) {
           alert('ส่งคำขอไม่สำเร็จ: ขนาดข้อมูลรูปภาพอาจใหญ่เกินไปหรือเครือข่ายไม่เสถียร กรุณาลองรูปที่เล็กลงแล้วส่งใหม่');
         } else {
