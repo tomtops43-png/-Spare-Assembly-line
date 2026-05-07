@@ -89,7 +89,7 @@
       <h2 class="mt-1 text-2xl font-extrabold text-slate-900">Spare Parts Catalog</h2>
       <p class="text-sm text-slate-600">Production Assembly Line</p>
       <div class="splash-spinner"></div>
-      <p id="appSplashText" class="text-sm font-semibold text-slate-600">กำลังโหลดข้อมูล...</p>
+      <p id="appSplashText" class="text-sm font-semibold text-slate-600">Loading data...</p>
     </div>
   </div>
   <button id="lineMenuDockToggle" class="hidden fixed left-3 top-3 z-[75] mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-semibold text-slate-700 shadow-sm md:top-24" aria-label="เปิด Line Menu" title="เปิด Line Menu">
@@ -271,7 +271,7 @@
           </select>
           <div id="roNewItemFields" class="hidden space-y-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
             <p class="text-xs font-semibold text-blue-700">กรอกข้อมูลอะไหล่ใหม่</p>
-            <input id="roNewItemName" placeholder="ชื่ออะไหล่ใหม่" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
+            <input id="roNewItemName" placeholder="Part Nameใหม่" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
             <input id="roNewItemModel" placeholder="Model" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
             <input id="roNewItemBrand" placeholder="Brand" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
           </div>
@@ -301,7 +301,7 @@
             <div class="rounded-xl border border-rose-300 bg-rose-100 px-3 py-2 font-semibold text-rose-900 shadow-sm">🔴 ด่วน/วิกฤติ: <b id="roUrgentCount">0</b> ออร์เดอร์</div>
           </div>
           <select id="roStatusFilter" class="mb-2 w-full rounded border px-2 py-1 text-sm">
-            <option value="all">ทุกสถานะ</option><option value="Pending">รอดำเนินการ</option><option value="Approved">อนุมัติแล้ว</option><option value="On Hold">พักรายการ</option><option value="Converted to PR">แปลงเป็น PR แล้ว</option><option value="Rejected">ปฏิเสธ</option><option value="Purchased">สั่งซื้อแล้ว</option><option value="Received">รับเข้าแล้ว</option><option value="Closed">ปิดรายการ</option>
+            <option value="all">ทุกStatus</option><option value="Pending">รอดำเนินการ</option><option value="Approved">อนุมัติแล้ว</option><option value="On Hold">พักรายการ</option><option value="Converted to PR">แปลงเป็น PR แล้ว</option><option value="Rejected">ปฏิเสธ</option><option value="Purchased">สั่งซื้อแล้ว</option><option value="Received">รับเข้าแล้ว</option><option value="Closed">ปิดรายการ</option>
           </select>
           <div id="roList" class="space-y-2 text-sm"></div>
         </div>
@@ -310,7 +310,7 @@
       <div id="roDetailModal" class="hidden">
         <div id="roDetailPanel">
             <div id="roDetailHeader" class="mb-0 flex items-center justify-between px-4 py-3">
-              <h3 id="roDetailTitle" class="text-lg font-bold">รายการของผู้ขอ</h3>
+              <h3 id="roDetailTitle" class="text-lg font-bold">รายการของRequester</h3>
               <button id="roDetailClose" type="button" class="rounded border px-3 py-1">ปิด</button>
             </div>
             <div id="roDetailList" class="space-y-2"></div>
@@ -330,22 +330,22 @@
       <div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <aside id="dashboardSidebarWrap" class="hidden xl:block xl:col-span-3">
         <div class="sticky top-6 h-[calc(100vh-48px)] overflow-auto rounded-2xl bg-white p-4 shadow-sm border border-slate-200">
-          <h3 class="text-lg font-bold text-blue-700">เมนูแดชบอร์ด</h3>
+          <h3 class="text-lg font-bold text-blue-700">Dashboard Menu</h3>
           <ul id="dashboardSidebarMenu" class="mt-3 space-y-2 text-sm text-slate-600">
-            <li><button data-dash-target="dashExecutive" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">ภาพรวมผู้บริหาร</button></li>
-            <li><button data-dash-target="dashAlerts" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">รายการวิกฤต</button></li>
-            <li><button data-dash-target="dashTopUsage" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">อะไหล่ที่เบิกบ่อย</button></li>
-            <li><button data-dash-target="dashRecentActivities" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">ความเคลื่อนไหวล่าสุด</button></li>
-            <li><button data-dash-target="dashRisk" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">อะไหล่เสี่ยง</button></li>
-            <li><button data-dash-target="dashRequestStatus" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">สถานะคำขอซื้อ</button></li>
+            <li><button data-dash-target="dashExecutive" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Executive Summary</button></li>
+            <li><button data-dash-target="dashAlerts" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Critical Alerts</button></li>
+            <li><button data-dash-target="dashTopUsage" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Top Usage</button></li>
+            <li><button data-dash-target="dashRecentActivities" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Recent Activities</button></li>
+            <li><button data-dash-target="dashRisk" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">At-Risk Parts</button></li>
+            <li><button data-dash-target="dashRequestStatus" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Request Status</button></li>
           </ul>
         </div>
       </aside>
       <div class="xl:col-span-9 space-y-4">
       <div id="dashExecutive" class="rounded-2xl bg-white p-4 shadow-sm border border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="text-2xl font-bold text-slate-900">แดชบอร์ดบริหารอะไหล่โรงงาน</h2>
-          <p class="text-sm text-slate-500">ภาพรวมคลังอะไหล่ทุกไลน์การผลิต</p>
+          <h2 class="text-2xl font-bold text-slate-900">Factory Spare Parts Dashboard</h2>
+          <p class="text-sm text-slate-500">Cross-line spare inventory overview for production operations</p>
         </div>
         <div class="flex items-center gap-2">
           <select id="dashboardLineFilter" class="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm">
@@ -355,18 +355,18 @@
             <option value="Coil Winding">Coil Winding</option>
             <option value="Lug&Screw">Lug&Screw</option>
           </select>
-          <button id="dashboardRefreshBtn" type="button" class="h-10 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 hover:bg-blue-100">รีเฟรช Dashboard</button>
+          <button id="dashboardRefreshBtn" type="button" class="h-10 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 hover:bg-blue-100">Refresh Dashboard</button>
         </div>
       </div>
       <div id="dashboardSummary" class="grid grid-cols-2 gap-3 lg:grid-cols-5"></div>
       <div id="dashAlerts" class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">สต็อกแยกตามไลน์หลัก</h3><div id="dashboardLineBars" class="mt-3 space-y-2 text-xs"></div></div>
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">สุขภาพสต็อก</h3><div id="dashboardStockDonut" class="mt-4 h-40 w-40 mx-auto rounded-full"></div><p id="dashboardStockDonutText" class="mt-2 text-center text-xs text-slate-500"></p></div>
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">รายการต้องซื้อแยกตามหมวดหมู่</h3><div id="dashboardNeedPoBars" class="mt-3 space-y-2 text-xs"></div></div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">Stock by Primary Line</h3><div id="dashboardLineBars" class="mt-3 space-y-2 text-xs"></div></div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">Stock Health</h3><div id="dashboardStockDonut" class="mt-4 h-40 w-40 mx-auto rounded-full"></div><p id="dashboardStockDonutText" class="mt-2 text-center text-xs text-slate-500"></p></div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">Need PO by Category</h3><div id="dashboardNeedPoBars" class="mt-3 space-y-2 text-xs"></div></div>
       </div>
       <div id="dashRisk" class="rounded-2xl bg-white border border-slate-200 shadow-sm">
-        <div id="dashboardLoading" class="px-3 py-3 text-sm text-slate-500">กำลังโหลดข้อมูล...</div>
-        <div id="dashboardEmpty" class="hidden px-3 py-3 text-sm text-slate-500">ไม่มีข้อมูล</div>
+        <div id="dashboardLoading" class="px-3 py-3 text-sm text-slate-500">Loading data...</div>
+        <div id="dashboardEmpty" class="hidden px-3 py-3 text-sm text-slate-500">No data</div>
         <div class="overflow-x-auto">
           <table class="min-w-full text-xs sm:text-sm">
             <thead class="bg-slate-50 sticky top-0 z-10">
@@ -387,23 +387,23 @@
         </div>
       </div>
       <div id="dashRequestStatus" class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
-        <h3 class="text-base font-semibold">คำขอซื้อล่าสุด</h3>
+        <h3 class="text-base font-semibold">Recent Purchase Requests</h3>
         <div id="dashboardRequestSummary" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8"></div>
-        <div id="dashboardRequestEmpty" class="hidden mt-3 text-sm text-slate-500">ยังไม่มีคำขอซื้อ</div>
+        <div id="dashboardRequestEmpty" class="hidden mt-3 text-sm text-slate-500">No purchase requests yet</div>
         <div class="mt-3 max-h-80 overflow-auto">
           <table class="min-w-full text-xs sm:text-sm">
             <thead class="bg-slate-50">
               <tr class="text-left">
-                <th class="px-2 py-2">รหัสคำขอ</th>
-                <th class="px-2 py-2">ผู้ขอ</th>
-                <th class="px-2 py-2">ไลน์หลัก</th>
-                <th class="px-2 py-2">ชื่ออะไหล่</th>
-                <th class="px-2 py-2">จำนวน</th>
-                <th class="px-2 py-2">ความเร่งด่วน</th>
-                <th class="px-2 py-2">สถานะ</th>
-                <th class="px-2 py-2">วันที่ขอ</th>
-                <th class="px-2 py-2">อัปเดตล่าสุด</th>
-                <th class="px-2 py-2">รายละเอียด</th>
+                <th class="px-2 py-2">Request ID</th>
+                <th class="px-2 py-2">Requester</th>
+                <th class="px-2 py-2">Primary Line</th>
+                <th class="px-2 py-2">Part Name</th>
+                <th class="px-2 py-2">Qty</th>
+                <th class="px-2 py-2">Priority</th>
+                <th class="px-2 py-2">Status</th>
+                <th class="px-2 py-2">Requested At</th>
+                <th class="px-2 py-2">Last Updated</th>
+                <th class="px-2 py-2">Details</th>
               </tr>
             </thead>
             <tbody id="dashboardRequestTableBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
@@ -411,27 +411,27 @@
         </div>
       </div>
       <div id="dashRecentActivities" class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
-        <h3 class="text-base font-semibold">ประวัติล่าสุด</h3>
+        <h3 class="text-base font-semibold">Recent Activities</h3>
         <div id="dashboardLogSummary" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"></div>
-        <div id="dashboardLogEmpty" class="hidden mt-3 text-sm text-slate-500">ยังไม่มีประวัติการเบิก/รับ</div>
-        <h4 class="mt-4 font-semibold">รายการเบิกล่าสุด</h4>
+        <div id="dashboardLogEmpty" class="hidden mt-3 text-sm text-slate-500">No issue/receive history yet</div>
+        <h4 class="mt-4 font-semibold">Latest Issue Transactions</h4>
         <div class="mt-2 max-h-72 overflow-auto">
           <table class="min-w-full text-xs sm:text-sm">
-            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">วันที่/เวลา</th><th class="px-2 py-2">Type</th><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">Qty</th><th class="px-2 py-2">By</th></tr></thead>
+            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">Timestamp</th><th class="px-2 py-2">Type</th><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">Qty</th><th class="px-2 py-2">By</th></tr></thead>
             <tbody id="dashboardLatestIssueBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
           </table>
         </div>
-        <h4 id="dashTopUsage" class="mt-4 font-semibold">Top 10 อะไหล่ที่ถูกเบิกบ่อย</h4>
+        <h4 id="dashTopUsage" class="mt-4 font-semibold">Top 10 Issued Parts</h4>
         <div class="mt-2 max-h-72 overflow-auto">
           <table class="min-w-full text-xs sm:text-sm">
-            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">จำนวนครั้งที่เบิก</th><th class="px-2 py-2">จำนวนรวมที่เบิก</th><th class="px-2 py-2">วันที่เบิกล่าสุด</th></tr></thead>
+            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">Issue Count</th><th class="px-2 py-2">Issued Qty Total</th><th class="px-2 py-2">Last Issue Date</th></tr></thead>
             <tbody id="dashboardTopPartsBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
           </table>
         </div>
-        <h4 class="mt-4 font-semibold">Top 10 ผู้เบิกอะไหล่</h4>
+        <h4 class="mt-4 font-semibold">Top 10 Issuers</h4>
         <div class="mt-2 max-h-72 overflow-auto">
           <table class="min-w-full text-xs sm:text-sm">
-            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">ชื่อผู้เบิก</th><th class="px-2 py-2">จำนวนครั้งที่เบิก</th><th class="px-2 py-2">จำนวนรวมที่เบิก</th><th class="px-2 py-2">วันที่ล่าสุด</th></tr></thead>
+            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">Issuer Name</th><th class="px-2 py-2">Issue Count</th><th class="px-2 py-2">Issued Qty Total</th><th class="px-2 py-2">Last Activity</th></tr></thead>
             <tbody id="dashboardTopUsersBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
           </table>
         </div>
@@ -460,7 +460,7 @@
                 <option value="all">แบรนด์ทั้งหมด</option>
               </select>
               <select id="txnStatusFilter" class="h-11 rounded-xl border border-slate-300 px-3 bg-white">
-                <option value="all">ทุกสถานะ</option>
+                <option value="all">ทุกStatus</option>
                 <option value="out">หมด</option>
                 <option value="low">ต่ำ / ใกล้หมด</option>
                 <option value="ok">พร้อมใช้</option>
@@ -565,7 +565,7 @@
     <section id="logPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6">
       <h2 class="text-lg font-semibold mb-3">ประวัติการเบิก / คืน (Log)</h2>
       <div class="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
-        <p id="logPageSummary">รายการทั้งหมด 0 รายการ</p>
+        <p id="logPageSummary">รายการทั้งOut of Stock 0 รายการ</p>
         <p id="logPageIndicator">หน้า 1 / 1</p>
       </div>
       <div class="overflow-x-auto rounded-xl border border-slate-200">
@@ -576,7 +576,7 @@
               <th class="py-3 px-3">ประเภท</th>
               <th class="py-3 px-3">ไลน์/กระบวนการ</th>
               <th class="py-3 px-3">หมวดหมู่</th>
-              <th class="py-3 px-3">ชื่ออะไหล่</th>
+              <th class="py-3 px-3">Part Name</th>
               <th class="py-3 px-3">รุ่น</th>
               <th class="py-3 px-3">แบรนด์</th>
               <th class="py-3 px-3">จำนวน</th>
@@ -894,7 +894,7 @@
   <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-start justify-center z-50 p-3 md:px-6 md:pt-10 md:pb-6 overflow-y-auto">
     <div class="relative mt-2 mb-4 bg-white w-full md:max-w-4xl rounded-2xl shadow-xl overflow-hidden max-h-[calc(100vh-2rem)] md:max-h-[calc(100vh-6rem)]">
       <div class="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-5">
-        <h3 class="text-lg font-bold">รายละเอียดอะไหล่</h3>
+        <h3 class="text-lg font-bold">Detailsอะไหล่</h3>
         <button id="closeDetailModal" type="button" class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 text-xl leading-none shadow-sm">×</button>
       </div>
       <div class="overflow-y-auto max-h-[calc(100vh-9.5rem)] md:max-h-[calc(100vh-11rem)] px-4 pb-4 pt-3 md:px-5 md:pb-5">
@@ -921,7 +921,7 @@
               </div>
             </section>
             <section>
-              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">สถานะสต็อก</p>
+              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Statusสต็อก</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                 <div id="detailFieldStock" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Stock</p><p id="detailStock" class="font-semibold text-base">0</p></div>
                 <div id="detailFieldMinMax" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Min/Max</p><p id="detailMinMax" class="font-semibold text-base">0/0</p></div>
@@ -1296,7 +1296,7 @@
     var PERMISSION_GROUPS = [
       { key: 'stock', targetId: 'permGroupStock', title: 'Stock', items: [
         { key: 'view_stock', label: 'ดู Stock' },
-        { key: 'view_detail', label: 'ดูรายละเอียด' },
+        { key: 'view_detail', label: 'ดูDetails' },
         { key: 'issue_part', label: 'เบิกอะไหล่' },
         { key: 'receive_part', label: 'รับอะไหล่' },
         { key: 'use_issue_cart', label: 'ใช้ Issue Cart' }
@@ -1644,7 +1644,7 @@
       if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
       if (partsData.length) {
         var updatedAtText = document.getElementById('updatedAtText');
-        updatedAtText.textContent = 'อัปเดตล่าสุด: ' + new Date().toLocaleString('th-TH');
+        updatedAtText.textContent = 'Last Updated: ' + new Date().toLocaleString('th-TH');
         updatedAtText.classList.remove('hidden');
       } else {
         document.getElementById('updatedAtText').classList.add('hidden');
@@ -2844,7 +2844,7 @@ function getIssueCartEntries() {
           '<p class="mt-1 text-xs text-slate-600">Line: ' + getLineSummary(user) + '</p>' +
           '<p class="text-xs text-slate-500">Permissions: ' + getPermissionSummary(user) + '</p>' +
           '<div class="mt-2 flex items-center gap-2">' +
-            '<button data-edit-user="' + user.username + '" class="h-8 flex-1 rounded-lg border border-blue-300 bg-blue-50 px-3 text-xs font-semibold text-blue-700">เปิดรายละเอียด</button>' +
+            '<button data-edit-user="' + user.username + '" class="h-8 flex-1 rounded-lg border border-blue-300 bg-blue-50 px-3 text-xs font-semibold text-blue-700">เปิดDetails</button>' +
             (canDeleteUser ? '<button data-delete-user="' + user.username + '" class="h-8 rounded-lg border border-rose-300 px-3 text-xs font-semibold text-rose-700">ลบ</button>' : '') +
           '</div>' +
         '</article>';
@@ -3235,7 +3235,7 @@ function getIssueCartEntries() {
       }
 
       var pageText = 'หน้า ' + logCurrentPage + ' / ' + totalPages;
-      if (logPageSummary) logPageSummary.textContent = 'รายการทั้งหมด ' + total + ' รายการ';
+      if (logPageSummary) logPageSummary.textContent = 'รายการทั้งOut of Stock ' + total + ' รายการ';
       if (logPageIndicator) logPageIndicator.textContent = pageText;
       if (logPaginationText) logPaginationText.textContent = pageText;
       if (logPrevBtn) logPrevBtn.disabled = logCurrentPage <= 1;
@@ -3244,7 +3244,7 @@ function getIssueCartEntries() {
 
     function loadLogData() {
       logTable.innerHTML = '<tr><td colspan="13" class="py-6 text-center text-slate-400">กำลังโหลดประวัติ...</td></tr>';
-      if (logPageSummary) logPageSummary.textContent = 'รายการทั้งหมด 0 รายการ';
+      if (logPageSummary) logPageSummary.textContent = 'รายการทั้งOut of Stock 0 รายการ';
       loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); })
         .then(function(rawData) {
           if (rawData && rawData.status === 'error') throw new Error(rawData.message || 'โหลด log ไม่สำเร็จ');
@@ -3443,15 +3443,15 @@ function getIssueCartEntries() {
               '<div class="min-w-0">' +
                 '<p class="font-semibold text-base">👤 ' + displayName + '</p>' +
                 '<p class="text-xs text-slate-600">ไลน์ที่เกี่ยวข้อง: ' + lines + '</p>' +
-                '<p class="text-xs text-slate-500">อัปเดตล่าสุด: ' + (latest ? new Date(latest).toLocaleString('th-TH') : '-') + '</p>' +
+                '<p class="text-xs text-slate-500">Last Updated: ' + (latest ? new Date(latest).toLocaleString('th-TH') : '-') + '</p>' +
               '</div>' +
               '<span class="inline-flex min-w-[28px] items-center justify-center rounded-full bg-blue-600 px-2 py-1 text-xs font-extrabold text-white shadow-sm">' + pendingCount + '</span>' +
             '</div>' +
             '<button type="button" data-group-idx="' + gIdx + '" class="mt-2 w-full cursor-pointer rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm text-blue-900 transition hover:-translate-y-[1px] hover:bg-blue-100">' +
-              '💬 มีคำขอซื้อใหม่จาก <b>' + displayName + '</b> จำนวน <b>' + pendingCount + '</b> รายการ' + (urgentCount > 0 ? ' • ด่วน <b>' + urgentCount + '</b>' : '') + (items.length !== pendingCount ? ' • ทั้งหมด <b>' + items.length + '</b>' : '') + ' • กดดูรายละเอียด' +
+              '💬 มีคำขอซื้อใหม่จาก <b>' + displayName + '</b> จำนวน <b>' + pendingCount + '</b> รายการ' + (urgentCount > 0 ? ' • ด่วน <b>' + urgentCount + '</b>' : '') + (items.length !== pendingCount ? ' • ทั้งOut of Stock <b>' + items.length + '</b>' : '') + ' • กดดูDetails' +
             '</button>' +
             '<div class="mt-2 flex flex-wrap gap-2">' +
-              '<button type="button" data-group-idx="' + gIdx + '" class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-700">ดูรายละเอียด</button>' +
+              '<button type="button" data-group-idx="' + gIdx + '" class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-700">ดูDetails</button>' +
             '</div>' +
           '</div>';
         }).join('');
@@ -3482,15 +3482,15 @@ function getIssueCartEntries() {
         if (hasPermission('request_order_close')) actions += '<button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="rounded border px-2 py-1.5">ปิดรายการ</button>';
         return '<div class="rounded-xl border p-3">' +
           '<p class="font-semibold">' + (idx + 1) + '. ' + (r.item_name || '-') + '</p>' +
-          '<p class="text-sm">ผู้ขอซื้อ: <b>' + (r.requested_by || '-') + '</b></p>' +
-          '<p class="text-sm">วันที่ขอซื้อ: ' + (r.requested_date ? new Date(r.requested_date).toLocaleString('th-TH') : '-') + '</p>' +
+          '<p class="text-sm">Requesterซื้อ: <b>' + (r.requested_by || '-') + '</b></p>' +
+          '<p class="text-sm">Requested Atซื้อ: ' + (r.requested_date ? new Date(r.requested_date).toLocaleString('th-TH') : '-') + '</p>' +
           '<p class="text-sm">ไลน์ที่เกี่ยวข้อง: ' + (r.line || '-') + '</p>' +
           '<p class="text-sm">Model: ' + (r.model || r.item_model || '-') + '</p>' +
           '<p class="text-sm">Brand: ' + (r.brand || r.item_brand || '-') + '</p>' +
           '<p class="text-sm">จำนวนที่ต้องการ: ' + (r.request_qty || 0) + '</p>' +
           '<p class="text-sm">เหตุผล: ' + (r.reason || '-') + '</p>' +
           '<p class="text-sm">หมายเหตุ: ' + (r.remark || '-') + '</p>' +
-          '<p class="text-sm">สถานะ: <b>' + toThaiRequestStatus(r.status) + '</b></p>' +
+          '<p class="text-sm">Status: <b>' + toThaiRequestStatus(r.status) + '</b></p>' +
           '<div class="mt-2">' + ((r.attachment_url || r.image_main_url) ? '<div class="flex items-center gap-2"><img src="' + (r.attachment_url || r.image_main_url) + '" class="h-24 w-24 rounded border object-cover" onerror="this.style.display=\'none\'; this.nextElementSibling.classList.remove(\'hidden\');"/><a href="' + (r.attachment_url || r.image_main_url) + '" target="_blank" rel="noopener" class="hidden rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-700">เปิดรูปในแท็บใหม่</a><button type="button" data-view-image="' + (r.attachment_url || r.image_main_url) + '" class="rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700">ดูรูปขนาดใหญ่</button></div>' : '<span class="text-xs text-slate-400">ไม่มีรูปแนบ</span>') + '</div>' + warning +
           '<div class="mt-2 flex flex-wrap gap-1.5 text-xs">' + actions + '</div>' +
         '</div>';
@@ -3532,7 +3532,7 @@ function inferRequestPriority(stock, min) {
         '<p class="text-xs text-slate-600">รุ่น: ' + (item.model || '-') + ' | ไลน์: ' + (item.line || '-') + '</p>' +
         '<p class="text-xs text-slate-600">ยี่ห้อ: ' + (item.brand || '-') + '</p>' +
         '<p class="text-xs text-slate-700">จำนวนคงเหลือ: <b>' + (item.stock || 0) + '</b> | ขั้นต่ำ/สูงสุด: ' + (item.min || 0) + '/' + (item.max || 0) + '</p>' +
-        '<p class="text-xs">สถานะ: <b>' + getStockItemStatusLabel(item.stock, item.min) + '</b> | ตำแหน่ง: ' + (item.location || '-') + '</p>' +
+        '<p class="text-xs">Status: <b>' + getStockItemStatusLabel(item.stock, item.min) + '</b> | ตำแหน่ง: ' + (item.location || '-') + '</p>' +
         '</div></div>';
     }
 
@@ -3592,12 +3592,12 @@ function inferRequestPriority(stock, min) {
         return normalizeMainLine(r.line) === selectedLine;
       });
       function card(title, value) {
-        var color = /Out|Stock = 0/.test(title) ? 'rose' : /Min|Need/.test(title) ? 'amber' : /ไม่มี/.test(title) ? 'slate' : 'blue';
-        var icon = /Stock = 0/.test(title) ? '🚨' : /Stock รวม|ทั้งหมด/.test(title) ? '📦' : /Min/.test(title) ? '⚠️' : /Need/.test(title) ? '🛒' : /Pending/.test(title) ? '📝' : 'ℹ️';
+        var color = /Out|Stock = 0/.test(title) ? 'rose' : /Min|Need/.test(title) ? 'amber' : /Missing/.test(title) ? 'slate' : 'blue';
+        var icon = /Stock = 0/.test(title) ? '🚨' : /Total Stock/.test(title) ? '📦' : /Min/.test(title) ? '⚠️' : /Need/.test(title) ? '🛒' : /Pending/.test(title) ? '📝' : 'ℹ️';
         return '<div class="rounded-2xl border border-' + color + '-100 bg-white p-3 shadow-sm hover:shadow-md transition"><div class="flex items-center justify-between"><p class="text-[11px] text-' + color + '-600">' + title + '</p><span>' + icon + '</span></div><p class="text-2xl font-extrabold text-slate-900">' + value + '</p></div>';
       }
       if (!rows.length) {
-        summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', 0) + card('Stock รวม', 0) + card('Stock = 0', 0) + card('Stock < Min', 0) + card('Need PO', 0) + card('ไม่มี Location', 0) + card('ไม่มีรูปภาพ', 0) + card('Pending Request', 0);
+        summaryEl.innerHTML = card('Total Parts', 0) + card('Total Stock', 0) + card('Stock = 0', 0) + card('Stock < Min', 0) + card('Need PO', 0) + card('Missing Location', 0) + card('Missing Image', 0) + card('Pending Request', 0);
         bodyEl.innerHTML = '';
         loadingEl.classList.add('hidden');
         emptyEl.classList.remove('hidden');
@@ -3619,11 +3619,11 @@ function inferRequestPriority(stock, min) {
         if (stock <= 0) reasons.push('Stock = 0');
         if (stock < min) reasons.push('Stock < Min');
         if (need > 0) reasons.push('Need to PO > 0');
-        if (!String(item.location || '').trim()) reasons.push('ไม่มี Location');
-        if (!String(item.image_main || item.photo || '').trim()) reasons.push('ไม่มีรูปภาพ');
+        if (!String(item.location || '').trim()) reasons.push('Missing Location');
+        if (!String(item.image_main || item.photo || '').trim()) reasons.push('Missing Image');
         if (reasons.length) riskRows.push({ item: item, need: need, reason: reasons.join(', ') });
       });
-      summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', rows.length.toLocaleString('th-TH')) + card('Stock รวม', totalStock.toLocaleString('th-TH')) + card('Stock = 0', outZero.toLocaleString('th-TH')) + card('Stock < Min', lowMin.toLocaleString('th-TH')) + card('Need PO', needPoCount.toLocaleString('th-TH')) + card('ไม่มี Location', noLocation.toLocaleString('th-TH')) + card('ไม่มีรูปภาพ', noImage.toLocaleString('th-TH')) + card('Pending Request', '...');
+      summaryEl.innerHTML = card('Total Parts', rows.length.toLocaleString('th-TH')) + card('Total Stock', totalStock.toLocaleString('th-TH')) + card('Stock = 0', outZero.toLocaleString('th-TH')) + card('Stock < Min', lowMin.toLocaleString('th-TH')) + card('Need PO', needPoCount.toLocaleString('th-TH')) + card('Missing Location', noLocation.toLocaleString('th-TH')) + card('Missing Image', noImage.toLocaleString('th-TH')) + card('Pending Request', '...');
       var lineBars = document.getElementById('dashboardLineBars');
       var donut = document.getElementById('dashboardStockDonut');
       var donutText = document.getElementById('dashboardStockDonutText');
@@ -3631,8 +3631,8 @@ function inferRequestPriority(stock, min) {
       var lineMap = {}, catMap = {}, normal = 0;
       rows.forEach(function(r){ var line=normalizeMainLine(r.line||'N/A'); lineMap[line]=(lineMap[line]||0)+num(r.stock); var cat=String(r.category||'ทั่วไป'); catMap[cat]=(catMap[cat]||0)+Math.max(0,num(r.min)-num(r.stock)); if(num(r.stock)>=num(r.min)&&num(r.stock)>0) normal++; });
       if (lineBars) { var maxLine=Math.max.apply(null,Object.keys(lineMap).map(function(k){return lineMap[k];}).concat([1])); lineBars.innerHTML=Object.keys(lineMap).slice(0,6).map(function(k){ var v=lineMap[k]; return '<div><div class=\"flex justify-between\"><span>'+k+'</span><span>'+v+'</span></div><div class=\"h-2 rounded bg-slate-100\"><div class=\"h-2 rounded bg-blue-500\" style=\"width:' + Math.max(4,(v/maxLine)*100) + '%\"></div></div></div>'; }).join(''); }
-      if (poBars) { var cats=Object.keys(catMap).sort(function(a,b){return catMap[b]-catMap[a];}).slice(0,6); var maxCat=Math.max.apply(null,cats.map(function(k){return catMap[k];}).concat([1])); poBars.innerHTML=cats.map(function(k){ var v=catMap[k]; return '<div><div class=\"flex justify-between\"><span>'+k+'</span><span>'+v+'</span></div><div class=\"h-2 rounded bg-slate-100\"><div class=\"h-2 rounded bg-amber-500\" style=\"width:' + Math.max(4,(v/maxCat)*100) + '%\"></div></div></div>'; }).join('') || '<p class=\"text-slate-400\">ไม่มีข้อมูล</p>'; }
-      if (donut) { var total=Math.max(rows.length,1),ok=Math.round((normal/total)*100),out=Math.round((outZero/total)*100),low=Math.max(0,100-ok-out); donut.style.background='conic-gradient(#22c55e 0 '+ok+'%, #ef4444 '+ok+'% '+(ok+out)+'%, #f59e0b '+(ok+out)+'% 100%)'; donutText.textContent='ปกติ '+ok+'% • หมด '+out+'% • ต่ำกว่า Min '+low+'%'; }
+      if (poBars) { var cats=Object.keys(catMap).sort(function(a,b){return catMap[b]-catMap[a];}).slice(0,6); var maxCat=Math.max.apply(null,cats.map(function(k){return catMap[k];}).concat([1])); poBars.innerHTML=cats.map(function(k){ var v=catMap[k]; return '<div><div class=\"flex justify-between\"><span>'+k+'</span><span>'+v+'</span></div><div class=\"h-2 rounded bg-slate-100\"><div class=\"h-2 rounded bg-amber-500\" style=\"width:' + Math.max(4,(v/maxCat)*100) + '%\"></div></div></div>'; }).join('') || '<p class=\"text-slate-400\">No data</p>'; }
+      if (donut) { var total=Math.max(rows.length,1),ok=Math.round((normal/total)*100),out=Math.round((outZero/total)*100),low=Math.max(0,100-ok-out); donut.style.background='conic-gradient(#22c55e 0 '+ok+'%, #ef4444 '+ok+'% '+(ok+out)+'%, #f59e0b '+(ok+out)+'% 100%)'; donutText.textContent='Normal '+ok+'% • Out of Stock '+out+'% • Below Min '+low+'%'; }
       bodyEl.innerHTML = riskRows.slice(0, 10).map(function(row) {
         var r = row.item;
         var riskBadge = '<span class="inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">' + row.reason + '</span>';
@@ -3728,7 +3728,7 @@ function inferRequestPriority(stock, min) {
             '<td class="px-2 py-2">' + (r.status || '-') + '</td>' +
             '<td class="px-2 py-2">' + reqDate + '</td>' +
             '<td class="px-2 py-2">' + updDate + '</td>' +
-            '<td class="px-2 py-2"><button type="button" data-dashboard-request-id="' + reqId + '" class="rounded border border-slate-300 bg-white px-2 py-1 text-xs">ดูรายละเอียด</button></td>' +
+            '<td class="px-2 py-2"><button type="button" data-dashboard-request-id="' + reqId + '" class="rounded border border-slate-300 bg-white px-2 py-1 text-xs">ดูDetails</button></td>' +
           '</tr>';
         }).join('');
       }).catch(function() {
@@ -3797,11 +3797,11 @@ function inferRequestPriority(stock, min) {
         issues.sort(function(a,b){ return new Date(b.timestamp || b.date || 0) - new Date(a.timestamp || a.date || 0); });
         latestBody.innerHTML = issues.slice(0, 20).map(function(r){
           return '<tr class="border-b"><td class="px-2 py-2">' + (r.timestamp ? new Date(r.timestamp).toLocaleString('th-TH') : (r.date || '-')) + '</td><td class="px-2 py-2">' + (r.type || '-') + '</td><td class="px-2 py-2">' + (r.partName || r.name || '-') + '</td><td class="px-2 py-2">' + (r.model || '-') + '</td><td class="px-2 py-2">' + (r.brand || '-') + '</td><td class="px-2 py-2">' + (Number(r.qty || r.quantity || 0) || 0) + '</td><td class="px-2 py-2">' + (r.by || '-') + '</td></tr>';
-        }).join('') || '<tr><td colspan="7" class="px-2 py-3 text-slate-500">ยังไม่มีประวัติการเบิก/รับ</td></tr>';
+        }).join('') || '<tr><td colspan="7" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
         var topParts = Object.keys(partMap).map(function(k){ return partMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? new Date(p.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">ยังไม่มีประวัติการเบิก/รับ</td></tr>';
+        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? new Date(p.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
         var topUsers = Object.keys(userMap).map(function(k){ return userMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? new Date(u.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">ยังไม่มีประวัติการเบิก/รับ</td></tr>';
+        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? new Date(u.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
       }).catch(function() {
         emptyEl.classList.remove('hidden');
       });
@@ -3987,8 +3987,8 @@ function inferRequestPriority(stock, min) {
       var skipCache = !!opts.skipCache;
       var requestSeq = ++partsLoadRequestSeq;
       var hasAppliedCache = false;
-      desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
-      mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</div>';
+      desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Loading data...</div>';
+      mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">Loading data...</div>';
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
       var cachePayload = skipCache ? null : loadLineCache(currentLine);
       if (cachePayload && cachePayload.items && cachePayload.items.length) {
@@ -4021,8 +4021,8 @@ function inferRequestPriority(stock, min) {
           });
         }).finally(function() {
           if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
-          desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
-          mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลดข้อมูล... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
+          desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
+          mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
         });
       })).then(function(sheetChunks) {
           var rawData = [].concat.apply([], sheetChunks);
@@ -4378,7 +4378,7 @@ function inferRequestPriority(stock, min) {
         }
 
         if (!failures.length) {
-          setIssueCartMessage('บันทึกสำเร็จทั้งหมด ' + successNos.length + ' รายการ', 'success');
+          setIssueCartMessage('บันทึกสำเร็จทั้งOut of Stock ' + successNos.length + ' รายการ', 'success');
           if (issueCartNote) issueCartNote.value = '';
         } else if (successNos.length) {
           setIssueCartMessage('สำเร็จ ' + successNos.length + ' รายการ, ไม่สำเร็จ ' + failures.length + ' รายการ: ' + failures.join(' | '), 'error');
@@ -4901,7 +4901,7 @@ function inferRequestPriority(stock, min) {
       var needPO = data.filter(function(item) { return getNeedToOrder(item) > 0; }).length;
       stockTodayAlert.classList.toggle('hidden', !(needPO > 0 || outCount > 0 || lowCount > 0));
       if (needPO > 0 || outCount > 0 || lowCount > 0) {
-        stockTodayAlert.innerHTML = '🚨 <b>Today Alert</b> • ต้องสั่งซื้อ <b>' + needPO + '</b> • อะไหล่หมด <b>' + outCount + '</b> • ต่ำกว่า Min <b>' + lowCount + '</b>';
+        stockTodayAlert.innerHTML = '🚨 <b>Today Alert</b> • ต้องสั่งซื้อ <b>' + needPO + '</b> • อะไหล่Out of Stock <b>' + outCount + '</b> • Below Min <b>' + lowCount + '</b>';
       }
 
       if (window.innerWidth >= 1024) {
@@ -4962,7 +4962,7 @@ function inferRequestPriority(stock, min) {
             '<span class="font-bold text-base ' + stockClass + '">Stock ' + item.stock + '</span>' +
           '</div>' +
           '<div class="mt-3 grid grid-cols-1 gap-2">' +
-            '<button data-view-key="' + itemKey + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold">👁 ดูรายละเอียด</button>' +
+            '<button data-view-key="' + itemKey + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold">👁 ดูDetails</button>' +
             (canIssue ? '<button data-issue-no="' + item.no + '" class="h-9 rounded-lg bg-emerald-600 text-white text-xs font-semibold">⚡ เพิ่มลงรายการเบิก</button>' : (canTransact ? '<span class="h-9 rounded-lg border border-slate-300 bg-slate-100 text-xs text-slate-500 flex items-center justify-center font-semibold">อะไหล่หมด</span>' : '<span class="h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-400 flex items-center justify-center">No Access</span>')) +
           '</div>' +
           (canManageItems || canDeleteItems ? '<div class="mt-2 flex items-center justify-end gap-2">' +
@@ -5933,7 +5933,7 @@ if (dashboardPage) {
       });
       submitPromise.then(function(res){
         if (res && res.status === 'error') throw new Error(res.message || 'ส่งคำขอไม่สำเร็จ');
-        alert('ส่งคำขอซื้อเรียบร้อย • สถานะ: รอการอนุมัติ');
+        alert('ส่งคำขอซื้อเรียบร้อย • Status: รอการอนุมัติ');
         e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests(); refreshRequestOrderBadgeCount();
       }).catch(function(err) {
         var rawMessage = err && err.message ? err.message : String(err || '');
@@ -6002,12 +6002,12 @@ if (dashboardPage) {
         ? requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] }))
         : requestApi(withAuthPayload({ action: ({ approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' }[act] || act), request_id: id }));
       run.then(function(){
-        alert('บันทึกคำสั่งเรียบร้อย • สถานะรอการอนุมัติ/อัปเดตเหมือนระบบ e-mail');
+        alert('บันทึกคำสั่งเรียบร้อย • Statusรอการอนุมัติ/อัปเดตเหมือนระบบ e-mail');
         loadOrderRequests(); return refreshRequestOrderBadgeCount();
       }).then(function(){
         if (window.__roActiveGroupIdx !== undefined) openRequestDetailByRequester(window.__roActiveGroupIdx);
       }).catch(function(err) {
-        alert('อัปเดตสถานะไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+        alert('อัปเดตStatusไม่สำเร็จ: ' + (err && err.message ? err.message : err));
       }).finally(function() {
         actionBtn.disabled = false;
         actionBtn.textContent = originalText;
