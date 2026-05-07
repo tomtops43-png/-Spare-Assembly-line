@@ -506,7 +506,7 @@
             </select>
             <p id="txnStockGuardMessage" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"></p>
             <input id="txnQty" type="number" min="1" step="1" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="จำนวน" required />
-            <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ผู้เบิก/ผู้รับ" required />
+            <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3 bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
             <input id="txnProcess" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ไลน์/งาน" />
             <button id="txnSubmitBtn" type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
           </form>
@@ -1002,7 +1002,7 @@
           <option value="Output">เบิกออก</option>
         </select>
         <input id="quickIssueQty" type="number" min="1" step="1" inputmode="numeric" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="จำนวน" required />
-        <input id="quickIssueBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ผู้เบิก/ผู้รับ" required />
+        <input id="quickIssueBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
         <input id="quickIssueProcess" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ไลน์/งาน" />
         </div>
         <div class="mt-auto pt-4">
@@ -2373,6 +2373,57 @@ function getIssueCartEntries() {
       authUserName.textContent = currentUser.username;
       authUserRole.textContent = currentUser.role;
       authUserBox.classList.remove('hidden');
+      syncTxnActorFields();
+    }
+
+    function syncTxnActorFields() {
+      var actor = currentUser && currentUser.username ? String(currentUser.username) : '';
+      if (txnBy) txnBy.value = actor;
+      if (quickIssueBy) quickIssueBy.value = actor;
+    }
+
+    function updateRequestOrderBadgeUI() {
+      var btn = document.getElementById('requestOrderNavBtn');
+      var badge = document.getElementById('requestOrderNavBadge');
+      console.log('btn exists', !!btn);
+      console.log('badge exists', !!badge);
+      console.log('badge inside btn', btn && badge ? btn.contains(badge) : false);
+      if (!btn || !badge || !btn.contains(badge)) {
+        console.warn('request order nav template is invalid: badge must exist inside requestOrderNavBtn');
+        return;
+      }
+      var count = Number(requestOrderBadgeCount || 0);
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.classList.remove('hidden');
+        badge.style.display = 'inline-flex';
+        badge.style.opacity = '1';
+        badge.style.visibility = 'visible';
+      } else {
+        badge.classList.add('hidden');
+        badge.style.display = 'none';
+      }
+      console.log('requestOrderBadgeCount:', requestOrderBadgeCount);
+      console.log(document.getElementById('requestOrderNavBadge'));
+      console.log(btn.contains(badge));
+    }
+
+    function refreshRequestOrderBadgeCount() {
+      if (!currentUser || !hasPermission('request_order_create')) {
+        requestOrderBadgeCount = 0;
+        updateRequestOrderBadgeUI();
+        return Promise.resolve(0);
+      }
+      return requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
+        rows = Array.isArray(rows) ? rows : [];
+        requestOrderBadgeCount = rows.filter(function(r){ return String(r.status || '') === 'Pending'; }).length;
+        updateRequestOrderBadgeUI();
+        return requestOrderBadgeCount;
+      }).catch(function() {
+        requestOrderBadgeCount = 0;
+        updateRequestOrderBadgeUI();
+        return 0;
+      });
     }
 
     function updateRequestOrderBadgeUI() {
@@ -4353,7 +4404,7 @@ function inferRequestPriority(stock, min) {
       quickIssueStock.textContent = 'Stock: ' + (item.stock || 0) + ' ' + (item.unit || 'PCS');
       quickIssueType.value = 'Output';
       quickIssueQty.value = '';
-      quickIssueBy.value = '';
+      syncTxnActorFields();
       quickIssueProcess.value = item.line || currentLine || '';
       quickIssueMessage.className = 'text-sm text-slate-500';
       quickIssueMessage.textContent = '';
@@ -4379,7 +4430,12 @@ function inferRequestPriority(stock, min) {
       if (quickIssueSubmitting) return;
       var item = getCurrentQuickIssueItem();
       var qty = Number(quickIssueQty.value || 0);
-      var by = String(quickIssueBy.value || '').trim();
+      if (!currentUser || !currentUser.username) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'กรุณาเข้าสู่ระบบใหม่';
+        return;
+      }
+      var by = String(currentUser.username || '').trim();
       var process = String(quickIssueProcess.value || '').trim();
       if (!item) {
         quickIssueMessage.className = 'text-sm text-rose-600';
@@ -4396,9 +4452,10 @@ function inferRequestPriority(stock, min) {
         quickIssueMessage.textContent = 'จำนวนเบิกมากกว่า stock ปัจจุบัน';
         return;
       }
-      if (!by) {
-        quickIssueMessage.className = 'text-sm text-rose-600';
-        quickIssueMessage.textContent = 'กรุณาระบุผู้เบิก/ผู้รับ';
+      if (!by) return;
+      if (!currentUser || !currentUser.username) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'กรุณาเข้าสู่ระบบใหม่';
         return;
       }
       var payload = {
@@ -4468,7 +4525,7 @@ function inferRequestPriority(stock, min) {
         brand: selected.brand || '-',
         qty: qty,
         unit: selected.unit || 'PCS',
-        by: txnBy.value || 'Unknown',
+        by: currentUser.username,
         sheetName: selected.__sourceSheet || selected.subLine || getCurrentSheetName()
       };
 
