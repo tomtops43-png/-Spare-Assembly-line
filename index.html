@@ -139,18 +139,22 @@
       </div>
     </header>
 
-    <div class="grid grid-cols-1 gap-4 items-start">
-      <div id="mainContentPanel" class="min-w-0">
-        <div id="topNavTabs" class="flex gap-2 mb-4 items-center overflow-x-auto overflow-y-visible pb-1 md:flex-wrap md:overflow-visible md:pb-0">
+    <div class="grid grid-cols-1 gap-4 items-start lg:grid-cols-[260px_minmax(0,1fr)]">
+      <aside id="topNavTabs" class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-6 lg:h-[calc(100vh-48px)] overflow-auto">
+        <p class="px-2 py-1 text-xs font-bold uppercase text-slate-400">ภาพรวม</p>
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
           <button id="tabDashboard" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Dashboard</button>
+          <p class="mt-3 px-2 py-1 text-xs font-bold uppercase text-slate-400">จัดการอะไหล่</p>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
+          <p class="mt-3 px-2 py-1 text-xs font-bold uppercase text-slate-400">จัดซื้อ / เอกสาร</p>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
           <button id="requestOrderNavBtn" class="eng-tab request-order-nav-btn relative overflow-visible px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white"><span>ขอซื้ออะไหล่</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span></button>
+          <p class="mt-3 px-2 py-1 text-xs font-bold uppercase text-slate-400">ระบบ</p>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-yellow-700 bg-yellow-600 text-white text-sm font-semibold">เพิ่มรายการเข้าระบบ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
-        </div>
+      </aside>
+      <div id="mainContentPanel" class="min-w-0">
 
     <section id="stockPage" class="space-y-4 eng-gridline p-2 rounded-2xl">
       <section id="stockStickyHeader" class="sticky top-0 z-50 -mx-2 border-b border-slate-200 bg-white px-2 pb-3 pt-2 shadow-md">
@@ -2494,7 +2498,8 @@ function getIssueCartEntries() {
           localStorage.setItem('spare_auth_token', authToken);
           setAuthScreen(true);
           applyAuthorizationUi();
-          switchToStockPage();
+          if (hasPermission('view_dashboard') && isAdminUser()) switchToDashboardPage();
+          else switchToStockPage();
           return data;
         })
         .catch(function(err) {
@@ -2513,7 +2518,8 @@ function getIssueCartEntries() {
               localStorage.setItem('spare_auth_token', authToken);
               setAuthScreen(true);
               applyAuthorizationUi();
-              switchToStockPage();
+              if (hasPermission('view_dashboard') && isAdminUser()) switchToDashboardPage();
+              else switchToStockPage();
               return data;
             }).catch(function() {
               throw new Error('ไม่สามารถเชื่อม Apps Script ได้ (JSONP). ตรวจสอบ Deploy URL: ' + DEFAULT_API_URL);
@@ -3229,7 +3235,7 @@ function getIssueCartEntries() {
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
-      if (tabDashboard) tabDashboard.classList.remove('hidden');
+      if (tabDashboard) tabDashboard.classList.toggle('hidden', !hasPermission('view_dashboard'));
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
       updateRequestOrderBadgeUI(requestOrderBadgeCount);
     }
@@ -3733,6 +3739,7 @@ function inferRequestPriority(stock, min) {
     }
 
     function switchToDashboardPage() {
+      if (!hasPermission('view_dashboard')) return switchToStockPage();
       stockPage.classList.add('hidden');
       if (dashboardPage) dashboardPage.classList.remove('hidden');
       txnPage.classList.add('hidden');
