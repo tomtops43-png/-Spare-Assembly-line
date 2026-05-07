@@ -344,9 +344,18 @@
       <div id="dashExecutive" class="rounded-2xl bg-white p-4 shadow-sm border border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="text-2xl font-bold text-slate-900">Factory Management Dashboard</h2>
-          <p class="text-sm text-slate-500">ภาพรวมคลังอะไหล่ • คำขอซื้อ • การเบิก/รับ</p>
+          <p class="text-sm text-slate-500">ภาพรวมอะไหล่ทุกไลน์การผลิต</p>
         </div>
-        <button id="dashboardRefreshBtn" type="button" class="h-10 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 hover:bg-blue-100">รีเฟรช Dashboard</button>
+        <div class="flex items-center gap-2">
+          <select id="dashboardLineFilter" class="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+            <option value="all">All Lines</option>
+            <option value="H9">H9</option>
+            <option value="Arc Chute">Arc Chute</option>
+            <option value="Coil Winding">Coil Winding</option>
+            <option value="Lug&Screw">Lug&Screw</option>
+          </select>
+          <button id="dashboardRefreshBtn" type="button" class="h-10 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 hover:bg-blue-100">รีเฟรช Dashboard</button>
+        </div>
       </div>
       <div id="dashboardSummary" class="grid grid-cols-2 gap-3 lg:grid-cols-5"></div>
       <div id="dashAlerts" class="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -1150,6 +1159,7 @@
     var quickIssueSubmitting = false;
     var logCache = [];
     var prCandidateState = [];
+    var dashboardAllPartsData = [];
     var uploadJobQueue = [];
     var activeUploadJob = null;
     var partsLoadRequestSeq = 0;
@@ -1210,6 +1220,7 @@
     var txnPage = document.getElementById('txnPage');
     var dashboardPage = document.getElementById('dashboardPage');
     var requestOrderPage = document.getElementById('requestOrderPage');
+    var dashboardLineFilter = document.getElementById('dashboardLineFilter');
     var roSelectedItem = null;
     var roSearchResultState = [];
     var roSearchPool = [];
@@ -3486,13 +3497,18 @@ function inferRequestPriority(stock, min) {
       if (!summaryEl || !loadingEl || !emptyEl || !bodyEl) return;
       loadingEl.classList.remove('hidden');
       emptyEl.classList.add('hidden');
-      var rows = Array.isArray(partsData) ? partsData : [];
+      var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
+      var sourceRows = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
+      var rows = sourceRows.filter(function(r) {
+        if (selectedLine === 'all') return true;
+        return String(r.line || '').trim() === selectedLine;
+      });
       function card(title, value) {
         var color = /Out|Stock = 0/.test(title) ? 'rose' : /Min|Need/.test(title) ? 'amber' : /ไม่มี/.test(title) ? 'slate' : 'blue';
         return '<div class="rounded-2xl border border-' + color + '-100 bg-white p-3 shadow-sm hover:shadow-md transition"><p class="text-[11px] text-' + color + '-600">' + title + '</p><p class="text-2xl font-extrabold text-slate-900">' + value + '</p></div>';
       }
       if (!rows.length) {
-        summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', 0) + card('จำนวน Stock รวม', 0) + card('รายการ Stock = 0', 0) + card('รายการ Stock < Min', 0) + card('รายการ Need to PO > 0', 0) + card('รายการไม่มี Location', 0) + card('รายการไม่มีรูปภาพ', 0);
+        summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', 0) + card('Stock รวม', 0) + card('Stock = 0', 0) + card('Stock < Min', 0) + card('Need PO', 0) + card('ไม่มี Location', 0) + card('ไม่มีรูปภาพ', 0) + card('Pending Request', 0);
         bodyEl.innerHTML = '';
         loadingEl.classList.add('hidden');
         emptyEl.classList.remove('hidden');
@@ -3518,7 +3534,7 @@ function inferRequestPriority(stock, min) {
         if (!String(item.image_main || item.photo || '').trim()) reasons.push('ไม่มีรูปภาพ');
         if (reasons.length) riskRows.push({ item: item, need: need, reason: reasons.join(', ') });
       });
-      summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', rows.length.toLocaleString('th-TH')) + card('จำนวน Stock รวม', totalStock.toLocaleString('th-TH')) + card('รายการ Stock = 0', outZero.toLocaleString('th-TH')) + card('รายการ Stock < Min', lowMin.toLocaleString('th-TH')) + card('รายการ Need to PO > 0', needPoCount.toLocaleString('th-TH')) + card('รายการไม่มี Location', noLocation.toLocaleString('th-TH')) + card('รายการไม่มีรูปภาพ', noImage.toLocaleString('th-TH'));
+      summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', rows.length.toLocaleString('th-TH')) + card('Stock รวม', totalStock.toLocaleString('th-TH')) + card('Stock = 0', outZero.toLocaleString('th-TH')) + card('Stock < Min', lowMin.toLocaleString('th-TH')) + card('Need PO', needPoCount.toLocaleString('th-TH')) + card('ไม่มี Location', noLocation.toLocaleString('th-TH')) + card('ไม่มีรูปภาพ', noImage.toLocaleString('th-TH')) + card('Pending Request', '...');
       var lineBars = document.getElementById('dashboardLineBars');
       var donut = document.getElementById('dashboardStockDonut');
       var donutText = document.getElementById('dashboardStockDonutText');
@@ -3548,6 +3564,25 @@ function inferRequestPriority(stock, min) {
       renderDashboardLogSummary();
     }
 
+    function loadDashboardAllPartsData() {
+      var allSheets = [];
+      Object.keys(LINE_SHEET_OPTIONS || {}).forEach(function(lineKey) {
+        (LINE_SHEET_OPTIONS[lineKey] || []).forEach(function(sheetName) { allSheets.push(sheetName); });
+      });
+      allSheets = Array.from(new Set(allSheets));
+      if (!allSheets.length) return Promise.resolve((partsData || []).slice());
+      return Promise.all(allSheets.map(function(sheetName) {
+        return loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)); })
+          .then(function(rows) { return Array.isArray(rows) ? rows : []; })
+          .catch(function() { return []; });
+      })).then(function(sets) {
+        var merged = [];
+        sets.forEach(function(s){ merged = merged.concat(s); });
+        dashboardAllPartsData = merged.length ? merged : (partsData || []).slice();
+        return dashboardAllPartsData;
+      });
+    }
+
     function renderDashboardRequestSummary() {
       var summaryEl = document.getElementById('dashboardRequestSummary');
       var emptyEl = document.getElementById('dashboardRequestEmpty');
@@ -3562,8 +3597,12 @@ function inferRequestPriority(stock, min) {
       requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
         if (rows && rows.status === 'error') throw new Error(rows.message || 'โหลดคำขอไม่สำเร็จ');
         rows = Array.isArray(rows) ? rows : [];
+        var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
+        rows = rows.filter(function(r){ return selectedLine === 'all' ? true : String(r.line || '').trim() === selectedLine; });
         if (!rows.length) {
           emptyEl.classList.remove('hidden');
+          var summaryElMain = document.getElementById('dashboardSummary');
+          if (summaryElMain) summaryElMain.innerHTML = summaryElMain.innerHTML.replace('Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">...</p>', 'Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">0</p>');
           return;
         }
         var counts = { 'Pending': 0, 'Approved': 0, 'Rejected': 0, 'On Hold': 0, 'Purchased': 0, 'Received': 0, 'Closed': 0 };
@@ -3572,6 +3611,8 @@ function inferRequestPriority(stock, min) {
           if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status]++;
         });
         summaryEl.innerHTML = card('Pending', counts['Pending']) + card('Approved', counts['Approved']) + card('Rejected', counts['Rejected']) + card('On Hold', counts['On Hold']) + card('Purchased', counts['Purchased']) + card('Received', counts['Received']) + card('Closed', counts['Closed']) + card('คำขอทั้งหมด', rows.length);
+        var summaryElMain2 = document.getElementById('dashboardSummary');
+        if (summaryElMain2) summaryElMain2.innerHTML = summaryElMain2.innerHTML.replace('Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">...</p>', 'Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">' + counts['Pending'] + '</p>');
         rows.sort(function(a, b) {
           return new Date(String(b.updated_at || b.requested_date || 0)).getTime() - new Date(String(a.updated_at || a.requested_date || 0)).getTime();
         });
@@ -3613,7 +3654,9 @@ function inferRequestPriority(stock, min) {
       topUsersBody.innerHTML = '';
       emptyEl.classList.add('hidden');
       loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); }).then(function(rawData) {
+        var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
         var rows = Array.isArray(rawData) ? rawData : [];
+        if (selectedLine !== 'all') rows = rows.filter(function(r){ return String(r.process || r.line || '').trim() === selectedLine; });
         if (!rows.length) { emptyEl.classList.remove('hidden'); return; }
         var now = new Date();
         var isSameDay = function(d){ return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate(); };
@@ -3668,7 +3711,7 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('dashboard');
-      renderDashboardPhase1();
+      loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1);
       initDashboardSidebarNav();
     }
 
@@ -5316,7 +5359,8 @@ function inferRequestPriority(stock, min) {
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
-    if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', renderDashboardPhase1);
+    if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1); });
+    if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
     var dashboardObserver = null;
     function initDashboardSidebarNav() {
       var wrap = document.getElementById('dashboardSidebarWrap');
