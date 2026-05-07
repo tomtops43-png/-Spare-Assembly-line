@@ -3207,8 +3207,8 @@ function getIssueCartEntries() {
     }
 
     function setTabStyles(active) {
-      var tabBaseClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
-      var tabActiveClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      var tabBaseClass = 'mb-2 w-full text-left whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      var tabActiveClass = 'mb-2 w-full text-left whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
       tabStock.className = tabBaseClass;
       if (tabDashboard) tabDashboard.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
@@ -5419,6 +5419,9 @@ if (dashboardPage) {
     }
     window.addEventListener('resize', initDashboardSidebarNav);
     lineMenuDockToggle.addEventListener('click', function() {
+      if (window.innerWidth < 1024 && topNavTabs) {
+        topNavTabs.classList.toggle('-translate-x-full');
+      }
       isLineMenuVisible = !isLineMenuVisible;
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
@@ -5429,6 +5432,7 @@ if (dashboardPage) {
       normalizeMobileHeaderCartUi();
     });
     lineMenuBackdrop.addEventListener('click', function() {
+      if (topNavTabs && window.innerWidth < 1024) topNavTabs.classList.add('-translate-x-full');
       isLineMenuVisible = false;
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
