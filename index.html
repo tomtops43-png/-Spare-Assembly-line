@@ -146,6 +146,7 @@
           <button id="tabDashboard" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Dashboard</button>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
+          <p class="mt-3 px-2 py-1 text-xs font-bold uppercase text-slate-400">จัดซื้อ / เอกสาร</p>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
           <button id="requestOrderNavBtn" class="eng-tab request-order-nav-btn relative overflow-visible px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white"><span>ขอซื้ออะไหล่</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span></button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-yellow-700 bg-yellow-600 text-white text-sm font-semibold">เพิ่มรายการเข้าระบบ</button>
@@ -3207,8 +3208,8 @@ function getIssueCartEntries() {
     }
 
     function setTabStyles(active) {
-      var tabBaseClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
-      var tabActiveClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      var tabBaseClass = 'mb-2 w-full text-left whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      var tabActiveClass = 'mb-2 w-full text-left whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
       tabStock.className = tabBaseClass;
       if (tabDashboard) tabDashboard.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
@@ -5419,6 +5420,9 @@ if (dashboardPage) {
     }
     window.addEventListener('resize', initDashboardSidebarNav);
     lineMenuDockToggle.addEventListener('click', function() {
+      if (window.innerWidth < 1024 && topNavTabs) {
+        topNavTabs.classList.toggle('-translate-x-full');
+      }
       isLineMenuVisible = !isLineMenuVisible;
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
@@ -5429,6 +5433,7 @@ if (dashboardPage) {
       normalizeMobileHeaderCartUi();
     });
     lineMenuBackdrop.addEventListener('click', function() {
+      if (topNavTabs && window.innerWidth < 1024) topNavTabs.classList.add('-translate-x-full');
       isLineMenuVisible = false;
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
