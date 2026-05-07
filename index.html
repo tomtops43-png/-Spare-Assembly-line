@@ -139,22 +139,20 @@
       </div>
     </header>
 
-    <div class="grid grid-cols-1 gap-4 items-start lg:grid-cols-[260px_minmax(0,1fr)]">
-      <aside id="topNavTabs" class="hidden lg:block rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-6 lg:h-[calc(100vh-48px)] overflow-auto">
-        <p class="px-2 py-1 text-xs font-bold uppercase text-slate-400">ภาพรวม</p>
+    <div class="grid grid-cols-1 gap-4 items-start">
+      <div id="mainContentPanel" class="min-w-0 lg:ml-[252px]">
+        <aside id="topNavTabs" class="fixed left-0 top-0 z-[70] h-screen w-[240px] -translate-x-full overflow-y-auto border-r border-slate-200 bg-white p-3 shadow-lg transition-transform lg:translate-x-0">
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
           <button id="tabDashboard" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Dashboard</button>
-          <p class="mt-3 px-2 py-1 text-xs font-bold uppercase text-slate-400">จัดการอะไหล่</p>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <p class="mt-3 px-2 py-1 text-xs font-bold uppercase text-slate-400">จัดซื้อ / เอกสาร</p>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
           <button id="requestOrderNavBtn" class="eng-tab request-order-nav-btn relative overflow-visible px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white"><span>ขอซื้ออะไหล่</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span></button>
-          <p class="mt-3 px-2 py-1 text-xs font-bold uppercase text-slate-400">ระบบ</p>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-yellow-700 bg-yellow-600 text-white text-sm font-semibold">เพิ่มรายการเข้าระบบ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
-      </aside>
-      <div id="mainContentPanel" class="min-w-0">
+        </aside>
+        <!-- /#topNavTabs -->
 
     <section id="stockPage" class="space-y-4 eng-gridline p-2 rounded-2xl">
       <section id="stockStickyHeader" class="sticky top-0 z-50 -mx-2 border-b border-slate-200 bg-white px-2 pb-3 pt-2 shadow-md">
@@ -331,7 +329,7 @@
 
     <section id="dashboardPage" class="hidden mb-6 rounded-2xl bg-slate-100/70 p-2 md:p-4">
       <div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
-      <aside id="dashboardSidebarWrap" class="hidden">
+      <aside id="dashboardSidebarWrap" class="hidden xl:block xl:col-span-3">
         <div class="sticky top-6 h-[calc(100vh-48px)] overflow-auto rounded-2xl bg-white p-4 shadow-sm border border-slate-200">
           <h3 class="text-lg font-bold text-blue-700">เมนูแดชบอร์ด</h3>
           <ul id="dashboardSidebarMenu" class="mt-3 space-y-2 text-sm text-slate-600">
@@ -3210,8 +3208,8 @@ function getIssueCartEntries() {
     }
 
     function setTabStyles(active) {
-      var tabBaseClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
-      var tabActiveClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
+      var tabBaseClass = 'mb-2 w-full text-left whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
+      var tabActiveClass = 'mb-2 w-full text-left whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
       tabStock.className = tabBaseClass;
       if (tabDashboard) tabDashboard.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
@@ -5404,44 +5402,18 @@ function inferRequestPriority(stock, min) {
     if (tabRequestOrder) tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
+    function closeAppSidebarOnMobile() {
+      if (window.innerWidth < 1024 && topNavTabs) topNavTabs.classList.add('-translate-x-full');
+    }
+    [tabStock, tabDashboard, tabTxn, tabLog, tabPrReport, tabRequestOrder, tabManage, tabAdmin].forEach(function(btn){
+      if (!btn) return;
+      btn.addEventListener('click', closeAppSidebarOnMobile);
+    });
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
     if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1); });
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
-    var dashboardObserver = null;
-    function initDashboardSidebarNav() {
-      var wrap = document.getElementById('dashboardSidebarWrap');
-      var menu = document.getElementById('dashboardSidebarMenu');
-      if (!wrap || !menu) return;
-      wrap.classList.add('hidden');
-      return;
-      var btns = Array.prototype.slice.call(menu.querySelectorAll('[data-dash-target]'));
-      btns.forEach(function(btn) {
-        btn.classList.add('hover:bg-slate-100');
-        btn.addEventListener('click', function() {
-          var target = document.getElementById(btn.getAttribute('data-dash-target'));
-          if (!target) return;
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      });
-      if (dashboardObserver) dashboardObserver.disconnect();
-      dashboardObserver = new IntersectionObserver(function(entries) {
-        entries.forEach(function(entry) {
-          if (!entry.isIntersecting) return;
-          var id = entry.target.id;
-          btns.forEach(function(b) {
-            var active = b.getAttribute('data-dash-target') === id;
-            b.classList.toggle('bg-blue-50', active);
-            b.classList.toggle('text-blue-700', active);
-            b.classList.toggle('font-semibold', active);
-          });
-        });
-      }, { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0.05 });
-      ['dashExecutive', 'dashAlerts', 'dashTopUsage', 'dashRecentActivities', 'dashRisk', 'dashRequestStatus'].forEach(function(id) {
-        var sec = document.getElementById(id);
-        if (sec) dashboardObserver.observe(sec);
-      });
-    }
-    if (dashboardPage) {
+    function initDashboardSidebarNav() { return; }
+if (dashboardPage) {
       dashboardPage.addEventListener('click', function(e) {
         var btn = e.target && e.target.closest ? e.target.closest('[data-dashboard-request-id]') : null;
         if (!btn) return;
@@ -5450,6 +5422,9 @@ function inferRequestPriority(stock, min) {
     }
     window.addEventListener('resize', initDashboardSidebarNav);
     lineMenuDockToggle.addEventListener('click', function() {
+      if (window.innerWidth < 1024 && topNavTabs) {
+        topNavTabs.classList.toggle('-translate-x-full');
+      }
       isLineMenuVisible = !isLineMenuVisible;
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
@@ -5460,6 +5435,7 @@ function inferRequestPriority(stock, min) {
       normalizeMobileHeaderCartUi();
     });
     lineMenuBackdrop.addEventListener('click', function() {
+      if (topNavTabs && window.innerWidth < 1024) topNavTabs.classList.add('-translate-x-full');
       isLineMenuVisible = false;
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
