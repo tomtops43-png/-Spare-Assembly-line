@@ -57,6 +57,16 @@
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 overflow-x-hidden">
+  <div id="appSplash" class="splash-overlay">
+    <div class="splash-card">
+      <div class="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-2xl text-white shadow-lg">🏭</div>
+      <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-700">Current Line</p>
+      <h2 class="mt-1 text-2xl font-extrabold text-slate-900">Spare Parts Catalog</h2>
+      <p class="text-sm text-slate-600">Production Assembly Line</p>
+      <div class="splash-spinner"></div>
+      <p id="appSplashText" class="text-sm font-semibold text-slate-600">กำลังโหลดข้อมูล...</p>
+    </div>
+  </div>
   <button id="lineMenuDockToggle" class="hidden fixed left-3 top-3 z-[75] mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-lg font-semibold text-slate-700 shadow-sm md:top-24" aria-label="เปิด Line Menu" title="เปิด Line Menu">
     ☰
   </button>
@@ -104,17 +114,21 @@
       </div>
     </header>
 
-    <div class="grid grid-cols-1 gap-4 items-start">
-      <div id="mainContentPanel" class="min-w-0">
-        <div id="topNavTabs" class="flex gap-2 mb-4 items-center overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0">
+    <div class="grid grid-cols-1 gap-4 items-start lg:grid-cols-[260px_minmax(0,1fr)]">
+      <aside id="topNavTabs" class="hidden lg:block rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-6 lg:h-[calc(100vh-48px)] overflow-auto">
+        <p class="px-2 py-1 text-xs font-bold uppercase text-slate-400">ภาพรวม</p>
           <button id="tabStock" class="eng-tab px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
+          <button id="tabDashboard" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Dashboard</button>
+          <p class="mt-3 px-2 py-1 text-xs font-bold uppercase text-slate-400">จัดการอะไหล่</p>
           <button id="tabTxn" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
+          <p class="mt-3 px-2 py-1 text-xs font-bold uppercase text-slate-400">จัดซื้อ / เอกสาร</p>
           <button id="tabPrReport" class="eng-tab px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
           <button id="requestOrderNavBtn" class="eng-tab request-order-nav-btn px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white"><span>ขอซื้ออะไหล่</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span></button>
           <button id="tabManage" class="eng-tab px-4 py-2 rounded-lg border border-yellow-700 bg-yellow-600 text-white text-sm font-semibold">เพิ่มรายการเข้าระบบ</button>
           <button id="tabAdmin" class="eng-tab hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
-        </div>
+      </aside>
+      <div id="mainContentPanel" class="min-w-0">
 
     <section id="stockPage" class="space-y-4 eng-gridline p-2 rounded-2xl">
       <section id="stockStickyHeader" class="sticky top-0 z-50 -mx-2 border-b border-slate-200 bg-white px-2 pb-3 pt-2 shadow-md">
@@ -291,6 +305,118 @@
       </div>
     </section>
 
+    <section id="dashboardPage" class="hidden mb-6 rounded-2xl bg-slate-100/70 p-2 md:p-4">
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
+      <aside id="dashboardSidebarWrap" class="hidden">
+        <div class="sticky top-6 h-[calc(100vh-48px)] overflow-auto rounded-2xl bg-white p-4 shadow-sm border border-slate-200">
+          <h3 class="text-lg font-bold text-blue-700">เมนูแดชบอร์ด</h3>
+          <ul id="dashboardSidebarMenu" class="mt-3 space-y-2 text-sm text-slate-600">
+            <li><button data-dash-target="dashExecutive" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">ภาพรวมผู้บริหาร</button></li>
+            <li><button data-dash-target="dashAlerts" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">รายการวิกฤต</button></li>
+            <li><button data-dash-target="dashTopUsage" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">อะไหล่ที่เบิกบ่อย</button></li>
+            <li><button data-dash-target="dashRecentActivities" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">ความเคลื่อนไหวล่าสุด</button></li>
+            <li><button data-dash-target="dashRisk" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">อะไหล่เสี่ยง</button></li>
+            <li><button data-dash-target="dashRequestStatus" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">สถานะคำขอซื้อ</button></li>
+          </ul>
+        </div>
+      </aside>
+      <div class="xl:col-span-9 space-y-4">
+      <div id="dashExecutive" class="rounded-2xl bg-white p-4 shadow-sm border border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">แดชบอร์ดบริหารอะไหล่โรงงาน</h2>
+          <p class="text-sm text-slate-500">ภาพรวมคลังอะไหล่ทุกไลน์การผลิต</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="dashboardLineFilter" class="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+            <option value="all">All Lines</option>
+            <option value="H9">H9</option>
+            <option value="Arc Chute">Arc Chute</option>
+            <option value="Coil Winding">Coil Winding</option>
+            <option value="Lug&Screw">Lug&Screw</option>
+          </select>
+          <button id="dashboardRefreshBtn" type="button" class="h-10 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 hover:bg-blue-100">รีเฟรช Dashboard</button>
+        </div>
+      </div>
+      <div id="dashboardSummary" class="grid grid-cols-2 gap-3 lg:grid-cols-5"></div>
+      <div id="dashAlerts" class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">สต็อกแยกตามไลน์หลัก</h3><div id="dashboardLineBars" class="mt-3 space-y-2 text-xs"></div></div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">สุขภาพสต็อก</h3><div id="dashboardStockDonut" class="mt-4 h-40 w-40 mx-auto rounded-full"></div><p id="dashboardStockDonutText" class="mt-2 text-center text-xs text-slate-500"></p></div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">รายการต้องซื้อแยกตามหมวดหมู่</h3><div id="dashboardNeedPoBars" class="mt-3 space-y-2 text-xs"></div></div>
+      </div>
+      <div id="dashRisk" class="rounded-2xl bg-white border border-slate-200 shadow-sm">
+        <div id="dashboardLoading" class="px-3 py-3 text-sm text-slate-500">กำลังโหลดข้อมูล...</div>
+        <div id="dashboardEmpty" class="hidden px-3 py-3 text-sm text-slate-500">ไม่มีข้อมูล</div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs sm:text-sm">
+            <thead class="bg-slate-50 sticky top-0 z-10">
+              <tr class="text-left">
+                <th class="px-2 py-2">Line / Sheet</th>
+                <th class="px-2 py-2">NO</th>
+                <th class="px-2 py-2">Part Name</th>
+                <th class="px-2 py-2">Model</th>
+                <th class="px-2 py-2">Stock</th>
+                <th class="px-2 py-2">Min</th>
+                <th class="px-2 py-2">Need to PO</th>
+                <th class="px-2 py-2">Location</th>
+                <th class="px-2 py-2">Risk Reason</th>
+              </tr>
+            </thead>
+            <tbody id="dashboardRiskBody" class="[&>tr:nth-child(even)]:bg-slate-50"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="dashRequestStatus" class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
+        <h3 class="text-base font-semibold">คำขอซื้อล่าสุด</h3>
+        <div id="dashboardRequestSummary" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8"></div>
+        <div id="dashboardRequestEmpty" class="hidden mt-3 text-sm text-slate-500">ยังไม่มีคำขอซื้อ</div>
+        <div class="mt-3 max-h-80 overflow-auto">
+          <table class="min-w-full text-xs sm:text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-left">
+                <th class="px-2 py-2">รหัสคำขอ</th>
+                <th class="px-2 py-2">ผู้ขอ</th>
+                <th class="px-2 py-2">ไลน์หลัก</th>
+                <th class="px-2 py-2">ชื่ออะไหล่</th>
+                <th class="px-2 py-2">จำนวน</th>
+                <th class="px-2 py-2">ความเร่งด่วน</th>
+                <th class="px-2 py-2">สถานะ</th>
+                <th class="px-2 py-2">วันที่ขอ</th>
+                <th class="px-2 py-2">อัปเดตล่าสุด</th>
+                <th class="px-2 py-2">รายละเอียด</th>
+              </tr>
+            </thead>
+            <tbody id="dashboardRequestTableBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="dashRecentActivities" class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
+        <h3 class="text-base font-semibold">ประวัติล่าสุด</h3>
+        <div id="dashboardLogSummary" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"></div>
+        <div id="dashboardLogEmpty" class="hidden mt-3 text-sm text-slate-500">ยังไม่มีประวัติการเบิก/รับ</div>
+        <h4 class="mt-4 font-semibold">รายการเบิกล่าสุด</h4>
+        <div class="mt-2 max-h-72 overflow-auto">
+          <table class="min-w-full text-xs sm:text-sm">
+            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">วันที่/เวลา</th><th class="px-2 py-2">Type</th><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">Qty</th><th class="px-2 py-2">By</th></tr></thead>
+            <tbody id="dashboardLatestIssueBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
+          </table>
+        </div>
+        <h4 id="dashTopUsage" class="mt-4 font-semibold">Top 10 อะไหล่ที่ถูกเบิกบ่อย</h4>
+        <div class="mt-2 max-h-72 overflow-auto">
+          <table class="min-w-full text-xs sm:text-sm">
+            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">จำนวนครั้งที่เบิก</th><th class="px-2 py-2">จำนวนรวมที่เบิก</th><th class="px-2 py-2">วันที่เบิกล่าสุด</th></tr></thead>
+            <tbody id="dashboardTopPartsBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
+          </table>
+        </div>
+        <h4 class="mt-4 font-semibold">Top 10 ผู้เบิกอะไหล่</h4>
+        <div class="mt-2 max-h-72 overflow-auto">
+          <table class="min-w-full text-xs sm:text-sm">
+            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">ชื่อผู้เบิก</th><th class="px-2 py-2">จำนวนครั้งที่เบิก</th><th class="px-2 py-2">จำนวนรวมที่เบิก</th><th class="px-2 py-2">วันที่ล่าสุด</th></tr></thead>
+            <tbody id="dashboardTopUsersBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
+          </table>
+        </div>
+      </div></div></div>
+    </section>
+
     <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
       <div class="mb-4 flex items-center justify-between">
         <h2 class="text-xl font-bold">⚙️ เบิก / รับ อะไหล่</h2>
@@ -360,7 +486,7 @@
             </select>
             <p id="txnStockGuardMessage" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"></p>
             <input id="txnQty" type="number" min="1" step="1" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="จำนวน" required />
-            <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ผู้เบิก/ผู้รับ" required />
+            <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3 bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
             <input id="txnProcess" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ไลน์/งาน" />
             <button id="txnSubmitBtn" type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
           </form>
@@ -856,7 +982,7 @@
           <option value="Output">เบิกออก</option>
         </select>
         <input id="quickIssueQty" type="number" min="1" step="1" inputmode="numeric" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="จำนวน" required />
-        <input id="quickIssueBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ผู้เบิก/ผู้รับ" required />
+        <input id="quickIssueBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
         <input id="quickIssueProcess" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ไลน์/งาน" />
         </div>
         <div class="mt-auto pt-4">
@@ -1013,6 +1139,7 @@
     var quickIssueSubmitting = false;
     var logCache = [];
     var prCandidateState = [];
+    var dashboardAllPartsData = [];
     var uploadJobQueue = [];
     var activeUploadJob = null;
     var partsLoadRequestSeq = 0;
@@ -1047,6 +1174,7 @@
     var stockPage = document.getElementById('stockPage');
     var logPage = document.getElementById('logPage');
     var tabStock = document.getElementById('tabStock');
+    var tabDashboard = document.getElementById('tabDashboard');
     var tabTxn = document.getElementById('tabTxn');
     var tabLog = document.getElementById('tabLog');
     var tabManage = document.getElementById('tabManage');
@@ -1070,7 +1198,9 @@
     var sheetSelectorWrap = document.getElementById('sheetSelectorWrap');
     var sheetSelector = document.getElementById('sheetSelector');
     var txnPage = document.getElementById('txnPage');
+    var dashboardPage = document.getElementById('dashboardPage');
     var requestOrderPage = document.getElementById('requestOrderPage');
+    var dashboardLineFilter = document.getElementById('dashboardLineFilter');
     var roSelectedItem = null;
     var roSearchResultState = [];
     var roSearchPool = [];
@@ -1208,7 +1338,7 @@
       { key: 'Coil Winding', color: '#0891b2' },
       { key: 'Lug&Screw', color: '#ea580c' }
     ];
-    var isLineMenuVisible = window.innerWidth >= 768;
+    var isLineMenuVisible = false;
 
     function lockBodyScroll() {
       modalLockCount += 1;
@@ -2223,6 +2353,57 @@ function getIssueCartEntries() {
       authUserName.textContent = currentUser.username;
       authUserRole.textContent = currentUser.role;
       authUserBox.classList.remove('hidden');
+      syncTxnActorFields();
+    }
+
+    function syncTxnActorFields() {
+      var actor = currentUser && currentUser.username ? String(currentUser.username) : '';
+      if (txnBy) txnBy.value = actor;
+      if (quickIssueBy) quickIssueBy.value = actor;
+    }
+
+    function updateRequestOrderBadgeUI() {
+      var btn = document.getElementById('requestOrderNavBtn');
+      var badge = document.getElementById('requestOrderNavBadge');
+      console.log('btn exists', !!btn);
+      console.log('badge exists', !!badge);
+      console.log('badge inside btn', btn && badge ? btn.contains(badge) : false);
+      if (!btn || !badge || !btn.contains(badge)) {
+        console.warn('request order nav template is invalid: badge must exist inside requestOrderNavBtn');
+        return;
+      }
+      var count = Number(requestOrderBadgeCount || 0);
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.classList.remove('hidden');
+        badge.style.display = 'inline-flex';
+        badge.style.opacity = '1';
+        badge.style.visibility = 'visible';
+      } else {
+        badge.classList.add('hidden');
+        badge.style.display = 'none';
+      }
+      console.log('requestOrderBadgeCount:', requestOrderBadgeCount);
+      console.log(document.getElementById('requestOrderNavBadge'));
+      console.log(btn.contains(badge));
+    }
+
+    function refreshRequestOrderBadgeCount() {
+      if (!currentUser || !hasPermission('request_order_create')) {
+        requestOrderBadgeCount = 0;
+        updateRequestOrderBadgeUI();
+        return Promise.resolve(0);
+      }
+      return requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
+        rows = Array.isArray(rows) ? rows : [];
+        requestOrderBadgeCount = rows.filter(function(r){ return String(r.status || '') === 'Pending'; }).length;
+        updateRequestOrderBadgeUI();
+        return requestOrderBadgeCount;
+      }).catch(function() {
+        requestOrderBadgeCount = 0;
+        updateRequestOrderBadgeUI();
+        return 0;
+      });
     }
 
     function updateRequestOrderBadgeUI() {
@@ -2338,7 +2519,8 @@ function getIssueCartEntries() {
           localStorage.setItem('spare_auth_token', authToken);
           setAuthScreen(true);
           applyAuthorizationUi();
-          switchToStockPage();
+          if (hasPermission('view_dashboard') && isAdminUser()) switchToDashboardPage();
+          else switchToStockPage();
           return data;
         })
         .catch(function(err) {
@@ -2357,7 +2539,8 @@ function getIssueCartEntries() {
               localStorage.setItem('spare_auth_token', authToken);
               setAuthScreen(true);
               applyAuthorizationUi();
-              switchToStockPage();
+              if (hasPermission('view_dashboard') && isAdminUser()) switchToDashboardPage();
+              else switchToStockPage();
               return data;
             }).catch(function() {
               throw new Error('ไม่สามารถเชื่อม Apps Script ได้ (JSONP). ตรวจสอบ Deploy URL: ' + DEFAULT_API_URL);
@@ -3051,6 +3234,7 @@ function getIssueCartEntries() {
       var tabBaseClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white';
       var tabActiveClass = 'shrink-0 text-center whitespace-nowrap px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold';
       tabStock.className = tabBaseClass;
+      if (tabDashboard) tabDashboard.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
       tabLog.className = tabBaseClass;
       tabPrReport.className = tabBaseClass;
@@ -3058,10 +3242,12 @@ function getIssueCartEntries() {
       tabManage.className = tabBaseClass;
       tabAdmin.className = tabBaseClass;
       if (active === 'stock') tabStock.className = tabActiveClass;
+      if (active === 'dashboard' && tabDashboard) tabDashboard.className = tabActiveClass;
       if (active === 'txn') tabTxn.className = tabActiveClass;
       if (active === 'log') tabLog.className = tabActiveClass;
       if (active === 'pr') tabPrReport.className = tabActiveClass;
       if (active === 'request-order' && tabRequestOrder) tabRequestOrder.className = tabActiveClass;
+      if (tabRequestOrder) tabRequestOrder.classList.add('request-order-nav-btn', 'relative', 'overflow-visible');
       if (active === 'manage') tabManage.className = tabActiveClass;
       if (active === 'admin') tabAdmin.className = tabActiveClass;
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
@@ -3070,11 +3256,14 @@ function getIssueCartEntries() {
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
+      if (tabDashboard) tabDashboard.classList.toggle('hidden', !hasPermission('view_dashboard'));
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
+      updateRequestOrderBadgeUI(requestOrderBadgeCount);
     }
 
     function switchToStockPage() {
       stockPage.classList.remove('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
@@ -3087,6 +3276,7 @@ function getIssueCartEntries() {
 
     function switchToTxnPage() {
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.remove('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
@@ -3117,6 +3307,7 @@ function getIssueCartEntries() {
     function switchToLogPage() {
       if (!hasPermission('view_logs')) return switchToStockPage();
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.remove('hidden');
@@ -3130,6 +3321,7 @@ function getIssueCartEntries() {
     function switchToManagePage() {
       if (!hasPermission('manage_items')) return switchToStockPage();
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
@@ -3324,9 +3516,266 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    function renderDashboardPhase1() {
+      function normalizeMainLine(lineRaw) {
+        var line = String(lineRaw || '').toLowerCase();
+        if (line.indexOf('h9') !== -1) return 'H9';
+        if (line.indexOf('arc') !== -1) return 'Arc Chute';
+        if (line.indexOf('coil') !== -1) return 'Coil Winding';
+        if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
+        return String(lineRaw || '-');
+      }
+      var summaryEl = document.getElementById('dashboardSummary');
+      var loadingEl = document.getElementById('dashboardLoading');
+      var emptyEl = document.getElementById('dashboardEmpty');
+      var bodyEl = document.getElementById('dashboardRiskBody');
+      if (!summaryEl || !loadingEl || !emptyEl || !bodyEl) return;
+      loadingEl.classList.remove('hidden');
+      emptyEl.classList.add('hidden');
+      var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
+      var sourceRows = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
+      var rows = sourceRows.filter(function(r) {
+        if (selectedLine === 'all') return true;
+        return normalizeMainLine(r.line) === selectedLine;
+      });
+      function card(title, value) {
+        var color = /Out|Stock = 0/.test(title) ? 'rose' : /Min|Need/.test(title) ? 'amber' : /ไม่มี/.test(title) ? 'slate' : 'blue';
+        var icon = /Stock = 0/.test(title) ? '🚨' : /Stock รวม|ทั้งหมด/.test(title) ? '📦' : /Min/.test(title) ? '⚠️' : /Need/.test(title) ? '🛒' : /Pending/.test(title) ? '📝' : 'ℹ️';
+        return '<div class="rounded-2xl border border-' + color + '-100 bg-white p-3 shadow-sm hover:shadow-md transition"><div class="flex items-center justify-between"><p class="text-[11px] text-' + color + '-600">' + title + '</p><span>' + icon + '</span></div><p class="text-2xl font-extrabold text-slate-900">' + value + '</p></div>';
+      }
+      if (!rows.length) {
+        summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', 0) + card('Stock รวม', 0) + card('Stock = 0', 0) + card('Stock < Min', 0) + card('Need PO', 0) + card('ไม่มี Location', 0) + card('ไม่มีรูปภาพ', 0) + card('Pending Request', 0);
+        bodyEl.innerHTML = '';
+        loadingEl.classList.add('hidden');
+        emptyEl.classList.remove('hidden');
+        renderDashboardRequestSummary();
+        return;
+      }
+      function num(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
+      var totalStock = 0, outZero = 0, lowMin = 0, needPoCount = 0, noLocation = 0, noImage = 0;
+      var riskRows = [];
+      rows.forEach(function(item) {
+        var stock = num(item.stock), min = num(item.min), need = num(item.need_to_po || (min - stock));
+        totalStock += stock;
+        if (stock <= 0) outZero++;
+        if (stock < min) lowMin++;
+        if (need > 0) needPoCount++;
+        if (!String(item.location || '').trim()) noLocation++;
+        if (!String(item.image_main || item.photo || '').trim()) noImage++;
+        var reasons = [];
+        if (stock <= 0) reasons.push('Stock = 0');
+        if (stock < min) reasons.push('Stock < Min');
+        if (need > 0) reasons.push('Need to PO > 0');
+        if (!String(item.location || '').trim()) reasons.push('ไม่มี Location');
+        if (!String(item.image_main || item.photo || '').trim()) reasons.push('ไม่มีรูปภาพ');
+        if (reasons.length) riskRows.push({ item: item, need: need, reason: reasons.join(', ') });
+      });
+      summaryEl.innerHTML = card('รายการอะไหล่ทั้งหมด', rows.length.toLocaleString('th-TH')) + card('Stock รวม', totalStock.toLocaleString('th-TH')) + card('Stock = 0', outZero.toLocaleString('th-TH')) + card('Stock < Min', lowMin.toLocaleString('th-TH')) + card('Need PO', needPoCount.toLocaleString('th-TH')) + card('ไม่มี Location', noLocation.toLocaleString('th-TH')) + card('ไม่มีรูปภาพ', noImage.toLocaleString('th-TH')) + card('Pending Request', '...');
+      var lineBars = document.getElementById('dashboardLineBars');
+      var donut = document.getElementById('dashboardStockDonut');
+      var donutText = document.getElementById('dashboardStockDonutText');
+      var poBars = document.getElementById('dashboardNeedPoBars');
+      var lineMap = {}, catMap = {}, normal = 0;
+      rows.forEach(function(r){ var line=normalizeMainLine(r.line||'N/A'); lineMap[line]=(lineMap[line]||0)+num(r.stock); var cat=String(r.category||'ทั่วไป'); catMap[cat]=(catMap[cat]||0)+Math.max(0,num(r.min)-num(r.stock)); if(num(r.stock)>=num(r.min)&&num(r.stock)>0) normal++; });
+      if (lineBars) { var maxLine=Math.max.apply(null,Object.keys(lineMap).map(function(k){return lineMap[k];}).concat([1])); lineBars.innerHTML=Object.keys(lineMap).slice(0,6).map(function(k){ var v=lineMap[k]; return '<div><div class=\"flex justify-between\"><span>'+k+'</span><span>'+v+'</span></div><div class=\"h-2 rounded bg-slate-100\"><div class=\"h-2 rounded bg-blue-500\" style=\"width:' + Math.max(4,(v/maxLine)*100) + '%\"></div></div></div>'; }).join(''); }
+      if (poBars) { var cats=Object.keys(catMap).sort(function(a,b){return catMap[b]-catMap[a];}).slice(0,6); var maxCat=Math.max.apply(null,cats.map(function(k){return catMap[k];}).concat([1])); poBars.innerHTML=cats.map(function(k){ var v=catMap[k]; return '<div><div class=\"flex justify-between\"><span>'+k+'</span><span>'+v+'</span></div><div class=\"h-2 rounded bg-slate-100\"><div class=\"h-2 rounded bg-amber-500\" style=\"width:' + Math.max(4,(v/maxCat)*100) + '%\"></div></div></div>'; }).join('') || '<p class=\"text-slate-400\">ไม่มีข้อมูล</p>'; }
+      if (donut) { var total=Math.max(rows.length,1),ok=Math.round((normal/total)*100),out=Math.round((outZero/total)*100),low=Math.max(0,100-ok-out); donut.style.background='conic-gradient(#22c55e 0 '+ok+'%, #ef4444 '+ok+'% '+(ok+out)+'%, #f59e0b '+(ok+out)+'% 100%)'; donutText.textContent='ปกติ '+ok+'% • หมด '+out+'% • ต่ำกว่า Min '+low+'%'; }
+      bodyEl.innerHTML = riskRows.slice(0, 10).map(function(row) {
+        var r = row.item;
+        var riskBadge = '<span class="inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">' + row.reason + '</span>';
+        return '<tr class="border-b">' +
+          '<td class="px-2 py-2">' + normalizeMainLine(r.line || '-') + '</td>' +
+          '<td class="px-2 py-2">' + (r.no || '-') + '</td>' +
+          '<td class="px-2 py-2">' + (r.name || '-') + '</td>' +
+          '<td class="px-2 py-2">' + (r.model || '-') + '</td>' +
+          '<td class="px-2 py-2">' + num(r.stock) + '</td>' +
+          '<td class="px-2 py-2">' + num(r.min) + '</td>' +
+          '<td class="px-2 py-2">' + row.need + '</td>' +
+          '<td class="px-2 py-2">' + (r.location || '-') + '</td>' +
+          '<td class="px-2 py-2">' + riskBadge + '</td>' +
+        '</tr>';
+      }).join('');
+      loadingEl.classList.add('hidden');
+      emptyEl.classList.toggle('hidden', riskRows.length > 0);
+      renderDashboardRequestSummary();
+      renderDashboardLogSummary();
+    }
+
+    function loadDashboardAllPartsData() {
+      var allSheets = [];
+      Object.keys(LINE_SHEET_OPTIONS || {}).forEach(function(lineKey) {
+        (LINE_SHEET_OPTIONS[lineKey] || []).forEach(function(sheetName) { allSheets.push(sheetName); });
+      });
+      allSheets = Array.from(new Set(allSheets));
+      if (!allSheets.length) return Promise.resolve((partsData || []).slice());
+      return Promise.all(allSheets.map(function(sheetName) {
+        return loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)); })
+          .then(function(rows) { return Array.isArray(rows) ? rows : []; })
+          .catch(function() { return []; });
+      })).then(function(sets) {
+        var merged = [];
+        sets.forEach(function(s){ merged = merged.concat(s); });
+        dashboardAllPartsData = merged.length ? merged : (partsData || []).slice();
+        return dashboardAllPartsData;
+      });
+    }
+
+    function renderDashboardRequestSummary() {
+      function normalizeMainLine(lineRaw) {
+        var line = String(lineRaw || '').toLowerCase();
+        if (line.indexOf('h9') !== -1) return 'H9';
+        if (line.indexOf('arc') !== -1) return 'Arc Chute';
+        if (line.indexOf('coil') !== -1) return 'Coil Winding';
+        if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
+        return String(lineRaw || '-');
+      }
+      var summaryEl = document.getElementById('dashboardRequestSummary');
+      var emptyEl = document.getElementById('dashboardRequestEmpty');
+      var tableBody = document.getElementById('dashboardRequestTableBody');
+      if (!summaryEl || !emptyEl || !tableBody) return;
+      function card(title, value) {
+        return '<div class="rounded-lg border border-slate-200 p-2"><p class="text-[11px] text-slate-500">' + title + '</p><p class="text-lg font-bold">' + value + '</p></div>';
+      }
+      summaryEl.innerHTML = card('Pending', 0) + card('Approved', 0) + card('Rejected', 0) + card('On Hold', 0) + card('Purchased', 0) + card('Received', 0) + card('Closed', 0) + card('คำขอทั้งหมด', 0);
+      tableBody.innerHTML = '';
+      emptyEl.classList.add('hidden');
+      requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
+        if (rows && rows.status === 'error') throw new Error(rows.message || 'โหลดคำขอไม่สำเร็จ');
+        rows = Array.isArray(rows) ? rows : [];
+        var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
+        rows = rows.filter(function(r){ return selectedLine === 'all' ? true : normalizeMainLine(r.line) === selectedLine; });
+        if (!rows.length) {
+          emptyEl.classList.remove('hidden');
+          var summaryElMain = document.getElementById('dashboardSummary');
+          if (summaryElMain) summaryElMain.innerHTML = summaryElMain.innerHTML.replace('Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">...</p>', 'Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">0</p>');
+          return;
+        }
+        var counts = { 'Pending': 0, 'Approved': 0, 'Rejected': 0, 'On Hold': 0, 'Purchased': 0, 'Received': 0, 'Closed': 0 };
+        rows.forEach(function(r) {
+          var status = String(r.status || 'Pending');
+          if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status]++;
+        });
+        summaryEl.innerHTML = card('Pending', counts['Pending']) + card('Approved', counts['Approved']) + card('Rejected', counts['Rejected']) + card('On Hold', counts['On Hold']) + card('Purchased', counts['Purchased']) + card('Received', counts['Received']) + card('Closed', counts['Closed']) + card('คำขอทั้งหมด', rows.length);
+        var summaryElMain2 = document.getElementById('dashboardSummary');
+        if (summaryElMain2) summaryElMain2.innerHTML = summaryElMain2.innerHTML.replace('Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">...</p>', 'Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">' + counts['Pending'] + '</p>');
+        rows.sort(function(a, b) {
+          return new Date(String(b.updated_at || b.requested_date || 0)).getTime() - new Date(String(a.updated_at || a.requested_date || 0)).getTime();
+        });
+        tableBody.innerHTML = rows.slice(0, 30).map(function(r) {
+          var reqDate = r.requested_date ? new Date(r.requested_date).toLocaleString('th-TH') : '-';
+          var updDate = r.updated_at ? new Date(r.updated_at).toLocaleString('th-TH') : '-';
+          var reqId = String(r.request_id || '-');
+          return '<tr class="border-b">' +
+            '<td class="px-2 py-2">' + reqId + '</td>' +
+            '<td class="px-2 py-2">' + (r.requested_by || '-') + '</td>' +
+            '<td class="px-2 py-2">' + normalizeMainLine(r.line || '-') + '</td>' +
+            '<td class="px-2 py-2">' + (r.item_name || '-') + '</td>' +
+            '<td class="px-2 py-2">' + (r.request_qty || 0) + '</td>' +
+            '<td class="px-2 py-2">' + (r.priority || '-') + '</td>' +
+            '<td class="px-2 py-2">' + (r.status || '-') + '</td>' +
+            '<td class="px-2 py-2">' + reqDate + '</td>' +
+            '<td class="px-2 py-2">' + updDate + '</td>' +
+            '<td class="px-2 py-2"><button type="button" data-dashboard-request-id="' + reqId + '" class="rounded border border-slate-300 bg-white px-2 py-1 text-xs">ดูรายละเอียด</button></td>' +
+          '</tr>';
+        }).join('');
+      }).catch(function() {
+        emptyEl.classList.remove('hidden');
+      });
+    }
+
+    function renderDashboardLogSummary() {
+      function normalizeMainLine(lineRaw) {
+        var line = String(lineRaw || '').toLowerCase();
+        if (line.indexOf('h9') !== -1) return 'H9';
+        if (line.indexOf('arc') !== -1) return 'Arc Chute';
+        if (line.indexOf('coil') !== -1) return 'Coil Winding';
+        if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
+        return String(lineRaw || '-');
+      }
+      var summaryEl = document.getElementById('dashboardLogSummary');
+      var emptyEl = document.getElementById('dashboardLogEmpty');
+      var latestBody = document.getElementById('dashboardLatestIssueBody');
+      var topPartsBody = document.getElementById('dashboardTopPartsBody');
+      var topUsersBody = document.getElementById('dashboardTopUsersBody');
+      if (!summaryEl || !emptyEl || !latestBody || !topPartsBody || !topUsersBody) return;
+      function card(title, value) {
+        return '<div class="rounded-lg border border-slate-200 p-2"><p class="text-[11px] text-slate-500">' + title + '</p><p class="text-lg font-bold">' + value + '</p></div>';
+      }
+      summaryEl.innerHTML = card('เบิกออกวันนี้', 0) + card('รับเข้าวันนี้', 0) + card('เบิกออกเดือนนี้', 0) + card('รับเข้าเดือนนี้', 0);
+      latestBody.innerHTML = '';
+      topPartsBody.innerHTML = '';
+      topUsersBody.innerHTML = '';
+      emptyEl.classList.add('hidden');
+      loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); }).then(function(rawData) {
+        var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
+        var rows = Array.isArray(rawData) ? rawData : [];
+        if (selectedLine !== 'all') rows = rows.filter(function(r){ return normalizeMainLine(r.process || r.line || '') === selectedLine; });
+        if (!rows.length) { emptyEl.classList.remove('hidden'); return; }
+        var now = new Date();
+        var isSameDay = function(d){ return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate(); };
+        var isSameMonth = function(d){ return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth(); };
+        var outToday = 0, inToday = 0, outMonth = 0, inMonth = 0;
+        var issues = [];
+        var partMap = {};
+        var userMap = {};
+        rows.forEach(function(r) {
+          var t = String(r.type || r.txnType || '').toLowerCase();
+          var dt = new Date(r.timestamp || r.date || r.created_at || 0);
+          var qty = Math.abs(Number(r.qty || r.quantity || 0) || 0);
+          var isOut = t.indexOf('output') !== -1 || t.indexOf('issue') !== -1;
+          var isIn = t.indexOf('input') !== -1 || t.indexOf('receive') !== -1;
+          if (isOut) {
+            issues.push(r);
+            if (isSameDay(dt)) outToday += qty;
+            if (isSameMonth(dt)) outMonth += qty;
+            var pKey = [r.partName || r.name || '-', r.model || '-', r.brand || '-'].join('||');
+            if (!partMap[pKey]) partMap[pKey] = { name: r.partName || r.name || '-', model: r.model || '-', brand: r.brand || '-', count: 0, qty: 0, last: 0 };
+            partMap[pKey].count += 1; partMap[pKey].qty += qty; partMap[pKey].last = Math.max(partMap[pKey].last, dt.getTime() || 0);
+            var by = String(r.by || r.requestedBy || '-').trim() || '-';
+            if (!userMap[by]) userMap[by] = { by: by, count: 0, qty: 0, last: 0 };
+            userMap[by].count += 1; userMap[by].qty += qty; userMap[by].last = Math.max(userMap[by].last, dt.getTime() || 0);
+          }
+          if (isIn) {
+            if (isSameDay(dt)) inToday += qty;
+            if (isSameMonth(dt)) inMonth += qty;
+          }
+        });
+        summaryEl.innerHTML = card('เบิกออกวันนี้', outToday) + card('รับเข้าวันนี้', inToday) + card('เบิกออกเดือนนี้', outMonth) + card('รับเข้าเดือนนี้', inMonth);
+        issues.sort(function(a,b){ return new Date(b.timestamp || b.date || 0) - new Date(a.timestamp || a.date || 0); });
+        latestBody.innerHTML = issues.slice(0, 20).map(function(r){
+          return '<tr class="border-b"><td class="px-2 py-2">' + (r.timestamp ? new Date(r.timestamp).toLocaleString('th-TH') : (r.date || '-')) + '</td><td class="px-2 py-2">' + (r.type || '-') + '</td><td class="px-2 py-2">' + (r.partName || r.name || '-') + '</td><td class="px-2 py-2">' + (r.model || '-') + '</td><td class="px-2 py-2">' + (r.brand || '-') + '</td><td class="px-2 py-2">' + (Number(r.qty || r.quantity || 0) || 0) + '</td><td class="px-2 py-2">' + (r.by || '-') + '</td></tr>';
+        }).join('') || '<tr><td colspan="7" class="px-2 py-3 text-slate-500">ยังไม่มีประวัติการเบิก/รับ</td></tr>';
+        var topParts = Object.keys(partMap).map(function(k){ return partMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
+        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? new Date(p.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">ยังไม่มีประวัติการเบิก/รับ</td></tr>';
+        var topUsers = Object.keys(userMap).map(function(k){ return userMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
+        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? new Date(u.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">ยังไม่มีประวัติการเบิก/รับ</td></tr>';
+      }).catch(function() {
+        emptyEl.classList.remove('hidden');
+      });
+    }
+
+    function switchToDashboardPage() {
+      if (!hasPermission('view_dashboard')) return switchToStockPage();
+      stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.remove('hidden');
+      txnPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
+      setTabStyles('dashboard');
+      loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1);
+      initDashboardSidebarNav();
+    }
+
     function switchToRequestOrderPage() {
-      stockPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
+      stockPage.classList.add('hidden'); if (dashboardPage) dashboardPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
+      window.__roActiveGroupIdx = undefined;
+      closeRequestOrderDetailModal();
+      var roImageModalEl = document.getElementById('roImageModal');
+      if (roImageModalEl) roImageModalEl.classList.add('hidden');
       setTabStyles('request-order');
       loadRequestOrderSearchPool();
       requestApi(withAuthPayload({ action: 'ensureOrderRequestsSheet' })).catch(function() {});
@@ -3336,6 +3785,7 @@ function inferRequestPriority(stock, min) {
     function switchToAdminPage() {
       if (!(isAdminUser() && hasPermission('manage_users'))) return switchToStockPage();
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
@@ -3352,6 +3802,7 @@ function inferRequestPriority(stock, min) {
     function switchToPrReportPage() {
       if (!hasPermission('view_logs')) return switchToStockPage();
       stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
       managePage.classList.add('hidden');
@@ -3956,7 +4407,7 @@ function inferRequestPriority(stock, min) {
       quickIssueStock.textContent = 'Stock: ' + (item.stock || 0) + ' ' + (item.unit || 'PCS');
       quickIssueType.value = 'Output';
       quickIssueQty.value = '';
-      quickIssueBy.value = '';
+      syncTxnActorFields();
       quickIssueProcess.value = item.line || currentLine || '';
       quickIssueMessage.className = 'text-sm text-slate-500';
       quickIssueMessage.textContent = '';
@@ -3982,7 +4433,12 @@ function inferRequestPriority(stock, min) {
       if (quickIssueSubmitting) return;
       var item = getCurrentQuickIssueItem();
       var qty = Number(quickIssueQty.value || 0);
-      var by = String(quickIssueBy.value || '').trim();
+      if (!currentUser || !currentUser.username) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'กรุณาเข้าสู่ระบบใหม่';
+        return;
+      }
+      var by = String(currentUser.username || '').trim();
       var process = String(quickIssueProcess.value || '').trim();
       if (!item) {
         quickIssueMessage.className = 'text-sm text-rose-600';
@@ -3999,9 +4455,10 @@ function inferRequestPriority(stock, min) {
         quickIssueMessage.textContent = 'จำนวนเบิกมากกว่า stock ปัจจุบัน';
         return;
       }
-      if (!by) {
-        quickIssueMessage.className = 'text-sm text-rose-600';
-        quickIssueMessage.textContent = 'กรุณาระบุผู้เบิก/ผู้รับ';
+      if (!by) return;
+      if (!currentUser || !currentUser.username) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'กรุณาเข้าสู่ระบบใหม่';
         return;
       }
       var payload = {
@@ -4071,7 +4528,7 @@ function inferRequestPriority(stock, min) {
         brand: selected.brand || '-',
         qty: qty,
         unit: selected.unit || 'PCS',
-        by: txnBy.value || 'Unknown',
+        by: currentUser.username,
         sheetName: selected.__sourceSheet || selected.subLine || getCurrentSheetName()
       };
 
@@ -4944,6 +5401,7 @@ function inferRequestPriority(stock, min) {
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
       if (!stockPage.classList.contains('hidden')) setTabStyles('stock');
+      else if (dashboardPage && !dashboardPage.classList.contains('hidden')) setTabStyles('dashboard');
       else if (!txnPage.classList.contains('hidden')) setTabStyles('txn');
       else if (!logPage.classList.contains('hidden')) setTabStyles('log');
       else if (!prReportPage.classList.contains('hidden')) setTabStyles('pr');
@@ -4953,12 +5411,58 @@ function inferRequestPriority(stock, min) {
     qaManageBtn.addEventListener('click', switchToManagePage);
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
+    if (tabDashboard) tabDashboard.addEventListener('click', switchToDashboardPage);
     tabTxn.addEventListener('click', switchToTxnPage);
     tabLog.addEventListener('click', switchToLogPage);
     tabPrReport.addEventListener('click', switchToPrReportPage);
     if (tabRequestOrder) tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
+    var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
+    if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1); });
+    if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
+    var dashboardObserver = null;
+    function initDashboardSidebarNav() {
+      var wrap = document.getElementById('dashboardSidebarWrap');
+      var menu = document.getElementById('dashboardSidebarMenu');
+      if (!wrap || !menu) return;
+      wrap.classList.add('hidden');
+      return;
+      var btns = Array.prototype.slice.call(menu.querySelectorAll('[data-dash-target]'));
+      btns.forEach(function(btn) {
+        btn.classList.add('hover:bg-slate-100');
+        btn.addEventListener('click', function() {
+          var target = document.getElementById(btn.getAttribute('data-dash-target'));
+          if (!target) return;
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+      if (dashboardObserver) dashboardObserver.disconnect();
+      dashboardObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (!entry.isIntersecting) return;
+          var id = entry.target.id;
+          btns.forEach(function(b) {
+            var active = b.getAttribute('data-dash-target') === id;
+            b.classList.toggle('bg-blue-50', active);
+            b.classList.toggle('text-blue-700', active);
+            b.classList.toggle('font-semibold', active);
+          });
+        });
+      }, { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0.05 });
+      ['dashExecutive', 'dashAlerts', 'dashTopUsage', 'dashRecentActivities', 'dashRisk', 'dashRequestStatus'].forEach(function(id) {
+        var sec = document.getElementById(id);
+        if (sec) dashboardObserver.observe(sec);
+      });
+    }
+    if (dashboardPage) {
+      dashboardPage.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest ? e.target.closest('[data-dashboard-request-id]') : null;
+        if (!btn) return;
+        switchToRequestOrderPage();
+      });
+    }
+    window.addEventListener('resize', initDashboardSidebarNav);
     lineMenuDockToggle.addEventListener('click', function() {
       isLineMenuVisible = !isLineMenuVisible;
       updateLineMenuVisibility();
@@ -5444,11 +5948,20 @@ function inferRequestPriority(stock, min) {
         return;
       }
       var id = e.target.getAttribute('data-id'); var act = e.target.getAttribute('data-act'); if (!id || !act) return;
+      var actionBtn = e.target;
+      var originalText = actionBtn.textContent;
+      actionBtn.disabled = true;
+      actionBtn.textContent = 'กำลังส่ง...';
       var run = act === 'convert'
         ? requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] }))
         : requestApi(withAuthPayload({ action: ({ approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' }[act] || act), request_id: id }));
       run.then(function(){ loadOrderRequests(); return refreshRequestOrderBadgeCount(); }).then(function(){
         if (window.__roActiveGroupIdx !== undefined) openRequestDetailByRequester(window.__roActiveGroupIdx);
+      }).catch(function(err) {
+        alert('อัปเดตสถานะไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+      }).finally(function() {
+        actionBtn.disabled = false;
+        actionBtn.textContent = originalText;
       });
     });
     document.getElementById('loginForm').addEventListener('submit', function(e) {
@@ -5567,11 +6080,32 @@ function inferRequestPriority(stock, min) {
       document.getElementById('loginRemember').checked = true;
     }
     setAuthScreen(false);
+    var appSplash = document.getElementById('appSplash');
+    var appSplashText = document.getElementById('appSplashText');
+    var splashStartedAt = Date.now();
+    var splashMinVisibleMs = 1200;
+    var splashSlowTimer = setTimeout(function() {
+      if (appSplash && !appSplash.classList.contains('hidden') && appSplashText) {
+        appSplashText.textContent = 'กำลังเชื่อมต่อระบบ กรุณารอสักครู่...';
+      }
+    }, 10000);
+    function hideAppSplash() {
+      if (!appSplash) return;
+      clearTimeout(splashSlowTimer);
+      var elapsed = Date.now() - splashStartedAt;
+      var wait = Math.max(0, splashMinVisibleMs - elapsed);
+      setTimeout(function() {
+        appSplash.classList.add('splash-fade-out');
+        setTimeout(function(){ appSplash.classList.add('hidden'); }, 500);
+      }, wait);
+    }
     checkSession().then(function() {
       setAuthScreen(true);
       loadPartsData();
+      hideAppSplash();
     }).catch(function() {
       setAuthScreen(false);
+      hideAppSplash();
     });
   </script>
 </body>
