@@ -3750,6 +3750,11 @@ function inferRequestPriority(stock, min) {
       setTabStyles('dashboard');
       loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1);
       initDashboardSidebarNav();
+      var firstDashBtn = document.querySelector('#dashboardSidebarMenu [data-dash-target="dashExecutive"]');
+      if (firstDashBtn) {
+        Array.prototype.slice.call(document.querySelectorAll('#dashboardSidebarMenu [data-dash-target]')).forEach(function(b){ b.classList.remove('bg-blue-50','text-blue-700','font-semibold'); });
+        firstDashBtn.classList.add('bg-blue-50','text-blue-700','font-semibold');
+      }
     }
 
     function switchToRequestOrderPage() {
@@ -5406,9 +5411,24 @@ function inferRequestPriority(stock, min) {
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
     function initDashboardSidebarNav() {
       var wrap = document.getElementById('dashboardSidebarWrap');
-      if (!wrap) return;
+      var menu = document.getElementById('dashboardSidebarMenu');
+      if (!wrap || !menu) return;
       if (window.innerWidth < 1280) wrap.classList.add('hidden');
       else wrap.classList.remove('hidden');
+      var btns = Array.prototype.slice.call(menu.querySelectorAll('[data-dash-target]'));
+      btns.forEach(function(btn) {
+        if (!btn.dataset.boundDashNav) {
+          btn.dataset.boundDashNav = '1';
+          btn.addEventListener('click', function() {
+            var targetId = btn.getAttribute('data-dash-target');
+            var target = document.getElementById(targetId);
+            if (!target) return;
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            btns.forEach(function(b){ b.classList.remove('bg-blue-50','text-blue-700','font-semibold'); });
+            btn.classList.add('bg-blue-50','text-blue-700','font-semibold');
+          });
+        }
+      });
     }
 if (dashboardPage) {
       dashboardPage.addEventListener('click', function(e) {
