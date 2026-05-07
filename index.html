@@ -5403,41 +5403,8 @@ function inferRequestPriority(stock, min) {
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
     if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1); });
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
-    var dashboardObserver = null;
-    function initDashboardSidebarNav() {
-      var wrap = document.getElementById('dashboardSidebarWrap');
-      var menu = document.getElementById('dashboardSidebarMenu');
-      if (!wrap || !menu) return;
-      if (window.innerWidth < 1280) { wrap.classList.add('hidden'); return; }
-      wrap.classList.remove('hidden');
-      var btns = Array.prototype.slice.call(menu.querySelectorAll('[data-dash-target]'));
-      btns.forEach(function(btn) {
-        btn.classList.add('hover:bg-slate-100');
-        btn.addEventListener('click', function() {
-          var target = document.getElementById(btn.getAttribute('data-dash-target'));
-          if (!target) return;
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      });
-      if (dashboardObserver) dashboardObserver.disconnect();
-      dashboardObserver = new IntersectionObserver(function(entries) {
-        entries.forEach(function(entry) {
-          if (!entry.isIntersecting) return;
-          var id = entry.target.id;
-          btns.forEach(function(b) {
-            var active = b.getAttribute('data-dash-target') === id;
-            b.classList.toggle('bg-blue-50', active);
-            b.classList.toggle('text-blue-700', active);
-            b.classList.toggle('font-semibold', active);
-          });
-        });
-      }, { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0.05 });
-      ['dashExecutive', 'dashAlerts', 'dashTopUsage', 'dashRecentActivities', 'dashRisk', 'dashRequestStatus'].forEach(function(id) {
-        var sec = document.getElementById(id);
-        if (sec) dashboardObserver.observe(sec);
-      });
-    }
-    if (dashboardPage) {
+    function initDashboardSidebarNav() { return; }
+if (dashboardPage) {
       dashboardPage.addEventListener('click', function(e) {
         var btn = e.target && e.target.closest ? e.target.closest('[data-dashboard-request-id]') : null;
         if (!btn) return;
