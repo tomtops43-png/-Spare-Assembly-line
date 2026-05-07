@@ -329,21 +329,21 @@
       <div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <aside id="dashboardSidebarWrap" class="hidden xl:block xl:col-span-3">
         <div class="sticky top-6 h-[calc(100vh-48px)] overflow-auto rounded-2xl bg-white p-4 shadow-sm border border-slate-200">
-          <h3 class="text-lg font-bold text-blue-700">Dashboard Menu</h3>
+          <h3 class="text-lg font-bold text-blue-700">เมนูแดชบอร์ด</h3>
           <ul id="dashboardSidebarMenu" class="mt-3 space-y-2 text-sm text-slate-600">
-            <li><button data-dash-target="dashExecutive" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Executive Summary</button></li>
-            <li><button data-dash-target="dashAlerts" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Critical Alerts</button></li>
-            <li><button data-dash-target="dashTopUsage" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Top Usage</button></li>
-            <li><button data-dash-target="dashRecentActivities" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Recent Activities</button></li>
-            <li><button data-dash-target="dashRisk" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Risk Spare Parts</button></li>
-            <li><button data-dash-target="dashRequestStatus" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Request Order Status</button></li>
+            <li><button data-dash-target="dashExecutive" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">ภาพรวมผู้บริหาร</button></li>
+            <li><button data-dash-target="dashAlerts" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">รายการวิกฤต</button></li>
+            <li><button data-dash-target="dashTopUsage" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">อะไหล่ที่เบิกบ่อย</button></li>
+            <li><button data-dash-target="dashRecentActivities" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">ความเคลื่อนไหวล่าสุด</button></li>
+            <li><button data-dash-target="dashRisk" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">อะไหล่เสี่ยง</button></li>
+            <li><button data-dash-target="dashRequestStatus" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">สถานะคำขอซื้อ</button></li>
           </ul>
         </div>
       </aside>
       <div class="xl:col-span-9 space-y-4">
       <div id="dashExecutive" class="rounded-2xl bg-white p-4 shadow-sm border border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="text-2xl font-bold text-slate-900">Factory Management Dashboard</h2>
+          <h2 class="text-2xl font-bold text-slate-900">แดชบอร์ดบริหารอะไหล่โรงงาน</h2>
           <p class="text-sm text-slate-500">ภาพรวมอะไหล่ทุกไลน์การผลิต</p>
         </div>
         <div class="flex items-center gap-2">
@@ -359,9 +359,9 @@
       </div>
       <div id="dashboardSummary" class="grid grid-cols-2 gap-3 lg:grid-cols-5"></div>
       <div id="dashAlerts" class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">Stock by Line</h3><div id="dashboardLineBars" class="mt-3 space-y-2 text-xs"></div></div>
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">Stock Health</h3><div id="dashboardStockDonut" class="mt-4 h-40 w-40 mx-auto rounded-full"></div><p id="dashboardStockDonutText" class="mt-2 text-center text-xs text-slate-500"></p></div>
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">Need PO by Category</h3><div id="dashboardNeedPoBars" class="mt-3 space-y-2 text-xs"></div></div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">สต็อกแยกตามไลน์หลัก</h3><div id="dashboardLineBars" class="mt-3 space-y-2 text-xs"></div></div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">สุขภาพสต็อก</h3><div id="dashboardStockDonut" class="mt-4 h-40 w-40 mx-auto rounded-full"></div><p id="dashboardStockDonutText" class="mt-2 text-center text-xs text-slate-500"></p></div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">รายการต้องซื้อแยกตามหมวดหมู่</h3><div id="dashboardNeedPoBars" class="mt-3 space-y-2 text-xs"></div></div>
       </div>
       <div id="dashRisk" class="rounded-2xl bg-white border border-slate-200 shadow-sm">
         <div id="dashboardLoading" class="px-3 py-3 text-sm text-slate-500">กำลังโหลดข้อมูล...</div>
@@ -386,10 +386,10 @@
         </div>
       </div>
       <div id="dashRequestStatus" class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
-        <h3 class="text-base font-semibold">สรุปคำขอซื้ออะไหล่ (Phase 2)</h3>
+        <h3 class="text-base font-semibold">สถานะคำขอซื้อ</h3>
         <div id="dashboardRequestSummary" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8"></div>
         <div id="dashboardRequestEmpty" class="hidden mt-3 text-sm text-slate-500">ยังไม่มีคำขอซื้อ</div>
-        <div class="mt-3 overflow-x-auto">
+        <div class="mt-3 max-h-80 overflow-auto">
           <table class="min-w-full text-xs sm:text-sm">
             <thead class="bg-slate-50">
               <tr class="text-left">
@@ -405,33 +405,33 @@
                 <th class="px-2 py-2">รายละเอียด</th>
               </tr>
             </thead>
-            <tbody id="dashboardRequestTableBody"></tbody>
+            <tbody id="dashboardRequestTableBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
           </table>
         </div>
       </div>
       <div id="dashRecentActivities" class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
-        <h3 class="text-base font-semibold">สรุปการเบิก/รับ (Phase 3)</h3>
+        <h3 class="text-base font-semibold">ประวัติล่าสุด</h3>
         <div id="dashboardLogSummary" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"></div>
         <div id="dashboardLogEmpty" class="hidden mt-3 text-sm text-slate-500">ยังไม่มีประวัติการเบิก/รับ</div>
         <h4 class="mt-4 font-semibold">รายการเบิกล่าสุด</h4>
-        <div class="mt-2 overflow-x-auto">
+        <div class="mt-2 max-h-72 overflow-auto">
           <table class="min-w-full text-xs sm:text-sm">
             <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">วันที่/เวลา</th><th class="px-2 py-2">Type</th><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">Qty</th><th class="px-2 py-2">By</th></tr></thead>
-            <tbody id="dashboardLatestIssueBody"></tbody>
+            <tbody id="dashboardLatestIssueBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
           </table>
         </div>
         <h4 id="dashTopUsage" class="mt-4 font-semibold">Top 10 อะไหล่ที่ถูกเบิกบ่อย</h4>
-        <div class="mt-2 overflow-x-auto">
+        <div class="mt-2 max-h-72 overflow-auto">
           <table class="min-w-full text-xs sm:text-sm">
             <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">จำนวนครั้งที่เบิก</th><th class="px-2 py-2">จำนวนรวมที่เบิก</th><th class="px-2 py-2">วันที่เบิกล่าสุด</th></tr></thead>
-            <tbody id="dashboardTopPartsBody"></tbody>
+            <tbody id="dashboardTopPartsBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
           </table>
         </div>
         <h4 class="mt-4 font-semibold">Top 10 ผู้เบิกอะไหล่</h4>
-        <div class="mt-2 overflow-x-auto">
+        <div class="mt-2 max-h-72 overflow-auto">
           <table class="min-w-full text-xs sm:text-sm">
             <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">ชื่อผู้เบิก</th><th class="px-2 py-2">จำนวนครั้งที่เบิก</th><th class="px-2 py-2">จำนวนรวมที่เบิก</th><th class="px-2 py-2">วันที่ล่าสุด</th></tr></thead>
-            <tbody id="dashboardTopUsersBody"></tbody>
+            <tbody id="dashboardTopUsersBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
           </table>
         </div>
       </div></div></div>
@@ -2426,50 +2426,6 @@ function getIssueCartEntries() {
       });
     }
 
-    function updateRequestOrderBadgeUI() {
-      var btn = document.getElementById('requestOrderNavBtn');
-      var badge = document.getElementById('requestOrderNavBadge');
-      console.log('btn exists', !!btn);
-      console.log('badge exists', !!badge);
-      console.log('badge inside btn', btn && badge ? btn.contains(badge) : false);
-      if (!btn || !badge || !btn.contains(badge)) {
-        console.warn('request order nav template is invalid: badge must exist inside requestOrderNavBtn');
-        return;
-      }
-      var count = Number(requestOrderBadgeCount || 0);
-      if (count > 0) {
-        badge.textContent = count > 99 ? '99+' : String(count);
-        badge.classList.remove('hidden');
-        badge.style.display = 'inline-flex';
-        badge.style.opacity = '1';
-        badge.style.visibility = 'visible';
-      } else {
-        badge.classList.add('hidden');
-        badge.style.display = 'none';
-      }
-      console.log('requestOrderBadgeCount:', requestOrderBadgeCount);
-      console.log(document.getElementById('requestOrderNavBadge'));
-      console.log(btn.contains(badge));
-    }
-
-    function refreshRequestOrderBadgeCount() {
-      if (!currentUser || !hasPermission('request_order_create')) {
-        requestOrderBadgeCount = 0;
-        updateRequestOrderBadgeUI();
-        return Promise.resolve(0);
-      }
-      return requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
-        rows = Array.isArray(rows) ? rows : [];
-        requestOrderBadgeCount = rows.filter(function(r){ return String(r.status || '') === 'Pending'; }).length;
-        updateRequestOrderBadgeUI();
-        return requestOrderBadgeCount;
-      }).catch(function() {
-        requestOrderBadgeCount = 0;
-        updateRequestOrderBadgeUI();
-        return 0;
-      });
-    }
-
     function setAuthScreen(isAuthenticated) {
       appShell.classList.toggle('hidden', !isAuthenticated);
       loginModal.classList.toggle('hidden', isAuthenticated);
@@ -3541,6 +3497,14 @@ function inferRequestPriority(stock, min) {
     }
 
     function renderDashboardPhase1() {
+      function normalizeMainLine(lineRaw) {
+        var line = String(lineRaw || '').toLowerCase();
+        if (line.indexOf('h9') !== -1) return 'H9';
+        if (line.indexOf('arc') !== -1) return 'Arc Chute';
+        if (line.indexOf('coil') !== -1) return 'Coil Winding';
+        if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
+        return String(lineRaw || '-');
+      }
       var summaryEl = document.getElementById('dashboardSummary');
       var loadingEl = document.getElementById('dashboardLoading');
       var emptyEl = document.getElementById('dashboardEmpty');
@@ -3552,7 +3516,7 @@ function inferRequestPriority(stock, min) {
       var sourceRows = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
       var rows = sourceRows.filter(function(r) {
         if (selectedLine === 'all') return true;
-        return String(r.line || '').trim() === selectedLine;
+        return normalizeMainLine(r.line) === selectedLine;
       });
       function card(title, value) {
         var color = /Out|Stock = 0/.test(title) ? 'rose' : /Min|Need/.test(title) ? 'amber' : /ไม่มี/.test(title) ? 'slate' : 'blue';
@@ -3591,14 +3555,14 @@ function inferRequestPriority(stock, min) {
       var donutText = document.getElementById('dashboardStockDonutText');
       var poBars = document.getElementById('dashboardNeedPoBars');
       var lineMap = {}, catMap = {}, normal = 0;
-      rows.forEach(function(r){ var line=String(r.line||'N/A'); lineMap[line]=(lineMap[line]||0)+num(r.stock); var cat=String(r.category||'ทั่วไป'); catMap[cat]=(catMap[cat]||0)+Math.max(0,num(r.min)-num(r.stock)); if(num(r.stock)>=num(r.min)&&num(r.stock)>0) normal++; });
+      rows.forEach(function(r){ var line=normalizeMainLine(r.line||'N/A'); lineMap[line]=(lineMap[line]||0)+num(r.stock); var cat=String(r.category||'ทั่วไป'); catMap[cat]=(catMap[cat]||0)+Math.max(0,num(r.min)-num(r.stock)); if(num(r.stock)>=num(r.min)&&num(r.stock)>0) normal++; });
       if (lineBars) { var maxLine=Math.max.apply(null,Object.keys(lineMap).map(function(k){return lineMap[k];}).concat([1])); lineBars.innerHTML=Object.keys(lineMap).slice(0,6).map(function(k){ var v=lineMap[k]; return '<div><div class=\"flex justify-between\"><span>'+k+'</span><span>'+v+'</span></div><div class=\"h-2 rounded bg-slate-100\"><div class=\"h-2 rounded bg-blue-500\" style=\"width:' + Math.max(4,(v/maxLine)*100) + '%\"></div></div></div>'; }).join(''); }
       if (poBars) { var cats=Object.keys(catMap).sort(function(a,b){return catMap[b]-catMap[a];}).slice(0,6); var maxCat=Math.max.apply(null,cats.map(function(k){return catMap[k];}).concat([1])); poBars.innerHTML=cats.map(function(k){ var v=catMap[k]; return '<div><div class=\"flex justify-between\"><span>'+k+'</span><span>'+v+'</span></div><div class=\"h-2 rounded bg-slate-100\"><div class=\"h-2 rounded bg-amber-500\" style=\"width:' + Math.max(4,(v/maxCat)*100) + '%\"></div></div></div>'; }).join('') || '<p class=\"text-slate-400\">ไม่มีข้อมูล</p>'; }
       if (donut) { var total=Math.max(rows.length,1),ok=Math.round((normal/total)*100),out=Math.round((outZero/total)*100),low=Math.max(0,100-ok-out); donut.style.background='conic-gradient(#22c55e 0 '+ok+'%, #ef4444 '+ok+'% '+(ok+out)+'%, #f59e0b '+(ok+out)+'% 100%)'; donutText.textContent='ปกติ '+ok+'% • หมด '+out+'% • ต่ำกว่า Min '+low+'%'; }
       bodyEl.innerHTML = riskRows.slice(0, 500).map(function(row) {
         var r = row.item;
         return '<tr class="border-b">' +
-          '<td class="px-2 py-2">' + (r.line || '-') + ' / ' + (r.sheet || (sheetSelector ? sheetSelector.value : '-') || '-') + '</td>' +
+          '<td class="px-2 py-2">' + normalizeMainLine(r.line || '-') + '</td>' +
           '<td class="px-2 py-2">' + (r.no || '-') + '</td>' +
           '<td class="px-2 py-2">' + (r.name || '-') + '</td>' +
           '<td class="px-2 py-2">' + (r.model || '-') + '</td>' +
@@ -3635,6 +3599,14 @@ function inferRequestPriority(stock, min) {
     }
 
     function renderDashboardRequestSummary() {
+      function normalizeMainLine(lineRaw) {
+        var line = String(lineRaw || '').toLowerCase();
+        if (line.indexOf('h9') !== -1) return 'H9';
+        if (line.indexOf('arc') !== -1) return 'Arc Chute';
+        if (line.indexOf('coil') !== -1) return 'Coil Winding';
+        if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
+        return String(lineRaw || '-');
+      }
       var summaryEl = document.getElementById('dashboardRequestSummary');
       var emptyEl = document.getElementById('dashboardRequestEmpty');
       var tableBody = document.getElementById('dashboardRequestTableBody');
@@ -3649,7 +3621,7 @@ function inferRequestPriority(stock, min) {
         if (rows && rows.status === 'error') throw new Error(rows.message || 'โหลดคำขอไม่สำเร็จ');
         rows = Array.isArray(rows) ? rows : [];
         var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
-        rows = rows.filter(function(r){ return selectedLine === 'all' ? true : String(r.line || '').trim() === selectedLine; });
+        rows = rows.filter(function(r){ return selectedLine === 'all' ? true : normalizeMainLine(r.line) === selectedLine; });
         if (!rows.length) {
           emptyEl.classList.remove('hidden');
           var summaryElMain = document.getElementById('dashboardSummary');
@@ -3674,7 +3646,7 @@ function inferRequestPriority(stock, min) {
           return '<tr class="border-b">' +
             '<td class="px-2 py-2">' + reqId + '</td>' +
             '<td class="px-2 py-2">' + (r.requested_by || '-') + '</td>' +
-            '<td class="px-2 py-2">' + (r.line || '-') + '</td>' +
+            '<td class="px-2 py-2">' + normalizeMainLine(r.line || '-') + '</td>' +
             '<td class="px-2 py-2">' + (r.item_name || '-') + '</td>' +
             '<td class="px-2 py-2">' + (r.request_qty || 0) + '</td>' +
             '<td class="px-2 py-2">' + (r.priority || '-') + '</td>' +
@@ -3690,6 +3662,14 @@ function inferRequestPriority(stock, min) {
     }
 
     function renderDashboardLogSummary() {
+      function normalizeMainLine(lineRaw) {
+        var line = String(lineRaw || '').toLowerCase();
+        if (line.indexOf('h9') !== -1) return 'H9';
+        if (line.indexOf('arc') !== -1) return 'Arc Chute';
+        if (line.indexOf('coil') !== -1) return 'Coil Winding';
+        if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
+        return String(lineRaw || '-');
+      }
       var summaryEl = document.getElementById('dashboardLogSummary');
       var emptyEl = document.getElementById('dashboardLogEmpty');
       var latestBody = document.getElementById('dashboardLatestIssueBody');
@@ -3707,7 +3687,7 @@ function inferRequestPriority(stock, min) {
       loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); }).then(function(rawData) {
         var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
         var rows = Array.isArray(rawData) ? rawData : [];
-        if (selectedLine !== 'all') rows = rows.filter(function(r){ return String(r.process || r.line || '').trim() === selectedLine; });
+        if (selectedLine !== 'all') rows = rows.filter(function(r){ return normalizeMainLine(r.process || r.line || '') === selectedLine; });
         if (!rows.length) { emptyEl.classList.remove('hidden'); return; }
         var now = new Date();
         var isSameDay = function(d){ return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate(); };
@@ -3719,7 +3699,7 @@ function inferRequestPriority(stock, min) {
         rows.forEach(function(r) {
           var t = String(r.type || r.txnType || '').toLowerCase();
           var dt = new Date(r.timestamp || r.date || r.created_at || 0);
-          var qty = Number(r.qty || r.quantity || 0) || 0;
+          var qty = Math.abs(Number(r.qty || r.quantity || 0) || 0);
           var isOut = t.indexOf('output') !== -1 || t.indexOf('issue') !== -1;
           var isIn = t.indexOf('input') !== -1 || t.indexOf('receive') !== -1;
           if (isOut) {
