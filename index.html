@@ -509,6 +509,17 @@
             <input id="txnQty" type="number" min="1" step="1" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="จำนวน" required />
             <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3 bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
             <input id="txnProcess" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ไลน์/งาน" />
+            <select id="txnReason" class="h-11 rounded-xl border border-slate-300 px-3 bg-white">
+              <option value="">Reason / เหตุผลการเบิก</option>
+              <option value="PM">PM</option>
+              <option value="Breakdown">Breakdown</option>
+              <option value="Improvement">Improvement</option>
+              <option value="Trial">Trial</option>
+              <option value="Replace NG">Replace NG</option>
+              <option value="Production Support">Production Support</option>
+              <option value="Other">Other</option>
+            </select>
+            <input id="txnReasonRemark" type="text" class="hidden h-11 rounded-xl border border-slate-300 px-3" placeholder="Reason Remark" />
             <button id="txnSubmitBtn" type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
           </form>
           <p id="txnMessage" class="mt-3 text-sm"></p>
@@ -582,6 +593,8 @@
               <th class="py-3 px-3">จำนวน</th>
               <th class="py-3 px-3">หน่วย</th>
               <th class="py-3 px-3">ผู้ทำรายการ</th>
+              <th class="py-3 px-3">Reason</th>
+              <th class="py-3 px-3">Reason Remark</th>
               <th class="py-3 px-3">รหัสอะไหล่</th>
               <th class="py-3 px-3 text-center">ก่อน</th>
               <th class="py-3 px-3 text-center">หลัง</th>
@@ -1202,6 +1215,8 @@
     var txnQty = document.getElementById('txnQty');
     var txnBy = document.getElementById('txnBy');
     var txnProcess = document.getElementById('txnProcess');
+    var txnReason = document.getElementById('txnReason');
+    var txnReasonRemark = document.getElementById('txnReasonRemark');
     var txnMessage = document.getElementById('txnMessage');
     var txnStockGuardMessage = document.getElementById('txnStockGuardMessage');
     var txnSubmitBtn = document.getElementById('txnSubmitBtn');
@@ -3169,7 +3184,9 @@ function getIssueCartEntries() {
         brand: payload.brand || '',
         qty: String(payload.qty || ''),
         unit: payload.unit || '',
-        by: payload.by || ''
+        by: payload.by || '',
+        reason: payload.reason || '',
+        reasonRemark: payload.reasonRemark || ''
       };
       var query = [
         'action=transact',
@@ -3184,6 +3201,8 @@ function getIssueCartEntries() {
         'qty=' + encodeURIComponent(requestPayload.qty),
         'unit=' + encodeURIComponent(requestPayload.unit),
         'by=' + encodeURIComponent(requestPayload.by),
+        'reason=' + encodeURIComponent(requestPayload.reason),
+        'reasonRemark=' + encodeURIComponent(requestPayload.reasonRemark),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
 
@@ -3211,7 +3230,7 @@ function getIssueCartEntries() {
       var pageRows = rows.slice(start, start + LOG_PAGE_SIZE);
 
       if (!total) {
-        logTable.innerHTML = '<tr><td colspan="13" class="py-6 text-center text-slate-400">ยังไม่มีประวัติการเบิก/คืน</td></tr>';
+        logTable.innerHTML = '<tr><td colspan="15" class="py-6 text-center text-slate-400">ยังไม่มีประวัติการเบิก/คืน</td></tr>';
       } else {
         logTable.innerHTML = pageRows.map(function(item, idx) {
           var rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50';
@@ -3229,6 +3248,8 @@ function getIssueCartEntries() {
             '<td class="py-3 px-3 ' + (isOutput ? 'text-rose-600 font-semibold' : 'text-slate-800') + '">' + displayQty + '</td>' +
             '<td class="py-3 px-3">' + (item.unit || '-') + '</td>' +
             '<td class="py-3 px-3">' + (item.by || '-') + '</td>' +
+            '<td class="py-3 px-3">' + (item.reason || '-') + '</td>' +
+            '<td class="py-3 px-3">' + (item.reasonRemark || '-') + '</td>' +
             '<td class="py-3 px-3">' + (item.partNo || item.no || '-') + '</td>' +
             '<td class="py-3 px-3 text-center">' + (item.stockBefore || 0) + '</td>' +
             '<td class="py-3 px-3 text-center">' + (item.stockAfter || 0) + '</td>' +
@@ -3245,7 +3266,7 @@ function getIssueCartEntries() {
     }
 
     function loadLogData() {
-      logTable.innerHTML = '<tr><td colspan="13" class="py-6 text-center text-slate-400">กำลังโหลดประวัติ...</td></tr>';
+      logTable.innerHTML = '<tr><td colspan="15" class="py-6 text-center text-slate-400">กำลังโหลดประวัติ...</td></tr>';
       if (logPageSummary) logPageSummary.textContent = 'รายการทั้งOut of Stock 0 รายการ';
       loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); })
         .then(function(rawData) {
@@ -3257,7 +3278,7 @@ function getIssueCartEntries() {
         })
         .catch(function(err) {
           if (String(err.message || '').indexOf('เข้าสู่ระบบ') > -1) logout();
-          logTable.innerHTML = '<tr><td colspan="13" class="py-6 text-center text-rose-500">' + err.message + '</td></tr>';
+          logTable.innerHTML = '<tr><td colspan="15" class="py-6 text-center text-rose-500">' + err.message + '</td></tr>';
         });
     }
 
@@ -3691,7 +3712,7 @@ function inferRequestPriority(stock, min) {
       function card(title, value) {
         return '<div class="rounded-lg border border-slate-200 p-2"><p class="text-[11px] text-slate-500">' + title + '</p><p class="text-lg font-bold">' + value + '</p></div>';
       }
-      summaryEl.innerHTML = card('Pending', 0) + card('Approved', 0) + card('Rejected', 0) + card('On Hold', 0) + card('Purchased', 0) + card('Received', 0) + card('Closed', 0) + card('คำขอทั้งหมด', 0);
+      summaryEl.innerHTML = card('Pending', 0) + card('Approved', 0) + card('Rejected', 0) + card('On Hold', 0) + card('Purchased', 0) + card('Received', 0) + card('Closed', 0) + card('All Requests', 0);
       tableBody.innerHTML = '';
       emptyEl.classList.add('hidden');
       requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
@@ -3710,7 +3731,7 @@ function inferRequestPriority(stock, min) {
           var status = String(r.status || 'Pending');
           if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status]++;
         });
-        summaryEl.innerHTML = card('Pending', counts['Pending']) + card('Approved', counts['Approved']) + card('Rejected', counts['Rejected']) + card('On Hold', counts['On Hold']) + card('Purchased', counts['Purchased']) + card('Received', counts['Received']) + card('Closed', counts['Closed']) + card('คำขอทั้งหมด', rows.length);
+        summaryEl.innerHTML = card('Pending', counts['Pending']) + card('Approved', counts['Approved']) + card('Rejected', counts['Rejected']) + card('On Hold', counts['On Hold']) + card('Purchased', counts['Purchased']) + card('Received', counts['Received']) + card('Closed', counts['Closed']) + card('All Requests', rows.length);
         var summaryElMain2 = document.getElementById('dashboardSummary');
         if (summaryElMain2) summaryElMain2.innerHTML = summaryElMain2.innerHTML.replace('Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">...</p>', 'Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">' + counts['Pending'] + '</p>');
         rows.sort(function(a, b) {
@@ -3826,6 +3847,11 @@ function inferRequestPriority(stock, min) {
       if (firstDashBtn) {
         Array.prototype.slice.call(document.querySelectorAll('#dashboardSidebarMenu [data-dash-target]')).forEach(function(b){ b.classList.remove('bg-blue-50','text-blue-700','font-semibold'); });
         firstDashBtn.classList.add('bg-blue-50','text-blue-700','font-semibold');
+      }
+      if (dashboardPage) dashboardPage.scrollTop = 0;
+      var dashExecutiveSection = document.getElementById('dashExecutive');
+      if (dashExecutiveSection && dashExecutiveSection.scrollIntoView) {
+        dashExecutiveSection.scrollIntoView({ behavior: 'auto', block: 'start' });
       }
     }
 
@@ -5469,6 +5495,15 @@ function inferRequestPriority(stock, min) {
       else if (!adminPage.classList.contains('hidden')) setTabStyles('admin');
     });
     qaManageBtn.addEventListener('click', switchToManagePage);
+    if (txnReason) {
+      txnReason.addEventListener('change', function() {
+        var isOther = String(txnReason.value || '') === 'Other';
+        if (txnReasonRemark) {
+          txnReasonRemark.classList.toggle('hidden', !isOther);
+          if (!isOther) txnReasonRemark.value = '';
+        }
+      });
+    }
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
     if (tabDashboard) tabDashboard.addEventListener('click', switchToDashboardPage);
