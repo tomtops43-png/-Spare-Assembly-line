@@ -979,7 +979,7 @@
       </div>
       <div id="issueCartList" class="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1" style="-webkit-overflow-scrolling:touch;"></div>
       <div class="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <input id="issueCartBy" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="ผู้เบิก (required)" />
+        <input id="issueCartBy" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm bg-slate-100 text-slate-700" placeholder="ผู้เบิก (Auto)" readonly />
         <input id="issueCartProcess" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="ไลน์/งาน" />
         <input id="issueCartNote" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="หมายเหตุ (optional)" />
         <button id="issueCartSubmitBtn" type="button" style="background-color:#2563eb;border-color:#1d4ed8;color:#ffffff;" class="h-11 w-full rounded-lg border px-4 text-sm font-semibold shadow-sm">บันทึกรายการ</button>
@@ -1835,6 +1835,7 @@
       if (stockPage) stockPage.classList.add('invisible');
       lockBodyScroll();
       if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
+      syncTxnActorFields();
       setIssueCartMessage('', 'muted');
       renderIssueCart();
     }
@@ -1996,7 +1997,7 @@ function getIssueCartEntries() {
     function validateIssueCartSubmission(entries) {
       if (!canIssuePart()) return 'คุณไม่มีสิทธิ์ทำรายการเบิก';
       if (!entries.length) return 'ยังไม่มีรายการใน cart';
-      if (!issueCartBy || !String(issueCartBy.value || '').trim()) return 'กรุณาระบุผู้เบิก';
+      if (!issueCartBy || !String(issueCartBy.value || '').trim()) return 'ไม่พบผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่';
       for (var i = 0; i < entries.length; i += 1) {
         var entry = entries[i];
         var qty = safeNum(entry.qty);
@@ -2403,6 +2404,7 @@ function getIssueCartEntries() {
       var actor = currentUser && currentUser.username ? String(currentUser.username) : '';
       if (txnBy) txnBy.value = actor;
       if (quickIssueBy) quickIssueBy.value = actor;
+      if (issueCartBy) issueCartBy.value = actor;
     }
 
     function updateRequestOrderBadgeUI() {
