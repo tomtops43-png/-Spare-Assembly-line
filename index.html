@@ -979,9 +979,9 @@
     </div>
   </div>
 
-  <div id="issueCartModal" class="fixed inset-0 z-[120] hidden items-end md:items-center justify-center p-0 md:p-6">
-    <div id="issueCartBackdrop" class="absolute inset-0 bg-slate-900/45"></div>
-    <aside class="relative z-10 w-full h-[92vh] flex flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white p-4 md:h-auto md:max-h-[calc(100vh-64px)] md:w-[min(860px,calc(100vw-64px))] md:rounded-2xl md:p-5 panel-shadow">
+  <div id="issueCartModal" class="fixed inset-0 z-[9999] hidden items-end md:items-center justify-center p-0 md:p-6">
+    <div id="issueCartBackdrop" class="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px]"></div>
+    <aside class="relative z-10 w-full h-[92vh] flex flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white p-4 md:h-auto md:max-h-[calc(100vh-64px)] md:w-[min(720px,calc(100vw-64px))] md:rounded-2xl md:p-5 panel-shadow">
       <div class="sticky top-0 z-10 -mx-4 mb-3 flex items-center justify-between border-b border-slate-200 bg-white px-4 pb-2 pt-1 md:mx-0 md:border-0 md:px-0 md:pb-0 md:pt-0">
         <h3 class="text-lg font-bold">🛒 Issue Cart</h3>
         <button id="closeIssueCartBtn" type="button" class="h-9 w-9 rounded-full border border-slate-300 text-slate-600">×</button>
@@ -1860,6 +1860,8 @@
       if (!filterSheet.classList.contains('hidden')) filterSheet.classList.add('hidden');
       issueCartModal.classList.remove('hidden');
       issueCartModal.classList.add('flex');
+      if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
+      if (stockPage) stockPage.classList.add('invisible');
       lockBodyScroll();
       if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
       syncTxnActorFields();
@@ -1871,6 +1873,8 @@
       if (!issueCartModal || issueCartModal.classList.contains('hidden')) return;
       issueCartModal.classList.add('hidden');
       issueCartModal.classList.remove('flex');
+      if (stockStickyHeader) stockStickyHeader.classList.remove('hidden');
+      if (stockPage) stockPage.classList.remove('invisible');
       unlockBodyScroll();
     }
 
