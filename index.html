@@ -255,7 +255,7 @@
         </div>
 
         <div id="mobileCardList" class="grid grid-cols-2 gap-3 lg:hidden"></div>
-        <div id="desktopCardGrid" class="hidden lg:grid lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3"></div>
+        <div id="desktopCardGrid" class="hidden lg:grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));"></div>
         <div id="paginationControls" class="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm"></div>
       </section>
     </section>
@@ -1194,6 +1194,13 @@
     var currentTxnItemNo = '';
     var currentPage = 1;
     var pageSize = 10;
+    function updateResponsivePageSize() {
+      var w = window.innerWidth || 0;
+      if (w < 768) pageSize = 10;
+      else if (w < 1200) pageSize = 12;
+      else if (w < 1600) pageSize = 24;
+      else pageSize = 30;
+    }
     var tableStatusMode = 'all';
     var issueCartState = {};
     var issueCartSubmitting = false;
@@ -5008,7 +5015,7 @@ function inferRequestPriority(stock, min) {
           '<div class="mt-3 min-h-[62px] ' + visualState.contentClass + '">' +
             '<p class="font-extrabold text-[17px] text-slate-900 leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + item.name + '</p>' +
             '<p class="text-[13px] text-slate-400 mt-1.5 truncate">' + (item.model || '-') + '</p>' +
-            '<p class="text-[11px] text-slate-400 mt-1 truncate">Sub-line: ' + (item.subLine || '-') + '</p>' +
+            '<p class="text-[11px] text-slate-400 mt-1 truncate">Location: ' + (item.location || '-') + '</p>' +
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
             '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs ' + tone.badgeClass + '">' + status + '</span>' +
@@ -5043,16 +5050,6 @@ function inferRequestPriority(stock, min) {
         });
       });
 
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-key]')).forEach(function(btn){
-        btn.addEventListener('click', function(e){
-          e.preventDefault();
-          e.stopPropagation();
-          var key = btn.getAttribute('data-edit-key');
-          var found = findItemByIdentityKey(key);
-          if (found) openEditModal(found);
-        });
-      });
-
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-issue-no]')).forEach(function(btn){
         btn.addEventListener('click', function(){
           openTxnPageWithItem(btn.getAttribute('data-issue-no'), 'Output');
@@ -5067,19 +5064,6 @@ function inferRequestPriority(stock, min) {
           var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
           if (!found || safeNum(found.stock) <= 0) return alert('Stock ไม่พอ');
           addItemToIssueCart(found, 1);
-        });
-      });
-
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-delete-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(){
-          var no = btn.getAttribute('data-delete-no');
-          if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
-          callManageAction('deleteItem', { sheet: getCurrentSheetName(), no: no }).then(function(res){
-            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
-            loadPartsData();
-          }).catch(function(err){
-            alert('ลบไม่สำเร็จ: ' + err.message);
-          });
         });
       });
     }
@@ -5124,7 +5108,7 @@ function inferRequestPriority(stock, min) {
           '<div class="mt-2 ' + visualState.contentClass + '">' +
             '<p class="font-extrabold text-[16px] leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.5rem;">' + item.name + '</p>' +
             '<p class="mt-1.5 text-[12px] text-slate-400 truncate">' + (item.model || '-') + '</p>' +
-            '<p class="mt-1 text-[11px] text-slate-400 truncate">Sub-line: ' + (item.subLine || '-') + '</p>' +
+            '<p class="mt-1 text-[11px] text-slate-400 truncate">Location: ' + (item.location || '-') + '</p>' +
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
             '<span class="inline-flex items-center justify-center px-2 py-1 rounded-full text-[10px] font-semibold ' + tone.badgeClass + '">' + status + '</span>' +
@@ -5146,16 +5130,6 @@ function inferRequestPriority(stock, min) {
         var target = e.target;
         if (!target || !target.closest) return;
 
-        var editBtn = target.closest('[data-mobile-edit-key]');
-        if (editBtn) {
-          e.preventDefault();
-          e.stopPropagation();
-          var editKey = editBtn.getAttribute('data-mobile-edit-key');
-          var editFound = findItemByIdentityKey(editKey);
-          if (editFound) openEditModal(editFound);
-          return;
-        }
-
         var mobileCartBtn = target.closest('[data-mobile-cart-add-no]');
         if (mobileCartBtn) {
           var cartNo = mobileCartBtn.getAttribute('data-mobile-cart-add-no');
@@ -5169,21 +5143,6 @@ function inferRequestPriority(stock, min) {
           e.preventDefault();
           e.stopPropagation();
           openQuickIssueModal(issueBtn.getAttribute('data-mobile-issue-no'));
-          return;
-        }
-
-        var deleteBtn = target.closest('[data-mobile-delete-no]');
-        if (deleteBtn) {
-          e.preventDefault();
-          e.stopPropagation();
-          var deleteNo = deleteBtn.getAttribute('data-mobile-delete-no');
-          if (!confirm('ยืนยันการลบรายการ NO: ' + deleteNo + ' ?')) return;
-          callManageAction('deleteItem', { sheet: getCurrentSheetName(), no: deleteNo }).then(function(res){
-            if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
-            loadPartsData();
-          }).catch(function(err){
-            alert('ลบไม่สำเร็จ: ' + err.message);
-          });
           return;
         }
 
@@ -5362,6 +5321,7 @@ function inferRequestPriority(stock, min) {
     }
 
     function applyFilters(resetPage) {
+      updateResponsivePageSize();
       if (typeof resetPage === 'undefined') resetPage = true;
       var keyword = searchInput.value.trim().toLowerCase();
       var category = categoryFilter.value;
@@ -5588,7 +5548,7 @@ if (dashboardPage) {
         switchToRequestOrderPage();
       });
     }
-    window.addEventListener('resize', initDashboardSidebarNav);
+    window.addEventListener('resize', function(){ initDashboardSidebarNav(); if (!stockPage.classList.contains('hidden')) { applyFilters(false); } });
     lineMenuDockToggle.addEventListener('click', function() {
       if (window.innerWidth < 1024 && topNavTabs) {
         topNavTabs.classList.toggle('-translate-x-full');
