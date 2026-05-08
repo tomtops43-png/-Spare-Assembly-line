@@ -6,7 +6,7 @@ SPARE_APP_CONFIG.readSheetName = SPARE_APP_CONFIG.readSheetName || 'Main List St
 SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Log';
 SPARE_APP_CONFIG.usersSheetName = SPARE_APP_CONFIG.usersSheetName || 'Users';
 SPARE_APP_CONFIG.requestSheetName = SPARE_APP_CONFIG.requestSheetName || 'OrderRequests';
-var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After'];
+var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After', 'Reason', 'Reason Remark'];
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
 var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at'];
 var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
@@ -671,7 +671,17 @@ function ensureLogSheetHeaders(historySheet) {
     return;
   }
 
-  var firstRow = historySheet.getRange(1, 1, 1, LOG_HEADERS.length).getValues()[0];
+  var oldHeaders = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After'];
+  var currentWidth = Math.max(historySheet.getLastColumn(), LOG_HEADERS.length);
+  var firstRow = historySheet.getRange(1, 1, 1, currentWidth).getValues()[0];
+  var oldMatch = true;
+  for (var oh = 0; oh < oldHeaders.length; oh += 1) {
+    if (String(firstRow[oh] || '') !== oldHeaders[oh]) { oldMatch = false; break; }
+  }
+  if (oldMatch) {
+    historySheet.getRange(1, 1, 1, LOG_HEADERS.length).setValues([LOG_HEADERS]);
+    return;
+  }
   var isSame = true;
   for (var i = 0; i < LOG_HEADERS.length; i += 1) {
     if (String(firstRow[i] || '') !== LOG_HEADERS[i]) {
@@ -698,6 +708,8 @@ function parseTransactionPayloadFromGet(e) {
     qty: e.parameter.qty,
     unit: e.parameter.unit,
     by: e.parameter.by,
+    reason: e.parameter.reason,
+    reasonRemark: e.parameter.reasonRemark,
     sheetName: e.parameter.sheet
   };
 }
@@ -709,23 +721,34 @@ function getLogRows() {
 
   var data = historySheet.getDataRange().getValues();
   if (data.length <= 1) return [];
+  var headerMap = buildHeaderIndexMap(data[0] || []);
+
+  function pick(row, keys, fallback) {
+    for (var i = 0; i < keys.length; i += 1) {
+      var idx = headerMap[keys[i]];
+      if (idx !== undefined) return row[idx];
+    }
+    return fallback;
+  }
 
   return data.slice(1).map(function (row, idx) {
     return {
       no: idx + 1,
-      timestamp: row[0],
-      type: row[1],
-      process: row[2],
-      category: row[3],
-      partName: row[4],
-      model: row[5],
-      brand: row[6],
-      qty: row[7],
-      unit: row[8],
-      by: row[9],
-      partNo: row[10],
-      stockBefore: row[11],
-      stockAfter: row[12]
+      timestamp: pick(row, ['timestamp'], ''),
+      type: pick(row, ['type'], ''),
+      process: pick(row, ['process'], ''),
+      category: pick(row, ['category'], ''),
+      partName: pick(row, ['partname'], ''),
+      model: pick(row, ['model'], ''),
+      brand: pick(row, ['brand'], ''),
+      qty: pick(row, ['qty'], 0),
+      unit: pick(row, ['unit'], ''),
+      by: pick(row, ['by'], ''),
+      reason: pick(row, ['reason'], ''),
+      reasonRemark: pick(row, ['reasonremark'], ''),
+      partNo: pick(row, ['partno'], ''),
+      stockBefore: pick(row, ['stockbefore'], 0),
+      stockAfter: pick(row, ['stockafter'], 0)
     };
   }).reverse();
 }
@@ -805,7 +828,9 @@ function processTransaction(payload) {
     payload.by || 'Unknown',
     payload.partNo || '',
     stockBefore,
-    stockAfter
+    stockAfter,
+    payload.reason || '',
+    payload.reasonRemark || ''
   ]);
 
   return {
