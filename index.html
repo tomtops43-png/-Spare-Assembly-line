@@ -1020,7 +1020,7 @@
 
   <div id="issueCartModal" class="fixed inset-0 z-[9999] hidden items-end md:items-center justify-center p-0 md:p-6">
     <div id="issueCartBackdrop" class="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px]"></div>
-    <aside class="relative z-10 w-full h-[92vh] flex flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white p-4 md:h-auto md:max-h-[calc(100vh-64px)] md:w-[min(720px,calc(100vw-64px))] md:rounded-2xl md:p-5 panel-shadow">
+    <aside class="relative z-10 w-full h-[100dvh] flex flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white p-4 md:h-auto md:max-h-[calc(100vh-64px)] md:w-[min(720px,calc(100vw-64px))] md:rounded-2xl md:p-5 panel-shadow">
       <div class="sticky top-0 z-10 -mx-4 mb-3 flex items-center justify-between border-b border-slate-200 bg-white px-4 pb-2 pt-1 md:mx-0 md:border-0 md:px-0 md:pb-0 md:pt-0">
         <h3 class="text-lg font-bold">🛒 Issue Cart</h3>
         <button id="closeIssueCartBtn" type="button" class="h-9 w-9 rounded-full border border-slate-300 text-slate-600">×</button>
@@ -5256,7 +5256,7 @@ function inferRequestPriority(stock, min) {
 
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('article[data-row-key]')).forEach(function(row){ row.addEventListener('click', function(e){ if (e.target.closest('button')) return; var f=findItemByIdentityKey(row.getAttribute('data-row-key')); if(f) openDetailModal(f); }); });
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-view-key]')).forEach(function(btn){btn.addEventListener('click', function(){var f=findItemByIdentityKey(btn.getAttribute('data-view-key')); if(f) openDetailModal(f);});});
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-issue-no]')).forEach(function(btn){btn.addEventListener('click', function(){openTxnPageWithItem(btn.getAttribute('data-issue-no'), 'Output');});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-issue-no]')).forEach(function(btn){btn.addEventListener('click', function(){openQuickIssueModal(btn.getAttribute('data-issue-no'));});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-cart-add-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var no=btn.getAttribute('data-cart-add-no'); var f=partsData.filter(function(p){return String(p.no)===String(no);})[0]; if(!f||safeNum(f.stock)<=0) return; addItemToIssueCart(f,1);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-key]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=findItemByIdentityKey(btn.getAttribute('data-edit-key')); if(f) openEditModal(f);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-delete-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); deleteItemByNo(btn.getAttribute('data-delete-no'));});});
