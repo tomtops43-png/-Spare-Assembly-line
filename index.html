@@ -5074,6 +5074,21 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    function deleteItemByNo(no) {
+      var itemNo = String(no || '').trim();
+      if (!itemNo) return;
+      var found = partsData.filter(function(p){ return String(p.no) === itemNo; })[0] || {};
+      var targetSheet = String(found.__sourceSheet || getCurrentSheetName() || '').trim();
+      if (!confirm('ยืนยันการลบรายการ NO: ' + itemNo + ' ?')) return;
+      callManageAction('deleteItem', { sheet: targetSheet, no: itemNo }).then(function(res){
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+        loadPartsData();
+      }).catch(function(err){
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = err.message;
+      });
+    }
+
     function deleteManageItem() {
       var no = document.getElementById('mNo').value.trim();
       if (!no) {
@@ -5241,6 +5256,24 @@ function inferRequestPriority(stock, min) {
           addItemToIssueCart(found, 1);
         });
       });
+
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-key]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          var key = btn.getAttribute('data-edit-key');
+          var found = findItemByIdentityKey(key);
+          if (found) openEditModal(found);
+        });
+      });
+
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-delete-no]')).forEach(function(btn){
+        btn.addEventListener('click', function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          deleteItemByNo(btn.getAttribute('data-delete-no'));
+        });
+      });
     }
 
     function renderMobileCards(data) {
@@ -5318,6 +5351,25 @@ function inferRequestPriority(stock, min) {
           e.preventDefault();
           e.stopPropagation();
           openQuickIssueModal(issueBtn.getAttribute('data-mobile-issue-no'));
+          return;
+        }
+
+
+        var mobileEditBtn = target.closest('[data-mobile-edit-key]');
+        if (mobileEditBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          var editKey = mobileEditBtn.getAttribute('data-mobile-edit-key');
+          var editFound = findItemByIdentityKey(editKey);
+          if (editFound) openEditModal(editFound);
+          return;
+        }
+
+        var mobileDeleteBtn = target.closest('[data-mobile-delete-no]');
+        if (mobileDeleteBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          deleteItemByNo(mobileDeleteBtn.getAttribute('data-mobile-delete-no'));
           return;
         }
 
