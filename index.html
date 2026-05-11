@@ -260,7 +260,7 @@
             <option value="all">แบรนด์ทั้งหมด</option>
           </select>
           <select id="coilSizeFilter" class="w-full lg:w-44 rounded-xl border border-slate-300 px-4 py-2.5 bg-white hidden">
-            <option value="all">All Coil Size</option><option>10</option><option>16</option><option>20</option><option>25/32</option><option>Common</option><option>Other</option>
+            <option value="all">All Coil Size</option>
           </select>
           <select id="sortFilter" class="w-full lg:w-48 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="default">เรียงตามเดิม</option>
@@ -1717,6 +1717,8 @@
       console.log('[item data after save/load]', partsData);
       populateCategoryOptions(partsData);
       populateBrandOptions(partsData);
+      populateCoilSizeOptions(partsData);
+      syncCoilFilterVisibility();
       populatePartOptions(partsData);
       populateTxnFilters(partsData);
       populateManageLineOptions(false);
@@ -5175,6 +5177,30 @@ function inferRequestPriority(stock, min) {
         brandFilterMobile.appendChild(mobileOption);
       });
     }
+    function populateCoilSizeOptions(data) {
+      if (!coilSizeFilter) return;
+      var fixed = ['10A', '16A', '20A', '25/32A', 'Common'];
+      var skip = { '': true, '-': true, 'all': true };
+      var extras = [];
+      var seen = {};
+      fixed.forEach(function(v){ seen[v] = true; });
+      (data || []).forEach(function(item){
+        var value = String(item.coil_size || '').trim();
+        if (!value) return;
+        var lower = value.toLowerCase();
+        if (skip[value] || skip[lower] || seen[value]) return;
+        seen[value] = true;
+        extras.push(value);
+      });
+      extras.sort(function(a, b){ return a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' }); });
+      var selected = String(coilSizeFilter.value || 'all');
+      var html = ['<option value="all">All Coil Size</option>']
+        .concat(fixed.map(function(v){ return '<option value="' + v + '">' + v + '</option>'; }))
+        .concat(extras.map(function(v){ return '<option value="' + v + '">' + v + '</option>'; }))
+        .join('');
+      coilSizeFilter.innerHTML = html;
+      coilSizeFilter.value = seen[selected] || selected === 'all' ? selected : 'all';
+    }
 
     function renderStats(data) {
       var lowCount = data.filter(function(item) { return getStockStatus(item) === 'LOW'; }).length;
@@ -5587,7 +5613,7 @@ function inferRequestPriority(stock, min) {
           || ((selectedStatus === 'low' || selectedStatus === 'near') && status === 'LOW')
           || (selectedStatus === 'ok' && status === 'OK');
         var hitBrand = selectedBrand === 'all' || item.brand === selectedBrand;
-        var hitCoil = selectedCoilSize === 'all' || String(item.coil_size || '-').trim() === selectedCoilSize || (selectedCoilSize === 'Other' && ['10','16','20','25/32','Common','-',''].indexOf(String(item.coil_size||'').trim()) === -1);
+        var hitCoil = selectedCoilSize === 'all' || String(item.coil_size || '-').trim() === selectedCoilSize;
         return hitSearch && hitCategory && hitLine && hitStatus && hitBrand && hitCoil;
       });
 
@@ -5600,7 +5626,12 @@ function inferRequestPriority(stock, min) {
       renderFilteredResults(filtered);
     }
 
-    function syncCoilFilterVisibility(){ if(!coilSizeFilter) return; coilSizeFilter.classList.toggle('hidden', String(currentLine || '').toLowerCase().indexOf('coil')===-1); }
+    function syncCoilFilterVisibility(){
+      if(!coilSizeFilter) return;
+      var isCoilLine = String(currentLine || '').toLowerCase() === 'coil winding';
+      coilSizeFilter.classList.toggle('hidden', !isCoilLine);
+      if (!isCoilLine) coilSizeFilter.value = 'all';
+    }
     categoryFilter.addEventListener('change', applyFilters);
     statusFilter.addEventListener('change', function(){ tableStatusMode = 'all'; applyFilters(); });
     brandFilter.addEventListener('change', applyFilters);
