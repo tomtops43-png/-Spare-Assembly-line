@@ -5402,8 +5402,9 @@ function inferRequestPriority(stock, min) {
       document.getElementById('detailPriceUpdatedAt').textContent = formatBangkokDateTime(item.price_updated_at);
       document.getElementById('detailPriceRemark').textContent = item.price_remark || '-';
       document.getElementById('detailRemark').textContent = item.remark || '-';
+      var needToOrder = getNeedToOrder(item);
       var detailMetaParts = [item.brand, item.category, item.line, (item.subLine || item.__sourceSheet || '')].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
-            var metaText = detailMetaParts.join(' • ');
+      var metaText = detailMetaParts.join(' • ');
       document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
       ['Model', 'Brand', 'Category', 'Line'].forEach(function(field) {
         var valueEl = document.getElementById('detail' + field);
