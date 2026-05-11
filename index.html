@@ -5305,6 +5305,7 @@ function inferRequestPriority(stock, min) {
         return '<article data-view-key="' + itemKey + '" class="relative rounded-2xl border p-3 h-[380px] flex flex-col shadow-sm transition-all duration-200 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative h-[150px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
             '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain bg-slate-50 p-1 transform scale-[1.08] transition duration-300 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+            (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-lg') + '</div>' : '') +
           '</div>' +
           '<div class="mt-2 h-[88px] overflow-hidden ' + visualState.contentClass + '">' +
             '<p class="font-extrabold text-[16px] leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.5rem;">' + item.name + '</p>' +
