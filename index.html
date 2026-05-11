@@ -5434,9 +5434,10 @@ function inferRequestPriority(stock, min) {
         detailAddToCartBtn.classList.toggle('opacity-50', !canAddToCart);
         detailAddToCartBtn.classList.toggle('cursor-not-allowed', !canAddToCart);
       }
+      var wasHidden = detailModal.classList.contains('hidden');
       detailModal.classList.remove('hidden');
       detailModal.classList.add('flex');
-      lockBodyScroll();
+      if (wasHidden) lockBodyScroll();
     }
 
     function closeDetailModal() {
