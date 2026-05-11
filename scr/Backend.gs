@@ -1063,7 +1063,8 @@ function upsertMainItem(payload) {
     currency: findCol(['currency']),
     supplier: findCol(['supplier']),
     price_updated_at: findCol(['priceupdatedat', 'price_updated_at']),
-    price_remark: findCol(['priceremark', 'price_remark'])
+    price_remark: findCol(['priceremark', 'price_remark']),
+    coil_size: findCol(['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size', 'size', 'type'])
   };
 
   if (fieldCols.brand === undefined) {
@@ -1108,6 +1109,9 @@ function upsertMainItem(payload) {
   if (fieldCols.price_remark === undefined) {
     fieldCols.price_remark = ensureColumnInContext(ctx, 'Price Remark', ['priceremark', 'price_remark']);
   }
+  if (fieldCols.coil_size === undefined) {
+    fieldCols.coil_size = ensureColumnInContext(ctx, 'Coil Size', ['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size', 'size', 'type']);
+  }
 
   if (fieldCols.image_install_file_id === undefined) {
     fieldCols.image_install_file_id = ensureColumnInContext(ctx, 'image_install_file_id', ['image_install_file_id', 'imageinstallfileid']);
@@ -1146,7 +1150,8 @@ function upsertMainItem(payload) {
     currency: payload.currency || 'THB',
     supplier: payload.supplier || '',
     price_updated_at: payload.price_updated_at || '',
-    price_remark: payload.price_remark || ''
+    price_remark: payload.price_remark || '',
+    coil_size: payload.coil_size || payload.machine_model || '-'
   };
   Logger.log('[upsertMainItem] sheet=%s no=%s location=%s', sheetName, noValue, values.location);
   setLocationOverride(sheetName, noValue, values.location);
@@ -1466,7 +1471,8 @@ function doPost(e) {
         currency: body.currency,
         supplier: body.supplier,
         price_updated_at: body.price_updated_at,
-        price_remark: body.price_remark
+        price_remark: body.price_remark,
+        coil_size: body.coil_size || body.machine_model
       }), e);
     }
     if (action === 'uploadImage' || action === 'upload') {
