@@ -258,6 +258,9 @@
           <select id="brandFilter" class="w-full lg:w-44 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="all">แบรนด์ทั้งหมด</option>
           </select>
+          <select id="coilSizeFilter" class="w-full lg:w-44 rounded-xl border border-slate-300 px-4 py-2.5 bg-white hidden">
+            <option value="all">All Coil Size</option><option>10</option><option>16</option><option>20</option><option>25/32</option><option>Common</option><option>Other</option>
+          </select>
           <select id="sortFilter" class="w-full lg:w-48 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="default">เรียงตามเดิม</option>
             <option value="needpo_desc">Need to PO มากสุด</option>
@@ -548,6 +551,8 @@
         </div>
         <input id="mName" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Name" required />
         <input id="mModel" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Model" />
+        <select id="mCoilSize" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white"><option value="">Machine Model / Coil Size</option><option>10</option><option>16</option><option>20</option><option>25/32</option><option>Common</option><option>Other</option></select>
+        <input id="mCoilSizeOther" type="text" class="hidden rounded-xl border border-slate-300 px-3 py-2.5" placeholder="กรอก Coil Size อื่นๆ" />
         <select id="mLine" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" required>
           <option value="">เลือก LINE MAIN</option>
         </select>
@@ -582,6 +587,25 @@
           <button id="btnDeleteItem" type="button" class="flex-1 rounded-xl bg-rose-600 text-white px-4 py-2.5 font-semibold">ลบ</button>
         </div>
       </form>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <input id="importExcelFile" type="file" accept=".xlsx,.csv" class="hidden" />
+        <button id="importExcelBtn" type="button" class="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700">📥 Import Excel</button>
+      </div>
+      <div id="importPreviewPanel" class="mt-3 hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div class="mb-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+          <p id="importTotalCount">ทั้งหมด: 0</p><p id="importReadyCount">พร้อมนำเข้า: 0</p><p id="importDuplicateCount">Duplicate: 0</p><p id="importErrorCount">Error: 0</p>
+        </div>
+        <div id="importMappingPanel" class="mb-2 hidden rounded-lg border border-slate-200 bg-white p-2 text-xs"></div>
+        <p class="mb-2 text-xs font-semibold text-emerald-700">หลังตรวจ Mapping/Preview แล้ว ให้กดปุ่ม “✅ เอาเข้าระบบ (Confirm Import)” เพื่อบันทึกจริง</p>
+        <div class="mb-2 flex flex-wrap items-center gap-2">
+          <label class="text-xs font-semibold text-slate-700">Sheet ปลายทาง:</label>
+          <select id="importSheetSelect" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"></select>
+          <button id="confirmImportBtn" type="button" aria-label="เอาเข้าระบบ (Confirm Import)" class="inline-flex w-auto items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm whitespace-nowrap">✅ เอาเข้าระบบ (Confirm Import)</button>
+        </div>
+        <div class="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white">
+          <table class="min-w-full text-xs"><thead class="bg-slate-100"><tr><th class="px-2 py-1 text-left">Part Name</th><th class="px-2 py-1 text-left">Model</th><th class="px-2 py-1 text-left">Stock</th><th class="px-2 py-1 text-left">Status</th></tr></thead><tbody id="importPreviewTable"></tbody></table>
+        </div>
+      </div>
       <p id="manageMessage" class="mt-3 text-sm"></p>
     </section>
 
@@ -884,6 +908,7 @@
         <div><label class="text-xs text-slate-500">Sheet</label><input id="eSheet" class="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-600" readonly /></div>
         <div><label class="text-xs text-slate-500">Name / Description</label><input id="eName" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
         <div><label class="text-xs text-slate-500">Model</label><input id="eModel" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
+          <div><label class="text-xs text-slate-500">Machine Model / Coil Size</label><input id="eCoilSize" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Location</label><input id="eLocation" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
@@ -1100,6 +1125,7 @@
   </div>
 
 
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     (function installLegacyRuntimeGuard() {
       window.addEventListener('error', function(ev) {
@@ -1135,6 +1161,7 @@
     var categoryFilter = document.getElementById('categoryFilter');
     var statusFilter = document.getElementById('statusFilter');
     var brandFilter = document.getElementById('brandFilter');
+    var coilSizeFilter = document.getElementById('coilSizeFilter');
     var searchInput = document.getElementById('searchInput');
     var searchInputMobile = document.getElementById('searchInputMobile');
     var searchClearBtn = document.getElementById('searchClearBtn');
@@ -1313,6 +1340,14 @@
     var manageNoInput = document.getElementById('mNo');
     var manageSheetSelect = document.getElementById('mSheet');
     var manageLineSelect = document.getElementById('mLine');
+    var importExcelBtn = document.getElementById('importExcelBtn');
+    var importExcelFile = document.getElementById('importExcelFile');
+    var importPreviewPanel = document.getElementById('importPreviewPanel');
+    var importPreviewTable = document.getElementById('importPreviewTable');
+    var importSheetSelect = document.getElementById('importSheetSelect');
+    var importMappingPanel = document.getElementById('importMappingPanel');
+    var confirmImportBtn = document.getElementById('confirmImportBtn');
+    var importState = { rows: [] };
     var currentLine = 'H9';
     var authToken = localStorage.getItem('spare_auth_token') || '';
     var currentUser = null;
@@ -1584,7 +1619,8 @@
         currency: firstDefined([item.currency], 'THB'),
         supplier: firstDefined([item.supplier], ''),
         price_updated_at: firstDefined([item.price_updated_at], ''),
-        price_remark: firstDefined([item.price_remark], '')
+        price_remark: firstDefined([item.price_remark], ''),
+        coil_size: firstDefined([item.coil_size, item.machine_model, item.model_size, item.size, item.type], '-')
       };
     }
 
@@ -4716,9 +4752,10 @@ function inferRequestPriority(stock, min) {
       }
       if (lineMenuDockToggle) lineMenuDockToggle.classList.add('hidden');
       document.getElementById('eNo').value = item.no || '';
-      document.getElementById('eSheet').value = getCurrentSheetName();
+      document.getElementById('eSheet').value = item.__sourceSheet || getCurrentSheetName();
       document.getElementById('eName').value = item.name || '';
       document.getElementById('eModel').value = item.model || '';
+      var eCoilSize = document.getElementById('eCoilSize'); if (eCoilSize) eCoilSize.value = item.coil_size || item.machine_model || '';
       document.getElementById('eLine').value = item.line || '';
       document.getElementById('eLocation').value = item.location || '';
       document.getElementById('eCategory').value = item.category || '';
@@ -4787,7 +4824,8 @@ function inferRequestPriority(stock, min) {
         currency: document.getElementById('eCurrency').value.trim() || 'THB',
         supplier: document.getElementById('eSupplier').value.trim(),
         price_updated_at: document.getElementById('ePriceUpdatedAt').value.trim(),
-        price_remark: document.getElementById('ePriceRemark').value.trim()
+        price_remark: document.getElementById('ePriceRemark').value.trim(),
+        coil_size: (document.getElementById('eCoilSize') ? document.getElementById('eCoilSize').value.trim() : '')
       };
       console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       editMessage.className = 'mt-3 text-sm text-emerald-600';
@@ -4832,6 +4870,142 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+
+    function getAllowedSheetsForLine(lineKey) {
+      var key = String(lineKey || '').trim();
+      var all = [];
+      Object.keys(LINE_SHEET_OPTIONS || {}).forEach(function(line) {
+        (LINE_SHEET_OPTIONS[line] || []).forEach(function(sheet) { all.push(String(sheet || '').trim()); });
+      });
+      if (sheetSelector && sheetSelector.options && sheetSelector.options.length) {
+        Array.prototype.slice.call(sheetSelector.options).forEach(function(opt) { all.push(String(opt.value || '').trim()); });
+      }
+      var uniqueAll = Array.from(new Set(all.filter(Boolean)));
+      if (key && LINE_SHEET_OPTIONS[key] && LINE_SHEET_OPTIONS[key].length) {
+        var preferred = LINE_SHEET_OPTIONS[key].map(function(sheet){ return String(sheet || '').trim(); }).filter(Boolean);
+        return preferred.concat(uniqueAll.filter(function(sheet){ return preferred.indexOf(sheet) === -1; }));
+      }
+      return uniqueAll.length ? uniqueAll : ['Main List Stock'];
+    }
+
+    function normalizeImportHeader(key) {
+      return String(key || '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+    }
+
+    function parseImportFile(file) {
+      return file.arrayBuffer().then(function(buffer) {
+        var workbook = XLSX.read(buffer, { type: 'array' });
+        var firstSheet = workbook.SheetNames[0];
+        var matrix = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, defval: '' });
+        return matrix;
+      });
+    }
+
+    function detectHeaderRow(matrix) {
+      var expected = ['bagno','picture','itemnumber','nppa','code','name'];
+      var bestIndex = 0; var bestScore = -1;
+      for (var i=0;i<Math.min(matrix.length,10);i++) {
+        var row = matrix[i] || [];
+        var score = 0;
+        row.forEach(function(cell){ var n = normalizeImportHeader(cell); if (expected.indexOf(n) > -1) score += 1; });
+        if (score > bestScore) { bestScore = score; bestIndex = i; }
+      }
+      return bestIndex;
+    }
+
+    function getDefaultCoilMapping(headers) {
+      var map = { no:'', image:'', part_no:'', nppa:'', model:'', name:'', coil_size:'' };
+      headers.forEach(function(h){
+        var n = normalizeImportHeader(h);
+        if (n === 'bagno') map.no = h;
+        else if (n === 'picture') map.image = h;
+        else if (n === 'itemnumber') map.part_no = h;
+        else if (n === 'nppa') map.nppa = h;
+        else if (n === 'code') map.model = h;
+        else if (n === 'name') map.name = h;
+        else if (['machinemodel','coilsize','size','type','modelsize'].indexOf(n)>-1) map.coil_size = h;
+      });
+      return map;
+    }
+
+    function renderMappingPanel(headers, mapping) {
+      if (!importMappingPanel) return;
+      var options = '<option value="">(ไม่ใช้)</option>' + headers.map(function(h){ return '<option value="'+h+'">'+h+'</option>'; }).join('');
+      var fields = [
+        {k:'no',l:'Bag No. -> NO'}, {k:'image',l:'Picture -> Image URL'}, {k:'part_no',l:'Item Number -> Part No'},
+        {k:'nppa',l:'NPPA -> NPPA'}, {k:'model',l:'Code -> Model'}, {k:'name',l:'Name -> Part Name'}, {k:'coil_size',l:'Machine Model/Coil Size'}
+      ];
+      importMappingPanel.innerHTML = '<p class="mb-1 font-semibold">Mapping Preview (Coil Winding)</p><label class="mb-2 flex items-center gap-2"><span class="w-44">Default Coil Size</span><select id="importDefaultCoilSize" class="rounded border border-slate-300 px-2 py-1"><option value="-">-</option><option>10</option><option>16</option><option>20</option><option>25/32</option><option>Common</option><option>Other</option></select></label>' + fields.map(function(f){
+        return '<label class="mb-1 flex items-center gap-2"><span class="w-44">'+f.l+'</span><select data-map="'+f.k+'" class="rounded border border-slate-300 px-2 py-1">'+options+'</select></label>';
+      }).join('');
+      fields.forEach(function(f){ var el=importMappingPanel.querySelector('[data-map="'+f.k+'"]'); if(el) el.value = mapping[f.k] || ''; });
+      importMappingPanel.classList.remove('hidden');
+    }
+
+    function readMappingFromPanel() {
+      var out = {};
+      ['no','image','part_no','nppa','model','name','coil_size'].forEach(function(k){
+        var el = importMappingPanel ? importMappingPanel.querySelector('[data-map="'+k+'"]') : null;
+        out[k] = el ? String(el.value || '') : '';
+      });
+      return out;
+    }
+
+    function renderImportPreview(rows) {
+      var total = rows.length;
+      var ready = rows.filter(function(r){ return r.status === 'ready'; }).length;
+      var dup = rows.filter(function(r){ return r.status === 'duplicate'; }).length;
+      var err = rows.filter(function(r){ return r.status === 'error'; }).length;
+      document.getElementById('importTotalCount').textContent = 'ทั้งหมด: ' + total;
+      document.getElementById('importReadyCount').textContent = 'พร้อมนำเข้า: ' + ready;
+      document.getElementById('importDuplicateCount').textContent = 'Duplicate: ' + dup;
+      document.getElementById('importErrorCount').textContent = 'Error: ' + err;
+      importPreviewTable.innerHTML = rows.map(function(r){ return '<tr class="border-t border-slate-100"><td class="px-2 py-1">'+(r.name||'-')+'</td><td class="px-2 py-1">'+(r.model||'-')+'</td><td class="px-2 py-1">'+r.stock+'</td><td class="px-2 py-1">'+r.status+'</td></tr>'; }).join('');
+      importPreviewPanel.classList.remove('hidden');
+    }
+
+    function buildImportRows(rawRows, mapping) {
+      var existing = {};
+      partsData.forEach(function(p){ existing[(String(p.name||'').trim().toLowerCase())+'||'+(String(p.model||'').trim().toLowerCase())]=true; });
+      var seen = {};
+      return rawRows.map(function(row, idx) {
+        var name = String(row[mapping.name] || '').trim();
+        var model = String(row[mapping.model] || '').trim();
+        var key = name.toLowerCase() + '||' + model.toLowerCase();
+        var status = name ? 'ready' : 'error';
+        if (status === 'ready' && (existing[key] || seen[key])) status = 'duplicate';
+        seen[key] = true;
+        return {
+          no: String(row[mapping.no] || '').trim(),
+          name: name,
+          model: model,
+          brand: '-', category: 'Mechanical', location: '-',
+          min: 0, max: 0, stock: 0, unit: 'PCS', unit_price: 0,
+          supplier: '-', image_main_url: String(row[mapping.image] || '').trim(),
+          part_no: String(row[mapping.part_no] || '').trim(),
+          nppa: String(row[mapping.nppa] || '').trim(),
+          coil_size: String(row[mapping.coil_size] || importState.defaultCoilSize || '-').trim() || '-',
+          line: 'Coil Winding', sheet: '', status: status, row: idx + 1
+        };
+      });
+    }
+
+    function confirmImportRows() {
+      var targetSheet = String(importSheetSelect.value || '').trim() || String(manageSheetSelect.value || '').trim();
+      if (!targetSheet) { alert('กรุณาเลือก Sheet ก่อน import'); return; }
+      var readyRows = importState.rows.filter(function(r){ return r.status === 'ready'; });
+      if (!readyRows.length) { alert('ไม่มีรายการพร้อม import'); return; }
+      manageMessage.className = 'mt-3 text-sm text-slate-600';
+      manageMessage.textContent = 'กำลัง import ' + readyRows.length + ' รายการ...';
+      var chain = Promise.resolve();
+      readyRows.forEach(function(r) {
+        chain = chain.then(function() {
+          return callManageAction('upsertItem', { sheet: r.sheet || targetSheet, no: r.no || '', name: r.name, model: r.model, line: r.line || 'Coil Winding', location: r.location, category: r.category, brand: r.brand, photo: r.image_main_url, image_main_url: r.image_main_url, image_main: r.image_main_url, max: r.max, min: r.min, unit: r.unit, stock: r.stock, unit_price: r.unit_price, currency: 'THB', supplier: r.supplier, price_updated_at: '', price_remark: '' });
+        });
+      });
+      chain.then(function() { manageMessage.className='mt-3 text-sm text-emerald-600'; manageMessage.textContent='Import สำเร็จ ' + readyRows.length + ' รายการ'; importPreviewPanel.classList.add('hidden'); loadPartsData(); });
+    }
+
     function submitManageItem(event) {
       event.preventDefault();
       if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
@@ -4873,7 +5047,8 @@ function inferRequestPriority(stock, min) {
         currency: document.getElementById('mCurrency').value.trim() || 'THB',
         supplier: document.getElementById('mSupplier').value.trim(),
         price_updated_at: document.getElementById('mPriceUpdatedAt').value.trim(),
-        price_remark: document.getElementById('mPriceRemark').value.trim()
+        price_remark: document.getElementById('mPriceRemark').value.trim(),
+        coil_size: (function(){ var v=document.getElementById('mCoilSize').value.trim(); if (v==='Other') v=document.getElementById('mCoilSizeOther').value.trim(); return v || '-'; })()
       };
       console.log('[location][manage payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       manageMessage.className = 'mt-3 text-sm text-emerald-600';
@@ -4908,6 +5083,21 @@ function inferRequestPriority(stock, min) {
             loadPartsData();
           });
         }
+      });
+    }
+
+    function deleteItemByNo(no) {
+      var itemNo = String(no || '').trim();
+      if (!itemNo) return;
+      var found = partsData.filter(function(p){ return String(p.no) === itemNo; })[0] || {};
+      var targetSheet = String(found.__sourceSheet || getCurrentSheetName() || '').trim();
+      if (!confirm('ยืนยันการลบรายการ NO: ' + itemNo + ' ?')) return;
+      callManageAction('deleteItem', { sheet: targetSheet, no: itemNo }).then(function(res){
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+        loadPartsData();
+      }).catch(function(err){
+        manageMessage.className = 'mt-3 text-sm text-rose-600';
+        manageMessage.textContent = err.message;
       });
     }
 
@@ -5006,7 +5196,6 @@ function inferRequestPriority(stock, min) {
         return;
       }
 
-      console.log('[item data render table]', data);
       desktopCardGrid.innerHTML = data.map(function(item) {
         var canManageItems = hasPermission('manage_items');
         var canDeleteItems = hasPermission('delete_items');
@@ -5019,65 +5208,48 @@ function inferRequestPriority(stock, min) {
         var stockClass = tone.textClass;
         var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
-        return '<article data-row-key="' + itemKey + '" class="group relative rounded-2xl border p-3.5 min-h-[420px] flex flex-col shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-200 cursor-pointer ' + visualState.cardClass + '">' +
-          '<div class="relative h-[180px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50">' +
-            '<img loading="lazy" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain object-center p-2 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
-            (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-2xl') + '</div>' : '') +
+        return '<article data-row-key="' + itemKey + '" class="group relative rounded-2xl border p-3 min-h-[360px] flex flex-col shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-200 cursor-pointer ' + visualState.cardClass + '">' +
+          '<div class="relative h-[180px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
+            '<img loading="lazy" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain object-center p-1 transform scale-[1.1] transition duration-300 group-hover:scale-[1.15] ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\''+ FALLBACK_IMAGE +'\';}" />' +
           '</div>' +
           '<div class="mt-3 flex-1 min-h-0 ' + visualState.contentClass + '">' +
             '<p class="font-extrabold text-[17px] text-slate-900 leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + item.name + '</p>' +
             '<p class="text-[13px] text-slate-400 mt-1.5 truncate">' + (item.model || '-') + '</p>' +
-            '<p class="text-[11px] text-slate-400 mt-1 truncate">Location: ' + (item.location || '-') + '</p>' +
+            '<p class="text-[12px] text-slate-500 mt-1 truncate">' + ((String(item.line||'').toLowerCase().indexOf('coil')>-1) ? ('Coil Size: ' + (item.coil_size || '-')) : (item.brand || '-')) + '</p>' +
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
             '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs ' + tone.badgeClass + '">' + status + '</span>' +
-            '<span class="font-bold text-[26px] leading-tight text-slate-900 whitespace-nowrap ' + stockClass + '">Qty ' + item.stock + '</span>' +
+            '<span class="font-bold text-[22px] leading-tight text-slate-900 whitespace-nowrap ' + stockClass + '">Qty ' + item.stock + '</span>' +
           '</div>' +
           '<div class="mt-auto pt-3 grid grid-cols-1 gap-2">' +
-            '<button data-view-key="' + itemKey + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold">👁 ดูDetails</button>' +
-            (canIssue ? '<div class="grid grid-cols-2 gap-2 items-center justify-center"><button data-issue-no="' + item.no + '" class="h-10 rounded-lg border border-orange-300 bg-orange-50 text-orange-600 text-lg font-semibold hover:bg-orange-100 transition-colors" title="เบิกด่วน">⚡</button><button data-cart-add-no="' + item.no + '" class="h-10 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 text-lg font-semibold hover:bg-blue-100 transition-colors" title="เพิ่มเข้าตะกร้า">🛒</button></div>' : (canTransact ? '<div class="grid grid-cols-2 gap-2"><span class="h-10 rounded-lg border border-slate-300 bg-slate-100 text-xs text-slate-500 flex items-center justify-center font-semibold">อะไหล่หมด</span><button disabled class="h-10 rounded-lg border border-slate-300 bg-slate-100 text-slate-400 text-lg" title="Stock ไม่พอ">🛒</button></div>' : '<span class="h-9 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-400 flex items-center justify-center">No Access</span>')) +
+            '<button data-view-key="' + itemKey + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold" type="button">👁 ดูDetails</button>' +
+            (canIssue ? '<div class="grid grid-cols-2 gap-2 items-center justify-center"><button data-issue-no="' + item.no + '" class="h-10 rounded-lg border border-orange-300 bg-orange-50 text-orange-600 text-lg font-semibold">⚡</button><button data-cart-add-no="' + item.no + '" class="h-10 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 text-lg font-semibold">🛒</button></div>' : '') +
           '</div>' +
           (canManageItems || canDeleteItems ? '<div class="mt-2 flex items-center justify-end gap-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">' +
-            (canManageItems ? '<button data-edit-key="' + itemKey + '" class="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 text-sm" title="Edit">✏️</button>' : '') +
-            (canDeleteItems ? '<button data-delete-no="' + item.no + '" class="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-400 hover:text-rose-600 hover:border-rose-200 text-sm" title="Delete">🗑️</button>' : '') +
+            (canManageItems ? '<button data-edit-key="' + itemKey + '" class="h-8 w-8 rounded-md border border-slate-200 bg-white text-sm" title="Edit">✏️</button>' : '') +
+            (canDeleteItems ? '<button data-delete-no="' + item.no + '" class="h-8 w-8 rounded-md border border-slate-200 bg-white text-sm" title="Delete">🗑️</button>' : '') +
           '</div>' : '') +
         '</article>';
       }).join('');
 
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('article[data-row-key]')).forEach(function(row){
-        row.addEventListener('click', function(e){
-          if (e.target.closest('button')) return;
-          var key = row.getAttribute('data-row-key');
-          var found = findItemByIdentityKey(key);
-          if (found) openDetailModal(found);
-        });
-      });
-
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-view-key]')).forEach(function(btn){
-        btn.addEventListener('click', function(){
-          var key = btn.getAttribute('data-view-key');
-          var found = findItemByIdentityKey(key);
-          if (!found) return;
-          openDetailModal(found);
-        });
-      });
-
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-issue-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(){
-          openTxnPageWithItem(btn.getAttribute('data-issue-no'), 'Output');
-        });
-      });
-
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-cart-add-no]')).forEach(function(btn){
-        btn.addEventListener('click', function(e){
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('article[data-row-key]')).forEach(function(row){ row.addEventListener('click', function(e){ if (e.target.closest('button')) return; var f=findItemByIdentityKey(row.getAttribute('data-row-key')); if(f) openDetailModal(f); }); });
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-view-key]')).forEach(function(btn){btn.addEventListener('click', function(){var f=findItemByIdentityKey(btn.getAttribute('data-view-key')); if(f) openDetailModal(f);});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-issue-no]')).forEach(function(btn){btn.addEventListener('click', function(){openTxnPageWithItem(btn.getAttribute('data-issue-no'), 'Output');});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-cart-add-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var no=btn.getAttribute('data-cart-add-no'); var f=partsData.filter(function(p){return String(p.no)===String(no);})[0]; if(!f||safeNum(f.stock)<=0) return; addItemToIssueCart(f,1);});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-key]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=findItemByIdentityKey(btn.getAttribute('data-edit-key')); if(f) openEditModal(f);});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-delete-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); deleteItemByNo(btn.getAttribute('data-delete-no'));});});
+      desktopCardGrid.onclick = function(e) {
+        var target = e.target;
+        if (!target || !target.closest) return;
+        var detailBtn = target.closest('[data-view-key]');
+        if (detailBtn) {
           e.preventDefault();
           e.stopPropagation();
-          var no = btn.getAttribute('data-cart-add-no');
-          var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
-          if (!found || safeNum(found.stock) <= 0) return alert('Stock ไม่พอ');
-          addItemToIssueCart(found, 1);
-        });
-      });
+          var found = findItemByIdentityKey(detailBtn.getAttribute('data-view-key'));
+          if (found) openDetailModal(found);
+          return;
+        }
+      };
     }
 
     function renderMobileCards(data) {
@@ -5109,24 +5281,22 @@ function inferRequestPriority(stock, min) {
         var status = getStockStatus(item);
         var tone = getStatusTone(status);
         var stockClass = tone.textClass;
-        var needToOrder = getNeedToOrder(item);
-        var visualState = getCardVisualState(item);
+                var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
-        return '<article data-view-key="' + itemKey + '" class="relative rounded-2xl border p-3 min-h-[320px] flex flex-col shadow-sm transition-all duration-200 cursor-pointer ' + visualState.cardClass + '">' +
-          '<div class="relative h-[170px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50">' +
-            '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain bg-slate-50 p-1.5 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+        return '<article data-view-key="' + itemKey + '" class="relative rounded-2xl border p-3 min-h-[300px] flex flex-col shadow-sm transition-all duration-200 cursor-pointer ' + visualState.cardClass + '">' +
+          '<div class="relative h-[160px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
+            '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain bg-slate-50 p-1 transform scale-[1.08] transition duration-300 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-lg') + '</div>' : '') +
           '</div>' +
           '<div class="mt-2 flex-1 min-h-0 ' + visualState.contentClass + '">' +
             '<p class="font-extrabold text-[16px] leading-tight overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.5rem;">' + item.name + '</p>' +
             '<p class="mt-1.5 text-[12px] text-slate-400 truncate">' + (item.model || '-') + '</p>' +
-            '<p class="mt-1 text-[11px] text-slate-400 truncate">Location: ' + (item.location || '-') + '</p>' +
+            '<p class="mt-1 text-[11px] text-slate-500 truncate">' + ((String(item.line||'').toLowerCase().indexOf('coil')>-1) ? ('Coil Size: ' + (item.coil_size || '-')) : (item.brand || '-')) + '</p>' +
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
             '<span class="inline-flex items-center justify-center px-2 py-1 rounded-full text-[10px] font-semibold ' + tone.badgeClass + '">' + status + '</span>' +
             '<p class="text-[21px] font-bold leading-tight text-slate-900 whitespace-nowrap ' + stockClass + '">Qty ' + item.stock + '</p>' +
           '</div>' +
-          '<p class="mt-1 text-[11px] text-slate-500 ' + visualState.contentClass + '">Need to order: ' + needToOrder + '</p>' +
           '<div class="mt-auto pt-2 grid grid-cols-2 gap-2">' +
             '<button data-view-key="' + itemKey + '" class="h-9 rounded-lg border border-slate-300 bg-white text-xs font-semibold">👁 ดู</button>' +
             (canIssue ? '<div class="grid grid-cols-2 gap-2"><button data-mobile-issue-no="' + item.no + '" class="h-10 rounded-lg border border-orange-300 bg-orange-50 text-orange-600 text-lg font-semibold" title="เบิกด่วน">⚡</button><button data-mobile-cart-add-no="' + item.no + '" class="h-10 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 text-lg font-semibold" title="เพิ่มเข้าตะกร้า">🛒</button></div>' : (canTransact ? '<div class="grid grid-cols-2 gap-2"><span class="h-10 rounded-lg border border-slate-300 bg-slate-100 text-xs text-slate-500 flex items-center justify-center font-semibold">อะไหล่หมด</span><button disabled class="h-10 rounded-lg border border-slate-300 bg-slate-100 text-slate-400 text-lg" title="Stock ไม่พอ">🛒</button></div>' : '<span class="h-10 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-400 flex items-center justify-center">No Access</span>')) +
@@ -5155,6 +5325,25 @@ function inferRequestPriority(stock, min) {
           e.preventDefault();
           e.stopPropagation();
           openQuickIssueModal(issueBtn.getAttribute('data-mobile-issue-no'));
+          return;
+        }
+
+
+        var mobileEditBtn = target.closest('[data-mobile-edit-key]');
+        if (mobileEditBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          var editKey = mobileEditBtn.getAttribute('data-mobile-edit-key');
+          var editFound = findItemByIdentityKey(editKey);
+          if (editFound) openEditModal(editFound);
+          return;
+        }
+
+        var mobileDeleteBtn = target.closest('[data-mobile-delete-no]');
+        if (mobileDeleteBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          deleteItemByNo(mobileDeleteBtn.getAttribute('data-mobile-delete-no'));
           return;
         }
 
@@ -5214,8 +5403,7 @@ function inferRequestPriority(stock, min) {
       document.getElementById('detailPriceRemark').textContent = item.price_remark || '-';
       document.getElementById('detailRemark').textContent = item.remark || '-';
       var detailMetaParts = [item.brand, item.category, item.line, (item.subLine || item.__sourceSheet || '')].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
-      var needToOrder = getNeedToOrder(item);
-      var metaText = detailMetaParts.join(' • ');
+            var metaText = detailMetaParts.join(' • ');
       document.getElementById('detailMeta').textContent = metaText ? (metaText + ' • Need to order: ' + needToOrder) : ('Need to order: ' + needToOrder);
       ['Model', 'Brand', 'Category', 'Line'].forEach(function(field) {
         var valueEl = document.getElementById('detail' + field);
@@ -5339,6 +5527,7 @@ function inferRequestPriority(stock, min) {
       var category = categoryFilter.value;
       var selectedStatus = tableStatusMode !== 'all' ? tableStatusMode : statusFilter.value;
       var selectedBrand = brandFilter.value;
+      var selectedCoilSize = coilSizeFilter ? coilSizeFilter.value : 'all';
       var selectedSheet = getCurrentSheetName();
       var hasKeyword = !!keyword;
 
@@ -5352,7 +5541,7 @@ function inferRequestPriority(stock, min) {
       }
 
       var filtered = partsData.filter(function(item) {
-        var hitSearch = [item.name, item.model, item.brand].join(' ').toLowerCase().indexOf(keyword) > -1;
+        var hitSearch = [item.name, item.model, item.brand, item.coil_size].join(' ').toLowerCase().indexOf(keyword) > -1;
         var hitCategory = category === 'all' || item.category === category;
         var lineText = String(item.line || '').toLowerCase();
         var withinMainLine = LINE_SHEET_OPTIONS[currentLine]
@@ -5366,7 +5555,8 @@ function inferRequestPriority(stock, min) {
           || ((selectedStatus === 'low' || selectedStatus === 'near') && status === 'LOW')
           || (selectedStatus === 'ok' && status === 'OK');
         var hitBrand = selectedBrand === 'all' || item.brand === selectedBrand;
-        return hitSearch && hitCategory && hitLine && hitStatus && hitBrand;
+        var hitCoil = selectedCoilSize === 'all' || String(item.coil_size || '-').trim() === selectedCoilSize || (selectedCoilSize === 'Other' && ['10','16','20','25/32','Common','-',''].indexOf(String(item.coil_size||'').trim()) === -1);
+        return hitSearch && hitCategory && hitLine && hitStatus && hitBrand && hitCoil;
       });
 
       var selectedSort = (window.innerWidth >= 1024 ? sortFilter.value : sortFilterMobile.value) || 'default';
@@ -5378,9 +5568,12 @@ function inferRequestPriority(stock, min) {
       renderFilteredResults(filtered);
     }
 
+    function syncCoilFilterVisibility(){ if(!coilSizeFilter) return; coilSizeFilter.classList.toggle('hidden', String(currentLine || '').toLowerCase().indexOf('coil')===-1); }
     categoryFilter.addEventListener('change', applyFilters);
     statusFilter.addEventListener('change', function(){ tableStatusMode = 'all'; applyFilters(); });
     brandFilter.addEventListener('change', applyFilters);
+    if (coilSizeFilter) coilSizeFilter.addEventListener('change', applyFilters);
+    syncCoilFilterVisibility();
     categoryFilterMobile.addEventListener('change', function(){ categoryFilter.value = categoryFilterMobile.value; applyFilters(); });
     statusFilterMobile.addEventListener('change', function(){ statusFilter.value = statusFilterMobile.value; tableStatusMode = 'all'; applyFilters(); });
     brandFilterMobile.addEventListener('change', function(){ brandFilter.value = brandFilterMobile.value; applyFilters(); });
@@ -5588,6 +5781,11 @@ if (dashboardPage) {
       normalizeMobileHeaderCartUi();
     });
     manageForm.addEventListener('submit', submitManageItem);
+    var mCoilSize = document.getElementById('mCoilSize'); var mCoilSizeOther = document.getElementById('mCoilSizeOther'); if (mCoilSize) mCoilSize.addEventListener('change', function(){ if(!mCoilSizeOther) return; mCoilSizeOther.classList.toggle('hidden', mCoilSize.value !== 'Other'); });
+    if (importExcelBtn) importExcelBtn.addEventListener('click', function(){ importExcelFile.click(); });
+    if (importExcelFile) importExcelFile.addEventListener('change', function(e){ var file=e.target.files[0]; if(!file) return; parseImportFile(file).then(function(matrix){ var headerRowIndex = detectHeaderRow(matrix); var headers = (matrix[headerRowIndex] || []).map(function(h){ return String(h || '').trim(); }).filter(Boolean); var mapping = getDefaultCoilMapping(headers); renderMappingPanel(headers, mapping); var bodyRows = matrix.slice(headerRowIndex + 1).filter(function(r){ return r && r.length; }).map(function(r){ var obj={}; headers.forEach(function(h,i){ obj[h]=r[i]; }); return obj; }); importState.rawRows = bodyRows; importState.rows = buildImportRows(bodyRows, readMappingFromPanel()); var selectedLineForImport = (manageLineSelect && manageLineSelect.value) ? manageLineSelect.value : currentLine; var opts = getAllowedSheetsForLine(selectedLineForImport); importSheetSelect.innerHTML = '<option value="">เลือก Sheet ปลายทาง</option>' + opts.map(function(x){ return '<option value="'+x+'">'+x+'</option>'; }).join(''); if (manageSheetSelect && manageSheetSelect.value) importSheetSelect.value = manageSheetSelect.value; renderImportPreview(importState.rows); }).catch(function(err){ manageMessage.className='mt-3 text-sm text-rose-600'; manageMessage.textContent='อ่านไฟล์ไม่สำเร็จ: '+err.message; }); });
+    if (importMappingPanel) importMappingPanel.addEventListener('change', function(){ if (!importState.rawRows) return; var d=document.getElementById('importDefaultCoilSize'); importState.defaultCoilSize = d ? String(d.value||'-').trim() : '-'; importState.rows = buildImportRows(importState.rawRows, readMappingFromPanel()); renderImportPreview(importState.rows); });
+    if (confirmImportBtn) confirmImportBtn.addEventListener('click', confirmImportRows);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
     editModal.addEventListener('click', function(e){
