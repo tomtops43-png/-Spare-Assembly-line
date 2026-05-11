@@ -582,6 +582,22 @@
           <button id="btnDeleteItem" type="button" class="flex-1 rounded-xl bg-rose-600 text-white px-4 py-2.5 font-semibold">ลบ</button>
         </div>
       </form>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <input id="importExcelFile" type="file" accept=".xlsx,.csv" class="hidden" />
+        <button id="importExcelBtn" type="button" class="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700">📥 Import Excel</button>
+      </div>
+      <div id="importPreviewPanel" class="mt-3 hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div class="mb-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+          <p id="importTotalCount">ทั้งหมด: 0</p><p id="importReadyCount">พร้อมนำเข้า: 0</p><p id="importDuplicateCount">Duplicate: 0</p><p id="importErrorCount">Error: 0</p>
+        </div>
+        <div class="mb-2 flex flex-wrap items-center gap-2">
+          <select id="importSheetSelect" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"></select>
+          <button id="confirmImportBtn" type="button" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">Confirm Import</button>
+        </div>
+        <div class="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white">
+          <table class="min-w-full text-xs"><thead class="bg-slate-100"><tr><th class="px-2 py-1 text-left">Part Name</th><th class="px-2 py-1 text-left">Model</th><th class="px-2 py-1 text-left">Stock</th><th class="px-2 py-1 text-left">Status</th></tr></thead><tbody id="importPreviewTable"></tbody></table>
+        </div>
+      </div>
       <p id="manageMessage" class="mt-3 text-sm"></p>
     </section>
 
@@ -1100,6 +1116,7 @@
   </div>
 
 
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     (function installLegacyRuntimeGuard() {
       window.addEventListener('error', function(ev) {
@@ -1313,6 +1330,13 @@
     var manageNoInput = document.getElementById('mNo');
     var manageSheetSelect = document.getElementById('mSheet');
     var manageLineSelect = document.getElementById('mLine');
+    var importExcelBtn = document.getElementById('importExcelBtn');
+    var importExcelFile = document.getElementById('importExcelFile');
+    var importPreviewPanel = document.getElementById('importPreviewPanel');
+    var importPreviewTable = document.getElementById('importPreviewTable');
+    var importSheetSelect = document.getElementById('importSheetSelect');
+    var confirmImportBtn = document.getElementById('confirmImportBtn');
+    var importState = { rows: [] };
     var currentLine = 'H9';
     var authToken = localStorage.getItem('spare_auth_token') || '';
     var currentUser = null;
@@ -4832,6 +4856,86 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+
+    function getAllowedSheetsForLine(lineKey) {
+      var key = String(lineKey || '').trim();
+      if (LINE_SHEET_OPTIONS[key] && LINE_SHEET_OPTIONS[key].length) return LINE_SHEET_OPTIONS[key].slice();
+      if (sheetSelector && sheetSelector.options && sheetSelector.options.length) {
+        return Array.prototype.slice.call(sheetSelector.options).map(function(opt){ return String(opt.value || '').trim(); }).filter(Boolean);
+      }
+      return ['Main List Stock'];
+    }
+
+    function normalizeImportHeader(key) {
+      return String(key || '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+    }
+
+    function parseImportFile(file) {
+      return file.arrayBuffer().then(function(buffer) {
+        var workbook = XLSX.read(buffer, { type: 'array' });
+        var firstSheet = workbook.SheetNames[0];
+        return XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
+      });
+    }
+
+    function renderImportPreview(rows) {
+      var total = rows.length;
+      var ready = rows.filter(function(r){ return r.status === 'ready'; }).length;
+      var dup = rows.filter(function(r){ return r.status === 'duplicate'; }).length;
+      var err = rows.filter(function(r){ return r.status === 'error'; }).length;
+      document.getElementById('importTotalCount').textContent = 'ทั้งหมด: ' + total;
+      document.getElementById('importReadyCount').textContent = 'พร้อมนำเข้า: ' + ready;
+      document.getElementById('importDuplicateCount').textContent = 'Duplicate: ' + dup;
+      document.getElementById('importErrorCount').textContent = 'Error: ' + err;
+      importPreviewTable.innerHTML = rows.map(function(r){ return '<tr class="border-t border-slate-100"><td class="px-2 py-1">'+(r.name||'-')+'</td><td class="px-2 py-1">'+(r.model||'-')+'</td><td class="px-2 py-1">'+r.stock+'</td><td class="px-2 py-1">'+r.status+'</td></tr>'; }).join('');
+      importPreviewPanel.classList.remove('hidden');
+    }
+
+    function buildImportRows(rawRows) {
+      var existing = {};
+      partsData.forEach(function(p){ existing[(String(p.name||'').trim().toLowerCase())+'||'+(String(p.model||'').trim().toLowerCase())]=true; });
+      var seen = {};
+      return rawRows.map(function(row, idx) {
+        var map = {};
+        Object.keys(row || {}).forEach(function(k){ map[normalizeImportHeader(k)] = row[k]; });
+        var name = String(map.partname || map.name || '').trim();
+        var model = String(map.model || '').trim();
+        var stock = Number(map.stock || 0);
+        var min = Number(map.min || 0);
+        var max = Number(map.max || 0);
+        var key = name.toLowerCase() + '||' + model.toLowerCase();
+        var invalidNumber = isNaN(stock) || isNaN(min) || isNaN(max);
+        var status = 'ready';
+        if (!name || invalidNumber) status = 'error';
+        else if (existing[key] || seen[key]) status = 'duplicate';
+        seen[key] = true;
+        return {
+          no: String(map.no || '').trim(), name: name, model: model, brand: String(map.brand || '-').trim() || '-',
+          category: String(map.category || '-').trim() || '-', location: String(map.location || '-').trim() || '-',
+          min: isNaN(min) ? 0 : min, max: isNaN(max) ? 0 : max, stock: isNaN(stock) ? 0 : stock,
+          unit: String(map.unit || '-').trim() || '-', unit_price: Number(map.unitprice || map.unit_price || 0) || 0,
+          supplier: String(map.supplier || '-').trim() || '-', image_main_url: String(map.imageurl || map.image_main_url || '').trim(),
+          line: String(map.line || 'Coil Winding').trim() || 'Coil Winding', sheet: String(map.sheet || '').trim(), status: status, row: idx + 2
+        };
+      });
+    }
+
+    function confirmImportRows() {
+      var targetSheet = String(importSheetSelect.value || '').trim() || String(manageSheetSelect.value || '').trim();
+      if (!targetSheet) { alert('กรุณาเลือก Sheet ก่อน import'); return; }
+      var readyRows = importState.rows.filter(function(r){ return r.status === 'ready'; });
+      if (!readyRows.length) { alert('ไม่มีรายการพร้อม import'); return; }
+      manageMessage.className = 'mt-3 text-sm text-slate-600';
+      manageMessage.textContent = 'กำลัง import ' + readyRows.length + ' รายการ...';
+      var chain = Promise.resolve();
+      readyRows.forEach(function(r) {
+        chain = chain.then(function() {
+          return callManageAction('upsertItem', { sheet: r.sheet || targetSheet, no: r.no || '', name: r.name, model: r.model, line: r.line || 'Coil Winding', location: r.location, category: r.category, brand: r.brand, photo: r.image_main_url, image_main_url: r.image_main_url, image_main: r.image_main_url, max: r.max, min: r.min, unit: r.unit, stock: r.stock, unit_price: r.unit_price, currency: 'THB', supplier: r.supplier, price_updated_at: '', price_remark: '' });
+        });
+      });
+      chain.then(function() { manageMessage.className='mt-3 text-sm text-emerald-600'; manageMessage.textContent='Import สำเร็จ ' + readyRows.length + ' รายการ'; importPreviewPanel.classList.add('hidden'); loadPartsData(); });
+    }
+
     function submitManageItem(event) {
       event.preventDefault();
       if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
@@ -5588,6 +5692,9 @@ if (dashboardPage) {
       normalizeMobileHeaderCartUi();
     });
     manageForm.addEventListener('submit', submitManageItem);
+    if (importExcelBtn) importExcelBtn.addEventListener('click', function(){ importExcelFile.click(); });
+    if (importExcelFile) importExcelFile.addEventListener('change', function(e){ var file=e.target.files[0]; if(!file) return; parseImportFile(file).then(function(rows){ importState.rows = buildImportRows(rows); var opts = getAllowedSheetsForLine(currentLine); importSheetSelect.innerHTML = '<option value="">เลือก Sheet ปลายทาง</option>' + opts.map(function(x){ return '<option value="'+x+'">'+x+'</option>'; }).join(''); if (manageSheetSelect && manageSheetSelect.value) importSheetSelect.value = manageSheetSelect.value; renderImportPreview(importState.rows); }).catch(function(err){ manageMessage.className='mt-3 text-sm text-rose-600'; manageMessage.textContent='อ่านไฟล์ไม่สำเร็จ: '+err.message; }); });
+    if (confirmImportBtn) confirmImportBtn.addEventListener('click', confirmImportRows);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
     editModal.addEventListener('click', function(e){
