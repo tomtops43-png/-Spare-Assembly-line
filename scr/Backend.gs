@@ -1355,7 +1355,8 @@ function doGet(e) {
         currency: pickRowValue(row, map, ['currency'], 'THB'),
         supplier: pickRowValue(row, map, ['supplier'], ''),
         price_updated_at: pickRowValue(row, map, ['priceupdatedat', 'price_updated_at'], ''),
-        price_remark: pickRowValue(row, map, ['priceremark', 'price_remark'], '')
+        price_remark: pickRowValue(row, map, ['priceremark', 'price_remark'], ''),
+        coil_size: pickRowValue(row, map, ['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size', 'size', 'type'], '-')
       };
     }).filter(function (item) {
       return item.name && item.name !== '-';
