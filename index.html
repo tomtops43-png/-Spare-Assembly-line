@@ -4753,7 +4753,7 @@ function inferRequestPriority(stock, min) {
       }
       if (lineMenuDockToggle) lineMenuDockToggle.classList.add('hidden');
       document.getElementById('eNo').value = item.no || '';
-      document.getElementById('eSheet').value = getCurrentSheetName();
+      document.getElementById('eSheet').value = item.__sourceSheet || getCurrentSheetName();
       document.getElementById('eName').value = item.name || '';
       document.getElementById('eModel').value = item.model || '';
       var eCoilSize = document.getElementById('eCoilSize'); if (eCoilSize) eCoilSize.value = item.coil_size || item.machine_model || '-';
@@ -5239,6 +5239,18 @@ function inferRequestPriority(stock, min) {
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-cart-add-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var no=btn.getAttribute('data-cart-add-no'); var f=partsData.filter(function(p){return String(p.no)===String(no);})[0]; if(!f||safeNum(f.stock)<=0) return; addItemToIssueCart(f,1);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-key]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=findItemByIdentityKey(btn.getAttribute('data-edit-key')); if(f) openEditModal(f);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-delete-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); deleteItemByNo(btn.getAttribute('data-delete-no'));});});
+      desktopCardGrid.onclick = function(e) {
+        var target = e.target;
+        if (!target || !target.closest) return;
+        var detailBtn = target.closest('[data-view-key]');
+        if (detailBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          var found = findItemByIdentityKey(detailBtn.getAttribute('data-view-key'));
+          if (found) openDetailModal(found);
+          return;
+        }
+      };
     }
 
     function renderMobileCards(data) {

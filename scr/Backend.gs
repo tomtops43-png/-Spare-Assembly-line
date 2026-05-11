@@ -1064,7 +1064,7 @@ function upsertMainItem(payload) {
     supplier: findCol(['supplier']),
     price_updated_at: findCol(['priceupdatedat', 'price_updated_at']),
     price_remark: findCol(['priceremark', 'price_remark']),
-    coil_size: findCol(['coilsize', 'machine_model', 'machinemodel', 'model_size', 'size', 'type'])
+    coil_size: findCol(['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size', 'size', 'type'])
   };
 
   if (fieldCols.brand === undefined) {
@@ -1110,7 +1110,7 @@ function upsertMainItem(payload) {
     fieldCols.price_remark = ensureColumnInContext(ctx, 'Price Remark', ['priceremark', 'price_remark']);
   }
   if (fieldCols.coil_size === undefined) {
-    fieldCols.coil_size = ensureColumnInContext(ctx, 'Coil Size', ['coilsize', 'machine_model', 'machinemodel', 'model_size', 'size', 'type']);
+    fieldCols.coil_size = ensureColumnInContext(ctx, 'Coil Size', ['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size', 'size', 'type']);
   }
 
   if (fieldCols.image_install_file_id === undefined) {
