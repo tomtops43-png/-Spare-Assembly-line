@@ -1151,7 +1151,7 @@ function upsertMainItem(payload) {
     supplier: payload.supplier || '',
     price_updated_at: payload.price_updated_at || '',
     price_remark: payload.price_remark || '',
-    coil_size: payload.coil_size || payload.machine_model || '-'
+    coil_size: payload.coil_size !== undefined ? payload.coil_size : (payload.machine_model !== undefined ? payload.machine_model : '')
   };
   Logger.log('[upsertMainItem] sheet=%s no=%s location=%s', sheetName, noValue, values.location);
   setLocationOverride(sheetName, noValue, values.location);
@@ -1160,6 +1160,7 @@ function upsertMainItem(payload) {
     var sheetRow = ctx.headerRowIndex + 2 + targetIndex;
     for (var key in fieldCols) {
       if (fieldCols[key] !== undefined) {
+        if (key === 'coil_size' && String(values[key] || '').trim() === '') continue;
         ctx.sheet.getRange(sheetRow, fieldCols[key] + 1).setValue(values[key]);
       }
     }

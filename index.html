@@ -4755,7 +4755,7 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eSheet').value = item.__sourceSheet || getCurrentSheetName();
       document.getElementById('eName').value = item.name || '';
       document.getElementById('eModel').value = item.model || '';
-      var eCoilSize = document.getElementById('eCoilSize'); if (eCoilSize) eCoilSize.value = item.coil_size || item.machine_model || '-';
+      var eCoilSize = document.getElementById('eCoilSize'); if (eCoilSize) eCoilSize.value = item.coil_size || item.machine_model || '';
       document.getElementById('eLine').value = item.line || '';
       document.getElementById('eLocation').value = item.location || '';
       document.getElementById('eCategory').value = item.category || '';
@@ -4825,7 +4825,7 @@ function inferRequestPriority(stock, min) {
         supplier: document.getElementById('eSupplier').value.trim(),
         price_updated_at: document.getElementById('ePriceUpdatedAt').value.trim(),
         price_remark: document.getElementById('ePriceRemark').value.trim(),
-        coil_size: (document.getElementById('eCoilSize') ? document.getElementById('eCoilSize').value.trim() : '-')
+        coil_size: (document.getElementById('eCoilSize') ? document.getElementById('eCoilSize').value.trim() : '')
       };
       console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       editMessage.className = 'mt-3 text-sm text-emerald-600';
