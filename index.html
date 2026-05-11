@@ -4859,11 +4859,19 @@ function inferRequestPriority(stock, min) {
 
     function getAllowedSheetsForLine(lineKey) {
       var key = String(lineKey || '').trim();
-      if (LINE_SHEET_OPTIONS[key] && LINE_SHEET_OPTIONS[key].length) return LINE_SHEET_OPTIONS[key].slice();
+      var all = [];
+      Object.keys(LINE_SHEET_OPTIONS || {}).forEach(function(line) {
+        (LINE_SHEET_OPTIONS[line] || []).forEach(function(sheet) { all.push(String(sheet || '').trim()); });
+      });
       if (sheetSelector && sheetSelector.options && sheetSelector.options.length) {
-        return Array.prototype.slice.call(sheetSelector.options).map(function(opt){ return String(opt.value || '').trim(); }).filter(Boolean);
+        Array.prototype.slice.call(sheetSelector.options).forEach(function(opt) { all.push(String(opt.value || '').trim()); });
       }
-      return ['Main List Stock'];
+      var uniqueAll = Array.from(new Set(all.filter(Boolean)));
+      if (key && LINE_SHEET_OPTIONS[key] && LINE_SHEET_OPTIONS[key].length) {
+        var preferred = LINE_SHEET_OPTIONS[key].map(function(sheet){ return String(sheet || '').trim(); }).filter(Boolean);
+        return preferred.concat(uniqueAll.filter(function(sheet){ return preferred.indexOf(sheet) === -1; }));
+      }
+      return uniqueAll.length ? uniqueAll : ['Main List Stock'];
     }
 
     function normalizeImportHeader(key) {
@@ -5693,7 +5701,7 @@ if (dashboardPage) {
     });
     manageForm.addEventListener('submit', submitManageItem);
     if (importExcelBtn) importExcelBtn.addEventListener('click', function(){ importExcelFile.click(); });
-    if (importExcelFile) importExcelFile.addEventListener('change', function(e){ var file=e.target.files[0]; if(!file) return; parseImportFile(file).then(function(rows){ importState.rows = buildImportRows(rows); var opts = getAllowedSheetsForLine(currentLine); importSheetSelect.innerHTML = '<option value="">เลือก Sheet ปลายทาง</option>' + opts.map(function(x){ return '<option value="'+x+'">'+x+'</option>'; }).join(''); if (manageSheetSelect && manageSheetSelect.value) importSheetSelect.value = manageSheetSelect.value; renderImportPreview(importState.rows); }).catch(function(err){ manageMessage.className='mt-3 text-sm text-rose-600'; manageMessage.textContent='อ่านไฟล์ไม่สำเร็จ: '+err.message; }); });
+    if (importExcelFile) importExcelFile.addEventListener('change', function(e){ var file=e.target.files[0]; if(!file) return; parseImportFile(file).then(function(rows){ importState.rows = buildImportRows(rows); var selectedLineForImport = (manageLineSelect && manageLineSelect.value) ? manageLineSelect.value : currentLine; var opts = getAllowedSheetsForLine(selectedLineForImport); importSheetSelect.innerHTML = '<option value="">เลือก Sheet ปลายทาง</option>' + opts.map(function(x){ return '<option value="'+x+'">'+x+'</option>'; }).join(''); if (manageSheetSelect && manageSheetSelect.value) importSheetSelect.value = manageSheetSelect.value; renderImportPreview(importState.rows); }).catch(function(err){ manageMessage.className='mt-3 text-sm text-rose-600'; manageMessage.textContent='อ่านไฟล์ไม่สำเร็จ: '+err.message; }); });
     if (confirmImportBtn) confirmImportBtn.addEventListener('click', confirmImportRows);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
