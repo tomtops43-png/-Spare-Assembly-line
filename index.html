@@ -4857,6 +4857,15 @@ function inferRequestPriority(stock, min) {
     }
 
 
+    function getAllowedSheetsForLine(lineKey) {
+      var key = String(lineKey || '').trim();
+      if (LINE_SHEET_OPTIONS[key] && LINE_SHEET_OPTIONS[key].length) return LINE_SHEET_OPTIONS[key].slice();
+      if (sheetSelector && sheetSelector.options && sheetSelector.options.length) {
+        return Array.prototype.slice.call(sheetSelector.options).map(function(opt){ return String(opt.value || '').trim(); }).filter(Boolean);
+      }
+      return ['Main List Stock'];
+    }
+
     function normalizeImportHeader(key) {
       return String(key || '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
     }
@@ -5684,7 +5693,7 @@ if (dashboardPage) {
     });
     manageForm.addEventListener('submit', submitManageItem);
     if (importExcelBtn) importExcelBtn.addEventListener('click', function(){ importExcelFile.click(); });
-    if (importExcelFile) importExcelFile.addEventListener('change', function(e){ var file=e.target.files[0]; if(!file) return; parseImportFile(file).then(function(rows){ importState.rows = buildImportRows(rows); var opts = availableSheetsForLine(currentLine); importSheetSelect.innerHTML = '<option value="">เลือก Sheet ปลายทาง</option>' + opts.map(function(x){ return '<option value="'+x+'">'+x+'</option>'; }).join(''); if (manageSheetSelect && manageSheetSelect.value) importSheetSelect.value = manageSheetSelect.value; renderImportPreview(importState.rows); }).catch(function(err){ manageMessage.className='mt-3 text-sm text-rose-600'; manageMessage.textContent='อ่านไฟล์ไม่สำเร็จ: '+err.message; }); });
+    if (importExcelFile) importExcelFile.addEventListener('change', function(e){ var file=e.target.files[0]; if(!file) return; parseImportFile(file).then(function(rows){ importState.rows = buildImportRows(rows); var opts = getAllowedSheetsForLine(currentLine); importSheetSelect.innerHTML = '<option value="">เลือก Sheet ปลายทาง</option>' + opts.map(function(x){ return '<option value="'+x+'">'+x+'</option>'; }).join(''); if (manageSheetSelect && manageSheetSelect.value) importSheetSelect.value = manageSheetSelect.value; renderImportPreview(importState.rows); }).catch(function(err){ manageMessage.className='mt-3 text-sm text-rose-600'; manageMessage.textContent='อ่านไฟล์ไม่สำเร็จ: '+err.message; }); });
     if (confirmImportBtn) confirmImportBtn.addEventListener('click', confirmImportRows);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
