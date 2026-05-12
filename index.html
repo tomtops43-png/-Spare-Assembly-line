@@ -1935,6 +1935,8 @@
       if (!filterSheet.classList.contains('hidden')) filterSheet.classList.add('hidden');
       issueCartModal.classList.remove('hidden');
       issueCartModal.classList.add('flex');
+      modalLockCount = 0;
+      document.body.style.overflow = '';
       if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
       if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
       syncTxnActorFields();
@@ -1946,6 +1948,8 @@
       if (!issueCartModal || issueCartModal.classList.contains('hidden')) return;
       issueCartModal.classList.add('hidden');
       issueCartModal.classList.remove('flex');
+      modalLockCount = 0;
+      document.body.style.overflow = '';
       if (stockStickyHeader) stockStickyHeader.classList.remove('hidden');
     }
 
