@@ -5360,7 +5360,12 @@ function inferRequestPriority(stock, min) {
         '</article>';
       }).join('');
 
+      var touchState = { startX: 0, startY: 0, moved: false };
       function handleMobileCardAction(e) {
+        if (e && e.type === 'click' && touchState.moved) {
+          touchState.moved = false;
+          return;
+        }
         var target = e.target;
         if (!target || !target.closest) return;
 
@@ -5419,7 +5424,20 @@ function inferRequestPriority(stock, min) {
       }
 
       mobileCardList.onclick = handleMobileCardAction;
-      mobileCardList.ontouchend = handleMobileCardAction;
+      mobileCardList.ontouchend = null;
+      mobileCardList.ontouchstart = function(e){
+        var t = e && e.touches && e.touches[0];
+        touchState.startX = t ? t.clientX : 0;
+        touchState.startY = t ? t.clientY : 0;
+        touchState.moved = false;
+      };
+      mobileCardList.ontouchmove = function(e){
+        var t = e && e.touches && e.touches[0];
+        if (!t) return;
+        if (Math.abs(t.clientX - touchState.startX) > 8 || Math.abs(t.clientY - touchState.startY) > 8) {
+          touchState.moved = true;
+        }
+      };
     }
 
     function openDetailModal(item) {
