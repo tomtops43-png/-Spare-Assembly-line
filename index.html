@@ -1936,8 +1936,6 @@
       issueCartModal.classList.remove('hidden');
       issueCartModal.classList.add('flex');
       if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
-      if (stockPage) stockPage.classList.add('invisible');
-      lockBodyScroll();
       if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
       syncTxnActorFields();
       setIssueCartMessage('', 'muted');
@@ -1949,8 +1947,6 @@
       issueCartModal.classList.add('hidden');
       issueCartModal.classList.remove('flex');
       if (stockStickyHeader) stockStickyHeader.classList.remove('hidden');
-      if (stockPage) stockPage.classList.remove('invisible');
-      unlockBodyScroll();
     }
 
     function addItemToIssueCart(item, qtyToAdd) {
