@@ -1849,6 +1849,25 @@
       return Math.max(maxValue - stockValue, 0);
     }
 
+    function getStockHealthCounts(items) {
+      var rows = Array.isArray(items) ? items : [];
+      var outOfStockCount = 0;
+      var belowMinCount = 0;
+      var needPOCount = 0;
+      rows.forEach(function(item) {
+        var stockValue = safeNum(item.stock);
+        var minValue = safeNum(item.min);
+        if (stockValue <= 0) outOfStockCount += 1;
+        if (stockValue > 0 && stockValue <= minValue) belowMinCount += 1;
+        if (stockValue <= minValue) needPOCount += 1;
+      });
+      return {
+        outOfStockCount: outOfStockCount,
+        belowMinCount: belowMinCount,
+        needPOCount: needPOCount
+      };
+    }
+
     function getStockStatus(item) {
       var stockValue = safeNum(item.stock);
       var minValue = safeNum(item.min);
@@ -3726,13 +3745,11 @@ function inferRequestPriority(stock, min) {
       }
       function num(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
       var totalStock = 0, outZero = 0, lowMin = 0, needPoCount = 0, noLocation = 0, noImage = 0;
+      var health = getStockHealthCounts(rows);
       var riskRows = [];
       rows.forEach(function(item) {
         var stock = num(item.stock), min = num(item.min), need = num(item.need_to_po || (min - stock));
         totalStock += stock;
-        if (stock <= 0) outZero++;
-        if (stock < min) lowMin++;
-        if (need > 0) needPoCount++;
         if (!String(item.location || '').trim()) noLocation++;
         if (!String(item.image_main || item.photo || '').trim()) noImage++;
         var reasons = [];
@@ -3743,6 +3760,9 @@ function inferRequestPriority(stock, min) {
         if (!String(item.image_main || item.photo || '').trim()) reasons.push('Missing Image');
         if (reasons.length) riskRows.push({ item: item, need: need, reason: reasons.join(', ') });
       });
+      outZero = health.outOfStockCount;
+      lowMin = health.belowMinCount;
+      needPoCount = health.needPOCount;
       summaryEl.innerHTML = card('Total Parts', rows.length.toLocaleString('th-TH')) + card('Total Stock', totalStock.toLocaleString('th-TH')) + card('Stock = 0', outZero.toLocaleString('th-TH')) + card('Stock < Min', lowMin.toLocaleString('th-TH')) + card('Need PO', needPoCount.toLocaleString('th-TH')) + card('Missing Location', noLocation.toLocaleString('th-TH')) + card('Missing Image', noImage.toLocaleString('th-TH')) + card('Pending Request', '...');
       var lineBars = document.getElementById('dashboardLineBars');
       var donut = document.getElementById('dashboardStockDonut');
@@ -5241,11 +5261,12 @@ function inferRequestPriority(stock, min) {
     }
 
     function renderStats(data) {
-      var lowCount = data.filter(function(item) { return getStockStatus(item) === 'LOW'; }).length;
-      var outCount = data.filter(function(item) { return getStockStatus(item) === 'OUT'; }).length;
+      var health = getStockHealthCounts(data);
+      var lowCount = health.belowMinCount;
+      var outCount = health.outOfStockCount;
       var okCount = data.filter(function(item) { return getStockStatus(item) === 'OK'; }).length;
       var totalStockQty = data.reduce(function(sum, item){ return sum + safeNum(item.stock); }, 0);
-      var needPO = data.filter(function(item) { return getNeedToOrder(item) > 0; }).length;
+      var needPO = health.needPOCount;
       stockTodayAlert.classList.toggle('hidden', !(needPO > 0 || outCount > 0 || lowCount > 0));
       if (needPO > 0 || outCount > 0 || lowCount > 0) {
         stockTodayAlert.innerHTML = '🚨 <b>Today Alert</b> • ต้องสั่งซื้อ <b>' + needPO + '</b> • อะไหล่Out of Stock <b>' + outCount + '</b> • Below Min <b>' + lowCount + '</b>';
@@ -5666,7 +5687,8 @@ function inferRequestPriority(stock, min) {
         var status = getStockStatus(item);
         var hitStatus = selectedStatus === 'all'
           || (selectedStatus === 'out' && status === 'OUT')
-          || ((selectedStatus === 'low' || selectedStatus === 'near') && status === 'LOW')
+          || (selectedStatus === 'low' && status === 'LOW')
+          || (selectedStatus === 'near' && safeNum(item.stock) <= safeNum(item.min))
           || (selectedStatus === 'ok' && status === 'OK');
         var hitBrand = selectedBrand === 'all' || item.brand === selectedBrand;
         var hitCoil = selectedCoilSize === 'all' || String(item.coil_size || '-').trim() === selectedCoilSize;
