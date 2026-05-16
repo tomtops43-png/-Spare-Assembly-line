@@ -523,17 +523,19 @@
             <input id="txnQty" type="number" min="1" step="1" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="จำนวน" required />
             <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3 bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
             <input id="txnProcess" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ไลน์/งาน" />
-            <select id="txnReason" class="h-11 rounded-xl border border-slate-300 px-3 bg-white">
-              <option value="">Reason / เหตุผลการเบิก</option>
-              <option value="PM">PM</option>
-              <option value="Breakdown">Breakdown</option>
-              <option value="Improvement">Improvement</option>
-              <option value="Trial">Trial</option>
-              <option value="Replace NG">Replace NG</option>
-              <option value="Production Support">Production Support</option>
-              <option value="Other">Other</option>
-            </select>
-            <input id="txnReasonRemark" type="text" class="hidden h-11 rounded-xl border border-slate-300 px-3" placeholder="Reason Remark" />
+            <div id="txnReasonGroup" class="space-y-3">
+              <select id="txnReason" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
+                <option value="">Reason / เหตุผลการเบิก</option>
+                <option value="PM">PM</option>
+                <option value="Breakdown">Breakdown</option>
+                <option value="Improvement">Improvement</option>
+                <option value="Trial">Trial</option>
+                <option value="Replace NG">Replace NG</option>
+                <option value="Production Support">Production Support</option>
+                <option value="Other">Other</option>
+              </select>
+              <input id="txnReasonRemark" type="text" class="hidden h-11 w-full rounded-xl border border-slate-300 px-3" placeholder="Reason Remark" />
+            </div>
             <button id="txnSubmitBtn" type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
           </form>
           <p id="txnMessage" class="mt-3 text-sm"></p>
@@ -1275,6 +1277,7 @@
     var txnQty = document.getElementById('txnQty');
     var txnBy = document.getElementById('txnBy');
     var txnProcess = document.getElementById('txnProcess');
+    var txnReasonGroup = document.getElementById('txnReasonGroup');
     var txnReason = document.getElementById('txnReason');
     var txnReasonRemark = document.getElementById('txnReasonRemark');
     var txnMessage = document.getElementById('txnMessage');
@@ -4338,6 +4341,27 @@ function inferRequestPriority(stock, min) {
       }
     }
 
+    function syncTxnReasonVisibility() {
+      var isOutput = txnType && txnType.value === 'Output';
+      if (txnReasonGroup) txnReasonGroup.classList.toggle('hidden', !isOutput);
+      if (txnReason) txnReason.required = !!isOutput;
+      if (!isOutput) {
+        if (txnReason) txnReason.value = '';
+        if (txnReasonRemark) {
+          txnReasonRemark.value = '';
+          txnReasonRemark.classList.add('hidden');
+          txnReasonRemark.required = false;
+        }
+        return;
+      }
+      var isOtherReason = txnReason && String(txnReason.value || '') === 'Other';
+      if (txnReasonRemark) {
+        txnReasonRemark.classList.toggle('hidden', !isOtherReason);
+        txnReasonRemark.required = !!isOtherReason;
+        if (!isOtherReason) txnReasonRemark.value = '';
+      }
+    }
+
     function getTxnFilteredData() {
       var keyword = String(txnSearchInput.value || '').trim().toLowerCase();
       var category = txnCategoryFilter.value;
@@ -4705,6 +4729,20 @@ function inferRequestPriority(stock, min) {
       }
 
       if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
+      var isOutputTxn = txnType.value === 'Output';
+      var reasonValue = String((txnReason && txnReason.value) || '').trim();
+      var reasonRemarkValue = String((txnReasonRemark && txnReasonRemark.value) || '').trim();
+      if (isOutputTxn && !reasonValue) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'กรุณาเลือก Reason / เหตุผล ก่อนบันทึก';
+        return;
+      }
+      if (isOutputTxn && reasonValue === 'Other' && !reasonRemarkValue) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'กรุณาระบุ Reason Remark';
+        return;
+      }
+
       var payload = {
         partNo: selected.no,
         type: txnType.value,
@@ -4716,6 +4754,8 @@ function inferRequestPriority(stock, min) {
         qty: qty,
         unit: selected.unit || 'PCS',
         by: currentUser.username,
+        reason: isOutputTxn ? reasonValue : 'N/A',
+        reasonRemark: isOutputTxn && reasonValue === 'Other' ? reasonRemarkValue : '',
         sheetName: selected.__sourceSheet || selected.subLine || getCurrentSheetName()
       };
 
@@ -5786,13 +5826,16 @@ function inferRequestPriority(stock, min) {
     qaManageBtn.addEventListener('click', switchToManagePage);
     if (txnReason) {
       txnReason.addEventListener('change', function() {
-        var isOther = String(txnReason.value || '') === 'Other';
-        if (txnReasonRemark) {
-          txnReasonRemark.classList.toggle('hidden', !isOther);
-          if (!isOther) txnReasonRemark.value = '';
-        }
+        syncTxnReasonVisibility();
       });
     }
+    if (txnType) {
+      txnType.addEventListener('change', function() {
+        syncTxnReasonVisibility();
+        refreshTxnActionAvailability();
+      });
+    }
+    syncTxnReasonVisibility();
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
     if (tabDashboard) tabDashboard.addEventListener('click', switchToDashboardPage);
