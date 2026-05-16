@@ -523,17 +523,19 @@
             <input id="txnQty" type="number" min="1" step="1" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="จำนวน" required />
             <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3 bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
             <input id="txnProcess" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ไลน์/งาน" />
-            <select id="txnReason" class="h-11 rounded-xl border border-slate-300 px-3 bg-white">
-              <option value="">Reason / เหตุผลการเบิก</option>
-              <option value="PM">PM</option>
-              <option value="Breakdown">Breakdown</option>
-              <option value="Improvement">Improvement</option>
-              <option value="Trial">Trial</option>
-              <option value="Replace NG">Replace NG</option>
-              <option value="Production Support">Production Support</option>
-              <option value="Other">Other</option>
-            </select>
-            <input id="txnReasonRemark" type="text" class="hidden h-11 rounded-xl border border-slate-300 px-3" placeholder="Reason Remark" />
+            <div id="txnReasonGroup" class="space-y-3">
+              <select id="txnReason" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
+                <option value="">Reason / เหตุผลการเบิก</option>
+                <option value="PM">PM</option>
+                <option value="Breakdown">Breakdown</option>
+                <option value="Improvement">Improvement</option>
+                <option value="Trial">Trial</option>
+                <option value="Replace NG">Replace NG</option>
+                <option value="Production Support">Production Support</option>
+                <option value="Other">Other</option>
+              </select>
+              <input id="txnReasonRemark" type="text" class="hidden h-11 w-full rounded-xl border border-slate-300 px-3" placeholder="Reason Remark" />
+            </div>
             <button id="txnSubmitBtn" type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
           </form>
           <p id="txnMessage" class="mt-3 text-sm"></p>
@@ -1275,6 +1277,7 @@
     var txnQty = document.getElementById('txnQty');
     var txnBy = document.getElementById('txnBy');
     var txnProcess = document.getElementById('txnProcess');
+    var txnReasonGroup = document.getElementById('txnReasonGroup');
     var txnReason = document.getElementById('txnReason');
     var txnReasonRemark = document.getElementById('txnReasonRemark');
     var txnMessage = document.getElementById('txnMessage');
@@ -1844,6 +1847,25 @@
       var maxValue = safeNum(item.max);
       var stockValue = safeNum(item.stock);
       return Math.max(maxValue - stockValue, 0);
+    }
+
+    function getStockHealthCounts(items) {
+      var rows = Array.isArray(items) ? items : [];
+      var outOfStockCount = 0;
+      var belowMinCount = 0;
+      var needPOCount = 0;
+      rows.forEach(function(item) {
+        var stockValue = safeNum(item.stock);
+        var minValue = safeNum(item.min);
+        if (stockValue <= 0) outOfStockCount += 1;
+        if (stockValue > 0 && stockValue <= minValue) belowMinCount += 1;
+        if (stockValue <= minValue) needPOCount += 1;
+      });
+      return {
+        outOfStockCount: outOfStockCount,
+        belowMinCount: belowMinCount,
+        needPOCount: needPOCount
+      };
     }
 
     function getStockStatus(item) {
@@ -3723,13 +3745,11 @@ function inferRequestPriority(stock, min) {
       }
       function num(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
       var totalStock = 0, outZero = 0, lowMin = 0, needPoCount = 0, noLocation = 0, noImage = 0;
+      var health = getStockHealthCounts(rows);
       var riskRows = [];
       rows.forEach(function(item) {
         var stock = num(item.stock), min = num(item.min), need = num(item.need_to_po || (min - stock));
         totalStock += stock;
-        if (stock <= 0) outZero++;
-        if (stock < min) lowMin++;
-        if (need > 0) needPoCount++;
         if (!String(item.location || '').trim()) noLocation++;
         if (!String(item.image_main || item.photo || '').trim()) noImage++;
         var reasons = [];
@@ -3740,6 +3760,9 @@ function inferRequestPriority(stock, min) {
         if (!String(item.image_main || item.photo || '').trim()) reasons.push('Missing Image');
         if (reasons.length) riskRows.push({ item: item, need: need, reason: reasons.join(', ') });
       });
+      outZero = health.outOfStockCount;
+      lowMin = health.belowMinCount;
+      needPoCount = health.needPOCount;
       summaryEl.innerHTML = card('Total Parts', rows.length.toLocaleString('th-TH')) + card('Total Stock', totalStock.toLocaleString('th-TH')) + card('Stock = 0', outZero.toLocaleString('th-TH')) + card('Stock < Min', lowMin.toLocaleString('th-TH')) + card('Need PO', needPoCount.toLocaleString('th-TH')) + card('Missing Location', noLocation.toLocaleString('th-TH')) + card('Missing Image', noImage.toLocaleString('th-TH')) + card('Pending Request', '...');
       var lineBars = document.getElementById('dashboardLineBars');
       var donut = document.getElementById('dashboardStockDonut');
@@ -4338,6 +4361,27 @@ function inferRequestPriority(stock, min) {
       }
     }
 
+    function syncTxnReasonVisibility() {
+      var isOutput = txnType && txnType.value === 'Output';
+      if (txnReasonGroup) txnReasonGroup.classList.toggle('hidden', !isOutput);
+      if (txnReason) txnReason.required = !!isOutput;
+      if (!isOutput) {
+        if (txnReason) txnReason.value = '';
+        if (txnReasonRemark) {
+          txnReasonRemark.value = '';
+          txnReasonRemark.classList.add('hidden');
+          txnReasonRemark.required = false;
+        }
+        return;
+      }
+      var isOtherReason = txnReason && String(txnReason.value || '') === 'Other';
+      if (txnReasonRemark) {
+        txnReasonRemark.classList.toggle('hidden', !isOtherReason);
+        txnReasonRemark.required = !!isOtherReason;
+        if (!isOtherReason) txnReasonRemark.value = '';
+      }
+    }
+
     function getTxnFilteredData() {
       var keyword = String(txnSearchInput.value || '').trim().toLowerCase();
       var category = txnCategoryFilter.value;
@@ -4705,6 +4749,20 @@ function inferRequestPriority(stock, min) {
       }
 
       if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
+      var isOutputTxn = txnType.value === 'Output';
+      var reasonValue = String((txnReason && txnReason.value) || '').trim();
+      var reasonRemarkValue = String((txnReasonRemark && txnReasonRemark.value) || '').trim();
+      if (isOutputTxn && !reasonValue) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'กรุณาเลือก Reason / เหตุผล ก่อนบันทึก';
+        return;
+      }
+      if (isOutputTxn && reasonValue === 'Other' && !reasonRemarkValue) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'กรุณาระบุ Reason Remark';
+        return;
+      }
+
       var payload = {
         partNo: selected.no,
         type: txnType.value,
@@ -4716,6 +4774,8 @@ function inferRequestPriority(stock, min) {
         qty: qty,
         unit: selected.unit || 'PCS',
         by: currentUser.username,
+        reason: isOutputTxn ? reasonValue : 'N/A',
+        reasonRemark: isOutputTxn && reasonValue === 'Other' ? reasonRemarkValue : '',
         sheetName: selected.__sourceSheet || selected.subLine || getCurrentSheetName()
       };
 
@@ -5201,11 +5261,12 @@ function inferRequestPriority(stock, min) {
     }
 
     function renderStats(data) {
-      var lowCount = data.filter(function(item) { return getStockStatus(item) === 'LOW'; }).length;
-      var outCount = data.filter(function(item) { return getStockStatus(item) === 'OUT'; }).length;
+      var health = getStockHealthCounts(data);
+      var lowCount = health.belowMinCount;
+      var outCount = health.outOfStockCount;
       var okCount = data.filter(function(item) { return getStockStatus(item) === 'OK'; }).length;
       var totalStockQty = data.reduce(function(sum, item){ return sum + safeNum(item.stock); }, 0);
-      var needPO = data.filter(function(item) { return getNeedToOrder(item) > 0; }).length;
+      var needPO = health.needPOCount;
       stockTodayAlert.classList.toggle('hidden', !(needPO > 0 || outCount > 0 || lowCount > 0));
       if (needPO > 0 || outCount > 0 || lowCount > 0) {
         stockTodayAlert.innerHTML = '🚨 <b>Today Alert</b> • ต้องสั่งซื้อ <b>' + needPO + '</b> • อะไหล่Out of Stock <b>' + outCount + '</b> • Below Min <b>' + lowCount + '</b>';
@@ -5626,7 +5687,8 @@ function inferRequestPriority(stock, min) {
         var status = getStockStatus(item);
         var hitStatus = selectedStatus === 'all'
           || (selectedStatus === 'out' && status === 'OUT')
-          || ((selectedStatus === 'low' || selectedStatus === 'near') && status === 'LOW')
+          || (selectedStatus === 'low' && status === 'LOW')
+          || (selectedStatus === 'near' && safeNum(item.stock) <= safeNum(item.min))
           || (selectedStatus === 'ok' && status === 'OK');
         var hitBrand = selectedBrand === 'all' || item.brand === selectedBrand;
         var hitCoil = selectedCoilSize === 'all' || String(item.coil_size || '-').trim() === selectedCoilSize;
@@ -5786,13 +5848,16 @@ function inferRequestPriority(stock, min) {
     qaManageBtn.addEventListener('click', switchToManagePage);
     if (txnReason) {
       txnReason.addEventListener('change', function() {
-        var isOther = String(txnReason.value || '') === 'Other';
-        if (txnReasonRemark) {
-          txnReasonRemark.classList.toggle('hidden', !isOther);
-          if (!isOther) txnReasonRemark.value = '';
-        }
+        syncTxnReasonVisibility();
       });
     }
+    if (txnType) {
+      txnType.addEventListener('change', function() {
+        syncTxnReasonVisibility();
+        refreshTxnActionAvailability();
+      });
+    }
+    syncTxnReasonVisibility();
     txnForm.addEventListener('submit', submitTransaction);
     tabStock.addEventListener('click', switchToStockPage);
     if (tabDashboard) tabDashboard.addEventListener('click', switchToDashboardPage);
