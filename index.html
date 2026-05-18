@@ -1247,6 +1247,8 @@
     var issueCartState = {};
     var issueCartSubmitting = false;
     var currentQuickIssueItemNo = '';
+    var currentQuickIssueSelectedPart = null;
+    var QUICK_ISSUE_SELECTED_PART_KEY = 'quickIssueSelectedPart';
     var quickIssueSubmitting = false;
     var logCache = [];
     var LOG_PAGE_SIZE = 15;
@@ -1600,6 +1602,9 @@
       ], ''));
 
       return {
+        id: firstDefined([item.id, item.partId, item.part_id, item.code, item.no], index + 1),
+        code: firstDefined([item.code, item.partCode, item.part_code, item.no], ''),
+        partId: firstDefined([item.partId, item.part_id, item.id, item.code, item.no], ''),
         no: firstDefined([item.no], index + 1),
         name: firstDefined([item.name, item.partName], '-'),
         model: firstDefined([item.model], '-'),
@@ -4589,8 +4594,32 @@ function inferRequestPriority(stock, min) {
     }
 
     function getCurrentQuickIssueItem() {
-      if (!currentQuickIssueItemNo) return null;
-      return partMap[String(currentQuickIssueItemNo)] || null;
+      if (currentQuickIssueSelectedPart && currentQuickIssueSelectedPart.no !== undefined) {
+        var latestByNo = partMap[String(currentQuickIssueSelectedPart.no)] || null;
+        if (latestByNo) return latestByNo;
+      }
+      if (currentQuickIssueItemNo) {
+        var latest = partMap[String(currentQuickIssueItemNo)] || null;
+        if (latest) return latest;
+      }
+      try {
+        var raw = sessionStorage.getItem(QUICK_ISSUE_SELECTED_PART_KEY);
+        if (!raw) return null;
+        var selectedPart = JSON.parse(raw);
+        console.log("Issue form selected part:", selectedPart);
+        if (!selectedPart) return null;
+        var candidateNo = String(selectedPart.no || '').trim();
+        var candidateId = String(selectedPart.id || selectedPart.partId || '').trim();
+        var candidateCode = String(selectedPart.code || '').trim().toLowerCase();
+        return partsData.filter(function(p) {
+          if (candidateNo && String(p.no || '').trim() === candidateNo) return true;
+          if (candidateId && String(p.id || p.partId || '').trim() === candidateId) return true;
+          if (candidateCode && String(p.code || '').trim().toLowerCase() === candidateCode) return true;
+          return false;
+        })[0] || null;
+      } catch (err) {
+        return null;
+      }
     }
 
     function closeQuickIssueModal() {
@@ -4599,6 +4628,8 @@ function inferRequestPriority(stock, min) {
       document.body.classList.remove('quick-issue-open');
       unlockBodyScroll();
       currentQuickIssueItemNo = '';
+      currentQuickIssueSelectedPart = null;
+      try { sessionStorage.removeItem(QUICK_ISSUE_SELECTED_PART_KEY); } catch (err) {}
       if (quickIssueForm) quickIssueForm.reset();
       if (quickIssueMessage) {
         quickIssueMessage.className = 'text-sm text-slate-500';
@@ -4609,9 +4640,18 @@ function inferRequestPriority(stock, min) {
 
     function openQuickIssueModal(no) {
       if (!quickIssueModal) return;
-      var keyNo = String(no || '');
-      var item = partMap[keyNo] || partsData.filter(function(p){ return String(p.no) === keyNo; })[0];
+      var arg = no;
+      var keyNo = '';
+      if (typeof arg === 'object' && arg) keyNo = String(arg.no || arg.id || arg.partId || arg.code || '');
+      else keyNo = String(arg || '');
+      var item = (typeof arg === 'object' && arg) ? arg : null;
+      if (!item) {
+        item = partMap[keyNo] || partsData.filter(function(p){
+          return String(p.no) === keyNo || String(p.id || p.partId || '') === keyNo || String(p.code || '') === keyNo;
+        })[0];
+      }
       if (!item) return;
+      console.log("Quick issue selected item:", item);
       if (detailModal && !detailModal.classList.contains('hidden')) closeDetailModal();
       if (issueCartModal && !issueCartModal.classList.contains('hidden')) closeIssueCart();
       if (editModal && !editModal.classList.contains('hidden')) closeEditModal();
@@ -4623,6 +4663,8 @@ function inferRequestPriority(stock, min) {
         updateLineMenuVisibility();
       }
       currentQuickIssueItemNo = String(item.no || '');
+      currentQuickIssueSelectedPart = item;
+      try { sessionStorage.setItem(QUICK_ISSUE_SELECTED_PART_KEY, JSON.stringify(item)); } catch (err) {}
       var status = getStockStatus(item);
       var tone = getStatusTone(status);
       var normalizedImage = toSafeImageUrl(item.image_main_url);
