@@ -1621,7 +1621,7 @@
         no: firstDefined([item.no], index + 1),
         name: firstDefined([item.name, item.partName], '-'),
         model: firstDefined([item.model], '-'),
-        line: firstDefined([item.line, item.mainLine, item.process], '-'),
+        line: firstDefined([item.line, item.mainLine, item.mainline, item.process, item.Line, item.LINE, item['ไลน์']], '-'),
         subLine: firstDefined([item.__sourceSheet, item.sheet, item.subLine], ''),
         location: firstDefined([item.location, item.jrLocation], '-'),
         category: firstDefined([item.category], 'General'),

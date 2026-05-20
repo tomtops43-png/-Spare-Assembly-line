@@ -1044,7 +1044,7 @@ function upsertMainItem(payload) {
     no: findCol(['no']),
     name: findCol(['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp']),
     model: findCol(['model', 'codeno', 'jrcodeno']),
-    line: findCol(['mainline', 'line']),
+    line: findCol(['mainline', 'line', 'process', 'ไลน์']),
     location: findCol(['location', 'jrlocation']),
     category: findCol(['category']),
     brand: findCol(['brand']),
@@ -1071,7 +1071,7 @@ function upsertMainItem(payload) {
     fieldCols.brand = ensureColumnInContext(ctx, 'Brand', ['brand']);
   }
   if (fieldCols.line === undefined) {
-    fieldCols.line = ensureColumnInContext(ctx, 'Line', ['line', 'mainline']);
+    fieldCols.line = ensureColumnInContext(ctx, 'Line', ['line', 'mainline', 'process', 'ไลน์']);
   }
   if (fieldCols.location === undefined) {
     fieldCols.location = ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
@@ -1334,7 +1334,7 @@ function doGet(e) {
         no: noText,
         name: pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '-'),
         model: pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '-'),
-        line: pickRowValue(row, map, ['mainline', 'line'], '-'),
+        line: pickRowValue(row, map, ['mainline', 'line', 'process', 'ไลน์'], '-'),
         location: locationOverride || rawLocation,
         category: pickRowValue(row, map, ['category'], 'General'),
         brand: pickRowValue(row, map, ['brand'], '-'),
