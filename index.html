@@ -1084,6 +1084,17 @@
         <input id="quickIssueQty" type="number" min="1" step="1" inputmode="numeric" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="จำนวน" required />
         <input id="quickIssueBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
         <input id="quickIssueProcess" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ไลน์/งาน" />
+        <select id="quickIssueReason" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+          <option value="">Reason / เหตุผลการเบิก</option>
+          <option value="PM">PM</option>
+          <option value="Breakdown">Breakdown</option>
+          <option value="Improvement">Improvement</option>
+          <option value="Trial">Trial</option>
+          <option value="Replace NG">Replace NG</option>
+          <option value="Production Support">Production Support</option>
+          <option value="Other">Other</option>
+        </select>
+        <input id="quickIssueReasonRemark" type="text" class="hidden h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="Reason Remark" />
         </div>
         <div class="mt-auto pt-4">
           <button id="quickIssueSubmitBtn" type="submit" class="h-12 w-full rounded-xl bg-blue-600 px-4 text-xl font-semibold text-white">บันทึกรายการ</button>
@@ -1211,6 +1222,8 @@
     var quickIssueQty = document.getElementById('quickIssueQty');
     var quickIssueBy = document.getElementById('quickIssueBy');
     var quickIssueProcess = document.getElementById('quickIssueProcess');
+    var quickIssueReason = document.getElementById('quickIssueReason');
+    var quickIssueReasonRemark = document.getElementById('quickIssueReasonRemark');
     var quickIssueSubmitBtn = document.getElementById('quickIssueSubmitBtn');
     var quickIssueMessage = document.getElementById('quickIssueMessage');
     var prReportPage = document.getElementById('prReportPage');
@@ -4682,6 +4695,11 @@ function inferRequestPriority(stock, min) {
       quickIssueQty.value = '';
       syncTxnActorFields();
       quickIssueProcess.value = item.line || currentLine || '';
+      if (quickIssueReason) quickIssueReason.value = '';
+      if (quickIssueReasonRemark) {
+        quickIssueReasonRemark.value = '';
+        quickIssueReasonRemark.classList.add('hidden');
+      }
       quickIssueMessage.className = 'text-sm text-slate-500';
       quickIssueMessage.textContent = '';
       setQuickIssueSubmitState(false);
@@ -4713,6 +4731,8 @@ function inferRequestPriority(stock, min) {
       }
       var by = String(currentUser.username || '').trim();
       var process = String(quickIssueProcess.value || '').trim();
+      var reason = String((quickIssueReason && quickIssueReason.value) || '').trim();
+      var reasonRemark = String((quickIssueReasonRemark && quickIssueReasonRemark.value) || '').trim();
       if (!item) {
         quickIssueMessage.className = 'text-sm text-rose-600';
         quickIssueMessage.textContent = 'ไม่พบรายการอะไหล่ที่เลือก';
@@ -4726,6 +4746,16 @@ function inferRequestPriority(stock, min) {
       if (qty > Number(item.stock || 0)) {
         quickIssueMessage.className = 'text-sm text-rose-600';
         quickIssueMessage.textContent = 'จำนวนเบิกมากกว่า stock ปัจจุบัน';
+        return;
+      }
+      if (!reason) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'กรุณาเลือก Reason / เหตุผล ก่อนบันทึก';
+        return;
+      }
+      if (reason === 'Other' && !reasonRemark) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'กรุณาระบุ Reason Remark';
         return;
       }
       if (!by) return;
@@ -4745,6 +4775,8 @@ function inferRequestPriority(stock, min) {
         qty: qty,
         unit: item.unit || 'PCS',
         by: by,
+        reason: reason,
+        reasonRemark: reason === 'Other' ? reasonRemark : '',
         sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
       setQuickIssueSubmitState(true);
@@ -6012,6 +6044,7 @@ if (dashboardPage) {
       setIssueCartMessage('', 'muted');
     });
     if (issueCartReason) issueCartReason.addEventListener('change', function(){ var isOther = String(issueCartReason.value || '') === 'Other'; if (issueCartReasonRemark) { issueCartReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) issueCartReasonRemark.value = ''; } });
+    if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } });
     if (issueCartSubmitBtn) issueCartSubmitBtn.addEventListener('click', submitIssueCartTransactions);
     if (detailAddToCartBtn) detailAddToCartBtn.addEventListener('click', function() {
       if (!detailModalCurrentNo) return;
