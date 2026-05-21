@@ -1134,6 +1134,9 @@
       <select id="brandFilterMobile" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
         <option value="all">แบรนด์ทั้งหมด</option>
       </select>
+      <select id="coilSizeFilterMobile" class="hidden h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
+        <option value="all">All Coil Size</option>
+      </select>
       <button id="applyFilterSheetBtn" type="button" class="h-11 w-full rounded-xl bg-blue-600 text-white font-semibold">ใช้งาน Filter</button>
     </div>
   </div>
@@ -1186,6 +1189,7 @@
     var statusFilterMobile = document.getElementById('statusFilterMobile');
     var categoryFilterMobile = document.getElementById('categoryFilterMobile');
     var brandFilterMobile = document.getElementById('brandFilterMobile');
+    var coilSizeFilterMobile = document.getElementById('coilSizeFilterMobile');
     var filterSheet = document.getElementById('filterSheet');
     var openFilterSheetBtn = document.getElementById('openFilterSheetBtn');
     var closeFilterSheetBtn = document.getElementById('closeFilterSheetBtn');
@@ -5332,6 +5336,11 @@ function inferRequestPriority(stock, min) {
         .join('');
       coilSizeFilter.innerHTML = html;
       coilSizeFilter.value = seen[selected] || selected === 'all' ? selected : 'all';
+      if (coilSizeFilterMobile) {
+        var selectedMobile = String(coilSizeFilterMobile.value || 'all');
+        coilSizeFilterMobile.innerHTML = html;
+        coilSizeFilterMobile.value = (seen[selectedMobile] || selectedMobile === 'all') ? selectedMobile : coilSizeFilter.value;
+      }
     }
 
     function renderStats(data) {
@@ -5444,8 +5453,10 @@ function inferRequestPriority(stock, min) {
           categoryFilterMobile.value = 'all';
           statusFilter.value = 'all';
           brandFilter.value = 'all';
+          if (coilSizeFilter) coilSizeFilter.value = 'all';
           statusFilterMobile.value = 'all';
           brandFilterMobile.value = 'all';
+          if (coilSizeFilterMobile) coilSizeFilterMobile.value = 'all';
           searchInput.value = '';
           searchInputMobile.value = '';
           searchClearBtn.classList.add('hidden');
@@ -5779,10 +5790,15 @@ function inferRequestPriority(stock, min) {
     }
 
     function syncCoilFilterVisibility(){
-      if(!coilSizeFilter) return;
       var isCoilLine = String(currentLine || '').toLowerCase() === 'coil winding';
-      coilSizeFilter.classList.toggle('hidden', !isCoilLine);
-      if (!isCoilLine) coilSizeFilter.value = 'all';
+      if (coilSizeFilter) coilSizeFilter.classList.toggle('hidden', !isCoilLine);
+      if (coilSizeFilterMobile) coilSizeFilterMobile.classList.toggle('hidden', !isCoilLine);
+      if (!isCoilLine) {
+        if (coilSizeFilter) coilSizeFilter.value = 'all';
+        if (coilSizeFilterMobile) coilSizeFilterMobile.value = 'all';
+      } else if (coilSizeFilter && coilSizeFilterMobile) {
+        coilSizeFilterMobile.value = coilSizeFilter.value || 'all';
+      }
     }
     categoryFilter.addEventListener('change', applyFilters);
     statusFilter.addEventListener('change', function(){ tableStatusMode = 'all'; applyFilters(); });
@@ -5792,6 +5808,7 @@ function inferRequestPriority(stock, min) {
     categoryFilterMobile.addEventListener('change', function(){ categoryFilter.value = categoryFilterMobile.value; applyFilters(); });
     statusFilterMobile.addEventListener('change', function(){ statusFilter.value = statusFilterMobile.value; tableStatusMode = 'all'; applyFilters(); });
     brandFilterMobile.addEventListener('change', function(){ brandFilter.value = brandFilterMobile.value; applyFilters(); });
+    if (coilSizeFilterMobile) coilSizeFilterMobile.addEventListener('change', function(){ if (coilSizeFilter) coilSizeFilter.value = coilSizeFilterMobile.value; applyFilters(); });
     sortFilter.addEventListener('change', applyFilters);
     sortFilterMobile.addEventListener('change', function(){ sortFilter.value = sortFilterMobile.value; applyFilters(); });
     searchInput.addEventListener('input', function(){
@@ -6023,12 +6040,19 @@ if (dashboardPage) {
       if (!editModal.classList.contains('hidden')) return closeEditModal();
     });
     document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
-    openFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.remove('hidden'); });
+    openFilterSheetBtn.addEventListener('click', function(){
+      categoryFilterMobile.value = categoryFilter.value;
+      statusFilterMobile.value = statusFilter.value;
+      brandFilterMobile.value = brandFilter.value;
+      if (coilSizeFilterMobile && coilSizeFilter) coilSizeFilterMobile.value = coilSizeFilter.value;
+      filterSheet.classList.remove('hidden');
+    });
     closeFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.add('hidden'); });
     applyFilterSheetBtn.addEventListener('click', function(){
       categoryFilter.value = categoryFilterMobile.value;
       statusFilter.value = statusFilterMobile.value;
       brandFilter.value = brandFilterMobile.value;
+      if (coilSizeFilter && coilSizeFilterMobile) coilSizeFilter.value = coilSizeFilterMobile.value;
       tableStatusMode = 'all';
       filterSheet.classList.add('hidden');
       applyFilters();
