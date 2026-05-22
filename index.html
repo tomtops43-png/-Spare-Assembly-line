@@ -4131,9 +4131,9 @@ function inferRequestPriority(stock, min) {
         var stock = Number(i.stock || 0), min = Number(i.min || 0), max = Number(i.max || 0);
         var need = Number(i.needToOrder || i.need_to_order || Math.max((max || min) - stock, 0));
         var reasons = [];
-        if (includeOut && stock <= 0) reasons.push('Out-of-stock');
-        if (includeBelow && stock <= min) reasons.push('Below MIN');
-        if (need > 0) reasons.push('Need to order > 0');
+        if (includeOut && stock <= 0) reasons.push('No stock available');
+        if (includeBelow && stock <= min) reasons.push('Stock below minimum level');
+        if (need > 0) reasons.push('Replenishment required');
         var recentUsage = Number(usage[String(i.no || '')] || 0);
         if (includeUsage && recentUsage >= Math.max(5, min)) reasons.push('High usage (' + recentUsage + ' issued)');
         var criticalFlag = String(i.criticalFlag || i.isCritical || i.priority || '').toLowerCase();
@@ -6152,7 +6152,7 @@ if (dashboardPage) {
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
       var preparedBy = document.getElementById('prPreparedBy').value || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
-      var submissionDate = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' });
+      var submissionDate = new Date().toISOString().slice(0,10);
       var normalized = selected.map(function(c) {
         var qty = asNum(c.suggestedQty || c.qty || 0);
         var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
@@ -6200,6 +6200,14 @@ if (dashboardPage) {
       var unpricedRows = normalized.filter(function(c){ return c.unitPrice === null; });
       var totalAmount = pricedRows.reduce(function(sum, c){ return sum + c.amount; }, 0);
       var pendingPriceCount = unpricedRows.length;
+      var readyForPr = pricedRows;
+      var priceTbcItems = unpricedRows;
+      var urgentItems = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock<=0 || lv.indexOf('critical')>-1 || lv.indexOf('high')>-1 || (c.amount!==null && c.amount>=5000); }).slice(0,12);
+      function isSupportTool(row){ return /(support|production support)/i.test(String(row.category||'')); }
+      function isMaintenanceTool(row){ return /(maintenance|tool|fixture|equipment)/i.test(String(row.category||'')); }
+      var machineSpareCount = normalized.filter(function(r){ return !isMaintenanceTool(r) && !isSupportTool(r); }).length;
+      var maintenanceToolCount = normalized.filter(isMaintenanceTool).length;
+      var supportToolCount = normalized.filter(isSupportTool).length;
       console.debug('[PR] selectedItems count:', normalized.length);
       console.debug('[PR] selectedItems payload:', normalized);
       console.debug('[PR] categorized toolItems/sparePartItems:', toolRows.length, spareRows.length);
@@ -6262,10 +6270,13 @@ if (dashboardPage) {
         '<h2>7. Expected Benefits After Purchase</h2><p>Reduced downtime, improved maintenance response time, stable production continuity, and lower emergency purchase costs.</p>' +
         '<h2>8. Justification for Approval</h2><p>Requested items are directly related to production support, maintenance, troubleshooting, and quality control based on current demand and issue frequency.</p>' +
         '<h2>9. Approval Request Statement</h2><p>We would like to request approval to proceed with this Purchase Request to ensure safe and continuous production operations.</p>' +
-        '<h2>10. Detailed Requested Item List</h2><h3>10.1 Maintenance Tools / Production Support Tools</h3><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(toolRows, 8) + '</tbody></table>' +
-        '<h3>10.2 Machine Spare Parts</h3><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(spareRows, 8) + '</tbody></table>' +
-        '<h3>Annex A: Tools (Supplier / Price Date / Picture)</h3><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(toolRows) + '</tbody></table>' +
-        '<h3>Annex B: Spare Parts (Supplier / Price Date / Picture)</h3><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(spareRows) + '</tbody></table>' +
+        '<h2>10. Management Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Confirmed price items</td><td>'+readyForPr.length+'</td></tr><tr><td>TBC price items</td><td>'+priceTbcItems.length+'</td></tr><tr><td>Confirmed amount</td><td>'+(pricedRows.length ? totalAmount.toLocaleString() : 'TBC')+'</td></tr><tr><td>Pending quotation note</td><td>Please confirm quotations for TBC items before final PR approval.</td></tr></tbody></table>' +
+        '<h2>11. Category Summary</h2><table><thead><tr><th>Category</th><th>Items</th></tr></thead><tbody><tr><td>Machine Spare Parts</td><td>'+machineSpareCount+'</td></tr><tr><td>Maintenance Tools</td><td>'+maintenanceToolCount+'</td></tr><tr><td>Production Support Tools</td><td>'+supportToolCount+'</td></tr></tbody></table>' +
+        '<h2>12. Top Urgent Items</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(urgentItems, 8) + '</tbody></table>' +
+        '<h2>13. Approval Signatures</h2><table><thead><tr><th>Prepared by</th><th>Checked by</th><th>Approved by</th></tr></thead><tbody><tr><td style="height:64px;vertical-align:bottom;">'+preparedBy+'</td><td style="vertical-align:bottom;">____________________</td><td style="vertical-align:bottom;">____________________</td></tr></tbody></table>' +
+        '<h2>Annex A. Ready for PR (Confirmed Price)</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(readyForPr, 8) + '</tbody></table>' +
+        '<h2>Annex B. Price Confirmation Required (TBC)</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(priceTbcItems, 8) + '</tbody></table>' +
+        '<h2>Annex C. Supporting Pictures (Selected items only)</h2><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')); return lv.indexOf('critical')>-1 || lv.indexOf('high')>-1 || (c.amount!==null && c.amount>=5000) || custom || !String(c.image||'').trim(); })) + '</tbody></table>' +
         '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
