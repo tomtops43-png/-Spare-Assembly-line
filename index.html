@@ -4116,6 +4116,23 @@ function inferRequestPriority(stock, min) {
       if (t) t.value = to.toISOString().slice(0,10);
     }
 
+    
+    function setPrGenerationLoading(isLoading, message) {
+      if (prRunBtn) {
+        prRunBtn.disabled = !!isLoading;
+        prRunBtn.classList.toggle('opacity-70', !!isLoading);
+        prRunBtn.classList.toggle('cursor-wait', !!isLoading);
+        prRunBtn.textContent = isLoading ? 'Generating... Please wait' : 'Generate PR List';
+      }
+      if (isLoading) {
+        if (prSummaryCards) prSummaryCards.innerHTML = '';
+        if (prCostSummary) prCostSummary.textContent = '';
+        if (prCandidateList) {
+          prCandidateList.innerHTML = '<div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700"><div class="flex items-center gap-2"><span class="inline-block h-3 w-3 animate-pulse rounded-full bg-blue-500"></span><span>' + (message || 'Loading PR items...') + '</span></div></div>';
+        }
+      }
+    }
+
     function runPrCandidateSelection() {
       var mode = prMode ? String(prMode.value || 'assembly_monthly') : 'assembly_monthly';
       var lineFilterValue = prLineFilter ? String(prLineFilter.value || 'all') : 'all';
@@ -4126,6 +4143,7 @@ function inferRequestPriority(stock, min) {
       var includeUsage = document.getElementById('prIncludeUsage').checked;
       var criticalOnly = document.getElementById('prCriticalOnly').checked;
       var usage = buildUsageMap(fromDate, toDate);
+      setPrGenerationLoading(true, 'Loading and evaluating PR candidates...');
       loadPrSourceItems(mode, lineFilterValue).then(function(sourceItems) {
       prCandidateState = sourceItems.map(function(i) {
         var stock = Number(i.stock || 0), min = Number(i.min || 0), max = Number(i.max || 0);
@@ -4154,6 +4172,8 @@ function inferRequestPriority(stock, min) {
       renderPrCandidates();
       }).catch(function(err) {
         prCandidateList.innerHTML = '<p class=\"text-sm text-rose-600\">Generate candidates failed: ' + (err && err.message ? err.message : err) + '</p>';
+      }).finally(function(){
+        setPrGenerationLoading(false);
       });
     }
 
