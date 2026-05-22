@@ -6237,7 +6237,7 @@ if (dashboardPage) {
           machineStation: c.machineStation || '-',
           name: c.name || '-',
           brand: c.brand || '-',
-          model: c.model || '-',
+          model: c.model || c.no || '-',
           qty: qty > 0 ? qty : 1,
           critical: c.critical || '-',
           unitPrice: price,
@@ -6310,15 +6310,19 @@ if (dashboardPage) {
         return html;
       }
       function renderLineGroupedAnnexRows(items) {
-        if (!items.length) return '<tr><td colspan=\"5\" class=\"empty\">No selected items in this section</td></tr>';
-        var html = '';
-        var lineMap = {};
-        items.forEach(function(c){ (lineMap[c.line || '-'] = lineMap[c.line || '-'] || []).push(c); });
-        Object.keys(lineMap).forEach(function(lineName) {
-          html += '<tr><td colspan=\"5\" style=\"background:#f8fafc;font-weight:700;\">Line: ' + esc(lineName) + '</td></tr>';
-          html += lineMap[lineName].map(function(c){ return '<tr><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.supplier || '-')+'</td><td>'+esc(c.priceUpdatedAt || '-')+'</td><td>'+imageRow(c)+'</td></tr>'; }).join('');
-        });
-        return html;
+        if (!items.length) return '<tr><td colspan="6" class="empty">No selected items in this section</td></tr>';
+        return items.map(function(c){
+          var reasonNotes = [];
+          var lv = String(c.critical || '').toLowerCase();
+          if (lv.indexOf('critical') > -1) reasonNotes.push('Critical spare');
+          if (c.amount !== null && c.amount >= 5000) reasonNotes.push('High value item');
+          var text = (String(c.category || '') + ' ' + String(c.name || '') + ' ' + String(c.model || '')).toLowerCase();
+          if (/(custom|made-to-order|special)/.test(text)) reasonNotes.push('Custom-made part');
+          if (Number(c.stock || 0) <= 0) reasonNotes.push('Out of stock');
+          if (!String(c.model || '').trim() || String(c.model || '').trim() === '-' || /(assy|part|item|spare)$/i.test(String(c.name||''))) reasonNotes.push('For identification');
+          var remark = reasonNotes.length ? reasonNotes.join(', ') : 'For identification';
+          return '<tr><td>'+imageRow(c)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.brand || '-')+'</td><td>'+esc(c.model || c.no || '-')+'</td><td>'+esc(remark)+'</td></tr>';
+        }).join('');
       }
       function renderSummaryByLineRows() {
         return ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'].map(function(lineName) {
@@ -6350,7 +6354,7 @@ if (dashboardPage) {
         '<h2>14. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date (YYYY-MM-DD)</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+preparedBy+'</td><td>________________</td><td>'+submissionDate+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table><h2>15. Reason Code Definition</h2><table><thead><tr><th>Code</th><th>Definition</th></tr></thead><tbody><tr><td>OOS</td><td>Out of Stock</td></tr><tr><td>BMIN</td><td>Below Minimum Stock</td></tr><tr><td>CRIT</td><td>Critical Spare</td></tr><tr><td>REP</td><td>Replenishment Required</td></tr></tbody></table>' +
         '<h2>Annex A. Ready for PR (Confirmed Price) - Full Item List</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(readyForPr, 8) + '</tbody></table>' +
         '<h2>Annex B. Price Confirmation Required (TBC) - Full Item List</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(priceTbcItems, 8) + '</tbody></table>' +
-        '<h2>Annex C. Supporting Pictures (Selected items only)</h2><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')); return lv.indexOf('critical')>-1 || lv.indexOf('high')>-1 || (c.amount!==null && c.amount>=5000) || custom || !String(c.image||'').trim(); })) + '</tbody></table>' +
+        '<h2>Annex C: Critical Item Reference Pictures</h2><table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Remark</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||'')); var inUrgent = urgentItems.some(function(u){ return u.no===c.no && u.line===c.line; }); var unclear = !String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||'')); var highAmount = (c.amount!==null && c.amount>=5000); return !!String(c.image||'').trim() && (lv.indexOf('critical')>-1 || inUrgent || highAmount || custom || unclear); })) + '</tbody></table>' +
         '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
