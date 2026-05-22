@@ -682,7 +682,26 @@
         </div>
         <div class="rounded-xl border border-slate-200 p-3 lg:col-span-2">
           <p class="font-semibold mb-2">2) Recommended PR Items</p>
-          <div id="prSummaryCards" class="mb-2 grid grid-cols-2 md:grid-cols-6 gap-2"></div><div id="prCostSummary" class="mb-2 text-xs text-slate-600"></div><div id="prCandidateList" class="space-y-2 max-h-[360px] overflow-auto"></div>
+          <div id="prSummaryCards" class="mb-2 grid grid-cols-2 md:grid-cols-8 gap-2"></div><div id="prCostSummary" class="mb-2 text-xs text-slate-600"></div>
+<div id="prCandidateToolbar" class="mb-2 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs">
+  <div id="prLineTabs" class="flex flex-wrap gap-1"></div>
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+    <input id="prCandidateSearch" class="h-9 rounded border border-slate-300 px-2 text-sm md:col-span-2" placeholder="Search name / brand / model / line / category / reason code" />
+    <select id="prCriticalFilter" class="h-9 rounded border border-slate-300 px-2"><option value="all">Critical: All</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
+    <select id="prPriceFilter" class="h-9 rounded border border-slate-300 px-2"><option value="all">Price: All</option><option value="confirmed">Confirmed Price</option><option value="tbc">TBC Price</option></select>
+    <select id="prReasonFilter" class="h-9 rounded border border-slate-300 px-2"><option value="all">Reason: All</option><option>OOS</option><option>BMIN</option><option>REP</option><option>CRIT</option></select>
+  </div>
+  <label class="inline-flex items-center gap-2"><input id="prSelectedOnly" type="checkbox" /> Selected only</label>
+</div>
+<div id="prCandidateList" class="space-y-2 max-h-[480px] overflow-auto"></div>
+<div id="prStickyActionBar" class="fixed bottom-2 left-2 right-2 z-[95] rounded-xl border border-slate-300 bg-white/95 p-2 shadow-lg backdrop-blur">
+  <div class="flex flex-wrap items-center gap-2 text-xs">
+    <span id="prStickySummary" class="font-semibold text-slate-700">Selected 0 | Estimated 0 THB</span>
+    <button id="prStickyBuildBtn" type="button" class="h-8 rounded-lg bg-emerald-600 px-3 text-white font-semibold">Build Report</button>
+    <button id="prStickyPdfBtn" type="button" class="h-8 rounded-lg border border-slate-300 px-3 font-semibold">Export PDF</button>
+    <button id="prStickySaveBtn" type="button" class="h-8 rounded-lg border border-slate-300 px-3 font-semibold">Save Draft</button>
+  </div>
+</div>
         </div>
       </div>
       <div class="rounded-xl border border-slate-200 p-3">
@@ -1276,6 +1295,8 @@
     var LOG_PAGE_SIZE = 15;
     var logCurrentPage = 1;
     var prCandidateState = [];
+    var prLineTabState = "all";
+    var prLineCollapsedState = {"H9": false, "Arc Chute": false, "Coil Winding": false, "Lug&Screw": false};
     var dashboardAllPartsData = [];
     var uploadJobQueue = [];
     var activeUploadJob = null;
@@ -4178,18 +4199,39 @@ function inferRequestPriority(stock, min) {
     }
 
     function renderPrCandidates() {
+      var searchEl = document.getElementById('prCandidateSearch');
+      var criticalEl = document.getElementById('prCriticalFilter');
+      var priceEl = document.getElementById('prPriceFilter');
+      var reasonEl = document.getElementById('prReasonFilter');
+      var selectedOnlyEl = document.getElementById('prSelectedOnly');
       if (!prCandidateState.length) { if(prSummaryCards) prSummaryCards.innerHTML=""; if(prCostSummary) prCostSummary.textContent=""; prCandidateList.innerHTML = '<p class="text-sm text-slate-500">No PR items generated yet. Please set scope and click Generate PR List.</p>'; return; }
-      var sums={out:0,below:0,usage:0,critical:0,total:prCandidateState.length,selected:0,cost:0}; prCandidateState.forEach(function(c){ var r=String(c.reason||'').toLowerCase(); if(r.indexOf('oos')>-1) sums.out++; if(r.indexOf('bmin')>-1) sums.below++; if(r.indexOf('rep')>-1) sums.usage++; if(String(c.priority||'').toLowerCase()==='critical') sums.critical++; if(c.selected){sums.selected++;sums.cost += Number(c.suggestedQty||0)*Number(c.unitPrice||0);} }); if(prSummaryCards) prSummaryCards.innerHTML=[['Out of Stock',sums.out],['Below Min',sums.below],['Usage-based',sums.usage],['Critical',sums.critical],['Total Recommended',sums.total]].map(function(x){return '<div class="rounded-lg border border-slate-200 p-2 text-center"><p class="text-[11px] text-slate-500">'+x[0]+'</p><p class="text-lg font-bold">'+x[1]+'</p></div>';}).join(''); if(prCostSummary) prCostSummary.textContent='Total selected items: '+sums.selected+' • Total estimated cost: '+sums.cost.toLocaleString(); prCandidateList.innerHTML = prCandidateState.map(function(c, idx){
-        return '<label class="block rounded-lg border border-slate-200 p-2 text-sm">' +
-          '<div class="flex items-start gap-2"><input data-pr-select="' + idx + '" type="checkbox" ' + (c.selected ? 'checked' : '') + ' class="mt-1"/><div class="min-w-0 flex-1"><p class="font-semibold">' + c.name + ' (' + c.no + ')</p><p class="text-xs text-slate-500">' + c.category + ' • ' + c.brand + ' • ' + c.model + ' • ' + c.line + '/' + c.subLine + '</p><p class="text-xs text-amber-700">' + c.reason.split(',').map(function(x){var code=x.trim(); return '<span class=\"inline-block mr-1 mb-1 rounded bg-amber-100 px-1.5 py-0.5 font-semibold\">'+code+'</span>';}).join('') + '</p><p class="text-xs text-slate-600">Stock: '+c.stock+' | Min: '+c.min+' | Line: '+c.line+'</p></div></div>' +
-          '<div class="mt-2 grid grid-cols-2 md:grid-cols-6 gap-2">' +
-          '<input data-pr-qty="' + idx + '" type="number" value="' + c.suggestedQty + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Qty"/>' +
-          '<input data-pr-critical="' + idx + '" value="' + c.critical + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Critical"/>' +
-          '<input data-pr-price="' + idx + '" type="number" value="' + c.unitPrice + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Unit price"/>' +
-          '<input data-pr-machine="' + idx + '" value="' + c.machineStation + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Machine/Station"/>' +
-          '<input data-pr-purpose="' + idx + '" value="' + c.purpose + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Reason/Purpose"/><input data-pr-priority="' + idx + '" value="' + (c.priority || 'Medium') + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Priority"/>' +
-          '</div></label>';
-      }).join('');
+      var q = String((searchEl && searchEl.value) || '').trim().toLowerCase();
+      var cf = String((criticalEl && criticalEl.value) || 'all').toLowerCase();
+      var pf = String((priceEl && priceEl.value) || 'all').toLowerCase();
+      var rf = String((reasonEl && reasonEl.value) || 'all').toUpperCase();
+      var so = !!(selectedOnlyEl && selectedOnlyEl.checked);
+      var filtered = prCandidateState.filter(function(c){
+        var txt = [c.name,c.brand,c.model,c.line,c.category,c.reason].join(' ').toLowerCase();
+        var hitQ = !q || txt.indexOf(q) > -1;
+        var hitLine = prLineTabState === 'all' || String(c.line || '') === prLineTabState;
+        var hitCritical = cf === 'all' || String(c.critical || '').toLowerCase() === cf;
+        var hitPrice = pf === 'all' || (pf === 'confirmed' ? Number(c.unitPrice||0) > 0 : Number(c.unitPrice||0) <= 0);
+        var hitReason = rf === 'ALL' || String(c.reason || '').split(',').map(function(x){return x.trim().toUpperCase();}).indexOf(rf) > -1;
+        var hitSelected = !so || !!c.selected;
+        return hitQ && hitLine && hitCritical && hitPrice && hitReason && hitSelected;
+      });
+      var sums={oos:0,bmin:0,critical:0,confirmed:0,tbc:0,total:filtered.length,selected:0,cost:0};
+      filtered.forEach(function(c){ var codes=String(c.reason||'').toUpperCase(); if(codes.indexOf('OOS')>-1) sums.oos++; if(codes.indexOf('BMIN')>-1) sums.bmin++; if(codes.indexOf('CRIT')>-1) sums.critical++; if(Number(c.unitPrice||0)>0) sums.confirmed++; else sums.tbc++; if(c.selected){sums.selected++; sums.cost += Number(c.suggestedQty||0)*Number(c.unitPrice||0);} });
+      if(prSummaryCards) prSummaryCards.innerHTML=[['Out of Stock',sums.oos],['Below Min',sums.bmin],['Critical',sums.critical],['Confirmed Price',sums.confirmed],['TBC Price',sums.tbc],['Total Recommended',sums.total],['Selected Items',sums.selected],['Estimated Cost',sums.cost.toLocaleString()]].map(function(x){return '<div class="rounded-lg border border-slate-200 p-2 text-center"><p class="text-[11px] text-slate-500">'+x[0]+'</p><p class="text-lg font-bold">'+x[1]+'</p></div>';}).join('');
+      if(prCostSummary) prCostSummary.textContent='Selected item count: '+sums.selected+' • Total estimated cost: '+sums.cost.toLocaleString()+' THB';
+      var sticky = document.getElementById('prStickySummary'); if (sticky) sticky.textContent = 'Selected '+sums.selected+' | Estimated '+sums.cost.toLocaleString()+' THB';
+      var lines=['H9','Arc Chute','Coil Winding','Lug&Screw'];
+      var tabs = document.getElementById('prLineTabs'); if (tabs) tabs.innerHTML = ['all'].concat(lines).map(function(l){ var active=(prLineTabState===l); return '<button data-pr-line-tab="'+l+'" class="h-8 rounded border px-2 '+(active?'bg-blue-600 text-white border-blue-600':'bg-white border-slate-300')+'">'+(l==='all'?'All':l)+'</button>'; }).join('');
+      var lineMap={}; filtered.forEach(function(c){ var ln=String(c.line||'-'); (lineMap[ln]=lineMap[ln]||[]).push(c); });
+      var html='';
+      lines.forEach(function(line){ var items=lineMap[line]||[]; if(!items.length) return; var selectedCount=items.filter(function(i){return i.selected;}).length; var amount=items.filter(function(i){return i.selected && Number(i.unitPrice||0)>0;}).reduce(function(s,i){return s+Number(i.unitPrice||0)*Number(i.suggestedQty||0);},0); var tbc=items.filter(function(i){return Number(i.unitPrice||0)<=0;}).length; var collapsed=!!prLineCollapsedState[line]; html += '<section class="rounded-lg border border-slate-200"><div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2"><button data-pr-toggle-line="'+line+'" class="font-semibold text-left">'+line+' — '+items.length+' items | Selected '+selectedCount+' | Amount '+amount.toLocaleString()+' THB | TBC '+tbc+'</button><div class="flex gap-1"><button data-pr-select-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Select all</button><button data-pr-unselect-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Unselect all</button><button data-pr-toggle-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">'+(collapsed?'Expand':'Collapse')+'</button></div></div>'; if(!collapsed){ html += '<div class="space-y-1 p-2">'+items.map(function(c){ var idx=prCandidateState.indexOf(c); var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return '<label class="block rounded border border-slate-200 p-2 text-xs"><div class="grid grid-cols-1 md:grid-cols-10 gap-1 items-center"><input data-pr-select="'+idx+'" type="checkbox" '+(c.selected?'checked':'')+' /><div class="md:col-span-3 font-semibold">'+c.name+'</div><div class="md:col-span-2 text-slate-500">'+(c.brand||'-')+' / '+(c.model||'-')+'</div><div>'+c.line+'</div><div>Stock/Min '+c.stock+'/'+c.min+'</div><input data-pr-qty="'+idx+'" type="number" value="'+c.suggestedQty+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-critical="'+idx+'" value="'+c.critical+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-price="'+idx+'" type="number" value="'+c.unitPrice+'" class="h-7 rounded border border-slate-300 px-1" /><div>Total '+total.toLocaleString()+'</div><div>'+String(c.reason||'').replace(/,/g,' / ')+'</div></div><details class="mt-1"><summary class="cursor-pointer text-blue-700">Edit advanced</summary><div class="mt-1 grid grid-cols-1 md:grid-cols-3 gap-1"><input data-pr-machine="'+idx+'" value="'+(c.machineStation||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Machine/Station" /><input data-pr-purpose="'+idx+'" value="'+(c.purpose||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Reason/Purpose" /><input data-pr-priority="'+idx+'" value="'+(c.priority||'Medium')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Priority" /></div></details></label>'; }).join('')+'</div>'; } html += '</section>'; });
+      prCandidateList.innerHTML = html;
+      setTimeout(function(){ var n = document.getElementById('prCandidateToolbar'); if(n) n.scrollIntoView({behavior:'smooth',block:'start'}); }, 60);
     }
 
     function loadPartsData(options) {
@@ -6123,6 +6165,12 @@ if (dashboardPage) {
     editForm.addEventListener('submit', submitEditModal);
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
     if (prRunBtn) prRunBtn.addEventListener('click', runPrCandidateSelection);
+    ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
+    var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; renderPrCandidates(); });
+    if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } });
+    var prStickyBuildBtn=document.getElementById('prStickyBuildBtn'); if(prStickyBuildBtn) prStickyBuildBtn.addEventListener('click', function(){ if(prBuildReportBtn) prBuildReportBtn.click(); });
+    var prStickyPdfBtn=document.getElementById('prStickyPdfBtn'); if(prStickyPdfBtn) prStickyPdfBtn.addEventListener('click', function(){ if(prPrintBtn) prPrintBtn.click(); });
+    var prStickySaveBtn=document.getElementById('prStickySaveBtn'); if(prStickySaveBtn) prStickySaveBtn.addEventListener('click', function(){ var b=document.getElementById('prSaveDraftBtn'); if(b) b.click(); });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
     var prReportNoEl = document.getElementById('prReportNo');
