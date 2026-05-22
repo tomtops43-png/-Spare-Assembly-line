@@ -655,10 +655,15 @@
         <div class="rounded-xl border border-slate-200 p-3">
           <p class="font-semibold mb-2">1) Scope</p>
           <div class="grid grid-cols-1 gap-2 text-sm">
-            <input id="prPeriod" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Request Period (e.g. May 2026)" />
+            <label class="text-xs font-semibold text-slate-600">Request Period</label>
+            <input id="prPeriod" type="month" class="h-10 rounded-lg border border-slate-300 px-3" />
+            <label class="text-xs font-semibold text-slate-600">Request Date From / To</label>
             <div class="grid grid-cols-2 gap-2"><input id="prFrom" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /><input id="prTo" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /></div>
+            <label class="text-xs font-semibold text-slate-600">Prepared by</label>
             <input id="prPreparedBy" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Prepared by" />
+            <label class="text-xs font-semibold text-slate-600">Department</label>
             <input id="prDepartment" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Department" value="Production / Maintenance" />
+            <label class="text-xs font-semibold text-slate-600">Report Mode</label>
             <select id="prMode" class="h-10 rounded-lg border border-slate-300 px-3 bg-white">
               <option value="assembly_monthly" selected>Assembly Monthly PR (All lines)</option>
               <option value="line_specific">Line-specific PR</option>
@@ -671,16 +676,13 @@
               <option value="Coil Winding">Coil Winding</option>
               <option value="Lug&Screw">Lug&Screw</option>
             </select>
-            <label><input id="prIncludeOut" type="checkbox" checked /> Include out-of-stock</label>
-            <label><input id="prIncludeBelow" type="checkbox" checked /> Include below-min</label>
-            <label><input id="prIncludeUsage" type="checkbox" checked /> Include usage-based</label>
-            <label><input id="prCriticalOnly" type="checkbox" /> Critical only</label>
-            <button id="prRunBtn" type="button" class="h-10 rounded-lg bg-blue-600 text-white font-semibold">Generate Candidates</button>
+                        <p class="text-xs font-semibold text-slate-700">Include Conditions</p><label><input id="prIncludeOut" type="checkbox" checked /> Out of stock</label><label><input id="prIncludeBelow" type="checkbox" checked /> Below min</label><label><input id="prIncludeUsage" type="checkbox" checked /> Usage-based</label><p class="text-xs font-semibold text-slate-700">Additional Filter</p><label><input id="prCriticalOnly" type="checkbox" /> Critical items only</label><label class="text-xs font-semibold text-slate-600">Report Status</label><select id="prReportStatus" class="h-10 rounded-lg border border-slate-300 px-3 bg-white"><option>Draft</option><option>Reviewed</option><option>Submitted</option><option>PR Created</option><option>Ordered</option><option>Received</option><option>Cancelled</option></select><input id="prReportNo" readonly class="h-10 rounded-lg border border-slate-300 px-3 bg-slate-100" placeholder="Report No" /><div class="grid grid-cols-2 gap-2"><button id="prSaveDraftBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white font-semibold">Save Draft</button><button id="prLoadDraftBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white font-semibold">Load Draft</button></div>
+            <button id="prRunBtn" type="button" class="h-10 rounded-lg bg-blue-600 text-white font-semibold">Generate PR List</button>
           </div>
         </div>
         <div class="rounded-xl border border-slate-200 p-3 lg:col-span-2">
-          <p class="font-semibold mb-2">2) Candidate List (Review / Edit)</p>
-          <div id="prCandidateList" class="space-y-2 max-h-[360px] overflow-auto"></div>
+          <p class="font-semibold mb-2">2) Recommended PR Items</p>
+          <div id="prSummaryCards" class="mb-2 grid grid-cols-2 md:grid-cols-6 gap-2"></div><div id="prCostSummary" class="mb-2 text-xs text-slate-600"></div><div id="prCandidateList" class="space-y-2 max-h-[360px] overflow-auto"></div>
         </div>
       </div>
       <div class="rounded-xl border border-slate-200 p-3">
@@ -688,10 +690,10 @@
           <p class="font-semibold">3) Report Preview</p>
           <div class="flex gap-2">
             <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
-            <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export PDF</button>
+            <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export PDF</button><button id="prExportCsvBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export CSV</button>
           </div>
         </div>
-        <div id="prReportPreview" class="prose prose-sm max-w-none"></div>
+        <div id="prReportPreview" class="prose prose-sm max-w-none text-slate-500">Report preview will appear here after clicking Build Report.</div>
       </div>
     </section>
 
@@ -1134,6 +1136,9 @@
       <select id="brandFilterMobile" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
         <option value="all">แบรนด์ทั้งหมด</option>
       </select>
+      <select id="coilSizeFilterMobile" class="hidden h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
+        <option value="all">All Coil Size</option>
+      </select>
       <button id="applyFilterSheetBtn" type="button" class="h-11 w-full rounded-xl bg-blue-600 text-white font-semibold">ใช้งาน Filter</button>
     </div>
   </div>
@@ -1186,6 +1191,7 @@
     var statusFilterMobile = document.getElementById('statusFilterMobile');
     var categoryFilterMobile = document.getElementById('categoryFilterMobile');
     var brandFilterMobile = document.getElementById('brandFilterMobile');
+    var coilSizeFilterMobile = document.getElementById('coilSizeFilterMobile');
     var filterSheet = document.getElementById('filterSheet');
     var openFilterSheetBtn = document.getElementById('openFilterSheetBtn');
     var closeFilterSheetBtn = document.getElementById('closeFilterSheetBtn');
@@ -1234,6 +1240,9 @@
     var prRunBtn = document.getElementById('prRunBtn');
     var prBuildReportBtn = document.getElementById('prBuildReportBtn');
     var prPrintBtn = document.getElementById('prPrintBtn');
+    var prExportCsvBtn = document.getElementById('prExportCsvBtn');
+    var prSummaryCards = document.getElementById('prSummaryCards');
+    var prCostSummary = document.getElementById('prCostSummary');
     var prCandidateList = document.getElementById('prCandidateList');
     var prReportPreview = document.getElementById('prReportPreview');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
@@ -4089,6 +4098,41 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    
+    function getDefaultReportNo() {
+      var d = new Date();
+      var yyyy = d.getFullYear(); var mm = String(d.getMonth() + 1).padStart(2, '0');
+      return 'ASM-PR-' + yyyy + '-' + mm + '-001';
+    }
+    function syncPrPeriodToDates() {
+      var el = document.getElementById('prPeriod');
+      if (!el || !el.value) return;
+      var parts = String(el.value).split('-');
+      if (parts.length < 2) return;
+      var y = Number(parts[0]); var m = Number(parts[1]) - 1;
+      var from = new Date(y, m, 1); var to = new Date(y, m + 1, 0);
+      var f = document.getElementById('prFrom'); var t = document.getElementById('prTo');
+      if (f) f.value = from.toISOString().slice(0,10);
+      if (t) t.value = to.toISOString().slice(0,10);
+    }
+
+    
+    function setPrGenerationLoading(isLoading, message) {
+      if (prRunBtn) {
+        prRunBtn.disabled = !!isLoading;
+        prRunBtn.classList.toggle('opacity-70', !!isLoading);
+        prRunBtn.classList.toggle('cursor-wait', !!isLoading);
+        prRunBtn.textContent = isLoading ? 'Generating... Please wait' : 'Generate PR List';
+      }
+      if (isLoading) {
+        if (prSummaryCards) prSummaryCards.innerHTML = '';
+        if (prCostSummary) prCostSummary.textContent = '';
+        if (prCandidateList) {
+          prCandidateList.innerHTML = '<div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700"><div class="flex items-center gap-2"><span class="inline-block h-3 w-3 animate-pulse rounded-full bg-blue-500"></span><span>' + (message || 'Loading PR items...') + '</span></div></div>';
+        }
+      }
+    }
+
     function runPrCandidateSelection() {
       var mode = prMode ? String(prMode.value || 'assembly_monthly') : 'assembly_monthly';
       var lineFilterValue = prLineFilter ? String(prLineFilter.value || 'all') : 'all';
@@ -4099,16 +4143,17 @@ function inferRequestPriority(stock, min) {
       var includeUsage = document.getElementById('prIncludeUsage').checked;
       var criticalOnly = document.getElementById('prCriticalOnly').checked;
       var usage = buildUsageMap(fromDate, toDate);
+      setPrGenerationLoading(true, 'Loading and evaluating PR candidates...');
       loadPrSourceItems(mode, lineFilterValue).then(function(sourceItems) {
       prCandidateState = sourceItems.map(function(i) {
         var stock = Number(i.stock || 0), min = Number(i.min || 0), max = Number(i.max || 0);
         var need = Number(i.needToOrder || i.need_to_order || Math.max((max || min) - stock, 0));
         var reasons = [];
-        if (includeOut && stock <= 0) reasons.push('Out-of-stock');
-        if (includeBelow && stock <= min) reasons.push('Below MIN');
-        if (need > 0) reasons.push('Need to order > 0');
+        if (includeOut && stock <= 0) reasons.push('OOS');
+        if (includeBelow && stock <= min) reasons.push('BMIN');
+        if (need > 0) reasons.push('REP');
         var recentUsage = Number(usage[String(i.no || '')] || 0);
-        if (includeUsage && recentUsage >= Math.max(5, min)) reasons.push('High usage (' + recentUsage + ' issued)');
+        if (includeUsage && recentUsage >= Math.max(5, min)) reasons.push('REP');
         var criticalFlag = String(i.criticalFlag || i.isCritical || i.priority || '').toLowerCase();
         var critical = String(i.criticalLevel || i.critical || '').trim();
         if (!critical) {
@@ -4122,25 +4167,27 @@ function inferRequestPriority(stock, min) {
         if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
+        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
       }).filter(Boolean);
       renderPrCandidates();
       }).catch(function(err) {
         prCandidateList.innerHTML = '<p class=\"text-sm text-rose-600\">Generate candidates failed: ' + (err && err.message ? err.message : err) + '</p>';
+      }).finally(function(){
+        setPrGenerationLoading(false);
       });
     }
 
     function renderPrCandidates() {
-      if (!prCandidateState.length) { prCandidateList.innerHTML = '<p class="text-sm text-slate-500">No candidates found.</p>'; return; }
-      prCandidateList.innerHTML = prCandidateState.map(function(c, idx){
+      if (!prCandidateState.length) { if(prSummaryCards) prSummaryCards.innerHTML=""; if(prCostSummary) prCostSummary.textContent=""; prCandidateList.innerHTML = '<p class="text-sm text-slate-500">No PR items generated yet. Please set scope and click Generate PR List.</p>'; return; }
+      var sums={out:0,below:0,usage:0,critical:0,total:prCandidateState.length,selected:0,cost:0}; prCandidateState.forEach(function(c){ var r=String(c.reason||'').toLowerCase(); if(r.indexOf('oos')>-1) sums.out++; if(r.indexOf('bmin')>-1) sums.below++; if(r.indexOf('rep')>-1) sums.usage++; if(String(c.priority||'').toLowerCase()==='critical') sums.critical++; if(c.selected){sums.selected++;sums.cost += Number(c.suggestedQty||0)*Number(c.unitPrice||0);} }); if(prSummaryCards) prSummaryCards.innerHTML=[['Out of Stock',sums.out],['Below Min',sums.below],['Usage-based',sums.usage],['Critical',sums.critical],['Total Recommended',sums.total]].map(function(x){return '<div class="rounded-lg border border-slate-200 p-2 text-center"><p class="text-[11px] text-slate-500">'+x[0]+'</p><p class="text-lg font-bold">'+x[1]+'</p></div>';}).join(''); if(prCostSummary) prCostSummary.textContent='Total selected items: '+sums.selected+' • Total estimated cost: '+sums.cost.toLocaleString(); prCandidateList.innerHTML = prCandidateState.map(function(c, idx){
         return '<label class="block rounded-lg border border-slate-200 p-2 text-sm">' +
-          '<div class="flex items-start gap-2"><input data-pr-select="' + idx + '" type="checkbox" ' + (c.selected ? 'checked' : '') + ' class="mt-1"/><div class="min-w-0 flex-1"><p class="font-semibold">' + c.name + ' (' + c.no + ')</p><p class="text-xs text-slate-500">' + c.category + ' • ' + c.brand + ' • ' + c.model + ' • ' + c.line + '/' + c.subLine + '</p><p class="text-xs text-amber-700">' + c.reason + '</p></div></div>' +
-          '<div class="mt-2 grid grid-cols-2 md:grid-cols-5 gap-2">' +
+          '<div class="flex items-start gap-2"><input data-pr-select="' + idx + '" type="checkbox" ' + (c.selected ? 'checked' : '') + ' class="mt-1"/><div class="min-w-0 flex-1"><p class="font-semibold">' + c.name + ' (' + c.no + ')</p><p class="text-xs text-slate-500">' + c.category + ' • ' + c.brand + ' • ' + c.model + ' • ' + c.line + '/' + c.subLine + '</p><p class="text-xs text-amber-700">' + c.reason.split(',').map(function(x){var code=x.trim(); return '<span class=\"inline-block mr-1 mb-1 rounded bg-amber-100 px-1.5 py-0.5 font-semibold\">'+code+'</span>';}).join('') + '</p><p class="text-xs text-slate-600">Stock: '+c.stock+' | Min: '+c.min+' | Line: '+c.line+'</p></div></div>' +
+          '<div class="mt-2 grid grid-cols-2 md:grid-cols-6 gap-2">' +
           '<input data-pr-qty="' + idx + '" type="number" value="' + c.suggestedQty + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Qty"/>' +
           '<input data-pr-critical="' + idx + '" value="' + c.critical + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Critical"/>' +
           '<input data-pr-price="' + idx + '" type="number" value="' + c.unitPrice + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Unit price"/>' +
           '<input data-pr-machine="' + idx + '" value="' + c.machineStation + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Machine/Station"/>' +
-          '<input data-pr-purpose="' + idx + '" value="' + c.purpose + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Reason/Purpose"/>' +
+          '<input data-pr-purpose="' + idx + '" value="' + c.purpose + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Reason/Purpose"/><input data-pr-priority="' + idx + '" value="' + (c.priority || 'Medium') + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Priority"/>' +
           '</div></label>';
       }).join('');
     }
@@ -5332,6 +5379,11 @@ function inferRequestPriority(stock, min) {
         .join('');
       coilSizeFilter.innerHTML = html;
       coilSizeFilter.value = seen[selected] || selected === 'all' ? selected : 'all';
+      if (coilSizeFilterMobile) {
+        var selectedMobile = String(coilSizeFilterMobile.value || 'all');
+        coilSizeFilterMobile.innerHTML = html;
+        coilSizeFilterMobile.value = (seen[selectedMobile] || selectedMobile === 'all') ? selectedMobile : coilSizeFilter.value;
+      }
     }
 
     function renderStats(data) {
@@ -5444,8 +5496,10 @@ function inferRequestPriority(stock, min) {
           categoryFilterMobile.value = 'all';
           statusFilter.value = 'all';
           brandFilter.value = 'all';
+          if (coilSizeFilter) coilSizeFilter.value = 'all';
           statusFilterMobile.value = 'all';
           brandFilterMobile.value = 'all';
+          if (coilSizeFilterMobile) coilSizeFilterMobile.value = 'all';
           searchInput.value = '';
           searchInputMobile.value = '';
           searchClearBtn.classList.add('hidden');
@@ -5779,10 +5833,15 @@ function inferRequestPriority(stock, min) {
     }
 
     function syncCoilFilterVisibility(){
-      if(!coilSizeFilter) return;
       var isCoilLine = String(currentLine || '').toLowerCase() === 'coil winding';
-      coilSizeFilter.classList.toggle('hidden', !isCoilLine);
-      if (!isCoilLine) coilSizeFilter.value = 'all';
+      if (coilSizeFilter) coilSizeFilter.classList.toggle('hidden', !isCoilLine);
+      if (coilSizeFilterMobile) coilSizeFilterMobile.classList.toggle('hidden', !isCoilLine);
+      if (!isCoilLine) {
+        if (coilSizeFilter) coilSizeFilter.value = 'all';
+        if (coilSizeFilterMobile) coilSizeFilterMobile.value = 'all';
+      } else if (coilSizeFilter && coilSizeFilterMobile) {
+        coilSizeFilterMobile.value = coilSizeFilter.value || 'all';
+      }
     }
     categoryFilter.addEventListener('change', applyFilters);
     statusFilter.addEventListener('change', function(){ tableStatusMode = 'all'; applyFilters(); });
@@ -5792,6 +5851,7 @@ function inferRequestPriority(stock, min) {
     categoryFilterMobile.addEventListener('change', function(){ categoryFilter.value = categoryFilterMobile.value; applyFilters(); });
     statusFilterMobile.addEventListener('change', function(){ statusFilter.value = statusFilterMobile.value; tableStatusMode = 'all'; applyFilters(); });
     brandFilterMobile.addEventListener('change', function(){ brandFilter.value = brandFilterMobile.value; applyFilters(); });
+    if (coilSizeFilterMobile) coilSizeFilterMobile.addEventListener('change', function(){ if (coilSizeFilter) coilSizeFilter.value = coilSizeFilterMobile.value; applyFilters(); });
     sortFilter.addEventListener('change', applyFilters);
     sortFilterMobile.addEventListener('change', function(){ sortFilter.value = sortFilterMobile.value; applyFilters(); });
     searchInput.addEventListener('input', function(){
@@ -6023,12 +6083,19 @@ if (dashboardPage) {
       if (!editModal.classList.contains('hidden')) return closeEditModal();
     });
     document.getElementById('deleteEditItem').addEventListener('click', deleteEditModalItem);
-    openFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.remove('hidden'); });
+    openFilterSheetBtn.addEventListener('click', function(){
+      categoryFilterMobile.value = categoryFilter.value;
+      statusFilterMobile.value = statusFilter.value;
+      brandFilterMobile.value = brandFilter.value;
+      if (coilSizeFilterMobile && coilSizeFilter) coilSizeFilterMobile.value = coilSizeFilter.value;
+      filterSheet.classList.remove('hidden');
+    });
     closeFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.add('hidden'); });
     applyFilterSheetBtn.addEventListener('click', function(){
       categoryFilter.value = categoryFilterMobile.value;
       statusFilter.value = statusFilterMobile.value;
       brandFilter.value = brandFilterMobile.value;
+      if (coilSizeFilter && coilSizeFilterMobile) coilSizeFilter.value = coilSizeFilterMobile.value;
       tableStatusMode = 'all';
       filterSheet.classList.add('hidden');
       applyFilters();
@@ -6056,6 +6123,15 @@ if (dashboardPage) {
     editForm.addEventListener('submit', submitEditModal);
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
     if (prRunBtn) prRunBtn.addEventListener('click', runPrCandidateSelection);
+    var prPeriodEl = document.getElementById('prPeriod');
+    var prPreparedByEl = document.getElementById('prPreparedBy');
+    var prReportNoEl = document.getElementById('prReportNo');
+    if (prPeriodEl) { if (!prPeriodEl.value) { var now=new Date(); prPeriodEl.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'); } syncPrPeriodToDates(); prPeriodEl.addEventListener('change', syncPrPeriodToDates); }
+    if (prPreparedByEl) { var cached = localStorage.getItem('pr_prepared_by') || ''; prPreparedByEl.value = (currentUser && (currentUser.name || currentUser.username)) ? (currentUser.name || currentUser.username) : cached; prPreparedByEl.addEventListener('input', function(){ localStorage.setItem('pr_prepared_by', prPreparedByEl.value.trim()); }); }
+    if (prReportNoEl && !prReportNoEl.value) prReportNoEl.value = getDefaultReportNo();
+    var prSaveDraftBtn = document.getElementById('prSaveDraftBtn'); var prLoadDraftBtn = document.getElementById('prLoadDraftBtn');
+    if (prSaveDraftBtn) prSaveDraftBtn.addEventListener('click', function(){ var draft={ scope:{ period:document.getElementById('prPeriod').value, from:document.getElementById('prFrom').value,to:document.getElementById('prTo').value, preparedBy:document.getElementById('prPreparedBy').value,department:document.getElementById('prDepartment').value,mode:document.getElementById('prMode').value,line:(document.getElementById('prLineFilter')||{}).value||'all',includeOut:document.getElementById('prIncludeOut').checked,includeBelow:document.getElementById('prIncludeBelow').checked,includeUsage:document.getElementById('prIncludeUsage').checked,criticalOnly:document.getElementById('prCriticalOnly').checked,status:(document.getElementById('prReportStatus')||{}).value||'Draft',reportNo:(document.getElementById('prReportNo')||{}).value||'' }, items:prCandidateState }; localStorage.setItem('pr_report_draft', JSON.stringify(draft)); alert('Draft saved'); });
+    if (prLoadDraftBtn) prLoadDraftBtn.addEventListener('click', function(){ var raw=localStorage.getItem('pr_report_draft'); if(!raw) return alert('No draft found'); try{ var d=JSON.parse(raw); document.getElementById('prPeriod').value=d.scope.period||''; document.getElementById('prFrom').value=d.scope.from||''; document.getElementById('prTo').value=d.scope.to||''; document.getElementById('prPreparedBy').value=d.scope.preparedBy||''; document.getElementById('prDepartment').value=d.scope.department||''; document.getElementById('prMode').value=d.scope.mode||'assembly_monthly'; if(document.getElementById('prLineFilter')) document.getElementById('prLineFilter').value=d.scope.line||'all'; document.getElementById('prIncludeOut').checked=!!d.scope.includeOut; document.getElementById('prIncludeBelow').checked=!!d.scope.includeBelow; document.getElementById('prIncludeUsage').checked=!!d.scope.includeUsage; document.getElementById('prCriticalOnly').checked=!!d.scope.criticalOnly; if(document.getElementById('prReportStatus')) document.getElementById('prReportStatus').value=d.scope.status||'Draft'; if(document.getElementById('prReportNo')) document.getElementById('prReportNo').value=d.scope.reportNo||getDefaultReportNo(); prCandidateState=Array.isArray(d.items)?d.items:[]; renderPrCandidates(); }catch(e){ alert('Load draft failed'); } });
     if (prMode) prMode.addEventListener('change', function() {
       var mode = String(prMode.value || 'assembly_monthly');
       if (prLineFilter) prLineFilter.classList.toggle('hidden', mode !== 'line_specific');
@@ -6074,6 +6150,7 @@ if (dashboardPage) {
       if (e.target.dataset.prPrice !== undefined) c.unitPrice = Number(e.target.value || 0);
       if (e.target.dataset.prMachine !== undefined) c.machineStation = e.target.value;
       if (e.target.dataset.prPurpose !== undefined) c.purpose = e.target.value;
+      if (e.target.dataset.prPriority !== undefined) c.priority = e.target.value;
     });
     function buildDocumentGradeReport(selected) {
       function esc(v) {
@@ -6095,7 +6172,9 @@ if (dashboardPage) {
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
       var preparedBy = document.getElementById('prPreparedBy').value || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
-      var submissionDate = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' });
+      var submissionDate = new Date().toISOString().slice(0,10);
+      function categoryGroup(rawCategory, rawName) { var text = String(rawCategory || '').toLowerCase(); var name = String(rawName || '').toLowerCase(); if (/(maintenance tool|maintenance|tool|tools|fixture|wrench|spanner|screwdriver|caliper|multimeter|drill|equipment)/.test(text + ' ' + name)) return 'Maintenance Tools'; if (/(production support|consumable|label|adhesive|tape|cleaner|lubricant|hub switch|usb cable|light|lamp)/.test(text + ' ' + name)) return 'Production Support Tools'; return 'Machine Spare Parts'; }
+      function reasonCodeText(reasonCodes) { var arr = String(reasonCodes || '').split(',').map(function(x){return x.trim();}).filter(Boolean); return arr.join(', '); }
       var normalized = selected.map(function(c) {
         var qty = asNum(c.suggestedQty || c.qty || 0);
         var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
@@ -6119,7 +6198,10 @@ if (dashboardPage) {
           priceUpdatedAt: c.priceUpdatedAt || c.price_updated_at || '-',
           amount: price === null ? null : (qty > 0 ? qty : 1) * price,
           reason: c.purpose || c.reason || '-',
+          reasonCodes: c.reason || '-',
+          itemGroup: categoryGroup(c.category, c.name),
           stock: asNum(c.stock),
+          min: asNum(c.min),
           image: image
         };
       });
@@ -6143,6 +6225,15 @@ if (dashboardPage) {
       var unpricedRows = normalized.filter(function(c){ return c.unitPrice === null; });
       var totalAmount = pricedRows.reduce(function(sum, c){ return sum + c.amount; }, 0);
       var pendingPriceCount = unpricedRows.length;
+      var readyForPr = pricedRows;
+      var priceTbcItems = unpricedRows;
+      var urgentGroup1 = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock<=0 && lv.indexOf('critical')>-1; });
+      var urgentGroup2 = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock>0 && lv.indexOf('critical')>-1 && c.amount!==null && c.amount>=5000; });
+      var urgentGroup3 = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock>0 && c.stock<=Number(c.min||0) && lv.indexOf('high')>-1; });
+      var urgentItems = [].concat(urgentGroup1, urgentGroup2, urgentGroup3).filter(function(c, i, arr){ return arr.findIndex(function(x){return x.no===c.no && x.line===c.line;})===i; }).slice(0,12);
+      var machineSpareCount = normalized.filter(function(r){ return r.itemGroup === 'Machine Spare Parts'; }).length;
+      var maintenanceToolCount = normalized.filter(function(r){ return r.itemGroup === 'Maintenance Tools'; }).length;
+      var supportToolCount = normalized.filter(function(r){ return r.itemGroup === 'Production Support Tools'; }).length;
       console.debug('[PR] selectedItems count:', normalized.length);
       console.debug('[PR] selectedItems payload:', normalized);
       console.debug('[PR] categorized toolItems/sparePartItems:', toolRows.length, spareRows.length);
@@ -6165,7 +6256,7 @@ if (dashboardPage) {
           var rows = lineMap[lineName];
           var lineSubtotal = rows.filter(function(r){ return r.amount !== null; }).reduce(function(sum, r){ return sum + r.amount; }, 0);
           html += '<tr><td colspan=\"8\" style=\"background:#f8fafc;font-weight:700;\">Line: ' + esc(lineName) + ' (' + rows.length + ' items)</td></tr>';
-          html += rows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice !== null ? c.unitPrice.toLocaleString() : 'TBC')+'</td><td>'+(c.amount !== null ? c.amount.toLocaleString() : 'TBC')+'</td><td>'+esc(c.reason)+'</td></tr>'; }).join('');
+          html += rows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice !== null ? c.unitPrice.toLocaleString() : 'TBC')+'</td><td>'+(c.amount !== null ? c.amount.toLocaleString() : 'TBC')+'</td><td>'+esc(reasonCodeText(c.reasonCodes))+'</td></tr>'; }).join('');
           html += '<tr><td colspan=\"6\" style=\"text-align:right;font-weight:700;\">Subtotal (' + esc(lineName) + ')</td><td style=\"font-weight:700;\">' + (lineSubtotal ? lineSubtotal.toLocaleString() : 'TBC') + '</td><td></td></tr>';
         });
         return html;
@@ -6205,10 +6296,13 @@ if (dashboardPage) {
         '<h2>7. Expected Benefits After Purchase</h2><p>Reduced downtime, improved maintenance response time, stable production continuity, and lower emergency purchase costs.</p>' +
         '<h2>8. Justification for Approval</h2><p>Requested items are directly related to production support, maintenance, troubleshooting, and quality control based on current demand and issue frequency.</p>' +
         '<h2>9. Approval Request Statement</h2><p>We would like to request approval to proceed with this Purchase Request to ensure safe and continuous production operations.</p>' +
-        '<h2>10. Detailed Requested Item List</h2><h3>10.1 Maintenance Tools / Production Support Tools</h3><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(toolRows, 8) + '</tbody></table>' +
-        '<h3>10.2 Machine Spare Parts</h3><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(spareRows, 8) + '</tbody></table>' +
-        '<h3>Annex A: Tools (Supplier / Price Date / Picture)</h3><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(toolRows) + '</tbody></table>' +
-        '<h3>Annex B: Spare Parts (Supplier / Price Date / Picture)</h3><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(spareRows) + '</tbody></table>' +
+        '<h2>10. Budget Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Confirmed price items</td><td>'+readyForPr.length+'</td></tr><tr><td>TBC price items</td><td>'+priceTbcItems.length+'</td></tr><tr><td>Confirmed amount</td><td>'+(pricedRows.length ? totalAmount.toLocaleString() : 'TBC')+'</td></tr><tr><td>Pending Final Amount</td><td>TBC for '+priceTbcItems.length+' items</td></tr><tr><td>Note</td><td>Final PR amount depends on Purchasing quotation confirmation.</td></tr></tbody></table>' +
+        '<h2>11. Action Required</h2><table><thead><tr><th>No.</th><th>Required Action</th></tr></thead><tbody><tr><td>1</td><td>Approve confirmed-price items.</td></tr><tr><td>2</td><td>Request Purchasing quotation for TBC items.</td></tr><tr><td>3</td><td>Prioritize urgent critical items first.</td></tr></tbody></table><h2>12. Category Summary</h2><table><thead><tr><th>Category</th><th>Items</th></tr></thead><tbody><tr><td>Machine Spare Parts</td><td>'+machineSpareCount+'</td></tr><tr><td>Maintenance Tools</td><td>'+maintenanceToolCount+'</td></tr><tr><td>Production Support Tools</td><td>'+supportToolCount+'</td></tr></tbody></table>' +
+        '<h2>13. Top Urgent Items</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(urgentItems, 8) + '</tbody></table>' +
+        '<h2>14. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date (YYYY-MM-DD)</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+preparedBy+'</td><td>________________</td><td>'+submissionDate+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table><h2>15. Reason Code Definition</h2><table><thead><tr><th>Code</th><th>Definition</th></tr></thead><tbody><tr><td>OOS</td><td>Out of Stock</td></tr><tr><td>BMIN</td><td>Below Minimum Stock</td></tr><tr><td>CRIT</td><td>Critical Spare</td></tr><tr><td>REP</td><td>Replenishment Required</td></tr></tbody></table>' +
+        '<h2>Annex A. Ready for PR (Confirmed Price) - Full Item List</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(readyForPr, 8) + '</tbody></table>' +
+        '<h2>Annex B. Price Confirmation Required (TBC) - Full Item List</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(priceTbcItems, 8) + '</tbody></table>' +
+        '<h2>Annex C. Supporting Pictures (Selected items only)</h2><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')); return lv.indexOf('critical')>-1 || lv.indexOf('high')>-1 || (c.amount!==null && c.amount>=5000) || custom || !String(c.image||'').trim(); })) + '</tbody></table>' +
         '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
@@ -6216,6 +6310,7 @@ if (dashboardPage) {
       if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
       prReportPreview.innerHTML = buildDocumentGradeReport(selected);
     });
+    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = prCandidateState.filter(function(c){ return c.selected; }); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = prCandidateState.filter(function(c){ return c.selected; });
       if (!selected.length) return;
@@ -6224,17 +6319,42 @@ if (dashboardPage) {
       var win = window.open('', '_blank');
       win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
       win.document.close();
-      setTimeout(function(){
-        var imgs = win.document.querySelectorAll('img[data-fallback-src]');
-        imgs.forEach(function(img){
-          img.onerror = function() {
-            var fb = img.getAttribute('data-fallback-src');
-            if (fb && img.src !== fb) { img.src = fb; return; }
-                img.style.display = 'none';
-              };
+      function waitForReportImages(maxWaitMs) {
+        var imgs = Array.prototype.slice.call(win.document.querySelectorAll('img[data-fallback-src]'));
+        if (!imgs.length) return Promise.resolve();
+        return new Promise(function(resolve) {
+          var done = false;
+          function finish(){ if (done) return; done = true; resolve(); }
+          var timer = setTimeout(finish, Math.max(1200, Number(maxWaitMs || 5000)));
+          var pending = imgs.length;
+          function settleOne() {
+            pending -= 1;
+            if (pending <= 0) {
+              clearTimeout(timer);
+              finish();
+            }
+          }
+          imgs.forEach(function(img){
+            var settled = false;
+            function settle(){ if (settled) return; settled = true; settleOne(); }
+            img.onload = settle;
+            img.onerror = function() {
+              var fb = img.getAttribute('data-fallback-src');
+              if (fb && img.src !== fb) {
+                img.src = fb;
+                return;
+              }
+              img.outerHTML = 'No image available';
+              settle();
+            };
+            if (img.complete && img.naturalWidth > 0) settle();
+            else if (img.complete && img.naturalWidth === 0) img.onerror();
+          });
         });
-      }, 120);
-      setTimeout(function(){ win.print(); }, 350);
+      }
+      waitForReportImages(6500).finally(function(){
+        setTimeout(function(){ win.print(); }, 80);
+      });
     });
     bindFilePreview('eImageMainFile', 'eImageMainPreview');
     sheetSelector.addEventListener('change', function() {
