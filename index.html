@@ -4131,11 +4131,11 @@ function inferRequestPriority(stock, min) {
         var stock = Number(i.stock || 0), min = Number(i.min || 0), max = Number(i.max || 0);
         var need = Number(i.needToOrder || i.need_to_order || Math.max((max || min) - stock, 0));
         var reasons = [];
-        if (includeOut && stock <= 0) reasons.push('No stock available');
-        if (includeBelow && stock <= min) reasons.push('Stock below minimum level');
-        if (need > 0) reasons.push('Replenishment required');
+        if (includeOut && stock <= 0) reasons.push('OOS');
+        if (includeBelow && stock <= min) reasons.push('BMIN');
+        if (need > 0) reasons.push('REP');
         var recentUsage = Number(usage[String(i.no || '')] || 0);
-        if (includeUsage && recentUsage >= Math.max(5, min)) reasons.push('High usage (' + recentUsage + ' issued)');
+        if (includeUsage && recentUsage >= Math.max(5, min)) reasons.push('REP');
         var criticalFlag = String(i.criticalFlag || i.isCritical || i.priority || '').toLowerCase();
         var critical = String(i.criticalLevel || i.critical || '').trim();
         if (!critical) {
@@ -4149,7 +4149,7 @@ function inferRequestPriority(stock, min) {
         if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
+        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
       }).filter(Boolean);
       renderPrCandidates();
       }).catch(function(err) {
@@ -4159,9 +4159,9 @@ function inferRequestPriority(stock, min) {
 
     function renderPrCandidates() {
       if (!prCandidateState.length) { if(prSummaryCards) prSummaryCards.innerHTML=""; if(prCostSummary) prCostSummary.textContent=""; prCandidateList.innerHTML = '<p class="text-sm text-slate-500">No PR items generated yet. Please set scope and click Generate PR List.</p>'; return; }
-      var sums={out:0,below:0,usage:0,critical:0,total:prCandidateState.length,selected:0,cost:0}; prCandidateState.forEach(function(c){ var r=String(c.reason||'').toLowerCase(); if(r.indexOf('out-of-stock')>-1) sums.out++; if(r.indexOf('below')>-1) sums.below++; if(r.indexOf('usage')>-1) sums.usage++; if(String(c.priority||'').toLowerCase()==='critical') sums.critical++; if(c.selected){sums.selected++;sums.cost += Number(c.suggestedQty||0)*Number(c.unitPrice||0);} }); if(prSummaryCards) prSummaryCards.innerHTML=[['Out of Stock',sums.out],['Below Min',sums.below],['Usage-based',sums.usage],['Critical',sums.critical],['Total Recommended',sums.total]].map(function(x){return '<div class="rounded-lg border border-slate-200 p-2 text-center"><p class="text-[11px] text-slate-500">'+x[0]+'</p><p class="text-lg font-bold">'+x[1]+'</p></div>';}).join(''); if(prCostSummary) prCostSummary.textContent='Total selected items: '+sums.selected+' • Total estimated cost: '+sums.cost.toLocaleString(); prCandidateList.innerHTML = prCandidateState.map(function(c, idx){
+      var sums={out:0,below:0,usage:0,critical:0,total:prCandidateState.length,selected:0,cost:0}; prCandidateState.forEach(function(c){ var r=String(c.reason||'').toLowerCase(); if(r.indexOf('oos')>-1) sums.out++; if(r.indexOf('bmin')>-1) sums.below++; if(r.indexOf('rep')>-1) sums.usage++; if(String(c.priority||'').toLowerCase()==='critical') sums.critical++; if(c.selected){sums.selected++;sums.cost += Number(c.suggestedQty||0)*Number(c.unitPrice||0);} }); if(prSummaryCards) prSummaryCards.innerHTML=[['Out of Stock',sums.out],['Below Min',sums.below],['Usage-based',sums.usage],['Critical',sums.critical],['Total Recommended',sums.total]].map(function(x){return '<div class="rounded-lg border border-slate-200 p-2 text-center"><p class="text-[11px] text-slate-500">'+x[0]+'</p><p class="text-lg font-bold">'+x[1]+'</p></div>';}).join(''); if(prCostSummary) prCostSummary.textContent='Total selected items: '+sums.selected+' • Total estimated cost: '+sums.cost.toLocaleString(); prCandidateList.innerHTML = prCandidateState.map(function(c, idx){
         return '<label class="block rounded-lg border border-slate-200 p-2 text-sm">' +
-          '<div class="flex items-start gap-2"><input data-pr-select="' + idx + '" type="checkbox" ' + (c.selected ? 'checked' : '') + ' class="mt-1"/><div class="min-w-0 flex-1"><p class="font-semibold">' + c.name + ' (' + c.no + ')</p><p class="text-xs text-slate-500">' + c.category + ' • ' + c.brand + ' • ' + c.model + ' • ' + c.line + '/' + c.subLine + '</p><p class="text-xs text-amber-700">' + c.reason.split(',').map(function(x){return '<span class=\"inline-block mr-1 mb-1 rounded bg-amber-100 px-1.5 py-0.5\">'+x.trim()+'</span>';}).join('') + '</p><p class="text-xs text-slate-600">Stock: '+c.stock+' | Min: '+c.min+' | Line: '+c.line+'</p></div></div>' +
+          '<div class="flex items-start gap-2"><input data-pr-select="' + idx + '" type="checkbox" ' + (c.selected ? 'checked' : '') + ' class="mt-1"/><div class="min-w-0 flex-1"><p class="font-semibold">' + c.name + ' (' + c.no + ')</p><p class="text-xs text-slate-500">' + c.category + ' • ' + c.brand + ' • ' + c.model + ' • ' + c.line + '/' + c.subLine + '</p><p class="text-xs text-amber-700">' + c.reason.split(',').map(function(x){var code=x.trim(); return '<span class=\"inline-block mr-1 mb-1 rounded bg-amber-100 px-1.5 py-0.5 font-semibold\">'+code+'</span>';}).join('') + '</p><p class="text-xs text-slate-600">Stock: '+c.stock+' | Min: '+c.min+' | Line: '+c.line+'</p></div></div>' +
           '<div class="mt-2 grid grid-cols-2 md:grid-cols-6 gap-2">' +
           '<input data-pr-qty="' + idx + '" type="number" value="' + c.suggestedQty + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Qty"/>' +
           '<input data-pr-critical="' + idx + '" value="' + c.critical + '" class="h-9 rounded border border-slate-300 px-2" placeholder="Critical"/>' +
@@ -6153,6 +6153,8 @@ if (dashboardPage) {
       var preparedBy = document.getElementById('prPreparedBy').value || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
       var submissionDate = new Date().toISOString().slice(0,10);
+      function categoryGroup(rawCategory, rawName) { var text = String(rawCategory || '').toLowerCase(); var name = String(rawName || '').toLowerCase(); if (/(maintenance tool|maintenance|tool|tools|fixture|wrench|spanner|screwdriver|caliper|multimeter|drill|equipment)/.test(text + ' ' + name)) return 'Maintenance Tools'; if (/(production support|consumable|label|adhesive|tape|cleaner|lubricant|hub switch|usb cable|light|lamp)/.test(text + ' ' + name)) return 'Production Support Tools'; return 'Machine Spare Parts'; }
+      function reasonCodeText(reasonCodes) { var arr = String(reasonCodes || '').split(',').map(function(x){return x.trim();}).filter(Boolean); return arr.join(', '); }
       var normalized = selected.map(function(c) {
         var qty = asNum(c.suggestedQty || c.qty || 0);
         var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
@@ -6176,7 +6178,10 @@ if (dashboardPage) {
           priceUpdatedAt: c.priceUpdatedAt || c.price_updated_at || '-',
           amount: price === null ? null : (qty > 0 ? qty : 1) * price,
           reason: c.purpose || c.reason || '-',
+          reasonCodes: c.reason || '-',
+          itemGroup: categoryGroup(c.category, c.name),
           stock: asNum(c.stock),
+          min: asNum(c.min),
           image: image
         };
       });
@@ -6202,12 +6207,13 @@ if (dashboardPage) {
       var pendingPriceCount = unpricedRows.length;
       var readyForPr = pricedRows;
       var priceTbcItems = unpricedRows;
-      var urgentItems = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock<=0 || lv.indexOf('critical')>-1 || lv.indexOf('high')>-1 || (c.amount!==null && c.amount>=5000); }).slice(0,12);
-      function isSupportTool(row){ return /(support|production support)/i.test(String(row.category||'')); }
-      function isMaintenanceTool(row){ return /(maintenance|tool|fixture|equipment)/i.test(String(row.category||'')); }
-      var machineSpareCount = normalized.filter(function(r){ return !isMaintenanceTool(r) && !isSupportTool(r); }).length;
-      var maintenanceToolCount = normalized.filter(isMaintenanceTool).length;
-      var supportToolCount = normalized.filter(isSupportTool).length;
+      var urgentGroup1 = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock<=0 && lv.indexOf('critical')>-1; });
+      var urgentGroup2 = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock>0 && lv.indexOf('critical')>-1 && c.amount!==null && c.amount>=5000; });
+      var urgentGroup3 = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock>0 && c.stock<=Number(c.min||0) && lv.indexOf('high')>-1; });
+      var urgentItems = [].concat(urgentGroup1, urgentGroup2, urgentGroup3).filter(function(c, i, arr){ return arr.findIndex(function(x){return x.no===c.no && x.line===c.line;})===i; }).slice(0,12);
+      var machineSpareCount = normalized.filter(function(r){ return r.itemGroup === 'Machine Spare Parts'; }).length;
+      var maintenanceToolCount = normalized.filter(function(r){ return r.itemGroup === 'Maintenance Tools'; }).length;
+      var supportToolCount = normalized.filter(function(r){ return r.itemGroup === 'Production Support Tools'; }).length;
       console.debug('[PR] selectedItems count:', normalized.length);
       console.debug('[PR] selectedItems payload:', normalized);
       console.debug('[PR] categorized toolItems/sparePartItems:', toolRows.length, spareRows.length);
@@ -6230,7 +6236,7 @@ if (dashboardPage) {
           var rows = lineMap[lineName];
           var lineSubtotal = rows.filter(function(r){ return r.amount !== null; }).reduce(function(sum, r){ return sum + r.amount; }, 0);
           html += '<tr><td colspan=\"8\" style=\"background:#f8fafc;font-weight:700;\">Line: ' + esc(lineName) + ' (' + rows.length + ' items)</td></tr>';
-          html += rows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice !== null ? c.unitPrice.toLocaleString() : 'TBC')+'</td><td>'+(c.amount !== null ? c.amount.toLocaleString() : 'TBC')+'</td><td>'+esc(c.reason)+'</td></tr>'; }).join('');
+          html += rows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice !== null ? c.unitPrice.toLocaleString() : 'TBC')+'</td><td>'+(c.amount !== null ? c.amount.toLocaleString() : 'TBC')+'</td><td>'+esc(reasonCodeText(c.reasonCodes))+'</td></tr>'; }).join('');
           html += '<tr><td colspan=\"6\" style=\"text-align:right;font-weight:700;\">Subtotal (' + esc(lineName) + ')</td><td style=\"font-weight:700;\">' + (lineSubtotal ? lineSubtotal.toLocaleString() : 'TBC') + '</td><td></td></tr>';
         });
         return html;
@@ -6270,12 +6276,12 @@ if (dashboardPage) {
         '<h2>7. Expected Benefits After Purchase</h2><p>Reduced downtime, improved maintenance response time, stable production continuity, and lower emergency purchase costs.</p>' +
         '<h2>8. Justification for Approval</h2><p>Requested items are directly related to production support, maintenance, troubleshooting, and quality control based on current demand and issue frequency.</p>' +
         '<h2>9. Approval Request Statement</h2><p>We would like to request approval to proceed with this Purchase Request to ensure safe and continuous production operations.</p>' +
-        '<h2>10. Management Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Confirmed price items</td><td>'+readyForPr.length+'</td></tr><tr><td>TBC price items</td><td>'+priceTbcItems.length+'</td></tr><tr><td>Confirmed amount</td><td>'+(pricedRows.length ? totalAmount.toLocaleString() : 'TBC')+'</td></tr><tr><td>Pending quotation note</td><td>Please confirm quotations for TBC items before final PR approval.</td></tr></tbody></table>' +
-        '<h2>11. Category Summary</h2><table><thead><tr><th>Category</th><th>Items</th></tr></thead><tbody><tr><td>Machine Spare Parts</td><td>'+machineSpareCount+'</td></tr><tr><td>Maintenance Tools</td><td>'+maintenanceToolCount+'</td></tr><tr><td>Production Support Tools</td><td>'+supportToolCount+'</td></tr></tbody></table>' +
-        '<h2>12. Top Urgent Items</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(urgentItems, 8) + '</tbody></table>' +
-        '<h2>13. Approval Signatures</h2><table><thead><tr><th>Prepared by</th><th>Checked by</th><th>Approved by</th></tr></thead><tbody><tr><td style="height:64px;vertical-align:bottom;">'+preparedBy+'</td><td style="vertical-align:bottom;">____________________</td><td style="vertical-align:bottom;">____________________</td></tr></tbody></table>' +
-        '<h2>Annex A. Ready for PR (Confirmed Price)</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(readyForPr, 8) + '</tbody></table>' +
-        '<h2>Annex B. Price Confirmation Required (TBC)</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(priceTbcItems, 8) + '</tbody></table>' +
+        '<h2>10. Budget Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Confirmed price items</td><td>'+readyForPr.length+'</td></tr><tr><td>TBC price items</td><td>'+priceTbcItems.length+'</td></tr><tr><td>Confirmed amount</td><td>'+(pricedRows.length ? totalAmount.toLocaleString() : 'TBC')+'</td></tr><tr><td>Pending Final Amount</td><td>TBC for '+priceTbcItems.length+' items</td></tr><tr><td>Note</td><td>Final PR amount depends on Purchasing quotation confirmation.</td></tr></tbody></table>' +
+        '<h2>11. Action Required</h2><table><thead><tr><th>No.</th><th>Required Action</th></tr></thead><tbody><tr><td>1</td><td>Approve confirmed-price items.</td></tr><tr><td>2</td><td>Request Purchasing quotation for TBC items.</td></tr><tr><td>3</td><td>Prioritize urgent critical items first.</td></tr></tbody></table><h2>12. Category Summary</h2><table><thead><tr><th>Category</th><th>Items</th></tr></thead><tbody><tr><td>Machine Spare Parts</td><td>'+machineSpareCount+'</td></tr><tr><td>Maintenance Tools</td><td>'+maintenanceToolCount+'</td></tr><tr><td>Production Support Tools</td><td>'+supportToolCount+'</td></tr></tbody></table>' +
+        '<h2>13. Top Urgent Items</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(urgentItems, 8) + '</tbody></table>' +
+        '<h2>14. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date (YYYY-MM-DD)</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+preparedBy+'</td><td>________________</td><td>'+submissionDate+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table><h2>15. Reason Code Definition</h2><table><thead><tr><th>Code</th><th>Definition</th></tr></thead><tbody><tr><td>OOS</td><td>Out of Stock</td></tr><tr><td>BMIN</td><td>Below Minimum Stock</td></tr><tr><td>CRIT</td><td>Critical Spare</td></tr><tr><td>REP</td><td>Replenishment Required</td></tr></tbody></table>' +
+        '<h2>Annex A. Ready for PR (Confirmed Price) - Full Item List</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(readyForPr, 8) + '</tbody></table>' +
+        '<h2>Annex B. Price Confirmation Required (TBC) - Full Item List</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(priceTbcItems, 8) + '</tbody></table>' +
         '<h2>Annex C. Supporting Pictures (Selected items only)</h2><table><thead><tr><th>Description</th><th>Line</th><th>Supplier</th><th>Price Updated</th><th>Picture</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')); return lv.indexOf('critical')>-1 || lv.indexOf('high')>-1 || (c.amount!==null && c.amount>=5000) || custom || !String(c.image||'').trim(); })) + '</tbody></table>' +
         '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
     }
