@@ -694,14 +694,7 @@
   <label class="inline-flex items-center gap-2"><input id="prSelectedOnly" type="checkbox" /> Selected only</label>
 </div>
 <div id="prCandidateList" class="space-y-2 max-h-[480px] overflow-auto"></div>
-<div id="prStickyActionBar" class="fixed bottom-0 left-0 right-0 z-[999] rounded-none border-t-4 border-slate-100 bg-slate-950 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.65)]" style="opacity:1;">
-  <div class="flex flex-wrap items-center gap-2 text-sm">
-    <span id="prStickySummary" class="font-extrabold text-white drop-shadow">Selected 0 | Estimated 0 THB</span>
-    <button id="prStickyBuildBtn" type="button" class="h-10 rounded-lg bg-emerald-500 px-4 text-white font-extrabold shadow">Build Report</button>
-    <button id="prStickyPdfBtn" type="button" class="h-10 rounded-lg border-2 border-slate-100 bg-white px-4 font-extrabold text-slate-900 shadow">Export PDF</button>
-    <button id="prStickySaveBtn" type="button" class="h-10 rounded-lg border-2 border-slate-100 bg-white px-4 font-extrabold text-slate-900 shadow">Save Draft</button>
-  </div>
-</div>
+
         </div>
       </div>
       <div class="rounded-xl border border-slate-200 p-3">
@@ -4224,7 +4217,6 @@ function inferRequestPriority(stock, min) {
       filtered.forEach(function(c){ var codes=String(c.reason||'').toUpperCase(); if(codes.indexOf('OOS')>-1) sums.oos++; if(codes.indexOf('BMIN')>-1) sums.bmin++; if(codes.indexOf('CRIT')>-1) sums.critical++; if(Number(c.unitPrice||0)>0) sums.confirmed++; else sums.tbc++; if(c.selected){sums.selected++; sums.cost += Number(c.suggestedQty||0)*Number(c.unitPrice||0);} });
       if(prSummaryCards) prSummaryCards.innerHTML=[['Out of Stock',sums.oos],['Below Min',sums.bmin],['Critical',sums.critical],['Confirmed Price',sums.confirmed],['TBC Price',sums.tbc],['Total Recommended',sums.total],['Selected Items',sums.selected],['Estimated Cost',sums.cost.toLocaleString()]].map(function(x){return '<div class="rounded-lg border border-slate-200 p-2 text-center"><p class="text-[11px] text-slate-500">'+x[0]+'</p><p class="text-lg font-bold">'+x[1]+'</p></div>';}).join('');
       if(prCostSummary) prCostSummary.textContent='Selected item count: '+sums.selected+' • Total estimated cost: '+sums.cost.toLocaleString()+' THB';
-      var sticky = document.getElementById('prStickySummary'); if (sticky) sticky.textContent = 'Selected '+sums.selected+' | Estimated '+sums.cost.toLocaleString()+' THB';
       var lines=['H9','Arc Chute','Coil Winding','Lug&Screw'];
       var tabs = document.getElementById('prLineTabs'); if (tabs) tabs.innerHTML = ['all'].concat(lines).map(function(l){ var active=(prLineTabState===l); return '<button data-pr-line-tab="'+l+'" class="h-8 rounded border px-2 '+(active?'bg-blue-600 text-white border-blue-600':'bg-white border-slate-300')+'">'+(l==='all'?'All':l)+'</button>'; }).join('');
       var lineMap={}; filtered.forEach(function(c){ var ln=String(c.line||'-'); (lineMap[ln]=lineMap[ln]||[]).push(c); });
@@ -6168,9 +6160,6 @@ if (dashboardPage) {
     ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
     var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; renderPrCandidates(); });
     if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } });
-    var prStickyBuildBtn=document.getElementById('prStickyBuildBtn'); if(prStickyBuildBtn) prStickyBuildBtn.addEventListener('click', function(){ if(prBuildReportBtn) prBuildReportBtn.click(); });
-    var prStickyPdfBtn=document.getElementById('prStickyPdfBtn'); if(prStickyPdfBtn) prStickyPdfBtn.addEventListener('click', function(){ if(prPrintBtn) prPrintBtn.click(); });
-    var prStickySaveBtn=document.getElementById('prStickySaveBtn'); if(prStickySaveBtn) prStickySaveBtn.addEventListener('click', function(){ var b=document.getElementById('prSaveDraftBtn'); if(b) b.click(); });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
     var prReportNoEl = document.getElementById('prReportNo');
