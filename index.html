@@ -676,7 +676,7 @@
               <option value="Coil Winding">Coil Winding</option>
               <option value="Lug&Screw">Lug&Screw</option>
             </select>
-                        <p class="text-xs font-semibold text-slate-700">Include Conditions</p><label><input id="prIncludeOut" type="checkbox" checked /> Out of stock</label><label><input id="prIncludeBelow" type="checkbox" checked /> Below min</label><label><input id="prIncludeUsage" type="checkbox" checked /> Usage-based</label><p class="text-xs font-semibold text-slate-700">Additional Filter</p><label><input id="prCriticalOnly" type="checkbox" /> Critical items only</label><label class="text-xs font-semibold text-slate-600">Report Status</label><select id="prReportStatus" class="h-10 rounded-lg border border-slate-300 px-3 bg-white"><option>Draft</option><option>Reviewed</option><option>Submitted</option><option>PR Created</option><option>Ordered</option><option>Received</option><option>Cancelled</option></select><input id="prReportNo" readonly class="h-10 rounded-lg border border-slate-300 px-3 bg-slate-100" placeholder="Report No" /><div class="grid grid-cols-2 gap-2"><button id="prSaveDraftBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white font-semibold">Save Draft</button><button id="prLoadDraftBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white font-semibold">Load Draft</button></div>
+                        <p class="text-xs font-semibold text-slate-700">Include Conditions</p><label><input id="prIncludeOut" type="checkbox" checked /> Out of stock</label><label><input id="prIncludeBelow" type="checkbox" checked /> Below min</label><label><input id="prIncludeUsage" type="checkbox" checked /> Usage-based</label><p class="text-xs font-semibold text-slate-700">Additional Filter</p><label><input id="prCriticalOnly" type="checkbox" /> Critical items only</label>
             <button id="prRunBtn" type="button" class="h-10 rounded-lg bg-blue-600 text-white font-semibold">Generate PR List</button>
           </div>
         </div>
@@ -4116,13 +4116,6 @@ function inferRequestPriority(stock, min) {
         });
       });
     }
-
-    
-    function getDefaultReportNo() {
-      var d = new Date();
-      var yyyy = d.getFullYear(); var mm = String(d.getMonth() + 1).padStart(2, '0');
-      return 'ASM-PR-' + yyyy + '-' + mm + '-001';
-    }
     function syncPrPeriodToDates() {
       var el = document.getElementById('prPeriod');
       if (!el || !el.value) return;
@@ -6167,13 +6160,8 @@ if (dashboardPage) {
     if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
-    var prReportNoEl = document.getElementById('prReportNo');
     if (prPeriodEl) { if (!prPeriodEl.value) { var now=new Date(); prPeriodEl.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'); } syncPrPeriodToDates(); prPeriodEl.addEventListener('change', syncPrPeriodToDates); }
     if (prPreparedByEl) { var cached = localStorage.getItem('pr_prepared_by') || ''; prPreparedByEl.value = (currentUser && (currentUser.name || currentUser.username)) ? (currentUser.name || currentUser.username) : cached; prPreparedByEl.addEventListener('input', function(){ localStorage.setItem('pr_prepared_by', prPreparedByEl.value.trim()); }); }
-    if (prReportNoEl && !prReportNoEl.value) prReportNoEl.value = getDefaultReportNo();
-    var prSaveDraftBtn = document.getElementById('prSaveDraftBtn'); var prLoadDraftBtn = document.getElementById('prLoadDraftBtn');
-    if (prSaveDraftBtn) prSaveDraftBtn.addEventListener('click', function(){ var draft={ scope:{ period:document.getElementById('prPeriod').value, from:document.getElementById('prFrom').value,to:document.getElementById('prTo').value, preparedBy:document.getElementById('prPreparedBy').value,department:document.getElementById('prDepartment').value,mode:document.getElementById('prMode').value,line:(document.getElementById('prLineFilter')||{}).value||'all',includeOut:document.getElementById('prIncludeOut').checked,includeBelow:document.getElementById('prIncludeBelow').checked,includeUsage:document.getElementById('prIncludeUsage').checked,criticalOnly:document.getElementById('prCriticalOnly').checked,status:(document.getElementById('prReportStatus')||{}).value||'Draft',reportNo:(document.getElementById('prReportNo')||{}).value||'' }, items:prCandidateState }; localStorage.setItem('pr_report_draft', JSON.stringify(draft)); alert('Draft saved'); });
-    if (prLoadDraftBtn) prLoadDraftBtn.addEventListener('click', function(){ var raw=localStorage.getItem('pr_report_draft'); if(!raw) return alert('No draft found'); try{ var d=JSON.parse(raw); document.getElementById('prPeriod').value=d.scope.period||''; document.getElementById('prFrom').value=d.scope.from||''; document.getElementById('prTo').value=d.scope.to||''; document.getElementById('prPreparedBy').value=d.scope.preparedBy||''; document.getElementById('prDepartment').value=d.scope.department||''; document.getElementById('prMode').value=d.scope.mode||'assembly_monthly'; if(document.getElementById('prLineFilter')) document.getElementById('prLineFilter').value=d.scope.line||'all'; document.getElementById('prIncludeOut').checked=!!d.scope.includeOut; document.getElementById('prIncludeBelow').checked=!!d.scope.includeBelow; document.getElementById('prIncludeUsage').checked=!!d.scope.includeUsage; document.getElementById('prCriticalOnly').checked=!!d.scope.criticalOnly; if(document.getElementById('prReportStatus')) document.getElementById('prReportStatus').value=d.scope.status||'Draft'; if(document.getElementById('prReportNo')) document.getElementById('prReportNo').value=d.scope.reportNo||getDefaultReportNo(); prCandidateState=Array.isArray(d.items)?d.items:[]; renderPrCandidates(); }catch(e){ alert('Load draft failed'); } });
     if (prMode) prMode.addEventListener('change', function() {
       var mode = String(prMode.value || 'assembly_monthly');
       if (prLineFilter) prLineFilter.classList.toggle('hidden', mode !== 'line_specific');
