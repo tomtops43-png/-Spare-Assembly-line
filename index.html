@@ -676,7 +676,7 @@
               <option value="Coil Winding">Coil Winding</option>
               <option value="Lug&Screw">Lug&Screw</option>
             </select>
-                        <p class="text-xs font-semibold text-slate-700">Include Conditions</p><label><input id="prIncludeOut" type="checkbox" checked /> Out of stock</label><label><input id="prIncludeBelow" type="checkbox" checked /> Below min</label><label><input id="prIncludeUsage" type="checkbox" checked /> Usage-based</label><p class="text-xs font-semibold text-slate-700">Additional Filter</p><label><input id="prCriticalOnly" type="checkbox" /> Critical items only</label><label class="text-xs font-semibold text-slate-600">Report Status</label><select id="prReportStatus" class="h-10 rounded-lg border border-slate-300 px-3 bg-white"><option>Draft</option><option>Reviewed</option><option>Submitted</option><option>PR Created</option><option>Ordered</option><option>Received</option><option>Cancelled</option></select><input id="prReportNo" readonly class="h-10 rounded-lg border border-slate-300 px-3 bg-slate-100" placeholder="Report No" /><div class="grid grid-cols-2 gap-2"><button id="prSaveDraftBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white font-semibold">Save Draft</button><button id="prLoadDraftBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white font-semibold">Load Draft</button></div>
+                        <p class="text-xs font-semibold text-slate-700">Include Conditions</p><label><input id="prIncludeOut" type="checkbox" checked /> Out of stock</label><label><input id="prIncludeBelow" type="checkbox" checked /> Below min</label><label><input id="prIncludeUsage" type="checkbox" checked /> Usage-based</label><p class="text-xs font-semibold text-slate-700">Additional Filter</p><label><input id="prCriticalOnly" type="checkbox" /> Critical items only</label>
             <button id="prRunBtn" type="button" class="h-10 rounded-lg bg-blue-600 text-white font-semibold">Generate PR List</button>
           </div>
         </div>
@@ -890,8 +890,8 @@
                 <label for="loginPassword" class="mb-1 block text-sm font-semibold text-slate-700">Password</label>
                 <div class="relative">
                   <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔒</span>
-                  <input id="loginPassword" type="password" class="h-14 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-20 text-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-400 outline-none transition" placeholder="Enter password" required />
-                  <button id="toggleLoginPassword" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 bg-white">Show</button>
+                  <input id="loginPassword" type="password" class="h-14 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-14 text-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-400 outline-none transition" placeholder="Enter password" required />
+                  <button id="toggleLoginPassword" type="button" aria-label="แสดงรหัสผ่าน" aria-pressed="false" class="absolute right-2 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"><span id="loginPwdEyeOpen" aria-hidden="true" class="text-base leading-none">👁️</span><span id="loginPwdEyeClosed" aria-hidden="true" class="hidden text-base leading-none">🙈</span></button>
                 </div>
               </div>
               <div class="flex items-center justify-between text-sm">
@@ -1672,18 +1672,23 @@
     function normalizeLineText(value) {
       return String(value || '').trim().toLowerCase();
     }
-    function formatBangkokDateTime(value) {
+    function formatThaiDateTime(value) {
       if (value === undefined || value === null || value === '') return '-';
       var dt = new Date(value);
-      if (!isNaN(dt.getTime())) {
-        return dt.toLocaleDateString('th-TH', {
-          timeZone: 'Asia/Bangkok',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-      }
-      return String(value);
+      if (isNaN(dt.getTime())) return '-';
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Bangkok',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).format(dt).replace(',', '');
+    }
+    function formatBangkokDateTime(value) {
+      return formatThaiDateTime(value);
     }
     function getItemIdentityKey(item) {
       var no = item && item.no !== undefined ? String(item.no).trim() : '';
@@ -3395,7 +3400,7 @@ function getIssueCartEntries() {
           var qty = Number(item.qty || 0);
           var displayQty = isOutput ? -Math.abs(qty) : qty;
           return '<tr class="' + rowBg + ' hover:bg-blue-50 transition-colors">' +
-            '<td class="py-3 px-3 whitespace-nowrap">' + (item.timestamp || '-') + '</td>' +
+            '<td class="py-3 px-3 whitespace-nowrap">' + formatThaiDateTime(item.timestamp) + '</td>' +
             '<td class="py-3 px-3">' + getLogTypeBadge(item.type) + '</td>' +
             '<td class="py-3 px-3">' + (item.process || item.line || '-') + '</td>' +
             '<td class="py-3 px-3">' + (item.category || '-') + '</td>' +
@@ -3623,7 +3628,7 @@ function getIssueCartEntries() {
               '<div class="min-w-0">' +
                 '<p class="font-semibold text-base">👤 ' + displayName + '</p>' +
                 '<p class="text-xs text-slate-600">ไลน์ที่เกี่ยวข้อง: ' + lines + '</p>' +
-                '<p class="text-xs text-slate-500">Last Updated: ' + (latest ? new Date(latest).toLocaleString('th-TH') : '-') + '</p>' +
+                '<p class="text-xs text-slate-500">Last Updated: ' + (latest ? formatThaiDateTime(latest) : '-') + '</p>' +
               '</div>' +
               '<span class="inline-flex min-w-[28px] items-center justify-center rounded-full bg-blue-600 px-2 py-1 text-xs font-extrabold text-white shadow-sm">' + pendingCount + '</span>' +
             '</div>' +
@@ -3663,7 +3668,7 @@ function getIssueCartEntries() {
         return '<div class="rounded-xl border p-3">' +
           '<p class="font-semibold">' + (idx + 1) + '. ' + (r.item_name || '-') + '</p>' +
           '<p class="text-sm">Requesterซื้อ: <b>' + (r.requested_by || '-') + '</b></p>' +
-          '<p class="text-sm">Requested Atซื้อ: ' + (r.requested_date ? new Date(r.requested_date).toLocaleString('th-TH') : '-') + '</p>' +
+          '<p class="text-sm">Requested Atซื้อ: ' + formatThaiDateTime(r.requested_date) + '</p>' +
           '<p class="text-sm">ไลน์ที่เกี่ยวข้อง: ' + (r.line || '-') + '</p>' +
           '<p class="text-sm">Model: ' + (r.model || r.item_model || '-') + '</p>' +
           '<p class="text-sm">Brand: ' + (r.brand || r.item_brand || '-') + '</p>' +
@@ -3896,8 +3901,8 @@ function inferRequestPriority(stock, min) {
           return new Date(String(b.updated_at || b.requested_date || 0)).getTime() - new Date(String(a.updated_at || a.requested_date || 0)).getTime();
         });
         tableBody.innerHTML = rows.slice(0, 30).map(function(r) {
-          var reqDate = r.requested_date ? new Date(r.requested_date).toLocaleString('th-TH') : '-';
-          var updDate = r.updated_at ? new Date(r.updated_at).toLocaleString('th-TH') : '-';
+          var reqDate = formatThaiDateTime(r.requested_date);
+          var updDate = formatThaiDateTime(r.updated_at);
           var reqId = String(r.request_id || '-');
           return '<tr class="border-b">' +
             '<td class="px-2 py-2">' + reqId + '</td>' +
@@ -3977,12 +3982,12 @@ function inferRequestPriority(stock, min) {
         summaryEl.innerHTML = card('เบิกออกวันนี้', outToday) + card('รับเข้าวันนี้', inToday) + card('เบิกออกเดือนนี้', outMonth) + card('รับเข้าเดือนนี้', inMonth);
         issues.sort(function(a,b){ return new Date(b.timestamp || b.date || 0) - new Date(a.timestamp || a.date || 0); });
         latestBody.innerHTML = issues.slice(0, 20).map(function(r){
-          return '<tr class="border-b"><td class="px-2 py-2">' + (r.timestamp ? new Date(r.timestamp).toLocaleString('th-TH') : (r.date || '-')) + '</td><td class="px-2 py-2">' + (r.type || '-') + '</td><td class="px-2 py-2">' + (r.partName || r.name || '-') + '</td><td class="px-2 py-2">' + (r.model || '-') + '</td><td class="px-2 py-2">' + (r.brand || '-') + '</td><td class="px-2 py-2">' + (Number(r.qty || r.quantity || 0) || 0) + '</td><td class="px-2 py-2">' + (r.by || '-') + '</td></tr>';
+          return '<tr class="border-b"><td class="px-2 py-2">' + formatThaiDateTime(r.timestamp || r.date) + '</td><td class="px-2 py-2">' + (r.type || '-') + '</td><td class="px-2 py-2">' + (r.partName || r.name || '-') + '</td><td class="px-2 py-2">' + (r.model || '-') + '</td><td class="px-2 py-2">' + (r.brand || '-') + '</td><td class="px-2 py-2">' + (Number(r.qty || r.quantity || 0) || 0) + '</td><td class="px-2 py-2">' + (r.by || '-') + '</td></tr>';
         }).join('') || '<tr><td colspan="7" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
         var topParts = Object.keys(partMap).map(function(k){ return partMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? new Date(p.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
+        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? formatThaiDateTime(p.last) : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
         var topUsers = Object.keys(userMap).map(function(k){ return userMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? new Date(u.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
+        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? formatThaiDateTime(u.last) : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
       }).catch(function() {
         emptyEl.classList.remove('hidden');
       });
@@ -4111,13 +4116,6 @@ function inferRequestPriority(stock, min) {
         });
       });
     }
-
-    
-    function getDefaultReportNo() {
-      var d = new Date();
-      var yyyy = d.getFullYear(); var mm = String(d.getMonth() + 1).padStart(2, '0');
-      return 'ASM-PR-' + yyyy + '-' + mm + '-001';
-    }
     function syncPrPeriodToDates() {
       var el = document.getElementById('prPeriod');
       if (!el || !el.value) return;
@@ -4224,6 +4222,26 @@ function inferRequestPriority(stock, min) {
       lines.forEach(function(line){ var items=lineMap[line]||[]; if(!items.length) return; var selectedCount=items.filter(function(i){return i.selected;}).length; var amount=items.filter(function(i){return i.selected && Number(i.unitPrice||0)>0;}).reduce(function(s,i){return s+Number(i.unitPrice||0)*Number(i.suggestedQty||0);},0); var tbc=items.filter(function(i){return Number(i.unitPrice||0)<=0;}).length; var collapsed=!!prLineCollapsedState[line]; html += '<section class="rounded-lg border border-slate-200"><div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2"><button data-pr-toggle-line="'+line+'" class="font-semibold text-left">'+line+' — '+items.length+' items | Selected '+selectedCount+' | Amount '+amount.toLocaleString()+' THB | TBC '+tbc+'</button><div class="flex gap-1"><button data-pr-select-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Select all</button><button data-pr-unselect-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Unselect all</button><button data-pr-toggle-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">'+(collapsed?'Expand':'Collapse')+'</button></div></div>'; if(!collapsed){ html += '<div class="space-y-1 p-2">'+items.map(function(c){ var idx=prCandidateState.indexOf(c); var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return '<label class="block rounded border border-slate-200 p-2 text-xs"><div class="grid grid-cols-1 md:grid-cols-10 gap-1 items-center"><input data-pr-select="'+idx+'" type="checkbox" '+(c.selected?'checked':'')+' /><div class="md:col-span-3 font-semibold">'+c.name+'</div><div class="md:col-span-2 text-slate-500">'+(c.brand||'-')+' / '+(c.model||'-')+'</div><div>'+c.line+'</div><div>Stock/Min '+c.stock+'/'+c.min+'</div><input data-pr-qty="'+idx+'" type="number" value="'+c.suggestedQty+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-critical="'+idx+'" value="'+c.critical+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-price="'+idx+'" type="number" value="'+c.unitPrice+'" class="h-7 rounded border border-slate-300 px-1" /><div>Total '+total.toLocaleString()+'</div><div>'+String(c.reason||'').replace(/,/g,' / ')+'</div></div><details class="mt-1"><summary class="cursor-pointer text-blue-700">Edit advanced</summary><div class="mt-1 grid grid-cols-1 md:grid-cols-3 gap-1"><input data-pr-machine="'+idx+'" value="'+(c.machineStation||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Machine/Station" /><input data-pr-purpose="'+idx+'" value="'+(c.purpose||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Reason/Purpose" /><input data-pr-priority="'+idx+'" value="'+(c.priority||'Medium')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Priority" /></div></details></label>'; }).join('')+'</div>'; } html += '</section>'; });
       prCandidateList.innerHTML = html;
       setTimeout(function(){ var n = document.getElementById('prCandidateToolbar'); if(n) n.scrollIntoView({behavior:'smooth',block:'start'}); }, 60);
+    }
+    function getFilteredPrCandidates(onlySelected) {
+      var searchEl = document.getElementById('prCandidateSearch');
+      var criticalEl = document.getElementById('prCriticalFilter');
+      var priceEl = document.getElementById('prPriceFilter');
+      var reasonEl = document.getElementById('prReasonFilter');
+      var q = String((searchEl && searchEl.value) || '').trim().toLowerCase();
+      var cf = String((criticalEl && criticalEl.value) || 'all').toLowerCase();
+      var pf = String((priceEl && priceEl.value) || 'all').toLowerCase();
+      var rf = String((reasonEl && reasonEl.value) || 'all').toUpperCase();
+      return prCandidateState.filter(function(c) {
+        var txt = [c.name,c.brand,c.model,c.line,c.category,c.reason].join(' ').toLowerCase();
+        var hitQ = !q || txt.indexOf(q) > -1;
+        var hitLine = prLineTabState === 'all' || String(c.line || '') === prLineTabState;
+        var hitCritical = cf === 'all' || String(c.critical || '').toLowerCase() === cf;
+        var hitPrice = pf === 'all' || (pf === 'confirmed' ? Number(c.unitPrice||0)>0 : Number(c.unitPrice||0)<=0);
+        var hitReason = rf === 'ALL' || String(c.reason||'').toUpperCase().indexOf(rf)>-1;
+        var hitSelected = !onlySelected || !!c.selected;
+        return hitQ && hitLine && hitCritical && hitPrice && hitReason && hitSelected;
+      });
     }
 
     function loadPartsData(options) {
@@ -6162,20 +6180,23 @@ if (dashboardPage) {
     if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
-    var prReportNoEl = document.getElementById('prReportNo');
     if (prPeriodEl) { if (!prPeriodEl.value) { var now=new Date(); prPeriodEl.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'); } syncPrPeriodToDates(); prPeriodEl.addEventListener('change', syncPrPeriodToDates); }
     if (prPreparedByEl) { var cached = localStorage.getItem('pr_prepared_by') || ''; prPreparedByEl.value = (currentUser && (currentUser.name || currentUser.username)) ? (currentUser.name || currentUser.username) : cached; prPreparedByEl.addEventListener('input', function(){ localStorage.setItem('pr_prepared_by', prPreparedByEl.value.trim()); }); }
-    if (prReportNoEl && !prReportNoEl.value) prReportNoEl.value = getDefaultReportNo();
-    var prSaveDraftBtn = document.getElementById('prSaveDraftBtn'); var prLoadDraftBtn = document.getElementById('prLoadDraftBtn');
-    if (prSaveDraftBtn) prSaveDraftBtn.addEventListener('click', function(){ var draft={ scope:{ period:document.getElementById('prPeriod').value, from:document.getElementById('prFrom').value,to:document.getElementById('prTo').value, preparedBy:document.getElementById('prPreparedBy').value,department:document.getElementById('prDepartment').value,mode:document.getElementById('prMode').value,line:(document.getElementById('prLineFilter')||{}).value||'all',includeOut:document.getElementById('prIncludeOut').checked,includeBelow:document.getElementById('prIncludeBelow').checked,includeUsage:document.getElementById('prIncludeUsage').checked,criticalOnly:document.getElementById('prCriticalOnly').checked,status:(document.getElementById('prReportStatus')||{}).value||'Draft',reportNo:(document.getElementById('prReportNo')||{}).value||'' }, items:prCandidateState }; localStorage.setItem('pr_report_draft', JSON.stringify(draft)); alert('Draft saved'); });
-    if (prLoadDraftBtn) prLoadDraftBtn.addEventListener('click', function(){ var raw=localStorage.getItem('pr_report_draft'); if(!raw) return alert('No draft found'); try{ var d=JSON.parse(raw); document.getElementById('prPeriod').value=d.scope.period||''; document.getElementById('prFrom').value=d.scope.from||''; document.getElementById('prTo').value=d.scope.to||''; document.getElementById('prPreparedBy').value=d.scope.preparedBy||''; document.getElementById('prDepartment').value=d.scope.department||''; document.getElementById('prMode').value=d.scope.mode||'assembly_monthly'; if(document.getElementById('prLineFilter')) document.getElementById('prLineFilter').value=d.scope.line||'all'; document.getElementById('prIncludeOut').checked=!!d.scope.includeOut; document.getElementById('prIncludeBelow').checked=!!d.scope.includeBelow; document.getElementById('prIncludeUsage').checked=!!d.scope.includeUsage; document.getElementById('prCriticalOnly').checked=!!d.scope.criticalOnly; if(document.getElementById('prReportStatus')) document.getElementById('prReportStatus').value=d.scope.status||'Draft'; if(document.getElementById('prReportNo')) document.getElementById('prReportNo').value=d.scope.reportNo||getDefaultReportNo(); prCandidateState=Array.isArray(d.items)?d.items:[]; renderPrCandidates(); }catch(e){ alert('Load draft failed'); } });
     if (prMode) prMode.addEventListener('change', function() {
       var mode = String(prMode.value || 'assembly_monthly');
       if (prLineFilter) prLineFilter.classList.toggle('hidden', mode !== 'line_specific');
+      if (mode !== 'line_specific') prLineTabState = 'all';
+      if (mode === 'line_specific' && prLineFilter && String(prLineFilter.value || 'all') !== 'all') prLineTabState = String(prLineFilter.value || 'all');
       if (mode === 'urgent') {
         document.getElementById('prIncludeOut').checked = true;
         document.getElementById('prCriticalOnly').checked = true;
       }
+      renderPrCandidates();
+    });
+    if (prLineFilter) prLineFilter.addEventListener('change', function() {
+      var mode = String((prMode && prMode.value) || 'assembly_monthly');
+      prLineTabState = (mode === 'line_specific') ? String(prLineFilter.value || 'all') : 'all';
+      renderPrCandidates();
     });
     if (prCandidateList) prCandidateList.addEventListener('input', function(e) {
       var idx = Number((e.target.dataset.prQty || e.target.dataset.prCritical || e.target.dataset.prPrice || e.target.dataset.prMachine || e.target.dataset.prPurpose || e.target.dataset.prSelect || -1));
@@ -6350,13 +6371,13 @@ if (dashboardPage) {
         '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
-      var selected = prCandidateState.filter(function(c){ return c.selected; });
+      var selected = getFilteredPrCandidates(true);
       if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
       prReportPreview.innerHTML = buildDocumentGradeReport(selected);
     });
-    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = prCandidateState.filter(function(c){ return c.selected; }); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
+    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
-      var selected = prCandidateState.filter(function(c){ return c.selected; });
+      var selected = getFilteredPrCandidates(true);
       if (!selected.length) return;
       var docHtml = buildDocumentGradeReport(selected);
       var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
@@ -6679,9 +6700,14 @@ if (dashboardPage) {
     });
     document.getElementById('toggleLoginPassword').addEventListener('click', function() {
       var pwd = document.getElementById('loginPassword');
+      var eyeOpen = document.getElementById('loginPwdEyeOpen');
+      var eyeClosed = document.getElementById('loginPwdEyeClosed');
       var isText = pwd.type === 'text';
       pwd.type = isText ? 'password' : 'text';
-      this.textContent = isText ? 'Show' : 'Hide';
+      this.setAttribute('aria-pressed', String(!isText));
+      this.setAttribute('aria-label', isText ? 'แสดงรหัสผ่าน' : 'ซ่อนรหัสผ่าน');
+      eyeOpen.classList.toggle('hidden', !isText);
+      eyeClosed.classList.toggle('hidden', isText);
     });
     document.getElementById('logoutBtn').addEventListener('click', function() {
       logout();
