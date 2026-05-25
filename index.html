@@ -6334,7 +6334,11 @@ if (dashboardPage) {
           var txt = (String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||'')).toLowerCase();
           if (/(custom|made-to-order|special)/.test(txt)) remark.push('Custom-made part');
           if (!String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''))) remark.push('Need picture for identification');
-          return '<tr><td>' + (c.image ? '<img src="'+esc(c.image)+'" alt="'+esc(c.name)+'" />' : 'No Image') + '</td><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td>'+esc(remark.join(', ') || 'Reference')+'</td></tr>';
+          var fallbackImage = (typeof getSecondaryDriveImageUrl === 'function' ? getSecondaryDriveImageUrl(c.image || '') : '');
+          var imgHtml = c.image
+            ? '<img src="'+esc(c.image)+'" data-fallback-src="'+esc(fallbackImage || '')+'" alt="'+esc(c.name)+'" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.outerHTML=\'No image available\';}" />'
+            : 'No Image';
+          return '<tr><td>' + imgHtml + '</td><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td>'+esc(remark.join(', ') || 'Reference')+'</td></tr>';
         }).join('');
       }
 
