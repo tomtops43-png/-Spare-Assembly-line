@@ -676,7 +676,7 @@
               <option value="Coil Winding">Coil Winding</option>
               <option value="Lug&Screw">Lug&Screw</option>
             </select>
-                        <p class="text-xs font-semibold text-slate-700">Include Conditions</p><label><input id="prIncludeOut" type="checkbox" checked /> Out of stock</label><label><input id="prIncludeBelow" type="checkbox" checked /> Below min</label><label><input id="prIncludeUsage" type="checkbox" checked /> Usage-based</label><p class="text-xs font-semibold text-slate-700">Additional Filter</p><label><input id="prCriticalOnly" type="checkbox" /> Critical items only</label><label class="text-xs font-semibold text-slate-600">Report Status</label><select id="prReportStatus" class="h-10 rounded-lg border border-slate-300 px-3 bg-white"><option>Draft</option><option>Reviewed</option><option>Submitted</option><option>PR Created</option><option>Ordered</option><option>Received</option><option>Cancelled</option></select><input id="prReportNo" readonly class="h-10 rounded-lg border border-slate-300 px-3 bg-slate-100" placeholder="Report No" /><div class="grid grid-cols-2 gap-2"><button id="prSaveDraftBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white font-semibold">Save Draft</button><button id="prLoadDraftBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white font-semibold">Load Draft</button></div>
+                        <p class="text-xs font-semibold text-slate-700">Include Conditions</p><label><input id="prIncludeOut" type="checkbox" checked /> Out of stock</label><label><input id="prIncludeBelow" type="checkbox" checked /> Below min</label><label><input id="prIncludeUsage" type="checkbox" checked /> Usage-based</label><p class="text-xs font-semibold text-slate-700">Additional Filter</p><label><input id="prCriticalOnly" type="checkbox" /> Critical items only</label>
             <button id="prRunBtn" type="button" class="h-10 rounded-lg bg-blue-600 text-white font-semibold">Generate PR List</button>
           </div>
         </div>
@@ -890,8 +890,8 @@
                 <label for="loginPassword" class="mb-1 block text-sm font-semibold text-slate-700">Password</label>
                 <div class="relative">
                   <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔒</span>
-                  <input id="loginPassword" type="password" class="h-14 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-20 text-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-400 outline-none transition" placeholder="Enter password" required />
-                  <button id="toggleLoginPassword" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 bg-white">Show</button>
+                  <input id="loginPassword" type="password" class="h-14 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-14 text-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-400 outline-none transition" placeholder="Enter password" required />
+                  <button id="toggleLoginPassword" type="button" aria-label="แสดงรหัสผ่าน" aria-pressed="false" class="absolute right-2 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"><span id="loginPwdEyeOpen" aria-hidden="true" class="text-base leading-none">👁️</span><span id="loginPwdEyeClosed" aria-hidden="true" class="hidden text-base leading-none">🙈</span></button>
                 </div>
               </div>
               <div class="flex items-center justify-between text-sm">
@@ -1672,18 +1672,23 @@
     function normalizeLineText(value) {
       return String(value || '').trim().toLowerCase();
     }
-    function formatBangkokDateTime(value) {
+    function formatThaiDateTime(value) {
       if (value === undefined || value === null || value === '') return '-';
       var dt = new Date(value);
-      if (!isNaN(dt.getTime())) {
-        return dt.toLocaleDateString('th-TH', {
-          timeZone: 'Asia/Bangkok',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-      }
-      return String(value);
+      if (isNaN(dt.getTime())) return '-';
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Bangkok',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).format(dt).replace(',', '');
+    }
+    function formatBangkokDateTime(value) {
+      return formatThaiDateTime(value);
     }
     function getItemIdentityKey(item) {
       var no = item && item.no !== undefined ? String(item.no).trim() : '';
@@ -3395,7 +3400,7 @@ function getIssueCartEntries() {
           var qty = Number(item.qty || 0);
           var displayQty = isOutput ? -Math.abs(qty) : qty;
           return '<tr class="' + rowBg + ' hover:bg-blue-50 transition-colors">' +
-            '<td class="py-3 px-3 whitespace-nowrap">' + (item.timestamp || '-') + '</td>' +
+            '<td class="py-3 px-3 whitespace-nowrap">' + formatThaiDateTime(item.timestamp) + '</td>' +
             '<td class="py-3 px-3">' + getLogTypeBadge(item.type) + '</td>' +
             '<td class="py-3 px-3">' + (item.process || item.line || '-') + '</td>' +
             '<td class="py-3 px-3">' + (item.category || '-') + '</td>' +
@@ -3623,7 +3628,7 @@ function getIssueCartEntries() {
               '<div class="min-w-0">' +
                 '<p class="font-semibold text-base">👤 ' + displayName + '</p>' +
                 '<p class="text-xs text-slate-600">ไลน์ที่เกี่ยวข้อง: ' + lines + '</p>' +
-                '<p class="text-xs text-slate-500">Last Updated: ' + (latest ? new Date(latest).toLocaleString('th-TH') : '-') + '</p>' +
+                '<p class="text-xs text-slate-500">Last Updated: ' + (latest ? formatThaiDateTime(latest) : '-') + '</p>' +
               '</div>' +
               '<span class="inline-flex min-w-[28px] items-center justify-center rounded-full bg-blue-600 px-2 py-1 text-xs font-extrabold text-white shadow-sm">' + pendingCount + '</span>' +
             '</div>' +
@@ -3663,7 +3668,7 @@ function getIssueCartEntries() {
         return '<div class="rounded-xl border p-3">' +
           '<p class="font-semibold">' + (idx + 1) + '. ' + (r.item_name || '-') + '</p>' +
           '<p class="text-sm">Requesterซื้อ: <b>' + (r.requested_by || '-') + '</b></p>' +
-          '<p class="text-sm">Requested Atซื้อ: ' + (r.requested_date ? new Date(r.requested_date).toLocaleString('th-TH') : '-') + '</p>' +
+          '<p class="text-sm">Requested Atซื้อ: ' + formatThaiDateTime(r.requested_date) + '</p>' +
           '<p class="text-sm">ไลน์ที่เกี่ยวข้อง: ' + (r.line || '-') + '</p>' +
           '<p class="text-sm">Model: ' + (r.model || r.item_model || '-') + '</p>' +
           '<p class="text-sm">Brand: ' + (r.brand || r.item_brand || '-') + '</p>' +
@@ -3896,8 +3901,8 @@ function inferRequestPriority(stock, min) {
           return new Date(String(b.updated_at || b.requested_date || 0)).getTime() - new Date(String(a.updated_at || a.requested_date || 0)).getTime();
         });
         tableBody.innerHTML = rows.slice(0, 30).map(function(r) {
-          var reqDate = r.requested_date ? new Date(r.requested_date).toLocaleString('th-TH') : '-';
-          var updDate = r.updated_at ? new Date(r.updated_at).toLocaleString('th-TH') : '-';
+          var reqDate = formatThaiDateTime(r.requested_date);
+          var updDate = formatThaiDateTime(r.updated_at);
           var reqId = String(r.request_id || '-');
           return '<tr class="border-b">' +
             '<td class="px-2 py-2">' + reqId + '</td>' +
@@ -3977,12 +3982,12 @@ function inferRequestPriority(stock, min) {
         summaryEl.innerHTML = card('เบิกออกวันนี้', outToday) + card('รับเข้าวันนี้', inToday) + card('เบิกออกเดือนนี้', outMonth) + card('รับเข้าเดือนนี้', inMonth);
         issues.sort(function(a,b){ return new Date(b.timestamp || b.date || 0) - new Date(a.timestamp || a.date || 0); });
         latestBody.innerHTML = issues.slice(0, 20).map(function(r){
-          return '<tr class="border-b"><td class="px-2 py-2">' + (r.timestamp ? new Date(r.timestamp).toLocaleString('th-TH') : (r.date || '-')) + '</td><td class="px-2 py-2">' + (r.type || '-') + '</td><td class="px-2 py-2">' + (r.partName || r.name || '-') + '</td><td class="px-2 py-2">' + (r.model || '-') + '</td><td class="px-2 py-2">' + (r.brand || '-') + '</td><td class="px-2 py-2">' + (Number(r.qty || r.quantity || 0) || 0) + '</td><td class="px-2 py-2">' + (r.by || '-') + '</td></tr>';
+          return '<tr class="border-b"><td class="px-2 py-2">' + formatThaiDateTime(r.timestamp || r.date) + '</td><td class="px-2 py-2">' + (r.type || '-') + '</td><td class="px-2 py-2">' + (r.partName || r.name || '-') + '</td><td class="px-2 py-2">' + (r.model || '-') + '</td><td class="px-2 py-2">' + (r.brand || '-') + '</td><td class="px-2 py-2">' + (Number(r.qty || r.quantity || 0) || 0) + '</td><td class="px-2 py-2">' + (r.by || '-') + '</td></tr>';
         }).join('') || '<tr><td colspan="7" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
         var topParts = Object.keys(partMap).map(function(k){ return partMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? new Date(p.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
+        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? formatThaiDateTime(p.last) : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
         var topUsers = Object.keys(userMap).map(function(k){ return userMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? new Date(u.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
+        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? formatThaiDateTime(u.last) : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
       }).catch(function() {
         emptyEl.classList.remove('hidden');
       });
@@ -4111,13 +4116,6 @@ function inferRequestPriority(stock, min) {
         });
       });
     }
-
-    
-    function getDefaultReportNo() {
-      var d = new Date();
-      var yyyy = d.getFullYear(); var mm = String(d.getMonth() + 1).padStart(2, '0');
-      return 'ASM-PR-' + yyyy + '-' + mm + '-001';
-    }
     function syncPrPeriodToDates() {
       var el = document.getElementById('prPeriod');
       if (!el || !el.value) return;
@@ -4224,6 +4222,26 @@ function inferRequestPriority(stock, min) {
       lines.forEach(function(line){ var items=lineMap[line]||[]; if(!items.length) return; var selectedCount=items.filter(function(i){return i.selected;}).length; var amount=items.filter(function(i){return i.selected && Number(i.unitPrice||0)>0;}).reduce(function(s,i){return s+Number(i.unitPrice||0)*Number(i.suggestedQty||0);},0); var tbc=items.filter(function(i){return Number(i.unitPrice||0)<=0;}).length; var collapsed=!!prLineCollapsedState[line]; html += '<section class="rounded-lg border border-slate-200"><div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2"><button data-pr-toggle-line="'+line+'" class="font-semibold text-left">'+line+' — '+items.length+' items | Selected '+selectedCount+' | Amount '+amount.toLocaleString()+' THB | TBC '+tbc+'</button><div class="flex gap-1"><button data-pr-select-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Select all</button><button data-pr-unselect-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Unselect all</button><button data-pr-toggle-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">'+(collapsed?'Expand':'Collapse')+'</button></div></div>'; if(!collapsed){ html += '<div class="space-y-1 p-2">'+items.map(function(c){ var idx=prCandidateState.indexOf(c); var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return '<label class="block rounded border border-slate-200 p-2 text-xs"><div class="grid grid-cols-1 md:grid-cols-10 gap-1 items-center"><input data-pr-select="'+idx+'" type="checkbox" '+(c.selected?'checked':'')+' /><div class="md:col-span-3 font-semibold">'+c.name+'</div><div class="md:col-span-2 text-slate-500">'+(c.brand||'-')+' / '+(c.model||'-')+'</div><div>'+c.line+'</div><div>Stock/Min '+c.stock+'/'+c.min+'</div><input data-pr-qty="'+idx+'" type="number" value="'+c.suggestedQty+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-critical="'+idx+'" value="'+c.critical+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-price="'+idx+'" type="number" value="'+c.unitPrice+'" class="h-7 rounded border border-slate-300 px-1" /><div>Total '+total.toLocaleString()+'</div><div>'+String(c.reason||'').replace(/,/g,' / ')+'</div></div><details class="mt-1"><summary class="cursor-pointer text-blue-700">Edit advanced</summary><div class="mt-1 grid grid-cols-1 md:grid-cols-3 gap-1"><input data-pr-machine="'+idx+'" value="'+(c.machineStation||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Machine/Station" /><input data-pr-purpose="'+idx+'" value="'+(c.purpose||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Reason/Purpose" /><input data-pr-priority="'+idx+'" value="'+(c.priority||'Medium')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Priority" /></div></details></label>'; }).join('')+'</div>'; } html += '</section>'; });
       prCandidateList.innerHTML = html;
       setTimeout(function(){ var n = document.getElementById('prCandidateToolbar'); if(n) n.scrollIntoView({behavior:'smooth',block:'start'}); }, 60);
+    }
+    function getFilteredPrCandidates(onlySelected) {
+      var searchEl = document.getElementById('prCandidateSearch');
+      var criticalEl = document.getElementById('prCriticalFilter');
+      var priceEl = document.getElementById('prPriceFilter');
+      var reasonEl = document.getElementById('prReasonFilter');
+      var q = String((searchEl && searchEl.value) || '').trim().toLowerCase();
+      var cf = String((criticalEl && criticalEl.value) || 'all').toLowerCase();
+      var pf = String((priceEl && priceEl.value) || 'all').toLowerCase();
+      var rf = String((reasonEl && reasonEl.value) || 'all').toUpperCase();
+      return prCandidateState.filter(function(c) {
+        var txt = [c.name,c.brand,c.model,c.line,c.category,c.reason].join(' ').toLowerCase();
+        var hitQ = !q || txt.indexOf(q) > -1;
+        var hitLine = prLineTabState === 'all' || String(c.line || '') === prLineTabState;
+        var hitCritical = cf === 'all' || String(c.critical || '').toLowerCase() === cf;
+        var hitPrice = pf === 'all' || (pf === 'confirmed' ? Number(c.unitPrice||0)>0 : Number(c.unitPrice||0)<=0);
+        var hitReason = rf === 'ALL' || String(c.reason||'').toUpperCase().indexOf(rf)>-1;
+        var hitSelected = !onlySelected || !!c.selected;
+        return hitQ && hitLine && hitCritical && hitPrice && hitReason && hitSelected;
+      });
     }
 
     function loadPartsData(options) {
@@ -6162,20 +6180,23 @@ if (dashboardPage) {
     if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
-    var prReportNoEl = document.getElementById('prReportNo');
     if (prPeriodEl) { if (!prPeriodEl.value) { var now=new Date(); prPeriodEl.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'); } syncPrPeriodToDates(); prPeriodEl.addEventListener('change', syncPrPeriodToDates); }
     if (prPreparedByEl) { var cached = localStorage.getItem('pr_prepared_by') || ''; prPreparedByEl.value = (currentUser && (currentUser.name || currentUser.username)) ? (currentUser.name || currentUser.username) : cached; prPreparedByEl.addEventListener('input', function(){ localStorage.setItem('pr_prepared_by', prPreparedByEl.value.trim()); }); }
-    if (prReportNoEl && !prReportNoEl.value) prReportNoEl.value = getDefaultReportNo();
-    var prSaveDraftBtn = document.getElementById('prSaveDraftBtn'); var prLoadDraftBtn = document.getElementById('prLoadDraftBtn');
-    if (prSaveDraftBtn) prSaveDraftBtn.addEventListener('click', function(){ var draft={ scope:{ period:document.getElementById('prPeriod').value, from:document.getElementById('prFrom').value,to:document.getElementById('prTo').value, preparedBy:document.getElementById('prPreparedBy').value,department:document.getElementById('prDepartment').value,mode:document.getElementById('prMode').value,line:(document.getElementById('prLineFilter')||{}).value||'all',includeOut:document.getElementById('prIncludeOut').checked,includeBelow:document.getElementById('prIncludeBelow').checked,includeUsage:document.getElementById('prIncludeUsage').checked,criticalOnly:document.getElementById('prCriticalOnly').checked,status:(document.getElementById('prReportStatus')||{}).value||'Draft',reportNo:(document.getElementById('prReportNo')||{}).value||'' }, items:prCandidateState }; localStorage.setItem('pr_report_draft', JSON.stringify(draft)); alert('Draft saved'); });
-    if (prLoadDraftBtn) prLoadDraftBtn.addEventListener('click', function(){ var raw=localStorage.getItem('pr_report_draft'); if(!raw) return alert('No draft found'); try{ var d=JSON.parse(raw); document.getElementById('prPeriod').value=d.scope.period||''; document.getElementById('prFrom').value=d.scope.from||''; document.getElementById('prTo').value=d.scope.to||''; document.getElementById('prPreparedBy').value=d.scope.preparedBy||''; document.getElementById('prDepartment').value=d.scope.department||''; document.getElementById('prMode').value=d.scope.mode||'assembly_monthly'; if(document.getElementById('prLineFilter')) document.getElementById('prLineFilter').value=d.scope.line||'all'; document.getElementById('prIncludeOut').checked=!!d.scope.includeOut; document.getElementById('prIncludeBelow').checked=!!d.scope.includeBelow; document.getElementById('prIncludeUsage').checked=!!d.scope.includeUsage; document.getElementById('prCriticalOnly').checked=!!d.scope.criticalOnly; if(document.getElementById('prReportStatus')) document.getElementById('prReportStatus').value=d.scope.status||'Draft'; if(document.getElementById('prReportNo')) document.getElementById('prReportNo').value=d.scope.reportNo||getDefaultReportNo(); prCandidateState=Array.isArray(d.items)?d.items:[]; renderPrCandidates(); }catch(e){ alert('Load draft failed'); } });
     if (prMode) prMode.addEventListener('change', function() {
       var mode = String(prMode.value || 'assembly_monthly');
       if (prLineFilter) prLineFilter.classList.toggle('hidden', mode !== 'line_specific');
+      if (mode !== 'line_specific') prLineTabState = 'all';
+      if (mode === 'line_specific' && prLineFilter && String(prLineFilter.value || 'all') !== 'all') prLineTabState = String(prLineFilter.value || 'all');
       if (mode === 'urgent') {
         document.getElementById('prIncludeOut').checked = true;
         document.getElementById('prCriticalOnly').checked = true;
       }
+      renderPrCandidates();
+    });
+    if (prLineFilter) prLineFilter.addEventListener('change', function() {
+      var mode = String((prMode && prMode.value) || 'assembly_monthly');
+      prLineTabState = (mode === 'line_specific') ? String(prLineFilter.value || 'all') : 'all';
+      renderPrCandidates();
     });
     if (prCandidateList) prCandidateList.addEventListener('input', function(e) {
       var idx = Number((e.target.dataset.prQty || e.target.dataset.prCritical || e.target.dataset.prPrice || e.target.dataset.prMachine || e.target.dataset.prPurpose || e.target.dataset.prSelect || -1));
@@ -6195,168 +6216,217 @@ if (dashboardPage) {
           .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
-      function asNum(v) {
-        var n = Number(v);
-        return Number.isFinite(n) ? n : 0;
-      }
+      function asNum(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
+      function money(v) { return Number(v || 0).toLocaleString(); }
       function normalizeImageUrl(url) {
         var raw = String(url || '').trim();
         if (!raw) return '';
         var m = raw.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
-        var normalized = m && m[1] ? ('https://drive.google.com/uc?export=view&id=' + m[1]) : raw;
-        return normalized;
+        return m && m[1] ? ('https://drive.google.com/uc?export=view&id=' + m[1]) : raw;
       }
+      function isMachineSpare(category, name) {
+        var t = (String(category || '') + ' ' + String(name || '')).toLowerCase();
+        return /(spare|part|sensor|cylinder|switch|bearing|relay|valve|motor|seal|roller|board|module)/.test(t);
+      }
+      function reasonCodeText(reasonCodes) {
+        var arr = String(reasonCodes || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+        return arr.join(' | ');
+      }
+      function reasonPurpose(c) {
+        if (c.purpose && String(c.purpose).trim()) return c.purpose;
+        var txt = reasonCodeText(c.reasonCodes || c.reason || '');
+        return txt || '-';
+      }
+
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
       var preparedBy = String((document.getElementById('prPreparedBy')||{}).value || '').trim() || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
       var submissionDate = new Date().toISOString().slice(0,10);
-      function categoryGroup(rawCategory, rawName) { var text = String(rawCategory || '').toLowerCase(); var name = String(rawName || '').toLowerCase(); if (/(maintenance tool|maintenance|tool|tools|fixture|wrench|spanner|screwdriver|caliper|multimeter|drill|equipment)/.test(text + ' ' + name)) return 'Maintenance Tools'; if (/(production support|consumable|label|adhesive|tape|cleaner|lubricant|hub switch|usb cable|light|lamp)/.test(text + ' ' + name)) return 'Production Support Tools'; return 'Machine Spare Parts'; }
-      function reasonCodeText(reasonCodes) { var arr = String(reasonCodes || '').split(',').map(function(x){return x.trim();}).filter(Boolean); return arr.join(', '); }
+      var modeNow = String((document.getElementById('prMode')||{}).value || 'assembly_monthly');
+      var selectedLineNow = String((document.getElementById('prLineFilter')||{}).value || 'all');
+      var isLineSpecific = modeNow === 'line_specific' && selectedLineNow !== 'all';
+
       var normalized = selected.map(function(c) {
-        var qty = asNum(c.suggestedQty || c.qty || 0);
+        var qty = Math.max(1, asNum(c.suggestedQty || c.qty || 0));
         var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
         var priceNum = rawPrice === '' ? NaN : asNum(rawPrice);
         var price = (Number.isFinite(priceNum) && priceNum > 0) ? priceNum : null;
-        var image = normalizeImageUrl(c.mainImage || c.image_main_url || c.imageUrlMain || c.imageMain || c.image || '');
         return {
           no: c.no || '-',
           category: c.category || '-',
           line: canonicalLineName(c.line || '-'),
-          subLine: c.subLine || '-',
-          machineStation: c.machineStation || '-',
           name: c.name || '-',
           brand: c.brand || '-',
           model: c.model || c.no || '-',
-          qty: qty > 0 ? qty : 1,
+          qty: qty,
           critical: c.critical || '-',
           unitPrice: price,
-          currency: c.currency || 'THB',
-          supplier: c.supplier || '-',
-          priceUpdatedAt: c.priceUpdatedAt || c.price_updated_at || '-',
-          amount: price === null ? null : (qty > 0 ? qty : 1) * price,
-          reason: c.purpose || c.reason || '-',
+          amount: price === null ? null : qty * price,
           reasonCodes: c.reason || '-',
-          itemGroup: categoryGroup(c.category, c.name),
+          purpose: c.purpose || '',
           stock: asNum(c.stock),
           min: asNum(c.min),
-          image: image
+          image: normalizeImageUrl(c.mainImage || c.image_main_url || c.imageUrlMain || c.imageMain || c.image || '')
         };
       });
-      var lineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
-      var lines = lineOrder.filter(function(l){ return normalized.some(function(c){ return c.line === l; }); });
+
+      var lines = Array.from(new Set(normalized.map(function(c){ return c.line; }))).filter(Boolean);
+      if (isLineSpecific) lines = [canonicalLineName(selectedLineNow)];
+      var lineLabel = lines.join(' / ') || '-';
+
+      var confirmed = normalized.filter(function(c){ return c.unitPrice !== null; });
+      var tbc = normalized.filter(function(c){ return c.unitPrice === null; });
+      var totalAmount = confirmed.reduce(function(sum, c){ return sum + c.amount; }, 0);
       var outCount = normalized.filter(function(c){ return c.stock <= 0; }).length;
-      var highCount = normalized.filter(function(c){ return String(c.critical).toLowerCase().indexOf('high') > -1 || String(c.critical).toLowerCase().indexOf('critical') > -1; }).length;
-      var toolRows = [];
-      var spareRows = [];
-      normalized.forEach(function(c) {
-        var cat = String(c.category || '').toLowerCase();
-        var isTool = /(tool|maintenance|support|fixture|equipment)/.test(cat);
-        var isSpare = /(spare|part|sensor|cylinder|switch|bearing|relay|valve|motor)/.test(cat);
-        if (isTool && !isSpare) toolRows.push(c);
-        else if (isSpare && !isTool) spareRows.push(c);
-        else if (isTool && isSpare) spareRows.push(c);
-        else if (c.stock <= 0 || c.critical.toLowerCase().indexOf('critical') > -1) spareRows.push(c);
-        else toolRows.push(c);
-      });
-      var pricedRows = normalized.filter(function(c){ return c.unitPrice !== null; });
-      var unpricedRows = normalized.filter(function(c){ return c.unitPrice === null; });
-      var totalAmount = pricedRows.reduce(function(sum, c){ return sum + c.amount; }, 0);
-      var pendingPriceCount = unpricedRows.length;
-      var readyForPr = pricedRows;
-      var priceTbcItems = unpricedRows;
-      var urgentGroup1 = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock<=0 && lv.indexOf('critical')>-1; });
-      var urgentGroup2 = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock>0 && lv.indexOf('critical')>-1 && c.amount!==null && c.amount>=5000; });
-      var urgentGroup3 = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return c.stock>0 && c.stock<=Number(c.min||0) && lv.indexOf('high')>-1; });
-      var urgentItems = [].concat(urgentGroup1, urgentGroup2, urgentGroup3).filter(function(c, i, arr){ return arr.findIndex(function(x){return x.no===c.no && x.line===c.line;})===i; }).slice(0,12);
-      var machineSpareCount = normalized.filter(function(r){ return r.itemGroup === 'Machine Spare Parts'; }).length;
-      var maintenanceToolCount = normalized.filter(function(r){ return r.itemGroup === 'Maintenance Tools'; }).length;
-      var supportToolCount = normalized.filter(function(r){ return r.itemGroup === 'Production Support Tools'; }).length;
-      console.debug('[PR] selectedItems count:', normalized.length);
-      console.debug('[PR] selectedItems payload:', normalized);
-      console.debug('[PR] categorized toolItems/sparePartItems:', toolRows.length, spareRows.length);
-      function imageRow(c) {
-        console.debug('[PR] image url:', c.name, c.image || 'NO_IMAGE');
-        var fallbackImage = (typeof getSecondaryDriveImageUrl === 'function' ? getSecondaryDriveImageUrl(c.image || '') : '');
-        var picCell = c.image ? '<img src=\"'+esc(c.image)+'\" data-fallback-src=\"'+esc(fallbackImage || '')+'\" alt=\"'+esc(c.name)+'\" />' : 'No Image';
-        return picCell;
+      var highCriticalCount = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return lv.indexOf('high')>-1 || lv.indexOf('critical')>-1; }).length;
+
+      var tools = confirmed.filter(function(c){ return !isMachineSpare(c.category, c.name); });
+      var spares = confirmed.filter(function(c){ return isMachineSpare(c.category, c.name); });
+      if (!tools.length || !spares.length) {
+        tools = confirmed;
+        spares = [];
       }
-      function sectionRows(rows, cols) {
-        if (!rows.length) return '<tr><td colspan=\"'+cols+'\" class=\"empty\">No selected items in this section</td></tr>';
-        return rows;
+
+      var urgentItems = normalized.slice().sort(function(a,b){
+        function score(x){
+          var lv=String(x.critical||'').toLowerCase();
+          var s=0;
+          if (x.stock<=0 && lv.indexOf('critical')>-1) s+=100;
+          if (lv.indexOf('critical')>-1) s+=60;
+          if (lv.indexOf('high')>-1) s+=40;
+          if (x.amount!==null) s += Math.min(30, x.amount/2000);
+          if (String(x.reasonCodes||'').toUpperCase().indexOf('REP')>-1) s+=10;
+          return s;
+        }
+        return score(b)-score(a);
+      }).slice(0,8);
+
+      function detailTableRows(items, includeLine) {
+        if (!items.length) return '<tr><td colspan="'+(includeLine?10:9)+'" class="empty">No items</td></tr>';
+        return items.map(function(c, i){
+          var cols = [
+            '<td>'+ (i+1) +'</td>',
+            '<td>'+esc(c.category)+'</td>',
+            '<td>'+esc(c.name)+'</td>',
+            '<td>'+esc(c.brand)+'</td>',
+            '<td>'+esc(c.model)+'</td>'
+          ];
+          if (includeLine) cols.push('<td>'+esc(c.line)+'</td>');
+          cols = cols.concat([
+            '<td class="num">'+esc(c.qty)+'</td>',
+            '<td>'+esc(c.critical)+'</td>',
+            '<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>',
+            '<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>',
+            '<td>'+esc(reasonPurpose(c))+'</td>'
+          ]);
+          return '<tr>'+cols.join('')+'</tr>';
+        }).join('');
       }
-      function renderLineGroupedDetailRows(items, cols) {
-        if (!items.length) return '<tr><td colspan=\"'+cols+'\" class=\"empty\">No selected items in this section</td></tr>';
-        var html = '';
-        var lineMap = {};
-        items.forEach(function(c){ (lineMap[c.line || '-'] = lineMap[c.line || '-'] || []).push(c); });
-        Object.keys(lineMap).forEach(function(lineName) {
-          var rows = lineMap[lineName];
-          var lineSubtotal = rows.filter(function(r){ return r.amount !== null; }).reduce(function(sum, r){ return sum + r.amount; }, 0);
-          html += '<tr><td colspan=\"8\" style=\"background:#f8fafc;font-weight:700;\">Line: ' + esc(lineName) + ' (' + rows.length + ' items)</td></tr>';
-          html += rows.map(function(c, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(c.name)+'<br><span class=\"sub\">'+esc(c.brand)+' / '+esc(c.model)+'</span></td><td>'+esc(c.line)+'</td><td>'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td>'+(c.unitPrice !== null ? c.unitPrice.toLocaleString() : 'TBC')+'</td><td>'+(c.amount !== null ? c.amount.toLocaleString() : 'TBC')+'</td><td>'+esc(reasonCodeText(c.reasonCodes))+'</td></tr>'; }).join('');
-          html += '<tr><td colspan=\"6\" style=\"text-align:right;font-weight:700;\">Subtotal (' + esc(lineName) + ')</td><td style=\"font-weight:700;\">' + (lineSubtotal ? lineSubtotal.toLocaleString() : 'TBC') + '</td><td></td></tr>';
-        });
-        return html;
-      }
-      function renderLineGroupedAnnexRows(items) {
-        if (!items.length) return '<tr><td colspan="6" class="empty">No selected items in this section</td></tr>';
+
+      function annexRows(items) {
+        if (!items.length) return '<tr><td colspan="6" class="empty">No critical reference pictures</td></tr>';
         return items.map(function(c){
-          var reasonNotes = [];
+          var remark = [];
           var lv = String(c.critical || '').toLowerCase();
-          if (lv.indexOf('critical') > -1) reasonNotes.push('Critical spare');
-          if (c.amount !== null && c.amount >= 5000) reasonNotes.push('High value item');
-          var text = (String(c.category || '') + ' ' + String(c.name || '') + ' ' + String(c.model || '')).toLowerCase();
-          if (/(custom|made-to-order|special)/.test(text)) reasonNotes.push('Custom-made part');
-          if (Number(c.stock || 0) <= 0) reasonNotes.push('Out of stock');
-          if (!String(c.model || '').trim() || String(c.model || '').trim() === '-' || /(assy|part|item|spare)$/i.test(String(c.name||''))) reasonNotes.push('For identification');
-          var remark = reasonNotes.length ? reasonNotes.join(', ') : 'For identification';
-          return '<tr><td>'+imageRow(c)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.brand || '-')+'</td><td>'+esc(c.model || c.no || '-')+'</td><td>'+esc(remark)+'</td></tr>';
+          if (lv.indexOf('critical')>-1) remark.push('Critical spare');
+          if (c.stock <= 0) remark.push('Out of stock');
+          if (c.amount !== null && c.amount >= 5000) remark.push('High value item');
+          var txt = (String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||'')).toLowerCase();
+          if (/(custom|made-to-order|special)/.test(txt)) remark.push('Custom-made part');
+          if (!String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''))) remark.push('Need picture for identification');
+          var fallbackImage = (typeof getSecondaryDriveImageUrl === 'function' ? getSecondaryDriveImageUrl(c.image || '') : '');
+          var imgHtml = c.image
+            ? '<img src="'+esc(c.image)+'" data-fallback-src="'+esc(fallbackImage || '')+'" alt="'+esc(c.name)+'" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.outerHTML=\'No image available\';}" />'
+            : 'No Image';
+          return '<tr><td>' + imgHtml + '</td><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td>'+esc(remark.join(', ') || 'Reference')+'</td></tr>';
         }).join('');
       }
-      function renderSummaryByLineRows() {
-        var modeNow = String((document.getElementById('prMode')||{}).value || 'assembly_monthly');
-        var selectedLineNow = String((document.getElementById('prLineFilter')||{}).value || 'all');
-        var summaryLines = (modeNow === 'line_specific' && selectedLineNow !== 'all') ? [selectedLineNow] : ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
-        return summaryLines.map(function(lineName) {
-          var rows = normalized.filter(function(c){ return c.line === lineName; });
-          var qtySum = rows.reduce(function(sum, r){ return sum + Number(r.qty || 0); }, 0);
-          var criticalCount = rows.filter(function(r){ var lv = String(r.critical || '').toLowerCase(); return lv.indexOf('high') > -1 || lv.indexOf('critical') > -1; }).length;
-          var needPoCount = rows.filter(function(r){ return Number(r.stock || 0) <= Number(r.min || 0); }).length;
-          var knownAmount = rows.filter(function(r){ return r.amount !== null; }).reduce(function(sum, r){ return sum + r.amount; }, 0);
-          var tbcCount = rows.filter(function(r){ return r.amount === null; }).length;
-          return '<tr><td>'+esc(lineName)+'</td><td>'+rows.length+'</td><td>'+qtySum+'</td><td>'+criticalCount+'</td><td>'+needPoCount+'</td><td>'+(knownAmount ? knownAmount.toLocaleString() : 'TBC')+'</td><td>'+tbcCount+'</td></tr>';
-        }).join('');
-      }
-      return '<div class=\"pr-doc\">' +
-        '<div class=\"top-note\">Purchase Request Supporting Report | Assembly Line</div><h1>PURCHASE REQUEST SUPPORTING REPORT</h1><h3>Spare Parts, Maintenance Tools and Production Support Tools</h3><p class=\"center\">Assembly Line: '+lines.join(' / ')+'</p>' +
-        '<table><thead><tr><th>Field</th><th>Detail</th></tr></thead><tbody><tr><td>Document Title</td><td>Purchase Request Supporting Report</td></tr><tr><td>Request Scope</td><td>Spare Parts, Maintenance Tools and Production Support Tools</td></tr><tr><td>Line / Area</td><td>'+lines.join(' / ')+'</td></tr><tr><td>Request Period</td><td>'+period+'</td></tr><tr><td>Prepared by</td><td>'+preparedBy+'</td></tr><tr><td>Department</td><td>'+department+'</td></tr><tr><td>Submission Date</td><td>'+submissionDate+'</td></tr></tbody></table>' +
-        '<h2>1. Purpose of Request</h2><p>This report is prepared to support Purchase Request approval for spare parts, maintenance tools, and production support tools for the Assembly Line.</p>' +
-        '<h2>2. Production Scope</h2><table><thead><tr><th>No.</th><th>Line / Area</th><th>Scope Description</th></tr></thead><tbody>' + lines.map(function(l, i){ return '<tr><td>'+(i+1)+'</td><td>'+l+'</td><td>Assembly process and production support</td></tr>'; }).join('') + '</tbody></table>' +
-        '<h2>3. Background and Necessity</h2><p>Based on current stock status and transaction usage history, several items require replenishment to prevent machine downtime and maintain production continuity.</p>' +
-        '<h2>4. Executive Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Covered main lines</td><td>'+lines.join(' / ')+'</td></tr><tr><td>Known Amount ('+(normalized[0] ? normalized[0].currency : 'THB')+')</td><td>'+(pricedRows.length ? totalAmount.toLocaleString() : 'TBC')+'</td></tr><tr><td>Pending Price Items</td><td>'+pendingPriceCount+' items</td></tr><tr><td>Approval Note</td><td>Items with pending price require Purchasing confirmation.</td></tr></tbody></table>' +
-        '<h3>4.1 Summary by Line</h3><table><thead><tr><th>Main Line</th><th>Items</th><th>Total Qty</th><th>High/Critical</th><th>Need PO</th><th>Known Amount</th><th>TBC Items</th></tr></thead><tbody>' + renderSummaryByLineRows() + '</tbody></table>' +
-        '<h2>5. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support or non-urgent replacement.</td></tr></tbody></table>' +
-        '<h2>6. Risk if Not Purchased</h2><p>Out-of-stock items: '+outCount+'. High/Critical items: '+highCount+'. Delayed replenishment may impact uptime, troubleshooting speed, and on-time delivery.</p>' +
-        '<h2>7. Expected Benefits After Purchase</h2><p>Reduced downtime, improved maintenance response time, stable production continuity, and lower emergency purchase costs.</p>' +
-        '<h2>8. Justification for Approval</h2><p>Requested items are directly related to production support, maintenance, troubleshooting, and quality control based on current demand and issue frequency.</p>' +
-        '<h2>9. Approval Request Statement</h2><p>We would like to request approval to proceed with this Purchase Request to ensure safe and continuous production operations.</p>' +
-        '<h2>10. Budget Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Confirmed price items</td><td>'+readyForPr.length+'</td></tr><tr><td>TBC price items</td><td>'+priceTbcItems.length+'</td></tr><tr><td>Confirmed amount</td><td>'+(pricedRows.length ? totalAmount.toLocaleString() : 'TBC')+'</td></tr><tr><td>Pending Final Amount</td><td>TBC for '+priceTbcItems.length+' items</td></tr><tr><td>Note</td><td>Final PR amount depends on Purchasing quotation confirmation.</td></tr></tbody></table>' +
-        '<h2>11. Action Required</h2><table><thead><tr><th>No.</th><th>Required Action</th></tr></thead><tbody><tr><td>1</td><td>Approve confirmed-price items.</td></tr><tr><td>2</td><td>Request Purchasing quotation for TBC items.</td></tr><tr><td>3</td><td>Prioritize urgent critical items first.</td></tr></tbody></table>' +
-        '<h2>12. Top Urgent Items</h2><p>The following items are highlighted from the full PR list due to criticality, out-of-stock status, high value, or high production impact.</p><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(urgentItems, 8) + '</tbody></table>' +
-        '<h2>13. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date (YYYY-MM-DD)</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+preparedBy+'</td><td>Engineer</td><td>'+submissionDate+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table><h2>14. Reason Code Definition</h2><table><thead><tr><th>Code</th><th>Definition</th></tr></thead><tbody><tr><td>OOS</td><td>Out of Stock</td></tr><tr><td>BMIN</td><td>Below Minimum Stock</td></tr><tr><td>CRIT</td><td>Critical Spare</td></tr><tr><td>REP</td><td>Replenishment Required</td></tr></tbody></table>' +
-        '<h2>Annex A. Ready for PR (Confirmed Price) - Full Item List</h2><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(readyForPr, 8) + '</tbody></table>' +
-        '<h2>Annex B. Price Confirmation Required (TBC) - Full Item List</h2><p>The following items require Purchasing quotation confirmation before final PR amount can be confirmed.</p><table><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr></thead><tbody>' + renderLineGroupedDetailRows(priceTbcItems, 8) + '</tbody></table>' +
-        '<h2>Annex C: Critical Item Reference Pictures</h2><table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Remark</th></tr></thead><tbody>' + renderLineGroupedAnnexRows(normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||'')); var unclear = !String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||'')); var highAmount = (c.amount!==null && c.amount>=5000); return !!String(c.image||'').trim() && (lv.indexOf('critical')>-1 || Number(c.stock||0)<=0 || highAmount || custom || unclear); })) + '</tbody></table>' +
-        '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
+
+      var includeLineColumn = !isLineSpecific;
+      var detailHead = includeLineColumn
+        ? '<tr><th>No.</th><th>Category</th><th>Description</th><th>Brand</th><th>Model / Spec</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr>'
+        : '<tr><th>No.</th><th>Category</th><th>Description</th><th>Brand</th><th>Model / Spec</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr>';
+
+      var annexItems = normalized.filter(function(c){
+        var lv=String(c.critical||'').toLowerCase();
+        var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||''));
+        var unclear = !String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''));
+        var highAmount = (c.amount!==null && c.amount>=5000);
+        return !!String(c.image||'').trim() && (lv.indexOf('critical')>-1 || Number(c.stock||0)<=0 || highAmount || custom || unclear);
+      }).slice(0,16);
+
+      return '<div class="pr-doc">' +
+        '<div class="doc-head">Purchase Request Supporting Report | Assembly Line</div>' +
+        '<h1>PURCHASE REQUEST SUPPORTING REPORT</h1>' +
+        '<h3>Spare Parts, Maintenance Tools and Production Support Tools</h3>' +
+        '<p class="center">Assembly Line / Line Area: ' + esc(lineLabel) + '</p>' +
+
+        '<table class="meta"><thead><tr><th>Field</th><th>Detail</th></tr></thead><tbody>' +
+        '<tr><td>Document Title</td><td>Purchase Request Supporting Report</td></tr>' +
+        '<tr><td>Request Scope</td><td>Spare Parts, Maintenance Tools and Production Support Tools</td></tr>' +
+        '<tr><td>Line / Area</td><td>' + esc(lineLabel) + '</td></tr>' +
+        '<tr><td>Request Period</td><td>' + esc(period) + '</td></tr>' +
+        '<tr><td>Prepared by</td><td>' + esc(preparedBy) + '</td></tr>' +
+        '<tr><td>Department</td><td>' + esc(department) + '</td></tr>' +
+        '<tr><td>Submission Date</td><td>' + esc(submissionDate) + '</td></tr>' +
+        '</tbody></table>' +
+
+        '<h2>1. Purpose of Request</h2><p>This report supports internal approval for spare parts and production support purchases required to maintain assembly line continuity and reduce downtime risk.</p>' +
+        '<h2>2. Production Scope</h2><table><thead><tr><th>No.</th><th>Line / Area</th><th>Scope Description</th></tr></thead><tbody>' +
+        lines.map(function(l, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(l)+'</td><td>Assembly process and production support</td></tr>'; }).join('') +
+        '</tbody></table>' +
+        '<h2>3. Background and Necessity</h2><p>Requested items are needed for maintenance, troubleshooting, and replenishment based on current stock, minimum levels, and recent usage trends.</p>' +
+
+        '<h2>4. Executive Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>' +
+        '<tr><td>Total requested items</td><td>'+normalized.length+'</td></tr>' +
+        '<tr><td>Confirmed price items</td><td>'+confirmed.length+'</td></tr>' +
+        '<tr><td>TBC price items</td><td>'+tbc.length+'</td></tr>' +
+        '<tr><td>Confirmed amount (THB)</td><td>'+(confirmed.length?money(totalAmount):'TBC')+'</td></tr>' +
+        '<tr><td>Pending final amount</td><td>TBC for '+tbc.length+' items</td></tr>' +
+        '<tr><td>Out-of-stock items</td><td>'+outCount+'</td></tr>' +
+        '<tr><td>High/Critical items</td><td>'+highCriticalCount+'</td></tr>' +
+        '</tbody></table>' +
+
+        '<h2>5. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support item.</td></tr></tbody></table>' +
+        '<h2>6. Risk if Not Purchased</h2><p>Potential impacts include machine downtime, delayed troubleshooting, emergency purchase cost increase, and reduced production continuity.</p>' +
+        '<h2>7. Expected Benefits After Purchase</h2><p>Expected outcomes are reduced downtime, faster maintenance response, improved part availability, and more stable daily production operations.</p>' +
+        '<h2>8. Justification for Approval</h2><p>The requested items directly support assembly line operation and preventive/corrective maintenance activities.</p>' +
+        '<h2>9. Approval Request Statement</h2><p>Approval is requested to proceed with purchasing the listed items according to urgency and operational impact.</p>' +
+
+        '<h2>10. Detailed Requested Item List</h2>' +
+        '<p class="note">Reason Code: OOS = Out of Stock | BMIN = Below Minimum Stock | REP = Replenishment Required | CRIT = Critical Spare</p>' +
+        '<p class="subhead">10.1 Maintenance Tools / Production Support Tools (Confirmed Price)</p>' +
+        '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(tools, includeLineColumn)+'</tbody></table>' +
+        '<p class="subhead">10.2 Machine Spare Parts (Confirmed Price)</p>' +
+        '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(spares, includeLineColumn)+'</tbody></table>' +
+
+        '<h2>11. Price Confirmation Required / TBC Items</h2>' +
+        '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(tbc, includeLineColumn)+'</tbody></table>' +
+
+        '<h3>Top Urgent Items</h3>' +
+        '<p class="note">The following items are highlighted from the full PR list due to criticality, out-of-stock status, high value, or high production impact.</p>' +
+        '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' +
+
+        '<h2>12. Approval Signatures</h2>' +
+        '<table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody>' +
+        '<tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr>' +
+        '<tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr>' +
+        '<tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr>' +
+        '</tbody></table>' +
+
+        '<h2>13. Annex: Critical Item Reference Pictures</h2>' +
+        '<table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems) + '</tbody></table>' +
+        '<p class="footer">Confidential - For internal approval use only</p>' +
+      '</div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
-      var selected = prCandidateState.filter(function(c){ return c.selected; });
+      var selected = getFilteredPrCandidates(true);
       if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
       prReportPreview.innerHTML = buildDocumentGradeReport(selected);
     });
-    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = prCandidateState.filter(function(c){ return c.selected; }); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
+    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
-      var selected = prCandidateState.filter(function(c){ return c.selected; });
+      var selected = getFilteredPrCandidates(true);
       if (!selected.length) return;
       var docHtml = buildDocumentGradeReport(selected);
       var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
@@ -6679,9 +6749,14 @@ if (dashboardPage) {
     });
     document.getElementById('toggleLoginPassword').addEventListener('click', function() {
       var pwd = document.getElementById('loginPassword');
+      var eyeOpen = document.getElementById('loginPwdEyeOpen');
+      var eyeClosed = document.getElementById('loginPwdEyeClosed');
       var isText = pwd.type === 'text';
       pwd.type = isText ? 'password' : 'text';
-      this.textContent = isText ? 'Show' : 'Hide';
+      this.setAttribute('aria-pressed', String(!isText));
+      this.setAttribute('aria-label', isText ? 'แสดงรหัสผ่าน' : 'ซ่อนรหัสผ่าน');
+      eyeOpen.classList.toggle('hidden', !isText);
+      eyeClosed.classList.toggle('hidden', isText);
     });
     document.getElementById('logoutBtn').addEventListener('click', function() {
       logout();
