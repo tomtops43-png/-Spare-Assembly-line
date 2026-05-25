@@ -4223,6 +4223,26 @@ function inferRequestPriority(stock, min) {
       prCandidateList.innerHTML = html;
       setTimeout(function(){ var n = document.getElementById('prCandidateToolbar'); if(n) n.scrollIntoView({behavior:'smooth',block:'start'}); }, 60);
     }
+    function getFilteredPrCandidates(onlySelected) {
+      var searchEl = document.getElementById('prCandidateSearch');
+      var criticalEl = document.getElementById('prCriticalFilter');
+      var priceEl = document.getElementById('prPriceFilter');
+      var reasonEl = document.getElementById('prReasonFilter');
+      var q = String((searchEl && searchEl.value) || '').trim().toLowerCase();
+      var cf = String((criticalEl && criticalEl.value) || 'all').toLowerCase();
+      var pf = String((priceEl && priceEl.value) || 'all').toLowerCase();
+      var rf = String((reasonEl && reasonEl.value) || 'all').toUpperCase();
+      return prCandidateState.filter(function(c) {
+        var txt = [c.name,c.brand,c.model,c.line,c.category,c.reason].join(' ').toLowerCase();
+        var hitQ = !q || txt.indexOf(q) > -1;
+        var hitLine = prLineTabState === 'all' || String(c.line || '') === prLineTabState;
+        var hitCritical = cf === 'all' || String(c.critical || '').toLowerCase() === cf;
+        var hitPrice = pf === 'all' || (pf === 'confirmed' ? Number(c.unitPrice||0)>0 : Number(c.unitPrice||0)<=0);
+        var hitReason = rf === 'ALL' || String(c.reason||'').toUpperCase().indexOf(rf)>-1;
+        var hitSelected = !onlySelected || !!c.selected;
+        return hitQ && hitLine && hitCritical && hitPrice && hitReason && hitSelected;
+      });
+    }
 
     function loadPartsData(options) {
       var opts = options || {};
@@ -6165,10 +6185,18 @@ if (dashboardPage) {
     if (prMode) prMode.addEventListener('change', function() {
       var mode = String(prMode.value || 'assembly_monthly');
       if (prLineFilter) prLineFilter.classList.toggle('hidden', mode !== 'line_specific');
+      if (mode !== 'line_specific') prLineTabState = 'all';
+      if (mode === 'line_specific' && prLineFilter && String(prLineFilter.value || 'all') !== 'all') prLineTabState = String(prLineFilter.value || 'all');
       if (mode === 'urgent') {
         document.getElementById('prIncludeOut').checked = true;
         document.getElementById('prCriticalOnly').checked = true;
       }
+      renderPrCandidates();
+    });
+    if (prLineFilter) prLineFilter.addEventListener('change', function() {
+      var mode = String((prMode && prMode.value) || 'assembly_monthly');
+      prLineTabState = (mode === 'line_specific') ? String(prLineFilter.value || 'all') : 'all';
+      renderPrCandidates();
     });
     if (prCandidateList) prCandidateList.addEventListener('input', function(e) {
       var idx = Number((e.target.dataset.prQty || e.target.dataset.prCritical || e.target.dataset.prPrice || e.target.dataset.prMachine || e.target.dataset.prPurpose || e.target.dataset.prSelect || -1));
@@ -6343,13 +6371,13 @@ if (dashboardPage) {
         '<p class=\"footer\">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
-      var selected = prCandidateState.filter(function(c){ return c.selected; });
+      var selected = getFilteredPrCandidates(true);
       if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
       prReportPreview.innerHTML = buildDocumentGradeReport(selected);
     });
-    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = prCandidateState.filter(function(c){ return c.selected; }); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
+    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
-      var selected = prCandidateState.filter(function(c){ return c.selected; });
+      var selected = getFilteredPrCandidates(true);
       if (!selected.length) return;
       var docHtml = buildDocumentGradeReport(selected);
       var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
