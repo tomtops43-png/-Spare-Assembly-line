@@ -890,8 +890,8 @@
                 <label for="loginPassword" class="mb-1 block text-sm font-semibold text-slate-700">Password</label>
                 <div class="relative">
                   <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔒</span>
-                  <input id="loginPassword" type="password" class="h-14 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-20 text-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-400 outline-none transition" placeholder="Enter password" required />
-                  <button id="toggleLoginPassword" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 bg-white">Show</button>
+                  <input id="loginPassword" type="password" class="h-14 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-14 text-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-400 outline-none transition" placeholder="Enter password" required />
+                  <button id="toggleLoginPassword" type="button" aria-label="แสดงรหัสผ่าน" aria-pressed="false" class="absolute right-2 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"><span id="loginPwdEyeOpen" aria-hidden="true" class="text-base leading-none">👁️</span><span id="loginPwdEyeClosed" aria-hidden="true" class="hidden text-base leading-none">🙈</span></button>
                 </div>
               </div>
               <div class="flex items-center justify-between text-sm">
@@ -6679,9 +6679,14 @@ if (dashboardPage) {
     });
     document.getElementById('toggleLoginPassword').addEventListener('click', function() {
       var pwd = document.getElementById('loginPassword');
+      var eyeOpen = document.getElementById('loginPwdEyeOpen');
+      var eyeClosed = document.getElementById('loginPwdEyeClosed');
       var isText = pwd.type === 'text';
       pwd.type = isText ? 'password' : 'text';
-      this.textContent = isText ? 'Show' : 'Hide';
+      this.setAttribute('aria-pressed', String(!isText));
+      this.setAttribute('aria-label', isText ? 'แสดงรหัสผ่าน' : 'ซ่อนรหัสผ่าน');
+      eyeOpen.classList.toggle('hidden', !isText);
+      eyeClosed.classList.toggle('hidden', isText);
     });
     document.getElementById('logoutBtn').addEventListener('click', function() {
       logout();
