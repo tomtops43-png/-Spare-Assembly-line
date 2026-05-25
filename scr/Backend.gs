@@ -270,11 +270,11 @@ function createOrderRequest(payload) {
       });
     }
     var row = [
-      requestId, payload.requested_date || now.toISOString(), user.username, user.role,
+      requestId, payload.requested_date || Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'), user.username, user.role,
       payload.item_id || '', payload.item_name || '', payload.model || '', payload.brand || '', payload.category || '',
       payload.line || '', Number(payload.current_stock || 0), Number(payload.min || 0), Number(payload.max || 0), Number(payload.request_qty || 0),
       payload.priority || 'Normal', payload.reason || '', payload.expected_use_date || '', payload.remark || '', attachmentUrl,
-      'Pending', '', '', '', '', now.toISOString()
+      'Pending', '', '', '', '', Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss')
     ];
     sheet.appendRow(row);
     return { status: 'success', request_id: requestId };
@@ -366,10 +366,10 @@ function updateOrderRequestStatus(payload, nextStatus) {
     if (String(values[i][idx.request_id]) === String(payload.request_id)) {
       sheet.getRange(i + 1, idx.status + 1).setValue(nextStatus);
       sheet.getRange(i + 1, idx.admin_comment + 1).setValue(payload.admin_comment || '');
-      sheet.getRange(i + 1, idx.updated_at + 1).setValue(new Date().toISOString());
+      sheet.getRange(i + 1, idx.updated_at + 1).setValue(Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'));
       if (nextStatus === 'Approved') {
         sheet.getRange(i + 1, idx.approved_by + 1).setValue(user.username || '');
-        sheet.getRange(i + 1, idx.approved_date + 1).setValue(new Date().toISOString());
+        sheet.getRange(i + 1, idx.approved_date + 1).setValue(Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'));
       }
       return { status: 'success', request_id: payload.request_id, updated_status: nextStatus };
     }
@@ -816,7 +816,7 @@ function processTransaction(payload) {
   }
 
   historySheet.appendRow([
-    new Date(),
+    Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss"),
     payload.type || 'Input',
     payload.process || '-',
     payload.category || 'General',
