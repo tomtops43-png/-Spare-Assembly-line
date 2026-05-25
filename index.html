@@ -1672,18 +1672,23 @@
     function normalizeLineText(value) {
       return String(value || '').trim().toLowerCase();
     }
-    function formatBangkokDateTime(value) {
+    function formatThaiDateTime(value) {
       if (value === undefined || value === null || value === '') return '-';
       var dt = new Date(value);
-      if (!isNaN(dt.getTime())) {
-        return dt.toLocaleDateString('th-TH', {
-          timeZone: 'Asia/Bangkok',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-      }
-      return String(value);
+      if (isNaN(dt.getTime())) return '-';
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Bangkok',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).format(dt).replace(',', '');
+    }
+    function formatBangkokDateTime(value) {
+      return formatThaiDateTime(value);
     }
     function getItemIdentityKey(item) {
       var no = item && item.no !== undefined ? String(item.no).trim() : '';
@@ -3395,7 +3400,7 @@ function getIssueCartEntries() {
           var qty = Number(item.qty || 0);
           var displayQty = isOutput ? -Math.abs(qty) : qty;
           return '<tr class="' + rowBg + ' hover:bg-blue-50 transition-colors">' +
-            '<td class="py-3 px-3 whitespace-nowrap">' + (item.timestamp || '-') + '</td>' +
+            '<td class="py-3 px-3 whitespace-nowrap">' + formatThaiDateTime(item.timestamp) + '</td>' +
             '<td class="py-3 px-3">' + getLogTypeBadge(item.type) + '</td>' +
             '<td class="py-3 px-3">' + (item.process || item.line || '-') + '</td>' +
             '<td class="py-3 px-3">' + (item.category || '-') + '</td>' +
@@ -3623,7 +3628,7 @@ function getIssueCartEntries() {
               '<div class="min-w-0">' +
                 '<p class="font-semibold text-base">👤 ' + displayName + '</p>' +
                 '<p class="text-xs text-slate-600">ไลน์ที่เกี่ยวข้อง: ' + lines + '</p>' +
-                '<p class="text-xs text-slate-500">Last Updated: ' + (latest ? new Date(latest).toLocaleString('th-TH') : '-') + '</p>' +
+                '<p class="text-xs text-slate-500">Last Updated: ' + (latest ? formatThaiDateTime(latest) : '-') + '</p>' +
               '</div>' +
               '<span class="inline-flex min-w-[28px] items-center justify-center rounded-full bg-blue-600 px-2 py-1 text-xs font-extrabold text-white shadow-sm">' + pendingCount + '</span>' +
             '</div>' +
@@ -3663,7 +3668,7 @@ function getIssueCartEntries() {
         return '<div class="rounded-xl border p-3">' +
           '<p class="font-semibold">' + (idx + 1) + '. ' + (r.item_name || '-') + '</p>' +
           '<p class="text-sm">Requesterซื้อ: <b>' + (r.requested_by || '-') + '</b></p>' +
-          '<p class="text-sm">Requested Atซื้อ: ' + (r.requested_date ? new Date(r.requested_date).toLocaleString('th-TH') : '-') + '</p>' +
+          '<p class="text-sm">Requested Atซื้อ: ' + formatThaiDateTime(r.requested_date) + '</p>' +
           '<p class="text-sm">ไลน์ที่เกี่ยวข้อง: ' + (r.line || '-') + '</p>' +
           '<p class="text-sm">Model: ' + (r.model || r.item_model || '-') + '</p>' +
           '<p class="text-sm">Brand: ' + (r.brand || r.item_brand || '-') + '</p>' +
@@ -3896,8 +3901,8 @@ function inferRequestPriority(stock, min) {
           return new Date(String(b.updated_at || b.requested_date || 0)).getTime() - new Date(String(a.updated_at || a.requested_date || 0)).getTime();
         });
         tableBody.innerHTML = rows.slice(0, 30).map(function(r) {
-          var reqDate = r.requested_date ? new Date(r.requested_date).toLocaleString('th-TH') : '-';
-          var updDate = r.updated_at ? new Date(r.updated_at).toLocaleString('th-TH') : '-';
+          var reqDate = formatThaiDateTime(r.requested_date);
+          var updDate = formatThaiDateTime(r.updated_at);
           var reqId = String(r.request_id || '-');
           return '<tr class="border-b">' +
             '<td class="px-2 py-2">' + reqId + '</td>' +
@@ -3977,12 +3982,12 @@ function inferRequestPriority(stock, min) {
         summaryEl.innerHTML = card('เบิกออกวันนี้', outToday) + card('รับเข้าวันนี้', inToday) + card('เบิกออกเดือนนี้', outMonth) + card('รับเข้าเดือนนี้', inMonth);
         issues.sort(function(a,b){ return new Date(b.timestamp || b.date || 0) - new Date(a.timestamp || a.date || 0); });
         latestBody.innerHTML = issues.slice(0, 20).map(function(r){
-          return '<tr class="border-b"><td class="px-2 py-2">' + (r.timestamp ? new Date(r.timestamp).toLocaleString('th-TH') : (r.date || '-')) + '</td><td class="px-2 py-2">' + (r.type || '-') + '</td><td class="px-2 py-2">' + (r.partName || r.name || '-') + '</td><td class="px-2 py-2">' + (r.model || '-') + '</td><td class="px-2 py-2">' + (r.brand || '-') + '</td><td class="px-2 py-2">' + (Number(r.qty || r.quantity || 0) || 0) + '</td><td class="px-2 py-2">' + (r.by || '-') + '</td></tr>';
+          return '<tr class="border-b"><td class="px-2 py-2">' + formatThaiDateTime(r.timestamp || r.date) + '</td><td class="px-2 py-2">' + (r.type || '-') + '</td><td class="px-2 py-2">' + (r.partName || r.name || '-') + '</td><td class="px-2 py-2">' + (r.model || '-') + '</td><td class="px-2 py-2">' + (r.brand || '-') + '</td><td class="px-2 py-2">' + (Number(r.qty || r.quantity || 0) || 0) + '</td><td class="px-2 py-2">' + (r.by || '-') + '</td></tr>';
         }).join('') || '<tr><td colspan="7" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
         var topParts = Object.keys(partMap).map(function(k){ return partMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? new Date(p.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
+        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? formatThaiDateTime(p.last) : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
         var topUsers = Object.keys(userMap).map(function(k){ return userMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? new Date(u.last).toLocaleString('th-TH') : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
+        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? formatThaiDateTime(u.last) : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
       }).catch(function() {
         emptyEl.classList.remove('hidden');
       });
