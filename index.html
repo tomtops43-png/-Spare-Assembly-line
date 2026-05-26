@@ -6222,11 +6222,22 @@ if (dashboardPage) {
         var raw = String(url || '').trim();
         if (!raw) return '';
         var m = raw.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
-        return m && m[1] ? ('https://drive.google.com/uc?export=view&id=' + m[1]) : raw;
+        return m && m[1] ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w300') : raw;
       }
-      function isMachineSpare(category, name) {
-        var t = (String(category || '') + ' ' + String(name || '')).toLowerCase();
-        return /(spare|part|sensor|cylinder|switch|bearing|relay|valve|motor|seal|roller|board|module)/.test(t);
+      function normalizeCategory(rawCategory) {
+        var raw = String(rawCategory || '').trim();
+        if (!raw) return 'General';
+        var t = raw.toLowerCase();
+        if (t === 'machanical') return 'Mechanical';
+        var map = [
+          ['electrical', 'Electrical'], ['mechanical', 'Mechanical'], ['pneumatic', 'Pneumatic'],
+          ['sensor / vision', 'Sensor / Vision'], ['sensor/vision', 'Sensor / Vision'], ['sensor', 'Sensor / Vision'], ['vision', 'Sensor / Vision'],
+          ['tooling / jig', 'Tooling / Jig'], ['tooling/jig', 'Tooling / Jig'], ['jig', 'Tooling / Jig'],
+          ['maintenance tools', 'Maintenance Tools'], ['production support', 'Production Support'],
+          ['consumable', 'Consumable'], ['general', 'General']
+        ];
+        for (var i = 0; i < map.length; i += 1) { if (t === map[i][0]) return map[i][1]; }
+        return raw;
       }
       function reasonCodeText(reasonCodes) {
         var arr = String(reasonCodes || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
@@ -6245,20 +6256,34 @@ if (dashboardPage) {
       var modeNow = String((document.getElementById('prMode')||{}).value || 'assembly_monthly');
       var selectedLineNow = String((document.getElementById('prLineFilter')||{}).value || 'all');
       var isLineSpecific = modeNow === 'line_specific' && selectedLineNow !== 'all';
+      var masterById = {};
+      (partsData || []).forEach(function(item){ var k=String(item.no||item.id||'').trim(); if (k) masterById[k]=item; });
 
       var normalized = selected.map(function(c) {
         var qty = Math.max(1, asNum(c.suggestedQty || c.qty || 0));
         var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
         var priceNum = rawPrice === '' ? NaN : asNum(rawPrice);
         var price = (Number.isFinite(priceNum) && priceNum > 0) ? priceNum : null;
+        var itemId = String(c.no || c.id || '').trim();
+        var master = itemId ? masterById[itemId] : null;
+        if (!master) {
+          master = (partsData || []).find(function(p){
+            return String(p.name||'').trim()===String(c.name||'').trim() && String(p.brand||'').trim()===String(c.brand||'').trim() && String(p.model||p.no||'').trim()===String(c.model||c.no||'').trim();
+          }) || null;
+        }
+        var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.image_main_file_id], '') : '';
+        var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image], '');
+        var normalizedImage = normalizeImageUrl(firstDefined([masterImg, selectedImg], ''));
         return {
+          id: itemId || String(c.name || '-'),
           no: c.no || '-',
-          category: c.category || '-',
+          category: normalizeCategory(c.category || '-'),
           line: canonicalLineName(c.line || '-'),
           name: c.name || '-',
           brand: c.brand || '-',
           model: c.model || c.no || '-',
           qty: qty,
+          unit: String(firstDefined([c.unit, master && master.unit], 'PCS') || 'PCS').trim() || 'PCS',
           critical: c.critical || '-',
           unitPrice: price,
           amount: price === null ? null : qty * price,
@@ -6266,7 +6291,8 @@ if (dashboardPage) {
           purpose: c.purpose || '',
           stock: asNum(c.stock),
           min: asNum(c.min),
-          image: normalizeImageUrl(c.mainImage || c.image_main_url || c.imageUrlMain || c.imageMain || c.image || '')
+          image: normalizedImage,
+          hasImage: !!normalizedImage
         };
       });
 
@@ -6280,17 +6306,9 @@ if (dashboardPage) {
       var outCount = normalized.filter(function(c){ return c.stock <= 0; }).length;
       var highCriticalCount = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return lv.indexOf('high')>-1 || lv.indexOf('critical')>-1; }).length;
 
-      var tools = confirmed.filter(function(c){ return !isMachineSpare(c.category, c.name); });
-      var spares = confirmed.filter(function(c){ return isMachineSpare(c.category, c.name); });
-      if (!tools.length || !spares.length) {
-        tools = confirmed;
-        spares = [];
-      }
-
       var urgentItems = normalized.slice().sort(function(a,b){
         function score(x){
-          var lv=String(x.critical||'').toLowerCase();
-          var s=0;
+          var lv=String(x.critical||'').toLowerCase(); var s=0;
           if (x.stock<=0 && lv.indexOf('critical')>-1) s+=100;
           if (lv.indexOf('critical')>-1) s+=60;
           if (lv.indexOf('high')>-1) s+=40;
@@ -6302,65 +6320,70 @@ if (dashboardPage) {
       }).slice(0,8);
 
       function detailTableRows(items, includeLine) {
-        if (!items.length) return '<tr><td colspan="'+(includeLine?10:9)+'" class="empty">No items</td></tr>';
+        if (!items.length) return '<tr><td colspan="'+(includeLine?8:7)+'" class="empty">No items</td></tr>';
         return items.map(function(c, i){
-          var cols = [
-            '<td>'+ (i+1) +'</td>',
-            '<td>'+esc(c.category)+'</td>',
-            '<td>'+esc(c.name)+'</td>',
-            '<td>'+esc(c.brand)+'</td>',
-            '<td>'+esc(c.model)+'</td>'
-          ];
+          var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
+          var cols = ['<td>'+ (i+1) +'</td>','<td>'+itemModel+'</td>'];
           if (includeLine) cols.push('<td>'+esc(c.line)+'</td>');
           cols = cols.concat([
-            '<td class="num">'+esc(c.qty)+'</td>',
-            '<td>'+esc(c.critical)+'</td>',
-            '<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>',
-            '<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>',
-            '<td>'+esc(reasonPurpose(c))+'</td>'
+            '<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.critical)+'</td>','<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>','<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>','<td>'+esc(reasonPurpose(c))+'</td>'
           ]);
           return '<tr>'+cols.join('')+'</tr>';
         }).join('');
       }
-
-      function annexRows(items) {
-        if (!items.length) return '<tr><td colspan="6" class="empty">No critical reference pictures</td></tr>';
+      function annexRows(items, includeLine) {
+        if (!items.length) return '<tr><td colspan="'+(includeLine?8:7)+'" class="empty">No critical reference pictures</td></tr>';
         return items.map(function(c){
           var remark = [];
           var lv = String(c.critical || '').toLowerCase();
+          var txt = (String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||'')).toLowerCase();
+          var reasonTxt = String(c.reasonCodes || '').toUpperCase();
+          var custom = /(custom|made-to-order|special)/.test(txt);
+          var highAmount = (c.amount !== null && c.amount >= 5000);
+          var needsVisual = !String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''));
           if (lv.indexOf('critical')>-1) remark.push('Critical spare');
           if (c.stock <= 0) remark.push('Out of stock');
-          if (c.amount !== null && c.amount >= 5000) remark.push('High value item');
-          var txt = (String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||'')).toLowerCase();
-          if (/(custom|made-to-order|special)/.test(txt)) remark.push('Custom-made part');
-          if (!String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''))) remark.push('Need picture for identification');
-          var fallbackImage = (typeof getSecondaryDriveImageUrl === 'function' ? getSecondaryDriveImageUrl(c.image || '') : '');
-          var imgHtml = c.image
-            ? '<img src="'+esc(c.image)+'" data-fallback-src="'+esc(fallbackImage || '')+'" alt="'+esc(c.name)+'" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.outerHTML=\'No image available\';}" />'
-            : 'No Image';
-          return '<tr><td>' + imgHtml + '</td><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td>'+esc(remark.join(', ') || 'Reference')+'</td></tr>';
+          if (highAmount) remark.push('High value item');
+          if (custom) remark.push('Custom-made part');
+          if (c.unitPrice === null) remark.push('TBC item needs visual identification');
+          if (needsVisual) remark.push('Need picture for purchasing identification');
+          var imgHtml = c.image ? '<img src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.outerHTML=\"No image available\";" />' : 'No image available';
+          var cols = ['<td>' + imgHtml + '</td>','<td>'+esc(c.name)+'</td>'];
+          if (includeLine) cols.push('<td>'+esc(c.line)+'</td>');
+          cols = cols.concat(['<td>'+esc(c.brand)+'</td>','<td>'+esc(c.model || c.no)+'</td>','<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.unit || 'PCS')+'</td>','<td>'+esc(remark.join(', ') || 'Reference')+'</td>']);
+          return '<tr>' + cols.join('') + '</tr>';
         }).join('');
       }
 
       var includeLineColumn = !isLineSpecific;
       var detailHead = includeLineColumn
-        ? '<tr><th>No.</th><th>Category</th><th>Description</th><th>Brand</th><th>Model / Spec</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr>'
-        : '<tr><th>No.</th><th>Category</th><th>Description</th><th>Brand</th><th>Model / Spec</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason / Purpose</th></tr>';
+        ? '<tr><th>No.</th><th>Item / Model</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>'
+        : '<tr><th>No.</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>';
 
       var annexItems = normalized.filter(function(c){
         var lv=String(c.critical||'').toLowerCase();
         var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||''));
-        var unclear = !String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''));
+        var needsVisual = !String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''));
         var highAmount = (c.amount!==null && c.amount>=5000);
-        return !!String(c.image||'').trim() && (lv.indexOf('critical')>-1 || Number(c.stock||0)<=0 || highAmount || custom || unclear);
-      }).slice(0,16);
+        var important = lv.indexOf('critical')>-1 || Number(c.stock||0)<=0 || highAmount || custom || c.unitPrice===null || needsVisual;
+        if (!important) return false;
+        if (c.hasImage) return true;
+        return lv.indexOf('critical')>-1 || Number(c.stock||0)<=0 || c.unitPrice===null || custom;
+      }).slice(0,24);
+
+      var tbcByLine = {};
+      tbc.forEach(function(item){ var ln = item.line || '-'; (tbcByLine[ln] = tbcByLine[ln] || []).push(item); });
+      var tbcGroupedHtml = Object.keys(tbcByLine).sort().map(function(ln){
+        var items = tbcByLine[ln];
+        var subtotal = items.reduce(function(s, it){ return s + Number(it.qty || 0); }, 0);
+        return '<p class="subhead">Line: '+esc(ln)+' (Items: '+items.length+', Qty: '+subtotal+')</p><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(items, includeLineColumn)+'</tbody></table>';
+      }).join('');
 
       return '<div class="pr-doc">' +
         '<div class="doc-head">Purchase Request Supporting Report | Assembly Line</div>' +
         '<h1>PURCHASE REQUEST SUPPORTING REPORT</h1>' +
         '<h3>Spare Parts, Maintenance Tools and Production Support Tools</h3>' +
         '<p class="center">Assembly Line / Line Area: ' + esc(lineLabel) + '</p>' +
-
         '<table class="meta"><thead><tr><th>Field</th><th>Detail</th></tr></thead><tbody>' +
         '<tr><td>Document Title</td><td>Purchase Request Supporting Report</td></tr>' +
         '<tr><td>Request Scope</td><td>Spare Parts, Maintenance Tools and Production Support Tools</td></tr>' +
@@ -6370,54 +6393,17 @@ if (dashboardPage) {
         '<tr><td>Department</td><td>' + esc(department) + '</td></tr>' +
         '<tr><td>Submission Date</td><td>' + esc(submissionDate) + '</td></tr>' +
         '</tbody></table>' +
-
-        '<h2>1. Purpose of Request</h2><p>This report supports internal approval for spare parts and production support purchases required to maintain assembly line continuity and reduce downtime risk.</p>' +
-        '<h2>2. Production Scope</h2><table><thead><tr><th>No.</th><th>Line / Area</th><th>Scope Description</th></tr></thead><tbody>' +
-        lines.map(function(l, i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(l)+'</td><td>Assembly process and production support</td></tr>'; }).join('') +
-        '</tbody></table>' +
-        '<h2>3. Background and Necessity</h2><p>Requested items are needed for maintenance, troubleshooting, and replenishment based on current stock, minimum levels, and recent usage trends.</p>' +
-
-        '<h2>4. Executive Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>' +
-        '<tr><td>Total requested items</td><td>'+normalized.length+'</td></tr>' +
-        '<tr><td>Confirmed price items</td><td>'+confirmed.length+'</td></tr>' +
-        '<tr><td>TBC price items</td><td>'+tbc.length+'</td></tr>' +
-        '<tr><td>Confirmed amount (THB)</td><td>'+(confirmed.length?money(totalAmount):'TBC')+'</td></tr>' +
-        '<tr><td>Pending final amount</td><td>TBC for '+tbc.length+' items</td></tr>' +
-        '<tr><td>Out-of-stock items</td><td>'+outCount+'</td></tr>' +
-        '<tr><td>High/Critical items</td><td>'+highCriticalCount+'</td></tr>' +
-        '</tbody></table>' +
-
-        '<h2>5. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support item.</td></tr></tbody></table>' +
-        '<h2>6. Risk if Not Purchased</h2><p>Potential impacts include machine downtime, delayed troubleshooting, emergency purchase cost increase, and reduced production continuity.</p>' +
-        '<h2>7. Expected Benefits After Purchase</h2><p>Expected outcomes are reduced downtime, faster maintenance response, improved part availability, and more stable daily production operations.</p>' +
-        '<h2>8. Justification for Approval</h2><p>The requested items directly support assembly line operation and preventive/corrective maintenance activities.</p>' +
-        '<h2>9. Approval Request Statement</h2><p>Approval is requested to proceed with purchasing the listed items according to urgency and operational impact.</p>' +
-
-        '<h2>10. Detailed Requested Item List</h2>' +
-        '<p class="note">Reason Code: OOS = Out of Stock | BMIN = Below Minimum Stock | REP = Replenishment Required | CRIT = Critical Spare</p>' +
-        '<p class="subhead">10.1 Maintenance Tools / Production Support Tools (Confirmed Price)</p>' +
-        '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(tools, includeLineColumn)+'</tbody></table>' +
-        '<p class="subhead">10.2 Machine Spare Parts (Confirmed Price)</p>' +
-        '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(spares, includeLineColumn)+'</tbody></table>' +
-
-        '<h2>11. Price Confirmation Required / TBC Items</h2>' +
-        '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(tbc, includeLineColumn)+'</tbody></table>' +
-
-        '<h3>Top Urgent Items</h3>' +
-        '<p class="note">The following items are highlighted from the full PR list due to criticality, out-of-stock status, high value, or high production impact.</p>' +
-        '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' +
-
-        '<h2>12. Approval Signatures</h2>' +
-        '<table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody>' +
-        '<tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr>' +
-        '<tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr>' +
-        '<tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr>' +
-        '</tbody></table>' +
-
-        '<h2>13. Annex: Critical Item Reference Pictures</h2>' +
-        '<table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems) + '</tbody></table>' +
-        '<p class="footer">Confidential - For internal approval use only</p>' +
-      '</div>';
+        '<h2>1. Purpose / Background</h2><p>This report supports internal approval for spare parts and production support purchases required to maintain assembly line continuity and reduce downtime risk.</p>' +
+        '<h2>2. Executive Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>' +
+        '<tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Confirmed price items</td><td>'+confirmed.length+'</td></tr><tr><td>TBC price items</td><td>'+tbc.length+'</td></tr><tr><td>Confirmed amount (THB)</td><td>'+(confirmed.length?money(totalAmount):'TBC')+'</td></tr><tr><td>Out-of-stock items</td><td>'+outCount+'</td></tr><tr><td>High/Critical items</td><td>'+highCriticalCount+'</td></tr></tbody></table>' +
+        '<h2>3. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support item.</td></tr></tbody></table>' +
+        '<h2>4. Risk / Benefits</h2><p>Potential impacts include downtime and emergency purchase cost. Benefits are better availability and stable production continuity.</p>' +
+        '<h2>5. Top Urgent Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' +
+        '<h2>6. Confirmed Price Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(confirmed, includeLineColumn)+'</tbody></table>' +
+        '<h2>7. Price Confirmation Required / TBC Items</h2>' + (tbc.length > 8 ? tbcGroupedHtml : '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(tbc, includeLineColumn)+'</tbody></table>') +
+        '<h2>8. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
+        '<h2>9. Annex C: Critical Item Reference Pictures</h2><table><thead><tr><th>Picture</th><th>Description</th>' + (includeLineColumn ? '<th>Line</th>' : '') + '<th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems, includeLineColumn) + '</tbody></table>' +
+        '<p class="footer">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
       var selected = getFilteredPrCandidates(true);
@@ -6434,7 +6420,7 @@ if (dashboardPage) {
       win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
       win.document.close();
       function waitForReportImages(maxWaitMs) {
-        var imgs = Array.prototype.slice.call(win.document.querySelectorAll('img[data-fallback-src]'));
+        var imgs = Array.prototype.slice.call(win.document.querySelectorAll('.pr-doc img'));
         if (!imgs.length) return Promise.resolve();
         return new Promise(function(resolve) {
           var done = false;
@@ -6458,7 +6444,7 @@ if (dashboardPage) {
                 img.src = fb;
                 return;
               }
-              img.outerHTML = 'No image available';
+              img.outerHTML = 'Image pending';
               settle();
             };
             if (img.complete && img.naturalWidth > 0) settle();
