@@ -700,8 +700,8 @@
       <div class="rounded-xl border border-slate-200 p-3">
         <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
           <p class="font-semibold">3) Report Preview</p>
-          <div class="flex gap-2">
-            <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
+          <div class="flex gap-2 items-center flex-wrap">
+            <select id="prAnnexMode" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="important">Annex C: Important only</option><option value="all">Annex C: All selected items</option></select><select id="prAnnexLimit" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="24">Limit: 24</option><option value="100">Limit: 100</option><option value="0">Limit: Unlimited</option></select><button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
             <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export PDF</button><button id="prExportCsvBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export CSV</button>
           </div>
         </div>
@@ -1257,6 +1257,8 @@
     var prCostSummary = document.getElementById('prCostSummary');
     var prCandidateList = document.getElementById('prCandidateList');
     var prReportPreview = document.getElementById('prReportPreview');
+    var prAnnexMode = document.getElementById('prAnnexMode');
+    var prAnnexLimit = document.getElementById('prAnnexLimit');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
     var uploadQueuePanel = document.getElementById('uploadQueuePanel');
     var uploadQueueBadge = document.getElementById('uploadQueueBadge');
@@ -6210,7 +6212,7 @@ if (dashboardPage) {
       if (e.target.dataset.prPurpose !== undefined) c.purpose = e.target.value;
       if (e.target.dataset.prPriority !== undefined) c.priority = e.target.value;
     });
-    function buildDocumentGradeReport(selected) {
+    function buildDocumentGradeReport(selected, options) {
       function esc(v) {
         return String(v === undefined || v === null ? '' : v)
           .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -6249,6 +6251,10 @@ if (dashboardPage) {
         return txt || '-';
       }
 
+      options = options || {};
+      var annexMode = String(options.annexMode || 'important');
+      var annexLimit = Number(options.annexLimit || 24);
+      if (!Number.isFinite(annexLimit) || annexLimit < 0) annexLimit = 24;
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
       var preparedBy = String((document.getElementById('prPreparedBy')||{}).value || '').trim() || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
@@ -6360,16 +6366,18 @@ if (dashboardPage) {
         ? '<tr><th>No.</th><th>Item / Model</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>'
         : '<tr><th>No.</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>';
 
-      var annexItems = normalized.filter(function(c){
+      var annexCandidates = normalized.filter(function(c){
         var lv=String(c.critical||'').toLowerCase();
         var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||''));
         var needsVisual = !String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''));
         var highAmount = (c.amount!==null && c.amount>=5000);
         var important = lv.indexOf('critical')>-1 || Number(c.stock||0)<=0 || highAmount || custom || c.unitPrice===null || needsVisual;
+        if (annexMode === 'all') return true;
         if (!important) return false;
         if (c.hasImage) return true;
         return lv.indexOf('critical')>-1 || Number(c.stock||0)<=0 || c.unitPrice===null || custom;
-      }).slice(0,24);
+      });
+      var annexItems = annexLimit > 0 ? annexCandidates.slice(0, annexLimit) : annexCandidates;
 
       var tbcByLine = {};
       tbc.forEach(function(item){ var ln = item.line || '-'; (tbcByLine[ln] = tbcByLine[ln] || []).push(item); });
@@ -6408,13 +6416,13 @@ if (dashboardPage) {
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
-      prReportPreview.innerHTML = buildDocumentGradeReport(selected);
+      prReportPreview.innerHTML = buildDocumentGradeReport(selected, { annexMode: (prAnnexMode && prAnnexMode.value) || 'important', annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 24) });
     });
     if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) return;
-      var docHtml = buildDocumentGradeReport(selected);
+      var docHtml = buildDocumentGradeReport(selected, { annexMode: (prAnnexMode && prAnnexMode.value) || 'important', annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 24) });
       var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
       var win = window.open('', '_blank');
       win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
