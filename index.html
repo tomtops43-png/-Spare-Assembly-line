@@ -6326,10 +6326,10 @@ if (dashboardPage) {
       }).slice(0,8);
 
       function detailTableRows(items, includeLine) {
-        if (!items.length) return '<tr><td colspan="'+(includeLine?8:7)+'" class="empty">No items</td></tr>';
+        if (!items.length) return '<tr><td colspan="'+(includeLine?9:8)+'" class="empty">No items</td></tr>';
         return items.map(function(c, i){
           var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
-          var cols = ['<td>'+ (i+1) +'</td>','<td>'+itemModel+'</td>'];
+          var cols = ['<td>'+ (i+1) +'</td>','<td>'+esc(c.category)+'</td>','<td>'+itemModel+'</td>'];
           if (includeLine) cols.push('<td>'+esc(c.line)+'</td>');
           cols = cols.concat([
             '<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.critical)+'</td>','<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>','<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>','<td>'+esc(reasonPurpose(c))+'</td>'
@@ -6361,8 +6361,9 @@ if (dashboardPage) {
 
       var includeLineColumn = !isLineSpecific;
       var detailHead = includeLineColumn
-        ? '<tr><th>No.</th><th>Item / Model</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>'
-        : '<tr><th>No.</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>';
+        ? '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>'
+        : '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>';
+      var detailHeadGrouped = '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>';
 
       var annexCandidates = normalized.filter(function(c){
         var lv=String(c.critical||'').toLowerCase();
@@ -6377,13 +6378,38 @@ if (dashboardPage) {
       });
       var annexItems = annexLimit > 0 ? annexCandidates.slice(0, annexLimit) : annexCandidates;
 
-      var tbcByLine = {};
-      tbc.forEach(function(item){ var ln = item.line || '-'; (tbcByLine[ln] = tbcByLine[ln] || []).push(item); });
-      var tbcGroupedHtml = Object.keys(tbcByLine).sort().map(function(ln){
-        var items = tbcByLine[ln];
-        var subtotal = items.reduce(function(s, it){ return s + Number(it.qty || 0); }, 0);
-        return '<p class="subhead">Line: '+esc(ln)+' (Items: '+items.length+', Qty: '+subtotal+')</p><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(items, includeLineColumn)+'</tbody></table>';
-      }).join('');
+      var reportLineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+      var activeLines = reportLineOrder.filter(function(ln){ return normalized.some(function(c){ return String(c.line||'') === ln; }); });
+      if (!activeLines.length) activeLines = lines.slice();
+      function detailTableRowsGrouped(items) {
+        if (!items.length) return '';
+        return items.map(function(c, i){
+          var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+itemModel+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td><td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td><td>'+esc(reasonPurpose(c))+'</td></tr>';
+        }).join('');
+      }
+      function buildLineSections() {
+        return activeLines.map(function(ln, idx){
+          var lineItems = normalized.filter(function(c){ return String(c.line||'') === ln; });
+          if (!lineItems.length) return '';
+          var lineConfirmed = lineItems.filter(function(c){ return c.unitPrice !== null; });
+          var lineTbc = lineItems.filter(function(c){ return c.unitPrice === null; });
+          var lineConfirmedAmount = lineConfirmed.reduce(function(sum, c){ return sum + Number(c.amount || 0); }, 0);
+          var lineTotalQty = lineItems.reduce(function(sum, c){ return sum + Number(c.qty || 0); }, 0);
+          var sectionNo = '10.' + (idx + 1);
+          var html = '<h3>'+sectionNo+' '+esc(ln)+'</h3>';
+          html += '<table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>' +
+            '<tr><td>Confirmed Price Items</td><td>'+lineConfirmed.length+'</td></tr>' +
+            '<tr><td>TBC Items</td><td>'+lineTbc.length+'</td></tr>' +
+            '<tr><td>Confirmed Amount (THB)</td><td>'+(lineConfirmed.length ? money(lineConfirmedAmount) : '0')+'</td></tr>' +
+            '<tr><td>Total Qty</td><td>'+lineTotalQty+'</td></tr>' +
+            '<tr><td>Total Item Count</td><td>'+lineItems.length+'</td></tr>' +
+            '</tbody></table>';
+          if (lineConfirmed.length) html += '<p class="subhead">'+sectionNo+'.1 Confirmed Price Items</p><table><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
+          if (lineTbc.length) html += '<p class="subhead">'+sectionNo+'.2 Price Confirmation Required / TBC Items</p><table><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
+          return html;
+        }).join('');
+      }
 
       return '<div class="pr-doc">' +
         '<div class="doc-head">Purchase Request Supporting Report | Assembly Line</div>' +
@@ -6406,9 +6432,10 @@ if (dashboardPage) {
         '<h2>4. Risk / Benefits</h2><p>Potential impacts include downtime and emergency purchase cost. Benefits are better availability and stable production continuity.</p>' +
         '<h2>5. Top Urgent Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' +
         '<h2>6. Confirmed Price Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(confirmed, includeLineColumn)+'</tbody></table>' +
-        '<h2>7. Price Confirmation Required / TBC Items</h2>' + (tbc.length > 8 ? tbcGroupedHtml : '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(tbc, includeLineColumn)+'</tbody></table>') +
-        '<h2>8. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
-        '<h2>9. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems, true) + '</tbody></table>' +
+        '<h2>7. Price Confirmation Required / TBC Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(tbc, includeLineColumn)+'</tbody></table>' +
+        '<h2>8. Detailed Requested Item List by Line</h2>' + buildLineSections() +
+        '<h2>9. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
+        '<h2>10. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems, true) + '</tbody></table>' +
         '<p class="footer">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
