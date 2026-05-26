@@ -6224,7 +6224,7 @@ if (dashboardPage) {
         var raw = String(url || '').trim();
         if (!raw) return '';
         var m = raw.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
-        return m && m[1] ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w300') : raw;
+        return m && m[1] ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w400') : raw;
       }
       function normalizeCategory(rawCategory) {
         var raw = String(rawCategory || '').trim();
@@ -6277,8 +6277,8 @@ if (dashboardPage) {
             return String(p.name||'').trim()===String(c.name||'').trim() && String(p.brand||'').trim()===String(c.brand||'').trim() && String(p.model||p.no||'').trim()===String(c.model||c.no||'').trim();
           }) || null;
         }
-        var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.image_main_file_id], '') : '';
-        var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image], '');
+        var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.photoUrl, master.picture, master.driveUrl, master.imageLink, master.image_main_file_id], '') : '';
+        var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
         var normalizedImage = normalizeImageUrl(firstDefined([masterImg, selectedImg], ''));
         return {
           id: itemId || String(c.name || '-'),
@@ -6338,7 +6338,7 @@ if (dashboardPage) {
         }).join('');
       }
       function annexRows(items, includeLine) {
-        if (!items.length) return '<tr><td colspan="'+(includeLine?8:7)+'" class="empty">No critical reference pictures</td></tr>';
+        if (!items.length) return '<tr><td colspan="8" class="empty">No critical reference pictures</td></tr>';
         return items.map(function(c){
           var remark = [];
           var lv = String(c.critical || '').toLowerCase();
@@ -6354,9 +6354,7 @@ if (dashboardPage) {
           if (c.unitPrice === null) remark.push('TBC item needs visual identification');
           if (needsVisual) remark.push('Need picture for purchasing identification');
           var imgHtml = c.image ? '<img src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.outerHTML=\"No image available\";" />' : 'No image available';
-          var cols = ['<td>' + imgHtml + '</td>','<td>'+esc(c.name)+'</td>'];
-          if (includeLine) cols.push('<td>'+esc(c.line)+'</td>');
-          cols = cols.concat(['<td>'+esc(c.brand)+'</td>','<td>'+esc(c.model || c.no)+'</td>','<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.unit || 'PCS')+'</td>','<td>'+esc(remark.join(', ') || 'Reference')+'</td>']);
+          var cols = ['<td>' + imgHtml + '</td>','<td>'+esc(c.name)+'</td>','<td>'+esc(c.line)+'</td>','<td>'+esc(c.brand)+'</td>','<td>'+esc(c.model || c.no)+'</td>','<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.unit || 'PCS')+'</td>','<td>'+esc(remark.join(', ') || 'Reference')+'</td>'];
           return '<tr>' + cols.join('') + '</tr>';
         }).join('');
       }
@@ -6410,19 +6408,25 @@ if (dashboardPage) {
         '<h2>6. Confirmed Price Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(confirmed, includeLineColumn)+'</tbody></table>' +
         '<h2>7. Price Confirmation Required / TBC Items</h2>' + (tbc.length > 8 ? tbcGroupedHtml : '<table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(tbc, includeLineColumn)+'</tbody></table>') +
         '<h2>8. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
-        '<h2>9. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table><thead><tr><th>Picture</th><th>Description</th>' + (includeLineColumn ? '<th>Line</th>' : '') + '<th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems, includeLineColumn) + '</tbody></table>' +
+        '<h2>9. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems, true) + '</tbody></table>' +
         '<p class="footer">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
-      prReportPreview.innerHTML = buildDocumentGradeReport(selected, { annexMode: (prAnnexMode && prAnnexMode.value) || 'all', annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
+      var totalFiltered = getFilteredPrCandidates(false).length;
+      var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
+      var effectiveAnnexMode = allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all');
+      prReportPreview.innerHTML = buildDocumentGradeReport(selected, { annexMode: effectiveAnnexMode, annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
     });
     if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) return;
-      var docHtml = buildDocumentGradeReport(selected, { annexMode: (prAnnexMode && prAnnexMode.value) || 'all', annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
+      var totalFiltered = getFilteredPrCandidates(false).length;
+      var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
+      var effectiveAnnexMode = allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all');
+      var docHtml = buildDocumentGradeReport(selected, { annexMode: effectiveAnnexMode, annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
       var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
       var win = window.open('', '_blank');
       win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
