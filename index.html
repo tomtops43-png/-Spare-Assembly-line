@@ -6263,9 +6263,20 @@ if (dashboardPage) {
       var selectedLineNow = String((document.getElementById('prLineFilter')||{}).value || 'all');
       var isLineSpecific = modeNow === 'line_specific' && selectedLineNow !== 'all';
       var masterById = {};
+      var masterByLineAndId = {};
+      var masterByComposite = {};
       (partsData || []).forEach(function(item){
         var k = String(item.no || item.id || '').trim();
+        var ln = canonicalLineName(item.line || item.mainLine || '-');
+        var compositeKey = [
+          ln,
+          String(item.name || '').trim().toLowerCase(),
+          String(item.brand || '').trim().toLowerCase(),
+          String(item.model || item.no || '').trim().toLowerCase()
+        ].join('|');
         if (k && !masterById[k]) masterById[k] = item;
+        if (k && ln) masterByLineAndId[ln + '|' + k] = item;
+        if (compositeKey && !masterByComposite[compositeKey]) masterByComposite[compositeKey] = item;
       });
 
       var normalized = selected.map(function(c) {
@@ -6275,19 +6286,17 @@ if (dashboardPage) {
         var price = (Number.isFinite(priceNum) && priceNum > 0) ? priceNum : null;
         var itemId = String(c.no || c.id || '').trim();
         var itemLine = canonicalLineName(c.line || '-');
-        var master = null;
-        if (itemId) {
-          master = (partsData || []).find(function(p){
-            return String(p.no || p.id || '').trim() === itemId && canonicalLineName(p.line || p.mainLine || '-') === itemLine;
-          }) || masterById[itemId] || null;
-        }
-        if (!master) {
-          master = (partsData || []).find(function(p){
-            return canonicalLineName(p.line || p.mainLine || '-') === itemLine &&
-              String(p.name||'').trim()===String(c.name||'').trim() &&
-              String(p.brand||'').trim()===String(c.brand||'').trim() &&
-              String(p.model||p.no||'').trim()===String(c.model||c.no||'').trim();
-          }) || null;
+        var compositeSelectedKey = [
+          itemLine,
+          String(c.name || '').trim().toLowerCase(),
+          String(c.brand || '').trim().toLowerCase(),
+          String(c.model || c.no || '').trim().toLowerCase()
+        ].join('|');
+        var master = (itemId && masterByLineAndId[itemLine + '|' + itemId]) || null;
+        if (!master && !itemId) master = masterByComposite[compositeSelectedKey] || null;
+        if (!master && itemId) {
+          var weak = masterById[itemId] || null;
+          if (weak && canonicalLineName(weak.line || weak.mainLine || '-') === itemLine) master = weak;
         }
         var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.photoUrl, master.picture, master.driveUrl, master.imageLink, master.image_main_file_id], '') : '';
         var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
@@ -6469,7 +6478,7 @@ if (dashboardPage) {
           : ('<h2>6. Detailed Requested Item List by Line</h2>' + buildLineSections())
         ) +
         '<h2>' + (isLineSpecific ? '8' : '7') + '. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
-        '<h2>' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems, true) + '</tbody></table>' +
+        '<h2>' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table"><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems, true) + '</tbody></table>' +
         '<p class="footer">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
@@ -6488,7 +6497,7 @@ if (dashboardPage) {
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
       var effectiveAnnexMode = allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all');
       var docHtml = buildDocumentGradeReport(selected, { annexMode: effectiveAnnexMode, annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
-      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc .pr-items td:nth-child(1),.pr-doc .pr-items td:nth-child(4),.pr-doc .pr-items td:nth-child(5){text-align:center}.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
+      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc .pr-items td:nth-child(1),.pr-doc .pr-items td:nth-child(4),.pr-doc .pr-items td:nth-child(5){text-align:center}.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .annex-table td:first-child{text-align:center;padding:4px}.pr-doc .annex-table td:first-child img{display:block;margin:0 auto;width:72px;height:52px;max-width:72px;max-height:52px;object-fit:contain;border-radius:2px}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
       var win = window.open('', '_blank');
       win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
       win.document.close();
