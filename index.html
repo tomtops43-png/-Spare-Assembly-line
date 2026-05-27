@@ -6315,6 +6315,7 @@ if (dashboardPage) {
           no: c.no || '-',
           category: normalizeCategory(c.category || '-'),
           line: canonicalLineName(c.line || '-'),
+          subLine: String(firstDefined([c.subLine, c.__sourceSheet, master && (master.__sourceSheet || master.subLine), '-'], '-')),
           name: c.name || '-',
           brand: c.brand || '-',
           model: c.model || c.no || '-',
@@ -6446,19 +6447,31 @@ if (dashboardPage) {
         }).join('');
       }
       function detectCoilReportGroup(item) {
+        var sheet = String(item.subLine || '').trim();
+        if (sheet && sheet !== '-') return sheet;
         var txt = String(item.model || item.name || '').toUpperCase();
         var m = txt.match(/\b(10A|16A|20A|32A)\b/);
         return m ? m[1] : 'Other';
       }
       function renderCoilGroupedTables(sectionNo, titleSuffix, items) {
         if (!items.length) return '';
-        var groupOrder = ['10A', '16A', '20A', '32A', 'Other'];
+        var groupOrder = [];
         var map = {};
         items.forEach(function(it){ var g = detectCoilReportGroup(it); (map[g] = map[g] || []).push(it); });
+        groupOrder = Object.keys(map).sort(function(a,b){
+          var preferred = ['10A','16A','20A','32A','Other'];
+          var ia = preferred.indexOf(a), ib = preferred.indexOf(b);
+          if (ia !== -1 || ib !== -1) {
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+          }
+          return a.localeCompare(b);
+        });
         return '<p class="subhead">'+sectionNo+titleSuffix+'</p>' + groupOrder.map(function(g){
           var arr = map[g] || [];
           if (!arr.length) return '';
-          return '<p class="subhead">Model Group: '+g+' ('+arr.length+' items)</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(arr)+'</tbody></table>';
+          return '<p class="subhead">Stock Page: '+g+' ('+arr.length+' items)</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(arr)+'</tbody></table>';
         }).join('');
       }
       function buildLineSections() {
