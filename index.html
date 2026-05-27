@@ -6424,7 +6424,7 @@ if (dashboardPage) {
           html += '<tr><td colspan="8" style="background:#f8fafc;font-weight:700">Stock Page: '+esc(g)+' ('+arr.length+' items)</td></tr>';
           html += annexRows(arr, includeLine);
         });
-        return html;
+        return html || annexRows(items, includeLine);
       }
 
       var includeLineColumn = !isLineSpecific;
