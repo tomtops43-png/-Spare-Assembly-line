@@ -6263,7 +6263,10 @@ if (dashboardPage) {
       var selectedLineNow = String((document.getElementById('prLineFilter')||{}).value || 'all');
       var isLineSpecific = modeNow === 'line_specific' && selectedLineNow !== 'all';
       var masterById = {};
-      (partsData || []).forEach(function(item){ var k=String(item.no||item.id||'').trim(); if (k) masterById[k]=item; });
+      (partsData || []).forEach(function(item){
+        var k = String(item.no || item.id || '').trim();
+        if (k && !masterById[k]) masterById[k] = item;
+      });
 
       var normalized = selected.map(function(c) {
         var qty = Math.max(1, asNum(c.suggestedQty || c.qty || 0));
@@ -6271,15 +6274,24 @@ if (dashboardPage) {
         var priceNum = rawPrice === '' ? NaN : asNum(rawPrice);
         var price = (Number.isFinite(priceNum) && priceNum > 0) ? priceNum : null;
         var itemId = String(c.no || c.id || '').trim();
-        var master = itemId ? masterById[itemId] : null;
+        var itemLine = canonicalLineName(c.line || '-');
+        var master = null;
+        if (itemId) {
+          master = (partsData || []).find(function(p){
+            return String(p.no || p.id || '').trim() === itemId && canonicalLineName(p.line || p.mainLine || '-') === itemLine;
+          }) || masterById[itemId] || null;
+        }
         if (!master) {
           master = (partsData || []).find(function(p){
-            return String(p.name||'').trim()===String(c.name||'').trim() && String(p.brand||'').trim()===String(c.brand||'').trim() && String(p.model||p.no||'').trim()===String(c.model||c.no||'').trim();
+            return canonicalLineName(p.line || p.mainLine || '-') === itemLine &&
+              String(p.name||'').trim()===String(c.name||'').trim() &&
+              String(p.brand||'').trim()===String(c.brand||'').trim() &&
+              String(p.model||p.no||'').trim()===String(c.model||c.no||'').trim();
           }) || null;
         }
         var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.photoUrl, master.picture, master.driveUrl, master.imageLink, master.image_main_file_id], '') : '';
         var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
-        var normalizedImage = normalizeImageUrl(firstDefined([masterImg, selectedImg], ''));
+        var normalizedImage = normalizeImageUrl(firstDefined([selectedImg, masterImg], ''));
         return {
           id: itemId || String(c.name || '-'),
           no: c.no || '-',
