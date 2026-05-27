@@ -6428,6 +6428,22 @@ if (dashboardPage) {
           return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+itemModel+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td><td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td><td>'+esc(reasonPurpose(c))+'</td></tr>';
         }).join('');
       }
+      function detectCoilReportGroup(item) {
+        var txt = String(item.model || item.name || '').toUpperCase();
+        var m = txt.match(/\b(10A|16A|20A|32A)\b/);
+        return m ? m[1] : 'Other';
+      }
+      function renderCoilGroupedTables(sectionNo, titleSuffix, items) {
+        if (!items.length) return '';
+        var groupOrder = ['10A', '16A', '20A', '32A', 'Other'];
+        var map = {};
+        items.forEach(function(it){ var g = detectCoilReportGroup(it); (map[g] = map[g] || []).push(it); });
+        return '<p class="subhead">'+sectionNo+titleSuffix+'</p>' + groupOrder.map(function(g){
+          var arr = map[g] || [];
+          if (!arr.length) return '';
+          return '<p class="subhead">Model Group: '+g+' ('+arr.length+' items)</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(arr)+'</tbody></table>';
+        }).join('');
+      }
       function buildLineSections() {
         return activeLines.map(function(ln, idx){
           var lineItems = normalized.filter(function(c){ return String(c.line||'') === ln; });
@@ -6445,8 +6461,13 @@ if (dashboardPage) {
             '<tr><td>Total Qty</td><td>'+lineTotalQty+'</td></tr>' +
             '<tr><td>Total Item Count</td><td>'+lineItems.length+'</td></tr>' +
             '</tbody></table>';
-          if (lineConfirmed.length) html += '<p class="subhead">'+sectionNo+'.1 Confirmed Price Items</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
-          if (lineTbc.length) html += '<p class="subhead">'+sectionNo+'.2 Price Confirmation Required / TBC Items</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
+          if (ln === 'Coil Winding') {
+            if (lineConfirmed.length) html += renderCoilGroupedTables(sectionNo, '.1 Confirmed Price Items', lineConfirmed);
+            if (lineTbc.length) html += renderCoilGroupedTables(sectionNo, '.2 Price Confirmation Required / TBC Items', lineTbc);
+          } else {
+            if (lineConfirmed.length) html += '<p class="subhead">'+sectionNo+'.1 Confirmed Price Items</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
+            if (lineTbc.length) html += '<p class="subhead">'+sectionNo+'.2 Price Confirmation Required / TBC Items</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
+          }
           return html;
         }).join('');
       }
@@ -6457,8 +6478,13 @@ if (dashboardPage) {
         var lineConfirmed = lineItems.filter(function(c){ return c.unitPrice !== null; });
         var lineTbc = lineItems.filter(function(c){ return c.unitPrice === null; });
         var html = '';
-        if (lineConfirmed.length) html += '<h2>6. Confirmed Price Items</h2><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
-        if (lineTbc.length) html += '<h2>7. Price Confirmation Required / TBC Items</h2><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
+        if (targetLine === 'Coil Winding') {
+          if (lineConfirmed.length) html += renderCoilGroupedTables('6', '. Confirmed Price Items', lineConfirmed);
+          if (lineTbc.length) html += renderCoilGroupedTables('7', '. Price Confirmation Required / TBC Items', lineTbc);
+        } else {
+          if (lineConfirmed.length) html += '<h2>6. Confirmed Price Items</h2><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
+          if (lineTbc.length) html += '<h2>7. Price Confirmation Required / TBC Items</h2><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
+        }
         return html;
       }
 
