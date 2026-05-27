@@ -6410,6 +6410,17 @@ if (dashboardPage) {
           return html;
         }).join('');
       }
+      function buildLineSpecificSections() {
+        var targetLine = canonicalLineName(selectedLineNow);
+        var lineItems = normalized.filter(function(c){ return String(c.line||'') === targetLine; });
+        if (!lineItems.length) lineItems = normalized.slice();
+        var lineConfirmed = lineItems.filter(function(c){ return c.unitPrice !== null; });
+        var lineTbc = lineItems.filter(function(c){ return c.unitPrice === null; });
+        var html = '';
+        if (lineConfirmed.length) html += '<h2>6. Confirmed Price Items</h2><table><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
+        if (lineTbc.length) html += '<h2>7. Price Confirmation Required / TBC Items</h2><table><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
+        return html;
+      }
 
       return '<div class="pr-doc">' +
         '<div class="doc-head">Purchase Request Supporting Report | Assembly Line</div>' +
@@ -6431,11 +6442,12 @@ if (dashboardPage) {
         '<h2>3. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support item.</td></tr></tbody></table>' +
         '<h2>4. Risk / Benefits</h2><p>Potential impacts include downtime and emergency purchase cost. Benefits are better availability and stable production continuity.</p>' +
         '<h2>5. Top Urgent Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' +
-        '<h2>6. Confirmed Price Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(confirmed, includeLineColumn)+'</tbody></table>' +
-        '<h2>7. Price Confirmation Required / TBC Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(tbc, includeLineColumn)+'</tbody></table>' +
-        '<h2>8. Detailed Requested Item List by Line</h2>' + buildLineSections() +
-        '<h2>9. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
-        '<h2>10. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems, true) + '</tbody></table>' +
+        (isLineSpecific
+          ? buildLineSpecificSections()
+          : ('<h2>6. Detailed Requested Item List by Line</h2>' + buildLineSections())
+        ) +
+        '<h2>' + (isLineSpecific ? '8' : '7') + '. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
+        '<h2>' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + annexRows(annexItems, true) + '</tbody></table>' +
         '<p class="footer">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
