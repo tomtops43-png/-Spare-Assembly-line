@@ -6417,8 +6417,8 @@ if (dashboardPage) {
             '<tr><td>Total Qty</td><td>'+lineTotalQty+'</td></tr>' +
             '<tr><td>Total Item Count</td><td>'+lineItems.length+'</td></tr>' +
             '</tbody></table>';
-          if (lineConfirmed.length) html += '<p class="subhead">'+sectionNo+'.1 Confirmed Price Items</p><table><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
-          if (lineTbc.length) html += '<p class="subhead">'+sectionNo+'.2 Price Confirmation Required / TBC Items</p><table><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
+          if (lineConfirmed.length) html += '<p class="subhead">'+sectionNo+'.1 Confirmed Price Items</p><table class="pr-items"><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
+          if (lineTbc.length) html += '<p class="subhead">'+sectionNo+'.2 Price Confirmation Required / TBC Items</p><table class="pr-items"><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
           return html;
         }).join('');
       }
@@ -6429,8 +6429,8 @@ if (dashboardPage) {
         var lineConfirmed = lineItems.filter(function(c){ return c.unitPrice !== null; });
         var lineTbc = lineItems.filter(function(c){ return c.unitPrice === null; });
         var html = '';
-        if (lineConfirmed.length) html += '<h2>6. Confirmed Price Items</h2><table><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
-        if (lineTbc.length) html += '<h2>7. Price Confirmation Required / TBC Items</h2><table><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
+        if (lineConfirmed.length) html += '<h2>6. Confirmed Price Items</h2><table class="pr-items"><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
+        if (lineTbc.length) html += '<h2>7. Price Confirmation Required / TBC Items</h2><table class="pr-items"><thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
         return html;
       }
 
@@ -6453,7 +6453,7 @@ if (dashboardPage) {
         '<tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Confirmed price items</td><td>'+confirmed.length+'</td></tr><tr><td>TBC price items</td><td>'+tbc.length+'</td></tr><tr><td>Confirmed amount (THB)</td><td>'+(confirmed.length?money(totalAmount):'TBC')+'</td></tr><tr><td>Out-of-stock items</td><td>'+outCount+'</td></tr><tr><td>High/Critical items</td><td>'+highCriticalCount+'</td></tr></tbody></table>' +
         '<h2>3. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support item.</td></tr></tbody></table>' +
         '<h2>4. Risk / Benefits</h2><p>Potential impacts include downtime and emergency purchase cost. Benefits are better availability and stable production continuity.</p>' +
-        '<h2>5. Top Urgent Items</h2><table><thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' +
+        '<h2>5. Top Urgent Items</h2><table class="pr-items"><thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' +
         (isLineSpecific
           ? buildLineSpecificSections()
           : ('<h2>6. Detailed Requested Item List by Line</h2>' + buildLineSections())
@@ -6478,7 +6478,7 @@ if (dashboardPage) {
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
       var effectiveAnnexMode = allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all');
       var docHtml = buildDocumentGradeReport(selected, { annexMode: effectiveAnnexMode, annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
-      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
+      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc .pr-items th:nth-child(1),.pr-doc .pr-items td:nth-child(1){width:5%;text-align:center}.pr-doc .pr-items th:nth-child(2),.pr-doc .pr-items td:nth-child(2){width:10%}.pr-doc .pr-items th:nth-child(3),.pr-doc .pr-items td:nth-child(3){width:31%}.pr-doc .pr-items th:nth-child(4),.pr-doc .pr-items td:nth-child(4){width:7%;text-align:center}.pr-doc .pr-items th:nth-child(5),.pr-doc .pr-items td:nth-child(5){width:11%;text-align:center}.pr-doc .pr-items th:nth-child(6),.pr-doc .pr-items td:nth-child(6){width:10%;text-align:right}.pr-doc .pr-items th:nth-child(7),.pr-doc .pr-items td:nth-child(7){width:12%;text-align:right}.pr-doc .pr-items th:nth-child(8),.pr-doc .pr-items td:nth-child(8){width:14%}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{.pr-doc{max-width:none}.pr-doc table,tr,td,th{page-break-inside:avoid}}';
       var win = window.open('', '_blank');
       win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
       win.document.close();
