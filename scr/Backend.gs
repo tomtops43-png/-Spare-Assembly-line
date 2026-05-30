@@ -138,6 +138,12 @@ function pickRowValue(row, map, keys, fallbackValue) {
   return fallbackValue;
 }
 
+
+function buildDriveViewUrlFromFileId(fileId) {
+  var id = String(fileId || '').trim();
+  return id ? ('https://drive.google.com/uc?export=view&id=' + id) : '';
+}
+
 function findHeaderRowIndex(data) {
   var requiredHints = ['no', 'name', 'description', 'category', 'brand', 'stock', 'qoh', 'model'];
   var maxScan = Math.min(data.length, 8);
@@ -1341,6 +1347,12 @@ function doGet(e) {
       var noText = String(pickRowValue(row, map, ['no'], index + 1));
       var rawLocation = pickRowValue(row, map, ['location', 'jrlocation'], '-');
       var locationOverride = getLocationOverride(sheetName, noText);
+      var photoValue = pickRowValue(row, map, ['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], '');
+      var mainFileIdValue = pickRowValue(row, map, ['image_main_file_id', 'imagemainfileid'], '');
+      var installFileIdValue = pickRowValue(row, map, ['image_install_file_id', 'imageinstallfileid'], '');
+      var mainImageValue = pickRowValue(row, map, ['image_main_url', 'imagemainurl', 'image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], '') || buildDriveViewUrlFromFileId(mainFileIdValue);
+      var installImageValue = pickRowValue(row, map, ['image_install_url', 'imageinstallurl', 'image_install', 'imageinstall', 'installimage', 'install_image'], '') || buildDriveViewUrlFromFileId(installFileIdValue);
+      if (!photoValue && mainImageValue) photoValue = mainImageValue;
       return {
         no: noText,
         name: pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '-'),
@@ -1355,13 +1367,13 @@ function doGet(e) {
         needToPO: needToPOValue,
         unit: pickRowValue(row, map, ['unit'], 'PCS'),
         remark: pickRowValue(row, map, ['remark'], ''),
-        photo: pickRowValue(row, map, ['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
-        image_main: pickRowValue(row, map, ['image_main_url', 'imagemainurl', 'image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
-        image_install: pickRowValue(row, map, ['image_install_url', 'imageinstallurl', 'image_install', 'imageinstall', 'installimage', 'install_image'], ''),
-        image_main_url: pickRowValue(row, map, ['image_main_url', 'imagemainurl', 'image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], ''),
-        image_main_file_id: pickRowValue(row, map, ['image_main_file_id', 'imagemainfileid'], ''),
-        image_install_url: pickRowValue(row, map, ['image_install_url', 'imageinstallurl', 'image_install', 'imageinstall', 'installimage', 'install_image'], ''),
-        image_install_file_id: pickRowValue(row, map, ['image_install_file_id', 'imageinstallfileid'], ''),
+        photo: photoValue,
+        image_main: mainImageValue,
+        image_install: installImageValue,
+        image_main_url: mainImageValue,
+        image_main_file_id: mainFileIdValue,
+        image_install_url: installImageValue,
+        image_install_file_id: installFileIdValue,
         unit_price: pickRowValue(row, map, ['unitprice', 'unit_price'], ''),
         currency: pickRowValue(row, map, ['currency'], 'THB'),
         supplier: pickRowValue(row, map, ['supplier'], ''),
