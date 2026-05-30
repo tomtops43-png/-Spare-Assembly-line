@@ -5063,10 +5063,13 @@ function inferRequestPriority(stock, min) {
       event.preventDefault();
       if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
       var itemNo = document.getElementById('eNo').value.trim();
-      var oldItem = partsData.filter(function(p){ return String(p.no) === String(itemNo); })[0] || {};
+      var editSheetName = document.getElementById('eSheet').value.trim() || getCurrentSheetName();
+      var oldItem = partsData.filter(function(p){
+        return String(p.no) === String(itemNo) && String(p.__sourceSheet || p.subLine || getCurrentSheetName()) === String(editSheetName);
+      })[0] || partsData.filter(function(p){ return String(p.no) === String(itemNo); })[0] || {};
       var mainFile = document.getElementById('eImageMainFile').files[0];
       var payload = {
-        sheet: document.getElementById('eSheet').value.trim() || getCurrentSheetName(),
+        sheet: editSheetName,
         no: itemNo,
         name: document.getElementById('eName').value.trim(),
         model: document.getElementById('eModel').value.trim(),
