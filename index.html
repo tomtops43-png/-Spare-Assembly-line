@@ -6267,7 +6267,9 @@ if (dashboardPage) {
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
       var preparedBy = String((document.getElementById('prPreparedBy')||{}).value || '').trim() || '-';
       var department = document.getElementById('prDepartment').value || 'Assembly Line';
-      var submissionDate = new Date().toISOString().slice(0,10);
+      var nowTs = new Date();
+      var submissionDate = nowTs.toISOString().slice(0,10);
+      var generatedAt = nowTs.toLocaleString('en-GB', { hour12: false });
       var modeNow = String((document.getElementById('prMode')||{}).value || 'assembly_monthly');
       var selectedLineNow = String((document.getElementById('prLineFilter')||{}).value || 'all');
       var isLineSpecific = modeNow === 'line_specific' && selectedLineNow !== 'all';
@@ -6401,20 +6403,30 @@ if (dashboardPage) {
       }
       function annexRowsByModelGroup(items, includeLine) {
         if (!items.length) return '<tr><td colspan="8" class="empty">No critical reference pictures</td></tr>';
-        var groupOrder = ['10A', '16A', '20A', '32A', 'Other'];
+        var groupOrder = [];
         var grouped = {};
         items.forEach(function(it){
           var g = detectCoilReportGroup(it);
           (grouped[g] = grouped[g] || []).push(it);
         });
+        groupOrder = Object.keys(grouped).sort(function(a,b){
+          var preferred = ['10A','16A','20A','32A','Other'];
+          var ia = preferred.indexOf(a), ib = preferred.indexOf(b);
+          if (ia !== -1 || ib !== -1) {
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+          }
+          return a.localeCompare(b);
+        });
         var html = '';
         groupOrder.forEach(function(g){
           var arr = grouped[g] || [];
           if (!arr.length) return;
-          html += '<tr><td colspan="8" style="background:#f8fafc;font-weight:700">Model Group: '+esc(g)+' ('+arr.length+' items)</td></tr>';
+          html += '<tr><td colspan="8" style="background:#f8fafc;font-weight:700">Stock Page: '+esc(g)+' ('+arr.length+' items)</td></tr>';
           html += annexRows(arr, includeLine);
         });
-        return html;
+        return html || annexRows(items, includeLine);
       }
 
       var includeLineColumn = !isLineSpecific;
@@ -6531,6 +6543,7 @@ if (dashboardPage) {
         '<tr><td>Prepared by</td><td>' + esc(preparedBy) + '</td></tr>' +
         '<tr><td>Department</td><td>' + esc(department) + '</td></tr>' +
         '<tr><td>Submission Date</td><td>' + esc(submissionDate) + '</td></tr>' +
+        '<tr><td>Report Generated At</td><td>' + esc(generatedAt) + '</td></tr>' +
         '</tbody></table>' +
         '<h2>1. Purpose / Background</h2><p>This report supports internal approval for spare parts and production support purchases required to maintain assembly line continuity and reduce downtime risk.</p>' +
         '<h2 class="section-table">2. Executive Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>' +
