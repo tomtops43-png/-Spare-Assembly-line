@@ -4091,6 +4091,21 @@ function inferRequestPriority(stock, min) {
       return out;
     }
 
+
+    function getPrLineFromSourceSheet(sheetName) {
+      var sheet = String(sheetName || '').trim();
+      if (!sheet) return '';
+      var keys = getAllLineKeys();
+      for (var i = 0; i < keys.length; i += 1) {
+        var lineKey = keys[i];
+        var sheets = LINE_SHEET_OPTIONS[lineKey] || [];
+        for (var j = 0; j < sheets.length; j += 1) {
+          if (String(sheets[j] || '').trim() === sheet) return lineKey;
+        }
+      }
+      return '';
+    }
+
     function loadPrSourceItems(mode, lineFilterValue) {
       var targets = [];
       if (mode === 'line_specific' && lineFilterValue && lineFilterValue !== 'all') {
@@ -4107,14 +4122,19 @@ function inferRequestPriority(stock, min) {
           if (!Array.isArray(rawData)) return [];
           return rawData.map(function(item) {
             item.__sourceSheet = t.sheet;
-            item.line = item.line || t.line;
+            item.__sourceLine = t.line;
+            item.line = t.line || item.line;
             return item;
           });
         }).catch(function() { return []; });
       })).then(function(chunks) {
         var combined = [].concat.apply([], chunks);
         return normalizeRecordsInBatches(combined).then(function(normalized) {
-          return normalized.filter(function(item) { return item.name && item.name !== '-'; });
+          return normalized.map(function(item) {
+            var sourceLine = item.__sourceLine || getPrLineFromSourceSheet(item.__sourceSheet);
+            if (sourceLine) item.line = sourceLine;
+            return item;
+          }).filter(function(item) { return item.name && item.name !== '-'; });
         });
       });
     }
@@ -4181,7 +4201,7 @@ function inferRequestPriority(stock, min) {
         if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
+        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
       }).filter(Boolean);
       renderPrCandidates();
       }).catch(function(err) {
