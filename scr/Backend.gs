@@ -1158,10 +1158,21 @@ function upsertMainItem(payload) {
 
   if (targetIndex > -1) {
     var sheetRow = ctx.headerRowIndex + 2 + targetIndex;
+    var imageValueKeys = {
+      photo: true,
+      image_main: true,
+      image_install: true,
+      image_main_url: true,
+      image_main_file_id: true,
+      image_install_url: true,
+      image_install_file_id: true
+    };
     for (var key in fieldCols) {
       if (fieldCols[key] !== undefined) {
-        if (key === 'coil_size' && String(values[key] || '').trim() === '') continue;
-        ctx.sheet.getRange(sheetRow, fieldCols[key] + 1).setValue(values[key]);
+        var nextValue = values[key];
+        if (key === 'coil_size' && String(nextValue || '').trim() === '') continue;
+        if (imageValueKeys[key] && String(nextValue || '').trim() === '') continue;
+        ctx.sheet.getRange(sheetRow, fieldCols[key] + 1).setValue(nextValue);
       }
     }
     return { status: 'success', mode: 'update', no: noValue, sheet: sheetName, location: values.location };
