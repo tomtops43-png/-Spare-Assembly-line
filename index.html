@@ -1248,6 +1248,7 @@
       'Coil Winding': ['Coil Winding'],
       'Lug&Screw': ['Lug&Screw']
     };
+    var LINE_CACHE_VERSION = 'source-sheet-filter-v2';
 
     var desktopCardGrid = document.getElementById('desktopCardGrid');
     var paginationControls = document.getElementById('paginationControls');
@@ -1806,6 +1807,9 @@
       if (Array.isArray(options) && options.length) return options.slice();
       return ['Main List Stock', 'Stock for MC'];
     }
+    function getItemSourceSheet(item) {
+      return String((item && (item.subLine || item.__sourceSheet || item.sourceSheet)) || '').trim();
+    }
     function getLineCacheKey(lineKey) {
       return 'spare_parts_cache::' + String(lineKey || currentLine || 'H9');
     }
@@ -1815,6 +1819,7 @@
         if (!raw) return null;
         var parsed = JSON.parse(raw);
         if (!parsed || !Array.isArray(parsed.items)) return null;
+        if (parsed.version !== LINE_CACHE_VERSION) return null;
         return parsed;
       } catch (err) {
         return null;
@@ -1823,6 +1828,7 @@
     function saveLineCache(lineKey, items) {
       try {
         localStorage.setItem(getLineCacheKey(lineKey), JSON.stringify({
+          version: LINE_CACHE_VERSION,
           updatedAt: Date.now(),
           items: items || []
         }));
@@ -6221,7 +6227,8 @@ function inferRequestPriority(stock, min) {
         var withinMainLine = LINE_SHEET_OPTIONS[currentLine]
           ? true
           : (currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1);
-        var hitSubLine = !hasKeyword ? (String(item.subLine || selectedSheet) === String(selectedSheet)) : true;
+        var sourceSheet = getItemSourceSheet(item);
+        var hitSubLine = !selectedSheet || sourceSheet === String(selectedSheet);
         var hitLine = withinMainLine && hitSubLine;
         var status = getStockStatus(item);
         var hitStatus = selectedStatus === 'all'
@@ -7071,7 +7078,7 @@ if (dashboardPage) {
     });
     bindFilePreview('eImageMainFile', 'eImageMainPreview');
     sheetSelector.addEventListener('change', function() {
-      loadPartsData();
+      loadPartsData({ skipCache: true });
       if (!logPage.classList.contains('hidden')) loadLogData();
     });
     var roReasonPreset = document.getElementById('roReasonPreset');
