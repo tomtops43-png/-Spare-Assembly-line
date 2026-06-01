@@ -721,7 +721,7 @@
             <select id="prAnnexMode" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="important">Annex C: Important only</option><option value="all" selected>Annex C: All selected items</option></select><select id="prAnnexLimit" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="24">Limit: 24</option><option value="100">Limit: 100</option><option value="0" selected>Limit: Unlimited</option></select>
             <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexC" type="checkbox" checked /> Include Annex C</label>
             <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexD" type="checkbox" checked /> Include Annex D</label>
-            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 px-2 text-xs text-slate-400" title="Disabled: use Annex D and attach drawing files separately"><input id="prPrintFullDrawings" type="checkbox" disabled /> Print full drawings (disabled)</label>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 text-xs text-blue-700" title="Open PDF/JPG/PNG drawings directly inside the PR report; CAD files remain referenced in Annex D."><input id="prPrintFullDrawings" type="checkbox" checked /> Open Drawing pages</label>
             <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prAttachDrawingsSeparately" type="checkbox" /> Attach drawings separately</label>
             <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
             <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export PDF</button><button id="prExportCsvBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export CSV</button>
@@ -6678,7 +6678,7 @@ if (dashboardPage) {
         annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0),
         includeAnnexC: !prIncludeAnnexC || prIncludeAnnexC.checked !== false,
         includeAnnexD: !prIncludeAnnexD || prIncludeAnnexD.checked !== false,
-        printFullDrawings: false,
+        printFullDrawings: !!(prPrintFullDrawings && prPrintFullDrawings.checked),
         attachDrawingsSeparately: !!(prAttachDrawingsSeparately && prAttachDrawingsSeparately.checked)
       };
     }
@@ -6964,10 +6964,26 @@ if (dashboardPage) {
           return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td><a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a></td></tr>';
         }).join('');
       }
+      function drawingPreviewUrl(item) {
+        var raw = String((item && item.drawingUrl) || '').trim();
+        if (!raw) return '';
+        var fileId = extractDriveFileId(raw);
+        if (!fileId) return raw;
+        return isImageDrawing(item)
+          ? ('https://drive.google.com/thumbnail?id=' + fileId + '&sz=w2000')
+          : ('https://drive.google.com/file/d/' + fileId + '/preview');
+      }
       function fullDrawingPages(items) {
-        // Disabled by policy: use Annex D as the report reference and attach drawing files separately.
-        // Do not embed Drive/PDF iframes because browser print can capture Google Drive error pages.
-        return '';
+        if (!printFullDrawings) return '';
+        var printable = items.filter(function(item) { return canShowDrawingLink(item) && isPrintableDrawing(item); });
+        if (!printable.length) return '<h2 class="section-table">Drawing Attachments</h2><p class="empty">No PDF/JPG/PNG drawing files available to open inside this PR report.</p>';
+        return '<h2 class="section-table">Drawing Attachments (Opened Files)</h2>' + printable.map(function(c, i) {
+          var previewUrl = drawingPreviewUrl(c);
+          var header = '<div class="drawing-page" style="page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px"><h3>Drawing ' + (i + 1) + ': ' + esc(c.name || '-') + '</h3>' +
+            '<p class="sub">Line: ' + esc(c.line || '-') + ' | Brand: ' + esc(c.brand || '-') + ' | Model / Part No.: ' + esc(c.model || c.no || '-') + ' | Rev: ' + esc(c.drawingRevision || '-') + ' | File: ' + esc(c.drawingFileName || '-') + '</p>';
+          if (isImageDrawing(c)) return header + '<img class="drawing-full-image" style="display:block;width:100%;height:auto;max-height:900px;object-fit:contain" src="' + esc(previewUrl) + '" alt="Drawing file" /></div>';
+          return header + '<iframe class="drawing-pdf-frame" style="width:100%;height:900px;border:1px solid #cbd5e1" src="' + esc(previewUrl) + '" title="Drawing preview"></iframe></div>';
+        }).join('');
       }
 
       var reportLineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
