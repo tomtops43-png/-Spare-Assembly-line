@@ -179,6 +179,7 @@
                 <option value="Main List Stock">General</option>
                 <option value="Stock for MC">Stock for MC</option>
               </select>
+              <button id="refreshStockDataBtn" type="button" class="ml-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700">Refresh Stock Data</button>
             </div>
           </div>
           <div id="stockUtilityMenuMobile" class="mt-2 hidden md:hidden grid grid-cols-3 gap-2 text-xs">
@@ -1248,7 +1249,8 @@
       'Coil Winding': ['Coil Winding'],
       'Lug&Screw': ['Lug&Screw']
     };
-    var LINE_CACHE_VERSION = 'source-sheet-filter-v2';
+    var LINE_CACHE_VERSION = 'lite-master-cache-v3';
+    var MASTER_CACHE_TTL_MS = 8 * 60 * 1000;
 
     var desktopCardGrid = document.getElementById('desktopCardGrid');
     var paginationControls = document.getElementById('paginationControls');
@@ -1271,6 +1273,7 @@
     var openFilterSheetBtn = document.getElementById('openFilterSheetBtn');
     var closeFilterSheetBtn = document.getElementById('closeFilterSheetBtn');
     var applyFilterSheetBtn = document.getElementById('applyFilterSheetBtn');
+    var refreshStockDataBtn = document.getElementById('refreshStockDataBtn');
     var openIssueCartBtn = document.getElementById('openIssueCartBtn');
     var openIssueCartBtnMobile = document.getElementById('openIssueCartBtnMobile');
     var issueCartBadge = document.getElementById('issueCartBadge');
@@ -1336,6 +1339,7 @@
 
     var partsData = [];
     var stockSheetMemoryCache = {};
+    var fullDetailSheetCache = {};
     var backgroundSheetPrefetching = {};
     var loadedStockSheetKey = '';
     var partMap = {};
@@ -1710,6 +1714,8 @@
       ], ''));
 
       return {
+        __isLite: item.__isLite === true,
+        __sourceSheet: item.__sourceSheet || item.sourceSheet || item.sheet || '',
         id: firstDefined([item.id, item.partId, item.part_id, item.code, item.no], index + 1),
         code: firstDefined([item.code, item.partCode, item.part_code, item.no], ''),
         partId: firstDefined([item.partId, item.part_id, item.id, item.code, item.no], ''),
@@ -1824,6 +1830,7 @@
         if (raw) {
           var parsed = JSON.parse(raw);
           if (parsed && Array.isArray(parsed.items) && parsed.version === LINE_CACHE_VERSION) {
+            if (Date.now() - Number(parsed.updatedAt || 0) > MASTER_CACHE_TTL_MS) return null;
             stockSheetMemoryCache[memoryKey] = parsed;
             return parsed;
           }
@@ -1851,7 +1858,7 @@
         var payload = {
           version: LINE_CACHE_VERSION,
           updatedAt: Date.now(),
-          items: items || []
+          items: (items || []).map(function(item) { return Object.assign({}, item, { __isLite: item.__isLite !== false }); })
         };
         stockSheetMemoryCache[cacheKey] = payload;
         localStorage.setItem(cacheKey, JSON.stringify(payload));
@@ -2316,10 +2323,10 @@ function getIssueCartEntries() {
       return normalized || FALLBACK_IMAGE;
     }
 
-    function getSecondaryDriveImageUrl(value) {
+    function getSecondaryDriveImageUrl(value, size) {
       var fileId = extractDriveFileId(value);
       if (!fileId) return '';
-      return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1200';
+      return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w' + (size || 1200);
     }
 
     function buildDriveViewUrl(fileId) {
@@ -4411,24 +4418,31 @@ function inferRequestPriority(stock, min) {
       if (!targets.length) return Promise.resolve(partsData.slice());
       var cacheHits = 0;
       return Promise.all(targets.map(function(t) {
-        var cached = loadLineCache(t.line, t.sheet);
-        if (cached && Array.isArray(cached.items) && cached.items.length) {
+        var fullCacheKey = getLineCacheKey(t.line, t.sheet) + '::full';
+        var cached = fullDetailSheetCache[fullCacheKey];
+        if (cached && Array.isArray(cached.items) && cached.items.length && Date.now() - Number(cached.updatedAt || 0) <= MASTER_CACHE_TTL_MS) {
           cacheHits += 1;
           return Promise.resolve(cached.items.map(function(item) {
-            item.__sourceSheet = item.__sourceSheet || t.sheet;
-            item.__sourceLine = item.__sourceLine || t.line;
-            item.line = t.line || item.line;
-            return item;
+            return Object.assign({}, item, {
+              __sourceSheet: item.__sourceSheet || t.sheet,
+              __sourceLine: item.__sourceLine || t.line,
+              line: t.line || item.line,
+              __isLite: false
+            });
           }));
         }
         var lineApi = LINE_API_URL_MAP[t.line] || API_URL;
         return withTimeout(loadByFetch(lineApi + appendAuthToQuery('?sheet=' + encodeURIComponent(t.sheet))), 12000, 'Load ' + t.sheet).then(function(rawData) {
           if (!Array.isArray(rawData)) return [];
-          return rawData.map(function(item) {
+          return normalizeRecordsInBatches(rawData.map(function(item) {
             item.__sourceSheet = t.sheet;
             item.__sourceLine = t.line;
             item.line = t.line || item.line;
+            item.__isLite = false;
             return item;
+          })).then(function(normalizedRows) {
+            fullDetailSheetCache[fullCacheKey] = { updatedAt: Date.now(), items: normalizedRows };
+            return normalizedRows;
           });
         }).catch(function(err) {
           console.warn('loadPrSourceItems skipped sheet', t.sheet, err);
@@ -4437,22 +4451,15 @@ function inferRequestPriority(stock, min) {
       })).then(function(chunks) {
         var combined = [].concat.apply([], chunks);
         if (prCandidateList && cacheHits) {
-          prCandidateList.innerHTML = '<div class="rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700">Loaded ' + cacheHits + '/' + targets.length + ' PR source sheets from cache. Refreshing missing sheets only.</div>';
+          prCandidateList.innerHTML = '<div class="rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700">Loaded ' + cacheHits + '/' + targets.length + ' PR source sheets from full-detail cache. Refreshing missing sheets only.</div>';
         }
-        return normalizeRecordsInBatches(combined).then(function(normalized) {
-          var bySheet = {};
-          var mapped = normalized.map(function(item) {
-            var sourceLine = item.__sourceLine || getPrLineFromSourceSheet(item.__sourceSheet);
-            if (sourceLine) item.line = sourceLine;
-            if (item.__sourceSheet) (bySheet[item.__sourceSheet] = bySheet[item.__sourceSheet] || []).push(item);
-            return item;
-          }).filter(function(item) { return item.name && item.name !== '-'; });
-          Object.keys(bySheet).forEach(function(sheetName) {
-            var lineName = getPrLineFromSourceSheet(sheetName) || currentLine;
-            saveLineCache(lineName, bySheet[sheetName], sheetName);
-          });
-          return mapped;
-        });
+        var mapped = combined.map(function(item) {
+          var sourceLine = item.__sourceLine || getPrLineFromSourceSheet(item.__sourceSheet);
+          if (sourceLine) item.line = sourceLine;
+          item.__isLite = false;
+          return item;
+        }).filter(function(item) { return item.name && item.name !== '-'; });
+        return mapped;
       });
     }
     function syncPrPeriodToDates() {
@@ -4592,13 +4599,17 @@ function inferRequestPriority(stock, min) {
       });
     }
 
-    function fetchSheetRows(sheetName) {
-      return loadJsonpWithFallback(function(base){
-        var query = '?sheet=' + encodeURIComponent(sheetName);
-        return base + appendAuthToQuery(query);
+    function fetchSheetRows(sheetName, options) {
+      options = options || {};
+      var lite = options.lite !== false;
+      var label = 'loadSpareParts' + (lite ? 'Lite' : 'Detail') + ':' + sheetName;
+      console.time(label);
+      var qs = '?sheet=' + encodeURIComponent(sheetName) + (lite ? '&lite=1' : '') + (options.refresh ? '&refresh=1' : '');
+      return withTimeout(loadJsonpWithFallback(function(base){
+        return base + appendAuthToQuery(qs);
       }).catch(function() {
-        return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)));
-      }).then(function(rawData) {
+        return loadByFetch(ACTIVE_API_URL + appendAuthToQuery(qs));
+      }), lite ? 12000 : 18000, label).then(function(rawData) {
         if (rawData && rawData.status === 'error') {
           var msg = rawData.message || 'API ตอบกลับ error';
           if (msg.indexOf('เข้าสู่ระบบ') > -1 || msg.indexOf('session') > -1) logout();
@@ -4607,8 +4618,11 @@ function inferRequestPriority(stock, min) {
         if (!Array.isArray(rawData)) return [];
         return rawData.map(function(item) {
           item.__sourceSheet = sheetName;
+          item.__isLite = lite;
           return item;
         });
+      }).finally(function() {
+        console.timeEnd(label);
       });
     }
 
@@ -4624,7 +4638,7 @@ function inferRequestPriority(stock, min) {
         var chain = Promise.resolve();
         sheets.forEach(function(sheetName) {
           chain = chain.then(function() {
-            return fetchSheetRows(sheetName).then(function(rows) {
+            return fetchSheetRows(sheetName, { lite: true }).then(function(rows) {
               return normalizeRecordsInBatches(rows);
             }).then(function(normalized) {
               saveLineCache(lineKey, normalized, sheetName);
@@ -4653,7 +4667,7 @@ function inferRequestPriority(stock, min) {
         applyLoadedPartsData(cachePayload.items);
         loadedStockSheetKey = selectedSheetForLoad;
         setTimeout(function() {
-          fetchSheetRows(selectedSheetForLoad).then(function(rows) {
+          fetchSheetRows(selectedSheetForLoad, { lite: true }).then(function(rows) {
             return normalizeRecordsInBatches(rows);
           }).then(function(normalizedData) {
             saveLineCache(currentLine, normalizedData, selectedSheetForLoad);
@@ -4668,12 +4682,11 @@ function inferRequestPriority(stock, min) {
         }, 50);
         return;
       }
-      desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Loading data...</div>';
-      mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">Loading data...</div>';
+      renderStockSkeleton('Loading spare parts lite data...');
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
       var hasAppliedCache = false;
       Promise.all(activeSheets.map(function(sheetName, idx) {
-        return fetchSheetRows(sheetName).finally(function() {
+        return fetchSheetRows(sheetName, { lite: true, refresh: skipCache }).finally(function() {
           if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
           desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
           mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
@@ -4939,7 +4952,7 @@ function inferRequestPriority(stock, min) {
         var cardBorder = active ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200';
         return '<button type="button" data-txn-key="' + txnKey + '" class="text-left rounded-2xl border ' + cardBorder + ' bg-white p-3 shadow-sm hover:shadow transition">' +
           '<div class="flex gap-3">' +
-          '<img src="' + toSafeImageUrl(item.image_main_url) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + getSecondaryDriveImageUrl(item.image_main_url) + '" />' +
+          '<img loading="lazy" src="' + (getSecondaryDriveImageUrl(item.image_main_url, 300) || toSafeImageUrl(item.image_main_url)) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + (getSecondaryDriveImageUrl(item.image_main_url, 300) || '') + '" />' +
           '<div class="min-w-0 flex-1">' +
           '<p class="text-sm font-semibold text-slate-900 truncate">' + (item.name || '-') + '</p>' +
           '<p class="text-xs text-slate-500 truncate mt-1">รุ่น: ' + (item.model || '-') + ' • #' + (item.no || '-') + '</p>' +
@@ -5923,14 +5936,14 @@ function inferRequestPriority(stock, min) {
         var canDeleteItems = hasPermission('delete_items');
         var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
-        var imageSrc = toSafeImageUrl(item.image_main_url);
-        var fallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
+        var fallbackSrc = getSecondaryDriveImageUrl(item.image_main_url, 300);
+        var imageSrc = fallbackSrc || toSafeImageUrl(item.image_main_url);
         var status = getStockStatus(item);
         var tone = getStatusTone(status);
         var stockClass = tone.textClass;
         var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
-        var drawingBadge = (normalizeDrawingStatus(item) === 'Available' && String(item.drawing_url || item.drawingUrl || '').trim()) ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
+        var drawingBadge = normalizeDrawingStatus(item) === 'Available' ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
         return '<article data-row-key="' + itemKey + '" class="group relative rounded-2xl border p-3 h-[430px] flex flex-col shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-200 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative h-[150px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
             drawingBadge +
@@ -6005,14 +6018,14 @@ function inferRequestPriority(stock, min) {
         var canDeleteItems = hasPermission('delete_items');
         var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
-        var mobileImageSrc = toSafeImageUrl(item.image_main_url);
-        var mobileFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
+        var mobileFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url, 300);
+        var mobileImageSrc = mobileFallbackSrc || toSafeImageUrl(item.image_main_url);
         var status = getStockStatus(item);
         var tone = getStatusTone(status);
         var stockClass = tone.textClass;
                 var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
-        var drawingBadge = (normalizeDrawingStatus(item) === 'Available' && String(item.drawing_url || item.drawingUrl || '').trim()) ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
+        var drawingBadge = normalizeDrawingStatus(item) === 'Available' ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
         return '<article data-view-key="' + itemKey + '" class="relative rounded-2xl border p-3 h-[380px] flex flex-col shadow-sm transition-all duration-200 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative h-[150px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
             drawingBadge +
@@ -6121,8 +6134,58 @@ function inferRequestPriority(stock, min) {
       };
     }
 
+    function loadFullPartDetail(item) {
+      var sheetName = getItemSourceSheet(item) || getCurrentSheetName();
+      var sheetCacheKey = getLineCacheKey(currentLine, sheetName) + '::full';
+      var itemLookup = String(item.partId || item.no || item.model || '').trim();
+      var itemCacheKey = sheetCacheKey + '::item::' + (itemLookup || getItemIdentityKey(item));
+      var cachedSheet = fullDetailSheetCache[sheetCacheKey];
+      var cachedItem = fullDetailSheetCache[itemCacheKey];
+      var matchKey = getItemIdentityKey(item);
+      function findMatch(list) {
+        for (var i = 0; i < list.length; i += 1) {
+          if (String(list[i].no || '') === String(item.no || '') && (!matchKey || getItemIdentityKey(list[i]) === matchKey || String(list[i].model || '') === String(item.model || ''))) return list[i];
+        }
+        return null;
+      }
+      if (cachedItem && cachedItem.item && Date.now() - Number(cachedItem.updatedAt || 0) <= MASTER_CACHE_TTL_MS) return Promise.resolve(cachedItem.item);
+      if (cachedSheet && Array.isArray(cachedSheet.items) && Date.now() - Number(cachedSheet.updatedAt || 0) <= MASTER_CACHE_TTL_MS) return Promise.resolve(findMatch(cachedSheet.items) || item);
+      console.time('loadSparePartDetail:' + sheetName);
+      var query = '?action=getSparePartDetail&sheet=' + encodeURIComponent(sheetName) + '&partId=' + encodeURIComponent(itemLookup || item.no || '');
+      return withTimeout(loadJsonpWithFallback(function(base){
+        return base + appendAuthToQuery(query);
+      }).catch(function() {
+        return loadByFetch(ACTIVE_API_URL + appendAuthToQuery(query));
+      }), 12000, 'loadSparePartDetail').then(function(rawData) {
+        var rows = Array.isArray(rawData) ? rawData : [];
+        rows.forEach(function(row) {
+          row.__sourceSheet = sheetName;
+          row.__isLite = false;
+        });
+        return normalizeRecordsInBatches(rows);
+      }).then(function(fullRows) {
+        var fullItem = findMatch(fullRows) || fullRows[0] || item;
+        fullDetailSheetCache[itemCacheKey] = { updatedAt: Date.now(), item: fullItem };
+        return fullItem;
+      }).finally(function() {
+        console.timeEnd('loadSparePartDetail:' + sheetName);
+      });
+    }
+
     function openDetailModal(item) {
       if (!issueCartModal.classList.contains('hidden')) return;
+      if (item && item.__isLite && !item.__detailLoading) {
+        item.__detailLoading = true;
+        loadFullPartDetail(item).then(function(fullItem) {
+          item.__detailLoading = false;
+          if (!fullItem || fullItem === item) return;
+          Object.assign(item, fullItem, { __isLite: false });
+          if (!detailModal.classList.contains('hidden') && String(detailModalCurrentNo) === String(item.no)) openDetailModal(item);
+        }).catch(function(err) {
+          item.__detailLoading = false;
+          console.warn('load full part detail failed', err);
+        });
+      }
       detailModalCurrentNo = item.no;
       document.getElementById('detailName').textContent = item.name || '-';
       document.getElementById('detailNo').textContent = item.no || '-';
@@ -6270,6 +6333,21 @@ function inferRequestPriority(stock, min) {
       unlockBodyScroll();
     }
 
+    function renderStockSkeleton(message) {
+      var card = '<div class="animate-pulse rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><div class="h-[150px] rounded-xl bg-slate-100"></div><div class="mt-3 h-5 w-4/5 rounded bg-slate-100"></div><div class="mt-2 h-4 w-2/3 rounded bg-slate-100"></div><div class="mt-6 h-8 rounded bg-slate-100"></div></div>';
+      desktopCardGrid.innerHTML = '<div class="col-span-full pb-2 text-sm text-blue-700">' + (message || 'Loading spare parts...') + '</div>' + Array(8).fill(card).join('');
+      mobileCardList.innerHTML = '<div class="py-2 text-sm text-blue-700">' + (message || 'Loading spare parts...') + '</div>' + Array(4).fill(card).join('');
+    }
+
+    function debounce(fn, delay) {
+      var timer = null;
+      return function() {
+        var args = arguments;
+        clearTimeout(timer);
+        timer = setTimeout(function() { fn.apply(null, args); }, delay || 300);
+      };
+    }
+
     function renderPagination(totalItems) {
       var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
       if (currentPage > totalPages) currentPage = totalPages;
@@ -6308,15 +6386,18 @@ function inferRequestPriority(stock, min) {
     }
 
     function renderFilteredResults(filtered) {
+      console.time('renderCards');
       var start = (currentPage - 1) * pageSize;
       var paged = filtered.slice(start, start + pageSize);
       renderTable(paged);
       renderMobileCards(paged);
       renderPagination(filtered.length);
       renderStats(filtered);
+      console.timeEnd('renderCards');
     }
 
     function applyFilters(resetPage) {
+      console.time('filterLine');
       updateResponsivePageSize();
       if (typeof resetPage === 'undefined') resetPage = true;
       var keyword = searchInput.value.trim().toLowerCase();
@@ -6364,6 +6445,7 @@ function inferRequestPriority(stock, min) {
 
       if (resetPage) currentPage = 1;
       renderFilteredResults(filtered);
+      console.timeEnd('filterLine');
     }
 
     function syncCoilFilterVisibility(){
@@ -6377,6 +6459,7 @@ function inferRequestPriority(stock, min) {
         coilSizeFilterMobile.value = coilSizeFilter.value || 'all';
       }
     }
+    var debouncedApplyFilters = debounce(function(){ applyFilters(); }, 300);
     categoryFilter.addEventListener('change', applyFilters);
     statusFilter.addEventListener('change', function(){ tableStatusMode = 'all'; applyFilters(); });
     brandFilter.addEventListener('change', applyFilters);
@@ -6392,13 +6475,13 @@ function inferRequestPriority(stock, min) {
       searchInputMobile.value = searchInput.value;
       searchClearBtn.classList.toggle('hidden', !searchInput.value.trim());
       searchClearBtnMobile.classList.toggle('hidden', !searchInput.value.trim());
-      applyFilters();
+      debouncedApplyFilters();
     });
     searchInputMobile.addEventListener('input', function(){
       searchInput.value = searchInputMobile.value;
       searchClearBtn.classList.toggle('hidden', !searchInputMobile.value.trim());
       searchClearBtnMobile.classList.toggle('hidden', !searchInputMobile.value.trim());
-      applyFilters();
+      debouncedApplyFilters();
     });
     searchClearBtn.addEventListener('click', function(){
       searchInput.value = '';
@@ -6620,6 +6703,7 @@ if (dashboardPage) {
       var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Missing';
       setAttachmentLink('eDrawingView', '');
     });
+    if (refreshStockDataBtn) refreshStockDataBtn.addEventListener('click', function(){ loadPartsData({ skipCache: true }); });
     manageForm.addEventListener('submit', submitManageItem);
     var mCoilSize = document.getElementById('mCoilSize'); var mCoilSizeOther = document.getElementById('mCoilSizeOther'); if (mCoilSize) mCoilSize.addEventListener('change', function(){ if(!mCoilSizeOther) return; mCoilSizeOther.classList.toggle('hidden', mCoilSize.value !== 'Other'); });
     syncManageCoilSizeVisibility();

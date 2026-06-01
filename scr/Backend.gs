@@ -1607,8 +1607,25 @@ function doGet(e) {
       requirePermission(authPayload, 'delete_items');
       return respond(deleteMainItem({ sheetName: e.parameter.sheet, no: e.parameter.no }), e);
     }
+    if (action === 'getSparePartsLite') e.parameter.lite = '1';
+    if (action === 'getSparePartDetail') e.parameter.lite = '';
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
+    var isDetailRead = action === 'getSparePartDetail';
+    var detailLookup = String(e.parameter.partId || e.parameter.no || e.parameter.id || e.parameter.model || '').trim();
+    var isLiteRead = String(e.parameter.lite || e.parameter.mode || '').toLowerCase() === '1' || String(e.parameter.lite || e.parameter.mode || '').toLowerCase() === 'lite';
+    var liteCache = null;
+    var liteCacheKey = '';
+    if (isLiteRead && String(e.parameter.refresh || '') !== '1') {
+      try {
+        liteCache = CacheService.getScriptCache();
+        liteCacheKey = 'spare_parts_lite::' + sheetName;
+        var cachedLite = liteCache.get(liteCacheKey);
+        if (cachedLite) return respond(JSON.parse(cachedLite), e);
+      } catch (cacheReadErr) {
+        Logger.log('lite cache read warning [' + sheetName + ']: ' + (cacheReadErr && cacheReadErr.message ? cacheReadErr.message : cacheReadErr));
+      }
+    }
     var ctx = getMainSheetContext(sheetName);
     var map = ctx.map;
     var rows = ctx.rows;
@@ -1649,22 +1666,36 @@ function doGet(e) {
         image_main_file_id: mainFileIdValue,
         image_install_url: installImageValue,
         image_install_file_id: installFileIdValue,
-        drawing_url: pickRowValue(row, map, ['drawingurl', 'drawing_url'], ''),
-        drawing_file_name: pickRowValue(row, map, ['drawingfilename', 'drawing_file_name'], ''),
-        drawing_revision: pickRowValue(row, map, ['drawingrevision', 'drawingrev', 'drawing_revision', 'drawing_rev'], ''),
+        drawing_url: isLiteRead ? '' : pickRowValue(row, map, ['drawingurl', 'drawing_url'], ''),
+        drawing_file_name: isLiteRead ? '' : pickRowValue(row, map, ['drawingfilename', 'drawing_file_name'], ''),
+        drawing_revision: isLiteRead ? '' : pickRowValue(row, map, ['drawingrevision', 'drawingrev', 'drawing_revision', 'drawing_rev'], ''),
         drawing_status: normalizeDrawingStatusValue(pickRowValue(row, map, ['drawingstatus', 'drawing_status'], '')),
-        datasheet_url: pickRowValue(row, map, ['datasheeturl', 'datasheet_url'], ''),
-        quotation_url: pickRowValue(row, map, ['quotationurl', 'quotation_url'], ''),
-        unit_price: pickRowValue(row, map, ['unitprice', 'unit_price'], ''),
+        datasheet_url: isLiteRead ? '' : pickRowValue(row, map, ['datasheeturl', 'datasheet_url'], ''),
+        quotation_url: isLiteRead ? '' : pickRowValue(row, map, ['quotationurl', 'quotation_url'], ''),
+        unit_price: isLiteRead ? '' : pickRowValue(row, map, ['unitprice', 'unit_price'], ''),
         currency: pickRowValue(row, map, ['currency'], 'THB'),
-        supplier: pickRowValue(row, map, ['supplier'], ''),
-        price_updated_at: pickRowValue(row, map, ['priceupdatedat', 'price_updated_at'], ''),
-        price_remark: pickRowValue(row, map, ['priceremark', 'price_remark'], ''),
+        supplier: isLiteRead ? '' : pickRowValue(row, map, ['supplier'], ''),
+        price_updated_at: isLiteRead ? '' : pickRowValue(row, map, ['priceupdatedat', 'price_updated_at'], ''),
+        price_remark: isLiteRead ? '' : pickRowValue(row, map, ['priceremark', 'price_remark'], ''),
         coil_size: pickRowValue(row, map, ['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size'], '-')
       };
     }).filter(function (item) {
       return item.name && item.name !== '-';
     });
+
+    if (isDetailRead && detailLookup) {
+      result = result.filter(function(item) {
+        return String(item.no || '') === detailLookup || String(item.id || '') === detailLookup || String(item.partId || '') === detailLookup || String(item.model || '') === detailLookup;
+      });
+    }
+
+    if (isLiteRead && liteCache && liteCacheKey) {
+      try {
+        liteCache.put(liteCacheKey, JSON.stringify(result), 300);
+      } catch (cacheWriteErr) {
+        Logger.log('lite cache write warning [' + sheetName + ']: ' + (cacheWriteErr && cacheWriteErr.message ? cacheWriteErr.message : cacheWriteErr));
+      }
+    }
 
     return respond(result, e);
   } catch (err) {
