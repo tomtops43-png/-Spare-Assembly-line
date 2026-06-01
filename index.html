@@ -576,6 +576,23 @@
           <p class="text-xs text-slate-500 mb-1">Preview Main</p>
           <img id="mImageMainPreview" src="images/no-image.svg" alt="preview main" class="h-20 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
         </div>
+        <section class="md:col-span-6 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div><p class="text-sm font-bold text-blue-900">Drawing Attachment</p><p id="mDrawingHint" class="text-[11px] text-blue-700">Upload PDF, DWG, DXF, JPG, PNG, STEP or STP for custom-made parts.</p></div>
+            <a id="mDrawingView" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700">View Drawing</a>
+          </div>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
+            <input id="mDrawingFile" type="file" accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.step,.stp,application/pdf,image/jpeg,image/png" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5" />
+            <input id="mDrawingRevision" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing Revision" />
+            <select id="mDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Not Available">Not Available</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Pending Update">Pending Update</option></select>
+            <input id="mDrawingFileName" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5" placeholder="Drawing File Name" readonly />
+          </div>
+          <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
+            <input id="mDatasheetUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Datasheet URL" />
+            <input id="mQuotationUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Quotation URL" />
+            <input id="mDrawingUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing URL (auto after upload or paste link)" />
+          </div>
+        </section>
         <input id="mMax" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Max" />
         <input id="mMin" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Min" />
         <input id="mUnit" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Unit" />
@@ -940,6 +957,23 @@
                 <div class="md:col-span-3">
           <img id="eImageMainPreview" src="images/no-image.svg" alt="edit main preview" class="h-24 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
         </div>
+        <section class="md:col-span-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div><p class="text-sm font-bold text-blue-900">Drawing</p><p id="eDrawingHint" class="text-[11px] text-blue-700">Upload / View / Remove / Replace drawing attachment.</p></div>
+            <div class="flex flex-wrap gap-2"><a id="eDrawingView" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700">View Drawing</a><button id="eDrawingRemove" type="button" class="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700">Remove Drawing</button></div>
+          </div>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
+            <input id="eDrawingFile" type="file" accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.step,.stp,application/pdf,image/jpeg,image/png" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5" />
+            <input id="eDrawingRevision" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing Revision" />
+            <select id="eDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Not Available">Not Available</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Pending Update">Pending Update</option></select>
+            <input id="eDrawingFileName" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5" placeholder="Drawing File Name" readonly />
+          </div>
+          <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
+            <input id="eDatasheetUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Datasheet URL" />
+            <input id="eQuotationUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Quotation URL" />
+            <input id="eDrawingUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing URL" />
+          </div>
+        </section>
         <div><label class="text-xs text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Unit</label><input id="eUnit" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
@@ -977,6 +1011,12 @@
         </div>
         <p id="detailMeta" class="mt-1 text-xs text-slate-500"></p>
         <button id="detailAddToCartBtn" type="button" class="mt-3 h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">🛒 Add to issue cart</button>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a id="detailViewPhoto" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">View Photo</a>
+          <a id="detailViewDrawing" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">View Drawing</a>
+          <a id="detailViewDatasheet" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">View Datasheet</a>
+          <a id="detailViewQuotation" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">View Quotation</a>
+        </div>
         <div class="mt-3 space-y-3">
             <section>
               <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลหลัก</p>
@@ -1012,6 +1052,14 @@
                 <div id="detailFieldSupplier" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Supplier</p><p id="detailSupplier" class="font-semibold text-base">-</p></div>
                 <div id="detailFieldPriceUpdatedAt" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Price Updated At</p><p id="detailPriceUpdatedAt" class="font-semibold text-base">-</p></div>
                 <div id="detailFieldPriceRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Price Remark</p><p id="detailPriceRemark" class="font-semibold text-base">-</p></div>
+              </div>
+            </section>
+            <section>
+              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Drawing / Attachments</p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Drawing Status</p><p id="detailDrawingStatus" class="font-semibold text-base">-</p></div>
+                <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Drawing Rev.</p><p id="detailDrawingRevision" class="font-semibold text-base">-</p></div>
+                <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Drawing File</p><p id="detailDrawingFileName" class="font-semibold text-base break-all">-</p></div>
               </div>
             </section>
             <section>
@@ -2258,6 +2306,36 @@ function getIssueCartEntries() {
       }
     }
 
+    function validateDrawingFile(file) {
+      if (!file) return;
+      var name = String(file.name || '').toLowerCase();
+      var ext = (name.match(/\.([a-z0-9]+)$/) || [])[1] || '';
+      var allowedExt = ['pdf','dwg','dxf','jpg','jpeg','png','step','stp'];
+      if (allowedExt.indexOf(ext) === -1) throw new Error('รองรับเฉพาะ PDF, DWG, DXF, JPG, PNG, STEP, STP');
+      if (Number(file.size || 0) > 25 * 1024 * 1024) throw new Error('ขนาด Drawing ต้องไม่เกิน 25MB');
+    }
+
+    function isStandardPartExempt(item) {
+      var txt = [item && item.category, item && item.name, item && item.model].join(' ').toLowerCase();
+      return /(sensor|relay|solenoid\s*valve|standard\s*air\s*cylinder|air\s*cylinder|cable|lamp|fuse)/.test(txt);
+    }
+
+    function isDrawingRecommended(item) {
+      if (isStandardPartExempt(item)) return false;
+      var txt = [item && item.category, item && item.name, item && item.model, item && item.brand].join(' ').toLowerCase();
+      var custom = /(custom|custom-made|made\s*to\s*order|tooling|tool|jig|fixture|punch|blade|pin|plate|die\s*block|dieblock|coil\s*winding)/.test(txt);
+      var unknownBrandModel = !String((item && item.brand) || '').trim() || !String((item && item.model) || '').trim() || /^(-|n\/a|na|unknown)$/i.test(String((item && item.brand) || '').trim()) || /^(-|n\/a|na|unknown)$/i.test(String((item && item.model) || '').trim());
+      return custom || unknownBrandModel;
+    }
+
+    function normalizeDrawingStatus(item) {
+      var status = String((item && item.drawing_status) || '').trim();
+      if (status) return status;
+      if (item && item.drawing_url) return 'Available';
+      if (isStandardPartExempt(item)) return 'Not Required';
+      return isDrawingRecommended(item) ? 'Not Available' : 'Not Required';
+    }
+
     function readFileAsDataUrl(file) {
       return new Promise(function(resolve, reject) {
         var reader = new FileReader();
@@ -2337,6 +2415,46 @@ function getIssueCartEntries() {
         console.error('[uploadImage] error', err);
         throw new Error(mapUploadErrorMessage(err));
       });
+    }
+
+    function uploadDrawingFile(file, itemId, itemName) {
+      if (!file) return Promise.resolve(null);
+      validateDrawingFile(file);
+      return readFileAsDataUrl(file).then(function(dataUrl) {
+        var payload = new URLSearchParams();
+        payload.append('action', 'uploadDrawing');
+        payload.append('kind', 'drawing');
+        payload.append('itemId', itemId);
+        payload.append('itemName', itemName || '');
+        payload.append('fileName', file.name || ('drawing-' + Date.now()));
+        payload.append('mimeType', file.type || 'application/octet-stream');
+        payload.append('dataUrl', dataUrl);
+        if (authToken) payload.append('authToken', authToken);
+        return fetch(getWriteApiUrl(), { method: 'POST', body: payload }).then(function(res) {
+          return res.text().then(function(text) {
+            var parsed = null;
+            try { parsed = text ? JSON.parse(text) : null; } catch (err) {}
+            if (!res.ok) throw new Error((parsed && parsed.message) || ('HTTP ' + res.status));
+            return parsed || { ok: false, message: 'invalid response' };
+          });
+        });
+      }).then(function(res) {
+        if (!res || (res.ok !== true && res.status !== 'success')) {
+          throw new Error((res && (res.message || res.detail)) || 'อัปโหลด Drawing ไม่สำเร็จ');
+        }
+        return res;
+      }).catch(function(err) {
+        throw new Error(mapUploadErrorMessage(err));
+      });
+    }
+
+    function setAttachmentLink(id, url) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var href = String(url || '').trim();
+      el.classList.toggle('hidden', !href);
+      if (href) el.href = href;
+      else el.removeAttribute('href');
     }
 
     function uploadRequestAttachmentData(dataUrl, fileName, mimeType) {
@@ -3266,7 +3384,13 @@ function getIssueCartEntries() {
         currency: payload.currency || 'THB',
         supplier: payload.supplier || '',
         price_updated_at: payload.price_updated_at || '',
-        price_remark: payload.price_remark || ''
+        price_remark: payload.price_remark || '',
+        drawing_url: payload.drawing_url || '',
+        drawing_file_name: payload.drawing_file_name || '',
+        drawing_revision: payload.drawing_revision || '',
+        drawing_status: payload.drawing_status || '',
+        datasheet_url: payload.datasheet_url || '',
+        quotation_url: payload.quotation_url || ''
       };
       requestPayload.qty = Number(payload.qty !== undefined ? payload.qty : requestPayload.stock || 0);
       if (!Number.isFinite(requestPayload.qty)) requestPayload.qty = 0;
@@ -3297,6 +3421,12 @@ function getIssueCartEntries() {
         'supplier=' + encodeURIComponent(requestPayload.supplier),
         'price_updated_at=' + encodeURIComponent(requestPayload.price_updated_at),
         'price_remark=' + encodeURIComponent(requestPayload.price_remark),
+        'drawing_url=' + encodeURIComponent(requestPayload.drawing_url),
+        'drawing_file_name=' + encodeURIComponent(requestPayload.drawing_file_name),
+        'drawing_revision=' + encodeURIComponent(requestPayload.drawing_revision),
+        'drawing_status=' + encodeURIComponent(requestPayload.drawing_status),
+        'datasheet_url=' + encodeURIComponent(requestPayload.datasheet_url),
+        'quotation_url=' + encodeURIComponent(requestPayload.quotation_url),
         'qty=' + encodeURIComponent(String(requestPayload.qty)),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
@@ -4201,7 +4331,7 @@ function inferRequestPriority(stock, min) {
         if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
+        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
       }).filter(Boolean);
       renderPrCandidates();
       }).catch(function(err) {
@@ -5056,6 +5186,16 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eSupplier').value = item.supplier || '';
       document.getElementById('ePriceUpdatedAt').value = item.price_updated_at || '';
       document.getElementById('ePriceRemark').value = item.price_remark || '';
+      document.getElementById('eDrawingFile').value = '';
+      document.getElementById('eDrawingUrl').value = item.drawing_url || '';
+      document.getElementById('eDrawingFileName').value = item.drawing_file_name || '';
+      document.getElementById('eDrawingRevision').value = item.drawing_revision || '';
+      document.getElementById('eDrawingStatus').value = normalizeDrawingStatus(item);
+      document.getElementById('eDatasheetUrl').value = item.datasheet_url || '';
+      document.getElementById('eQuotationUrl').value = item.quotation_url || '';
+      setAttachmentLink('eDrawingView', item.drawing_url || '');
+      var eHint = document.getElementById('eDrawingHint');
+      if (eHint) eHint.textContent = isDrawingRecommended(item) ? 'Drawing is strongly recommended for this custom/unknown item.' : 'Drawing optional for standard spare parts.';
       editMessage.textContent = '';
       editModalSubtitle.textContent = 'ชีต: ' + getCurrentSheetName() + ' | NO: ' + (item.no || '-');
       editModal.classList.remove('hidden');
@@ -5088,6 +5228,7 @@ function inferRequestPriority(stock, min) {
         return String(p.no) === String(itemNo) && String(p.__sourceSheet || p.subLine || getCurrentSheetName()) === String(editSheetName);
       })[0] || partsData.filter(function(p){ return String(p.no) === String(itemNo); })[0] || {};
       var mainFile = document.getElementById('eImageMainFile').files[0];
+      var drawingFile = document.getElementById('eDrawingFile').files[0];
       var payload = {
         sheet: editSheetName,
         no: itemNo,
@@ -5113,6 +5254,12 @@ function inferRequestPriority(stock, min) {
         supplier: document.getElementById('eSupplier').value.trim(),
         price_updated_at: document.getElementById('ePriceUpdatedAt').value.trim(),
         price_remark: document.getElementById('ePriceRemark').value.trim(),
+        drawing_url: document.getElementById('eDrawingUrl').value.trim(),
+        drawing_file_name: document.getElementById('eDrawingFileName').value.trim(),
+        drawing_revision: document.getElementById('eDrawingRevision').value.trim(),
+        drawing_status: document.getElementById('eDrawingStatus').value.trim(),
+        datasheet_url: document.getElementById('eDatasheetUrl').value.trim(),
+        quotation_url: document.getElementById('eQuotationUrl').value.trim(),
         coil_size: (document.getElementById('eCoilSize') ? document.getElementById('eCoilSize').value.trim() : '')
       };
       console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
@@ -5124,7 +5271,7 @@ function inferRequestPriority(stock, min) {
         run: function(setProgress) {
           setProgress(10);
           return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()).then(function(mainRes){
-            setProgress(55);
+            setProgress(40);
             if (mainRes) {
               var normalizedMainUrl = pickMainImageUrl(mainRes);
               if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
@@ -5133,8 +5280,16 @@ function inferRequestPriority(stock, min) {
               payload.image_main_url = normalizedMainUrl;
               payload.image_main_file_id = mainRes.fileId || '';
             }
-            setProgress(80);
-            return callManageAction('upsertItem', payload);
+            return uploadDrawingFile(drawingFile, itemNo, document.getElementById('eName').value.trim()).then(function(drawingRes) {
+              setProgress(70);
+              if (drawingRes) {
+                payload.drawing_url = drawingRes.viewUrl || drawingRes.url || '';
+                payload.drawing_file_name = drawingRes.fileName || (drawingFile && drawingFile.name) || '';
+                payload.drawing_status = 'Available';
+              }
+              setProgress(80);
+              return callManageAction('upsertItem', payload);
+            });
           }).then(function(res){
             if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
             setProgress(100);
@@ -5311,6 +5466,7 @@ function inferRequestPriority(stock, min) {
         return;
       }
       var mainFile = document.getElementById('mImageMainFile').files[0];
+      var drawingFile = document.getElementById('mDrawingFile').files[0];
       var payload = {
         sheet: selectedManageSheet,
         no: itemNo,
@@ -5336,6 +5492,12 @@ function inferRequestPriority(stock, min) {
         supplier: document.getElementById('mSupplier').value.trim(),
         price_updated_at: document.getElementById('mPriceUpdatedAt').value.trim(),
         price_remark: document.getElementById('mPriceRemark').value.trim(),
+        drawing_url: document.getElementById('mDrawingUrl').value.trim(),
+        drawing_file_name: document.getElementById('mDrawingFileName').value.trim(),
+        drawing_revision: document.getElementById('mDrawingRevision').value.trim(),
+        drawing_status: document.getElementById('mDrawingStatus').value.trim(),
+        datasheet_url: document.getElementById('mDatasheetUrl').value.trim(),
+        quotation_url: document.getElementById('mQuotationUrl').value.trim(),
         coil_size: (function(){ var v=document.getElementById('mCoilSize').value.trim(); if (v==='Other') v=document.getElementById('mCoilSizeOther').value.trim(); return v || '-'; })()
       };
       console.log('[location][manage payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
@@ -5355,14 +5517,23 @@ function inferRequestPriority(stock, min) {
               payload.image_main_url = normalizedMainUrl;
               payload.image_main_file_id = mainRes.fileId || '';
             }
-            setProgress(80);
-            return callManageAction('upsertItem', payload);
+            return uploadDrawingFile(drawingFile, itemNo, document.getElementById('mName').value.trim()).then(function(drawingRes) {
+              setProgress(70);
+              if (drawingRes) {
+                payload.drawing_url = drawingRes.viewUrl || drawingRes.url || '';
+                payload.drawing_file_name = drawingRes.fileName || (drawingFile && drawingFile.name) || '';
+                payload.drawing_status = 'Available';
+              }
+              setProgress(80);
+              return callManageAction('upsertItem', payload);
+            });
           }).then(function(res) {
             if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
             if (sheetSelector && sheetSelector.value !== selectedManageSheet) sheetSelector.value = selectedManageSheet;
             if ((res.mode || '').toLowerCase() === 'create') {
               manageForm.reset();
               document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
+              setAttachmentLink('mDrawingView', '');
               populateManageLineOptions(true);
               populateManageSheetOptions(true);
               applyAutoManageNo(true);
@@ -5748,6 +5919,13 @@ function inferRequestPriority(stock, min) {
       document.getElementById('detailSupplier').textContent = item.supplier || '-';
       document.getElementById('detailPriceUpdatedAt').textContent = formatBangkokDateTime(item.price_updated_at);
       document.getElementById('detailPriceRemark').textContent = item.price_remark || '-';
+      document.getElementById('detailDrawingStatus').textContent = normalizeDrawingStatus(item) || '-';
+      document.getElementById('detailDrawingRevision').textContent = item.drawing_revision || '-';
+      document.getElementById('detailDrawingFileName').textContent = item.drawing_file_name || (item.drawing_url ? 'Drawing link' : '-');
+      setAttachmentLink('detailViewPhoto', item.image_main_url || item.image_main || item.photo || '');
+      setAttachmentLink('detailViewDrawing', item.drawing_url || '');
+      setAttachmentLink('detailViewDatasheet', item.datasheet_url || '');
+      setAttachmentLink('detailViewQuotation', item.quotation_url || '');
       document.getElementById('detailRemark').textContent = item.remark || '-';
       var needToOrder = getNeedToOrder(item);
       var detailMetaParts = [item.brand, item.category, item.line, (item.subLine || item.__sourceSheet || '')].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
@@ -6145,6 +6323,33 @@ if (dashboardPage) {
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
     });
+    function bindDrawingFileName(inputId, fileNameId, statusId) {
+      var input = document.getElementById(inputId);
+      var nameEl = document.getElementById(fileNameId);
+      var statusEl = document.getElementById(statusId);
+      if (!input) return;
+      input.addEventListener('change', function() {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        try { validateDrawingFile(file); } catch (err) { alert(err.message); input.value = ''; return; }
+        if (nameEl) nameEl.value = file.name || '';
+        if (statusEl) statusEl.value = 'Available';
+      });
+    }
+    bindDrawingFileName('mDrawingFile', 'mDrawingFileName', 'mDrawingStatus');
+    bindDrawingFileName('eDrawingFile', 'eDrawingFileName', 'eDrawingStatus');
+    var mDrawingUrlInput = document.getElementById('mDrawingUrl');
+    if (mDrawingUrlInput) mDrawingUrlInput.addEventListener('input', function(){ setAttachmentLink('mDrawingView', mDrawingUrlInput.value); });
+    var eDrawingUrlInput = document.getElementById('eDrawingUrl');
+    if (eDrawingUrlInput) eDrawingUrlInput.addEventListener('input', function(){ setAttachmentLink('eDrawingView', eDrawingUrlInput.value); });
+    var eDrawingRemoveBtn = document.getElementById('eDrawingRemove');
+    if (eDrawingRemoveBtn) eDrawingRemoveBtn.addEventListener('click', function(){
+      if (!confirm('Remove drawing link from this part?')) return;
+      ['eDrawingUrl','eDrawingFileName','eDrawingRevision'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+      var fileEl = document.getElementById('eDrawingFile'); if (fileEl) fileEl.value = '';
+      var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Not Available';
+      setAttachmentLink('eDrawingView', '');
+    });
     manageForm.addEventListener('submit', submitManageItem);
     var mCoilSize = document.getElementById('mCoilSize'); var mCoilSizeOther = document.getElementById('mCoilSizeOther'); if (mCoilSize) mCoilSize.addEventListener('change', function(){ if(!mCoilSizeOther) return; mCoilSizeOther.classList.toggle('hidden', mCoilSize.value !== 'Other'); });
     syncManageCoilSizeVisibility();
@@ -6333,6 +6538,8 @@ if (dashboardPage) {
           if (weak && canonicalLineName(weak.line || weak.mainLine || '-') === itemLine) master = weak;
         }
         var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.photoUrl, master.picture, master.driveUrl, master.imageLink, master.image_main_file_id], '') : '';
+        var drawingUrl = firstDefined([c.drawingUrl, c.drawing_url, master && master.drawing_url], '');
+        var drawingStatus = normalizeDrawingStatus({ category: c.category, name: c.name, model: c.model, brand: c.brand, drawing_url: drawingUrl, drawing_status: firstDefined([c.drawingStatus, c.drawing_status, master && master.drawing_status], '') });
         var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
         var normalizedImage = normalizeImageUrl(firstDefined([selectedImg, masterImg], ''));
         return {
@@ -6354,7 +6561,11 @@ if (dashboardPage) {
           stock: asNum(c.stock),
           min: asNum(c.min),
           image: normalizedImage,
-          hasImage: !!normalizedImage
+          hasImage: !!normalizedImage,
+          drawingUrl: drawingUrl,
+          drawingFileName: firstDefined([c.drawingFileName, c.drawing_file_name, master && master.drawing_file_name], ''),
+          drawingRevision: firstDefined([c.drawingRevision, c.drawing_revision, master && master.drawing_revision], ''),
+          drawingStatus: drawingStatus
         };
       });
 
@@ -6382,13 +6593,13 @@ if (dashboardPage) {
       }).slice(0,8);
 
       function detailTableRows(items, includeLine) {
-        if (!items.length) return '<tr><td colspan="'+(includeLine?9:8)+'" class="empty">No items</td></tr>';
+        if (!items.length) return '<tr><td colspan="'+(includeLine?10:9)+'" class="empty">No items</td></tr>';
         return items.map(function(c, i){
           var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
           var cols = ['<td>'+ (i+1) +'</td>','<td>'+esc(c.category)+'</td>','<td>'+itemModel+'</td>'];
           if (includeLine) cols.push('<td>'+esc(c.line)+'</td>');
           cols = cols.concat([
-            '<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.critical)+'</td>','<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>','<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>','<td>'+esc(reasonPurpose(c))+'</td>'
+            '<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.critical)+'</td>','<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>','<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>','<td>'+esc(c.drawingStatus || 'N/A')+'</td>','<td>'+esc(reasonPurpose(c))+'</td>'
           ]);
           return '<tr>'+cols.join('')+'</tr>';
         }).join('');
@@ -6396,11 +6607,11 @@ if (dashboardPage) {
       function detailColgroup(includeLine) {
         if (includeLine) {
           return '<colgroup>' +
-            '<col style="width:6%"><col style="width:10%"><col style="width:28%"><col style="width:6%"><col style="width:5%"><col style="width:9%"><col style="width:10%"><col style="width:11%"><col style="width:15%">' +
+            '<col style="width:5%"><col style="width:9%"><col style="width:25%"><col style="width:6%"><col style="width:5%"><col style="width:9%"><col style="width:9%"><col style="width:10%"><col style="width:9%"><col style="width:13%">' +
           '</colgroup>';
         }
         return '<colgroup>' +
-          '<col style="width:6%"><col style="width:11%"><col style="width:36%"><col style="width:6%"><col style="width:10%"><col style="width:10%"><col style="width:11%"><col style="width:10%">' +
+          '<col style="width:6%"><col style="width:10%"><col style="width:31%"><col style="width:6%"><col style="width:10%"><col style="width:9%"><col style="width:10%"><col style="width:8%"><col style="width:10%">' +
         '</colgroup>';
       }
       function annexRows(items, includeLine) {
@@ -6454,9 +6665,9 @@ if (dashboardPage) {
 
       var includeLineColumn = !isLineSpecific;
       var detailHead = includeLineColumn
-        ? '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>'
-        : '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>';
-      var detailHeadGrouped = '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>';
+        ? '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Drawing</th><th>Reason</th></tr>'
+        : '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Drawing</th><th>Reason</th></tr>';
+      var detailHeadGrouped = '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Drawing</th><th>Reason</th></tr>';
 
       var annexCandidates = normalized.filter(function(c){
         var lv=String(c.critical||'').toLowerCase();
@@ -6471,6 +6682,15 @@ if (dashboardPage) {
       });
       var annexItems = annexLimit > 0 ? annexCandidates.slice(0, annexLimit) : annexCandidates;
 
+
+      function annexDrawingRows(items) {
+        if (!items.length) return '<tr><td colspan="9" class="empty">No drawing references</td></tr>';
+        return items.map(function(c, i) {
+          var link = c.drawingUrl ? '<a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a>' : '-';
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.drawingStatus || 'N/A')+'</td><td>'+esc(c.drawingRevision || '-')+'</td><td>'+link+'</td></tr>';
+        }).join('');
+      }
+
       var reportLineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
       var activeLines = reportLineOrder.filter(function(ln){ return normalized.some(function(c){ return String(c.line||'') === ln; }); });
       if (!activeLines.length) activeLines = lines.slice();
@@ -6478,7 +6698,7 @@ if (dashboardPage) {
         if (!items.length) return '';
         return items.map(function(c, i){
           var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
-          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+itemModel+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td><td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td><td>'+esc(reasonPurpose(c))+'</td></tr>';
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+itemModel+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td><td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td><td>'+esc(c.drawingStatus || 'N/A')+'</td><td>'+esc(reasonPurpose(c))+'</td></tr>';
         }).join('');
       }
       function detectCoilReportGroup(item) {
@@ -6580,6 +6800,7 @@ if (dashboardPage) {
         ) +
         '<h2 class="section-table">' + (isLineSpecific ? '8' : '7') + '. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
         '<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table"><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (annexItems.some(function(x){ return String(x.line || '') === 'Coil Winding'; }) ? annexRowsByModelGroup(annexItems, true) : annexRows(annexItems, true)) + '</tbody></table>' +
+        '<h2 class="section-table">' + (isLineSpecific ? '10' : '9') + '. Annex D: Drawing Reference List</h2><table class="annex-table"><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Drawing Status</th><th>Drawing Rev.</th><th>Drawing Link</th></tr></thead><tbody>' + annexDrawingRows(normalized) + '</tbody></table>' +
         '<p class="footer">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
