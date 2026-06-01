@@ -6729,9 +6729,9 @@ if (dashboardPage) {
         return 'Missing';
       }
       function normalizePrDrawingStatus(item, drawingUrl) {
-        var normalizedStatus = normalizeDrawingStatus({ drawing_status: item && (item.drawingStatus || item.drawing_status), drawing_url: drawingUrl, category: item && item.category, name: item && item.name, model: item && item.model, brand: item && item.brand });
-        if (!String(drawingUrl || '').trim() && normalizedStatus !== 'Not Required') return 'Missing';
-        return normalizedStatus;
+        if (String(drawingUrl || '').trim()) return 'Available';
+        var normalizedStatus = normalizeDrawingStatus({ drawing_status: item && (item.drawingStatus || item.drawing_status), drawing_url: '', category: item && item.category, name: item && item.name, model: item && item.model, brand: item && item.brand });
+        return normalizedStatus === 'Not Required' ? 'Not Required' : 'Missing';
       }
       function getDrawingFileExt(item) {
         var raw = String((item && (item.drawingFileName || item.drawingUrl)) || '').toLowerCase();
@@ -6796,10 +6796,10 @@ if (dashboardPage) {
           if (weak && canonicalLineName(weak.line || weak.mainLine || '-') === itemLine) master = weak;
         }
         var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.photoUrl, master.picture, master.driveUrl, master.imageLink, master.image_main_file_id], '') : '';
-        var selectedDrawingUrl = firstDefined([c.drawingUrl, c.drawing_url], '');
-        var strictMasterDrawingUrl = master ? firstDefined([master.drawing_url, master.drawingUrl], '') : '';
-        var drawingUrl = firstDefined([selectedDrawingUrl, strictMasterDrawingUrl], '');
-        var drawingStatus = normalizePrDrawingStatus({ category: c.category, name: c.name, model: c.model, brand: c.brand, drawingStatus: firstDefined([c.drawingStatus, c.drawing_status, master && master.drawing_status], '') }, drawingUrl);
+        // PR drawing references must come from this selected item row only.
+        // Never borrow/fallback to master/other rows, because that can attach another item's drawing.
+        var drawingUrl = String(firstDefined([c.drawingUrl, c.drawing_url], '') || '').trim();
+        var drawingStatus = normalizePrDrawingStatus({ category: c.category, name: c.name, model: c.model, brand: c.brand, drawingStatus: firstDefined([c.drawingStatus, c.drawing_status], '') }, drawingUrl);
         var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
         var normalizedImage = normalizeImageUrl(firstDefined([selectedImg, masterImg], ''));
         return {
@@ -6823,8 +6823,8 @@ if (dashboardPage) {
           image: normalizedImage,
           hasImage: !!normalizedImage,
           drawingUrl: drawingUrl,
-          drawingFileName: firstDefined([c.drawingFileName, c.drawing_file_name, (drawingUrl && drawingUrl === strictMasterDrawingUrl) ? (master && master.drawing_file_name) : ''], ''),
-          drawingRevision: firstDefined([c.drawingRevision, c.drawing_revision, (drawingUrl && drawingUrl === strictMasterDrawingUrl) ? (master && master.drawing_revision) : ''], ''),
+          drawingFileName: drawingUrl ? firstDefined([c.drawingFileName, c.drawing_file_name], '') : '',
+          drawingRevision: drawingUrl ? firstDefined([c.drawingRevision, c.drawing_revision], '') : '',
           drawingStatus: drawingStatus,
           drawingCompactStatus: compactDrawingStatus(drawingStatus)
         };
