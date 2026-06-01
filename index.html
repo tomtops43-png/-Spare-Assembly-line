@@ -7147,7 +7147,7 @@ if (dashboardPage) {
     });
     bindFilePreview('eImageMainFile', 'eImageMainPreview');
     sheetSelector.addEventListener('change', function() {
-      loadPartsData();
+      loadPartsData({ skipCache: true });
       if (!logPage.classList.contains('hidden')) loadLogData();
     });
     var roReasonPreset = document.getElementById('roReasonPreset');
