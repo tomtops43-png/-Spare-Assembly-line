@@ -576,6 +576,23 @@
           <p class="text-xs text-slate-500 mb-1">Preview Main</p>
           <img id="mImageMainPreview" src="images/no-image.svg" alt="preview main" class="h-20 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
         </div>
+        <section class="md:col-span-6 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div><p class="text-sm font-bold text-blue-900">Drawing Attachment</p><p id="mDrawingHint" class="text-[11px] text-blue-700">Upload PDF, DWG, DXF, JPG, PNG, STEP or STP for custom-made parts.</p></div>
+            <a id="mDrawingView" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700">View Drawing</a>
+          </div>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
+            <input id="mDrawingFile" type="file" accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.step,.stp,application/pdf,image/jpeg,image/png" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5" />
+            <input id="mDrawingRevision" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing Revision" />
+            <select id="mDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Missing">Missing</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Access Required">Access Required</option></select>
+            <input id="mDrawingFileName" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5" placeholder="Drawing File Name" readonly />
+          </div>
+          <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
+            <input id="mDatasheetUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Datasheet URL" />
+            <input id="mQuotationUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Quotation URL" />
+            <input id="mDrawingUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing URL (auto after upload or paste link)" />
+          </div>
+        </section>
         <input id="mMax" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Max" />
         <input id="mMin" type="number" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Min" />
         <input id="mUnit" type="text" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Unit" />
@@ -701,7 +718,12 @@
         <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
           <p class="font-semibold">3) Report Preview</p>
           <div class="flex gap-2 items-center flex-wrap">
-            <select id="prAnnexMode" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="important">Annex C: Important only</option><option value="all" selected>Annex C: All selected items</option></select><select id="prAnnexLimit" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="24">Limit: 24</option><option value="100">Limit: 100</option><option value="0" selected>Limit: Unlimited</option></select><button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
+            <select id="prAnnexMode" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="important">Annex C: Important only</option><option value="all" selected>Annex C: All selected items</option></select><select id="prAnnexLimit" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="24">Limit: 24</option><option value="100">Limit: 100</option><option value="0" selected>Limit: Unlimited</option></select>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexC" type="checkbox" checked /> Include Annex C</label>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexD" type="checkbox" checked /> Include Annex D</label>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 text-xs text-blue-700" title="Open PDF/JPG/PNG drawings directly inside the PR report; CAD files remain referenced in Annex D."><input id="prPrintFullDrawings" type="checkbox" checked /> Open Drawing pages</label>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prAttachDrawingsSeparately" type="checkbox" /> Attach drawings separately</label>
+            <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
             <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export PDF</button><button id="prExportCsvBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export CSV</button>
           </div>
         </div>
@@ -940,6 +962,23 @@
                 <div class="md:col-span-3">
           <img id="eImageMainPreview" src="images/no-image.svg" alt="edit main preview" class="h-24 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
         </div>
+        <section class="md:col-span-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div><p class="text-sm font-bold text-blue-900">Drawing</p><p id="eDrawingHint" class="text-[11px] text-blue-700">Upload / View / Remove / Replace drawing attachment.</p></div>
+            <div class="flex flex-wrap gap-2"><a id="eDrawingView" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700">View Drawing</a><button id="eDrawingRemove" type="button" class="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700">Remove Drawing</button></div>
+          </div>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
+            <input id="eDrawingFile" type="file" accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.step,.stp,application/pdf,image/jpeg,image/png" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5" />
+            <input id="eDrawingRevision" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing Revision" />
+            <select id="eDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Missing">Missing</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Access Required">Access Required</option></select>
+            <input id="eDrawingFileName" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5" placeholder="Drawing File Name" readonly />
+          </div>
+          <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
+            <input id="eDatasheetUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Datasheet URL" />
+            <input id="eQuotationUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Quotation URL" />
+            <input id="eDrawingUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing URL" />
+          </div>
+        </section>
         <div><label class="text-xs text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
         <div><label class="text-xs text-slate-500">Unit</label><input id="eUnit" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
@@ -977,6 +1016,12 @@
         </div>
         <p id="detailMeta" class="mt-1 text-xs text-slate-500"></p>
         <button id="detailAddToCartBtn" type="button" class="mt-3 h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">🛒 Add to issue cart</button>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <a id="detailViewPhoto" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">View Photo</a>
+          <a id="detailViewDrawing" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">View Drawing</a>
+          <a id="detailViewDatasheet" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">View Datasheet</a>
+          <a id="detailViewQuotation" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">View Quotation</a>
+        </div>
         <div class="mt-3 space-y-3">
             <section>
               <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลหลัก</p>
@@ -1012,6 +1057,23 @@
                 <div id="detailFieldSupplier" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Supplier</p><p id="detailSupplier" class="font-semibold text-base">-</p></div>
                 <div id="detailFieldPriceUpdatedAt" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Price Updated At</p><p id="detailPriceUpdatedAt" class="font-semibold text-base">-</p></div>
                 <div id="detailFieldPriceRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Price Remark</p><p id="detailPriceRemark" class="font-semibold text-base">-</p></div>
+              </div>
+            </section>
+            <section id="detailDrawingSection" class="rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p class="text-[11px] uppercase tracking-wide text-blue-700 font-semibold">Drawing / Attachments</p>
+                <span id="detailDrawingRequirement" class="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-blue-700"></span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing Status</p><p id="detailDrawingStatus" class="font-semibold text-base">-</p></div>
+                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing Rev.</p><p id="detailDrawingRevision" class="font-semibold text-base">-</p></div>
+                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing File Name</p><p id="detailDrawingFileName" class="font-semibold text-base break-all">-</p></div>
+              </div>
+              <p id="detailDrawingMessage" class="mt-2 rounded-lg bg-white/80 px-3 py-2 text-sm text-slate-600">-</p>
+              <div id="detailDrawingActions" class="mt-2 flex flex-wrap gap-2"></div>
+              <div class="mt-3">
+                <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Attachment Files</p>
+                <div id="detailAttachmentList" class="space-y-2"></div>
               </div>
             </section>
             <section>
@@ -1186,6 +1248,7 @@
       'Coil Winding': ['Coil Winding'],
       'Lug&Screw': ['Lug&Screw']
     };
+    var LINE_CACHE_VERSION = 'source-sheet-filter-v2';
 
     var desktopCardGrid = document.getElementById('desktopCardGrid');
     var paginationControls = document.getElementById('paginationControls');
@@ -1258,6 +1321,10 @@
     var prCandidateList = document.getElementById('prCandidateList');
     var prReportPreview = document.getElementById('prReportPreview');
     var prAnnexMode = document.getElementById('prAnnexMode');
+    var prIncludeAnnexC = document.getElementById('prIncludeAnnexC');
+    var prIncludeAnnexD = document.getElementById('prIncludeAnnexD');
+    var prPrintFullDrawings = document.getElementById('prPrintFullDrawings');
+    var prAttachDrawingsSeparately = document.getElementById('prAttachDrawingsSeparately');
     var prAnnexLimit = document.getElementById('prAnnexLimit');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
     var uploadQueuePanel = document.getElementById('uploadQueuePanel');
@@ -1268,6 +1335,9 @@
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
     var partsData = [];
+    var stockSheetMemoryCache = {};
+    var backgroundSheetPrefetching = {};
+    var loadedStockSheetKey = '';
     var partMap = {};
     var currentTxnItemNo = '';
     var currentPage = 1;
@@ -1667,6 +1737,12 @@
         supplier: firstDefined([item.supplier], ''),
         price_updated_at: firstDefined([item.price_updated_at], ''),
         price_remark: firstDefined([item.price_remark], ''),
+        drawing_url: firstDefined([item.drawing_url, item.drawingUrl, item.drawingURL, item['Drawing URL']], ''),
+        drawing_file_name: firstDefined([item.drawing_file_name, item.drawingFileName, item['Drawing File Name']], ''),
+        drawing_revision: firstDefined([item.drawing_revision, item.drawing_rev, item.drawingRevision, item.drawingRev, item['Drawing Revision'], item['Drawing Rev.']], ''),
+        drawing_status: firstDefined([item.drawing_status, item.drawingStatus, item['Drawing Status']], ''),
+        datasheet_url: firstDefined([item.datasheet_url, item.datasheetUrl, item['Datasheet URL']], ''),
+        quotation_url: firstDefined([item.quotation_url, item.quotationUrl, item['Quotation URL']], ''),
         coil_size: firstDefined([item.coil_size, item.machine_model, item.model_size, item.size, item.type], '-')
       };
     }
@@ -1734,26 +1810,51 @@
       if (Array.isArray(options) && options.length) return options.slice();
       return ['Main List Stock', 'Stock for MC'];
     }
-    function getLineCacheKey(lineKey) {
-      return 'spare_parts_cache::' + String(lineKey || currentLine || 'H9');
+    function getItemSourceSheet(item) {
+      return String((item && (item.subLine || item.__sourceSheet || item.sourceSheet)) || '').trim();
     }
-    function loadLineCache(lineKey) {
+    function getLineCacheKey(lineKey, sheetName) {
+      return 'spare_parts_cache::' + String(lineKey || currentLine || 'H9') + '::' + String(sheetName || getCurrentSheetName() || 'default');
+    }
+    function loadLineCache(lineKey, sheetName) {
+      var memoryKey = getLineCacheKey(lineKey, sheetName);
+      if (stockSheetMemoryCache[memoryKey] && Array.isArray(stockSheetMemoryCache[memoryKey].items)) return stockSheetMemoryCache[memoryKey];
       try {
-        var raw = localStorage.getItem(getLineCacheKey(lineKey));
-        if (!raw) return null;
-        var parsed = JSON.parse(raw);
-        if (!parsed || !Array.isArray(parsed.items)) return null;
-        return parsed;
+        var raw = localStorage.getItem(memoryKey);
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.items) && parsed.version === LINE_CACHE_VERSION) {
+            stockSheetMemoryCache[memoryKey] = parsed;
+            return parsed;
+          }
+        }
+
+        // Backward compatibility: reuse older line-level cache if it already has source-sheet metadata.
+        var legacyRaw = localStorage.getItem('spare_parts_cache::' + String(lineKey || currentLine || 'H9'));
+        if (!legacyRaw) return null;
+        var legacy = JSON.parse(legacyRaw);
+        if (!legacy || !Array.isArray(legacy.items)) return null;
+        var selected = String(sheetName || getCurrentSheetName() || '').trim();
+        var filtered = legacy.items.filter(function(item) { return getItemSourceSheet(item) === selected; });
+        if (!filtered.length) return null;
+        var migrated = { version: LINE_CACHE_VERSION, updatedAt: legacy.updatedAt || Date.now(), items: filtered };
+        stockSheetMemoryCache[memoryKey] = migrated;
+        saveLineCache(lineKey, filtered, sheetName);
+        return migrated;
       } catch (err) {
         return null;
       }
     }
-    function saveLineCache(lineKey, items) {
+    function saveLineCache(lineKey, items, sheetName) {
       try {
-        localStorage.setItem(getLineCacheKey(lineKey), JSON.stringify({
+        var cacheKey = getLineCacheKey(lineKey, sheetName);
+        var payload = {
+          version: LINE_CACHE_VERSION,
           updatedAt: Date.now(),
           items: items || []
-        }));
+        };
+        stockSheetMemoryCache[cacheKey] = payload;
+        localStorage.setItem(cacheKey, JSON.stringify(payload));
       } catch (err) {
         console.warn('saveLineCache failed', err);
       }
@@ -2258,6 +2359,118 @@ function getIssueCartEntries() {
       }
     }
 
+    function validateDrawingFile(file) {
+      if (!file) return;
+      var name = String(file.name || '').toLowerCase();
+      var ext = (name.match(/\.([a-z0-9]+)$/) || [])[1] || '';
+      var allowedExt = ['pdf','dwg','dxf','jpg','jpeg','png','step','stp'];
+      if (allowedExt.indexOf(ext) === -1) throw new Error('รองรับเฉพาะ PDF, DWG, DXF, JPG, PNG, STEP, STP');
+      if (Number(file.size || 0) > 25 * 1024 * 1024) throw new Error('ขนาด Drawing ต้องไม่เกิน 25MB');
+    }
+
+    function isStandardPartExempt(item) {
+      var txt = [item && item.category, item && item.name, item && item.model].join(' ').toLowerCase();
+      return /(sensor|relay|solenoid\s*valve|standard\s*air\s*cylinder|air\s*cylinder|cable|lamp|fuse)/.test(txt);
+    }
+
+    function isDrawingRecommended(item) {
+      if (isStandardPartExempt(item)) return false;
+      var txt = [item && item.category, item && item.name, item && item.model, item && item.brand].join(' ').toLowerCase();
+      var custom = /(custom|custom-made|made\s*to\s*order|tooling|tool|jig|fixture|punch|blade|pin|plate|die\s*block|dieblock|coil\s*winding)/.test(txt);
+      var unknownBrandModel = !String((item && item.brand) || '').trim() || !String((item && item.model) || '').trim() || /^(-|n\/a|na|unknown)$/i.test(String((item && item.brand) || '').trim()) || /^(-|n\/a|na|unknown)$/i.test(String((item && item.model) || '').trim());
+      return custom || unknownBrandModel;
+    }
+
+    function normalizeDrawingStatus(item) {
+      var rawStatus = String((item && (item.drawing_status || item.drawingStatus)) || '').trim();
+      var normalized = rawStatus.toLowerCase();
+      if (normalized === 'available') return 'Available';
+      if (normalized === 'not required' || normalized === 'n/a' || normalized === 'na') return 'Not Required';
+      if (normalized === 'access required' || normalized === 'pending update' || normalized === 'pending') return 'Access Required';
+      if (normalized === 'missing' || normalized === 'not available') return 'Missing';
+      if (item && (item.drawing_url || item.drawingUrl)) return 'Available';
+      if (isStandardPartExempt(item)) return 'Not Required';
+      return isDrawingRecommended(item) ? 'Missing' : 'Not Required';
+    }
+    function getAttachmentTypeFromNameOrUrl(fileName, url) {
+      var raw = String(fileName || url || '').toLowerCase().split('?')[0].split('#')[0];
+      var ext = (raw.match(/\.([a-z0-9]+)$/) || [])[1] || '';
+      if (ext === 'jpeg') ext = 'jpg';
+      return ext ? ext.toUpperCase() : 'LINK';
+    }
+
+    function isPreviewableAttachment(fileName, url) {
+      var type = getAttachmentTypeFromNameOrUrl(fileName, url).toLowerCase();
+      return ['pdf', 'jpg', 'png'].indexOf(type) > -1;
+    }
+
+    function toDriveDownloadUrl(url) {
+      var raw = String(url || '').trim();
+      if (!raw) return '';
+      var m = raw.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
+      return m && m[1] ? ('https://drive.google.com/uc?export=download&id=' + m[1]) : raw;
+    }
+
+    function getDrawingStatusMessage(status) {
+      var normalized = String(status || '').trim().toLowerCase();
+      if (normalized === 'available') return 'Drawing available';
+      if (normalized === 'not required') return 'Drawing not required';
+      if (normalized === 'access required') return 'Drawing access required';
+      return 'No drawing available';
+    }
+
+    function getPartAttachments(item) {
+      var attachments = [];
+      function add(type, url, fileName, status) {
+        var cleanUrl = String(url || '').trim();
+        if (!cleanUrl) return;
+        attachments.push({
+          type: type,
+          url: cleanUrl,
+          fileName: String(fileName || '').trim() || (type + ' file'),
+          status: status || '',
+          fileType: getAttachmentTypeFromNameOrUrl(fileName, cleanUrl),
+          previewable: isPreviewableAttachment(fileName, cleanUrl),
+          downloadUrl: toDriveDownloadUrl(cleanUrl)
+        });
+      }
+      function splitLinks(value) {
+        if (Array.isArray(value)) return value;
+        var raw = String(value || '').trim();
+        if (!raw) return [];
+        if (raw.charAt(0) === '[') {
+          try { var parsed = JSON.parse(raw); if (Array.isArray(parsed)) return parsed; } catch (err) {}
+        }
+        return raw.split(/\s*[;,]\s*/).filter(Boolean);
+      }
+      function addMany(type, urls, names, status) {
+        var urlList = splitLinks(urls);
+        var nameList = splitLinks(names);
+        urlList.forEach(function(url, idx) {
+          if (url && typeof url === 'object') add(type === 'Drawing' ? 'Drawing' : (url.type || type), url.url || url.link || url.href, url.fileName || url.name, url.status || status);
+          else add(type, url, nameList[idx] || '', status);
+        });
+      }
+      // Do not add Photo here. Photo is shown by the image panel / View Photo button only.
+      // Drawing actions must use Drawing URL only and must never fall back to photo/image_main URLs.
+      add('Drawing', item && (item.drawing_url || item.drawingUrl), item && (item.drawing_file_name || item.drawingFileName), normalizeDrawingStatus(item));
+      addMany('Drawing', item && (item.drawing_urls || item.drawingUrls || item.drawing_links || item.drawingLinks || item.drawing_attachments_json), item && (item.drawing_file_names || item.drawingFileNames || item.drawing_names), normalizeDrawingStatus(item));
+      add('Datasheet', item && item.datasheet_url, item && (item.datasheet_file_name || 'Datasheet'), 'Available');
+      addMany('Datasheet', item && item.datasheet_urls, item && item.datasheet_file_names, 'Available');
+      add('Quotation', item && item.quotation_url, item && (item.quotation_file_name || 'Quotation'), 'Available');
+      addMany('Quotation', item && item.quotation_urls, item && item.quotation_file_names, 'Available');
+      add('Other Attachment', item && (item.attachment_url || item.other_attachment_url), item && (item.attachment_file_name || item.other_attachment_file_name || 'Attachment'), 'Available');
+      addMany('Other Attachment', item && (item.attachment_urls || item.other_attachment_urls), item && (item.attachment_file_names || item.other_attachment_file_names), 'Available');
+      return attachments.filter(function(att, idx, arr) {
+        return arr.findIndex(function(x) { return x.type === att.type && x.url === att.url; }) === idx;
+      });
+    }
+
+    function renderAttachmentActionButton(label, url, extraClass, attrs) {
+      if (!url) return '';
+      return '<a href="' + url + '" ' + (attrs || '') + ' class="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold ' + (extraClass || 'border-slate-300 bg-white text-slate-700') + '">' + label + '</a>';
+    }
+
     function readFileAsDataUrl(file) {
       return new Promise(function(resolve, reject) {
         var reader = new FileReader();
@@ -2337,6 +2550,51 @@ function getIssueCartEntries() {
         console.error('[uploadImage] error', err);
         throw new Error(mapUploadErrorMessage(err));
       });
+    }
+
+    function uploadDrawingFile(file, itemId, itemName, meta) {
+      if (!file) return Promise.resolve(null);
+      meta = meta || {};
+      validateDrawingFile(file);
+      return readFileAsDataUrl(file).then(function(dataUrl) {
+        var payload = new URLSearchParams();
+        payload.append('action', 'uploadDrawing');
+        payload.append('kind', 'drawing');
+        payload.append('itemId', itemId);
+        payload.append('itemName', itemName || '');
+        payload.append('line', meta.line || '');
+        payload.append('model', meta.model || meta.partNo || '');
+        payload.append('partNo', meta.partNo || meta.model || '');
+        payload.append('revision', meta.revision || '');
+        payload.append('fileName', file.name || ('drawing-' + Date.now()));
+        payload.append('mimeType', file.type || 'application/octet-stream');
+        payload.append('dataUrl', dataUrl);
+        if (authToken) payload.append('authToken', authToken);
+        return fetch(getWriteApiUrl(), { method: 'POST', body: payload }).then(function(res) {
+          return res.text().then(function(text) {
+            var parsed = null;
+            try { parsed = text ? JSON.parse(text) : null; } catch (err) {}
+            if (!res.ok) throw new Error((parsed && parsed.message) || ('HTTP ' + res.status));
+            return parsed || { ok: false, message: 'invalid response' };
+          });
+        });
+      }).then(function(res) {
+        if (!res || (res.ok !== true && res.status !== 'success')) {
+          throw new Error((res && (res.message || res.detail)) || 'อัปโหลด Drawing ไม่สำเร็จ');
+        }
+        return res;
+      }).catch(function(err) {
+        throw new Error(mapUploadErrorMessage(err));
+      });
+    }
+
+    function setAttachmentLink(id, url) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var href = String(url || '').trim();
+      el.classList.toggle('hidden', !href);
+      if (href) el.href = href;
+      else el.removeAttribute('href');
     }
 
     function uploadRequestAttachmentData(dataUrl, fileName, mimeType) {
@@ -3266,7 +3524,13 @@ function getIssueCartEntries() {
         currency: payload.currency || 'THB',
         supplier: payload.supplier || '',
         price_updated_at: payload.price_updated_at || '',
-        price_remark: payload.price_remark || ''
+        price_remark: payload.price_remark || '',
+        drawing_url: payload.drawing_url || '',
+        drawing_file_name: payload.drawing_file_name || '',
+        drawing_revision: payload.drawing_revision || '',
+        drawing_status: payload.drawing_status || '',
+        datasheet_url: payload.datasheet_url || '',
+        quotation_url: payload.quotation_url || ''
       };
       requestPayload.qty = Number(payload.qty !== undefined ? payload.qty : requestPayload.stock || 0);
       if (!Number.isFinite(requestPayload.qty)) requestPayload.qty = 0;
@@ -3297,6 +3561,12 @@ function getIssueCartEntries() {
         'supplier=' + encodeURIComponent(requestPayload.supplier),
         'price_updated_at=' + encodeURIComponent(requestPayload.price_updated_at),
         'price_remark=' + encodeURIComponent(requestPayload.price_remark),
+        'drawing_url=' + encodeURIComponent(requestPayload.drawing_url),
+        'drawing_file_name=' + encodeURIComponent(requestPayload.drawing_file_name),
+        'drawing_revision=' + encodeURIComponent(requestPayload.drawing_revision),
+        'drawing_status=' + encodeURIComponent(requestPayload.drawing_status),
+        'datasheet_url=' + encodeURIComponent(requestPayload.datasheet_url),
+        'quotation_url=' + encodeURIComponent(requestPayload.quotation_url),
         'qty=' + encodeURIComponent(String(requestPayload.qty)),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
@@ -4201,7 +4471,7 @@ function inferRequestPriority(stock, min) {
         if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '' };
+        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
       }).filter(Boolean);
       renderPrCandidates();
       }).catch(function(err) {
@@ -4275,44 +4545,88 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    function fetchSheetRows(sheetName) {
+      return loadJsonpWithFallback(function(base){
+        var query = '?sheet=' + encodeURIComponent(sheetName);
+        return base + appendAuthToQuery(query);
+      }).catch(function() {
+        return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)));
+      }).then(function(rawData) {
+        if (rawData && rawData.status === 'error') {
+          var msg = rawData.message || 'API ตอบกลับ error';
+          if (msg.indexOf('เข้าสู่ระบบ') > -1 || msg.indexOf('session') > -1) logout();
+          throw new Error(msg);
+        }
+        if (!Array.isArray(rawData)) return [];
+        return rawData.map(function(item) {
+          item.__sourceSheet = sheetName;
+          return item;
+        });
+      });
+    }
+
+    function prefetchLineSheetsInBackground(lineKey, selectedSheet) {
+      var sheets = getSheetOptionsForLine(lineKey).filter(function(sheetName) {
+        return sheetName !== selectedSheet && !loadLineCache(lineKey, sheetName);
+      });
+      if (!sheets.length) return;
+      var prefetchKey = String(lineKey || '') + '::' + sheets.join('|');
+      if (backgroundSheetPrefetching[prefetchKey]) return;
+      backgroundSheetPrefetching[prefetchKey] = true;
+      setTimeout(function() {
+        var chain = Promise.resolve();
+        sheets.forEach(function(sheetName) {
+          chain = chain.then(function() {
+            return fetchSheetRows(sheetName).then(function(rows) {
+              return normalizeRecordsInBatches(rows);
+            }).then(function(normalized) {
+              saveLineCache(lineKey, normalized, sheetName);
+            }).catch(function(err) {
+              console.warn('prefetch sheet failed', sheetName, err);
+            });
+          });
+        });
+        chain.finally(function() { delete backgroundSheetPrefetching[prefetchKey]; });
+      }, 250);
+    }
+
     function loadPartsData(options) {
       var opts = options || {};
       var skipCache = !!opts.skipCache;
       var requestSeq = ++partsLoadRequestSeq;
-      var hasAppliedCache = false;
+      var lineSheets = getSheetOptionsForLine(currentLine);
+      var selectedSheetForLoad = getCurrentSheetName();
+      if (loadedStockSheetKey && partsData.length) saveLineCache(currentLine, partsData, loadedStockSheetKey);
+      var activeSheets = (selectedSheetForLoad && lineSheets.indexOf(selectedSheetForLoad) > -1)
+        ? [selectedSheetForLoad]
+        : (lineSheets.length ? [lineSheets[0]] : []);
+      var totalSheets = activeSheets.length;
+      var cachePayload = skipCache ? null : loadLineCache(currentLine, selectedSheetForLoad);
+      if (cachePayload && cachePayload.items && cachePayload.items.length) {
+        applyLoadedPartsData(cachePayload.items);
+        loadedStockSheetKey = selectedSheetForLoad;
+        setTimeout(function() {
+          fetchSheetRows(selectedSheetForLoad).then(function(rows) {
+            return normalizeRecordsInBatches(rows);
+          }).then(function(normalizedData) {
+            saveLineCache(currentLine, normalizedData, selectedSheetForLoad);
+            if (requestSeq === partsLoadRequestSeq && getCurrentSheetName() === selectedSheetForLoad) {
+              applyLoadedPartsData(normalizedData);
+              loadedStockSheetKey = selectedSheetForLoad;
+            }
+            prefetchLineSheetsInBackground(currentLine, selectedSheetForLoad);
+          }).catch(function(err) {
+            console.warn('background refresh failed', selectedSheetForLoad, err);
+          });
+        }, 50);
+        return;
+      }
       desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Loading data...</div>';
       mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">Loading data...</div>';
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
-      var cachePayload = skipCache ? null : loadLineCache(currentLine);
-      if (cachePayload && cachePayload.items && cachePayload.items.length) {
-        hasAppliedCache = true;
-        desktopCardGrid.innerHTML = '<div class="col-span-full py-2 text-center text-slate-400 text-xs">โหลดจาก cache... กำลัง sync ข้อมูลล่าสุด</div>';
-        mobileCardList.innerHTML = '<div class="py-2 text-center text-slate-400 text-xs">โหลดจาก cache... กำลัง sync ข้อมูลล่าสุด</div>';
-        applyLoadedPartsData(cachePayload.items);
-      }
-
-      var activeSheets = getSheetOptionsForLine(currentLine);
-      var totalSheets = activeSheets.length;
+      var hasAppliedCache = false;
       Promise.all(activeSheets.map(function(sheetName, idx) {
-        return loadJsonpWithFallback(function(base){
-          var query = '?sheet=' + encodeURIComponent(sheetName);
-          return base + appendAuthToQuery(query);
-        }).catch(function() {
-          return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)));
-        }).then(function(rawData) {
-          if (rawData && rawData.status === 'error') {
-            var msg = rawData.message || 'API ตอบกลับ error';
-            if (msg.indexOf('เข้าสู่ระบบ') > -1 || msg.indexOf('session') > -1) {
-              logout();
-            }
-            throw new Error(msg);
-          }
-          if (!Array.isArray(rawData)) return [];
-          return rawData.map(function(item) {
-            item.__sourceSheet = sheetName;
-            return item;
-          });
-        }).finally(function() {
+        return fetchSheetRows(sheetName).finally(function() {
           if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
           desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
           mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
@@ -4328,7 +4642,9 @@ function inferRequestPriority(stock, min) {
         }).then(function(normalizedData) {
           if (requestSeq !== partsLoadRequestSeq) return;
           applyLoadedPartsData(normalizedData);
-          saveLineCache(currentLine, normalizedData);
+          loadedStockSheetKey = selectedSheetForLoad;
+          saveLineCache(currentLine, normalizedData, selectedSheetForLoad);
+          prefetchLineSheetsInBackground(currentLine, selectedSheetForLoad);
         })
         .catch(function(err) {
           if (requestSeq !== partsLoadRequestSeq) return;
@@ -4387,7 +4703,7 @@ function inferRequestPriority(stock, min) {
           }
         });
         if (changed) {
-          saveLineCache(currentLine, partsData);
+          saveLineCache(currentLine, partsData, getCurrentSheetName());
           applyLoadedPartsData(partsData.slice());
         }
         return changed;
@@ -5056,6 +5372,16 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eSupplier').value = item.supplier || '';
       document.getElementById('ePriceUpdatedAt').value = item.price_updated_at || '';
       document.getElementById('ePriceRemark').value = item.price_remark || '';
+      document.getElementById('eDrawingFile').value = '';
+      document.getElementById('eDrawingUrl').value = item.drawing_url || '';
+      document.getElementById('eDrawingFileName').value = item.drawing_file_name || '';
+      document.getElementById('eDrawingRevision').value = item.drawing_revision || '';
+      document.getElementById('eDrawingStatus').value = normalizeDrawingStatus(item);
+      document.getElementById('eDatasheetUrl').value = item.datasheet_url || '';
+      document.getElementById('eQuotationUrl').value = item.quotation_url || '';
+      setAttachmentLink('eDrawingView', item.drawing_url || '');
+      var eHint = document.getElementById('eDrawingHint');
+      if (eHint) eHint.textContent = isDrawingRecommended(item) ? 'Drawing is strongly recommended for this custom/unknown item.' : 'Drawing optional for standard spare parts.';
       editMessage.textContent = '';
       editModalSubtitle.textContent = 'ชีต: ' + getCurrentSheetName() + ' | NO: ' + (item.no || '-');
       editModal.classList.remove('hidden');
@@ -5088,6 +5414,7 @@ function inferRequestPriority(stock, min) {
         return String(p.no) === String(itemNo) && String(p.__sourceSheet || p.subLine || getCurrentSheetName()) === String(editSheetName);
       })[0] || partsData.filter(function(p){ return String(p.no) === String(itemNo); })[0] || {};
       var mainFile = document.getElementById('eImageMainFile').files[0];
+      var drawingFile = document.getElementById('eDrawingFile').files[0];
       var payload = {
         sheet: editSheetName,
         no: itemNo,
@@ -5113,6 +5440,12 @@ function inferRequestPriority(stock, min) {
         supplier: document.getElementById('eSupplier').value.trim(),
         price_updated_at: document.getElementById('ePriceUpdatedAt').value.trim(),
         price_remark: document.getElementById('ePriceRemark').value.trim(),
+        drawing_url: document.getElementById('eDrawingUrl').value.trim(),
+        drawing_file_name: document.getElementById('eDrawingFileName').value.trim(),
+        drawing_revision: document.getElementById('eDrawingRevision').value.trim(),
+        drawing_status: document.getElementById('eDrawingStatus').value.trim(),
+        datasheet_url: document.getElementById('eDatasheetUrl').value.trim(),
+        quotation_url: document.getElementById('eQuotationUrl').value.trim(),
         coil_size: (document.getElementById('eCoilSize') ? document.getElementById('eCoilSize').value.trim() : '')
       };
       console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
@@ -5124,7 +5457,7 @@ function inferRequestPriority(stock, min) {
         run: function(setProgress) {
           setProgress(10);
           return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()).then(function(mainRes){
-            setProgress(55);
+            setProgress(40);
             if (mainRes) {
               var normalizedMainUrl = pickMainImageUrl(mainRes);
               if (!normalizedMainUrl) throw new Error('อัปโหลดสำเร็จแต่ไม่ได้ URL รูปหลักที่ถูกต้อง');
@@ -5133,8 +5466,16 @@ function inferRequestPriority(stock, min) {
               payload.image_main_url = normalizedMainUrl;
               payload.image_main_file_id = mainRes.fileId || '';
             }
-            setProgress(80);
-            return callManageAction('upsertItem', payload);
+            return uploadDrawingFile(drawingFile, itemNo, document.getElementById('eName').value.trim(), { line: payload.line, model: payload.model, partNo: payload.no, revision: payload.drawing_revision }).then(function(drawingRes) {
+              setProgress(70);
+              if (drawingRes) {
+                payload.drawing_url = drawingRes.viewUrl || drawingRes.url || '';
+                payload.drawing_file_name = drawingRes.fileName || (drawingFile && drawingFile.name) || '';
+                payload.drawing_status = 'Available';
+              }
+              setProgress(80);
+              return callManageAction('upsertItem', payload);
+            });
           }).then(function(res){
             if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
             setProgress(100);
@@ -5311,6 +5652,7 @@ function inferRequestPriority(stock, min) {
         return;
       }
       var mainFile = document.getElementById('mImageMainFile').files[0];
+      var drawingFile = document.getElementById('mDrawingFile').files[0];
       var payload = {
         sheet: selectedManageSheet,
         no: itemNo,
@@ -5336,6 +5678,12 @@ function inferRequestPriority(stock, min) {
         supplier: document.getElementById('mSupplier').value.trim(),
         price_updated_at: document.getElementById('mPriceUpdatedAt').value.trim(),
         price_remark: document.getElementById('mPriceRemark').value.trim(),
+        drawing_url: document.getElementById('mDrawingUrl').value.trim(),
+        drawing_file_name: document.getElementById('mDrawingFileName').value.trim(),
+        drawing_revision: document.getElementById('mDrawingRevision').value.trim(),
+        drawing_status: document.getElementById('mDrawingStatus').value.trim(),
+        datasheet_url: document.getElementById('mDatasheetUrl').value.trim(),
+        quotation_url: document.getElementById('mQuotationUrl').value.trim(),
         coil_size: (function(){ var v=document.getElementById('mCoilSize').value.trim(); if (v==='Other') v=document.getElementById('mCoilSizeOther').value.trim(); return v || '-'; })()
       };
       console.log('[location][manage payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
@@ -5355,14 +5703,23 @@ function inferRequestPriority(stock, min) {
               payload.image_main_url = normalizedMainUrl;
               payload.image_main_file_id = mainRes.fileId || '';
             }
-            setProgress(80);
-            return callManageAction('upsertItem', payload);
+            return uploadDrawingFile(drawingFile, itemNo, document.getElementById('mName').value.trim(), { line: payload.line, model: payload.model, partNo: payload.no, revision: payload.drawing_revision }).then(function(drawingRes) {
+              setProgress(70);
+              if (drawingRes) {
+                payload.drawing_url = drawingRes.viewUrl || drawingRes.url || '';
+                payload.drawing_file_name = drawingRes.fileName || (drawingFile && drawingFile.name) || '';
+                payload.drawing_status = 'Available';
+              }
+              setProgress(80);
+              return callManageAction('upsertItem', payload);
+            });
           }).then(function(res) {
             if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
             if (sheetSelector && sheetSelector.value !== selectedManageSheet) sheetSelector.value = selectedManageSheet;
             if ((res.mode || '').toLowerCase() === 'create') {
               manageForm.reset();
               document.getElementById('mImageMainPreview').src = FALLBACK_IMAGE;
+              setAttachmentLink('mDrawingView', '');
               populateManageLineOptions(true);
               populateManageSheetOptions(true);
               applyAutoManageNo(true);
@@ -5526,8 +5883,10 @@ function inferRequestPriority(stock, min) {
         var stockClass = tone.textClass;
         var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
+        var drawingBadge = (normalizeDrawingStatus(item) === 'Available' && String(item.drawing_url || item.drawingUrl || '').trim()) ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
         return '<article data-row-key="' + itemKey + '" class="group relative rounded-2xl border p-3 h-[430px] flex flex-col shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-200 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative h-[150px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
+            drawingBadge +
             '<img loading="lazy" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain object-center p-1 transform scale-[1.1] transition duration-300 group-hover:scale-[1.15] ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\''+ FALLBACK_IMAGE +'\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-2xl') + '</div>' : '') +
           '</div>' +
@@ -5606,8 +5965,10 @@ function inferRequestPriority(stock, min) {
         var stockClass = tone.textClass;
                 var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
+        var drawingBadge = (normalizeDrawingStatus(item) === 'Available' && String(item.drawing_url || item.drawingUrl || '').trim()) ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
         return '<article data-view-key="' + itemKey + '" class="relative rounded-2xl border p-3 h-[380px] flex flex-col shadow-sm transition-all duration-200 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative h-[150px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
+            drawingBadge +
             '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain bg-slate-50 p-1 transform scale-[1.08] transition duration-300 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-lg') + '</div>' : '') +
           '</div>' +
@@ -5748,6 +6109,45 @@ function inferRequestPriority(stock, min) {
       document.getElementById('detailSupplier').textContent = item.supplier || '-';
       document.getElementById('detailPriceUpdatedAt').textContent = formatBangkokDateTime(item.price_updated_at);
       document.getElementById('detailPriceRemark').textContent = item.price_remark || '-';
+      var drawingStatusValue = normalizeDrawingStatus(item);
+      var drawingAttachments = getPartAttachments(item).filter(function(att){ return att.type === 'Drawing'; });
+      var firstDrawing = drawingAttachments[0] || null;
+      document.getElementById('detailDrawingStatus').textContent = drawingStatusValue || '-';
+      document.getElementById('detailDrawingRevision').textContent = item.drawing_revision || item.drawingRevision || '-';
+      document.getElementById('detailDrawingFileName').textContent = item.drawing_file_name || item.drawingFileName || ((item.drawing_url || item.drawingUrl) ? 'Drawing link' : '-');
+      var drawingMessageEl = document.getElementById('detailDrawingMessage');
+      if (drawingMessageEl) {
+        drawingMessageEl.textContent = (drawingStatusValue === 'Available' && !firstDrawing)
+          ? 'Drawing file URL not found'
+          : getDrawingStatusMessage(drawingStatusValue);
+      }
+      var requirementEl = document.getElementById('detailDrawingRequirement');
+      if (requirementEl) requirementEl.textContent = isDrawingRecommended(item) ? 'Required / Recommended' : 'Optional';
+      var drawingActionsEl = document.getElementById('detailDrawingActions');
+      if (drawingActionsEl) {
+        if (drawingStatusValue === 'Available' && firstDrawing && firstDrawing.url) {
+          drawingActionsEl.innerHTML = (firstDrawing.previewable ? renderAttachmentActionButton('View Drawing', firstDrawing.url, 'border-blue-300 bg-blue-600 text-white', 'target="_blank" rel="noopener"') : '') +
+            renderAttachmentActionButton('Download Drawing', firstDrawing.downloadUrl || firstDrawing.url, 'border-blue-300 bg-white text-blue-700', 'target="_blank" rel="noopener" download');
+        } else {
+          drawingActionsEl.innerHTML = '';
+        }
+      }
+      var attachmentListEl = document.getElementById('detailAttachmentList');
+      if (attachmentListEl) {
+        var attachments = getPartAttachments(item);
+        attachmentListEl.innerHTML = attachments.length ? attachments.map(function(att) {
+          var viewButton = att.previewable ? renderAttachmentActionButton('View', att.url, 'border-slate-300 bg-white text-slate-700', 'target="_blank" rel="noopener"') : '';
+          var downloadButton = renderAttachmentActionButton('Download', att.downloadUrl || att.url, 'border-blue-300 bg-blue-50 text-blue-700', 'target="_blank" rel="noopener" download');
+          return '<div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">' +
+            '<div class="min-w-0"><p class="font-semibold text-slate-800">' + att.type + ': ' + att.fileName + '</p><p class="text-xs text-slate-500">Type: ' + att.fileType + '</p></div>' +
+            '<div class="flex flex-wrap gap-2">' + viewButton + downloadButton + '</div>' +
+          '</div>';
+        }).join('') : '<div class="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">No attachment files</div>';
+      }
+      setAttachmentLink('detailViewPhoto', item.image_main_url || item.image_main || item.photo || '');
+      setAttachmentLink('detailViewDrawing', (firstDrawing && firstDrawing.previewable) ? firstDrawing.url : '');
+      setAttachmentLink('detailViewDatasheet', item.datasheet_url || '');
+      setAttachmentLink('detailViewQuotation', item.quotation_url || '');
       document.getElementById('detailRemark').textContent = item.remark || '-';
       var needToOrder = getNeedToOrder(item);
       var detailMetaParts = [item.brand, item.category, item.line, (item.subLine || item.__sourceSheet || '')].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
@@ -5896,7 +6296,8 @@ function inferRequestPriority(stock, min) {
         var withinMainLine = LINE_SHEET_OPTIONS[currentLine]
           ? true
           : (currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1);
-        var hitSubLine = !hasKeyword ? (String(item.subLine || selectedSheet) === String(selectedSheet)) : true;
+        var sourceSheet = getItemSourceSheet(item);
+        var hitSubLine = !selectedSheet || sourceSheet === String(selectedSheet);
         var hitLine = withinMainLine && hitSubLine;
         var status = getStockStatus(item);
         var hitStatus = selectedStatus === 'all'
@@ -6145,6 +6546,33 @@ if (dashboardPage) {
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
     });
+    function bindDrawingFileName(inputId, fileNameId, statusId) {
+      var input = document.getElementById(inputId);
+      var nameEl = document.getElementById(fileNameId);
+      var statusEl = document.getElementById(statusId);
+      if (!input) return;
+      input.addEventListener('change', function() {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        try { validateDrawingFile(file); } catch (err) { alert(err.message); input.value = ''; return; }
+        if (nameEl) nameEl.value = file.name || '';
+        if (statusEl) statusEl.value = 'Available';
+      });
+    }
+    bindDrawingFileName('mDrawingFile', 'mDrawingFileName', 'mDrawingStatus');
+    bindDrawingFileName('eDrawingFile', 'eDrawingFileName', 'eDrawingStatus');
+    var mDrawingUrlInput = document.getElementById('mDrawingUrl');
+    if (mDrawingUrlInput) mDrawingUrlInput.addEventListener('input', function(){ setAttachmentLink('mDrawingView', mDrawingUrlInput.value); });
+    var eDrawingUrlInput = document.getElementById('eDrawingUrl');
+    if (eDrawingUrlInput) eDrawingUrlInput.addEventListener('input', function(){ setAttachmentLink('eDrawingView', eDrawingUrlInput.value); });
+    var eDrawingRemoveBtn = document.getElementById('eDrawingRemove');
+    if (eDrawingRemoveBtn) eDrawingRemoveBtn.addEventListener('click', function(){
+      if (!confirm('Remove drawing link from this part?')) return;
+      ['eDrawingUrl','eDrawingFileName','eDrawingRevision'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+      var fileEl = document.getElementById('eDrawingFile'); if (fileEl) fileEl.value = '';
+      var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Missing';
+      setAttachmentLink('eDrawingView', '');
+    });
     manageForm.addEventListener('submit', submitManageItem);
     var mCoilSize = document.getElementById('mCoilSize'); var mCoilSizeOther = document.getElementById('mCoilSizeOther'); if (mCoilSize) mCoilSize.addEventListener('change', function(){ if(!mCoilSizeOther) return; mCoilSizeOther.classList.toggle('hidden', mCoilSize.value !== 'Other'); });
     syncManageCoilSizeVisibility();
@@ -6244,6 +6672,17 @@ if (dashboardPage) {
       if (e.target.dataset.prPurpose !== undefined) c.purpose = e.target.value;
       if (e.target.dataset.prPriority !== undefined) c.priority = e.target.value;
     });
+    function getPrReportOptions(allSelectedMode) {
+      return {
+        annexMode: allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all'),
+        annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0),
+        includeAnnexC: !prIncludeAnnexC || prIncludeAnnexC.checked !== false,
+        includeAnnexD: !prIncludeAnnexD || prIncludeAnnexD.checked !== false,
+        printFullDrawings: !!(prPrintFullDrawings && prPrintFullDrawings.checked),
+        attachDrawingsSeparately: !!(prAttachDrawingsSeparately && prAttachDrawingsSeparately.checked)
+      };
+    }
+
     function buildDocumentGradeReport(selected, options) {
       function esc(v) {
         return String(v === undefined || v === null ? '' : v)
@@ -6282,9 +6721,38 @@ if (dashboardPage) {
         var txt = reasonCodeText(c.reasonCodes || c.reason || '');
         return txt || '-';
       }
+      function compactDrawingStatus(status) {
+        var normalizedStatus = String(status || '').trim().toLowerCase();
+        if (normalizedStatus === 'available') return 'Available';
+        if (normalizedStatus === 'not required') return 'Not Required';
+        if (normalizedStatus === 'access required') return 'Access Required';
+        return 'Missing';
+      }
+      function normalizePrDrawingStatus(item, drawingUrl) {
+        if (String(drawingUrl || '').trim()) return 'Available';
+        var normalizedStatus = normalizeDrawingStatus({ drawing_status: item && (item.drawingStatus || item.drawing_status), drawing_url: '', category: item && item.category, name: item && item.name, model: item && item.model, brand: item && item.brand });
+        return normalizedStatus === 'Not Required' ? 'Not Required' : 'Missing';
+      }
+      function getDrawingFileExt(item) {
+        var raw = String((item && (item.drawingFileName || item.drawingUrl)) || '').toLowerCase();
+        var match = raw.match(/\.([a-z0-9]+)(?:[?#].*)?$/);
+        return match ? match[1] : '';
+      }
+      function isPrintableDrawing(item) {
+        var ext = getDrawingFileExt(item);
+        return ['pdf', 'jpg', 'jpeg', 'png'].indexOf(ext) > -1;
+      }
+      function isImageDrawing(item) {
+        var ext = getDrawingFileExt(item);
+        return ['jpg', 'jpeg', 'png'].indexOf(ext) > -1;
+      }
 
       options = options || {};
       var annexMode = String(options.annexMode || 'all');
+      var includeAnnexC = options.includeAnnexC !== false;
+      var includeAnnexD = options.includeAnnexD !== false;
+      var printFullDrawings = options.printFullDrawings === true;
+      var attachDrawingsSeparately = options.attachDrawingsSeparately === true;
       var annexLimit = Number(options.annexLimit === undefined ? 0 : options.annexLimit);
       if (!Number.isFinite(annexLimit) || annexLimit < 0) annexLimit = 24;
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
@@ -6296,21 +6764,21 @@ if (dashboardPage) {
       var modeNow = String((document.getElementById('prMode')||{}).value || 'assembly_monthly');
       var selectedLineNow = String((document.getElementById('prLineFilter')||{}).value || 'all');
       var isLineSpecific = modeNow === 'line_specific' && selectedLineNow !== 'all';
+      function strictPartKey(value) {
+        var key = String(value || '').trim().toLowerCase();
+        if (!key || key === '-' || key === 'n/a' || key === 'na' || key === 'unknown') return '';
+        return key;
+      }
       var masterById = {};
       var masterByLineAndId = {};
-      var masterByComposite = {};
+      var masterByLineAndModel = {};
       (partsData || []).forEach(function(item){
-        var k = String(item.no || item.id || '').trim();
+        var k = strictPartKey(item.no || item.id || '');
+        var modelKey = strictPartKey(item.model || item.partNo || item.part_no || '');
         var ln = canonicalLineName(item.line || item.mainLine || '-');
-        var compositeKey = [
-          ln,
-          String(item.name || '').trim().toLowerCase(),
-          String(item.brand || '').trim().toLowerCase(),
-          String(item.model || item.no || '').trim().toLowerCase()
-        ].join('|');
         if (k && !masterById[k]) masterById[k] = item;
         if (k && ln) masterByLineAndId[ln + '|' + k] = item;
-        if (compositeKey && !masterByComposite[compositeKey]) masterByComposite[compositeKey] = item;
+        if (modelKey && ln && !masterByLineAndModel[ln + '|' + modelKey]) masterByLineAndModel[ln + '|' + modelKey] = item;
       });
 
       var normalized = selected.map(function(c) {
@@ -6318,25 +6786,24 @@ if (dashboardPage) {
         var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
         var priceNum = rawPrice === '' ? NaN : asNum(rawPrice);
         var price = (Number.isFinite(priceNum) && priceNum > 0) ? priceNum : null;
-        var itemId = String(c.no || c.id || '').trim();
+        var itemId = strictPartKey(c.no || c.id || '');
+        var itemModelKey = strictPartKey(c.model || c.partNo || c.part_no || '');
         var itemLine = canonicalLineName(c.line || '-');
-        var compositeSelectedKey = [
-          itemLine,
-          String(c.name || '').trim().toLowerCase(),
-          String(c.brand || '').trim().toLowerCase(),
-          String(c.model || c.no || '').trim().toLowerCase()
-        ].join('|');
         var master = (itemId && masterByLineAndId[itemLine + '|' + itemId]) || null;
-        if (!master && !itemId) master = masterByComposite[compositeSelectedKey] || null;
+        if (!master && itemModelKey) master = masterByLineAndModel[itemLine + '|' + itemModelKey] || null;
         if (!master && itemId) {
           var weak = masterById[itemId] || null;
           if (weak && canonicalLineName(weak.line || weak.mainLine || '-') === itemLine) master = weak;
         }
         var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.photoUrl, master.picture, master.driveUrl, master.imageLink, master.image_main_file_id], '') : '';
+        // PR drawing references must come from this selected item row only.
+        // Never borrow/fallback to master/other rows, because that can attach another item's drawing.
+        var drawingUrl = String(firstDefined([c.drawingUrl, c.drawing_url], '') || '').trim();
+        var drawingStatus = normalizePrDrawingStatus({ category: c.category, name: c.name, model: c.model, brand: c.brand, drawingStatus: firstDefined([c.drawingStatus, c.drawing_status], '') }, drawingUrl);
         var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
         var normalizedImage = normalizeImageUrl(firstDefined([selectedImg, masterImg], ''));
         return {
-          id: itemId || String(c.name || '-'),
+          id: String(c.no || c.id || c.name || '-'),
           no: c.no || '-',
           category: normalizeCategory(c.category || '-'),
           line: canonicalLineName(c.line || '-'),
@@ -6354,7 +6821,12 @@ if (dashboardPage) {
           stock: asNum(c.stock),
           min: asNum(c.min),
           image: normalizedImage,
-          hasImage: !!normalizedImage
+          hasImage: !!normalizedImage,
+          drawingUrl: drawingUrl,
+          drawingFileName: drawingUrl ? firstDefined([c.drawingFileName, c.drawing_file_name], '') : '',
+          drawingRevision: drawingUrl ? firstDefined([c.drawingRevision, c.drawing_revision], '') : '',
+          drawingStatus: drawingStatus,
+          drawingCompactStatus: compactDrawingStatus(drawingStatus)
         };
       });
 
@@ -6382,13 +6854,13 @@ if (dashboardPage) {
       }).slice(0,8);
 
       function detailTableRows(items, includeLine) {
-        if (!items.length) return '<tr><td colspan="'+(includeLine?9:8)+'" class="empty">No items</td></tr>';
+        if (!items.length) return '<tr><td colspan="'+(includeLine?10:9)+'" class="empty">No items</td></tr>';
         return items.map(function(c, i){
           var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
           var cols = ['<td>'+ (i+1) +'</td>','<td>'+esc(c.category)+'</td>','<td>'+itemModel+'</td>'];
           if (includeLine) cols.push('<td>'+esc(c.line)+'</td>');
           cols = cols.concat([
-            '<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.critical)+'</td>','<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>','<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>','<td>'+esc(reasonPurpose(c))+'</td>'
+            '<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.critical)+'</td>','<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>','<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>','<td>'+esc(c.drawingCompactStatus || compactDrawingStatus(c.drawingStatus))+'</td>','<td>'+esc(reasonPurpose(c))+'</td>'
           ]);
           return '<tr>'+cols.join('')+'</tr>';
         }).join('');
@@ -6396,11 +6868,11 @@ if (dashboardPage) {
       function detailColgroup(includeLine) {
         if (includeLine) {
           return '<colgroup>' +
-            '<col style="width:6%"><col style="width:10%"><col style="width:28%"><col style="width:6%"><col style="width:5%"><col style="width:9%"><col style="width:10%"><col style="width:11%"><col style="width:15%">' +
+            '<col style="width:5%"><col style="width:9%"><col style="width:25%"><col style="width:6%"><col style="width:5%"><col style="width:9%"><col style="width:9%"><col style="width:10%"><col style="width:9%"><col style="width:13%">' +
           '</colgroup>';
         }
         return '<colgroup>' +
-          '<col style="width:6%"><col style="width:11%"><col style="width:36%"><col style="width:6%"><col style="width:10%"><col style="width:10%"><col style="width:11%"><col style="width:10%">' +
+          '<col style="width:6%"><col style="width:10%"><col style="width:31%"><col style="width:6%"><col style="width:10%"><col style="width:9%"><col style="width:10%"><col style="width:8%"><col style="width:10%">' +
         '</colgroup>';
       }
       function annexRows(items, includeLine) {
@@ -6454,9 +6926,9 @@ if (dashboardPage) {
 
       var includeLineColumn = !isLineSpecific;
       var detailHead = includeLineColumn
-        ? '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>'
-        : '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>';
-      var detailHeadGrouped = '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Reason</th></tr>';
+        ? '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Drawing</th><th>Reason</th></tr>'
+        : '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Drawing</th><th>Reason</th></tr>';
+      var detailHeadGrouped = '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Drawing</th><th>Reason</th></tr>';
 
       var annexCandidates = normalized.filter(function(c){
         var lv=String(c.critical||'').toLowerCase();
@@ -6471,6 +6943,49 @@ if (dashboardPage) {
       });
       var annexItems = annexLimit > 0 ? annexCandidates.slice(0, annexLimit) : annexCandidates;
 
+
+      function canShowDrawingLink(item) {
+        var drawingUrl = String((item && item.drawingUrl) || '').trim();
+        var status = normalizePrDrawingStatus(item, drawingUrl);
+        return !!drawingUrl && (status === 'Available' || status === 'Access Required');
+      }
+      function annexDrawingRows(items) {
+        if (!items.length) return '<tr><td colspan="10" class="empty">No drawing references</td></tr>';
+        return items.map(function(c, i) {
+          var status = normalizePrDrawingStatus(c, c.drawingUrl);
+          var link = canShowDrawingLink(c) ? '<a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a>' : '-';
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(status)+'</td><td>'+esc(c.drawingRevision || '-')+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td>'+link+'</td></tr>';
+        }).join('');
+      }
+      function drawingAttachmentRows(items) {
+        var withLinks = items.filter(canShowDrawingLink);
+        if (!withLinks.length) return '<tr><td colspan="7" class="empty">No drawing files to attach separately</td></tr>';
+        return withLinks.map(function(c, i) {
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td><a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a></td></tr>';
+        }).join('');
+      }
+      function drawingPreviewUrl(item) {
+        var raw = String((item && item.drawingUrl) || '').trim();
+        if (!raw) return '';
+        var fileId = extractDriveFileId(raw);
+        if (!fileId) return raw;
+        return isImageDrawing(item)
+          ? ('https://drive.google.com/thumbnail?id=' + fileId + '&sz=w2000')
+          : ('https://drive.google.com/file/d/' + fileId + '/preview');
+      }
+      function fullDrawingPages(items) {
+        if (!printFullDrawings) return '';
+        var printable = items.filter(function(item) { return canShowDrawingLink(item) && isPrintableDrawing(item); });
+        if (!printable.length) return '<h2 class="section-table">Drawing Attachments</h2><p class="empty">No PDF/JPG/PNG drawing files available to open inside this PR report.</p>';
+        return '<h2 class="section-table">Drawing Attachments (Opened Files)</h2>' + printable.map(function(c, i) {
+          var previewUrl = drawingPreviewUrl(c);
+          var header = '<div class="drawing-page" style="page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px"><h3>Drawing ' + (i + 1) + ': ' + esc(c.name || '-') + '</h3>' +
+            '<p class="sub">Line: ' + esc(c.line || '-') + ' | Brand: ' + esc(c.brand || '-') + ' | Model / Part No.: ' + esc(c.model || c.no || '-') + ' | Rev: ' + esc(c.drawingRevision || '-') + ' | File: ' + esc(c.drawingFileName || '-') + '</p>';
+          if (isImageDrawing(c)) return header + '<img class="drawing-full-image" style="display:block;width:100%;height:auto;max-height:900px;object-fit:contain" src="' + esc(previewUrl) + '" alt="Drawing file" /></div>';
+          return header + '<iframe class="drawing-pdf-frame" style="width:100%;height:900px;border:1px solid #cbd5e1" src="' + esc(previewUrl) + '" title="Drawing preview"></iframe></div>';
+        }).join('');
+      }
+
       var reportLineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
       var activeLines = reportLineOrder.filter(function(ln){ return normalized.some(function(c){ return String(c.line||'') === ln; }); });
       if (!activeLines.length) activeLines = lines.slice();
@@ -6478,7 +6993,7 @@ if (dashboardPage) {
         if (!items.length) return '';
         return items.map(function(c, i){
           var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
-          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+itemModel+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td><td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td><td>'+esc(reasonPurpose(c))+'</td></tr>';
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+itemModel+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td><td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td><td>'+esc(c.drawingCompactStatus || compactDrawingStatus(c.drawingStatus))+'</td><td>'+esc(reasonPurpose(c))+'</td></tr>';
         }).join('');
       }
       function detectCoilReportGroup(item) {
@@ -6553,6 +7068,12 @@ if (dashboardPage) {
         return html;
       }
 
+      var annexCHtml = includeAnnexC ? ('<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table"><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (annexItems.some(function(x){ return String(x.line || '') === 'Coil Winding'; }) ? annexRowsByModelGroup(annexItems, true) : annexRows(annexItems, true)) + '</tbody></table>') : '';
+      var annexDNumber = (isLineSpecific ? (includeAnnexC ? '10' : '9') : (includeAnnexC ? '9' : '8'));
+      var annexDHtml = includeAnnexD ? ('<h2 class="section-table">' + annexDNumber + '. Annex D: Drawing Reference List</h2><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Drawing Status</th><th>Drawing Revision</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + annexDrawingRows(normalized) + '</tbody></table>') : '';
+      var separateDrawingHtml = attachDrawingsSeparately ? ('<h2 class="section-table">Drawing Files to Attach Separately</h2><p class="sub">Use these source links to attach drawing files outside the main PR PDF package.</p><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + drawingAttachmentRows(normalized) + '</tbody></table>') : '';
+      var fullDrawingsHtml = fullDrawingPages(normalized);
+
       return '<div class="pr-doc">' +
         '<div class="doc-head">Purchase Request Supporting Report | Assembly Line</div>' +
         '<h1>PURCHASE REQUEST SUPPORTING REPORT</h1>' +
@@ -6579,7 +7100,10 @@ if (dashboardPage) {
           : ('<h2 class="section-table">6. Detailed Requested Item List by Line</h2>' + buildLineSections())
         ) +
         '<h2 class="section-table">' + (isLineSpecific ? '8' : '7') + '. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
-        '<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table"><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (annexItems.some(function(x){ return String(x.line || '') === 'Coil Winding'; }) ? annexRowsByModelGroup(annexItems, true) : annexRows(annexItems, true)) + '</tbody></table>' +
+        annexCHtml +
+        annexDHtml +
+        separateDrawingHtml +
+        fullDrawingsHtml +
         '<p class="footer">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
@@ -6587,18 +7111,16 @@ if (dashboardPage) {
       if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
       var totalFiltered = getFilteredPrCandidates(false).length;
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
-      var effectiveAnnexMode = allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all');
-      prReportPreview.innerHTML = buildDocumentGradeReport(selected, { annexMode: effectiveAnnexMode, annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
+      prReportPreview.innerHTML = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
     });
-    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
+    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Drawing Status','Drawing Revision','Drawing File Name','Drawing Link','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); var drawingUrl=String(c.drawingUrl||c.drawing_url||'').trim(); var drawingStatus=normalizeDrawingStatus(Object.assign({}, c, { drawing_url: drawingUrl, drawingUrl: drawingUrl })); if(!drawingUrl && drawingStatus!=='Not Required') drawingStatus='Missing'; var drawingLink=(drawingUrl && (drawingStatus==='Available'||drawingStatus==='Access Required')) ? drawingUrl : ''; return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,drawingStatus,c.drawingRevision||c.drawing_revision||'',c.drawingFileName||c.drawing_file_name||'',drawingLink,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) return;
       var totalFiltered = getFilteredPrCandidates(false).length;
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
-      var effectiveAnnexMode = allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all');
-      var docHtml = buildDocumentGradeReport(selected, { annexMode: effectiveAnnexMode, annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
-      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc .pr-items th:nth-child(1),.pr-doc .pr-items td:nth-child(1){text-align:center;white-space:nowrap;word-break:keep-all;overflow-wrap:normal}.pr-doc .pr-items td:nth-child(4),.pr-doc .pr-items td:nth-child(5){text-align:center}.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .annex-table td:first-child{text-align:center;padding:4px}.pr-doc .annex-table td:first-child img{display:block;margin:0 auto;width:72px;height:52px;max-width:72px;max-height:52px;object-fit:contain;border-radius:2px}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{@page{size:A4 portrait;margin:12mm}.pr-doc{max-width:none} .pr-doc h2.section-table{page-break-before:always} .pr-doc h2.section-table:first-of-type{page-break-before:auto} .pr-doc h2,.pr-doc h3{page-break-after:avoid} .pr-doc table,tr,td,th{page-break-inside:avoid}}';
+      var docHtml = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
+      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc .pr-items th:nth-child(1),.pr-doc .pr-items td:nth-child(1){text-align:center;white-space:nowrap;word-break:keep-all;overflow-wrap:normal}.pr-doc .pr-items td:nth-child(4),.pr-doc .pr-items td:nth-child(5){text-align:center}.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .annex-table td:first-child{text-align:center;padding:4px}.pr-doc .annex-table td:first-child img{display:block;margin:0 auto;width:72px;height:52px;max-width:72px;max-height:52px;object-fit:contain;border-radius:2px}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}.pr-doc .drawing-page{page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px}.pr-doc .drawing-full-image{display:block;width:100%;height:auto;max-height:900px;object-fit:contain}.pr-doc .drawing-pdf-frame{width:100%;height:900px;border:1px solid #cbd5e1}@media print{@page{size:A4 portrait;margin:12mm}.pr-doc{max-width:none} .pr-doc h2.section-table{page-break-before:always} .pr-doc h2.section-table:first-of-type{page-break-before:auto} .pr-doc h2,.pr-doc h3{page-break-after:avoid} .pr-doc table,tr,td,th{page-break-inside:avoid}}';
       var win = window.open('', '_blank');
       win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
       win.document.close();
