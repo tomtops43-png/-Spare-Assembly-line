@@ -721,7 +721,7 @@
             <select id="prAnnexMode" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="important">Annex C: Important only</option><option value="all" selected>Annex C: All selected items</option></select><select id="prAnnexLimit" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="24">Limit: 24</option><option value="100">Limit: 100</option><option value="0" selected>Limit: Unlimited</option></select>
             <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexC" type="checkbox" checked /> Include Annex C</label>
             <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexD" type="checkbox" checked /> Include Annex D</label>
-            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 text-xs text-blue-700" title="Open PDF/JPG/PNG drawings directly inside the PR report; CAD files remain referenced in Annex D."><input id="prPrintFullDrawings" type="checkbox" checked /> Open Drawing pages</label>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 text-xs text-blue-700" title="Optional: load PDF/JPG/PNG drawings only when exporting/previewing full drawing pages; CAD files remain referenced in Annex D."><input id="prPrintFullDrawings" type="checkbox" /> Include Full Drawing Pages</label>
             <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prAttachDrawingsSeparately" type="checkbox" /> Attach drawings separately</label>
             <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
             <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export PDF</button><button id="prExportCsvBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export CSV</button>
@@ -1361,7 +1361,7 @@
     var logCurrentPage = 1;
     var prCandidateState = [];
     var prLineTabState = "all";
-    var prLineCollapsedState = {"H9": false, "Arc Chute": false, "Coil Winding": false, "Lug&Screw": false};
+    var prLineCollapsedState = {"H9": true, "Arc Chute": true, "Coil Winding": true, "Lug&Screw": true};
     var dashboardAllPartsData = [];
     var uploadJobQueue = [];
     var activeUploadJob = null;
@@ -4376,6 +4376,29 @@ function inferRequestPriority(stock, min) {
       return '';
     }
 
+    function withTimeout(promise, ms, label) {
+      var timeoutMs = Math.max(1000, Number(ms || 12000));
+      return new Promise(function(resolve, reject) {
+        var done = false;
+        var timer = setTimeout(function() {
+          if (done) return;
+          done = true;
+          reject(new Error((label || 'Request') + ' timeout after ' + Math.round(timeoutMs / 1000) + 's'));
+        }, timeoutMs);
+        promise.then(function(value) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(value);
+        }).catch(function(err) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          reject(err);
+        });
+      });
+    }
+
     function loadPrSourceItems(mode, lineFilterValue) {
       var targets = [];
       if (mode === 'line_specific' && lineFilterValue && lineFilterValue !== 'all') {
@@ -4386,9 +4409,20 @@ function inferRequestPriority(stock, min) {
         targets = getAllPrSheetTargets();
       }
       if (!targets.length) return Promise.resolve(partsData.slice());
+      var cacheHits = 0;
       return Promise.all(targets.map(function(t) {
+        var cached = loadLineCache(t.line, t.sheet);
+        if (cached && Array.isArray(cached.items) && cached.items.length) {
+          cacheHits += 1;
+          return Promise.resolve(cached.items.map(function(item) {
+            item.__sourceSheet = item.__sourceSheet || t.sheet;
+            item.__sourceLine = item.__sourceLine || t.line;
+            item.line = t.line || item.line;
+            return item;
+          }));
+        }
         var lineApi = LINE_API_URL_MAP[t.line] || API_URL;
-        return loadByFetch(lineApi + appendAuthToQuery('?sheet=' + encodeURIComponent(t.sheet))).then(function(rawData) {
+        return withTimeout(loadByFetch(lineApi + appendAuthToQuery('?sheet=' + encodeURIComponent(t.sheet))), 12000, 'Load ' + t.sheet).then(function(rawData) {
           if (!Array.isArray(rawData)) return [];
           return rawData.map(function(item) {
             item.__sourceSheet = t.sheet;
@@ -4396,15 +4430,28 @@ function inferRequestPriority(stock, min) {
             item.line = t.line || item.line;
             return item;
           });
-        }).catch(function() { return []; });
+        }).catch(function(err) {
+          console.warn('loadPrSourceItems skipped sheet', t.sheet, err);
+          return [];
+        });
       })).then(function(chunks) {
         var combined = [].concat.apply([], chunks);
+        if (prCandidateList && cacheHits) {
+          prCandidateList.innerHTML = '<div class="rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700">Loaded ' + cacheHits + '/' + targets.length + ' PR source sheets from cache. Refreshing missing sheets only.</div>';
+        }
         return normalizeRecordsInBatches(combined).then(function(normalized) {
-          return normalized.map(function(item) {
+          var bySheet = {};
+          var mapped = normalized.map(function(item) {
             var sourceLine = item.__sourceLine || getPrLineFromSourceSheet(item.__sourceSheet);
             if (sourceLine) item.line = sourceLine;
+            if (item.__sourceSheet) (bySheet[item.__sourceSheet] = bySheet[item.__sourceSheet] || []).push(item);
             return item;
           }).filter(function(item) { return item.name && item.name !== '-'; });
+          Object.keys(bySheet).forEach(function(sheetName) {
+            var lineName = getPrLineFromSourceSheet(sheetName) || currentLine;
+            saveLineCache(lineName, bySheet[sheetName], sheetName);
+          });
+          return mapped;
         });
       });
     }
@@ -6638,7 +6685,7 @@ if (dashboardPage) {
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
     if (prRunBtn) prRunBtn.addEventListener('click', runPrCandidateSelection);
     ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
-    var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; renderPrCandidates(); });
+    var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; if(line !== 'all') prLineCollapsedState[line] = false; renderPrCandidates(); });
     if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
@@ -6891,7 +6938,7 @@ if (dashboardPage) {
           if (custom) remark.push('Custom-made part');
           if (c.unitPrice === null) remark.push('TBC item needs visual identification');
           if (needsVisual) remark.push('Need picture for purchasing identification');
-          var imgHtml = c.image ? '<img src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.outerHTML=\"No image available\";" />' : 'No image available';
+          var imgHtml = c.image ? '<img loading="lazy" src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.outerHTML=\"No image available\";" />' : 'No image available';
           var cols = ['<td>' + imgHtml + '</td>','<td>'+esc(c.name)+'</td>','<td>'+esc(c.line)+'</td>','<td>'+esc(c.brand)+'</td>','<td>'+esc(c.model || c.no)+'</td>','<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.unit || 'PCS')+'</td>','<td>'+esc(remark.join(', ') || 'Reference')+'</td>'];
           return '<tr>' + cols.join('') + '</tr>';
         }).join('');
