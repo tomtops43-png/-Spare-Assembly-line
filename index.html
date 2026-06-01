@@ -584,7 +584,7 @@
           <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
             <input id="mDrawingFile" type="file" accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.step,.stp,application/pdf,image/jpeg,image/png" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5" />
             <input id="mDrawingRevision" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing Revision" />
-            <select id="mDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Not Available">Not Available</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Pending Update">Pending Update</option></select>
+            <select id="mDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Missing">Missing</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Access Required">Access Required</option></select>
             <input id="mDrawingFileName" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5" placeholder="Drawing File Name" readonly />
           </div>
           <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
@@ -721,7 +721,7 @@
             <select id="prAnnexMode" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="important">Annex C: Important only</option><option value="all" selected>Annex C: All selected items</option></select><select id="prAnnexLimit" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="24">Limit: 24</option><option value="100">Limit: 100</option><option value="0" selected>Limit: Unlimited</option></select>
             <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexC" type="checkbox" checked /> Include Annex C</label>
             <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexD" type="checkbox" checked /> Include Annex D</label>
-            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prPrintFullDrawings" type="checkbox" /> Print full drawings</label>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 px-2 text-xs text-slate-400" title="Disabled: use Annex D and attach drawing files separately"><input id="prPrintFullDrawings" type="checkbox" disabled /> Print full drawings (disabled)</label>
             <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prAttachDrawingsSeparately" type="checkbox" /> Attach drawings separately</label>
             <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
             <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export PDF</button><button id="prExportCsvBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export CSV</button>
@@ -970,7 +970,7 @@
           <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
             <input id="eDrawingFile" type="file" accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.step,.stp,application/pdf,image/jpeg,image/png" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5" />
             <input id="eDrawingRevision" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing Revision" />
-            <select id="eDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Not Available">Not Available</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Pending Update">Pending Update</option></select>
+            <select id="eDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Missing">Missing</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Access Required">Access Required</option></select>
             <input id="eDrawingFileName" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5" placeholder="Drawing File Name" readonly />
           </div>
           <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
@@ -2353,11 +2353,15 @@ function getIssueCartEntries() {
     }
 
     function normalizeDrawingStatus(item) {
-      var status = String((item && (item.drawing_status || item.drawingStatus)) || '').trim();
-      if (status) return status;
+      var rawStatus = String((item && (item.drawing_status || item.drawingStatus)) || '').trim();
+      var normalized = rawStatus.toLowerCase();
+      if (normalized === 'available') return 'Available';
+      if (normalized === 'not required' || normalized === 'n/a' || normalized === 'na') return 'Not Required';
+      if (normalized === 'access required' || normalized === 'pending update' || normalized === 'pending') return 'Access Required';
+      if (normalized === 'missing' || normalized === 'not available') return 'Missing';
       if (item && (item.drawing_url || item.drawingUrl)) return 'Available';
       if (isStandardPartExempt(item)) return 'Not Required';
-      return isDrawingRecommended(item) ? 'Not Available' : 'Not Required';
+      return isDrawingRecommended(item) ? 'Missing' : 'Not Required';
     }
     function getAttachmentTypeFromNameOrUrl(fileName, url) {
       var raw = String(fileName || url || '').toLowerCase().split('?')[0].split('#')[0];
@@ -2382,7 +2386,7 @@ function getIssueCartEntries() {
       var normalized = String(status || '').trim().toLowerCase();
       if (normalized === 'available') return 'Drawing available';
       if (normalized === 'not required') return 'Drawing not required';
-      if (normalized === 'pending update') return 'Drawing pending update';
+      if (normalized === 'access required') return 'Drawing access required';
       return 'No drawing available';
     }
 
@@ -6485,7 +6489,7 @@ if (dashboardPage) {
       if (!confirm('Remove drawing link from this part?')) return;
       ['eDrawingUrl','eDrawingFileName','eDrawingRevision'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
       var fileEl = document.getElementById('eDrawingFile'); if (fileEl) fileEl.value = '';
-      var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Not Available';
+      var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Missing';
       setAttachmentLink('eDrawingView', '');
     });
     manageForm.addEventListener('submit', submitManageItem);
@@ -6593,7 +6597,7 @@ if (dashboardPage) {
         annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0),
         includeAnnexC: !prIncludeAnnexC || prIncludeAnnexC.checked !== false,
         includeAnnexD: !prIncludeAnnexD || prIncludeAnnexD.checked !== false,
-        printFullDrawings: !!(prPrintFullDrawings && prPrintFullDrawings.checked),
+        printFullDrawings: false,
         attachDrawingsSeparately: !!(prAttachDrawingsSeparately && prAttachDrawingsSeparately.checked)
       };
     }
@@ -6639,8 +6643,8 @@ if (dashboardPage) {
       function compactDrawingStatus(status) {
         var normalizedStatus = String(status || '').trim().toLowerCase();
         if (normalizedStatus === 'available') return 'Available';
-        if (normalizedStatus === 'not required') return 'N/A';
-        if (normalizedStatus === 'pending update') return 'Pending';
+        if (normalizedStatus === 'not required') return 'Not Required';
+        if (normalizedStatus === 'access required') return 'Access Required';
         return 'Missing';
       }
       function getDrawingFileExt(item) {
@@ -6857,31 +6861,29 @@ if (dashboardPage) {
       var annexItems = annexLimit > 0 ? annexCandidates.slice(0, annexLimit) : annexCandidates;
 
 
+      function canShowDrawingLink(item) {
+        var status = normalizeDrawingStatus({ drawing_status: item && item.drawingStatus, drawing_url: item && item.drawingUrl, category: item && item.category, name: item && item.name, model: item && item.model, brand: item && item.brand });
+        return !!(item && item.drawingUrl) && (status === 'Available' || status === 'Access Required');
+      }
       function annexDrawingRows(items) {
         if (!items.length) return '<tr><td colspan="10" class="empty">No drawing references</td></tr>';
         return items.map(function(c, i) {
-          var link = c.drawingUrl ? '<a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a>' : '-';
-          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.drawingStatus || 'Not Available')+'</td><td>'+esc(c.drawingRevision || '-')+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td>'+link+'</td></tr>';
+          var status = normalizeDrawingStatus({ drawing_status: c.drawingStatus, drawing_url: c.drawingUrl, category: c.category, name: c.name, model: c.model, brand: c.brand });
+          var link = canShowDrawingLink(c) ? '<a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a>' : '-';
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(status)+'</td><td>'+esc(c.drawingRevision || '-')+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td>'+link+'</td></tr>';
         }).join('');
       }
       function drawingAttachmentRows(items) {
-        var withLinks = items.filter(function(c){ return !!c.drawingUrl; });
+        var withLinks = items.filter(canShowDrawingLink);
         if (!withLinks.length) return '<tr><td colspan="7" class="empty">No drawing files to attach separately</td></tr>';
         return withLinks.map(function(c, i) {
           return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td><a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a></td></tr>';
         }).join('');
       }
       function fullDrawingPages(items) {
-        if (!printFullDrawings) return '';
-        var withLinks = items.filter(function(c){ return !!c.drawingUrl; });
-        if (!withLinks.length) return '<h2 class="section-table">Full Drawing Pages</h2><p class="empty">No drawing files are available for inline printing.</p>';
-        return '<h2 class="section-table">Full Drawing Pages</h2>' + withLinks.map(function(c, i) {
-          var printable = isPrintableDrawing(c);
-          var header = '<h3>Drawing '+(i+1)+': '+esc(c.name)+' | '+esc(c.model || c.no)+'</h3><p class="sub">Line: '+esc(c.line)+' | Rev: '+esc(c.drawingRevision || '-')+' | File: '+esc(c.drawingFileName || '-')+' | <a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a></p>';
-          if (!printable) return '<div class="drawing-page">'+header+'<p class="empty">Unsupported for inline PDF printing (DWG, DXF, STEP, STP or unknown type). Link only.</p></div>';
-          if (isImageDrawing(c)) return '<div class="drawing-page">'+header+'<img class="drawing-full-image" src="'+esc(c.drawingUrl)+'" alt="'+esc(c.name)+' drawing" /></div>';
-          return '<div class="drawing-page">'+header+'<iframe class="drawing-pdf-frame" src="'+esc(c.drawingUrl)+'"></iframe><p class="sub">If the PDF does not render in the browser print dialog, use the drawing link above.</p></div>';
-        }).join('');
+        // Disabled by policy: use Annex D as the report reference and attach drawing files separately.
+        // Do not embed Drive/PDF iframes because browser print can capture Google Drive error pages.
+        return '';
       }
 
       var reportLineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];

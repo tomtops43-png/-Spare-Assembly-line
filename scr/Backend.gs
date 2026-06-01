@@ -12,7 +12,7 @@ var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 're
 var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
 var DRIVE_ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
-var DRAWING_STATUS_OPTIONS = ['Available', 'Not Available', 'Not Required', 'Pending Update'];
+var DRAWING_STATUS_OPTIONS = ['Available', 'Missing', 'Not Required', 'Access Required'];
 var PART_ATTACHMENT_COLUMNS = [
   // Photo is already stored in existing image_main/image_main_url columns.
   // Do not create another Photo URL column because it duplicates current image columns.
@@ -23,6 +23,16 @@ var PART_ATTACHMENT_COLUMNS = [
   { label: 'Datasheet URL', aliases: ['datasheeturl', 'datasheet_url'] },
   { label: 'Quotation URL', aliases: ['quotationurl', 'quotation_url'] }
 ];
+
+function normalizeDrawingStatusValue(value) {
+  var raw = String(value || '').trim();
+  var normalized = raw.toLowerCase();
+  if (normalized === 'available') return 'Available';
+  if (normalized === 'missing' || normalized === 'not available') return 'Missing';
+  if (normalized === 'not required' || normalized === 'n/a' || normalized === 'na') return 'Not Required';
+  if (normalized === 'access required' || normalized === 'pending update' || normalized === 'pending') return 'Access Required';
+  return raw;
+}
 
 // =============================
 // HELPERS
@@ -1338,7 +1348,7 @@ function upsertMainItem(payload) {
     drawing_url: payload.drawing_url || '',
     drawing_file_name: payload.drawing_file_name || '',
     drawing_revision: payload.drawing_revision || '',
-    drawing_status: DRAWING_STATUS_OPTIONS.indexOf(payload.drawing_status) > -1 ? payload.drawing_status : (payload.drawing_status || ''),
+    drawing_status: normalizeDrawingStatusValue(payload.drawing_status),
     datasheet_url: payload.datasheet_url || '',
     quotation_url: payload.quotation_url || '',
     image_main: payload.image_main || payload.image_main_url || payload.photo || '',
@@ -1589,7 +1599,7 @@ function doGet(e) {
         drawing_url: pickRowValue(row, map, ['drawingurl', 'drawing_url'], ''),
         drawing_file_name: pickRowValue(row, map, ['drawingfilename', 'drawing_file_name'], ''),
         drawing_revision: pickRowValue(row, map, ['drawingrevision', 'drawingrev', 'drawing_revision', 'drawing_rev'], ''),
-        drawing_status: pickRowValue(row, map, ['drawingstatus', 'drawing_status'], ''),
+        drawing_status: normalizeDrawingStatusValue(pickRowValue(row, map, ['drawingstatus', 'drawing_status'], '')),
         datasheet_url: pickRowValue(row, map, ['datasheeturl', 'datasheet_url'], ''),
         quotation_url: pickRowValue(row, map, ['quotationurl', 'quotation_url'], ''),
         unit_price: pickRowValue(row, map, ['unitprice', 'unit_price'], ''),
