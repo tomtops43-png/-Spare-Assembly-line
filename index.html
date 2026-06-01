@@ -718,7 +718,12 @@
         <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
           <p class="font-semibold">3) Report Preview</p>
           <div class="flex gap-2 items-center flex-wrap">
-            <select id="prAnnexMode" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="important">Annex C: Important only</option><option value="all" selected>Annex C: All selected items</option></select><select id="prAnnexLimit" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="24">Limit: 24</option><option value="100">Limit: 100</option><option value="0" selected>Limit: Unlimited</option></select><button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
+            <select id="prAnnexMode" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="important">Annex C: Important only</option><option value="all" selected>Annex C: All selected items</option></select><select id="prAnnexLimit" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="24">Limit: 24</option><option value="100">Limit: 100</option><option value="0" selected>Limit: Unlimited</option></select>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexC" type="checkbox" checked /> Include Annex C</label>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexD" type="checkbox" checked /> Include Annex D</label>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prPrintFullDrawings" type="checkbox" /> Print full drawings</label>
+            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prAttachDrawingsSeparately" type="checkbox" /> Attach drawings separately</label>
+            <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
             <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export PDF</button><button id="prExportCsvBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export CSV</button>
           </div>
         </div>
@@ -1306,6 +1311,10 @@
     var prCandidateList = document.getElementById('prCandidateList');
     var prReportPreview = document.getElementById('prReportPreview');
     var prAnnexMode = document.getElementById('prAnnexMode');
+    var prIncludeAnnexC = document.getElementById('prIncludeAnnexC');
+    var prIncludeAnnexD = document.getElementById('prIncludeAnnexD');
+    var prPrintFullDrawings = document.getElementById('prPrintFullDrawings');
+    var prAttachDrawingsSeparately = document.getElementById('prAttachDrawingsSeparately');
     var prAnnexLimit = document.getElementById('prAnnexLimit');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
     var uploadQueuePanel = document.getElementById('uploadQueuePanel');
@@ -6449,6 +6458,17 @@ if (dashboardPage) {
       if (e.target.dataset.prPurpose !== undefined) c.purpose = e.target.value;
       if (e.target.dataset.prPriority !== undefined) c.priority = e.target.value;
     });
+    function getPrReportOptions(allSelectedMode) {
+      return {
+        annexMode: allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all'),
+        annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0),
+        includeAnnexC: !prIncludeAnnexC || prIncludeAnnexC.checked !== false,
+        includeAnnexD: !prIncludeAnnexD || prIncludeAnnexD.checked !== false,
+        printFullDrawings: !!(prPrintFullDrawings && prPrintFullDrawings.checked),
+        attachDrawingsSeparately: !!(prAttachDrawingsSeparately && prAttachDrawingsSeparately.checked)
+      };
+    }
+
     function buildDocumentGradeReport(selected, options) {
       function esc(v) {
         return String(v === undefined || v === null ? '' : v)
@@ -6487,9 +6507,33 @@ if (dashboardPage) {
         var txt = reasonCodeText(c.reasonCodes || c.reason || '');
         return txt || '-';
       }
+      function compactDrawingStatus(status) {
+        var normalizedStatus = String(status || '').trim().toLowerCase();
+        if (normalizedStatus === 'available') return 'Available';
+        if (normalizedStatus === 'not required') return 'N/A';
+        if (normalizedStatus === 'pending update') return 'Pending';
+        return 'Missing';
+      }
+      function getDrawingFileExt(item) {
+        var raw = String((item && (item.drawingFileName || item.drawingUrl)) || '').toLowerCase();
+        var match = raw.match(/\.([a-z0-9]+)(?:[?#].*)?$/);
+        return match ? match[1] : '';
+      }
+      function isPrintableDrawing(item) {
+        var ext = getDrawingFileExt(item);
+        return ['pdf', 'jpg', 'jpeg', 'png'].indexOf(ext) > -1;
+      }
+      function isImageDrawing(item) {
+        var ext = getDrawingFileExt(item);
+        return ['jpg', 'jpeg', 'png'].indexOf(ext) > -1;
+      }
 
       options = options || {};
       var annexMode = String(options.annexMode || 'all');
+      var includeAnnexC = options.includeAnnexC !== false;
+      var includeAnnexD = options.includeAnnexD !== false;
+      var printFullDrawings = options.printFullDrawings === true;
+      var attachDrawingsSeparately = options.attachDrawingsSeparately === true;
       var annexLimit = Number(options.annexLimit === undefined ? 0 : options.annexLimit);
       if (!Number.isFinite(annexLimit) || annexLimit < 0) annexLimit = 24;
       var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
@@ -6565,7 +6609,8 @@ if (dashboardPage) {
           drawingUrl: drawingUrl,
           drawingFileName: firstDefined([c.drawingFileName, c.drawing_file_name, master && master.drawing_file_name], ''),
           drawingRevision: firstDefined([c.drawingRevision, c.drawing_revision, master && master.drawing_revision], ''),
-          drawingStatus: drawingStatus
+          drawingStatus: drawingStatus,
+          drawingCompactStatus: compactDrawingStatus(drawingStatus)
         };
       });
 
@@ -6599,7 +6644,7 @@ if (dashboardPage) {
           var cols = ['<td>'+ (i+1) +'</td>','<td>'+esc(c.category)+'</td>','<td>'+itemModel+'</td>'];
           if (includeLine) cols.push('<td>'+esc(c.line)+'</td>');
           cols = cols.concat([
-            '<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.critical)+'</td>','<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>','<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>','<td>'+esc(c.drawingStatus || 'N/A')+'</td>','<td>'+esc(reasonPurpose(c))+'</td>'
+            '<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.critical)+'</td>','<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>','<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>','<td>'+esc(c.drawingCompactStatus || compactDrawingStatus(c.drawingStatus))+'</td>','<td>'+esc(reasonPurpose(c))+'</td>'
           ]);
           return '<tr>'+cols.join('')+'</tr>';
         }).join('');
@@ -6684,10 +6729,29 @@ if (dashboardPage) {
 
 
       function annexDrawingRows(items) {
-        if (!items.length) return '<tr><td colspan="9" class="empty">No drawing references</td></tr>';
+        if (!items.length) return '<tr><td colspan="10" class="empty">No drawing references</td></tr>';
         return items.map(function(c, i) {
           var link = c.drawingUrl ? '<a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a>' : '-';
-          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.drawingStatus || 'N/A')+'</td><td>'+esc(c.drawingRevision || '-')+'</td><td>'+link+'</td></tr>';
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.drawingStatus || 'Not Available')+'</td><td>'+esc(c.drawingRevision || '-')+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td>'+link+'</td></tr>';
+        }).join('');
+      }
+      function drawingAttachmentRows(items) {
+        var withLinks = items.filter(function(c){ return !!c.drawingUrl; });
+        if (!withLinks.length) return '<tr><td colspan="7" class="empty">No drawing files to attach separately</td></tr>';
+        return withLinks.map(function(c, i) {
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td><a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a></td></tr>';
+        }).join('');
+      }
+      function fullDrawingPages(items) {
+        if (!printFullDrawings) return '';
+        var withLinks = items.filter(function(c){ return !!c.drawingUrl; });
+        if (!withLinks.length) return '<h2 class="section-table">Full Drawing Pages</h2><p class="empty">No drawing files are available for inline printing.</p>';
+        return '<h2 class="section-table">Full Drawing Pages</h2>' + withLinks.map(function(c, i) {
+          var printable = isPrintableDrawing(c);
+          var header = '<h3>Drawing '+(i+1)+': '+esc(c.name)+' | '+esc(c.model || c.no)+'</h3><p class="sub">Line: '+esc(c.line)+' | Rev: '+esc(c.drawingRevision || '-')+' | File: '+esc(c.drawingFileName || '-')+' | <a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a></p>';
+          if (!printable) return '<div class="drawing-page">'+header+'<p class="empty">Unsupported for inline PDF printing (DWG, DXF, STEP, STP or unknown type). Link only.</p></div>';
+          if (isImageDrawing(c)) return '<div class="drawing-page">'+header+'<img class="drawing-full-image" src="'+esc(c.drawingUrl)+'" alt="'+esc(c.name)+' drawing" /></div>';
+          return '<div class="drawing-page">'+header+'<iframe class="drawing-pdf-frame" src="'+esc(c.drawingUrl)+'"></iframe><p class="sub">If the PDF does not render in the browser print dialog, use the drawing link above.</p></div>';
         }).join('');
       }
 
@@ -6698,7 +6762,7 @@ if (dashboardPage) {
         if (!items.length) return '';
         return items.map(function(c, i){
           var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
-          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+itemModel+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td><td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td><td>'+esc(c.drawingStatus || 'N/A')+'</td><td>'+esc(reasonPurpose(c))+'</td></tr>';
+          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+itemModel+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td><td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td><td>'+esc(c.drawingCompactStatus || compactDrawingStatus(c.drawingStatus))+'</td><td>'+esc(reasonPurpose(c))+'</td></tr>';
         }).join('');
       }
       function detectCoilReportGroup(item) {
@@ -6773,6 +6837,12 @@ if (dashboardPage) {
         return html;
       }
 
+      var annexCHtml = includeAnnexC ? ('<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table"><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (annexItems.some(function(x){ return String(x.line || '') === 'Coil Winding'; }) ? annexRowsByModelGroup(annexItems, true) : annexRows(annexItems, true)) + '</tbody></table>') : '';
+      var annexDNumber = (isLineSpecific ? (includeAnnexC ? '10' : '9') : (includeAnnexC ? '9' : '8'));
+      var annexDHtml = includeAnnexD ? ('<h2 class="section-table">' + annexDNumber + '. Annex D: Drawing Reference List</h2><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Drawing Status</th><th>Drawing Revision</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + annexDrawingRows(normalized) + '</tbody></table>') : '';
+      var separateDrawingHtml = attachDrawingsSeparately ? ('<h2 class="section-table">Drawing Files to Attach Separately</h2><p class="sub">Use these source links to attach drawing files outside the main PR PDF package.</p><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + drawingAttachmentRows(normalized) + '</tbody></table>') : '';
+      var fullDrawingsHtml = fullDrawingPages(normalized);
+
       return '<div class="pr-doc">' +
         '<div class="doc-head">Purchase Request Supporting Report | Assembly Line</div>' +
         '<h1>PURCHASE REQUEST SUPPORTING REPORT</h1>' +
@@ -6799,8 +6869,10 @@ if (dashboardPage) {
           : ('<h2 class="section-table">6. Detailed Requested Item List by Line</h2>' + buildLineSections())
         ) +
         '<h2 class="section-table">' + (isLineSpecific ? '8' : '7') + '. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
-        '<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table"><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (annexItems.some(function(x){ return String(x.line || '') === 'Coil Winding'; }) ? annexRowsByModelGroup(annexItems, true) : annexRows(annexItems, true)) + '</tbody></table>' +
-        '<h2 class="section-table">' + (isLineSpecific ? '10' : '9') + '. Annex D: Drawing Reference List</h2><table class="annex-table"><thead><tr><th>No.</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Drawing Status</th><th>Drawing Rev.</th><th>Drawing Link</th></tr></thead><tbody>' + annexDrawingRows(normalized) + '</tbody></table>' +
+        annexCHtml +
+        annexDHtml +
+        separateDrawingHtml +
+        fullDrawingsHtml +
         '<p class="footer">Confidential - For internal approval use only</p></div>';
     }
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
@@ -6808,18 +6880,16 @@ if (dashboardPage) {
       if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
       var totalFiltered = getFilteredPrCandidates(false).length;
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
-      var effectiveAnnexMode = allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all');
-      prReportPreview.innerHTML = buildDocumentGradeReport(selected, { annexMode: effectiveAnnexMode, annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
+      prReportPreview.innerHTML = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
     });
-    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
+    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Drawing Status','Drawing Revision','Drawing File Name','Drawing Link','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,normalizeDrawingStatus(c),c.drawingRevision||c.drawing_revision||'',c.drawingFileName||c.drawing_file_name||'',c.drawingUrl||c.drawing_url||'',c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) return;
       var totalFiltered = getFilteredPrCandidates(false).length;
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
-      var effectiveAnnexMode = allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all');
-      var docHtml = buildDocumentGradeReport(selected, { annexMode: effectiveAnnexMode, annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0) });
-      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc .pr-items th:nth-child(1),.pr-doc .pr-items td:nth-child(1){text-align:center;white-space:nowrap;word-break:keep-all;overflow-wrap:normal}.pr-doc .pr-items td:nth-child(4),.pr-doc .pr-items td:nth-child(5){text-align:center}.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .annex-table td:first-child{text-align:center;padding:4px}.pr-doc .annex-table td:first-child img{display:block;margin:0 auto;width:72px;height:52px;max-width:72px;max-height:52px;object-fit:contain;border-radius:2px}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}@media print{@page{size:A4 portrait;margin:12mm}.pr-doc{max-width:none} .pr-doc h2.section-table{page-break-before:always} .pr-doc h2.section-table:first-of-type{page-break-before:auto} .pr-doc h2,.pr-doc h3{page-break-after:avoid} .pr-doc table,tr,td,th{page-break-inside:avoid}}';
+      var docHtml = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
+      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc .pr-items th:nth-child(1),.pr-doc .pr-items td:nth-child(1){text-align:center;white-space:nowrap;word-break:keep-all;overflow-wrap:normal}.pr-doc .pr-items td:nth-child(4),.pr-doc .pr-items td:nth-child(5){text-align:center}.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .annex-table td:first-child{text-align:center;padding:4px}.pr-doc .annex-table td:first-child img{display:block;margin:0 auto;width:72px;height:52px;max-width:72px;max-height:52px;object-fit:contain;border-radius:2px}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}.pr-doc .drawing-page{page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px}.pr-doc .drawing-full-image{display:block;width:100%;height:auto;max-height:900px;object-fit:contain}.pr-doc .drawing-pdf-frame{width:100%;height:900px;border:1px solid #cbd5e1}@media print{@page{size:A4 portrait;margin:12mm}.pr-doc{max-width:none} .pr-doc h2.section-table{page-break-before:always} .pr-doc h2.section-table:first-of-type{page-break-before:auto} .pr-doc h2,.pr-doc h3{page-break-after:avoid} .pr-doc table,tr,td,th{page-break-inside:avoid}}';
       var win = window.open('', '_blank');
       win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
       win.document.close();
