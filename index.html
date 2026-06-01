@@ -1059,6 +1059,23 @@
                 <div id="detailFieldPriceRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Price Remark</p><p id="detailPriceRemark" class="font-semibold text-base">-</p></div>
               </div>
             </section>
+            <section id="detailDrawingSection" class="rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p class="text-[11px] uppercase tracking-wide text-blue-700 font-semibold">Drawing / Attachments</p>
+                <span id="detailDrawingRequirement" class="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-blue-700"></span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing Status</p><p id="detailDrawingStatus" class="font-semibold text-base">-</p></div>
+                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing Rev.</p><p id="detailDrawingRevision" class="font-semibold text-base">-</p></div>
+                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing File Name</p><p id="detailDrawingFileName" class="font-semibold text-base break-all">-</p></div>
+              </div>
+              <p id="detailDrawingMessage" class="mt-2 rounded-lg bg-white/80 px-3 py-2 text-sm text-slate-600">-</p>
+              <div id="detailDrawingActions" class="mt-2 flex flex-wrap gap-2"></div>
+              <div class="mt-3">
+                <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Attachment Files</p>
+                <div id="detailAttachmentList" class="space-y-2"></div>
+              </div>
+            </section>
             <section>
               <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Drawing / Attachments</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
@@ -2343,6 +2360,83 @@ function getIssueCartEntries() {
       if (item && item.drawing_url) return 'Available';
       if (isStandardPartExempt(item)) return 'Not Required';
       return isDrawingRecommended(item) ? 'Not Available' : 'Not Required';
+    }
+    function getAttachmentTypeFromNameOrUrl(fileName, url) {
+      var raw = String(fileName || url || '').toLowerCase().split('?')[0].split('#')[0];
+      var ext = (raw.match(/\.([a-z0-9]+)$/) || [])[1] || '';
+      if (ext === 'jpeg') ext = 'jpg';
+      return ext ? ext.toUpperCase() : 'LINK';
+    }
+
+    function isPreviewableAttachment(fileName, url) {
+      var type = getAttachmentTypeFromNameOrUrl(fileName, url).toLowerCase();
+      return ['pdf', 'jpg', 'png'].indexOf(type) > -1;
+    }
+
+    function toDriveDownloadUrl(url) {
+      var raw = String(url || '').trim();
+      if (!raw) return '';
+      var m = raw.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
+      return m && m[1] ? ('https://drive.google.com/uc?export=download&id=' + m[1]) : raw;
+    }
+
+    function getDrawingStatusMessage(status) {
+      var normalized = String(status || '').trim().toLowerCase();
+      if (normalized === 'available') return 'Drawing available';
+      if (normalized === 'not required') return 'Drawing not required';
+      if (normalized === 'pending update') return 'Drawing pending update';
+      return 'No drawing available';
+    }
+
+    function getPartAttachments(item) {
+      var attachments = [];
+      function add(type, url, fileName, status) {
+        var cleanUrl = String(url || '').trim();
+        if (!cleanUrl) return;
+        attachments.push({
+          type: type,
+          url: cleanUrl,
+          fileName: String(fileName || '').trim() || (type + ' file'),
+          status: status || '',
+          fileType: getAttachmentTypeFromNameOrUrl(fileName, cleanUrl),
+          previewable: isPreviewableAttachment(fileName, cleanUrl),
+          downloadUrl: toDriveDownloadUrl(cleanUrl)
+        });
+      }
+      function splitLinks(value) {
+        if (Array.isArray(value)) return value;
+        var raw = String(value || '').trim();
+        if (!raw) return [];
+        if (raw.charAt(0) === '[') {
+          try { var parsed = JSON.parse(raw); if (Array.isArray(parsed)) return parsed; } catch (err) {}
+        }
+        return raw.split(/\s*[;,]\s*/).filter(Boolean);
+      }
+      function addMany(type, urls, names, status) {
+        var urlList = splitLinks(urls);
+        var nameList = splitLinks(names);
+        urlList.forEach(function(url, idx) {
+          if (url && typeof url === 'object') add(url.type || type, url.url || url.link || url.href, url.fileName || url.name, url.status || status);
+          else add(type, url, nameList[idx] || '', status);
+        });
+      }
+      add('Photo', item && (item.image_main_url || item.image_main || item.photo), item && (item.image_main_file_name || item.name || 'Photo'), 'Available');
+      add('Drawing', item && item.drawing_url, item && item.drawing_file_name, normalizeDrawingStatus(item));
+      addMany('Drawing', item && (item.drawing_urls || item.drawing_links || item.drawing_attachments_json), item && (item.drawing_file_names || item.drawing_names), normalizeDrawingStatus(item));
+      add('Datasheet', item && item.datasheet_url, item && (item.datasheet_file_name || 'Datasheet'), 'Available');
+      addMany('Datasheet', item && item.datasheet_urls, item && item.datasheet_file_names, 'Available');
+      add('Quotation', item && item.quotation_url, item && (item.quotation_file_name || 'Quotation'), 'Available');
+      addMany('Quotation', item && item.quotation_urls, item && item.quotation_file_names, 'Available');
+      add('Other Attachment', item && (item.attachment_url || item.other_attachment_url), item && (item.attachment_file_name || item.other_attachment_file_name || 'Attachment'), 'Available');
+      addMany('Other Attachment', item && (item.attachment_urls || item.other_attachment_urls), item && (item.attachment_file_names || item.other_attachment_file_names), 'Available');
+      return attachments.filter(function(att, idx, arr) {
+        return arr.findIndex(function(x) { return x.type === att.type && x.url === att.url; }) === idx;
+      });
+    }
+
+    function renderAttachmentActionButton(label, url, extraClass, attrs) {
+      if (!url) return '';
+      return '<a href="' + url + '" ' + (attrs || '') + ' class="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold ' + (extraClass || 'border-slate-300 bg-white text-slate-700') + '">' + label + '</a>';
     }
 
     function readFileAsDataUrl(file) {
@@ -5706,8 +5800,10 @@ function inferRequestPriority(stock, min) {
         var stockClass = tone.textClass;
         var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
+        var drawingBadge = (normalizeDrawingStatus(item) === 'Available' && String(item.drawing_url || '').trim()) ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
         return '<article data-row-key="' + itemKey + '" class="group relative rounded-2xl border p-3 h-[430px] flex flex-col shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-200 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative h-[150px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
+            drawingBadge +
             '<img loading="lazy" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain object-center p-1 transform scale-[1.1] transition duration-300 group-hover:scale-[1.15] ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\''+ FALLBACK_IMAGE +'\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-2xl') + '</div>' : '') +
           '</div>' +
@@ -5786,8 +5882,10 @@ function inferRequestPriority(stock, min) {
         var stockClass = tone.textClass;
                 var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
+        var drawingBadge = (normalizeDrawingStatus(item) === 'Available' && String(item.drawing_url || '').trim()) ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
         return '<article data-view-key="' + itemKey + '" class="relative rounded-2xl border p-3 h-[380px] flex flex-col shadow-sm transition-all duration-200 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative h-[150px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
+            drawingBadge +
             '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain bg-slate-50 p-1 transform scale-[1.08] transition duration-300 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-lg') + '</div>' : '') +
           '</div>' +
@@ -5928,11 +6026,39 @@ function inferRequestPriority(stock, min) {
       document.getElementById('detailSupplier').textContent = item.supplier || '-';
       document.getElementById('detailPriceUpdatedAt').textContent = formatBangkokDateTime(item.price_updated_at);
       document.getElementById('detailPriceRemark').textContent = item.price_remark || '-';
-      document.getElementById('detailDrawingStatus').textContent = normalizeDrawingStatus(item) || '-';
+      var drawingStatusValue = normalizeDrawingStatus(item);
+      var drawingAttachments = getPartAttachments(item).filter(function(att){ return att.type === 'Drawing'; });
+      var firstDrawing = drawingAttachments[0] || null;
+      document.getElementById('detailDrawingStatus').textContent = drawingStatusValue || '-';
       document.getElementById('detailDrawingRevision').textContent = item.drawing_revision || '-';
       document.getElementById('detailDrawingFileName').textContent = item.drawing_file_name || (item.drawing_url ? 'Drawing link' : '-');
+      var drawingMessageEl = document.getElementById('detailDrawingMessage');
+      if (drawingMessageEl) drawingMessageEl.textContent = getDrawingStatusMessage(drawingStatusValue);
+      var requirementEl = document.getElementById('detailDrawingRequirement');
+      if (requirementEl) requirementEl.textContent = isDrawingRecommended(item) ? 'Required / Recommended' : 'Optional';
+      var drawingActionsEl = document.getElementById('detailDrawingActions');
+      if (drawingActionsEl) {
+        if (drawingStatusValue === 'Available' && firstDrawing && firstDrawing.url) {
+          drawingActionsEl.innerHTML = (firstDrawing.previewable ? renderAttachmentActionButton('View Drawing', firstDrawing.url, 'border-blue-300 bg-blue-600 text-white', 'target="_blank" rel="noopener"') : '') +
+            renderAttachmentActionButton('Download Drawing', firstDrawing.downloadUrl || firstDrawing.url, 'border-blue-300 bg-white text-blue-700', 'target="_blank" rel="noopener" download');
+        } else {
+          drawingActionsEl.innerHTML = '';
+        }
+      }
+      var attachmentListEl = document.getElementById('detailAttachmentList');
+      if (attachmentListEl) {
+        var attachments = getPartAttachments(item);
+        attachmentListEl.innerHTML = attachments.length ? attachments.map(function(att) {
+          var viewButton = att.previewable ? renderAttachmentActionButton('View', att.url, 'border-slate-300 bg-white text-slate-700', 'target="_blank" rel="noopener"') : '';
+          var downloadButton = renderAttachmentActionButton('Download', att.downloadUrl || att.url, 'border-blue-300 bg-blue-50 text-blue-700', 'target="_blank" rel="noopener" download');
+          return '<div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">' +
+            '<div class="min-w-0"><p class="font-semibold text-slate-800">' + att.type + ': ' + att.fileName + '</p><p class="text-xs text-slate-500">Type: ' + att.fileType + '</p></div>' +
+            '<div class="flex flex-wrap gap-2">' + viewButton + downloadButton + '</div>' +
+          '</div>';
+        }).join('') : '<div class="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">No attachment files</div>';
+      }
       setAttachmentLink('detailViewPhoto', item.image_main_url || item.image_main || item.photo || '');
-      setAttachmentLink('detailViewDrawing', item.drawing_url || '');
+      setAttachmentLink('detailViewDrawing', (firstDrawing && firstDrawing.previewable) ? firstDrawing.url : '');
       setAttachmentLink('detailViewDatasheet', item.datasheet_url || '');
       setAttachmentLink('detailViewQuotation', item.quotation_url || '');
       document.getElementById('detailRemark').textContent = item.remark || '-';
