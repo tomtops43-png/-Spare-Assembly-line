@@ -1570,9 +1570,6 @@ function doGet(e) {
     if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
-      ensureLocationColumnsForAllKnownSheets();
-      ensurePriceColumnsForAllKnownSheets();
-      ensureAttachmentColumnsForAllKnownSheets();
       return respond(upsertMainItem({
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
@@ -1612,11 +1609,7 @@ function doGet(e) {
     }
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
-    ensureLocationColumnsForAllKnownSheets();
-    ensurePriceColumnsForAllKnownSheets();
-    ensureAttachmentColumnsForAllKnownSheets();
     var ctx = getMainSheetContext(sheetName);
-    ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
     var map = ctx.map;
     var rows = ctx.rows;
     if (!rows.length) return respond([], e);
@@ -1758,9 +1751,6 @@ function doPost(e) {
     requirePermission(authPayload, 'view');
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
-      ensureLocationColumnsForAllKnownSheets();
-      ensurePriceColumnsForAllKnownSheets();
-      ensureAttachmentColumnsForAllKnownSheets();
       return respond(upsertMainItem({
         sheetName: body.sheet || body.sheetName,
         no: body.no,
