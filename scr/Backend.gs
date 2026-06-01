@@ -11,6 +11,17 @@ var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_js
 var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at'];
 var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
+var DRIVE_ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
+var DRAWING_STATUS_OPTIONS = ['Available', 'Not Available', 'Not Required', 'Pending Update'];
+var PART_ATTACHMENT_COLUMNS = [
+  { label: 'Photo URL', aliases: ['photourl', 'photo', 'sparepartsphotos'] },
+  { label: 'Drawing URL', aliases: ['drawingurl', 'drawing_url'] },
+  { label: 'Drawing File Name', aliases: ['drawingfilename', 'drawing_file_name'] },
+  { label: 'Drawing Revision', aliases: ['drawingrevision', 'drawingrev', 'drawing_revision', 'drawing_rev'] },
+  { label: 'Drawing Status', aliases: ['drawingstatus', 'drawing_status'] },
+  { label: 'Datasheet URL', aliases: ['datasheeturl', 'datasheet_url'] },
+  { label: 'Quotation URL', aliases: ['quotationurl', 'quotation_url'] }
+];
 
 // =============================
 // HELPERS
@@ -124,6 +135,29 @@ function ensurePriceColumnsForAllKnownSheets() {
       ensurePriceColumnsForSheet(sheetName);
     } catch (err) {
       Logger.log('ensurePriceColumnsForAllKnownSheets warning [' + sheetName + ']: ' + (err && err.message ? err.message : err));
+    }
+  });
+}
+
+function ensureAttachmentColumnsForSheet(sheetName) {
+  var targetSheet = String(sheetName || '').trim();
+  if (!targetSheet) return;
+  var ctx = getMainSheetContext(targetSheet);
+  PART_ATTACHMENT_COLUMNS.forEach(function(col) {
+    ensureColumnInContext(ctx, col.label, col.aliases);
+  });
+}
+
+function ensureAttachmentColumnsForAllKnownSheets() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var discoveredSheets = spreadsheet.getSheets().map(function(s) { return s.getName(); });
+  var candidates = [SPARE_APP_CONFIG.readSheetName].concat(STOCK_LOCATION_SHEETS).concat(discoveredSheets);
+  var uniqueSheets = Array.from(new Set(candidates.filter(function(name) { return !!String(name || '').trim(); })));
+  uniqueSheets.forEach(function(sheetName) {
+    try {
+      ensureAttachmentColumnsForSheet(sheetName);
+    } catch (err) {
+      Logger.log('ensureAttachmentColumnsForAllKnownSheets warning [' + sheetName + ']: ' + (err && err.message ? err.message : err));
     }
   });
 }
@@ -902,8 +936,7 @@ function getOrCreateChildFolder(parent, name) {
 }
 
 function getUploadTargetFolder(line, itemId, imageType) {
-  var ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
-  var root = DriveApp.getFolderById(ROOT_FOLDER_ID);
+  var root = DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID);
   var safeLine = String(line || '').trim() || 'UnknownLine';
   var safeItemId = String(itemId || '').trim() || 'UNKNOWN';
   var typeName = imageType === 'install' ? 'install' : 'main';
@@ -994,6 +1027,101 @@ function uploadImageToDrive(payload) {
   };
 }
 
+
+function getSparePartsAttachmentFolder(kind) {
+  var normalized = String(kind || '').toLowerCase();
+  var folderNameMap = {
+    photo: 'Photos',
+    photos: 'Photos',
+    drawing: 'Drawings',
+    drawings: 'Drawings',
+    datasheet: 'Datasheets',
+    datasheets: 'Datasheets',
+    quotation: 'Quotations',
+    quotations: 'Quotations'
+  };
+  var folderName = folderNameMap[normalized];
+  if (!folderName) throw new Error('ชนิดไฟล์แนบไม่ถูกต้อง');
+  var root = DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID);
+  var spareRoot = getOrCreateChildFolder(root, 'SpareParts');
+  return {
+    folder: getOrCreateChildFolder(spareRoot, folderName),
+    folderName: folderName,
+    drivePath: 'SpareParts/' + folderName + '/'
+  };
+}
+
+function getFileExtensionFromName(fileName) {
+  var match = String(fileName || '').toLowerCase().match(/\.([a-z0-9]+)$/);
+  return match ? match[1] : '';
+}
+
+function validateDrawingAttachmentFile(fileName, mimeType) {
+  var ext = getFileExtensionFromName(fileName);
+  var allowedExt = { pdf: true, dwg: true, dxf: true, jpg: true, jpeg: true, png: true, step: true, stp: true };
+  var allowedMime = {
+    'application/pdf': true,
+    'image/jpeg': true,
+    'image/png': true,
+    'application/acad': true,
+    'application/autocad_dwg': true,
+    'application/dwg': true,
+    'application/dxf': true,
+    'application/octet-stream': true,
+    'application/step': true,
+    'model/step': true,
+    'model/stp': true,
+    'text/plain': true,
+    'image/vnd.dwg': true,
+    'image/vnd.dxf': true
+  };
+  if (!allowedExt[ext]) throw new Error('รองรับเฉพาะ PDF, DWG, DXF, JPG, PNG, STEP, STP');
+  if (mimeType && !allowedMime[String(mimeType || '').toLowerCase()]) {
+    Logger.log('validateDrawingAttachmentFile warning unknown mime: ' + mimeType + ' for ' + fileName);
+  }
+}
+
+function uploadPartAttachmentToDrive(payload) {
+  payload = payload || {};
+  var kind = String(payload.kind || payload.attachmentType || 'drawing').toLowerCase();
+  var itemId = String(payload.itemId || payload.no || '').trim();
+  var itemName = String(payload.itemName || payload.name || '').trim();
+  var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
+  var originalName = String(payload.fileName || '').trim() || (kind + '-' + Date.now());
+  if (!itemId) throw new Error('ต้องมี itemId');
+  if (!dataUrl) throw new Error('ไม่พบข้อมูลไฟล์');
+  var mimeType = getDataUrlMimeType(dataUrl) || String(payload.mimeType || '').toLowerCase() || 'application/octet-stream';
+  if (kind === 'drawing') validateDrawingAttachmentFile(originalName, mimeType);
+  var base64Content = dataUrl.split(',')[1] || '';
+  var bytes = Utilities.base64Decode(base64Content);
+  var safeOriginalName = originalName.replace(/[\\/:*?"<>|#%{}~&]/g, '-');
+  var fileName = itemId + '-' + Date.now() + '-' + safeOriginalName;
+  var blob = Utilities.newBlob(bytes, mimeType, fileName);
+  var target = getSparePartsAttachmentFolder(kind);
+  var file = target.folder.createFile(blob);
+  var sharingWarning = '';
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (shareErr) {
+    sharingWarning = shareErr && shareErr.message ? String(shareErr.message) : String(shareErr);
+    Logger.log('uploadPartAttachmentToDrive setSharing warning: ' + sharingWarning);
+  }
+  return {
+    ok: true,
+    status: 'success',
+    itemId: itemId,
+    kind: kind,
+    fileId: file.getId(),
+    fileName: safeOriginalName,
+    storedFileName: fileName,
+    url: 'https://drive.google.com/file/d/' + file.getId() + '/view',
+    viewUrl: 'https://drive.google.com/file/d/' + file.getId() + '/view',
+    directUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
+    drivePath: target.drivePath,
+    warning: sharingWarning
+  };
+}
+
 function extractNumericNo(value) {
   var raw = String(value || '').trim();
   if (!raw) return NaN;
@@ -1054,7 +1182,13 @@ function upsertMainItem(payload) {
     location: findCol(['location', 'jrlocation']),
     category: findCol(['category']),
     brand: findCol(['brand']),
-    photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic']),
+    photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'photo_url', 'image', 'imageurl', 'picture', 'pic']),
+    drawing_url: findCol(['drawingurl', 'drawing_url']),
+    drawing_file_name: findCol(['drawingfilename', 'drawing_file_name']),
+    drawing_revision: findCol(['drawingrevision', 'drawingrev', 'drawing_revision', 'drawing_rev']),
+    drawing_status: findCol(['drawingstatus', 'drawing_status']),
+    datasheet_url: findCol(['datasheeturl', 'datasheet_url']),
+    quotation_url: findCol(['quotationurl', 'quotation_url']),
     image_main_url: findCol(['image_main_url', 'imagemainurl', 'image_main', 'imagemain']),
     image_main_file_id: findCol(['image_main_file_id', 'imagemainfileid']),
     image_install_url: findCol(['image_install_url', 'imageinstallurl', 'image_install', 'imageinstall']),
@@ -1084,6 +1218,27 @@ function upsertMainItem(payload) {
   }
   if (fieldCols.category === undefined) {
     fieldCols.category = ensureColumnInContext(ctx, 'Category', ['category']);
+  }
+  if (fieldCols.photo === undefined) {
+    fieldCols.photo = ensureColumnInContext(ctx, 'Photo URL', ['photourl', 'photo', 'sparepartsphotos']);
+  }
+  if (fieldCols.drawing_url === undefined) {
+    fieldCols.drawing_url = ensureColumnInContext(ctx, 'Drawing URL', ['drawingurl', 'drawing_url']);
+  }
+  if (fieldCols.drawing_file_name === undefined) {
+    fieldCols.drawing_file_name = ensureColumnInContext(ctx, 'Drawing File Name', ['drawingfilename', 'drawing_file_name']);
+  }
+  if (fieldCols.drawing_revision === undefined) {
+    fieldCols.drawing_revision = ensureColumnInContext(ctx, 'Drawing Revision', ['drawingrevision', 'drawingrev', 'drawing_revision', 'drawing_rev']);
+  }
+  if (fieldCols.drawing_status === undefined) {
+    fieldCols.drawing_status = ensureColumnInContext(ctx, 'Drawing Status', ['drawingstatus', 'drawing_status']);
+  }
+  if (fieldCols.datasheet_url === undefined) {
+    fieldCols.datasheet_url = ensureColumnInContext(ctx, 'Datasheet URL', ['datasheeturl', 'datasheet_url']);
+  }
+  if (fieldCols.quotation_url === undefined) {
+    fieldCols.quotation_url = ensureColumnInContext(ctx, 'Quotation URL', ['quotationurl', 'quotation_url']);
   }
   if (fieldCols.image_main === undefined) {
     fieldCols.image_main = ensureColumnInContext(ctx, 'image_main', ['image_main', 'imagemain']);
@@ -1142,6 +1297,12 @@ function upsertMainItem(payload) {
     category: payload.category || '',
     brand: payload.brand || '',
     photo: payload.photo || '',
+    drawing_url: payload.drawing_url || '',
+    drawing_file_name: payload.drawing_file_name || '',
+    drawing_revision: payload.drawing_revision || '',
+    drawing_status: DRAWING_STATUS_OPTIONS.indexOf(payload.drawing_status) > -1 ? payload.drawing_status : (payload.drawing_status || ''),
+    datasheet_url: payload.datasheet_url || '',
+    quotation_url: payload.quotation_url || '',
     image_main: payload.image_main || payload.image_main_url || payload.photo || '',
     image_install: payload.image_install || payload.image_install_url || '',
     image_main_url: payload.image_main_url || payload.image_main || payload.photo || '',
@@ -1293,11 +1454,17 @@ function doGet(e) {
       return respond(getNextNoBySheet(e.parameter.sheet), e);
     }
     if (action === 'authStatus') return respond(getDriveAuthStatus(), e);
+    if (action === 'uploadDrawing' || action === 'uploadAttachment') {
+      requirePermission(authPayload, 'manage_items');
+      e.parameter.kind = e.parameter.kind || 'drawing';
+      return respond(uploadPartAttachmentToDrive(e.parameter), e);
+    }
     if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
       ensureLocationColumnsForAllKnownSheets();
       ensurePriceColumnsForAllKnownSheets();
+      ensureAttachmentColumnsForAllKnownSheets();
       return respond(upsertMainItem({
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
@@ -1322,7 +1489,13 @@ function doGet(e) {
       currency: e.parameter.currency,
       supplier: e.parameter.supplier,
       price_updated_at: e.parameter.price_updated_at,
-      price_remark: e.parameter.price_remark
+      price_remark: e.parameter.price_remark,
+      drawing_url: e.parameter.drawing_url,
+      drawing_file_name: e.parameter.drawing_file_name,
+      drawing_revision: e.parameter.drawing_revision,
+      drawing_status: e.parameter.drawing_status,
+      datasheet_url: e.parameter.datasheet_url,
+      quotation_url: e.parameter.quotation_url
     }), e);
     }
     if (action === 'deleteItem') {
@@ -1332,7 +1505,8 @@ function doGet(e) {
 
     var sheetName = resolveReadSheetName({ sheet: e.parameter.sheet });
     ensureLocationColumnsForAllKnownSheets();
-      ensurePriceColumnsForAllKnownSheets();
+    ensurePriceColumnsForAllKnownSheets();
+    ensureAttachmentColumnsForAllKnownSheets();
     var ctx = getMainSheetContext(sheetName);
     ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
     var map = ctx.map;
@@ -1374,6 +1548,12 @@ function doGet(e) {
         image_main_file_id: mainFileIdValue,
         image_install_url: installImageValue,
         image_install_file_id: installFileIdValue,
+        drawing_url: pickRowValue(row, map, ['drawingurl', 'drawing_url'], ''),
+        drawing_file_name: pickRowValue(row, map, ['drawingfilename', 'drawing_file_name'], ''),
+        drawing_revision: pickRowValue(row, map, ['drawingrevision', 'drawingrev', 'drawing_revision', 'drawing_rev'], ''),
+        drawing_status: pickRowValue(row, map, ['drawingstatus', 'drawing_status'], ''),
+        datasheet_url: pickRowValue(row, map, ['datasheeturl', 'datasheet_url'], ''),
+        quotation_url: pickRowValue(row, map, ['quotationurl', 'quotation_url'], ''),
         unit_price: pickRowValue(row, map, ['unitprice', 'unit_price'], ''),
         currency: pickRowValue(row, map, ['currency'], 'THB'),
         supplier: pickRowValue(row, map, ['supplier'], ''),
@@ -1472,6 +1652,7 @@ function doPost(e) {
       requirePermission(authPayload, 'manage_items');
       ensureLocationColumnsForAllKnownSheets();
       ensurePriceColumnsForAllKnownSheets();
+      ensureAttachmentColumnsForAllKnownSheets();
       return respond(upsertMainItem({
         sheetName: body.sheet || body.sheetName,
         no: body.no,
@@ -1497,8 +1678,19 @@ function doPost(e) {
         supplier: body.supplier,
         price_updated_at: body.price_updated_at,
         price_remark: body.price_remark,
-        coil_size: body.coil_size || body.machine_model
+        coil_size: body.coil_size || body.machine_model,
+        drawing_url: body.drawing_url,
+        drawing_file_name: body.drawing_file_name,
+        drawing_revision: body.drawing_revision,
+        drawing_status: body.drawing_status,
+        datasheet_url: body.datasheet_url,
+        quotation_url: body.quotation_url
       }), e);
+    }
+    if (action === 'uploadDrawing' || action === 'uploadAttachment') {
+      requirePermission(authPayload, 'manage_items');
+      body.kind = body.kind || 'drawing';
+      return respond(uploadPartAttachmentToDrive(body), e);
     }
     if (action === 'uploadImage' || action === 'upload') {
       requirePermission(authPayload, 'manage_items');
