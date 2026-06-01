@@ -1077,7 +1077,30 @@ function uploadImageToDrive(payload) {
 }
 
 
-function getSparePartsAttachmentFolder(kind) {
+function sanitizeDrivePathSegment(value, fallbackValue) {
+  var fallback = fallbackValue === undefined ? 'Unknown' : String(fallbackValue || '');
+  var text = String(value || '').trim();
+  if (!text) text = fallback;
+  text = text
+    .replace(/&/g, '_')
+    .replace(/[\\/:*?"<>|#%{}~]+/g, '_')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return text || fallback;
+}
+
+function normalizeAttachmentLineFolder(line) {
+  var raw = String(line || '').trim();
+  var normalized = raw.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '');
+  if (normalized === 'h9') return 'H9';
+  if (normalized === 'arcchute' || normalized === 'arcchut') return 'Arc_Chute';
+  if (normalized === 'coilwinding') return 'Coil_Winding';
+  if (normalized === 'lugscrew' || normalized === 'lugandscrew') return 'Lug_Screw';
+  return sanitizeDrivePathSegment(raw, 'Unknown_Line');
+}
+
+function getAttachmentKindFolderName(kind) {
   var normalized = String(kind || '').toLowerCase();
   var folderNameMap = {
     photo: 'Photos',
@@ -1091,12 +1114,49 @@ function getSparePartsAttachmentFolder(kind) {
   };
   var folderName = folderNameMap[normalized];
   if (!folderName) throw new Error('ชนิดไฟล์แนบไม่ถูกต้อง');
+  return folderName;
+}
+
+function buildAttachmentPartFolderName(payload, itemId, itemName) {
+  var modelOrPartNo = String(payload.model || payload.partNo || payload.part_no || itemId || '').trim();
+  if (!modelOrPartNo) throw new Error('ต้องมี Part ID หรือ Model/Part No. สำหรับจัดเก็บ Drawing');
+  var base = sanitizeDrivePathSegment(modelOrPartNo, 'UNKNOWN_PART');
+  var suffix = sanitizeDrivePathSegment(itemName, '');
+  return suffix ? (base + '_' + suffix) : base;
+}
+
+function buildAttachmentStoredFileName(kind, payload, itemId, originalName) {
+  var ext = getFileExtensionFromName(originalName);
+  var modelOrPartNo = String(payload.model || payload.partNo || payload.part_no || itemId || '').trim();
+  var base = sanitizeDrivePathSegment(modelOrPartNo, 'UNKNOWN_PART');
+  var revision = sanitizeDrivePathSegment(payload.revision || payload.drawingRevision || payload.drawing_revision || payload.rev || '', '');
+  var labelMap = { drawing: 'Drawing', drawings: 'Drawing', datasheet: 'Datasheet', datasheets: 'Datasheet', quotation: 'Quotation', quotations: 'Quotation', photo: 'Photo', photos: 'Photo' };
+  var label = labelMap[String(kind || '').toLowerCase()] || 'Attachment';
+  var fileName = base + '_' + label + (revision ? '_Rev' + revision.replace(/^rev_?/i, '') : '');
+  if (ext) fileName += '.' + ext;
+  return fileName;
+}
+
+function getSparePartsAttachmentFolder(kind, payload) {
+  payload = payload || {};
+  var folderName = getAttachmentKindFolderName(kind);
   var root = DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID);
   var spareRoot = getOrCreateChildFolder(root, 'SpareParts');
+  var kindRoot = getOrCreateChildFolder(spareRoot, folderName);
+  var targetFolder = kindRoot;
+  var drivePath = 'SpareParts/' + folderName + '/';
+
+  if (folderName === 'Drawings') {
+    var lineFolderName = normalizeAttachmentLineFolder(payload.line || payload.mainLine || payload.sourceLine || payload.sheet || payload.sourceSheet || '');
+    var partFolderName = buildAttachmentPartFolderName(payload, String(payload.itemId || payload.no || '').trim(), String(payload.itemName || payload.name || '').trim());
+    targetFolder = getOrCreateChildFolder(getOrCreateChildFolder(kindRoot, lineFolderName), partFolderName);
+    drivePath += lineFolderName + '/' + partFolderName + '/';
+  }
+
   return {
-    folder: getOrCreateChildFolder(spareRoot, folderName),
+    folder: targetFolder,
     folderName: folderName,
-    drivePath: 'SpareParts/' + folderName + '/'
+    drivePath: drivePath
   };
 }
 
@@ -1143,10 +1203,10 @@ function uploadPartAttachmentToDrive(payload) {
   if (kind === 'drawing') validateDrawingAttachmentFile(originalName, mimeType);
   var base64Content = dataUrl.split(',')[1] || '';
   var bytes = Utilities.base64Decode(base64Content);
-  var safeOriginalName = originalName.replace(/[\\/:*?"<>|#%{}~&]/g, '-');
-  var fileName = itemId + '-' + Date.now() + '-' + safeOriginalName;
+  var safeOriginalName = sanitizeDrivePathSegment(originalName, kind + '-' + Date.now());
+  var fileName = buildAttachmentStoredFileName(kind, payload, itemId, originalName);
   var blob = Utilities.newBlob(bytes, mimeType, fileName);
-  var target = getSparePartsAttachmentFolder(kind);
+  var target = getSparePartsAttachmentFolder(kind, payload);
   var file = target.folder.createFile(blob);
   var sharingWarning = '';
   try {

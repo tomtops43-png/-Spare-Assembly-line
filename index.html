@@ -2523,8 +2523,9 @@ function getIssueCartEntries() {
       });
     }
 
-    function uploadDrawingFile(file, itemId, itemName) {
+    function uploadDrawingFile(file, itemId, itemName, meta) {
       if (!file) return Promise.resolve(null);
+      meta = meta || {};
       validateDrawingFile(file);
       return readFileAsDataUrl(file).then(function(dataUrl) {
         var payload = new URLSearchParams();
@@ -2532,6 +2533,10 @@ function getIssueCartEntries() {
         payload.append('kind', 'drawing');
         payload.append('itemId', itemId);
         payload.append('itemName', itemName || '');
+        payload.append('line', meta.line || '');
+        payload.append('model', meta.model || meta.partNo || '');
+        payload.append('partNo', meta.partNo || meta.model || '');
+        payload.append('revision', meta.revision || '');
         payload.append('fileName', file.name || ('drawing-' + Date.now()));
         payload.append('mimeType', file.type || 'application/octet-stream');
         payload.append('dataUrl', dataUrl);
@@ -5386,7 +5391,7 @@ function inferRequestPriority(stock, min) {
               payload.image_main_url = normalizedMainUrl;
               payload.image_main_file_id = mainRes.fileId || '';
             }
-            return uploadDrawingFile(drawingFile, itemNo, document.getElementById('eName').value.trim()).then(function(drawingRes) {
+            return uploadDrawingFile(drawingFile, itemNo, document.getElementById('eName').value.trim(), { line: payload.line, model: payload.model, partNo: payload.no, revision: payload.drawing_revision }).then(function(drawingRes) {
               setProgress(70);
               if (drawingRes) {
                 payload.drawing_url = drawingRes.viewUrl || drawingRes.url || '';
@@ -5623,7 +5628,7 @@ function inferRequestPriority(stock, min) {
               payload.image_main_url = normalizedMainUrl;
               payload.image_main_file_id = mainRes.fileId || '';
             }
-            return uploadDrawingFile(drawingFile, itemNo, document.getElementById('mName').value.trim()).then(function(drawingRes) {
+            return uploadDrawingFile(drawingFile, itemNo, document.getElementById('mName').value.trim(), { line: payload.line, model: payload.model, partNo: payload.no, revision: payload.drawing_revision }).then(function(drawingRes) {
               setProgress(70);
               if (drawingRes) {
                 payload.drawing_url = drawingRes.viewUrl || drawingRes.url || '';
@@ -6647,6 +6652,11 @@ if (dashboardPage) {
         if (normalizedStatus === 'access required') return 'Access Required';
         return 'Missing';
       }
+      function normalizePrDrawingStatus(item, drawingUrl) {
+        var normalizedStatus = normalizeDrawingStatus({ drawing_status: item && (item.drawingStatus || item.drawing_status), drawing_url: drawingUrl, category: item && item.category, name: item && item.name, model: item && item.model, brand: item && item.brand });
+        if (!String(drawingUrl || '').trim() && normalizedStatus !== 'Not Required') return 'Missing';
+        return normalizedStatus;
+      }
       function getDrawingFileExt(item) {
         var raw = String((item && (item.drawingFileName || item.drawingUrl)) || '').toLowerCase();
         var match = raw.match(/\.([a-z0-9]+)(?:[?#].*)?$/);
@@ -6713,7 +6723,7 @@ if (dashboardPage) {
         var selectedDrawingUrl = firstDefined([c.drawingUrl, c.drawing_url], '');
         var strictMasterDrawingUrl = master ? firstDefined([master.drawing_url, master.drawingUrl], '') : '';
         var drawingUrl = firstDefined([selectedDrawingUrl, strictMasterDrawingUrl], '');
-        var drawingStatus = normalizeDrawingStatus({ category: c.category, name: c.name, model: c.model, brand: c.brand, drawing_url: drawingUrl, drawing_status: firstDefined([c.drawingStatus, c.drawing_status, master && master.drawing_status], '') });
+        var drawingStatus = normalizePrDrawingStatus({ category: c.category, name: c.name, model: c.model, brand: c.brand, drawingStatus: firstDefined([c.drawingStatus, c.drawing_status, master && master.drawing_status], '') }, drawingUrl);
         var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
         var normalizedImage = normalizeImageUrl(firstDefined([selectedImg, masterImg], ''));
         return {
@@ -6860,13 +6870,13 @@ if (dashboardPage) {
 
       function canShowDrawingLink(item) {
         var drawingUrl = String((item && item.drawingUrl) || '').trim();
-        var status = normalizeDrawingStatus({ drawing_status: item && item.drawingStatus, drawing_url: drawingUrl, category: item && item.category, name: item && item.name, model: item && item.model, brand: item && item.brand });
+        var status = normalizePrDrawingStatus(item, drawingUrl);
         return !!drawingUrl && (status === 'Available' || status === 'Access Required');
       }
       function annexDrawingRows(items) {
         if (!items.length) return '<tr><td colspan="10" class="empty">No drawing references</td></tr>';
         return items.map(function(c, i) {
-          var status = normalizeDrawingStatus({ drawing_status: c.drawingStatus, drawing_url: c.drawingUrl, category: c.category, name: c.name, model: c.model, brand: c.brand });
+          var status = normalizePrDrawingStatus(c, c.drawingUrl);
           var link = canShowDrawingLink(c) ? '<a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a>' : '-';
           return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(status)+'</td><td>'+esc(c.drawingRevision || '-')+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td>'+link+'</td></tr>';
         }).join('');
@@ -7011,7 +7021,7 @@ if (dashboardPage) {
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
       prReportPreview.innerHTML = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
     });
-    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Drawing Status','Drawing Revision','Drawing File Name','Drawing Link','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,normalizeDrawingStatus(c),c.drawingRevision||c.drawing_revision||'',c.drawingFileName||c.drawing_file_name||'',c.drawingUrl||c.drawing_url||'',c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
+    if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Drawing Status','Drawing Revision','Drawing File Name','Drawing Link','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); var drawingUrl=String(c.drawingUrl||c.drawing_url||'').trim(); var drawingStatus=normalizeDrawingStatus(Object.assign({}, c, { drawing_url: drawingUrl, drawingUrl: drawingUrl })); if(!drawingUrl && drawingStatus!=='Not Required') drawingStatus='Missing'; var drawingLink=(drawingUrl && (drawingStatus==='Available'||drawingStatus==='Access Required')) ? drawingUrl : ''; return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,drawingStatus,c.drawingRevision||c.drawing_revision||'',c.drawingFileName||c.drawing_file_name||'',drawingLink,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) return;
