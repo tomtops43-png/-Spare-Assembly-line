@@ -4538,7 +4538,11 @@ function inferRequestPriority(stock, min) {
         applyLoadedPartsData(cachePayload.items);
       }
 
-      var activeSheets = getSheetOptionsForLine(currentLine);
+      var lineSheets = getSheetOptionsForLine(currentLine);
+      var selectedSheetForLoad = getCurrentSheetName();
+      var activeSheets = (selectedSheetForLoad && lineSheets.indexOf(selectedSheetForLoad) > -1)
+        ? [selectedSheetForLoad]
+        : (lineSheets.length ? [lineSheets[0]] : []);
       var totalSheets = activeSheets.length;
       Promise.all(activeSheets.map(function(sheetName, idx) {
         return loadJsonpWithFallback(function(base){
