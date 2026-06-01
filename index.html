@@ -1335,6 +1335,8 @@
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
     var partsData = [];
+    var stockSheetMemoryCache = {};
+    var backgroundSheetPrefetching = {};
     var partMap = {};
     var currentTxnItemNo = '';
     var currentPage = 1;
@@ -1814,24 +1816,44 @@
       return 'spare_parts_cache::' + String(lineKey || currentLine || 'H9') + '::' + String(sheetName || getCurrentSheetName() || 'default');
     }
     function loadLineCache(lineKey, sheetName) {
+      var memoryKey = getLineCacheKey(lineKey, sheetName);
+      if (stockSheetMemoryCache[memoryKey] && Array.isArray(stockSheetMemoryCache[memoryKey].items)) return stockSheetMemoryCache[memoryKey];
       try {
-        var raw = localStorage.getItem(getLineCacheKey(lineKey, sheetName));
-        if (!raw) return null;
-        var parsed = JSON.parse(raw);
-        if (!parsed || !Array.isArray(parsed.items)) return null;
-        if (parsed.version !== LINE_CACHE_VERSION) return null;
-        return parsed;
+        var raw = localStorage.getItem(memoryKey);
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.items) && parsed.version === LINE_CACHE_VERSION) {
+            stockSheetMemoryCache[memoryKey] = parsed;
+            return parsed;
+          }
+        }
+
+        // Backward compatibility: reuse older line-level cache if it already has source-sheet metadata.
+        var legacyRaw = localStorage.getItem('spare_parts_cache::' + String(lineKey || currentLine || 'H9'));
+        if (!legacyRaw) return null;
+        var legacy = JSON.parse(legacyRaw);
+        if (!legacy || !Array.isArray(legacy.items)) return null;
+        var selected = String(sheetName || getCurrentSheetName() || '').trim();
+        var filtered = legacy.items.filter(function(item) { return getItemSourceSheet(item) === selected; });
+        if (!filtered.length) return null;
+        var migrated = { version: LINE_CACHE_VERSION, updatedAt: legacy.updatedAt || Date.now(), items: filtered };
+        stockSheetMemoryCache[memoryKey] = migrated;
+        saveLineCache(lineKey, filtered, sheetName);
+        return migrated;
       } catch (err) {
         return null;
       }
     }
     function saveLineCache(lineKey, items, sheetName) {
       try {
-        localStorage.setItem(getLineCacheKey(lineKey, sheetName), JSON.stringify({
+        var cacheKey = getLineCacheKey(lineKey, sheetName);
+        var payload = {
           version: LINE_CACHE_VERSION,
           updatedAt: Date.now(),
           items: items || []
-        }));
+        };
+        stockSheetMemoryCache[cacheKey] = payload;
+        localStorage.setItem(cacheKey, JSON.stringify(payload));
       } catch (err) {
         console.warn('saveLineCache failed', err);
       }
@@ -4522,6 +4544,51 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    function fetchSheetRows(sheetName) {
+      return loadJsonpWithFallback(function(base){
+        var query = '?sheet=' + encodeURIComponent(sheetName);
+        return base + appendAuthToQuery(query);
+      }).catch(function() {
+        return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)));
+      }).then(function(rawData) {
+        if (rawData && rawData.status === 'error') {
+          var msg = rawData.message || 'API ตอบกลับ error';
+          if (msg.indexOf('เข้าสู่ระบบ') > -1 || msg.indexOf('session') > -1) logout();
+          throw new Error(msg);
+        }
+        if (!Array.isArray(rawData)) return [];
+        return rawData.map(function(item) {
+          item.__sourceSheet = sheetName;
+          return item;
+        });
+      });
+    }
+
+    function prefetchLineSheetsInBackground(lineKey, selectedSheet) {
+      var sheets = getSheetOptionsForLine(lineKey).filter(function(sheetName) {
+        return sheetName !== selectedSheet && !loadLineCache(lineKey, sheetName);
+      });
+      if (!sheets.length) return;
+      var prefetchKey = String(lineKey || '') + '::' + sheets.join('|');
+      if (backgroundSheetPrefetching[prefetchKey]) return;
+      backgroundSheetPrefetching[prefetchKey] = true;
+      setTimeout(function() {
+        var chain = Promise.resolve();
+        sheets.forEach(function(sheetName) {
+          chain = chain.then(function() {
+            return fetchSheetRows(sheetName).then(function(rows) {
+              return normalizeRecordsInBatches(rows);
+            }).then(function(normalized) {
+              saveLineCache(lineKey, normalized, sheetName);
+            }).catch(function(err) {
+              console.warn('prefetch sheet failed', sheetName, err);
+            });
+          });
+        });
+        chain.finally(function() { delete backgroundSheetPrefetching[prefetchKey]; });
+      }, 250);
+    }
+
     function loadPartsData(options) {
       var opts = options || {};
       var skipCache = !!opts.skipCache;
@@ -4545,25 +4612,7 @@ function inferRequestPriority(stock, min) {
         : (lineSheets.length ? [lineSheets[0]] : []);
       var totalSheets = activeSheets.length;
       Promise.all(activeSheets.map(function(sheetName, idx) {
-        return loadJsonpWithFallback(function(base){
-          var query = '?sheet=' + encodeURIComponent(sheetName);
-          return base + appendAuthToQuery(query);
-        }).catch(function() {
-          return loadByFetch(ACTIVE_API_URL + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)));
-        }).then(function(rawData) {
-          if (rawData && rawData.status === 'error') {
-            var msg = rawData.message || 'API ตอบกลับ error';
-            if (msg.indexOf('เข้าสู่ระบบ') > -1 || msg.indexOf('session') > -1) {
-              logout();
-            }
-            throw new Error(msg);
-          }
-          if (!Array.isArray(rawData)) return [];
-          return rawData.map(function(item) {
-            item.__sourceSheet = sheetName;
-            return item;
-          });
-        }).finally(function() {
+        return fetchSheetRows(sheetName).finally(function() {
           if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
           desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
           mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
@@ -4580,6 +4629,7 @@ function inferRequestPriority(stock, min) {
           if (requestSeq !== partsLoadRequestSeq) return;
           applyLoadedPartsData(normalizedData);
           saveLineCache(currentLine, normalizedData, selectedSheetForLoad);
+          prefetchLineSheetsInBackground(currentLine, selectedSheetForLoad);
         })
         .catch(function(err) {
           if (requestSeq !== partsLoadRequestSeq) return;
@@ -4638,7 +4688,7 @@ function inferRequestPriority(stock, min) {
           }
         });
         if (changed) {
-          saveLineCache(currentLine, partsData);
+          saveLineCache(currentLine, partsData, getCurrentSheetName());
           applyLoadedPartsData(partsData.slice());
         }
         return changed;
