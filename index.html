@@ -6678,21 +6678,21 @@ if (dashboardPage) {
       var modeNow = String((document.getElementById('prMode')||{}).value || 'assembly_monthly');
       var selectedLineNow = String((document.getElementById('prLineFilter')||{}).value || 'all');
       var isLineSpecific = modeNow === 'line_specific' && selectedLineNow !== 'all';
+      function strictPartKey(value) {
+        var key = String(value || '').trim().toLowerCase();
+        if (!key || key === '-' || key === 'n/a' || key === 'na' || key === 'unknown') return '';
+        return key;
+      }
       var masterById = {};
       var masterByLineAndId = {};
-      var masterByComposite = {};
+      var masterByLineAndModel = {};
       (partsData || []).forEach(function(item){
-        var k = String(item.no || item.id || '').trim();
+        var k = strictPartKey(item.no || item.id || '');
+        var modelKey = strictPartKey(item.model || item.partNo || item.part_no || '');
         var ln = canonicalLineName(item.line || item.mainLine || '-');
-        var compositeKey = [
-          ln,
-          String(item.name || '').trim().toLowerCase(),
-          String(item.brand || '').trim().toLowerCase(),
-          String(item.model || item.no || '').trim().toLowerCase()
-        ].join('|');
         if (k && !masterById[k]) masterById[k] = item;
         if (k && ln) masterByLineAndId[ln + '|' + k] = item;
-        if (compositeKey && !masterByComposite[compositeKey]) masterByComposite[compositeKey] = item;
+        if (modelKey && ln && !masterByLineAndModel[ln + '|' + modelKey]) masterByLineAndModel[ln + '|' + modelKey] = item;
       });
 
       var normalized = selected.map(function(c) {
@@ -6700,27 +6700,24 @@ if (dashboardPage) {
         var rawPrice = firstDefined([c.unit_price, c.unitPrice, c.price], '');
         var priceNum = rawPrice === '' ? NaN : asNum(rawPrice);
         var price = (Number.isFinite(priceNum) && priceNum > 0) ? priceNum : null;
-        var itemId = String(c.no || c.id || '').trim();
+        var itemId = strictPartKey(c.no || c.id || '');
+        var itemModelKey = strictPartKey(c.model || c.partNo || c.part_no || '');
         var itemLine = canonicalLineName(c.line || '-');
-        var compositeSelectedKey = [
-          itemLine,
-          String(c.name || '').trim().toLowerCase(),
-          String(c.brand || '').trim().toLowerCase(),
-          String(c.model || c.no || '').trim().toLowerCase()
-        ].join('|');
         var master = (itemId && masterByLineAndId[itemLine + '|' + itemId]) || null;
-        if (!master && !itemId) master = masterByComposite[compositeSelectedKey] || null;
+        if (!master && itemModelKey) master = masterByLineAndModel[itemLine + '|' + itemModelKey] || null;
         if (!master && itemId) {
           var weak = masterById[itemId] || null;
           if (weak && canonicalLineName(weak.line || weak.mainLine || '-') === itemLine) master = weak;
         }
         var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.photoUrl, master.picture, master.driveUrl, master.imageLink, master.image_main_file_id], '') : '';
-        var drawingUrl = firstDefined([c.drawingUrl, c.drawing_url, master && master.drawing_url], '');
+        var selectedDrawingUrl = firstDefined([c.drawingUrl, c.drawing_url], '');
+        var strictMasterDrawingUrl = master ? firstDefined([master.drawing_url, master.drawingUrl], '') : '';
+        var drawingUrl = firstDefined([selectedDrawingUrl, strictMasterDrawingUrl], '');
         var drawingStatus = normalizeDrawingStatus({ category: c.category, name: c.name, model: c.model, brand: c.brand, drawing_url: drawingUrl, drawing_status: firstDefined([c.drawingStatus, c.drawing_status, master && master.drawing_status], '') });
         var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
         var normalizedImage = normalizeImageUrl(firstDefined([selectedImg, masterImg], ''));
         return {
-          id: itemId || String(c.name || '-'),
+          id: String(c.no || c.id || c.name || '-'),
           no: c.no || '-',
           category: normalizeCategory(c.category || '-'),
           line: canonicalLineName(c.line || '-'),
@@ -6740,8 +6737,8 @@ if (dashboardPage) {
           image: normalizedImage,
           hasImage: !!normalizedImage,
           drawingUrl: drawingUrl,
-          drawingFileName: firstDefined([c.drawingFileName, c.drawing_file_name, master && master.drawing_file_name], ''),
-          drawingRevision: firstDefined([c.drawingRevision, c.drawing_revision, master && master.drawing_revision], ''),
+          drawingFileName: firstDefined([c.drawingFileName, c.drawing_file_name, (drawingUrl && drawingUrl === strictMasterDrawingUrl) ? (master && master.drawing_file_name) : ''], ''),
+          drawingRevision: firstDefined([c.drawingRevision, c.drawing_revision, (drawingUrl && drawingUrl === strictMasterDrawingUrl) ? (master && master.drawing_revision) : ''], ''),
           drawingStatus: drawingStatus,
           drawingCompactStatus: compactDrawingStatus(drawingStatus)
         };
@@ -6862,8 +6859,9 @@ if (dashboardPage) {
 
 
       function canShowDrawingLink(item) {
-        var status = normalizeDrawingStatus({ drawing_status: item && item.drawingStatus, drawing_url: item && item.drawingUrl, category: item && item.category, name: item && item.name, model: item && item.model, brand: item && item.brand });
-        return !!(item && item.drawingUrl) && (status === 'Available' || status === 'Access Required');
+        var drawingUrl = String((item && item.drawingUrl) || '').trim();
+        var status = normalizeDrawingStatus({ drawing_status: item && item.drawingStatus, drawing_url: drawingUrl, category: item && item.category, name: item && item.name, model: item && item.model, brand: item && item.brand });
+        return !!drawingUrl && (status === 'Available' || status === 'Access Required');
       }
       function annexDrawingRows(items) {
         if (!items.length) return '<tr><td colspan="10" class="empty">No drawing references</td></tr>';
