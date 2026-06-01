@@ -6968,10 +6968,8 @@ if (dashboardPage) {
         var raw = String((item && item.drawingUrl) || '').trim();
         if (!raw) return '';
         var fileId = extractDriveFileId(raw);
-        if (!fileId) return raw;
-        return isImageDrawing(item)
-          ? ('https://drive.google.com/thumbnail?id=' + fileId + '&sz=w2000')
-          : ('https://drive.google.com/file/d/' + fileId + '/preview');
+        if (fileId) return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w2000';
+        return isImageDrawing(item) ? raw : '';
       }
       function fullDrawingPages(items) {
         if (!printFullDrawings) return '';
@@ -6981,8 +6979,9 @@ if (dashboardPage) {
           var previewUrl = drawingPreviewUrl(c);
           var header = '<div class="drawing-page" style="page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px"><h3>Drawing ' + (i + 1) + ': ' + esc(c.name || '-') + '</h3>' +
             '<p class="sub">Line: ' + esc(c.line || '-') + ' | Brand: ' + esc(c.brand || '-') + ' | Model / Part No.: ' + esc(c.model || c.no || '-') + ' | Rev: ' + esc(c.drawingRevision || '-') + ' | File: ' + esc(c.drawingFileName || '-') + '</p>';
-          if (isImageDrawing(c)) return header + '<img class="drawing-full-image" style="display:block;width:100%;height:auto;max-height:900px;object-fit:contain" src="' + esc(previewUrl) + '" alt="Drawing file" /></div>';
-          return header + '<iframe class="drawing-pdf-frame" style="width:100%;height:900px;border:1px solid #cbd5e1" src="' + esc(previewUrl) + '" title="Drawing preview"></iframe></div>';
+          if (previewUrl) return header + '<img class="drawing-full-image" data-drawing-url="' + esc(c.drawingUrl) + '" style="display:block;width:100%;height:auto;max-height:900px;object-fit:contain" src="' + esc(previewUrl) + '" alt="Drawing file" />' +
+            '<p class="sub">If the drawing image does not print clearly, open the source file: <a href="' + esc(c.drawingUrl) + '" target="_blank" rel="noopener">Open drawing</a></p></div>';
+          return header + '<div class="drawing-link-fallback" style="border:1px dashed #94a3b8;padding:18px;text-align:center;color:#334155">Drawing preview image is not available for PDF export. Open/attach the source file separately: <a href="' + esc(c.drawingUrl) + '" target="_blank" rel="noopener">Open drawing</a></div></div>';
         }).join('');
       }
 
@@ -7129,8 +7128,19 @@ if (dashboardPage) {
         if (!imgs.length) return Promise.resolve();
         return new Promise(function(resolve) {
           var done = false;
-          function finish(){ if (done) return; done = true; resolve(); }
-          var timer = setTimeout(finish, Math.max(1200, Number(maxWaitMs || 5000)));
+          function drawingFallbackHtml(url) {
+            var href = String(url || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+            return '<div style="border:1px dashed #94a3b8;padding:18px;text-align:center;color:#334155">Drawing preview did not finish loading before PDF export. Open/attach the source file separately: <a href="' + href + '" target="_blank" rel="noopener">Open drawing</a></div>';
+          }
+          function replaceUnloadedDrawingImages() {
+            imgs.forEach(function(img) {
+              if (!img.classList || !img.classList.contains('drawing-full-image')) return;
+              if (img.complete && img.naturalWidth > 0) return;
+              img.outerHTML = drawingFallbackHtml(img.getAttribute('data-drawing-url') || '');
+            });
+          }
+          function finish(){ if (done) return; replaceUnloadedDrawingImages(); done = true; resolve(); }
+          var timer = setTimeout(finish, Math.max(2500, Number(maxWaitMs || 12000)));
           var pending = imgs.length;
           function settleOne() {
             pending -= 1;
@@ -7149,7 +7159,8 @@ if (dashboardPage) {
                 img.src = fb;
                 return;
               }
-              img.outerHTML = 'Image pending';
+              if (img.classList && img.classList.contains('drawing-full-image')) img.outerHTML = drawingFallbackHtml(img.getAttribute('data-drawing-url') || '');
+              else img.outerHTML = 'Image pending';
               settle();
             };
             if (img.complete && img.naturalWidth > 0) settle();
@@ -7157,8 +7168,8 @@ if (dashboardPage) {
           });
         });
       }
-      waitForReportImages(6500).finally(function(){
-        setTimeout(function(){ win.print(); }, 80);
+      waitForReportImages(12000).finally(function(){
+        setTimeout(function(){ win.print(); }, 350);
       });
     });
     bindFilePreview('eImageMainFile', 'eImageMainPreview');
