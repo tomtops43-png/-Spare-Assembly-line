@@ -14,7 +14,8 @@ var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare 
 var DRIVE_ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
 var DRAWING_STATUS_OPTIONS = ['Available', 'Not Available', 'Not Required', 'Pending Update'];
 var PART_ATTACHMENT_COLUMNS = [
-  { label: 'Photo URL', aliases: ['photourl', 'photo', 'sparepartsphotos'] },
+  // Photo is already stored in existing image_main/image_main_url columns.
+  // Do not create another Photo URL column because it duplicates current image columns.
   { label: 'Drawing URL', aliases: ['drawingurl', 'drawing_url'] },
   { label: 'Drawing File Name', aliases: ['drawingfilename', 'drawing_file_name'] },
   { label: 'Drawing Revision', aliases: ['drawingrevision', 'drawingrev', 'drawing_revision', 'drawing_rev'] },
@@ -139,6 +140,43 @@ function ensurePriceColumnsForAllKnownSheets() {
   });
 }
 
+function getFirstColumnIndexByAliases(map, aliases) {
+  for (var i = 0; i < aliases.length; i += 1) {
+    if (map[aliases[i]] !== undefined) return map[aliases[i]];
+  }
+  return undefined;
+}
+
+function cleanupRedundantPhotoUrlColumn(ctx) {
+  if (!ctx || !ctx.headers || !ctx.headers.length) return;
+  var targetCol = getFirstColumnIndexByAliases(ctx.map, [
+    'image_main_url', 'imagemainurl', 'image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'imageurl', 'image'
+  ]);
+  if (targetCol === undefined) return;
+
+  var redundantCols = [];
+  for (var i = 0; i < ctx.headers.length; i += 1) {
+    var normalized = normalizeHeaderName(ctx.headers[i]);
+    if (normalized === 'photourl' && i !== targetCol) redundantCols.push(i);
+  }
+  if (!redundantCols.length) return;
+
+  for (var r = 0; r < ctx.rows.length; r += 1) {
+    var row = ctx.rows[r];
+    for (var c = 0; c < redundantCols.length; c += 1) {
+      var photoValue = row[redundantCols[c]];
+      if (photoValue !== '' && photoValue !== null && photoValue !== undefined && (row[targetCol] === '' || row[targetCol] === null || row[targetCol] === undefined)) {
+        ctx.sheet.getRange(ctx.headerRowIndex + 2 + r, targetCol + 1).setValue(photoValue);
+        row[targetCol] = photoValue;
+      }
+    }
+  }
+
+  redundantCols.sort(function(a, b) { return b - a; }).forEach(function(colIndex) {
+    ctx.sheet.deleteColumn(colIndex + 1);
+  });
+}
+
 function ensureAttachmentColumnsForSheet(sheetName) {
   var targetSheet = String(sheetName || '').trim();
   if (!targetSheet) return;
@@ -146,6 +184,7 @@ function ensureAttachmentColumnsForSheet(sheetName) {
   PART_ATTACHMENT_COLUMNS.forEach(function(col) {
     ensureColumnInContext(ctx, col.label, col.aliases);
   });
+  cleanupRedundantPhotoUrlColumn(ctx);
 }
 
 function ensureAttachmentColumnsForAllKnownSheets() {
@@ -1182,7 +1221,7 @@ function upsertMainItem(payload) {
     location: findCol(['location', 'jrlocation']),
     category: findCol(['category']),
     brand: findCol(['brand']),
-    photo: findCol(['sparepartsphotos', 'photo', 'photourl', 'photo_url', 'image', 'imageurl', 'picture', 'pic']),
+    photo: findCol(['sparepartsphotos', 'photo', 'photo_url', 'image', 'imageurl', 'picture', 'pic']),
     drawing_url: findCol(['drawingurl', 'drawing_url']),
     drawing_file_name: findCol(['drawingfilename', 'drawing_file_name']),
     drawing_revision: findCol(['drawingrevision', 'drawingrev', 'drawing_revision', 'drawing_rev']),
@@ -1219,9 +1258,8 @@ function upsertMainItem(payload) {
   if (fieldCols.category === undefined) {
     fieldCols.category = ensureColumnInContext(ctx, 'Category', ['category']);
   }
-  if (fieldCols.photo === undefined) {
-    fieldCols.photo = ensureColumnInContext(ctx, 'Photo URL', ['photourl', 'photo', 'sparepartsphotos']);
-  }
+  // Reuse the existing image_main/image_main_url columns for photos.
+  // Do not create a separate Photo URL column; it duplicates existing image data.
   if (fieldCols.drawing_url === undefined) {
     fieldCols.drawing_url = ensureColumnInContext(ctx, 'Drawing URL', ['drawingurl', 'drawing_url']);
   }
