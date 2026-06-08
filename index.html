@@ -5943,10 +5943,9 @@ function inferRequestPriority(stock, min) {
         var stockClass = tone.textClass;
         var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
-        var drawingBadge = normalizeDrawingStatus(item) === 'Available' ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
+        var drawingBadge = normalizeDrawingStatus(item) === 'Available' ? '<span class="inline-flex flex-shrink-0 items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">Drawing</span>' : '';
         return '<article data-row-key="' + itemKey + '" class="group relative rounded-2xl border p-3 h-[430px] flex flex-col shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-200 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative h-[150px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
-            drawingBadge +
             '<img loading="lazy" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain object-center p-1 transform scale-[1.1] transition duration-300 group-hover:scale-[1.15] ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\''+ FALLBACK_IMAGE +'\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-2xl') + '</div>' : '') +
           '</div>' +
@@ -5958,7 +5957,7 @@ function inferRequestPriority(stock, min) {
             '<p class="text-[12px] text-slate-500 mt-1 truncate h-[18px]">Line: ' + (item.line || '-') + '</p>' +
           '</div>' +
           '<div class="mt-auto h-[42px] flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
-            '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs ' + tone.badgeClass + '">' + status + '</span>' +
+            '<div class="flex min-w-0 items-center gap-1.5"><span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs ' + tone.badgeClass + '">' + status + '</span>' + drawingBadge + '</div>' +
             '<span class="font-bold text-[22px] leading-tight text-slate-900 whitespace-nowrap ' + stockClass + '">Qty ' + item.stock + '</span>' +
           '</div>' +
           '<div class="mt-2 pt-3 grid grid-cols-1 gap-2">' +
@@ -6025,10 +6024,9 @@ function inferRequestPriority(stock, min) {
         var stockClass = tone.textClass;
                 var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
-        var drawingBadge = normalizeDrawingStatus(item) === 'Available' ? '<span class="absolute left-2 top-2 z-10 rounded-full bg-blue-600/90 px-2 py-1 text-[10px] font-bold text-white shadow">Drawing</span>' : '';
+        var drawingBadge = normalizeDrawingStatus(item) === 'Available' ? '<span class="inline-flex flex-shrink-0 items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">Drawing</span>' : '';
         return '<article data-view-key="' + itemKey + '" class="relative rounded-2xl border p-3 h-[380px] flex flex-col shadow-sm transition-all duration-200 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="relative h-[150px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">' +
-            drawingBadge +
             '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain bg-slate-50 p-1 transform scale-[1.08] transition duration-300 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-lg') + '</div>' : '') +
           '</div>' +
@@ -6039,8 +6037,8 @@ function inferRequestPriority(stock, min) {
             '<p class="mt-1 text-[11px] text-slate-500 truncate h-[16px]">Brand: ' + (item.brand || '-') + '</p>' +
             '<p class="mt-1 text-[11px] text-slate-500 truncate h-[16px]">Line: ' + (item.line || '-') + '</p>' +
           '</div>' +
-          '<div class="mt-auto h-[42px] flex items-center justify-between gap-2 ' + visualState.contentClass + '">' +
-            '<span class="inline-flex items-center justify-center px-2 py-1 rounded-full text-[10px] font-semibold ' + tone.badgeClass + '">' + status + '</span>' +
+          '<div class="mt-auto h-[42px] flex items-center justify-between gap-1.5 ' + visualState.contentClass + '">' +
+            '<div class="flex min-w-0 flex-wrap items-center gap-1"><span class="inline-flex items-center justify-center px-2 py-1 rounded-full text-[10px] font-semibold ' + tone.badgeClass + '">' + status + '</span>' + drawingBadge + '</div>' +
             '<p class="text-[21px] font-bold leading-tight text-slate-900 whitespace-nowrap ' + stockClass + '">Qty ' + item.stock + '</p>' +
           '</div>' +
           '<div class="mt-2 pt-2 grid grid-cols-2 gap-2">' +
