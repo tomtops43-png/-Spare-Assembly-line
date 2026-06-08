@@ -5894,7 +5894,7 @@ function inferRequestPriority(stock, min) {
       var lowCount = health.belowMinCount;
       var outCount = health.outOfStockCount;
       var okCount = data.filter(function(item) { return getStockStatus(item) === 'OK'; }).length;
-      var totalStockQty = data.reduce(function(sum, item){ return sum + safeNum(item.stock); }, 0);
+      var totalItems = data.length;
       var needPO = health.needPOCount;
       stockTodayAlert.classList.toggle('hidden', !(needPO > 0 || outCount > 0 || lowCount > 0));
       if (needPO > 0 || outCount > 0 || lowCount > 0) {
@@ -5903,13 +5903,13 @@ function inferRequestPriority(stock, min) {
 
       if (window.innerWidth >= 1024) {
         document.getElementById('stat-cards').innerHTML =
-          '<button data-status-card="all" class="bg-white rounded-xl border border-slate-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-slate-500">📦 ทั้งหมด</p><p class="text-xl font-bold text-blue-700 mt-0.5">' + totalStockQty + '</p></button>' +
+          '<button data-status-card="all" class="bg-white rounded-xl border border-slate-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-slate-500">📦 รายการอะไหล่ทั้งหมด</p><p class="text-xl font-bold text-blue-700 mt-0.5">' + totalItems + '</p></button>' +
           '<button data-status-card="out" class="bg-white rounded-xl border border-rose-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-rose-600">❌ อะไหล่หมด</p><p class="text-xl font-bold text-rose-700 mt-0.5">' + outCount + '</p></button>' +
           '<button data-status-card="low" class="bg-white rounded-xl border border-amber-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-amber-600">⚠️ ต่ำกว่า Min</p><p class="text-xl font-bold text-amber-700 mt-0.5">' + lowCount + '</p></button>' +
           '<button data-status-card="near" class="bg-white rounded-xl border border-slate-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-slate-500">🧭 Need PO</p><p class="text-xl font-bold text-slate-800 mt-0.5">' + needPO + '</p></button>';
       } else {
         document.getElementById('stat-cards').innerHTML =
-          '<button data-status-card="all" class="min-h-[110px] bg-white rounded-2xl border border-slate-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-slate-600 leading-snug">📦 Stock ทั้งหมด</p><p class="text-[44px] leading-[1] font-extrabold text-blue-700 mt-2">' + totalStockQty + '</p></button>' +
+          '<button data-status-card="all" class="min-h-[110px] bg-white rounded-2xl border border-slate-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-slate-600 leading-snug">📦 รายการอะไหล่ทั้งหมด</p><p class="text-[44px] leading-[1] font-extrabold text-blue-700 mt-2">' + totalItems + '</p></button>' +
           '<button data-status-card="out" class="min-h-[110px] bg-white rounded-2xl border border-rose-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-rose-600 leading-snug">❌ อะไหล่หมด</p><p class="text-[44px] leading-[1] font-extrabold text-rose-700 mt-2">' + outCount + '</p></button>' +
           '<button data-status-card="low" class="min-h-[110px] bg-white rounded-2xl border border-amber-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-amber-700 leading-snug">⚠️ ต่ำกว่า Min</p><p class="text-[44px] leading-[1] font-extrabold text-amber-600 mt-2">' + lowCount + '</p></button>' +
           '<button data-status-card="near" class="min-h-[110px] bg-white rounded-2xl border border-slate-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-slate-600 leading-snug">🧭 Need PO</p><p class="text-[44px] leading-[1] font-extrabold text-slate-800 mt-2">' + needPO + '</p></button>';
