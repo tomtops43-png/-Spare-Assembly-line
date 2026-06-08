@@ -2632,17 +2632,9 @@ function getIssueCartEntries() {
         var callbackName = 'partsCallback_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
         var sep = url.indexOf('?') > -1 ? '&' : '?';
         var script = document.createElement('script');
-        var timeoutMs = 25000;
-
-        var timeoutId = setTimeout(function() {
-          cleanup();
-          reject(new Error('โหลดข้อมูลเกินเวลาที่กำหนด (JSONP timeout)'));
-        }, timeoutMs);
-
         function cleanup() {
-          clearTimeout(timeoutId);
-          // Keep a no-op callback briefly to avoid late JSONP responses
-          // throwing `... is not defined` after timeout/fallback has completed.
+          // Keep a no-op callback briefly so a late JSONP response cannot
+          // throw `... is not defined` after request cleanup has completed.
           window[callbackName] = function() {};
           setTimeout(function() {
             try { delete window[callbackName]; } catch (err) { window[callbackName] = undefined; }
@@ -4383,29 +4375,6 @@ function inferRequestPriority(stock, min) {
       return '';
     }
 
-    function withTimeout(promise, ms, label) {
-      var timeoutMs = Math.max(1000, Number(ms || 12000));
-      return new Promise(function(resolve, reject) {
-        var done = false;
-        var timer = setTimeout(function() {
-          if (done) return;
-          done = true;
-          reject(new Error((label || 'Request') + ' timeout after ' + Math.round(timeoutMs / 1000) + 's'));
-        }, timeoutMs);
-        promise.then(function(value) {
-          if (done) return;
-          done = true;
-          clearTimeout(timer);
-          resolve(value);
-        }).catch(function(err) {
-          if (done) return;
-          done = true;
-          clearTimeout(timer);
-          reject(err);
-        });
-      });
-    }
-
     function loadPrSourceItems(mode, lineFilterValue) {
       var targets = [];
       if (mode === 'line_specific' && lineFilterValue && lineFilterValue !== 'all') {
@@ -4432,7 +4401,7 @@ function inferRequestPriority(stock, min) {
           }));
         }
         var lineApi = LINE_API_URL_MAP[t.line] || API_URL;
-        return withTimeout(loadByFetch(lineApi + appendAuthToQuery('?sheet=' + encodeURIComponent(t.sheet))), 12000, 'Load ' + t.sheet).then(function(rawData) {
+        return loadByFetch(lineApi + appendAuthToQuery('?sheet=' + encodeURIComponent(t.sheet))).then(function(rawData) {
           if (!Array.isArray(rawData)) return [];
           return normalizeRecordsInBatches(rawData.map(function(item) {
             item.__sourceSheet = t.sheet;
@@ -4605,11 +4574,11 @@ function inferRequestPriority(stock, min) {
       var label = 'loadSpareParts' + (lite ? 'Lite' : 'Detail') + ':' + sheetName;
       console.time(label);
       var qs = '?sheet=' + encodeURIComponent(sheetName) + (lite ? '&lite=1' : '') + (options.refresh ? '&refresh=1' : '');
-      return withTimeout(loadJsonpWithFallback(function(base){
+      return loadJsonpWithFallback(function(base){
         return base + appendAuthToQuery(qs);
       }).catch(function() {
         return loadByFetch(ACTIVE_API_URL + appendAuthToQuery(qs));
-      }), lite ? 12000 : 18000, label).then(function(rawData) {
+      }).then(function(rawData) {
         if (rawData && rawData.status === 'error') {
           var msg = rawData.message || 'API ตอบกลับ error';
           if (msg.indexOf('เข้าสู่ระบบ') > -1 || msg.indexOf('session') > -1) logout();
@@ -6150,11 +6119,11 @@ function inferRequestPriority(stock, min) {
       if (cachedSheet && Array.isArray(cachedSheet.items) && Date.now() - Number(cachedSheet.updatedAt || 0) <= MASTER_CACHE_TTL_MS) return Promise.resolve(findMatch(cachedSheet.items) || item);
       console.time('loadSparePartDetail:' + sheetName);
       var query = '?action=getSparePartDetail&sheet=' + encodeURIComponent(sheetName) + '&partId=' + encodeURIComponent(itemLookup || item.no || '');
-      return withTimeout(loadJsonpWithFallback(function(base){
+      return loadJsonpWithFallback(function(base){
         return base + appendAuthToQuery(query);
       }).catch(function() {
         return loadByFetch(ACTIVE_API_URL + appendAuthToQuery(query));
-      }), 12000, 'loadSparePartDetail').then(function(rawData) {
+      }).then(function(rawData) {
         var rows = Array.isArray(rawData) ? rawData : [];
         rows.forEach(function(row) {
           row.__sourceSheet = sheetName;
