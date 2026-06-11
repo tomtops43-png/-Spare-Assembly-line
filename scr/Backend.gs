@@ -12,11 +12,10 @@ SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThre
 var SESSION_PROPERTY_PREFIX = 'spare_session::';
 var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After', 'Reason', 'Reason Remark'];
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
-var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at'];
+var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at', 'unit'];
 var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
-var PURCHASE_HISTORY_HEADERS = ['History ID', 'Date', 'Month', 'Line', 'Part ID', 'Part Name', 'Brand', 'Model / Part No.', 'Qty Ordered', 'Unit', 'Request Type', 'Status', 'Requested By', 'Remark', 'Created At', 'Updated At'];
-var PURCHASE_HISTORY_STATUSES = ['Requested', 'Ordered', 'Received', 'Cancelled'];
-var PURCHASE_HISTORY_REQUEST_TYPES = ['PR', 'PO', 'Manual', 'Auto PR'];
+var PURCHASE_HISTORY_HEADERS = ['History ID', 'Request ID', 'Date', 'Month', 'Line', 'Part ID', 'Part Name', 'Brand', 'Model / Part No.', 'Qty Ordered', 'Unit', 'Requested By', 'Status', 'Ordered Date', 'Received Date', 'Received Qty', 'Updated By', 'Remark', 'Created At', 'Updated At'];
+var PURCHASE_HISTORY_STATUSES = ['Requested', 'PR Created', 'Ordered', 'Partial Received', 'Received', 'Cancelled'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
 var DRIVE_ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
 var DRAWING_STATUS_OPTIONS = ['Available', 'Missing', 'Not Required', 'Access Required'];
@@ -321,6 +320,62 @@ function getUsersSheet() {
   return usersSheet;
 }
 
+function getPurchaseHistoryHeaderMap(headers) {
+  var map = {};
+  (headers || []).forEach(function(header, index) { map[normalizeHeaderName(header)] = index; });
+  return map;
+}
+
+function getPurchaseHistoryCell(row, map, aliases, fallback) {
+  for (var i = 0; i < aliases.length; i += 1) {
+    var index = map[normalizeHeaderName(aliases[i])];
+    if (index !== undefined) return row[index];
+  }
+  return fallback;
+}
+
+function formatPurchaseHistoryDate(value, includeTime) {
+  if (!value) return '';
+  var date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return String(value || '');
+  return Utilities.formatDate(date, 'Asia/Bangkok', includeTime ? 'yyyy-MM-dd HH:mm:ss' : 'yyyy-MM-dd');
+}
+
+function migratePurchaseHistoryRows(rows, oldHeaders) {
+  var oldMap = getPurchaseHistoryHeaderMap(oldHeaders);
+  return rows.filter(function(row) {
+    return String(getPurchaseHistoryCell(row, oldMap, ['History ID', 'history_id'], '') || '').trim();
+  }).map(function(row) {
+    var date = getPurchaseHistoryCell(row, oldMap, ['Date'], '');
+    var requestId = getPurchaseHistoryCell(row, oldMap, ['Request ID', 'request_id'], '');
+    var partId = getPurchaseHistoryCell(row, oldMap, ['Part ID', 'part_id'], '');
+    var historyId = getPurchaseHistoryCell(row, oldMap, ['History ID', 'history_id'], '') || buildPurchaseHistoryId('PH');
+    if (!requestId && String(historyId).indexOf('PH-REQ-') === 0) requestId = String(historyId).substring(3);
+    return [
+      historyId,
+      requestId,
+      formatPurchaseHistoryDate(date, false),
+      getPurchaseHistoryCell(row, oldMap, ['Month'], date ? formatPurchaseHistoryDate(date, false).slice(0, 7) : ''),
+      getPurchaseHistoryCell(row, oldMap, ['Line'], ''),
+      partId,
+      getPurchaseHistoryCell(row, oldMap, ['Part Name', 'part_name'], ''),
+      getPurchaseHistoryCell(row, oldMap, ['Brand'], ''),
+      getPurchaseHistoryCell(row, oldMap, ['Model / Part No.', 'Model', 'Part No'], ''),
+      Number(getPurchaseHistoryCell(row, oldMap, ['Qty Ordered', 'qty_ordered'], 0) || 0),
+      getPurchaseHistoryCell(row, oldMap, ['Unit'], ''),
+      getPurchaseHistoryCell(row, oldMap, ['Requested By', 'requested_by'], ''),
+      getPurchaseHistoryCell(row, oldMap, ['Status'], 'Requested') || 'Requested',
+      formatPurchaseHistoryDate(getPurchaseHistoryCell(row, oldMap, ['Ordered Date'], ''), false),
+      formatPurchaseHistoryDate(getPurchaseHistoryCell(row, oldMap, ['Received Date'], ''), false),
+      Number(getPurchaseHistoryCell(row, oldMap, ['Received Qty'], 0) || 0),
+      getPurchaseHistoryCell(row, oldMap, ['Updated By'], ''),
+      getPurchaseHistoryCell(row, oldMap, ['Remark'], ''),
+      formatPurchaseHistoryDate(getPurchaseHistoryCell(row, oldMap, ['Created At'], ''), true),
+      formatPurchaseHistoryDate(getPurchaseHistoryCell(row, oldMap, ['Updated At'], ''), true)
+    ];
+  });
+}
+
 function getPurchaseHistorySheet() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.purchaseHistorySheetName);
@@ -328,48 +383,121 @@ function getPurchaseHistorySheet() {
     sheet.appendRow(PURCHASE_HISTORY_HEADERS);
     return sheet;
   }
-  var currentHeaders = sheet.getRange(1, 1, 1, PURCHASE_HISTORY_HEADERS.length).getValues()[0];
+  var width = Math.max(sheet.getLastColumn(), PURCHASE_HISTORY_HEADERS.length);
+  var values = sheet.getRange(1, 1, sheet.getLastRow(), width).getValues();
+  var currentHeaders = values[0] || [];
   var headersMatch = PURCHASE_HISTORY_HEADERS.every(function(header, index) {
     return String(currentHeaders[index] || '') === header;
   });
-  if (!headersMatch) {
-    throw new Error('โครงสร้างชีท PurchaseHistory ไม่ถูกต้อง กรุณาตรวจสอบชื่อคอลัมน์');
-  }
-  return sheet;
-}
+  if (headersMatch) return sheet;
 
-function normalizePurchaseHistoryDate(value, fallbackDate) {
-  var raw = value instanceof Date ? value : new Date(value || fallbackDate || new Date());
-  if (isNaN(raw.getTime())) raw = fallbackDate instanceof Date ? fallbackDate : new Date();
-  return raw;
+  var migratedRows = migratePurchaseHistoryRows(values.slice(1), currentHeaders);
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, PURCHASE_HISTORY_HEADERS.length).setValues([PURCHASE_HISTORY_HEADERS]);
+  if (migratedRows.length) sheet.getRange(2, 1, migratedRows.length, PURCHASE_HISTORY_HEADERS.length).setValues(migratedRows);
+  return sheet;
 }
 
 function buildPurchaseHistoryId(prefix) {
   return String(prefix || 'PH') + '-' + Utilities.getUuid();
 }
 
-function appendPurchaseHistoryRecord(payload) {
+function normalizePurchaseHistoryKeyPart(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function purchaseHistoryRowsMatch(row, payload) {
+  var requestId = normalizePurchaseHistoryKeyPart(payload.request_id || payload.requestId);
+  var partId = normalizePurchaseHistoryKeyPart(payload.part_id || payload.partId);
+  var line = normalizePurchaseHistoryKeyPart(payload.line);
+  var model = normalizePurchaseHistoryKeyPart(payload.model || payload.part_no || payload.partNo);
+  if (!requestId || normalizePurchaseHistoryKeyPart(row[1]) !== requestId) return false;
+  if (partId) return normalizePurchaseHistoryKeyPart(row[5]) === partId;
+  if (line && model) return normalizePurchaseHistoryKeyPart(row[4]) === line && normalizePurchaseHistoryKeyPart(row[8]) === model;
+  return true;
+}
+
+function findOpenPurchaseHistoryRow(values, payload) {
+  var partId = normalizePurchaseHistoryKeyPart(payload.part_id || payload.partId);
+  var line = normalizePurchaseHistoryKeyPart(payload.line);
+  var model = normalizePurchaseHistoryKeyPart(payload.model || payload.part_no || payload.partNo);
+  var openStatuses = { 'Requested': true, 'PR Created': true, 'Ordered': true, 'Partial Received': true };
+  for (var i = 1; i < values.length; i += 1) {
+    var row = values[i];
+    if (!openStatuses[String(row[12] || '')]) continue;
+    if (partId && normalizePurchaseHistoryKeyPart(row[5]) === partId) return i;
+    if (line && model && normalizePurchaseHistoryKeyPart(row[4]) === line && normalizePurchaseHistoryKeyPart(row[8]) === model) return i;
+  }
+  return -1;
+}
+
+function upsertPurchaseHistoryRecord(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    return upsertPurchaseHistoryRecordUnlocked(payload);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function upsertPurchaseHistoryRecordUnlocked(payload) {
   payload = payload || {};
   var status = String(payload.status || 'Requested').trim();
-  var requestType = String(payload.request_type || payload.requestType || 'Manual').trim();
   if (PURCHASE_HISTORY_STATUSES.indexOf(status) === -1) throw new Error('Purchase History status ไม่ถูกต้อง: ' + status);
-  if (PURCHASE_HISTORY_REQUEST_TYPES.indexOf(requestType) === -1) throw new Error('Purchase History request type ไม่ถูกต้อง: ' + requestType);
-
   var sheet = getPurchaseHistorySheet();
-  var now = new Date();
-  var orderDate = normalizePurchaseHistoryDate(payload.date, now);
-  var historyId = String(payload.history_id || payload.historyId || buildPurchaseHistoryId('PH')).trim();
   var values = sheet.getDataRange().getValues();
+  var rowIndex = -1;
   for (var i = 1; i < values.length; i += 1) {
-    if (String(values[i][0] || '') === historyId) return historyId;
+    if (purchaseHistoryRowsMatch(values[i], payload)) { rowIndex = i; break; }
   }
-  var formattedDate = Utilities.formatDate(orderDate, 'Asia/Bangkok', 'yyyy-MM-dd');
-  var formattedMonth = Utilities.formatDate(orderDate, 'Asia/Bangkok', 'yyyy-MM');
-  var timestamp = Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
-  sheet.appendRow([
+  if (rowIndex === -1 && payload.match_open_item) rowIndex = findOpenPurchaseHistoryRow(values, payload);
+
+  var now = new Date();
+  var date = payload.date ? new Date(payload.date) : now;
+  if (isNaN(date.getTime())) date = now;
+  var updatedAt = Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var orderedDate = payload.ordered_date || (status === 'Ordered' ? Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd') : '');
+  var receivedDate = payload.received_date || ((status === 'Received' || status === 'Partial Received') ? Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd') : '');
+
+  if (rowIndex !== -1) {
+    var existing = values[rowIndex];
+    var statusRank = { 'Requested': 1, 'PR Created': 2, 'Ordered': 3, 'Partial Received': 4, 'Received': 5, 'Cancelled': 6 };
+    var existingStatus = String(existing[12] || 'Requested');
+    var effectiveStatus = status;
+    if (status !== 'Cancelled' && Number(statusRank[existingStatus] || 0) > Number(statusRank[status] || 0)) effectiveStatus = existingStatus;
+    var merged = [
+      existing[0] || payload.history_id || buildPurchaseHistoryId('PH'),
+      (payload.match_open_item && existing[1]) ? existing[1] : (payload.request_id || payload.requestId || existing[1] || ''),
+      existing[2] || Utilities.formatDate(date, 'Asia/Bangkok', 'yyyy-MM-dd'),
+      existing[3] || Utilities.formatDate(date, 'Asia/Bangkok', 'yyyy-MM'),
+      payload.line !== undefined ? payload.line : existing[4],
+      payload.part_id !== undefined ? payload.part_id : (payload.partId !== undefined ? payload.partId : existing[5]),
+      payload.part_name !== undefined ? payload.part_name : (payload.partName !== undefined ? payload.partName : existing[6]),
+      payload.brand !== undefined ? payload.brand : existing[7],
+      payload.model !== undefined ? payload.model : existing[8],
+      payload.qty_ordered !== undefined ? Number(payload.qty_ordered || 0) : Number(existing[9] || 0),
+      payload.unit !== undefined ? payload.unit : existing[10],
+      payload.requested_by !== undefined ? payload.requested_by : (payload.requestedBy !== undefined ? payload.requestedBy : existing[11]),
+      effectiveStatus,
+      orderedDate || existing[13] || '',
+      receivedDate || existing[14] || '',
+      payload.received_qty !== undefined ? Number(payload.received_qty || 0) : Number(existing[15] || 0),
+      payload.updated_by || payload.updatedBy || existing[16] || '',
+      payload.remark !== undefined ? payload.remark : existing[17],
+      existing[18] || updatedAt,
+      updatedAt
+    ];
+    sheet.getRange(rowIndex + 1, 1, 1, PURCHASE_HISTORY_HEADERS.length).setValues([merged]);
+    return { history_id: merged[0], mode: 'update', row: merged };
+  }
+
+  var historyId = String(payload.history_id || payload.historyId || buildPurchaseHistoryId('PH')).trim();
+  var row = [
     historyId,
-    formattedDate,
-    formattedMonth,
+    payload.request_id || payload.requestId || '',
+    Utilities.formatDate(date, 'Asia/Bangkok', 'yyyy-MM-dd'),
+    Utilities.formatDate(date, 'Asia/Bangkok', 'yyyy-MM'),
     payload.line || '',
     payload.part_id || payload.partId || '',
     payload.part_name || payload.partName || '',
@@ -377,14 +505,18 @@ function appendPurchaseHistoryRecord(payload) {
     payload.model || payload.part_no || payload.partNo || '',
     Number(payload.qty_ordered || payload.qtyOrdered || 0),
     payload.unit || '',
-    requestType,
-    status,
     payload.requested_by || payload.requestedBy || '',
+    status,
+    orderedDate,
+    receivedDate,
+    Number(payload.received_qty || payload.receivedQty || 0),
+    payload.updated_by || payload.updatedBy || '',
     payload.remark || '',
-    timestamp,
-    timestamp
-  ]);
-  return historyId;
+    updatedAt,
+    updatedAt
+  ];
+  sheet.appendRow(row);
+  return { history_id: historyId, mode: 'insert', row: row };
 }
 
 function getPurchaseHistory(payload) {
@@ -394,24 +526,13 @@ function getPurchaseHistory(payload) {
   if (values.length <= 1) return [];
   return values.slice(1).filter(function(row) { return String(row[0] || '').trim(); }).map(function(row) {
     return {
-      history_id: String(row[0] || ''),
-      date: String(row[1] || ''),
-      month: String(row[2] || ''),
-      line: String(row[3] || ''),
-      part_id: String(row[4] || ''),
-      part_name: String(row[5] || ''),
-      brand: String(row[6] || ''),
-      model: String(row[7] || ''),
-      qty_ordered: Number(row[8] || 0),
-      unit: String(row[9] || ''),
-      request_type: String(row[10] || ''),
-      status: String(row[11] || ''),
-      requested_by: String(row[12] || ''),
-      remark: String(row[13] || ''),
-      created_at: String(row[14] || ''),
-      updated_at: String(row[15] || '')
+      history_id: String(row[0] || ''), request_id: String(row[1] || ''), date: formatPurchaseHistoryDate(row[2], false), month: String(row[3] || ''),
+      line: String(row[4] || ''), part_id: String(row[5] || ''), part_name: String(row[6] || ''), brand: String(row[7] || ''), model: String(row[8] || ''),
+      qty_ordered: Number(row[9] || 0), unit: String(row[10] || ''), requested_by: String(row[11] || ''), status: String(row[12] || ''),
+      ordered_date: formatPurchaseHistoryDate(row[13], false), received_date: formatPurchaseHistoryDate(row[14], false), received_qty: Number(row[15] || 0),
+      updated_by: String(row[16] || ''), remark: String(row[17] || ''), created_at: formatPurchaseHistoryDate(row[18], true), updated_at: formatPurchaseHistoryDate(row[19], true)
     };
-  }).sort(function(a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
+  }).sort(function(a, b) { return String(b.updated_at).localeCompare(String(a.updated_at)); });
 }
 
 function createPurchaseHistoryBatch(payload) {
@@ -419,49 +540,77 @@ function createPurchaseHistoryBatch(payload) {
   requirePermission({ authToken: payload.authToken }, 'view_logs');
   var items = Array.isArray(payload.items) ? payload.items : [];
   if (!items.length) throw new Error('ไม่พบรายการสำหรับบันทึก Purchase History');
-  var batchId = String(payload.batch_id || payload.batchId || buildPurchaseHistoryId('AUTOPR')).trim();
-  var createdIds = [];
-  items.forEach(function(item, index) {
-    createdIds.push(appendPurchaseHistoryRecord({
-      history_id: 'PH-' + batchId + '-' + String(item.part_id || item.partId || index + 1).replace(/[^a-zA-Z0-9_-]/g, '_'),
-      date: payload.date || new Date(),
-      line: item.line || '',
-      part_id: item.part_id || item.partId || '',
-      part_name: item.part_name || item.partName || '',
-      brand: item.brand || '',
-      model: item.model || '',
-      qty_ordered: item.qty_ordered || item.qtyOrdered || 0,
-      unit: item.unit || '',
-      request_type: payload.request_type || payload.requestType || 'Auto PR',
-      status: 'Requested',
-      requested_by: session.user.username,
-      remark: item.remark || ''
-    }));
+  var month = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM');
+  var results = items.map(function(item, index) {
+    var partKey = String(item.part_id || item.partId || item.model || index + 1).replace(/[^a-zA-Z0-9_-]/g, '_');
+    var requestId = item.request_id || item.requestId || ('AUTOPR-' + month + '-' + partKey);
+    return upsertPurchaseHistoryRecord({
+      request_id: requestId,
+      history_id: 'PH-' + requestId,
+      match_open_item: true,
+      date: payload.date || new Date(), line: item.line || '', part_id: item.part_id || item.partId || '', part_name: item.part_name || item.partName || '',
+      brand: item.brand || '', model: item.model || '', qty_ordered: item.qty_ordered || item.qtyOrdered || 0, unit: item.unit || '',
+      status: 'PR Created', requested_by: item.requested_by || session.user.username, updated_by: session.user.username, remark: item.remark || ''
+    });
   });
-  return { status: 'success', batch_id: batchId, count: createdIds.length, history_ids: createdIds };
+  return { status: 'success', count: results.length, history_ids: results.map(function(result) { return result.history_id; }) };
 }
 
-function updatePurchaseHistoryForRequest(requestId, updates) {
-  var historyId = 'PH-' + String(requestId || '').trim();
-  if (!requestId) return false;
+function syncPurchaseHistoryForRequest(requestRow, status, updatedBy, remark, preserveExistingQty) {
+  var statusMap = { Pending: 'Requested', Approved: 'Requested', 'On Hold': 'Requested', 'Converted to PR': 'PR Created', Purchased: 'Ordered', Received: 'Received', Rejected: 'Cancelled', Closed: 'Cancelled' };
+  var purchaseStatus = statusMap[status] || 'Requested';
+  return upsertPurchaseHistoryRecord({
+    request_id: requestRow.request_id, history_id: 'PH-' + requestRow.request_id, date: requestRow.requested_date,
+    line: requestRow.line, part_id: requestRow.item_id, part_name: requestRow.item_name, brand: requestRow.brand, model: requestRow.model,
+    qty_ordered: preserveExistingQty ? undefined : requestRow.request_qty, unit: requestRow.unit || '', requested_by: requestRow.requested_by, status: purchaseStatus,
+    ordered_date: purchaseStatus === 'Ordered' ? new Date() : '', received_date: purchaseStatus === 'Received' ? new Date() : '',
+    received_qty: purchaseStatus === 'Received' ? Number(requestRow.request_qty || 0) : undefined,
+    updated_by: updatedBy || '', remark: remark !== undefined ? remark : requestRow.remark
+  });
+}
+
+function syncPurchaseHistoryOnReceive(payload, updatedBy) {
   var sheet = getPurchaseHistorySheet();
   var values = sheet.getDataRange().getValues();
-  var updatedAt = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
-  for (var i = 1; i < values.length; i += 1) {
-    if (String(values[i][0] || '') !== historyId) continue;
-    if (updates.request_type) {
-      if (PURCHASE_HISTORY_REQUEST_TYPES.indexOf(updates.request_type) === -1) throw new Error('Purchase History request type ไม่ถูกต้อง');
-      sheet.getRange(i + 1, 11).setValue(updates.request_type);
-    }
-    if (updates.status) {
-      if (PURCHASE_HISTORY_STATUSES.indexOf(updates.status) === -1) throw new Error('Purchase History status ไม่ถูกต้อง');
-      sheet.getRange(i + 1, 12).setValue(updates.status);
-    }
-    if (updates.remark !== undefined) sheet.getRange(i + 1, 14).setValue(updates.remark || '');
-    sheet.getRange(i + 1, 16).setValue(updatedAt);
-    return true;
+  var remaining = Number(payload.qty || 0);
+  var partId = normalizePurchaseHistoryKeyPart(payload.partNo);
+  var line = normalizePurchaseHistoryKeyPart(payload.process);
+  var model = normalizePurchaseHistoryKeyPart(payload.model);
+  var openStatuses = { 'Requested': true, 'PR Created': true, 'Ordered': true, 'Partial Received': true };
+  var matched = 0;
+  for (var i = 1; i < values.length && remaining > 0; i += 1) {
+    var row = values[i];
+    if (!openStatuses[String(row[12] || '')]) continue;
+    var matches = (partId && normalizePurchaseHistoryKeyPart(row[5]) === partId) || (line && model && normalizePurchaseHistoryKeyPart(row[4]) === line && normalizePurchaseHistoryKeyPart(row[8]) === model);
+    if (!matches) continue;
+    var orderedQty = Number(row[9] || 0);
+    var receivedBefore = Number(row[15] || 0);
+    var outstanding = Math.max(orderedQty - receivedBefore, 0);
+    if (outstanding <= 0) continue;
+    var applied = Math.min(outstanding, remaining);
+    var receivedTotal = receivedBefore + applied;
+    var nextStatus = receivedTotal >= orderedQty ? 'Received' : 'Partial Received';
+    upsertPurchaseHistoryRecord({
+      request_id: row[1], part_id: row[5], status: nextStatus, received_date: new Date(), received_qty: receivedTotal,
+      updated_by: updatedBy || payload.by || '', remark: row[17]
+    });
+    remaining -= applied;
+    matched += 1;
   }
-  return false;
+  return { matched: matched, unmatched_qty: remaining };
+}
+
+function bulkUpdateOrderRequestStatus(payload) {
+  var ids = Array.isArray(payload.request_ids) ? payload.request_ids : [];
+  var targetStatus = String(payload.status || '');
+  var allowed = { Purchased: 'request_order_approve', Received: 'request_order_approve', Rejected: 'request_order_reject' };
+  if (!ids.length) throw new Error('กรุณาเลือกรายการอย่างน้อย 1 รายการ');
+  if (!allowed[targetStatus]) throw new Error('สถานะ Bulk Update ไม่ถูกต้อง');
+  requirePermission({ authToken: payload.authToken }, allowed[targetStatus]);
+  ids.forEach(function(id) {
+    updateOrderRequestStatus({ authToken: payload.authToken, request_id: id, admin_comment: payload.admin_comment || '' }, targetStatus);
+  });
+  return { status: 'success', updated_status: targetStatus, count: ids.length };
 }
 
 function getOrderRequestSheet() {
@@ -470,6 +619,14 @@ function getOrderRequestSheet() {
     var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.requestSheetName);
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(ORDER_REQUEST_HEADERS);
+    } else {
+      var currentHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), ORDER_REQUEST_HEADERS.length)).getValues()[0];
+      ORDER_REQUEST_HEADERS.forEach(function(header) {
+        if (currentHeaders.indexOf(header) !== -1) return;
+        var nextColumn = sheet.getLastColumn() + 1;
+        sheet.getRange(1, nextColumn).setValue(header);
+        currentHeaders.push(header);
+      });
     }
     return sheet;
   } catch (err) {
@@ -517,26 +674,12 @@ function createOrderRequest(payload) {
       payload.item_id || '', payload.item_name || '', payload.model || '', payload.brand || '', payload.category || '',
       payload.line || '', Number(payload.current_stock || 0), Number(payload.min || 0), Number(payload.max || 0), Number(payload.request_qty || 0),
       payload.priority || 'Normal', payload.reason || '', payload.expected_use_date || '', payload.remark || '', attachmentUrl,
-      'Pending', '', '', '', '', Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss')
+      'Pending', '', '', '', '', Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'), payload.unit || ''
     ];
     sheet.appendRow(row);
     var purchaseHistoryRecorded = true;
     try {
-      appendPurchaseHistoryRecord({
-        history_id: 'PH-' + requestId,
-        date: now,
-        line: payload.line || '',
-        part_id: payload.item_id || '',
-        part_name: payload.item_name || '',
-        brand: payload.brand || '',
-        model: payload.model || '',
-        qty_ordered: Number(payload.request_qty || 0),
-        unit: payload.unit || '',
-        request_type: 'Manual',
-        status: 'Requested',
-        requested_by: user.username,
-        remark: payload.remark || ''
-      });
+      syncPurchaseHistoryForRequest(toRequestObject(ORDER_REQUEST_HEADERS, row), 'Pending', user.username, payload.remark || '');
     } catch (historyErr) {
       purchaseHistoryRecorded = false;
       Logger.log('createOrderRequest PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
@@ -635,16 +778,10 @@ function updateOrderRequestStatus(payload, nextStatus) {
         sheet.getRange(i + 1, idx.approved_by + 1).setValue(user.username || '');
         sheet.getRange(i + 1, idx.approved_date + 1).setValue(Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'));
       }
-      var purchaseStatusMap = { Rejected: 'Cancelled', Purchased: 'Ordered', Received: 'Received' };
-      if (purchaseStatusMap[nextStatus]) {
-        try {
-          updatePurchaseHistoryForRequest(payload.request_id, {
-            status: purchaseStatusMap[nextStatus],
-            remark: payload.admin_comment || values[i][idx.remark] || ''
-          });
-        } catch (historyErr) {
-          Logger.log('updateOrderRequestStatus PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
-        }
+      try {
+        syncPurchaseHistoryForRequest(toRequestObject(headers, values[i]), nextStatus, user.username, payload.admin_comment || values[i][idx.remark] || '', true);
+      } catch (historyErr) {
+        Logger.log('updateOrderRequestStatus PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
       }
       return { status: 'success', request_id: payload.request_id, updated_status: nextStatus };
     }
@@ -1090,7 +1227,8 @@ function parseTransactionPayloadFromGet(e) {
     by: e.parameter.by,
     reason: e.parameter.reason,
     reasonRemark: e.parameter.reasonRemark,
-    sheetName: e.parameter.sheet
+    sheetName: e.parameter.sheet,
+    authToken: e.parameter.authToken || e.parameter.token || ''
   };
 }
 
@@ -1213,11 +1351,22 @@ function processTransaction(payload) {
     payload.reasonRemark || ''
   ]);
 
+  var purchaseHistorySync = null;
+  if (signedQty > 0) {
+    try {
+      var transactionUser = payload.authToken ? getSessionUser({ authToken: payload.authToken }).user.username : (payload.by || '');
+      purchaseHistorySync = syncPurchaseHistoryOnReceive(payload, transactionUser);
+    } catch (historyErr) {
+      Logger.log('processTransaction PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
+    }
+  }
+
   return {
     status: 'success',
     stockBefore: stockBefore,
     stockAfter: stockAfter,
-    qty: signedQty
+    qty: signedQty,
+    purchaseHistorySync: purchaseHistorySync
   };
 }
 
@@ -1831,6 +1980,7 @@ function doGet(e) {
     if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(e.parameter), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(e.parameter), e);
     if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(e.parameter), e);
+    if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(e.parameter), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
     if (action === 'rejectOrderRequest') return respond(rejectOrderRequest(e.parameter), e);
@@ -2064,6 +2214,7 @@ function doPost(e) {
     if (action === 'getOrderRequests') return respond(getOrderRequests(body), e);
     if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(body), e);
     if (action === 'createPurchaseHistoryBatch') return respond(createPurchaseHistoryBatch(body), e);
+    if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(body), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(body), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(body), e);
     if (action === 'rejectOrderRequest') return respond(rejectOrderRequest(body), e);

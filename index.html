@@ -323,6 +323,14 @@
               <h3 id="roDetailTitle" class="text-lg font-bold">รายการของRequester</h3>
               <button id="roDetailClose" type="button" class="rounded border px-3 py-1">ปิด</button>
             </div>
+            <div id="roBulkToolbar" class="mx-4 mb-3 hidden rounded-xl border border-blue-200 bg-blue-50 p-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <span id="roBulkSelectedCount" class="mr-auto text-sm font-semibold text-blue-900">เลือกแล้ว 0 รายการ</span>
+                <button id="roBulkOrderedBtn" type="button" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700">Mark as Ordered</button>
+                <button id="roBulkReceivedBtn" type="button" class="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700">Mark as Received</button>
+                <button id="roBulkCancelBtn" type="button" class="rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700">Cancel Request</button>
+              </div>
+            </div>
             <div id="roDetailList" class="space-y-2"></div>
         </div>
       </div>
@@ -740,13 +748,13 @@
         <select id="purchaseHistoryMonthFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุกเดือน</option></select>
         <select id="purchaseHistoryLineFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุก Line</option></select>
         <select id="purchaseHistoryStatusFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm">
-          <option value="all">ทุก Status</option><option value="Requested">Requested</option><option value="Ordered">Ordered</option><option value="Received">Received</option><option value="Cancelled">Cancelled</option>
+          <option value="all">ทุก Status</option><option value="Requested">Requested</option><option value="PR Created">PR Created</option><option value="Ordered">Ordered</option><option value="Partial Received">Partial Received</option><option value="Received">Received</option><option value="Cancelled">Cancelled</option>
         </select>
         <input id="purchaseHistorySearch" type="search" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm" placeholder="ค้นหา Part Name / Model" />
       </div>
       <div class="overflow-x-auto rounded-xl border border-slate-200">
         <table class="w-full min-w-[1050px] text-sm">
-          <thead class="bg-slate-100 text-left text-slate-600"><tr><th class="px-3 py-3">Month</th><th class="px-3 py-3">Line</th><th class="px-3 py-3">Part Name</th><th class="px-3 py-3">Brand</th><th class="px-3 py-3">Model / Part No.</th><th class="px-3 py-3 text-right">Qty Ordered</th><th class="px-3 py-3">Unit</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Requested By</th><th class="px-3 py-3">Remark</th></tr></thead>
+          <thead class="bg-slate-100 text-left text-slate-600"><tr><th class="px-3 py-3">Month</th><th class="px-3 py-3">Line</th><th class="px-3 py-3">Part Name</th><th class="px-3 py-3">Brand</th><th class="px-3 py-3">Model / Part No.</th><th class="px-3 py-3 text-right">Qty Ordered</th><th class="px-3 py-3">Unit</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Requested By</th><th class="px-3 py-3">Updated At</th><th class="px-3 py-3">Remark</th></tr></thead>
           <tbody id="purchaseHistoryTable"></tbody>
         </table>
       </div>
@@ -1087,7 +1095,7 @@
                 <span id="detailPurchaseHistorySummary" class="text-xs text-slate-500"></span>
               </div>
               <div class="overflow-x-auto rounded-lg border border-emerald-100 bg-white">
-                <table class="w-full min-w-[520px] text-sm"><thead class="bg-emerald-50 text-left text-slate-600"><tr><th class="px-3 py-2">Month</th><th class="px-3 py-2 text-right">Qty Ordered</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">Requested By</th></tr></thead><tbody id="detailPurchaseHistoryRows"><tr><td colspan="4" class="px-3 py-3 text-center text-slate-400">กำลังโหลด...</td></tr></tbody></table>
+                <table class="w-full min-w-[520px] text-sm"><thead class="bg-emerald-50 text-left text-slate-600"><tr><th class="px-3 py-2">Month</th><th class="px-3 py-2 text-right">Qty Ordered</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">Requested By</th><th class="px-3 py-2">Updated At</th></tr></thead><tbody id="detailPurchaseHistoryRows"><tr><td colspan="5" class="px-3 py-3 text-center text-slate-400">กำลังโหลด...</td></tr></tbody></table>
               </div>
             </section>
             <section id="detailDrawingSection" class="rounded-xl border border-blue-100 bg-blue-50/50 p-3">
@@ -3977,6 +3985,44 @@ function getIssueCartEntries() {
       });
     }
 
+    function getSelectedRequestOrderIds() {
+      return Object.keys(window.__roBulkSelected || {}).filter(function(id) { return window.__roBulkSelected[id]; });
+    }
+
+    function updateRequestOrderBulkToolbar() {
+      var toolbar = document.getElementById('roBulkToolbar');
+      var countEl = document.getElementById('roBulkSelectedCount');
+      if (!toolbar || !countEl) return;
+      var canBulk = hasPermission('request_order_approve') || hasPermission('request_order_reject');
+      var count = getSelectedRequestOrderIds().length;
+      toolbar.classList.toggle('hidden', !canBulk);
+      countEl.textContent = 'เลือกแล้ว ' + count + ' รายการ';
+      var orderedButton = document.getElementById('roBulkOrderedBtn');
+      var receivedButton = document.getElementById('roBulkReceivedBtn');
+      var cancelButton = document.getElementById('roBulkCancelBtn');
+      if (orderedButton) { orderedButton.classList.toggle('hidden', !hasPermission('request_order_approve')); orderedButton.disabled = count === 0; }
+      if (receivedButton) { receivedButton.classList.toggle('hidden', !hasPermission('request_order_approve')); receivedButton.disabled = count === 0; }
+      if (cancelButton) { cancelButton.classList.toggle('hidden', !hasPermission('request_order_reject')); cancelButton.disabled = count === 0; }
+    }
+
+    function runBulkRequestStatus(status) {
+      var ids = getSelectedRequestOrderIds();
+      if (!ids.length) return alert('กรุณาเลือกรายการอย่างน้อย 1 รายการ');
+      var labels = { Purchased: 'Mark as Ordered', Received: 'Mark as Received', Rejected: 'Cancel Request' };
+      if (!confirm((labels[status] || status) + ' จำนวน ' + ids.length + ' รายการ?')) return;
+      return postJson(withAuthPayload({ action: 'bulkUpdateOrderRequestStatus', request_ids: ids, status: status })).then(parseApiResponse).then(function(result) {
+        window.__roBulkSelected = {};
+        purchaseHistoryLoaded = false;
+        updateRequestOrderBulkToolbar();
+        alert('อัปเดตสำเร็จ ' + Number(result.count || ids.length) + ' รายการ');
+        closeRequestOrderDetailModal();
+        loadOrderRequests();
+        return refreshRequestOrderBadgeCount();
+      }).catch(function(err) {
+        alert('Bulk Status Update ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+      });
+    }
+
     function openRequestDetailByRequester(groupIdx) {
       var groupedEntries = window.__roGroupedEntries || [];
       var entry = groupedEntries[Number(groupIdx)] || { name: '', items: [] };
@@ -3987,6 +4033,8 @@ function getIssueCartEntries() {
       var detailList = document.getElementById('roDetailList');
       if (!detailModal || !detailList || !detailTitle) return;
       window.__roActiveGroupIdx = Number(groupIdx);
+      window.__roBulkSelected = {};
+      updateRequestOrderBulkToolbar();
       detailTitle.textContent = 'รายการของ: ' + (name === '__missing__' ? 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' : name);
       detailList.innerHTML = items.map(function(r, idx) {
         var invalid = !String(r.item_name || '').trim() || Number(r.request_qty || 0) <= 0 || !String(r.requested_by || '').trim();
@@ -3996,7 +4044,8 @@ function getIssueCartEntries() {
         if (hasPermission('request_order_reject')) actions += '<button data-id="'+r.request_id+'" data-act="reject" class="rounded border px-2 py-1.5">ปฏิเสธ</button> ';
         if (hasPermission('request_order_convert_pr')) actions += '<button data-id="'+r.request_id+'" data-act="convert" class="rounded border px-2 py-1.5">แปลงเป็น PR</button> ';
         if (hasPermission('request_order_close')) actions += '<button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="rounded border px-2 py-1.5">ปิดรายการ</button>';
-        return '<div class="rounded-xl border p-3">' +
+        var selectControl = (hasPermission('request_order_approve') || hasPermission('request_order_reject')) ? '<label class="mb-2 flex items-center gap-2 rounded-lg bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-700"><input type="checkbox" data-ro-select="' + r.request_id + '" class="h-4 w-4" /> เลือกรายการนี้</label>' : '';
+        return '<div class="rounded-xl border p-3">' + selectControl +
           '<p class="font-semibold">' + (idx + 1) + '. ' + (r.item_name || '-') + '</p>' +
           '<p class="text-sm">Requesterซื้อ: <b>' + (r.requested_by || '-') + '</b></p>' +
           '<p class="text-sm">Requested Atซื้อ: ' + formatThaiDateTime(r.requested_date) + '</p>' +
@@ -4019,6 +4068,8 @@ function getIssueCartEntries() {
       var roDetailModalEl = document.getElementById('roDetailModal');
       if (roDetailModalEl) roDetailModalEl.classList.add('hidden');
       window.__roActiveGroupIdx = undefined;
+      window.__roBulkSelected = {};
+      updateRequestOrderBulkToolbar();
       document.body.classList.remove('overflow-hidden');
     }
 
@@ -4379,7 +4430,9 @@ function inferRequestPriority(stock, min) {
     function purchaseHistoryStatusBadge(status) {
       var styles = {
         Requested: 'bg-amber-100 text-amber-800',
+        'PR Created': 'bg-violet-100 text-violet-800',
         Ordered: 'bg-blue-100 text-blue-800',
+        'Partial Received': 'bg-cyan-100 text-cyan-800',
         Received: 'bg-emerald-100 text-emerald-800',
         Cancelled: 'bg-slate-200 text-slate-700'
       };
@@ -4453,8 +4506,9 @@ function inferRequestPriority(stock, min) {
           '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.unit || '-') + '</td>' +
           '<td class="px-3 py-3">' + purchaseHistoryStatusBadge(item.status) + '</td>' +
           '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.requested_by || '-') + '</td>' +
+          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(item.updated_at || '-') + '</td>' +
           '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.remark || '-') + '</td></tr>';
-      }).join('') : '<tr><td colspan="10" class="px-3 py-8 text-center text-slate-400">ไม่พบประวัติการสั่งซื้อ</td></tr>';
+      }).join('') : '<tr><td colspan="11" class="px-3 py-8 text-center text-slate-400">ไม่พบประวัติการสั่งซื้อ</td></tr>';
       if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'แสดง ' + rows.length + ' จาก ' + purchaseHistoryCache.length + ' รายการ';
     }
 
@@ -4485,11 +4539,11 @@ function inferRequestPriority(stock, min) {
       var model = String(item.model || '').trim().toLowerCase();
       var matched = purchaseHistoryCache.filter(function(history) {
         if (partId && String(history.part_id || '').trim() === partId) return true;
-        return !partId && partName && String(history.part_name || '').trim().toLowerCase() === partName && (!model || String(history.model || '').trim().toLowerCase() === model);
+        return partName && String(history.part_name || '').trim().toLowerCase() === partName && (!model || String(history.model || '').trim().toLowerCase() === model);
       });
       rowsEl.innerHTML = matched.length ? matched.slice(0, 10).map(function(history) {
-        return '<tr class="border-t border-emerald-50"><td class="px-3 py-2">' + escapePurchaseHistoryText(history.month || '-') + '</td><td class="px-3 py-2 text-right font-semibold">' + Number(history.qty_ordered || 0).toLocaleString() + '</td><td class="px-3 py-2">' + purchaseHistoryStatusBadge(history.status) + '</td><td class="px-3 py-2">' + escapePurchaseHistoryText(history.requested_by || '-') + '</td></tr>';
-      }).join('') : '<tr><td colspan="4" class="px-3 py-3 text-center text-slate-400">ยังไม่มีประวัติการสั่งซื้อ</td></tr>';
+        return '<tr class="border-t border-emerald-50"><td class="px-3 py-2">' + escapePurchaseHistoryText(history.month || '-') + '</td><td class="px-3 py-2 text-right font-semibold">' + Number(history.qty_ordered || 0).toLocaleString() + '</td><td class="px-3 py-2">' + purchaseHistoryStatusBadge(history.status) + '</td><td class="px-3 py-2">' + escapePurchaseHistoryText(history.requested_by || '-') + '</td><td class="px-3 py-2 whitespace-nowrap">' + escapePurchaseHistoryText(history.updated_at || '-') + '</td></tr>';
+      }).join('') : '<tr><td colspan="5" class="px-3 py-3 text-center text-slate-400">ยังไม่มีประวัติการสั่งซื้อ</td></tr>';
       if (summaryEl) summaryEl.textContent = matched.length + ' รายการ';
     }
 
@@ -4500,7 +4554,7 @@ function inferRequestPriority(stock, min) {
         if (String(detailModalCurrentNo || '') === String(item.no || '')) renderPartPurchaseHistory(item);
       }).catch(function() {
         var rowsEl = document.getElementById('detailPurchaseHistoryRows');
-        if (rowsEl) rowsEl.innerHTML = '<tr><td colspan="4" class="px-3 py-3 text-center text-rose-500">โหลดประวัติไม่สำเร็จ</td></tr>';
+        if (rowsEl) rowsEl.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-center text-rose-500">โหลดประวัติไม่สำเร็จ</td></tr>';
       });
     }
 
@@ -5562,6 +5616,7 @@ function inferRequestPriority(stock, min) {
 
         txnMessage.className = 'mt-3 text-sm text-emerald-600';
         txnMessage.textContent = 'บันทึกสำเร็จ: Stock ' + res.stockBefore + ' → ' + res.stockAfter;
+        if (payload.type === 'Input') purchaseHistoryLoaded = false;
         var preservedSearch = txnSearchInput.value;
         var preservedCategory = txnCategoryFilter.value;
         var preservedBrand = txnBrandFilter.value;
@@ -7440,6 +7495,7 @@ if (dashboardPage) {
         request_type: 'Auto PR',
         items: selected.map(function(item) {
           return {
+            request_id: item.request_id || item.requestId || '',
             part_id: item.no || '',
             part_name: item.name || '',
             brand: item.brand || '',
@@ -7747,6 +7803,19 @@ if (dashboardPage) {
         alert('ไม่สามารถแสดงรูปในหน้าป๊อปอัปได้ ระบบจะเปิดรูปในแท็บใหม่');
       };
     }
+    if (roDetailList) roDetailList.addEventListener('change', function(e) {
+      var checkbox = e.target.closest('[data-ro-select]');
+      if (!checkbox) return;
+      window.__roBulkSelected = window.__roBulkSelected || {};
+      window.__roBulkSelected[checkbox.getAttribute('data-ro-select')] = checkbox.checked;
+      updateRequestOrderBulkToolbar();
+    });
+    var roBulkOrderedBtn = document.getElementById('roBulkOrderedBtn');
+    var roBulkReceivedBtn = document.getElementById('roBulkReceivedBtn');
+    var roBulkCancelBtn = document.getElementById('roBulkCancelBtn');
+    if (roBulkOrderedBtn) roBulkOrderedBtn.addEventListener('click', function() { runBulkRequestStatus('Purchased'); });
+    if (roBulkReceivedBtn) roBulkReceivedBtn.addEventListener('click', function() { runBulkRequestStatus('Received'); });
+    if (roBulkCancelBtn) roBulkCancelBtn.addEventListener('click', function() { runBulkRequestStatus('Rejected'); });
     if (roDetailList) roDetailList.addEventListener('click', function(e){
       var imageBtn = e.target.closest('[data-view-image]');
       if (imageBtn && roImageModal && roImageModalPreview) {
