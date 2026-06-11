@@ -152,6 +152,7 @@
           <button id="tabTxn" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
           <button id="tabLog" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabPrReport" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
+          <button id="tabPurchaseHistory" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Purchase History</button>
           <button id="requestOrderNavBtn" class="eng-tab shrink-0 request-order-nav-btn relative overflow-visible px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white"><span>ขอซื้ออะไหล่</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span></button>
           <button id="tabManage" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-yellow-700 bg-yellow-600 text-white text-sm font-semibold">เพิ่มรายการเข้าระบบ</button>
           <button id="tabAdmin" class="eng-tab shrink-0 hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Admin Panel</button>
@@ -726,6 +727,32 @@
       </div>
     </section>
 
+    <section id="purchaseHistoryPage" class="hidden space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm panel-shadow md:p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Purchase History</h2>
+          <p class="text-sm text-slate-500">ประวัติการขอซื้อและสั่งซื้ออะไหล่สำหรับดูย้อนหลังและวิเคราะห์เบื้องต้น</p>
+        </div>
+        <button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
+      </div>
+      <div id="purchaseHistorySummary" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5"></div>
+      <div class="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-4">
+        <select id="purchaseHistoryMonthFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุกเดือน</option></select>
+        <select id="purchaseHistoryLineFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุก Line</option></select>
+        <select id="purchaseHistoryStatusFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm">
+          <option value="all">ทุก Status</option><option value="Requested">Requested</option><option value="Ordered">Ordered</option><option value="Received">Received</option><option value="Cancelled">Cancelled</option>
+        </select>
+        <input id="purchaseHistorySearch" type="search" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm" placeholder="ค้นหา Part Name / Model" />
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full min-w-[1050px] text-sm">
+          <thead class="bg-slate-100 text-left text-slate-600"><tr><th class="px-3 py-3">Month</th><th class="px-3 py-3">Line</th><th class="px-3 py-3">Part Name</th><th class="px-3 py-3">Brand</th><th class="px-3 py-3">Model / Part No.</th><th class="px-3 py-3 text-right">Qty Ordered</th><th class="px-3 py-3">Unit</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Requested By</th><th class="px-3 py-3">Remark</th></tr></thead>
+          <tbody id="purchaseHistoryTable"></tbody>
+        </table>
+      </div>
+      <p id="purchaseHistoryMessage" class="text-sm text-slate-500"></p>
+    </section>
+
     <section id="adminPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -1054,6 +1081,15 @@
                 <div id="detailFieldPriceRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Price Remark</p><p id="detailPriceRemark" class="font-semibold text-base">-</p></div>
               </div>
             </section>
+            <section class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Purchase History</p>
+                <span id="detailPurchaseHistorySummary" class="text-xs text-slate-500"></span>
+              </div>
+              <div class="overflow-x-auto rounded-lg border border-emerald-100 bg-white">
+                <table class="w-full min-w-[520px] text-sm"><thead class="bg-emerald-50 text-left text-slate-600"><tr><th class="px-3 py-2">Month</th><th class="px-3 py-2 text-right">Qty Ordered</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">Requested By</th></tr></thead><tbody id="detailPurchaseHistoryRows"><tr><td colspan="4" class="px-3 py-3 text-center text-slate-400">กำลังโหลด...</td></tr></tbody></table>
+              </div>
+            </section>
             <section id="detailDrawingSection" class="rounded-xl border border-blue-100 bg-blue-50/50 p-3">
               <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <p class="text-[11px] uppercase tracking-wide text-blue-700 font-semibold">Drawing / Attachments</p>
@@ -1306,6 +1342,16 @@
     var quickIssueMessage = document.getElementById('quickIssueMessage');
     var prReportPage = document.getElementById('prReportPage');
     var tabPrReport = document.getElementById('tabPrReport');
+    var purchaseHistoryPage = document.getElementById('purchaseHistoryPage');
+    var tabPurchaseHistory = document.getElementById('tabPurchaseHistory');
+    var purchaseHistoryTable = document.getElementById('purchaseHistoryTable');
+    var purchaseHistorySummary = document.getElementById('purchaseHistorySummary');
+    var purchaseHistoryMonthFilter = document.getElementById('purchaseHistoryMonthFilter');
+    var purchaseHistoryLineFilter = document.getElementById('purchaseHistoryLineFilter');
+    var purchaseHistoryStatusFilter = document.getElementById('purchaseHistoryStatusFilter');
+    var purchaseHistorySearch = document.getElementById('purchaseHistorySearch');
+    var purchaseHistoryMessage = document.getElementById('purchaseHistoryMessage');
+    var purchaseHistoryRefreshBtn = document.getElementById('purchaseHistoryRefreshBtn');
     var tabRequestOrder = document.getElementById('requestOrderNavBtn');
     var prMode = document.getElementById('prMode');
     var prLineFilter = document.getElementById('prLineFilter');
@@ -1332,6 +1378,9 @@
     var FALLBACK_IMAGE = 'images/no-image.svg';
 
     var partsData = [];
+    var purchaseHistoryCache = [];
+    var purchaseHistoryLoaded = false;
+    var prHistoryBatchId = '';
     var stockSheetMemoryCache = {};
     var fullDetailSheetCache = {};
     var backgroundSheetPrefetching = {};
@@ -3744,6 +3793,7 @@ function getIssueCartEntries() {
       tabTxn.className = tabBaseClass;
       tabLog.className = tabBaseClass;
       tabPrReport.className = tabBaseClass;
+      if (tabPurchaseHistory) tabPurchaseHistory.className = tabBaseClass;
       if (tabRequestOrder) tabRequestOrder.className = tabBaseClass;
       tabManage.className = tabBaseClass;
       tabAdmin.className = tabBaseClass;
@@ -3752,6 +3802,7 @@ function getIssueCartEntries() {
       if (active === 'txn') tabTxn.className = tabActiveClass;
       if (active === 'log') tabLog.className = tabActiveClass;
       if (active === 'pr') tabPrReport.className = tabActiveClass;
+      if (active === 'purchase-history' && tabPurchaseHistory) tabPurchaseHistory.className = tabActiveClass;
       if (active === 'request-order' && tabRequestOrder) tabRequestOrder.className = tabActiveClass;
       if (tabRequestOrder) tabRequestOrder.classList.add('request-order-nav-btn', 'relative', 'overflow-visible');
       if (active === 'manage') tabManage.className = tabActiveClass;
@@ -3759,6 +3810,7 @@ function getIssueCartEntries() {
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
       tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
+      if (tabPurchaseHistory) tabPurchaseHistory.classList.toggle('hidden', !hasPermission('view'));
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', window.innerWidth < 768);
@@ -3774,6 +3826,7 @@ function getIssueCartEntries() {
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('stock');
@@ -3787,6 +3840,7 @@ function getIssueCartEntries() {
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('txn');
@@ -3818,6 +3872,7 @@ function getIssueCartEntries() {
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.remove('hidden');
       prReportPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('log');
@@ -3831,6 +3886,7 @@ function getIssueCartEntries() {
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
@@ -4276,6 +4332,7 @@ function inferRequestPriority(stock, min) {
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('dashboard');
@@ -4294,7 +4351,14 @@ function inferRequestPriority(stock, min) {
     }
 
     function switchToRequestOrderPage() {
-      stockPage.classList.add('hidden'); if (dashboardPage) dashboardPage.classList.add('hidden'); txnPage.classList.add('hidden'); logPage.classList.add('hidden'); prReportPage.classList.add('hidden'); managePage.classList.add('hidden'); adminPage.classList.add('hidden');
+      stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
       window.__roActiveGroupIdx = undefined;
       closeRequestOrderDetailModal();
@@ -4306,6 +4370,155 @@ function inferRequestPriority(stock, min) {
       loadOrderRequests();
     }
 
+    function escapePurchaseHistoryText(value) {
+      return String(value === undefined || value === null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function purchaseHistoryStatusBadge(status) {
+      var styles = {
+        Requested: 'bg-amber-100 text-amber-800',
+        Ordered: 'bg-blue-100 text-blue-800',
+        Received: 'bg-emerald-100 text-emerald-800',
+        Cancelled: 'bg-slate-200 text-slate-700'
+      };
+      var normalized = String(status || 'Requested');
+      return '<span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold ' + (styles[normalized] || styles.Requested) + '">' + escapePurchaseHistoryText(normalized) + '</span>';
+    }
+
+    function populatePurchaseHistoryFilters() {
+      if (!purchaseHistoryMonthFilter || !purchaseHistoryLineFilter) return;
+      var selectedMonth = purchaseHistoryMonthFilter.value || 'all';
+      var selectedLine = purchaseHistoryLineFilter.value || 'all';
+      var months = Array.from(new Set(purchaseHistoryCache.map(function(item) { return String(item.month || ''); }).filter(Boolean))).sort().reverse();
+      var lines = Array.from(new Set(purchaseHistoryCache.map(function(item) { return String(item.line || ''); }).filter(Boolean))).sort();
+      purchaseHistoryMonthFilter.innerHTML = '<option value="all">ทุกเดือน</option>' + months.map(function(month) { return '<option value="' + escapePurchaseHistoryText(month) + '">' + escapePurchaseHistoryText(month) + '</option>'; }).join('');
+      purchaseHistoryLineFilter.innerHTML = '<option value="all">ทุก Line</option>' + lines.map(function(line) { return '<option value="' + escapePurchaseHistoryText(line) + '">' + escapePurchaseHistoryText(line) + '</option>'; }).join('');
+      if (months.indexOf(selectedMonth) > -1) purchaseHistoryMonthFilter.value = selectedMonth;
+      if (lines.indexOf(selectedLine) > -1) purchaseHistoryLineFilter.value = selectedLine;
+    }
+
+    function getFilteredPurchaseHistory() {
+      var month = purchaseHistoryMonthFilter ? purchaseHistoryMonthFilter.value : 'all';
+      var line = purchaseHistoryLineFilter ? purchaseHistoryLineFilter.value : 'all';
+      var status = purchaseHistoryStatusFilter ? purchaseHistoryStatusFilter.value : 'all';
+      var query = purchaseHistorySearch ? String(purchaseHistorySearch.value || '').trim().toLowerCase() : '';
+      return purchaseHistoryCache.filter(function(item) {
+        if (month !== 'all' && String(item.month || '') !== month) return false;
+        if (line !== 'all' && String(item.line || '') !== line) return false;
+        if (status !== 'all' && String(item.status || '') !== status) return false;
+        if (query && [item.part_name, item.model, item.part_id].join(' ').toLowerCase().indexOf(query) === -1) return false;
+        return true;
+      });
+    }
+
+    function renderPurchaseHistory() {
+      if (!purchaseHistoryTable) return;
+      var rows = getFilteredPurchaseHistory();
+      var totalQty = rows.reduce(function(sum, item) { return sum + Number(item.qty_ordered || 0); }, 0);
+      var itemStats = {};
+      var lineStats = {};
+      rows.forEach(function(item) {
+        var itemKey = String(item.part_id || item.part_name || '-');
+        if (!itemStats[itemKey]) itemStats[itemKey] = { name: item.part_name || itemKey, qty: 0, count: 0 };
+        itemStats[itemKey].qty += Number(item.qty_ordered || 0);
+        itemStats[itemKey].count += 1;
+        var lineKey = String(item.line || '-');
+        lineStats[lineKey] = (lineStats[lineKey] || 0) + Number(item.qty_ordered || 0);
+      });
+      var itemValues = Object.keys(itemStats).map(function(key) { return itemStats[key]; });
+      var topOrdered = itemValues.sort(function(a, b) { return b.qty - a.qty; })[0];
+      var mostFrequent = itemValues.slice().sort(function(a, b) { return b.count - a.count; })[0];
+      var topLine = Object.keys(lineStats).sort(function(a, b) { return lineStats[b] - lineStats[a]; })[0];
+      var pendingCount = rows.filter(function(item) { return item.status === 'Requested' || item.status === 'Ordered'; }).length;
+      if (purchaseHistorySummary) {
+        var cards = [
+          ['Total ordered qty', totalQty.toLocaleString()],
+          ['Order frequency', mostFrequent ? (mostFrequent.name + ' • ' + mostFrequent.count + ' ครั้ง') : '-'],
+          ['Top ordered spare part', topOrdered ? (topOrdered.name + ' • ' + topOrdered.qty.toLocaleString()) : '-'],
+          ['Top line', topLine ? (topLine + ' • ' + lineStats[topLine].toLocaleString()) : '-'],
+          ['Not received', pendingCount.toLocaleString() + ' รายการ']
+        ];
+        purchaseHistorySummary.innerHTML = cards.map(function(card) { return '<article class="rounded-xl border border-slate-200 bg-slate-50 p-3"><p class="text-xs font-semibold text-slate-500">' + escapePurchaseHistoryText(card[0]) + '</p><p class="mt-1 text-base font-bold text-slate-900">' + escapePurchaseHistoryText(card[1]) + '</p></article>'; }).join('');
+      }
+      purchaseHistoryTable.innerHTML = rows.length ? rows.map(function(item, index) {
+        return '<tr class="border-t border-slate-100 ' + (index % 2 ? 'bg-slate-50/60' : 'bg-white') + '">' +
+          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(item.month || '-') + '</td>' +
+          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.line || '-') + '</td>' +
+          '<td class="px-3 py-3 font-semibold text-slate-800">' + escapePurchaseHistoryText(item.part_name || '-') + '</td>' +
+          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.brand || '-') + '</td>' +
+          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.model || '-') + '</td>' +
+          '<td class="px-3 py-3 text-right font-semibold">' + Number(item.qty_ordered || 0).toLocaleString() + '</td>' +
+          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.unit || '-') + '</td>' +
+          '<td class="px-3 py-3">' + purchaseHistoryStatusBadge(item.status) + '</td>' +
+          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.requested_by || '-') + '</td>' +
+          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.remark || '-') + '</td></tr>';
+      }).join('') : '<tr><td colspan="10" class="px-3 py-8 text-center text-slate-400">ไม่พบประวัติการสั่งซื้อ</td></tr>';
+      if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'แสดง ' + rows.length + ' จาก ' + purchaseHistoryCache.length + ' รายการ';
+    }
+
+    function loadPurchaseHistory(forceRefresh) {
+      if (purchaseHistoryLoaded && !forceRefresh) {
+        renderPurchaseHistory();
+        return Promise.resolve(purchaseHistoryCache);
+      }
+      if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'กำลังโหลด Purchase History...';
+      return requestApi(withAuthPayload({ action: 'getPurchaseHistory' })).then(parseApiResponse).then(function(rows) {
+        purchaseHistoryCache = Array.isArray(rows) ? rows : [];
+        purchaseHistoryLoaded = true;
+        populatePurchaseHistoryFilters();
+        renderPurchaseHistory();
+        return purchaseHistoryCache;
+      }).catch(function(err) {
+        if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'โหลด Purchase History ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+        throw err;
+      });
+    }
+
+    function renderPartPurchaseHistory(item) {
+      var rowsEl = document.getElementById('detailPurchaseHistoryRows');
+      var summaryEl = document.getElementById('detailPurchaseHistorySummary');
+      if (!rowsEl || !item) return;
+      var partId = String(item.no || item.part_id || '').trim();
+      var partName = String(item.name || '').trim().toLowerCase();
+      var model = String(item.model || '').trim().toLowerCase();
+      var matched = purchaseHistoryCache.filter(function(history) {
+        if (partId && String(history.part_id || '').trim() === partId) return true;
+        return !partId && partName && String(history.part_name || '').trim().toLowerCase() === partName && (!model || String(history.model || '').trim().toLowerCase() === model);
+      });
+      rowsEl.innerHTML = matched.length ? matched.slice(0, 10).map(function(history) {
+        return '<tr class="border-t border-emerald-50"><td class="px-3 py-2">' + escapePurchaseHistoryText(history.month || '-') + '</td><td class="px-3 py-2 text-right font-semibold">' + Number(history.qty_ordered || 0).toLocaleString() + '</td><td class="px-3 py-2">' + purchaseHistoryStatusBadge(history.status) + '</td><td class="px-3 py-2">' + escapePurchaseHistoryText(history.requested_by || '-') + '</td></tr>';
+      }).join('') : '<tr><td colspan="4" class="px-3 py-3 text-center text-slate-400">ยังไม่มีประวัติการสั่งซื้อ</td></tr>';
+      if (summaryEl) summaryEl.textContent = matched.length + ' รายการ';
+    }
+
+    function loadPartPurchaseHistory(item) {
+      renderPartPurchaseHistory(item);
+      if (purchaseHistoryLoaded) return;
+      loadPurchaseHistory(false).then(function() {
+        if (String(detailModalCurrentNo || '') === String(item.no || '')) renderPartPurchaseHistory(item);
+      }).catch(function() {
+        var rowsEl = document.getElementById('detailPurchaseHistoryRows');
+        if (rowsEl) rowsEl.innerHTML = '<tr><td colspan="4" class="px-3 py-3 text-center text-rose-500">โหลดประวัติไม่สำเร็จ</td></tr>';
+      });
+    }
+
+    function switchToPurchaseHistoryPage() {
+      if (!hasPermission('view')) return switchToStockPage();
+      stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.remove('hidden');
+      setTabStyles('purchase-history');
+      loadPurchaseHistory(false).catch(function() {});
+    }
+
     function switchToAdminPage() {
       if (!(isAdminUser() && hasPermission('manage_users'))) return switchToStockPage();
       stockPage.classList.add('hidden');
@@ -4313,6 +4526,7 @@ function inferRequestPriority(stock, min) {
       txnPage.classList.add('hidden');
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       managePage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       adminPage.classList.remove('hidden');
@@ -4332,6 +4546,7 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       prReportPage.classList.remove('hidden');
       setTabStyles('pr');
     }
@@ -4498,8 +4713,9 @@ function inferRequestPriority(stock, min) {
         if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
+        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', unit: i.unit || '', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
       }).filter(Boolean);
+      prHistoryBatchId = 'AUTOPR-' + Date.now();
       renderPrCandidates();
       }).catch(function(err) {
         prCandidateList.innerHTML = '<p class=\"text-sm text-rose-600\">Generate candidates failed: ' + (err && err.message ? err.message : err) + '</p>';
@@ -6253,6 +6469,7 @@ function inferRequestPriority(stock, min) {
       };
       mainImg.classList.toggle('hidden', !mainOk);
       document.getElementById('detailMainEmpty').classList.toggle('hidden', mainOk);
+      loadPartPurchaseHistory(item);
       console.log('[render detail item]', item);
       console.log('[render detail image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: detailImageSrc, fallbackSrc: detailFallbackSrc });
       bindImageFallback(mainImg);
@@ -6564,6 +6781,7 @@ function inferRequestPriority(stock, min) {
       else if (!txnPage.classList.contains('hidden')) setTabStyles('txn');
       else if (!logPage.classList.contains('hidden')) setTabStyles('log');
       else if (!prReportPage.classList.contains('hidden')) setTabStyles('pr');
+      else if (purchaseHistoryPage && !purchaseHistoryPage.classList.contains('hidden')) setTabStyles('purchase-history');
       else if (!managePage.classList.contains('hidden')) setTabStyles('manage');
       else if (!adminPage.classList.contains('hidden')) setTabStyles('admin');
     });
@@ -6586,9 +6804,15 @@ function inferRequestPriority(stock, min) {
     tabTxn.addEventListener('click', switchToTxnPage);
     tabLog.addEventListener('click', switchToLogPage);
     tabPrReport.addEventListener('click', switchToPrReportPage);
+    if (tabPurchaseHistory) tabPurchaseHistory.addEventListener('click', switchToPurchaseHistoryPage);
     if (tabRequestOrder) tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
+    if (purchaseHistoryRefreshBtn) purchaseHistoryRefreshBtn.addEventListener('click', function() { loadPurchaseHistory(true).catch(function() {}); });
+    [purchaseHistoryMonthFilter, purchaseHistoryLineFilter, purchaseHistoryStatusFilter, purchaseHistorySearch].forEach(function(control) {
+      if (!control) return;
+      control.addEventListener(control.tagName === 'INPUT' ? 'input' : 'change', renderPurchaseHistory);
+    });
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
     if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1); });
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
@@ -7207,17 +7431,48 @@ if (dashboardPage) {
         fullDrawingsHtml +
         '<p class="footer">Confidential - For internal approval use only</p></div>';
     }
+    function recordAutoPrPurchaseHistory(selected) {
+      if (!selected || !selected.length) return Promise.resolve();
+      if (!prHistoryBatchId) prHistoryBatchId = 'AUTOPR-' + Date.now();
+      return postJson(withAuthPayload({
+        action: 'createPurchaseHistoryBatch',
+        batch_id: prHistoryBatchId,
+        request_type: 'Auto PR',
+        items: selected.map(function(item) {
+          return {
+            part_id: item.no || '',
+            part_name: item.name || '',
+            brand: item.brand || '',
+            model: item.model || '',
+            line: item.line || '',
+            qty_ordered: Number(item.suggestedQty || 0),
+            unit: item.unit || '',
+            remark: item.reason || ''
+          };
+        })
+      })).then(parseApiResponse).then(function(result) {
+        purchaseHistoryLoaded = false;
+        return result;
+      });
+    }
+
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
       var totalFiltered = getFilteredPrCandidates(false).length;
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
       prReportPreview.innerHTML = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
+      recordAutoPrPurchaseHistory(selected).catch(function(err) {
+        prReportPreview.insertAdjacentHTML('afterbegin', '<div class="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">สร้างรายงานแล้ว แต่บันทึก Purchase History ไม่สำเร็จ: ' + escapePurchaseHistoryText(err && err.message ? err.message : err) + '</div>');
+      });
     });
     if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Drawing Status','Drawing Revision','Drawing File Name','Drawing Link','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); var drawingUrl=String(c.drawingUrl||c.drawing_url||'').trim(); var drawingStatus=normalizeDrawingStatus(Object.assign({}, c, { drawing_url: drawingUrl, drawingUrl: drawingUrl })); if(!drawingUrl && drawingStatus!=='Not Required') drawingStatus='Missing'; var drawingLink=(drawingUrl && (drawingStatus==='Available'||drawingStatus==='Access Required')) ? drawingUrl : ''; return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,drawingStatus,c.drawingRevision||c.drawing_revision||'',c.drawingFileName||c.drawing_file_name||'',drawingLink,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) return;
+      recordAutoPrPurchaseHistory(selected).catch(function(err) {
+        console.warn('recordAutoPrPurchaseHistory before print failed', err);
+      });
       var totalFiltered = getFilteredPrCandidates(false).length;
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
       var docHtml = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
@@ -7421,6 +7676,7 @@ if (dashboardPage) {
         min: isNewItemMode ? 0 : roSelectedItem.min,
         max: isNewItemMode ? 0 : roSelectedItem.max,
         request_qty: qty,
+        unit: isNewItemMode ? '' : (roSelectedItem.unit || ''),
         reason: reason,
         priority: isNewItemMode ? 'Normal' : inferRequestPriority(roSelectedItem.stock, roSelectedItem.min),
         remark: document.getElementById('roRemark').value,
@@ -7444,7 +7700,8 @@ if (dashboardPage) {
       });
       submitPromise.then(function(res){
         if (res && res.status === 'error') throw new Error(res.message || 'ส่งคำขอไม่สำเร็จ');
-        alert('ส่งคำขอซื้อเรียบร้อย • Status: รอการอนุมัติ');
+        if (res && res.purchase_history_recorded === false) alert('ส่งคำขอซื้อเรียบร้อย แต่บันทึก Purchase History ไม่สำเร็จ กรุณาแจ้งผู้ดูแลระบบ');
+        else alert('ส่งคำขอซื้อเรียบร้อย • Status: รอการอนุมัติ');
         e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests(); refreshRequestOrderBadgeCount();
       }).catch(function(err) {
         var rawMessage = err && err.message ? err.message : String(err || '');
