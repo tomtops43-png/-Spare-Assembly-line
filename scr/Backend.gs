@@ -6,6 +6,9 @@ SPARE_APP_CONFIG.readSheetName = SPARE_APP_CONFIG.readSheetName || 'Main List St
 SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Log';
 SPARE_APP_CONFIG.usersSheetName = SPARE_APP_CONFIG.usersSheetName || 'Users';
 SPARE_APP_CONFIG.requestSheetName = SPARE_APP_CONFIG.requestSheetName || 'OrderRequests';
+SPARE_APP_CONFIG.sessionDurationMs = SPARE_APP_CONFIG.sessionDurationMs || (7 * 24 * 60 * 60 * 1000);
+SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThresholdMs || (24 * 60 * 60 * 1000);
+var SESSION_PROPERTY_PREFIX = 'spare_session::';
 var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After', 'Reason', 'Reason Remark'];
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
 var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at'];
@@ -66,7 +69,11 @@ function buildErrorResponse(err) {
     };
   }
 
-  return { status: 'error', message: msg };
+  return {
+    status: 'error',
+    errorCode: err && err.code ? String(err.code) : '',
+    message: msg
+  };
 }
 
 function normalizeHeaderName(header) {
@@ -597,15 +604,99 @@ function findUserByUsername(username) {
   return null;
 }
 
+function getSessionPropertyKey(token) {
+  return SESSION_PROPERTY_PREFIX + String(token || '').trim();
+}
+
+function readSessionRecord(token) {
+  var target = String(token || '').trim();
+  if (!target) return null;
+  var raw = PropertiesService.getScriptProperties().getProperty(getSessionPropertyKey(target));
+  if (!raw) return null;
+  try {
+    var record = JSON.parse(raw);
+    if (!record || !record.username || !Number(record.expiry)) return null;
+    return record;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeSessionRecord(token, username, expiry) {
+  PropertiesService.getScriptProperties().setProperty(getSessionPropertyKey(token), JSON.stringify({
+    username: String(username || '').trim(),
+    expiry: Number(expiry || 0)
+  }));
+}
+
+function deleteSessionRecord(token) {
+  var target = String(token || '').trim();
+  if (!target) return;
+  PropertiesService.getScriptProperties().deleteProperty(getSessionPropertyKey(target));
+}
+
+function revokeUserSessions(username) {
+  var target = String(username || '').trim();
+  if (!target) return;
+  var props = PropertiesService.getScriptProperties();
+  var allProperties = props.getProperties();
+  Object.keys(allProperties).forEach(function(key) {
+    if (key.indexOf(SESSION_PROPERTY_PREFIX) !== 0) return;
+    try {
+      var record = JSON.parse(allProperties[key]);
+      if (record && record.username === target) props.deleteProperty(key);
+    } catch (err) {
+      props.deleteProperty(key);
+    }
+  });
+}
+
+function cleanupExpiredSessionRecords() {
+  var props = PropertiesService.getScriptProperties();
+  var allProperties = props.getProperties();
+  var now = Date.now();
+  Object.keys(allProperties).forEach(function(key) {
+    if (key.indexOf(SESSION_PROPERTY_PREFIX) !== 0) return;
+    try {
+      var record = JSON.parse(allProperties[key]);
+      if (!record || Number(record.expiry || 0) <= now) props.deleteProperty(key);
+    } catch (err) {
+      props.deleteProperty(key);
+    }
+  });
+}
+
 function findUserByToken(token) {
   var target = String(token || '').trim();
   if (!target) return null;
-  var users = getAllUsers();
   var now = Date.now();
+  var record = readSessionRecord(target);
+  if (record) {
+    if (Number(record.expiry) <= now) {
+      deleteSessionRecord(target);
+      return null;
+    }
+    var sessionUser = findUserByUsername(record.username);
+    if (!sessionUser || !sessionUser.isActive) {
+      deleteSessionRecord(target);
+      return null;
+    }
+    if (Number(record.expiry) - now <= Number(SPARE_APP_CONFIG.sessionRefreshThresholdMs)) {
+      writeSessionRecord(target, sessionUser.username, now + Number(SPARE_APP_CONFIG.sessionDurationMs));
+    }
+    return sessionUser;
+  }
+
+  // Migrate a still-valid session created by an older deployment. Keeping this
+  // fallback avoids forcing every signed-in user to log in during deployment.
+  var users = getAllUsers();
   for (var i = 0; i < users.length; i += 1) {
-    var u = users[i];
-    var exp = Number(u.tokenExpiry || 0);
-    if (u.token === target && exp > now && u.isActive) return u;
+    var user = users[i];
+    var legacyExpiry = Number(user.tokenExpiry || 0);
+    if (user.token === target && legacyExpiry > now && user.isActive) {
+      writeSessionRecord(target, user.username, now + Number(SPARE_APP_CONFIG.sessionDurationMs));
+      return user;
+    }
   }
   return null;
 }
@@ -628,11 +719,13 @@ function loginUser(payload) {
   if (!user || !user.isActive) throw new Error('ไม่พบผู้ใช้หรือผู้ใช้ถูกปิดใช้งาน');
   if (String(user.password) !== password) throw new Error('รหัสผ่านไม่ถูกต้อง');
 
+  cleanupExpiredSessionRecords();
   var token = Utilities.getUuid() + '-' + Date.now();
-  var expiry = Date.now() + (8 * 60 * 60 * 1000);
+  var expiry = Date.now() + Number(SPARE_APP_CONFIG.sessionDurationMs);
   var usersSheet = getUsersSheet();
   usersSheet.getRange(user.rowIndex, 6).setValue(token);
   usersSheet.getRange(user.rowIndex, 7).setValue(String(expiry));
+  writeSessionRecord(token, user.username, expiry);
 
   user.token = token;
   user.tokenExpiry = String(expiry);
@@ -647,19 +740,31 @@ function loginUser(payload) {
 function logoutUser(payload) {
   var token = String(payload.authToken || payload.token || '').trim();
   if (!token) return { status: 'success' };
-  var user = findUserByToken(token);
-  if (!user) return { status: 'success' };
-  var usersSheet = getUsersSheet();
-  usersSheet.getRange(user.rowIndex, 6).setValue('');
-  usersSheet.getRange(user.rowIndex, 7).setValue('');
+  deleteSessionRecord(token);
+
+  // Clear the legacy sheet columns only when they contain this exact token.
+  var users = getAllUsers();
+  for (var i = 0; i < users.length; i += 1) {
+    if (users[i].token !== token) continue;
+    var usersSheet = getUsersSheet();
+    usersSheet.getRange(users[i].rowIndex, 6).setValue('');
+    usersSheet.getRange(users[i].rowIndex, 7).setValue('');
+    break;
+  }
   return { status: 'success' };
+}
+
+function createAuthSessionError(message) {
+  var err = new Error(message);
+  err.code = 'AUTH_SESSION_INVALID';
+  return err;
 }
 
 function getSessionUser(payload) {
   var token = String(payload.authToken || payload.token || '').trim();
-  if (!token) throw new Error('กรุณาเข้าสู่ระบบ');
+  if (!token) throw createAuthSessionError('กรุณาเข้าสู่ระบบ');
   var user = findUserByToken(token);
-  if (!user) throw new Error('session หมดอายุหรือไม่ถูกต้อง');
+  if (!user) throw createAuthSessionError('session หมดอายุหรือไม่ถูกต้อง');
   return { status: 'success', user: sanitizeUserForClient(user) };
 }
 
@@ -712,6 +817,7 @@ function upsertUser(payload) {
     usersSheet.getRange(existing.rowIndex, 3).setValue(role);
     usersSheet.getRange(existing.rowIndex, 4).setValue(String(isActive));
     usersSheet.getRange(existing.rowIndex, 5).setValue(permissionsJson);
+    if (String(payload.password || '') !== '' || !isActive) revokeUserSessions(username);
     return { status: 'success', mode: 'update', username: username };
   }
 
@@ -728,6 +834,7 @@ function deleteUser(payload) {
   if (username === actor.username) throw new Error('ไม่สามารถลบ user ตัวเองได้');
   var existing = findUserByUsername(username);
   if (!existing) throw new Error('ไม่พบผู้ใช้');
+  revokeUserSessions(username);
   var usersSheet = getUsersSheet();
   usersSheet.deleteRow(existing.rowIndex);
   return { status: 'success', username: username };
