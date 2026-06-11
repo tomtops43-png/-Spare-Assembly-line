@@ -812,6 +812,11 @@ function convertOrderRequestsToPR(payload) {
     for (var i = 1; i < values.length; i += 1) {
       if (String(values[i][idxRid]) === String(id)) {
         sheet.getRange(i + 1, idxPr + 1).setValue(convertedPrId);
+        try {
+          updatePurchaseHistoryForRequest(id, { request_type: 'PR' });
+        } catch (historyErr) {
+          Logger.log('convertOrderRequestsToPR PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
+        }
         break;
       }
     }
