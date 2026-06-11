@@ -6,10 +6,17 @@ SPARE_APP_CONFIG.readSheetName = SPARE_APP_CONFIG.readSheetName || 'Main List St
 SPARE_APP_CONFIG.writeSheetName = SPARE_APP_CONFIG.writeSheetName || 'Log';
 SPARE_APP_CONFIG.usersSheetName = SPARE_APP_CONFIG.usersSheetName || 'Users';
 SPARE_APP_CONFIG.requestSheetName = SPARE_APP_CONFIG.requestSheetName || 'OrderRequests';
+SPARE_APP_CONFIG.purchaseHistorySheetName = SPARE_APP_CONFIG.purchaseHistorySheetName || 'PurchaseHistory';
+SPARE_APP_CONFIG.sessionDurationMs = SPARE_APP_CONFIG.sessionDurationMs || (7 * 24 * 60 * 60 * 1000);
+SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThresholdMs || (24 * 60 * 60 * 1000);
+var SESSION_PROPERTY_PREFIX = 'spare_session::';
 var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After', 'Reason', 'Reason Remark'];
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
 var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at'];
 var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
+var PURCHASE_HISTORY_HEADERS = ['History ID', 'Date', 'Month', 'Line', 'Part ID', 'Part Name', 'Brand', 'Model / Part No.', 'Qty Ordered', 'Unit', 'Request Type', 'Status', 'Requested By', 'Remark', 'Created At', 'Updated At'];
+var PURCHASE_HISTORY_STATUSES = ['Requested', 'Ordered', 'Received', 'Cancelled'];
+var PURCHASE_HISTORY_REQUEST_TYPES = ['PR', 'PO', 'Manual', 'Auto PR'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
 var DRIVE_ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
 var DRAWING_STATUS_OPTIONS = ['Available', 'Missing', 'Not Required', 'Access Required'];
@@ -66,7 +73,11 @@ function buildErrorResponse(err) {
     };
   }
 
-  return { status: 'error', message: msg };
+  return {
+    status: 'error',
+    errorCode: err && err.code ? String(err.code) : '',
+    message: msg
+  };
 }
 
 function normalizeHeaderName(header) {
@@ -310,6 +321,149 @@ function getUsersSheet() {
   return usersSheet;
 }
 
+function getPurchaseHistorySheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.purchaseHistorySheetName);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(PURCHASE_HISTORY_HEADERS);
+    return sheet;
+  }
+  var currentHeaders = sheet.getRange(1, 1, 1, PURCHASE_HISTORY_HEADERS.length).getValues()[0];
+  var headersMatch = PURCHASE_HISTORY_HEADERS.every(function(header, index) {
+    return String(currentHeaders[index] || '') === header;
+  });
+  if (!headersMatch) {
+    throw new Error('โครงสร้างชีท PurchaseHistory ไม่ถูกต้อง กรุณาตรวจสอบชื่อคอลัมน์');
+  }
+  return sheet;
+}
+
+function normalizePurchaseHistoryDate(value, fallbackDate) {
+  var raw = value instanceof Date ? value : new Date(value || fallbackDate || new Date());
+  if (isNaN(raw.getTime())) raw = fallbackDate instanceof Date ? fallbackDate : new Date();
+  return raw;
+}
+
+function buildPurchaseHistoryId(prefix) {
+  return String(prefix || 'PH') + '-' + Utilities.getUuid();
+}
+
+function appendPurchaseHistoryRecord(payload) {
+  payload = payload || {};
+  var status = String(payload.status || 'Requested').trim();
+  var requestType = String(payload.request_type || payload.requestType || 'Manual').trim();
+  if (PURCHASE_HISTORY_STATUSES.indexOf(status) === -1) throw new Error('Purchase History status ไม่ถูกต้อง: ' + status);
+  if (PURCHASE_HISTORY_REQUEST_TYPES.indexOf(requestType) === -1) throw new Error('Purchase History request type ไม่ถูกต้อง: ' + requestType);
+
+  var sheet = getPurchaseHistorySheet();
+  var now = new Date();
+  var orderDate = normalizePurchaseHistoryDate(payload.date, now);
+  var historyId = String(payload.history_id || payload.historyId || buildPurchaseHistoryId('PH')).trim();
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '') === historyId) return historyId;
+  }
+  var formattedDate = Utilities.formatDate(orderDate, 'Asia/Bangkok', 'yyyy-MM-dd');
+  var formattedMonth = Utilities.formatDate(orderDate, 'Asia/Bangkok', 'yyyy-MM');
+  var timestamp = Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  sheet.appendRow([
+    historyId,
+    formattedDate,
+    formattedMonth,
+    payload.line || '',
+    payload.part_id || payload.partId || '',
+    payload.part_name || payload.partName || '',
+    payload.brand || '',
+    payload.model || payload.part_no || payload.partNo || '',
+    Number(payload.qty_ordered || payload.qtyOrdered || 0),
+    payload.unit || '',
+    requestType,
+    status,
+    payload.requested_by || payload.requestedBy || '',
+    payload.remark || '',
+    timestamp,
+    timestamp
+  ]);
+  return historyId;
+}
+
+function getPurchaseHistory(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var sheet = getPurchaseHistorySheet();
+  var values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return [];
+  return values.slice(1).filter(function(row) { return String(row[0] || '').trim(); }).map(function(row) {
+    return {
+      history_id: String(row[0] || ''),
+      date: String(row[1] || ''),
+      month: String(row[2] || ''),
+      line: String(row[3] || ''),
+      part_id: String(row[4] || ''),
+      part_name: String(row[5] || ''),
+      brand: String(row[6] || ''),
+      model: String(row[7] || ''),
+      qty_ordered: Number(row[8] || 0),
+      unit: String(row[9] || ''),
+      request_type: String(row[10] || ''),
+      status: String(row[11] || ''),
+      requested_by: String(row[12] || ''),
+      remark: String(row[13] || ''),
+      created_at: String(row[14] || ''),
+      updated_at: String(row[15] || '')
+    };
+  }).sort(function(a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
+}
+
+function createPurchaseHistoryBatch(payload) {
+  var session = getSessionUser({ authToken: payload.authToken });
+  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  var items = Array.isArray(payload.items) ? payload.items : [];
+  if (!items.length) throw new Error('ไม่พบรายการสำหรับบันทึก Purchase History');
+  var batchId = String(payload.batch_id || payload.batchId || buildPurchaseHistoryId('AUTOPR')).trim();
+  var createdIds = [];
+  items.forEach(function(item, index) {
+    createdIds.push(appendPurchaseHistoryRecord({
+      history_id: 'PH-' + batchId + '-' + String(item.part_id || item.partId || index + 1).replace(/[^a-zA-Z0-9_-]/g, '_'),
+      date: payload.date || new Date(),
+      line: item.line || '',
+      part_id: item.part_id || item.partId || '',
+      part_name: item.part_name || item.partName || '',
+      brand: item.brand || '',
+      model: item.model || '',
+      qty_ordered: item.qty_ordered || item.qtyOrdered || 0,
+      unit: item.unit || '',
+      request_type: payload.request_type || payload.requestType || 'Auto PR',
+      status: 'Requested',
+      requested_by: session.user.username,
+      remark: item.remark || ''
+    }));
+  });
+  return { status: 'success', batch_id: batchId, count: createdIds.length, history_ids: createdIds };
+}
+
+function updatePurchaseHistoryForRequest(requestId, updates) {
+  var historyId = 'PH-' + String(requestId || '').trim();
+  if (!requestId) return false;
+  var sheet = getPurchaseHistorySheet();
+  var values = sheet.getDataRange().getValues();
+  var updatedAt = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '') !== historyId) continue;
+    if (updates.request_type) {
+      if (PURCHASE_HISTORY_REQUEST_TYPES.indexOf(updates.request_type) === -1) throw new Error('Purchase History request type ไม่ถูกต้อง');
+      sheet.getRange(i + 1, 11).setValue(updates.request_type);
+    }
+    if (updates.status) {
+      if (PURCHASE_HISTORY_STATUSES.indexOf(updates.status) === -1) throw new Error('Purchase History status ไม่ถูกต้อง');
+      sheet.getRange(i + 1, 12).setValue(updates.status);
+    }
+    if (updates.remark !== undefined) sheet.getRange(i + 1, 14).setValue(updates.remark || '');
+    sheet.getRange(i + 1, 16).setValue(updatedAt);
+    return true;
+  }
+  return false;
+}
+
 function getOrderRequestSheet() {
   try {
     var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -348,7 +502,7 @@ function createOrderRequest(payload) {
     requirePermission({ authToken: payload.authToken }, 'request_order_create');
     var sheet = getOrderRequestSheet();
     var now = new Date();
-    var requestId = 'REQ-' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+    var requestId = 'REQ-' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss') + '-' + Utilities.getUuid().slice(0, 8);
     var attachmentUrl = String(payload.attachment_url || '');
     if (/^data:image\//i.test(attachmentUrl)) {
       attachmentUrl = uploadOrderRequestAttachmentToDrive({
@@ -366,7 +520,28 @@ function createOrderRequest(payload) {
       'Pending', '', '', '', '', Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss')
     ];
     sheet.appendRow(row);
-    return { status: 'success', request_id: requestId };
+    var purchaseHistoryRecorded = true;
+    try {
+      appendPurchaseHistoryRecord({
+        history_id: 'PH-' + requestId,
+        date: now,
+        line: payload.line || '',
+        part_id: payload.item_id || '',
+        part_name: payload.item_name || '',
+        brand: payload.brand || '',
+        model: payload.model || '',
+        qty_ordered: Number(payload.request_qty || 0),
+        unit: payload.unit || '',
+        request_type: 'Manual',
+        status: 'Requested',
+        requested_by: user.username,
+        remark: payload.remark || ''
+      });
+    } catch (historyErr) {
+      purchaseHistoryRecorded = false;
+      Logger.log('createOrderRequest PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
+    }
+    return { status: 'success', request_id: requestId, purchase_history_recorded: purchaseHistoryRecorded };
   } catch (err) {
     Logger.log('createOrderRequest error: ' + (err && err.message ? err.message : err));
     throw err;
@@ -460,6 +635,17 @@ function updateOrderRequestStatus(payload, nextStatus) {
         sheet.getRange(i + 1, idx.approved_by + 1).setValue(user.username || '');
         sheet.getRange(i + 1, idx.approved_date + 1).setValue(Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'));
       }
+      var purchaseStatusMap = { Rejected: 'Cancelled', Purchased: 'Ordered', Received: 'Received' };
+      if (purchaseStatusMap[nextStatus]) {
+        try {
+          updatePurchaseHistoryForRequest(payload.request_id, {
+            status: purchaseStatusMap[nextStatus],
+            remark: payload.admin_comment || values[i][idx.remark] || ''
+          });
+        } catch (historyErr) {
+          Logger.log('updateOrderRequestStatus PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
+        }
+      }
       return { status: 'success', request_id: payload.request_id, updated_status: nextStatus };
     }
   }
@@ -489,6 +675,11 @@ function convertOrderRequestsToPR(payload) {
     for (var i = 1; i < values.length; i += 1) {
       if (String(values[i][idxRid]) === String(id)) {
         sheet.getRange(i + 1, idxPr + 1).setValue(convertedPrId);
+        try {
+          updatePurchaseHistoryForRequest(id, { request_type: 'PR' });
+        } catch (historyErr) {
+          Logger.log('convertOrderRequestsToPR PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
+        }
         break;
       }
     }
@@ -597,15 +788,99 @@ function findUserByUsername(username) {
   return null;
 }
 
+function getSessionPropertyKey(token) {
+  return SESSION_PROPERTY_PREFIX + String(token || '').trim();
+}
+
+function readSessionRecord(token) {
+  var target = String(token || '').trim();
+  if (!target) return null;
+  var raw = PropertiesService.getScriptProperties().getProperty(getSessionPropertyKey(target));
+  if (!raw) return null;
+  try {
+    var record = JSON.parse(raw);
+    if (!record || !record.username || !Number(record.expiry)) return null;
+    return record;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeSessionRecord(token, username, expiry) {
+  PropertiesService.getScriptProperties().setProperty(getSessionPropertyKey(token), JSON.stringify({
+    username: String(username || '').trim(),
+    expiry: Number(expiry || 0)
+  }));
+}
+
+function deleteSessionRecord(token) {
+  var target = String(token || '').trim();
+  if (!target) return;
+  PropertiesService.getScriptProperties().deleteProperty(getSessionPropertyKey(target));
+}
+
+function revokeUserSessions(username) {
+  var target = String(username || '').trim();
+  if (!target) return;
+  var props = PropertiesService.getScriptProperties();
+  var allProperties = props.getProperties();
+  Object.keys(allProperties).forEach(function(key) {
+    if (key.indexOf(SESSION_PROPERTY_PREFIX) !== 0) return;
+    try {
+      var record = JSON.parse(allProperties[key]);
+      if (record && record.username === target) props.deleteProperty(key);
+    } catch (err) {
+      props.deleteProperty(key);
+    }
+  });
+}
+
+function cleanupExpiredSessionRecords() {
+  var props = PropertiesService.getScriptProperties();
+  var allProperties = props.getProperties();
+  var now = Date.now();
+  Object.keys(allProperties).forEach(function(key) {
+    if (key.indexOf(SESSION_PROPERTY_PREFIX) !== 0) return;
+    try {
+      var record = JSON.parse(allProperties[key]);
+      if (!record || Number(record.expiry || 0) <= now) props.deleteProperty(key);
+    } catch (err) {
+      props.deleteProperty(key);
+    }
+  });
+}
+
 function findUserByToken(token) {
   var target = String(token || '').trim();
   if (!target) return null;
-  var users = getAllUsers();
   var now = Date.now();
+  var record = readSessionRecord(target);
+  if (record) {
+    if (Number(record.expiry) <= now) {
+      deleteSessionRecord(target);
+      return null;
+    }
+    var sessionUser = findUserByUsername(record.username);
+    if (!sessionUser || !sessionUser.isActive) {
+      deleteSessionRecord(target);
+      return null;
+    }
+    if (Number(record.expiry) - now <= Number(SPARE_APP_CONFIG.sessionRefreshThresholdMs)) {
+      writeSessionRecord(target, sessionUser.username, now + Number(SPARE_APP_CONFIG.sessionDurationMs));
+    }
+    return sessionUser;
+  }
+
+  // Migrate a still-valid session created by an older deployment. Keeping this
+  // fallback avoids forcing every signed-in user to log in during deployment.
+  var users = getAllUsers();
   for (var i = 0; i < users.length; i += 1) {
-    var u = users[i];
-    var exp = Number(u.tokenExpiry || 0);
-    if (u.token === target && exp > now && u.isActive) return u;
+    var user = users[i];
+    var legacyExpiry = Number(user.tokenExpiry || 0);
+    if (user.token === target && legacyExpiry > now && user.isActive) {
+      writeSessionRecord(target, user.username, now + Number(SPARE_APP_CONFIG.sessionDurationMs));
+      return user;
+    }
   }
   return null;
 }
@@ -628,11 +903,13 @@ function loginUser(payload) {
   if (!user || !user.isActive) throw new Error('ไม่พบผู้ใช้หรือผู้ใช้ถูกปิดใช้งาน');
   if (String(user.password) !== password) throw new Error('รหัสผ่านไม่ถูกต้อง');
 
+  cleanupExpiredSessionRecords();
   var token = Utilities.getUuid() + '-' + Date.now();
-  var expiry = Date.now() + (8 * 60 * 60 * 1000);
+  var expiry = Date.now() + Number(SPARE_APP_CONFIG.sessionDurationMs);
   var usersSheet = getUsersSheet();
   usersSheet.getRange(user.rowIndex, 6).setValue(token);
   usersSheet.getRange(user.rowIndex, 7).setValue(String(expiry));
+  writeSessionRecord(token, user.username, expiry);
 
   user.token = token;
   user.tokenExpiry = String(expiry);
@@ -647,19 +924,31 @@ function loginUser(payload) {
 function logoutUser(payload) {
   var token = String(payload.authToken || payload.token || '').trim();
   if (!token) return { status: 'success' };
-  var user = findUserByToken(token);
-  if (!user) return { status: 'success' };
-  var usersSheet = getUsersSheet();
-  usersSheet.getRange(user.rowIndex, 6).setValue('');
-  usersSheet.getRange(user.rowIndex, 7).setValue('');
+  deleteSessionRecord(token);
+
+  // Clear the legacy sheet columns only when they contain this exact token.
+  var users = getAllUsers();
+  for (var i = 0; i < users.length; i += 1) {
+    if (users[i].token !== token) continue;
+    var usersSheet = getUsersSheet();
+    usersSheet.getRange(users[i].rowIndex, 6).setValue('');
+    usersSheet.getRange(users[i].rowIndex, 7).setValue('');
+    break;
+  }
   return { status: 'success' };
+}
+
+function createAuthSessionError(message) {
+  var err = new Error(message);
+  err.code = 'AUTH_SESSION_INVALID';
+  return err;
 }
 
 function getSessionUser(payload) {
   var token = String(payload.authToken || payload.token || '').trim();
-  if (!token) throw new Error('กรุณาเข้าสู่ระบบ');
+  if (!token) throw createAuthSessionError('กรุณาเข้าสู่ระบบ');
   var user = findUserByToken(token);
-  if (!user) throw new Error('session หมดอายุหรือไม่ถูกต้อง');
+  if (!user) throw createAuthSessionError('session หมดอายุหรือไม่ถูกต้อง');
   return { status: 'success', user: sanitizeUserForClient(user) };
 }
 
@@ -712,6 +1001,7 @@ function upsertUser(payload) {
     usersSheet.getRange(existing.rowIndex, 3).setValue(role);
     usersSheet.getRange(existing.rowIndex, 4).setValue(String(isActive));
     usersSheet.getRange(existing.rowIndex, 5).setValue(permissionsJson);
+    if (String(payload.password || '') !== '' || !isActive) revokeUserSessions(username);
     return { status: 'success', mode: 'update', username: username };
   }
 
@@ -728,6 +1018,7 @@ function deleteUser(payload) {
   if (username === actor.username) throw new Error('ไม่สามารถลบ user ตัวเองได้');
   var existing = findUserByUsername(username);
   if (!existing) throw new Error('ไม่พบผู้ใช้');
+  revokeUserSessions(username);
   var usersSheet = getUsersSheet();
   usersSheet.deleteRow(existing.rowIndex);
   return { status: 'success', username: username };
@@ -1539,6 +1830,7 @@ function doGet(e) {
     if (action === 'createOrderRequest') return respond(createOrderRequest(e.parameter), e);
     if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(e.parameter), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(e.parameter), e);
+    if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(e.parameter), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
     if (action === 'rejectOrderRequest') return respond(rejectOrderRequest(e.parameter), e);
@@ -1770,6 +2062,8 @@ function doPost(e) {
     if (action === 'createOrderRequest') return respond(createOrderRequest(body), e);
     if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(body), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(body), e);
+    if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(body), e);
+    if (action === 'createPurchaseHistoryBatch') return respond(createPurchaseHistoryBatch(body), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(body), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(body), e);
     if (action === 'rejectOrderRequest') return respond(rejectOrderRequest(body), e);
