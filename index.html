@@ -2928,9 +2928,21 @@ function getIssueCartEntries() {
       normalizeMobileHeaderCartUi();
     }
 
+    function createApiError(message, errorCode) {
+      var err = new Error(message || 'เกิดข้อผิดพลาด');
+      err.code = errorCode || '';
+      return err;
+    }
+
+    function isAuthSessionError(err) {
+      if (err && err.code === 'AUTH_SESSION_INVALID') return true;
+      var msg = String(err && err.message ? err.message : err || '');
+      return msg.indexOf('กรุณาเข้าสู่ระบบ') > -1 || msg.indexOf('session หมดอายุ') > -1;
+    }
+
     function parseApiResponse(res) {
       if (!res) throw new Error('ไม่พบข้อมูลจากเซิร์ฟเวอร์');
-      if (res.status === 'error') throw new Error(res.message || 'เกิดข้อผิดพลาด');
+      if (res.status === 'error') throw createApiError(res.message, res.errorCode);
       return res;
     }
 
@@ -3702,7 +3714,7 @@ function getIssueCartEntries() {
           renderLogTable(rawData);
         })
         .catch(function(err) {
-          if (String(err.message || '').indexOf('เข้าสู่ระบบ') > -1) logout();
+          if (isAuthSessionError(err)) logout();
           logTable.innerHTML = '<tr><td colspan="15" class="py-6 text-center text-rose-500">' + err.message + '</td></tr>';
         });
     }
@@ -4572,9 +4584,9 @@ function inferRequestPriority(stock, min) {
         return loadByFetch(ACTIVE_API_URL + appendAuthToQuery(qs));
       }).then(function(rawData) {
         if (rawData && rawData.status === 'error') {
-          var msg = rawData.message || 'API ตอบกลับ error';
-          if (msg.indexOf('เข้าสู่ระบบ') > -1 || msg.indexOf('session') > -1) logout();
-          throw new Error(msg);
+          var apiError = createApiError(rawData.message || 'API ตอบกลับ error', rawData.errorCode);
+          if (isAuthSessionError(apiError)) logout();
+          throw apiError;
         }
         if (!Array.isArray(rawData)) return [];
         return rawData.map(function(item) {
