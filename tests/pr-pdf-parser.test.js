@@ -2,7 +2,7 @@ const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
-const start = html.indexOf('    function findPdfColumnStarts');
+const start = html.indexOf('    function normalizePdfHeaderToken');
 const end = html.indexOf('    function parsePurchaseHistoryPdf', start);
 assert(start >= 0 && end > start);
 const context = { console, Date, Number, String, Array, Math, Object, Promise };
@@ -75,5 +75,32 @@ assert.strictEqual(h9Rows[0].model, 'FU-67V');
 assert.strictEqual(h9Rows[0].line, 'H9');
 assert.strictEqual(h9Rows[0].qty_ordered, 2);
 assert.strictEqual(h9Rows[0].unit_price, 1900);
+
+
+
+// Some browser/PDF combinations emit compact header labels and one physical
+// header word per extracted line. These are still the application's own H9 report.
+const compactH9State = {};
+const compactH9Rows = context.parsePdfTableRows([
+  line('7. Price Confirmation Required / TBC Items'),
+  line('No.', [token('No.', 20)]),
+  line('Category', [token('Category', 70)]),
+  line('Item/Model', [token('Item/Model', 210)]),
+  line('Qty', [token('Qty', 400)]),
+  line('CriticalLevel', [token('CriticalLevel', 440)]),
+  line('UnitPrice', [token('UnitPrice', 500)]),
+  line('TotalAmount', [token('TotalAmount', 555)]),
+  line('Drawing', [token('Drawing', 610)]),
+  line('Reason', [token('Reason', 670)]),
+  line('Sensor 1 Photoelectric Sensor 1 Critical TBC', [token('Sensor', 45), token('1', 20), token('Photoelectric Sensor', 105), token('1', 390), token('Critical', 430), token('TBC', 490)]),
+  line('KEYENCE / PZ-G51N', [token('KEYENCE / PZ-G51N', 105)])
+], { file_name: 'PR Report H9 compact.pdf', file_hash: 'h9compact' }, h9Header, compactH9State);
+assert.strictEqual(compactH9State.headerFound, true);
+assert.strictEqual(compactH9Rows.length, 1);
+assert.strictEqual(compactH9Rows[0].part_name, 'Photoelectric Sensor');
+assert.strictEqual(compactH9Rows[0].brand, 'KEYENCE');
+assert.strictEqual(compactH9Rows[0].model, 'PZ-G51N');
+assert.strictEqual(compactH9Rows[0].qty_ordered, 1);
+assert.strictEqual(compactH9Rows[0].price_status, 'TBC');
 
 console.log('System-exported PR PDF parser regression checks passed');

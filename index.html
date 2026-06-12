@@ -4720,22 +4720,34 @@ function inferRequestPriority(stock, min) {
       return '';
     }
 
+    function normalizePdfHeaderToken(value) {
+      return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    }
+
+    function identifyPdfHeaderColumn(value) {
+      var compact = normalizePdfHeaderToken(value);
+      if (compact === 'no' || compact === 'number') return 'no';
+      if (compact.indexOf('category') > -1) return 'category';
+      if (compact === 'item' || compact === 'model' || compact.indexOf('itemmodel') > -1) return 'item';
+      if (compact === 'line' || compact === 'linearea') return 'line';
+      if (compact === 'qty' || compact.indexOf('quantity') > -1) return 'qty';
+      if (compact === 'critical' || compact === 'level' || compact.indexOf('criticallevel') > -1) return 'critical';
+      if (compact === 'unit' || compact === 'price' || compact.indexOf('unitprice') > -1) return 'price';
+      if (compact === 'total' || compact === 'amount' || compact.indexOf('totalamount') > -1) return 'total';
+      if (compact.indexOf('drawing') > -1) return 'drawing';
+      if (compact.indexOf('reason') > -1) return 'reason';
+      return '';
+    }
+
     function findPdfColumnStarts(headerLines) {
       var starts = {};
       var lines = Array.isArray(headerLines) ? headerLines : [headerLines];
       lines.forEach(function(headerLine) {
         (headerLine && headerLine.items || []).forEach(function(item) {
-          var text = String(item.text || '').toLowerCase().replace(/\s+/g, ' ').trim();
-          if (/^no\.?$/.test(text)) starts.no = item.x;
-          else if (text.indexOf('category') > -1) starts.category = item.x;
-          else if (text === 'item' || text.indexOf('item /') > -1 || text === 'model') starts.item = starts.item === undefined ? item.x : Math.min(starts.item, item.x);
-          else if (text === 'line') starts.line = item.x;
-          else if (text === 'qty' || text.indexOf('quantity') > -1) starts.qty = item.x;
-          else if (text.indexOf('critical') > -1 || text === 'level') starts.critical = starts.critical === undefined ? item.x : Math.min(starts.critical, item.x);
-          else if (text === 'unit price' || text === 'unit' || text === 'price') starts.price = starts.price === undefined ? item.x : Math.min(starts.price, item.x);
-          else if (text.indexOf('total') > -1 || text === 'amount') starts.total = starts.total === undefined ? item.x : Math.min(starts.total, item.x);
-          else if (text.indexOf('drawing') > -1) starts.drawing = item.x;
-          else if (text.indexOf('reason') > -1) starts.reason = item.x;
+          var column = identifyPdfHeaderColumn(item.text);
+          if (!column) return;
+          var x = Number(item.x || 0);
+          starts[column] = starts[column] === undefined ? x : Math.min(Number(starts[column]), x);
         });
       });
       return starts;
@@ -4745,10 +4757,11 @@ function inferRequestPriority(stock, min) {
       return starts && starts.no !== undefined && starts.item !== undefined && starts.qty !== undefined && starts.price !== undefined && Object.keys(starts).length >= 5;
     }
 
-    function isPdfTableHeaderFragment(text) {
-      var normalized = String(text || '').toLowerCase();
-      var matches = normalized.match(/\b(no\.?|category|item|model|line|qty|quantity|critical|level|unit|price|total|amount|drawing|reason)\b/g) || [];
-      return matches.length >= 2 || /\bno\.?\b/.test(normalized) || /\bqty\b/.test(normalized);
+    function isPdfTableHeaderFragment(line) {
+      var items = line && line.items ? line.items : [];
+      if (items.some(function(item) { return !!identifyPdfHeaderColumn(item.text); })) return true;
+      var compact = normalizePdfHeaderToken(line && line.text !== undefined ? line.text : line);
+      return ['no', 'category', 'itemmodel', 'qty', 'quantity', 'criticallevel', 'unitprice', 'totalamount', 'drawing', 'reason'].some(function(term) { return compact.indexOf(term) > -1; });
     }
 
     function pdfColumnForX(x, starts) {
@@ -4822,15 +4835,13 @@ function inferRequestPriority(stock, min) {
         if (allowed && /Approval Signatures|Drawing Files|Annex|Risk \/ Benefits/i.test(text)) { flush(); allowed = false; starts = null; headerBuffer = []; return; }
         if (!allowed || excluded) return;
 
-        if (isPdfTableHeaderFragment(text)) {
+        if (isPdfTableHeaderFragment(line)) {
           headerBuffer.push(line);
-          if (headerBuffer.length > 4) headerBuffer.shift();
+          if (headerBuffer.length > 16) headerBuffer.shift();
           var candidateStarts = findPdfColumnStarts(headerBuffer);
           if (isPdfTableHeaderReady(candidateStarts)) {
             flush(); starts = candidateStarts; parseState.headerFound = true; headerBuffer = []; return;
           }
-        } else if (headerBuffer.length && !starts) {
-          headerBuffer = [];
         }
         if (!starts || starts.no === undefined) return;
 
