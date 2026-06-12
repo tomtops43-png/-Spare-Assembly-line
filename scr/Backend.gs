@@ -8,6 +8,7 @@ SPARE_APP_CONFIG.usersSheetName = SPARE_APP_CONFIG.usersSheetName || 'Users';
 SPARE_APP_CONFIG.requestSheetName = SPARE_APP_CONFIG.requestSheetName || 'OrderRequests';
 SPARE_APP_CONFIG.purchaseHistorySheetName = SPARE_APP_CONFIG.purchaseHistorySheetName || 'PurchaseHistory';
 SPARE_APP_CONFIG.purchaseHistoryAuditSheetName = SPARE_APP_CONFIG.purchaseHistoryAuditSheetName || 'PurchaseHistoryLog';
+SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName || 'PurchaseHistoryImportLog';
 SPARE_APP_CONFIG.sessionDurationMs = SPARE_APP_CONFIG.sessionDurationMs || (7 * 24 * 60 * 60 * 1000);
 SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThresholdMs || (24 * 60 * 60 * 1000);
 var SESSION_PROPERTY_PREFIX = 'spare_session::';
@@ -15,8 +16,9 @@ var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Mod
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
 var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at', 'unit', 'unit_price', 'currency'];
 var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
-var PURCHASE_HISTORY_HEADERS = ['History ID', 'Request ID', 'Source', 'Requested Date', 'Month', 'Line', 'Part ID', 'Part Name', 'Brand', 'Model / Part No.', 'Qty Ordered', 'Unit', 'Unit Price', 'Currency', 'Total Amount', 'Requested By', 'Status', 'Ordered Date', 'Received Date', 'Received Qty', 'Updated By', 'Remark', 'Deleted', 'Created At', 'Updated At'];
+var PURCHASE_HISTORY_HEADERS = ['History ID', 'Request ID', 'Source', 'Requested Date', 'Month', 'Line', 'Part ID', 'Part Name', 'Brand', 'Model / Part No.', 'Qty Ordered', 'Unit', 'Unit Price', 'Currency', 'Total Amount', 'Requested By', 'Status', 'Ordered Date', 'Received Date', 'Received Qty', 'Updated By', 'Remark', 'Deleted', 'Created At', 'Updated At', 'Import Batch ID', 'Source File Name', 'Source File Hash', 'Price Status', 'Created By', 'Request Period'];
 var PURCHASE_HISTORY_AUDIT_HEADERS = ['Date Time', 'User', 'History ID', 'Action Type', 'Old Value', 'New Value', 'Reason'];
+var PURCHASE_HISTORY_IMPORT_LOG_HEADERS = ['Import Batch ID', 'File Name', 'Imported By', 'Imported At', 'Total Rows Detected', 'Imported Rows', 'Skipped Duplicate Rows', 'Review Required Rows'];
 var PURCHASE_HISTORY_STATUSES = ['Requested', 'PR Created', 'Ordered', 'Partial Received', 'Received', 'Cancelled'];
 var PURCHASE_HISTORY_SOURCES = ['Purchase Request', 'PR Report', 'Manual', 'Auto PR'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
@@ -381,7 +383,10 @@ function migratePurchaseHistoryRows(rows, oldHeaders) {
       Number(getPurchaseHistoryCell(row, oldMap, ['Received Qty'], 0) || 0), getPurchaseHistoryCell(row, oldMap, ['Updated By'], ''),
       getPurchaseHistoryCell(row, oldMap, ['Remark'], ''), toBoolean(getPurchaseHistoryCell(row, oldMap, ['Deleted'], false), false),
       formatPurchaseHistoryDate(getPurchaseHistoryCell(row, oldMap, ['Created At'], ''), true),
-      formatPurchaseHistoryDate(getPurchaseHistoryCell(row, oldMap, ['Updated At'], ''), true)
+      formatPurchaseHistoryDate(getPurchaseHistoryCell(row, oldMap, ['Updated At'], ''), true),
+      getPurchaseHistoryCell(row, oldMap, ['Import Batch ID'], ''), getPurchaseHistoryCell(row, oldMap, ['Source File Name'], ''),
+      getPurchaseHistoryCell(row, oldMap, ['Source File Hash'], ''), getPurchaseHistoryCell(row, oldMap, ['Price Status'], unitPrice === '' ? 'TBC' : 'Confirmed'),
+      getPurchaseHistoryCell(row, oldMap, ['Created By'], ''), getPurchaseHistoryCell(row, oldMap, ['Request Period'], '')
     ];
   });
 }
@@ -496,7 +501,10 @@ function upsertPurchaseHistoryRecordUnlocked(payload) {
       effectiveStatus, orderedDate || existing[17] || '', receivedDate || existing[18] || '',
       payload.received_qty !== undefined ? Number(payload.received_qty || 0) : Number(existing[19] || 0),
       payload.updated_by || payload.updatedBy || existing[20] || '', payload.remark !== undefined ? payload.remark : existing[21],
-      payload.deleted !== undefined ? toBoolean(payload.deleted, false) : toBoolean(existing[22], false), existing[23] || timestamp, timestamp
+      payload.deleted !== undefined ? toBoolean(payload.deleted, false) : toBoolean(existing[22], false), existing[23] || timestamp, timestamp,
+      payload.import_batch_id !== undefined ? payload.import_batch_id : existing[25], payload.source_file_name !== undefined ? payload.source_file_name : existing[26],
+      payload.source_file_hash !== undefined ? payload.source_file_hash : existing[27], payload.price_status !== undefined ? payload.price_status : existing[28],
+      existing[29] || payload.created_by || payload.requested_by || payload.requestedBy || '', payload.request_period !== undefined ? payload.request_period : existing[30]
     ];
     sheet.getRange(rowIndex + 1, 1, 1, PURCHASE_HISTORY_HEADERS.length).setValues([merged]);
     return { history_id: merged[0], mode: 'update', row: merged };
@@ -509,7 +517,9 @@ function upsertPurchaseHistoryRecordUnlocked(payload) {
     payload.part_name || payload.partName || '', payload.brand || '', payload.model || payload.part_no || payload.partNo || '', qty,
     payload.unit || '', unitPrice, payload.currency || (String(unitPrice).trim() ? 'THB' : ''), calculatePurchaseHistoryTotal(qty, unitPrice),
     payload.requested_by || payload.requestedBy || '', status, orderedDate, receivedDate,
-    Number(payload.received_qty || payload.receivedQty || 0), payload.updated_by || payload.updatedBy || '', payload.remark || '', false, timestamp, timestamp
+    Number(payload.received_qty || payload.receivedQty || 0), payload.updated_by || payload.updatedBy || '', payload.remark || '', false, timestamp, timestamp,
+    payload.import_batch_id || '', payload.source_file_name || '', payload.source_file_hash || '',
+    payload.price_status || (String(unitPrice).trim() ? 'Confirmed' : 'TBC'), payload.created_by || payload.requested_by || payload.requestedBy || '', payload.request_period || ''
   ];
   sheet.appendRow(row);
   return { history_id: row[0], mode: 'insert', row: row };
@@ -523,7 +533,9 @@ function purchaseHistoryRowToObject(row) {
     total_amount: String(row[14] === undefined ? '' : row[14]), requested_by: String(row[15] || ''), status: String(row[16] || ''),
     ordered_date: formatPurchaseHistoryDate(row[17], false), received_date: formatPurchaseHistoryDate(row[18], false), received_qty: Number(row[19] || 0),
     updated_by: String(row[20] || ''), remark: String(row[21] || ''), deleted: toBoolean(row[22], false),
-    created_at: formatPurchaseHistoryDate(row[23], true), updated_at: formatPurchaseHistoryDate(row[24], true)
+    created_at: formatPurchaseHistoryDate(row[23], true), updated_at: formatPurchaseHistoryDate(row[24], true),
+    import_batch_id: String(row[25] || ''), source_file_name: String(row[26] || ''), source_file_hash: String(row[27] || ''),
+    price_status: String(row[28] || (String(row[12] || '').trim() ? 'Confirmed' : 'TBC')), created_by: String(row[29] || ''), request_period: String(row[30] || '')
   };
 }
 
@@ -591,6 +603,136 @@ function deletePurchaseHistory(payload) {
   }
   throw new Error('ไม่พบ Purchase History');
 }
+
+function getPurchaseHistoryImportLogSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(PURCHASE_HISTORY_IMPORT_LOG_HEADERS);
+  return sheet;
+}
+
+function normalizePurchaseImportValue(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function buildPurchaseImportDuplicateKeys(item) {
+  var line = normalizePurchaseImportValue(item.line);
+  var model = normalizePurchaseImportValue(item.model);
+  var qty = Number(item.qty_ordered || 0);
+  var hash = normalizePurchaseImportValue(item.source_file_hash);
+  var fileName = normalizePurchaseImportValue(item.source_file_name);
+  var period = normalizePurchaseImportValue(item.request_period);
+  return {
+    hashKey: hash && line && model && qty > 0 ? [hash, line, model, qty].join('|') : '',
+    fallbackKey: fileName && period && line && model && qty > 0 ? [fileName, period, line, model, qty].join('|') : ''
+  };
+}
+
+function buildPurchaseImportRequestId(item) {
+  var hashOrFile = normalizePurchaseImportValue(item.source_file_hash).slice(0, 12) || normalizePurchaseImportValue(item.source_file_name);
+  var parts = [hashOrFile, item.line, item.model, Number(item.qty_ordered || 0)].map(function(value) {
+    return normalizePurchaseImportValue(value).replace(/[^a-z0-9ก-๙._-]+/g, '-').replace(/^-+|-+$/g, '');
+  }).filter(Boolean);
+  return ('PDF-' + (parts.join('-') || Utilities.getUuid())).slice(0, 180);
+}
+
+function findPurchaseImportDuplicate(values, item) {
+  var target = buildPurchaseImportDuplicateKeys(item);
+  for (var i = 1; i < values.length; i += 1) {
+    var row = values[i];
+    if (toBoolean(row[22], false)) continue;
+    var current = buildPurchaseImportDuplicateKeys({
+      line: row[5], model: row[9], qty_ordered: row[10], source_file_name: row[26], source_file_hash: row[27], request_period: row[30]
+    });
+    if (target.hashKey && current.hashKey === target.hashKey) return { rowIndex: i, historyId: String(row[0] || ''), keyType: 'hash' };
+    if (!target.hashKey && target.fallbackKey && current.fallbackKey === target.fallbackKey) return { rowIndex: i, historyId: String(row[0] || ''), keyType: 'fallback' };
+  }
+  return null;
+}
+
+function checkPurchaseHistoryImportDuplicates(payload) {
+  requirePurchaseHistoryEditor({ authToken: payload.authToken });
+  var items = Array.isArray(payload.items) ? payload.items : [];
+  var values = getPurchaseHistorySheet().getDataRange().getValues();
+  var seen = {};
+  return {
+    status: 'success',
+    duplicates: items.map(function(item, index) {
+      var duplicate = findPurchaseImportDuplicate(values, item);
+      if (duplicate) return { index: index, history_id: duplicate.historyId, key_type: duplicate.keyType };
+      var keys = buildPurchaseImportDuplicateKeys(item);
+      var key = keys.hashKey || keys.fallbackKey;
+      if (key && seen[key] !== undefined) return { index: index, history_id: '', key_type: 'batch', duplicate_of_index: seen[key] };
+      if (key) seen[key] = index;
+      return null;
+    }).filter(Boolean)
+  };
+}
+
+function importPurchaseHistoryPdfBatch(payload) {
+  var user = requirePurchaseHistoryEditor({ authToken: payload.authToken });
+  var items = Array.isArray(payload.items) ? payload.items : [];
+  var files = Array.isArray(payload.files) ? payload.files : [];
+  var batchId = String(payload.import_batch_id || ('PHIMP-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + Utilities.getUuid().slice(0, 8)));
+  var sheet = getPurchaseHistorySheet();
+  var values = sheet.getDataRange().getValues();
+  var imported = 0;
+  var skipped = 0;
+  var reviewRequired = 0;
+  var fileStats = {};
+
+  files.forEach(function(file) {
+    fileStats[file.file_name] = { total: Number(file.total_rows || 0), imported: 0, skipped: 0, review: Number(file.review_required_rows || 0), reviewItemsSeen: 0 };
+  });
+
+  items.forEach(function(item) {
+    var fileName = String(item.source_file_name || '');
+    if (!fileStats[fileName]) fileStats[fileName] = { total: 0, imported: 0, skipped: 0, review: 0, reviewItemsSeen: 0 };
+    if (item.review_required || !String(item.part_name || '').trim() || !String(item.model || '').trim() || Number(item.qty_ordered || 0) <= 0) {
+      reviewRequired += 1;
+      fileStats[fileName].reviewItemsSeen += 1;
+      if (fileStats[fileName].reviewItemsSeen > fileStats[fileName].review) fileStats[fileName].review += 1;
+      return;
+    }
+    var duplicate = findPurchaseImportDuplicate(values, item);
+    var duplicateAction = String(item.duplicate_action || payload.duplicate_action || 'skip').toLowerCase();
+    if (duplicate && duplicateAction !== 'replace') {
+      skipped += 1;
+      fileStats[fileName].skipped += 1;
+      return;
+    }
+    if (duplicate && duplicateAction === 'replace') {
+      item.request_id = values[duplicate.rowIndex][1];
+      item.part_id = values[duplicate.rowIndex][6] || item.part_id;
+    }
+    var priceText = String(item.unit_price === undefined || item.unit_price === null ? '' : item.unit_price).trim();
+    var result = upsertPurchaseHistoryRecord({
+      request_id: item.request_id || buildPurchaseImportRequestId(item),
+      history_id: duplicate ? duplicate.historyId : undefined,
+      source: 'PR Report', date: item.requested_date || new Date(), line: item.line || '', part_id: item.part_id || '',
+      part_name: item.part_name || '', brand: item.brand || '', model: item.model || '', qty_ordered: Number(item.qty_ordered || 0), unit: item.unit || '',
+      unit_price: priceText, currency: priceText ? (item.currency || 'THB') : '', status: item.status === 'Requested' ? 'Requested' : 'PR Created',
+      requested_by: item.requested_by || '', updated_by: user.username, remark: item.remark || '', import_batch_id: batchId,
+      source_file_name: fileName, source_file_hash: item.source_file_hash || '', price_status: priceText ? 'Confirmed' : 'TBC',
+      created_by: user.username, request_period: item.request_period || '', force_status: duplicateAction === 'replace'
+    });
+    if (!result.skipped) {
+      imported += 1;
+      fileStats[fileName].imported += 1;
+      values = sheet.getDataRange().getValues();
+    }
+  });
+
+  var importedAt = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var logSheet = getPurchaseHistoryImportLogSheet();
+  Object.keys(fileStats).forEach(function(fileName) {
+    var stat = fileStats[fileName];
+    logSheet.appendRow([batchId, fileName, user.username, importedAt, stat.total, stat.imported, stat.skipped, stat.review]);
+  });
+  reviewRequired = Object.keys(fileStats).reduce(function(total, fileName) { return total + Number(fileStats[fileName].review || 0); }, 0);
+  return { status: 'success', import_batch_id: batchId, imported_rows: imported, skipped_duplicate_rows: skipped, review_required_rows: reviewRequired };
+}
+
 
 function createPurchaseHistoryBatch(payload) {
   var session = getSessionUser({ authToken: payload.authToken });
@@ -2037,6 +2179,7 @@ function doGet(e) {
     if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(e.parameter), e);
     if (action === 'editPurchaseHistory') return respond(editPurchaseHistory(e.parameter), e);
     if (action === 'deletePurchaseHistory') return respond(deletePurchaseHistory(e.parameter), e);
+    if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(e.parameter), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(e.parameter), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
@@ -2272,6 +2415,8 @@ function doPost(e) {
     if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(body), e);
     if (action === 'editPurchaseHistory') return respond(editPurchaseHistory(body), e);
     if (action === 'deletePurchaseHistory') return respond(deletePurchaseHistory(body), e);
+    if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(body), e);
+    if (action === 'importPurchaseHistoryPdfBatch') return respond(importPurchaseHistoryPdfBatch(body), e);
     if (action === 'createPurchaseHistoryBatch') return respond(createPurchaseHistoryBatch(body), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(body), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(body), e);

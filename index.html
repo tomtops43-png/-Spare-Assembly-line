@@ -741,7 +741,7 @@
           <h2 class="text-xl font-bold text-slate-900">Purchase History</h2>
           <p class="text-sm text-slate-500">ประวัติการขอซื้อและสั่งซื้ออะไหล่สำหรับดูย้อนหลังและวิเคราะห์เบื้องต้น</p>
         </div>
-        <button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
+        <div class="flex gap-2"><button id="purchaseHistoryImportBtn" type="button" class="h-10 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white">Import PR PDF</button><button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button></div>
       </div>
       <div id="purchaseHistorySummary" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"></div>
       <div class="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-4">
@@ -763,6 +763,17 @@
         <div class="flex items-center gap-2"><button id="purchaseHistoryPrevBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-40">Previous</button><span id="purchaseHistoryPageInfo" class="text-sm font-semibold text-slate-600">Page 1</span><button id="purchaseHistoryNextBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-40">Next</button></div>
       </div>
     </section>
+
+    <div id="purchaseHistoryImportModal" class="fixed inset-0 z-[125] hidden items-start justify-center overflow-y-auto bg-slate-900/70 p-3 md:p-6">
+      <div class="my-3 w-full max-w-7xl rounded-2xl bg-white p-4 shadow-2xl md:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-bold">Import PR PDF</h3><p class="text-sm text-slate-500">อัปโหลด PDF จาก PR Report เดิม ตรวจ Preview แล้วจึง Confirm Import</p></div><button id="purchaseHistoryImportClose" type="button" class="h-9 w-9 rounded-full border border-slate-300">×</button></div>
+        <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3"><input id="purchaseHistoryPdfFiles" type="file" accept="application/pdf,.pdf" multiple class="block w-full text-sm" /><p class="mt-1 text-xs text-violet-700">รองรับหลายไฟล์ • ระบบจะไม่อ่าน Top Urgent Items • รายการข้อมูลไม่ครบจะถูก Mark Review Required</p></div>
+        <div class="mt-3 flex flex-wrap items-center gap-2"><button id="purchaseHistoryParsePdfBtn" type="button" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white">Read PDF & Preview</button><select id="purchaseHistoryDuplicateDefault" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="skip">Duplicate: Skip</option><option value="replace">Duplicate: Replace</option></select><span id="purchaseHistoryImportStatus" class="text-sm text-slate-500"></span></div>
+        <div id="purchaseHistoryImportSummary" class="mt-3 grid grid-cols-2 gap-2 md:grid-cols-5"></div>
+        <div class="mt-3 max-h-[58vh] overflow-auto rounded-xl border border-slate-200"><table class="w-full min-w-[1700px] text-xs"><thead class="sticky top-0 z-10 bg-slate-100"><tr><th class="px-2 py-2">Import</th><th class="px-2 py-2">Source File</th><th class="px-2 py-2">Requested Date</th><th class="px-2 py-2">Line</th><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">Model / Part No.</th><th class="px-2 py-2">Qty</th><th class="px-2 py-2">Unit</th><th class="px-2 py-2">Unit Price</th><th class="px-2 py-2">Total Amount</th><th class="px-2 py-2">Price Status</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Duplicate</th><th class="px-2 py-2">Review</th></tr></thead><tbody id="purchaseHistoryImportPreview"></tbody></table></div>
+        <div class="mt-4 flex justify-end gap-2"><button id="purchaseHistoryImportCancel" type="button" class="rounded-lg border border-slate-300 px-4 py-2">Cancel</button><button id="purchaseHistoryConfirmImport" type="button" class="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white disabled:opacity-40">Confirm Import</button></div>
+      </div>
+    </div>
 
     <div id="purchaseHistoryEditModal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-slate-900/60 p-4">
       <form id="purchaseHistoryEditForm" class="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl">
@@ -1273,6 +1284,7 @@
 
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
     (function installLegacyRuntimeGuard() {
       window.addEventListener('error', function(ev) {
@@ -1388,6 +1400,15 @@
     var purchaseHistoryEditRemark = document.getElementById('purchaseHistoryEditRemark');
     var purchaseHistoryEditReason = document.getElementById('purchaseHistoryEditReason');
     var purchaseHistoryEditLabel = document.getElementById('purchaseHistoryEditLabel');
+    var purchaseHistoryImportBtn = document.getElementById('purchaseHistoryImportBtn');
+    var purchaseHistoryImportModal = document.getElementById('purchaseHistoryImportModal');
+    var purchaseHistoryPdfFiles = document.getElementById('purchaseHistoryPdfFiles');
+    var purchaseHistoryParsePdfBtn = document.getElementById('purchaseHistoryParsePdfBtn');
+    var purchaseHistoryImportPreview = document.getElementById('purchaseHistoryImportPreview');
+    var purchaseHistoryImportSummary = document.getElementById('purchaseHistoryImportSummary');
+    var purchaseHistoryImportStatus = document.getElementById('purchaseHistoryImportStatus');
+    var purchaseHistoryConfirmImport = document.getElementById('purchaseHistoryConfirmImport');
+    var purchaseHistoryDuplicateDefault = document.getElementById('purchaseHistoryDuplicateDefault');
     var tabRequestOrder = document.getElementById('requestOrderNavBtn');
     var prMode = document.getElementById('prMode');
     var prLineFilter = document.getElementById('prLineFilter');
@@ -1418,6 +1439,8 @@
     var purchaseHistoryLoaded = false;
     var purchaseHistoryCurrentPage = 1;
     var PURCHASE_HISTORY_PAGE_SIZE = 20;
+    var purchaseHistoryImportRows = [];
+    var purchaseHistoryImportFilesMeta = [];
     var prHistoryBatchId = '';
     var stockSheetMemoryCache = {};
     var fullDetailSheetCache = {};
@@ -4607,6 +4630,205 @@ function inferRequestPriority(stock, min) {
         .catch(function() { var rowsEl = document.getElementById('detailPurchaseHistoryRows'); if (rowsEl) rowsEl.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-center text-rose-500">โหลดประวัติไม่สำเร็จ</td></tr>'; });
     }
 
+    function openPurchaseHistoryImport() {
+      if (!canEditPurchaseHistory()) return alert('เฉพาะ Admin / Engineer เท่านั้นที่ Import PR PDF ได้');
+      purchaseHistoryImportRows = [];
+      purchaseHistoryImportFilesMeta = [];
+      renderPurchaseHistoryImportPreview();
+      purchaseHistoryImportModal.classList.remove('hidden');
+      purchaseHistoryImportModal.classList.add('flex');
+    }
+
+    function closePurchaseHistoryImport() {
+      purchaseHistoryImportModal.classList.add('hidden');
+      purchaseHistoryImportModal.classList.remove('flex');
+    }
+
+    function hashPurchaseHistoryFile(buffer) {
+      return crypto.subtle.digest('SHA-256', buffer).then(function(hash) {
+        return Array.from(new Uint8Array(hash)).map(function(byte) { return byte.toString(16).padStart(2, '0'); }).join('');
+      });
+    }
+
+    function groupPdfTextLines(items) {
+      var lines = [];
+      (items || []).forEach(function(item) {
+        var text = String(item.str || '').trim();
+        if (!text) return;
+        var x = Number(item.transform && item.transform[4] || 0);
+        var y = Number(item.transform && item.transform[5] || 0);
+        var line = lines.filter(function(candidate) { return Math.abs(candidate.y - y) <= 2.5; })[0];
+        if (!line) { line = { y: y, items: [] }; lines.push(line); }
+        line.items.push({ text: text, x: x, width: Number(item.width || 0) });
+      });
+      lines.forEach(function(line) { line.items.sort(function(a, b) { return a.x - b.x; }); line.text = line.items.map(function(item) { return item.text; }).join(' ').replace(/\s+/g, ' ').trim(); });
+      return lines.sort(function(a, b) { return b.y - a.y; });
+    }
+
+    function extractPdfLabel(allText, label, nextLabels) {
+      var escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      var next = (nextLabels || []).map(function(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|');
+      var regex = new RegExp(escaped + '\\s*[:|]?\\s*(.+?)(?=' + (next ? next : '$') + ')', 'i');
+      var match = allText.replace(/\s+/g, ' ').match(regex);
+      return match ? String(match[1] || '').trim() : '';
+    }
+
+    function normalizeImportedDate(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return '';
+      var iso = raw.match(/(20\d{2})[-\/]([01]?\d)[-\/]([0-3]?\d)(?:\s+([0-2]?\d):([0-5]\d)(?::([0-5]\d))?)?/);
+      if (iso) return iso[1] + '-' + String(iso[2]).padStart(2, '0') + '-' + String(iso[3]).padStart(2, '0') + ' ' + String(iso[4] || '00').padStart(2, '0') + ':' + String(iso[5] || '00').padStart(2, '0') + ':' + String(iso[6] || '00').padStart(2, '0');
+      var dmy = raw.match(/([0-3]?\d)[\/-]([01]?\d)[\/-](20\d{2})(?:[,\s]+([0-2]?\d):([0-5]\d)(?::([0-5]\d))?)?/);
+      if (dmy) return dmy[3] + '-' + String(dmy[2]).padStart(2, '0') + '-' + String(dmy[1]).padStart(2, '0') + ' ' + String(dmy[4] || '00').padStart(2, '0') + ':' + String(dmy[5] || '00').padStart(2, '0') + ':' + String(dmy[6] || '00').padStart(2, '0');
+      var parsed = new Date(raw);
+      if (!isNaN(parsed.getTime())) return parsed.getFullYear() + '-' + String(parsed.getMonth() + 1).padStart(2, '0') + '-' + String(parsed.getDate()).padStart(2, '0') + ' ' + String(parsed.getHours()).padStart(2, '0') + ':' + String(parsed.getMinutes()).padStart(2, '0') + ':' + String(parsed.getSeconds()).padStart(2, '0');
+      return '';
+    }
+
+    function findPdfColumnStarts(headerLine) {
+      var starts = {};
+      (headerLine.items || []).forEach(function(item) {
+        var text = item.text.toLowerCase();
+        if (/^no\.?$/.test(text)) starts.no = item.x;
+        else if (text.indexOf('category') > -1) starts.category = item.x;
+        else if (text === 'item' || text.indexOf('item /') > -1) starts.item = item.x;
+        else if (text === 'line') starts.line = item.x;
+        else if (text === 'qty') starts.qty = item.x;
+        else if (text.indexOf('critical') > -1) starts.critical = item.x;
+        else if (text === 'unit price' || text === 'unit') starts.price = starts.price === undefined ? item.x : starts.price;
+        else if (text.indexOf('total') > -1) starts.total = item.x;
+        else if (text.indexOf('drawing') > -1) starts.drawing = item.x;
+        else if (text.indexOf('reason') > -1) starts.reason = item.x;
+      });
+      return starts;
+    }
+
+    function pdfColumnForX(x, starts) {
+      var ordered = Object.keys(starts).map(function(key) { return { key: key, x: starts[key] }; }).sort(function(a, b) { return a.x - b.x; });
+      var selected = ordered[0] ? ordered[0].key : 'item';
+      ordered.forEach(function(column) { if (x >= column.x - 2) selected = column.key; });
+      return selected;
+    }
+
+    function parsePdfTableRows(pageLines, fileMeta, headerMeta, parseState) {
+      parseState = parseState || {};
+      var rows = [], allowed = !!parseState.allowed, excluded = !!parseState.excluded, header = null, starts = null, current = null;
+      function flush() {
+        if (!current) return;
+        var itemLines = current.itemLines.filter(Boolean);
+        var partName = itemLines[0] || '';
+        var brand = '', model = '';
+        if (itemLines.length > 1) {
+          var brandModel = itemLines.slice(1).join(' ').split(/\s+\/\s+/);
+          brand = String(brandModel.shift() || '').trim(); model = String(brandModel.join(' / ') || '').trim();
+        }
+        if (!model && partName.indexOf(' / ') > -1) { var parts = partName.split(/\s+\/\s+/); partName = parts.shift(); model = parts.pop() || ''; brand = parts.join(' / '); }
+        var qtyMatch = String(current.qty || '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+        var qty = qtyMatch ? Number(qtyMatch[0]) : 0;
+        var priceRaw = String(current.price || '').replace(/,/g, '').trim();
+        var priceMatch = priceRaw.match(/\d+(?:\.\d+)?/);
+        var unitPrice = (/tbc/i.test(priceRaw) || !priceMatch) ? '' : Number(priceMatch[0]);
+        var line = current.line || headerMeta.line || '';
+        var row = {
+          source_file_name: fileMeta.file_name, source_file_hash: fileMeta.file_hash, request_period: headerMeta.request_period,
+          requested_date: headerMeta.requested_date, requested_by: headerMeta.prepared_by, line: line, part_id: '', part_name: partName,
+          brand: brand, model: model, qty_ordered: qty, unit: 'PCS', unit_price: unitPrice, currency: unitPrice === '' ? '' : 'THB',
+          total_amount: unitPrice === '' ? '' : qty * unitPrice, price_status: unitPrice === '' ? 'TBC' : 'Confirmed', status: headerMeta.has_pr_header ? 'PR Created' : 'Requested',
+          remark: 'Imported from PR PDF', row_number: current.rowNumber, duplicate: false, duplicate_action: 'skip'
+        };
+        row.review_required = !row.part_name || !row.model || !(row.qty_ordered > 0);
+        row.include = !row.review_required;
+        rows.push(row); current = null;
+      }
+      pageLines.forEach(function(line) {
+        var text = line.text;
+        if (/Top Urgent Items/i.test(text)) { flush(); excluded = true; allowed = false; header = null; return; }
+        if (/(Confirmed Price Items|Price Confirmation Required|TBC Items|Detailed Requested Item List|Additional Item List)/i.test(text)) { flush(); excluded = false; allowed = true; header = null; return; }
+        if (allowed && /Approval Signatures|Drawing Files|Annex|Risk \/ Benefits/i.test(text)) { flush(); allowed = false; header = null; return; }
+        if (!allowed || excluded) return;
+        if (/Qty/i.test(text) && /Unit Price/i.test(text) && /(Item|Model)/i.test(text)) { flush(); header = line; starts = findPdfColumnStarts(line); return; }
+        if (!header || !starts || starts.no === undefined) return;
+        var first = line.items[0];
+        var rowNo = first && first.x <= starts.no + 20 && /^\d+$/.test(first.text) ? Number(first.text) : null;
+        if (rowNo !== null) { flush(); current = { rowNumber: rowNo, itemLines: [], line: '', qty: '', price: '' }; }
+        if (!current) return;
+        var lineCells = {};
+        line.items.forEach(function(token) {
+          var col = pdfColumnForX(token.x, starts);
+          if (col === 'no' && /^\d+$/.test(token.text)) return;
+          lineCells[col] = (lineCells[col] ? lineCells[col] + ' ' : '') + token.text;
+        });
+        if (lineCells.item) current.itemLines.push(lineCells.item.trim());
+        if (lineCells.line) current.line = lineCells.line.trim();
+        if (lineCells.qty) current.qty = lineCells.qty.trim();
+        if (lineCells.price) current.price = lineCells.price.trim();
+      });
+      flush();
+      parseState.allowed = allowed;
+      parseState.excluded = excluded;
+      return rows;
+    }
+
+    function parsePurchaseHistoryPdf(file) {
+      if (!window.pdfjsLib) return Promise.reject(new Error('PDF parser ยังโหลดไม่สำเร็จ กรุณารีเฟรชหน้าเว็บ'));
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      return file.arrayBuffer().then(function(buffer) {
+        return Promise.all([hashPurchaseHistoryFile(buffer), window.pdfjsLib.getDocument({ data: buffer }).promise]);
+      }).then(function(result) {
+        var hash = result[0], pdf = result[1], pagePromises = [];
+        for (var pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) pagePromises.push(pdf.getPage(pageNo).then(function(page) { return page.getTextContent().then(function(content) { return groupPdfTextLines(content.items); }); }));
+        return Promise.all(pagePromises).then(function(pages) {
+          var allText = pages.map(function(lines) { return lines.map(function(line) { return line.text; }).join(' '); }).join(' ');
+          var lineArea = extractPdfLabel(allText, 'Line / Area', ['Request Period', 'Prepared by', 'Department', 'Submission Date']);
+          var period = extractPdfLabel(allText, 'Request Period', ['Prepared by', 'Department', 'Submission Date']);
+          var prepared = extractPdfLabel(allText, 'Prepared by', ['Department', 'Submission Date']);
+          var submission = extractPdfLabel(allText, 'Submission Date', ['Report Generated At']);
+          var generated = extractPdfLabel(allText, 'Report Generated At', ['Purpose / Background', 'Executive Summary']);
+          var requestedDate = normalizeImportedDate(submission) || normalizeImportedDate(generated) || normalizeImportedDate(new Date().toISOString());
+          var header = { line: lineArea, request_period: period, prepared_by: prepared, submission_date: submission, generated_at: generated, requested_date: requestedDate, has_pr_header: /Purchase Request Supporting Report/i.test(allText) };
+          var fileMeta = { file_name: file.name, file_hash: hash, total_rows: 0, review_required_rows: 0 };
+          var rows = [], parseState = {};
+          pages.forEach(function(lines) { rows = rows.concat(parsePdfTableRows(lines, fileMeta, header, parseState)); });
+          fileMeta.total_rows = rows.length; fileMeta.review_required_rows = rows.filter(function(row) { return row.review_required; }).length;
+          return { file: fileMeta, rows: rows, header: header };
+        });
+      });
+    }
+
+    function renderPurchaseHistoryImportPreview() {
+      if (!purchaseHistoryImportPreview) return;
+      var imported = purchaseHistoryImportRows.filter(function(row) { return row.include && !row.review_required; }).length;
+      var duplicates = purchaseHistoryImportRows.filter(function(row) { return row.duplicate; }).length;
+      var reviews = purchaseHistoryImportRows.filter(function(row) { return row.review_required; }).length;
+      if (purchaseHistoryImportSummary) {
+        purchaseHistoryImportSummary.innerHTML = [['Files', purchaseHistoryImportFilesMeta.length], ['Rows detected', purchaseHistoryImportRows.length], ['Ready', imported], ['Duplicates', duplicates], ['Review required', reviews]].map(function(card) { return '<div class="rounded-lg border border-slate-200 bg-slate-50 p-2"><p class="text-[10px] text-slate-500">' + card[0] + '</p><p class="font-bold">' + card[1] + '</p></div>'; }).join('');
+      }
+      purchaseHistoryImportPreview.innerHTML = purchaseHistoryImportRows.length ? purchaseHistoryImportRows.map(function(row, index) {
+        var reviewClass = row.review_required ? 'bg-amber-50' : (row.duplicate ? 'bg-rose-50' : 'bg-white');
+        return '<tr class="border-t ' + reviewClass + '" data-ph-import-row="' + index + '">' +
+          '<td class="px-2 py-2 text-center"><input type="checkbox" data-import-field="include" ' + (row.include ? 'checked' : '') + ' /></td><td class="px-2 py-2">' + escapePurchaseHistoryText(row.source_file_name) + '</td>' +
+          '<td class="px-2 py-2"><input data-import-field="requested_date" value="' + escapePurchaseHistoryText(row.requested_date) + '" class="w-40 rounded border px-1 py-1" /></td><td class="px-2 py-2"><input data-import-field="line" value="' + escapePurchaseHistoryText(row.line) + '" class="w-28 rounded border px-1 py-1" /></td>' +
+          '<td class="px-2 py-2"><input data-import-field="part_name" value="' + escapePurchaseHistoryText(row.part_name) + '" class="w-52 rounded border px-1 py-1" /></td><td class="px-2 py-2"><input data-import-field="brand" value="' + escapePurchaseHistoryText(row.brand) + '" class="w-28 rounded border px-1 py-1" /></td>' +
+          '<td class="px-2 py-2"><input data-import-field="model" value="' + escapePurchaseHistoryText(row.model) + '" class="w-40 rounded border px-1 py-1" /></td><td class="px-2 py-2"><input type="number" min="0" step="any" data-import-field="qty_ordered" value="' + escapePurchaseHistoryText(row.qty_ordered) + '" class="w-20 rounded border px-1 py-1" /></td>' +
+          '<td class="px-2 py-2"><input data-import-field="unit" value="' + escapePurchaseHistoryText(row.unit) + '" class="w-20 rounded border px-1 py-1" /></td><td class="px-2 py-2"><input type="number" min="0" step="any" data-import-field="unit_price" value="' + escapePurchaseHistoryText(row.unit_price) + '" class="w-24 rounded border px-1 py-1" /></td>' +
+          '<td class="px-2 py-2 text-right">' + escapePurchaseHistoryText(row.total_amount === '' ? '-' : formatPurchaseHistoryMoney(row.total_amount, row.currency)) + '</td><td class="px-2 py-2">' + escapePurchaseHistoryText(row.price_status) + '</td><td class="px-2 py-2">' + escapePurchaseHistoryText(row.status) + '</td>' +
+          '<td class="px-2 py-2">' + (row.duplicate ? '<select data-import-field="duplicate_action" class="rounded border px-1 py-1"><option value="skip" ' + (row.duplicate_action === 'skip' ? 'selected' : '') + '>Skip</option><option value="replace" ' + (row.duplicate_action === 'replace' ? 'selected' : '') + '>Replace</option></select>' : '-') + '</td>' +
+          '<td class="px-2 py-2 font-semibold ' + (row.review_required ? 'text-amber-700' : 'text-emerald-700') + '">' + (row.review_required ? 'Review Required' : 'Ready') + '</td></tr>';
+      }).join('') : '<tr><td colspan="15" class="px-3 py-8 text-center text-slate-400">เลือก PDF แล้วกด Read PDF & Preview</td></tr>';
+      if (purchaseHistoryConfirmImport) purchaseHistoryConfirmImport.disabled = !purchaseHistoryImportRows.some(function(row) { return row.include && !row.review_required; });
+    }
+
+    function refreshPurchaseImportRow(row) {
+      row.qty_ordered = Number(row.qty_ordered || 0);
+      var price = String(row.unit_price === undefined || row.unit_price === null ? '' : row.unit_price).trim();
+      row.unit_price = price === '' ? '' : Number(price);
+      row.price_status = price === '' || !Number.isFinite(Number(row.unit_price)) ? 'TBC' : 'Confirmed';
+      row.total_amount = row.price_status === 'Confirmed' ? row.qty_ordered * Number(row.unit_price) : '';
+      row.review_required = !String(row.part_name || '').trim() || !String(row.model || '').trim() || !(row.qty_ordered > 0);
+      if (row.review_required) row.include = false;
+    }
+
+
     function switchToPurchaseHistoryPage() {
       if (!hasPermission('view')) return switchToStockPage();
       stockPage.classList.add('hidden');
@@ -6944,6 +7166,66 @@ function inferRequestPriority(stock, min) {
     });
     ['purchaseHistoryEditClose', 'purchaseHistoryEditCancel'].forEach(function(id) { var button = document.getElementById(id); if (button) button.addEventListener('click', closePurchaseHistoryEdit); });
     if (purchaseHistoryEditModal) purchaseHistoryEditModal.addEventListener('click', function(e) { if (e.target === purchaseHistoryEditModal) closePurchaseHistoryEdit(); });
+    if (purchaseHistoryImportBtn) purchaseHistoryImportBtn.addEventListener('click', openPurchaseHistoryImport);
+    ['purchaseHistoryImportClose', 'purchaseHistoryImportCancel'].forEach(function(id) { var button = document.getElementById(id); if (button) button.addEventListener('click', closePurchaseHistoryImport); });
+    if (purchaseHistoryImportModal) purchaseHistoryImportModal.addEventListener('click', function(e) { if (e.target === purchaseHistoryImportModal) closePurchaseHistoryImport(); });
+    if (purchaseHistoryParsePdfBtn) purchaseHistoryParsePdfBtn.addEventListener('click', function() {
+      var files = Array.prototype.slice.call((purchaseHistoryPdfFiles && purchaseHistoryPdfFiles.files) || []);
+      if (!files.length) return alert('กรุณาเลือกไฟล์ PDF อย่างน้อย 1 ไฟล์');
+      purchaseHistoryParsePdfBtn.disabled = true;
+      purchaseHistoryImportStatus.textContent = 'กำลังอ่าน PDF ' + files.length + ' ไฟล์...';
+      Promise.all(files.map(parsePurchaseHistoryPdf)).then(function(results) {
+        purchaseHistoryImportRows = [];
+        purchaseHistoryImportFilesMeta = [];
+        results.forEach(function(result) { purchaseHistoryImportFilesMeta.push(result.file); purchaseHistoryImportRows = purchaseHistoryImportRows.concat(result.rows); });
+        if (!purchaseHistoryImportRows.length) throw new Error('ไม่พบรายการใน section หลักของ PR PDF กรุณาตรวจว่า PDF มาจาก PR Report ของระบบ');
+        return postJson(withAuthPayload({ action: 'checkPurchaseHistoryImportDuplicates', items: purchaseHistoryImportRows }));
+      }).then(parseApiResponse).then(function(result) {
+        (result.duplicates || []).forEach(function(duplicate) {
+          if (!purchaseHistoryImportRows[duplicate.index]) return;
+          purchaseHistoryImportRows[duplicate.index].duplicate = true;
+          purchaseHistoryImportRows[duplicate.index].duplicate_history_id = duplicate.history_id;
+          purchaseHistoryImportRows[duplicate.index].duplicate_action = purchaseHistoryDuplicateDefault ? purchaseHistoryDuplicateDefault.value : 'skip';
+        });
+        purchaseHistoryImportStatus.textContent = 'อ่าน PDF สำเร็จ กรุณาตรวจ Preview ก่อน Confirm';
+        renderPurchaseHistoryImportPreview();
+      }).catch(function(err) {
+        purchaseHistoryImportStatus.textContent = 'อ่าน PDF ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+        alert(purchaseHistoryImportStatus.textContent);
+      }).finally(function() { purchaseHistoryParsePdfBtn.disabled = false; });
+    });
+    if (purchaseHistoryDuplicateDefault) purchaseHistoryDuplicateDefault.addEventListener('change', function() {
+      purchaseHistoryImportRows.forEach(function(row) { if (row.duplicate) row.duplicate_action = purchaseHistoryDuplicateDefault.value; });
+      renderPurchaseHistoryImportPreview();
+    });
+    if (purchaseHistoryImportPreview) purchaseHistoryImportPreview.addEventListener('change', function(e) {
+      var tr = e.target.closest('[data-ph-import-row]');
+      var field = e.target.getAttribute('data-import-field');
+      if (!tr || !field) return;
+      var row = purchaseHistoryImportRows[Number(tr.getAttribute('data-ph-import-row'))];
+      if (!row) return;
+      row[field] = field === 'include' ? e.target.checked : e.target.value;
+      refreshPurchaseImportRow(row);
+      if (!row.review_required && field !== 'include' && field !== 'duplicate_action') row.include = true;
+      renderPurchaseHistoryImportPreview();
+    });
+    if (purchaseHistoryConfirmImport) purchaseHistoryConfirmImport.addEventListener('click', function() {
+      var ready = purchaseHistoryImportRows.filter(function(row) { return row.include && !row.review_required; });
+      if (!ready.length) return alert('ไม่มีรายการที่พร้อม Import');
+      if (!confirm('ยืนยัน Import Purchase History จำนวน ' + ready.length + ' รายการ?')) return;
+      purchaseHistoryConfirmImport.disabled = true;
+      purchaseHistoryImportStatus.textContent = 'กำลัง Import...';
+      postJson(withAuthPayload({
+        action: 'importPurchaseHistoryPdfBatch', import_batch_id: 'PHIMP-' + Date.now(), items: ready,
+        files: purchaseHistoryImportFilesMeta, duplicate_action: purchaseHistoryDuplicateDefault ? purchaseHistoryDuplicateDefault.value : 'skip'
+      })).then(parseApiResponse).then(function(result) {
+        alert('Import สำเร็จ ' + Number(result.imported_rows || 0) + ' รายการ • Skip duplicate ' + Number(result.skipped_duplicate_rows || 0) + ' • Review required ' + Number(result.review_required_rows || 0));
+        closePurchaseHistoryImport(); purchaseHistoryLoaded = false; purchaseHistoryCurrentPage = 1; return loadPurchaseHistory(true);
+      }).catch(function(err) {
+        purchaseHistoryImportStatus.textContent = 'Import ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+        alert(purchaseHistoryImportStatus.textContent);
+      }).finally(function() { purchaseHistoryConfirmImport.disabled = false; });
+    });
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
     if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1); });
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
