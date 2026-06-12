@@ -1517,6 +1517,13 @@ function processTransaction(payload) {
   if (targetIndex === -1) throw new Error('ไม่พบอะไหล่ที่ต้องการเบิก/คืนในชีทหลัก');
 
   var targetRow = rows[targetIndex];
+  var isReceiveTransaction = !(payload.type && String(payload.type).indexOf('Output') > -1);
+  if (isReceiveTransaction) {
+    if (payload.authToken) payload.by = getSessionUser({ authToken: payload.authToken }).user.username;
+    var masterLine = pickRowValue(targetRow, map, ['line', 'linearea', 'area', 'process', 'mainline'], '');
+    if (String(masterLine || '').trim()) payload.process = String(masterLine).trim();
+    payload.type = 'Input';
+  }
   var stockBefore = Number(targetRow[stockCol]) || 0;
   var stockAfter = stockBefore + signedQty;
   if (stockAfter < 0) throw new Error('สต็อกไม่พอสำหรับการเบิกออก');

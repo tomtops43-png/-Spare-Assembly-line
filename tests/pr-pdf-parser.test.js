@@ -48,4 +48,32 @@ assert(state.sectionsFound >= 1);
 const urgentState = {};
 const urgentRows = context.parsePdfTableRows([line('5. Top Urgent Items'), ...splitHeader, ...firstRow], meta, header, urgentState);
 assert.strictEqual(urgentRows.length, 0);
+
+
+// H9 line-specific exports omit the Line column and can place left-aligned item
+// text well before the centered Item / Model header. The raw-line fallback must
+// recover both the item name and Brand / Model without treating Category as item.
+const h9HeaderLines = [
+  line('No. Category Item / Qty Critical Unit Total Drawing Reason', [
+    token('No.', 20), token('Category', 70), token('Item /', 210), token('Qty', 400),
+    token('Critical', 440), token('Unit', 500), token('Total', 555), token('Drawing', 610), token('Reason', 670)
+  ]),
+  line('Model Level Price Amount', [token('Model', 210), token('Level', 440), token('Price', 500), token('Amount', 555)])
+];
+const h9State = {};
+const h9Header = { line: 'H9', request_period: '2026-05', requested_date: '2026-05-30 00:00:00', prepared_by: 'Wanchai', has_pr_header: true };
+const h9Rows = context.parsePdfTableRows([
+  line('6. Confirmed Price Items'),
+  ...h9HeaderLines,
+  line('Sensor 1 Fiber Unit Reflective 2 High 1900', [token('Sensor', 45), token('1', 20), token('Fiber Unit Reflective', 105), token('2', 390), token('High', 430), token('1900', 490)]),
+  line('KEYENCE / FU-67V', [token('KEYENCE / FU-67V', 105)])
+], { file_name: 'PR Report H9.pdf', file_hash: 'h9' }, h9Header, h9State);
+assert.strictEqual(h9Rows.length, 1);
+assert.strictEqual(h9Rows[0].part_name, 'Fiber Unit Reflective');
+assert.strictEqual(h9Rows[0].brand, 'KEYENCE');
+assert.strictEqual(h9Rows[0].model, 'FU-67V');
+assert.strictEqual(h9Rows[0].line, 'H9');
+assert.strictEqual(h9Rows[0].qty_ordered, 2);
+assert.strictEqual(h9Rows[0].unit_price, 1900);
+
 console.log('System-exported PR PDF parser regression checks passed');

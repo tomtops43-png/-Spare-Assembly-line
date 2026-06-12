@@ -149,7 +149,7 @@
         <div id="topNavTabs" class="flex gap-2 mb-4 items-center overflow-x-auto overflow-y-visible pb-1 md:flex-nowrap md:overflow-visible md:pb-0">
           <button id="tabStock" class="eng-tab shrink-0 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Stock</button>
           <button id="tabDashboard" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Dashboard</button>
-          <button id="tabTxn" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">เบิก / รับ</button>
+          <button id="tabTxn" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">รับเข้า</button>
           <button id="tabLog" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Log ประวัติ</button>
           <button id="tabPrReport" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">PR Report</button>
           <button id="tabPurchaseHistory" class="eng-tab shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold bg-white">Purchase History</button>
@@ -458,8 +458,8 @@
 
     <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-xl font-bold">⚙️ เบิก / รับ อะไหล่</h2>
-        <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">Quick Issue Flow</span>
+        <h2 class="text-xl font-bold">📥 รับเข้าอะไหล่</h2>
+        <span class="text-xs px-2 py-1 rounded bg-emerald-50 text-emerald-700">Receive Only</span>
       </div>
 
       <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
@@ -484,7 +484,7 @@
                 <option value="ok">พร้อมใช้</option>
               </select>
               <label class="h-11 rounded-xl border border-slate-300 px-3 bg-white flex items-center gap-2 text-sm">
-                <input id="txnInStockOnly" type="checkbox" class="h-4 w-4" checked />
+                <input id="txnInStockOnly" type="checkbox" class="h-4 w-4" />
                 มีของใน stock
               </label>
             </div>
@@ -518,16 +518,14 @@
             </div>
 
             <div class="hidden lg:block border-t border-slate-200"></div>
-            <p class="hidden lg:block text-xs font-semibold uppercase tracking-wide text-slate-500">Issue / Receive Form</p>
-            <select id="txnType" class="h-11 rounded-xl border border-slate-300 px-3 bg-white" required>
-              <option id="txnTypeOutputOption" value="Output">เบิกออก</option>
-              <option value="Input">รับเข้า/คืนเข้า</option>
-            </select>
+            <p class="hidden lg:block text-xs font-semibold uppercase tracking-wide text-emerald-700">Receive Form</p>
+            <input id="txnType" type="hidden" value="Input" />
+            <div class="flex h-11 items-center rounded-xl border border-emerald-300 bg-emerald-50 px-3 font-semibold text-emerald-800">📥 ประเภทรายการ: รับเข้า</div>
             <p id="txnStockGuardMessage" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"></p>
             <input id="txnQty" type="number" min="1" step="1" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="จำนวน" required />
-            <input id="txnBy" type="text" class="h-11 rounded-xl border border-slate-300 px-3 bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
-            <input id="txnProcess" type="text" class="h-11 rounded-xl border border-slate-300 px-3" placeholder="ไลน์/งาน" />
-            <div id="txnReasonGroup" class="space-y-3">
+            <label class="space-y-1"><span class="text-xs font-semibold text-slate-600">ผู้รับ <span class="text-emerald-700">(Auto จากผู้ Login)</span></span><input id="txnBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-slate-100 font-semibold text-slate-700" placeholder="ผู้รับ (Auto)" required readonly /></label>
+            <label class="space-y-1"><span class="text-xs font-semibold text-slate-600">Line ที่รับเข้า <span class="text-emerald-700">(Auto จากรายการอะไหล่)</span></span><input id="txnProcess" type="text" class="h-11 w-full rounded-xl border border-slate-300 bg-slate-100 px-3 font-semibold text-slate-700" placeholder="Line (Auto)" required readonly /></label>
+            <div id="txnReasonGroup" class="hidden space-y-3">
               <select id="txnReason" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
                 <option value="">Reason / เหตุผลการเบิก</option>
                 <option value="PM">PM</option>
@@ -540,7 +538,7 @@
               </select>
               <input id="txnReasonRemark" type="text" class="hidden h-11 w-full rounded-xl border border-slate-300 px-3" placeholder="Reason Remark" />
             </div>
-            <button id="txnSubmitBtn" type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">บันทึกรายการ</button>
+            <button id="txnSubmitBtn" type="submit" class="h-12 w-full eng-primary-btn rounded-xl bg-blue-600 text-white px-4 font-semibold hover:bg-blue-700">ยืนยันรับเข้า</button>
           </form>
           <p id="txnMessage" class="mt-3 text-sm"></p>
         </div>
@@ -2386,10 +2384,8 @@
     function applyReceivePermissionUi() {
       var canReceive = canReceivePart();
       if (qaReceiveBtn) qaReceiveBtn.classList.toggle('hidden', !canReceive);
-      if (txnType && txnType.querySelector('option[value="Input"]')) {
-        txnType.querySelector('option[value="Input"]').disabled = !canReceive;
-        if (!canReceive && txnType.value === 'Input') txnType.value = 'Output';
-      }
+      if (txnType) txnType.value = 'Input';
+      if (tabTxn) tabTxn.classList.toggle('hidden', !canReceive || window.innerWidth < 768);
     }
 
 function getIssueCartEntries() {
@@ -2964,6 +2960,21 @@ function getIssueCartEntries() {
       if (txnBy) txnBy.value = actor;
       if (quickIssueBy) quickIssueBy.value = actor;
       if (issueCartBy) issueCartBy.value = actor;
+    }
+
+    function getTxnAutoProcess(item) {
+      if (!item) return currentLine || '';
+      var directLine = String(item.line || item.line_name || item.lineName || item.area || item.process || '').trim();
+      if (directLine) return directLine;
+      var sourceLine = String(item.__sourceSheet || item.subLine || '').trim();
+      if (sourceLine) return canonicalLineName(sourceLine) || sourceLine;
+      return String(currentLine || '').trim();
+    }
+
+    function syncReceiveFormAutoFields(item) {
+      if (txnType) txnType.value = 'Input';
+      syncTxnActorFields();
+      if (txnProcess) txnProcess.value = getTxnAutoProcess(item || getSelectedTxnItem());
     }
 
     function updateRequestOrderBadgeUI() {
@@ -3893,7 +3904,7 @@ function getIssueCartEntries() {
       if (tabPurchaseHistory) tabPurchaseHistory.classList.toggle('hidden', !hasPermission('view'));
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
-      tabTxn.classList.toggle('hidden', window.innerWidth < 768);
+      tabTxn.classList.toggle('hidden', !canReceivePart() || window.innerWidth < 768);
       if (tabDashboard) tabDashboard.classList.toggle('hidden', !hasPermission('view_dashboard'));
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
       updateRequestOrderBadgeUI(requestOrderBadgeCount);
@@ -3924,6 +3935,8 @@ function getIssueCartEntries() {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('txn');
+      syncReceiveFormAutoFields(getSelectedTxnItem());
+      if (txnInStockOnly) txnInStockOnly.checked = false;
       renderTxnResultList();
       setTimeout(function() {
         txnSearchInput.focus();
@@ -3932,8 +3945,8 @@ function getIssueCartEntries() {
 
     function openTxnPageWithItem(no, txnMode) {
       switchToTxnPage();
-      if (txnMode === 'Input' && !canReceivePart()) txnMode = 'Output';
-      if (txnMode === 'Input' || txnMode === 'Output') txnType.value = txnMode;
+      if (!canReceivePart()) return switchToStockPage();
+      if (txnType) txnType.value = 'Input';
       if (no !== undefined && no !== null && no !== '') {
         selectTxnItem(String(no));
         renderTxnResultList();
@@ -4752,6 +4765,21 @@ function inferRequestPriority(stock, min) {
       return selected;
     }
 
+    function extractPdfItemLines(rawLines, starts) {
+      if (!starts || starts.qty === undefined) return [];
+      var leftAnchor = starts.category !== undefined ? Number(starts.category) : Number(starts.no || 0);
+      var itemCenter = Number(starts.item !== undefined ? starts.item : leftAnchor);
+      var itemLeft = leftAnchor + ((itemCenter - leftAnchor) * 0.08);
+      var itemRight = Number(starts.qty) - 3;
+      return (rawLines || []).map(function(rawLine) {
+        return (rawLine.items || []).filter(function(token) {
+          var x = Number(token.x || 0);
+          var text = String(token.text || '').trim();
+          return text && x >= itemLeft && x < itemRight && !(rawLine.hasRowNumber && /^\d+$/.test(text));
+        }).map(function(token) { return String(token.text || '').trim(); }).join(' ').trim();
+      }).filter(Boolean);
+    }
+
     function parsePdfTableRows(pageLines, fileMeta, headerMeta, parseState) {
       parseState = parseState || {};
       var rows = [], allowed = !!parseState.allowed, excluded = !!parseState.excluded;
@@ -4759,6 +4787,8 @@ function inferRequestPriority(stock, min) {
       function flush() {
         if (!current) return;
         var itemLines = current.itemLines.filter(Boolean);
+        var fallbackItemLines = extractPdfItemLines(current.rawLines, starts);
+        if (!itemLines.length || fallbackItemLines.length > itemLines.length) itemLines = fallbackItemLines;
         var partName = itemLines[0] || '';
         var brand = '', model = '';
         if (itemLines.length > 1) {
@@ -4809,10 +4839,11 @@ function inferRequestPriority(stock, min) {
         })[0];
         var rowNo = rowNumberToken ? Number(rowNumberToken.text) : null;
         if (rowNo !== null) {
-          flush(); current = { rowNumber: rowNo, itemLines: [], line: '', qty: '', price: '' };
+          flush(); current = { rowNumber: rowNo, itemLines: [], rawLines: [], line: '', qty: '', price: '' };
           parseState.rowNumbersFound = Number(parseState.rowNumbersFound || 0) + 1;
         }
         if (!current) return;
+        current.rawLines.push({ items: (line.items || []).slice(), hasRowNumber: rowNo !== null });
         var lineCells = {};
         (line.items || []).forEach(function(token) {
           var col = pdfColumnForX(token.x, starts);
@@ -5449,26 +5480,20 @@ function inferRequestPriority(stock, min) {
       txnSelectedStatus.textContent = status;
       txnSelectedStatus.className = 'inline-flex items-center rounded-full px-2 py-1 text-[11px] ' + tone.badgeClass;
       txnSelectedStock.textContent = 'Stock: ' + (selected.stock || 0) + ' ' + (selected.unit || 'PCS');
-      if (!txnProcess.value) txnProcess.value = selected.line || '';
+      syncReceiveFormAutoFields(selected);
       refreshTxnActionAvailability();
     }
 
     function refreshTxnActionAvailability() {
+      if (txnType) txnType.value = 'Input';
       var selected = getSelectedTxnItem();
-      var stock = Number(selected && selected.stock ? selected.stock : 0);
-      var isOutOfStock = !!selected && stock <= 0;
-      var isOutput = txnType.value === 'Output';
-      if (txnTypeOutputOption) txnTypeOutputOption.disabled = isOutOfStock;
-
-      var shouldBlockSubmit = isOutOfStock && isOutput;
+      syncReceiveFormAutoFields(selected);
+      var shouldBlockSubmit = !canReceivePart();
       txnSubmitBtn.disabled = shouldBlockSubmit;
       txnSubmitBtn.classList.toggle('opacity-60', shouldBlockSubmit);
       txnSubmitBtn.classList.toggle('cursor-not-allowed', shouldBlockSubmit);
-
       txnStockGuardMessage.classList.toggle('hidden', !shouldBlockSubmit);
-      if (shouldBlockSubmit) {
-        txnStockGuardMessage.innerHTML = 'อะไหล่หมดสต็อก ไม่สามารถเบิกออกได้<br>สามารถรับเข้าได้เท่านั้น';
-      }
+      if (shouldBlockSubmit) txnStockGuardMessage.textContent = 'คุณไม่มีสิทธิ์รับเข้าอะไหล่';
     }
 
     function syncTxnReasonVisibility() {
@@ -5908,14 +5933,19 @@ function inferRequestPriority(stock, min) {
         txnMessage.textContent = 'จำนวนต้องมากกว่า 0';
         return;
       }
-      if (txnType.value === 'Output' && qty > Number(selected.stock || 0)) {
+      syncReceiveFormAutoFields(selected);
+      if (!String(txnBy.value || '').trim()) {
         txnMessage.className = 'mt-3 text-sm text-rose-600';
-        txnMessage.textContent = 'จำนวนเบิกมากกว่า stock ปัจจุบัน';
+        txnMessage.textContent = 'ไม่พบผู้รับ กรุณาเข้าสู่ระบบใหม่';
         return;
       }
-
-      if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
-      var isOutputTxn = txnType.value === 'Output';
+      if (!String(txnProcess.value || '').trim()) {
+        txnMessage.className = 'mt-3 text-sm text-rose-600';
+        txnMessage.textContent = 'ไม่พบ Line ของอะไหล่ กรุณาตรวจข้อมูล Master';
+        return;
+      }
+      if (!confirm('ยืนยันรับเข้า ' + qty + ' ' + (selected.unit || 'PCS') + ' สำหรับ ' + (selected.name || '-') + '?')) return;
+      var isOutputTxn = false;
       var reasonValue = String((txnReason && txnReason.value) || '').trim();
       var reasonRemarkValue = String((txnReasonRemark && txnReasonRemark.value) || '').trim();
       if (isOutputTxn && !reasonValue) {
@@ -5931,15 +5961,15 @@ function inferRequestPriority(stock, min) {
 
       var payload = {
         partNo: selected.no,
-        type: txnType.value,
-        process: txnProcess.value || selected.line || '-',
+        type: 'Input',
+        process: txnProcess.value,
         category: selected.category || 'General',
         partName: selected.name,
         model: selected.model || '-',
         brand: selected.brand || '-',
         qty: qty,
         unit: selected.unit || 'PCS',
-        by: currentUser.username,
+        by: txnBy.value,
         reason: isOutputTxn ? reasonValue : 'N/A',
         reasonRemark: isOutputTxn && reasonValue === 'Other' ? reasonRemarkValue : '',
         sheetName: selected.__sourceSheet || selected.subLine || getCurrentSheetName()
@@ -5948,7 +5978,7 @@ function inferRequestPriority(stock, min) {
       txnMessage.className = 'mt-3 text-sm text-slate-500';
       txnMessage.textContent = 'กำลังบันทึกรายการ...';
       var beforeStock = Number(selected.stock || 0);
-      var optimisticStock = payload.type === 'Input' ? beforeStock + qty : beforeStock - qty;
+      var optimisticStock = beforeStock + qty;
       selected.stock = optimisticStock;
       applyFilters(false);
 
@@ -5966,6 +5996,7 @@ function inferRequestPriority(stock, min) {
         var preservedStatus = txnStatusFilter.value;
         var preservedInStockOnly = txnInStockOnly.checked;
         txnForm.reset();
+        syncReceiveFormAutoFields(selected);
         txnSearchInput.value = preservedSearch;
         txnCategoryFilter.value = preservedCategory;
         txnBrandFilter.value = preservedBrand;
@@ -7096,7 +7127,8 @@ function inferRequestPriority(stock, min) {
     });
     txnType.addEventListener('change', refreshTxnActionAvailability);
     qaIssueBtn.addEventListener('click', function() {
-      openTxnPageWithItem('', 'Output');
+      if (!canIssuePart()) return;
+      openIssueCart();
     });
     qaReceiveBtn.addEventListener('click', function() {
       if (!canReceivePart()) return;
