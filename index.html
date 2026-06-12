@@ -4703,22 +4703,35 @@ function inferRequestPriority(stock, min) {
       return '';
     }
 
-    function findPdfColumnStarts(headerLine) {
+    function findPdfColumnStarts(headerLines) {
       var starts = {};
-      (headerLine.items || []).forEach(function(item) {
-        var text = item.text.toLowerCase();
-        if (/^no\.?$/.test(text)) starts.no = item.x;
-        else if (text.indexOf('category') > -1) starts.category = item.x;
-        else if (text === 'item' || text.indexOf('item /') > -1) starts.item = item.x;
-        else if (text === 'line') starts.line = item.x;
-        else if (text === 'qty') starts.qty = item.x;
-        else if (text.indexOf('critical') > -1) starts.critical = item.x;
-        else if (text === 'unit price' || text === 'unit') starts.price = starts.price === undefined ? item.x : starts.price;
-        else if (text.indexOf('total') > -1) starts.total = item.x;
-        else if (text.indexOf('drawing') > -1) starts.drawing = item.x;
-        else if (text.indexOf('reason') > -1) starts.reason = item.x;
+      var lines = Array.isArray(headerLines) ? headerLines : [headerLines];
+      lines.forEach(function(headerLine) {
+        (headerLine && headerLine.items || []).forEach(function(item) {
+          var text = String(item.text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+          if (/^no\.?$/.test(text)) starts.no = item.x;
+          else if (text.indexOf('category') > -1) starts.category = item.x;
+          else if (text === 'item' || text.indexOf('item /') > -1 || text === 'model') starts.item = starts.item === undefined ? item.x : Math.min(starts.item, item.x);
+          else if (text === 'line') starts.line = item.x;
+          else if (text === 'qty' || text.indexOf('quantity') > -1) starts.qty = item.x;
+          else if (text.indexOf('critical') > -1 || text === 'level') starts.critical = starts.critical === undefined ? item.x : Math.min(starts.critical, item.x);
+          else if (text === 'unit price' || text === 'unit' || text === 'price') starts.price = starts.price === undefined ? item.x : Math.min(starts.price, item.x);
+          else if (text.indexOf('total') > -1 || text === 'amount') starts.total = starts.total === undefined ? item.x : Math.min(starts.total, item.x);
+          else if (text.indexOf('drawing') > -1) starts.drawing = item.x;
+          else if (text.indexOf('reason') > -1) starts.reason = item.x;
+        });
       });
       return starts;
+    }
+
+    function isPdfTableHeaderReady(starts) {
+      return starts && starts.no !== undefined && starts.item !== undefined && starts.qty !== undefined && starts.price !== undefined && Object.keys(starts).length >= 5;
+    }
+
+    function isPdfTableHeaderFragment(text) {
+      var normalized = String(text || '').toLowerCase();
+      var matches = normalized.match(/\b(no\.?|category|item|model|line|qty|quantity|critical|level|unit|price|total|amount|drawing|reason)\b/g) || [];
+      return matches.length >= 2 || /\bno\.?\b/.test(normalized) || /\bqty\b/.test(normalized);
     }
 
     function pdfColumnForX(x, starts) {
@@ -4730,7 +4743,8 @@ function inferRequestPriority(stock, min) {
 
     function parsePdfTableRows(pageLines, fileMeta, headerMeta, parseState) {
       parseState = parseState || {};
-      var rows = [], allowed = !!parseState.allowed, excluded = !!parseState.excluded, header = null, starts = null, current = null;
+      var rows = [], allowed = !!parseState.allowed, excluded = !!parseState.excluded;
+      var starts = parseState.starts || null, headerBuffer = [], current = null;
       function flush() {
         if (!current) return;
         var itemLines = current.itemLines.filter(Boolean);
@@ -4760,20 +4774,38 @@ function inferRequestPriority(stock, min) {
       }
       pageLines.forEach(function(line) {
         var text = line.text;
-        if (/Top Urgent Items/i.test(text)) { flush(); excluded = true; allowed = false; header = null; return; }
-        if (/(Confirmed Price Items|Price Confirmation Required|TBC Items|Detailed Requested Item List|Additional Item List)/i.test(text)) { flush(); excluded = false; allowed = true; header = null; return; }
-        if (allowed && /Approval Signatures|Drawing Files|Annex|Risk \/ Benefits/i.test(text)) { flush(); allowed = false; header = null; return; }
+        if (/Top Urgent Items/i.test(text)) { flush(); excluded = true; allowed = false; starts = null; headerBuffer = []; return; }
+        if (/(Confirmed Price Items|Price Confirmation Required|TBC Items|Detailed Requested Item List|Additional Item List)/i.test(text)) {
+          flush(); excluded = false; allowed = true; starts = null; headerBuffer = []; parseState.sectionsFound = Number(parseState.sectionsFound || 0) + 1; return;
+        }
+        if (allowed && /Approval Signatures|Drawing Files|Annex|Risk \/ Benefits/i.test(text)) { flush(); allowed = false; starts = null; headerBuffer = []; return; }
         if (!allowed || excluded) return;
-        if (/Qty/i.test(text) && /Unit Price/i.test(text) && /(Item|Model)/i.test(text)) { flush(); header = line; starts = findPdfColumnStarts(line); return; }
-        if (!header || !starts || starts.no === undefined) return;
-        var first = line.items[0];
-        var rowNo = first && first.x <= starts.no + 20 && /^\d+$/.test(first.text) ? Number(first.text) : null;
-        if (rowNo !== null) { flush(); current = { rowNumber: rowNo, itemLines: [], line: '', qty: '', price: '' }; }
+
+        if (isPdfTableHeaderFragment(text)) {
+          headerBuffer.push(line);
+          if (headerBuffer.length > 4) headerBuffer.shift();
+          var candidateStarts = findPdfColumnStarts(headerBuffer);
+          if (isPdfTableHeaderReady(candidateStarts)) {
+            flush(); starts = candidateStarts; parseState.headerFound = true; headerBuffer = []; return;
+          }
+        } else if (headerBuffer.length && !starts) {
+          headerBuffer = [];
+        }
+        if (!starts || starts.no === undefined) return;
+
+        var rowNumberToken = (line.items || []).filter(function(token) {
+          return /^\d+$/.test(String(token.text || '').trim()) && Math.abs(Number(token.x || 0) - Number(starts.no)) <= 24;
+        })[0];
+        var rowNo = rowNumberToken ? Number(rowNumberToken.text) : null;
+        if (rowNo !== null) {
+          flush(); current = { rowNumber: rowNo, itemLines: [], line: '', qty: '', price: '' };
+          parseState.rowNumbersFound = Number(parseState.rowNumbersFound || 0) + 1;
+        }
         if (!current) return;
         var lineCells = {};
-        line.items.forEach(function(token) {
+        (line.items || []).forEach(function(token) {
           var col = pdfColumnForX(token.x, starts);
-          if (col === 'no' && /^\d+$/.test(token.text)) return;
+          if (col === 'no' && /^\d+$/.test(String(token.text || '').trim())) return;
           lineCells[col] = (lineCells[col] ? lineCells[col] + ' ' : '') + token.text;
         });
         if (lineCells.item) current.itemLines.push(lineCells.item.trim());
@@ -4784,6 +4816,7 @@ function inferRequestPriority(stock, min) {
       flush();
       parseState.allowed = allowed;
       parseState.excluded = excluded;
+      parseState.starts = starts;
       return rows;
     }
 
@@ -4807,7 +4840,12 @@ function inferRequestPriority(stock, min) {
           var fileMeta = { file_name: file.name, file_hash: hash, total_rows: 0, review_required_rows: 0 };
           var rows = [], parseState = {};
           pages.forEach(function(lines) { rows = rows.concat(parsePdfTableRows(lines, fileMeta, header, parseState)); });
-          fileMeta.total_rows = rows.length; fileMeta.review_required_rows = rows.filter(function(row) { return row.review_required; }).length;
+          fileMeta.total_rows = rows.length;
+          fileMeta.review_required_rows = rows.filter(function(row) { return row.review_required; }).length;
+          fileMeta.is_system_report = header.has_pr_header;
+          fileMeta.sections_found = Number(parseState.sectionsFound || 0);
+          fileMeta.header_found = !!parseState.headerFound;
+          fileMeta.row_numbers_found = Number(parseState.rowNumbersFound || 0);
           return { file: fileMeta, rows: rows, header: header };
         });
       });
@@ -7201,7 +7239,14 @@ function inferRequestPriority(stock, min) {
         purchaseHistoryImportRows = [];
         purchaseHistoryImportFilesMeta = [];
         results.forEach(function(result) { purchaseHistoryImportFilesMeta.push(result.file); purchaseHistoryImportRows = purchaseHistoryImportRows.concat(result.rows); });
-        if (!purchaseHistoryImportRows.length) throw new Error('ไม่พบรายการใน section หลักของ PR PDF กรุณาตรวจว่า PDF มาจาก PR Report ของระบบ');
+        if (!purchaseHistoryImportRows.length) {
+          var systemFiles = results.filter(function(result) { return result.file && result.file.is_system_report; });
+          if (systemFiles.length) {
+            var debug = systemFiles.map(function(result) { return result.file.file_name + ' (sections=' + result.file.sections_found + ', header=' + (result.file.header_found ? 'yes' : 'no') + ', rows=' + result.file.row_numbers_found + ')'; }).join('; ');
+            throw new Error('ยืนยันว่าเป็น PR Report ที่ Export จากระบบ แต่ยังอ่านรายการตารางไม่ได้: ' + debug);
+          }
+          throw new Error('PDF ไม่มีข้อความระบุ Purchase Request Supporting Report หรือเป็นไฟล์ภาพสแกนที่ไม่มี text layer');
+        }
         return postJson(withAuthPayload({ action: 'checkPurchaseHistoryImportDuplicates', items: purchaseHistoryImportRows }));
       }).then(parseApiResponse).then(function(result) {
         (result.duplicates || []).forEach(function(duplicate) {
