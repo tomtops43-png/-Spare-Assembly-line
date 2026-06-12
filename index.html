@@ -4987,6 +4987,69 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    function normalizePurchaseImportMatchText(value) {
+      return String(value || '').toLowerCase().replace(/[^a-z0-9ก-๙]+/g, '');
+    }
+
+    function getPurchaseImportMasterPrice(item) {
+      var values = [item && item.unit_price, item && item.unitPrice, item && item.price, item && item.cost];
+      for (var i = 0; i < values.length; i += 1) {
+        if (values[i] !== '' && values[i] !== null && values[i] !== undefined && Number.isFinite(Number(values[i]))) return Number(values[i]);
+      }
+      return null;
+    }
+
+    function enrichPurchaseImportRowsFromMaster(rows, masterItems) {
+      var enriched = 0;
+      (rows || []).forEach(function(row) {
+        if (String(row.brand || '').trim() && String(row.model || '').trim()) return;
+        var targetName = normalizePurchaseImportMatchText(row.part_name);
+        var targetLine = normalizePurchaseImportMatchText(row.line);
+        if (!targetName) return;
+        var candidates = (masterItems || []).filter(function(item) {
+          var itemName = normalizePurchaseImportMatchText(item.name || item.part_name || item.description);
+          var itemLine = normalizePurchaseImportMatchText(item.line || item.__sourceLine || item.area);
+          return itemName === targetName && (!targetLine || !itemLine || itemLine === targetLine);
+        });
+        var rowPrice = row.unit_price === '' || row.unit_price === null || row.unit_price === undefined ? null : Number(row.unit_price);
+        if (Number.isFinite(rowPrice)) {
+          var priceMatches = candidates.filter(function(item) {
+            var masterPrice = getPurchaseImportMasterPrice(item);
+            return masterPrice !== null && Math.abs(masterPrice - rowPrice) < 0.01;
+          });
+          if (priceMatches.length) candidates = priceMatches;
+        }
+        var identities = {};
+        candidates.forEach(function(item) {
+          var brand = String(item.brand || item.make || '').trim();
+          var model = String(item.model || item.part_no || item.partNo || item.code_no || '').trim();
+          if (brand || model) identities[normalizePurchaseImportMatchText(brand) + '|' + normalizePurchaseImportMatchText(model)] = { item: item, brand: brand, model: model };
+        });
+        var keys = Object.keys(identities);
+        if (keys.length !== 1) return; // Never guess when the same name maps to multiple models.
+        var match = identities[keys[0]];
+        if (!String(row.brand || '').trim()) row.brand = match.brand;
+        if (!String(row.model || '').trim()) row.model = match.model;
+        if (!String(row.part_id || '').trim()) row.part_id = match.item.no || match.item.part_id || '';
+        row.remark = String(row.remark || 'Imported from PR PDF') + ' | Brand/Model matched from Item Master';
+        refreshPurchaseImportRow(row);
+        if (!row.review_required) row.include = true;
+        enriched += 1;
+      });
+      return enriched;
+    }
+
+    function loadPurchaseImportMasterRows(rows) {
+      var lines = Array.from(new Set((rows || []).map(function(row) { return canonicalLineName(row.line || ''); }).filter(Boolean)));
+      if (!lines.length) lines = [currentLine || 'H9'];
+      return Promise.all(lines.map(function(line) {
+        return loadPrSourceItems('line_specific', line).catch(function(err) {
+          console.warn('purchase import master load failed', line, err);
+          return [];
+        });
+      })).then(function(sets) { return [].concat.apply([], sets); });
+    }
+
     function renderPurchaseHistoryImportPreview() {
       if (!purchaseHistoryImportPreview) return;
       var imported = purchaseHistoryImportRows.filter(function(row) { return row.include && !row.review_required; }).length;
@@ -7389,6 +7452,15 @@ function inferRequestPriority(stock, min) {
           }
           throw new Error('PDF ไม่มีข้อความระบุ Purchase Request Supporting Report หรือเป็นไฟล์ภาพสแกนที่ไม่มี text layer');
         }
+        var incompleteRows = purchaseHistoryImportRows.filter(function(row) { return !String(row.brand || '').trim() || !String(row.model || '').trim(); });
+        if (!incompleteRows.length) return purchaseHistoryImportRows;
+        purchaseHistoryImportStatus.textContent = 'อ่าน PDF แล้ว กำลังตรวจ Brand/Model กับ Item Master...';
+        return loadPurchaseImportMasterRows(incompleteRows).then(function(masterItems) {
+          var enriched = enrichPurchaseImportRowsFromMaster(purchaseHistoryImportRows, masterItems);
+          purchaseHistoryImportStatus.textContent = 'จับคู่ Item Master สำเร็จ ' + enriched + ' รายการ กำลังตรวจข้อมูลซ้ำ...';
+          return purchaseHistoryImportRows;
+        });
+      }).then(function() {
         return postJson(withAuthPayload({ action: 'checkPurchaseHistoryImportDuplicates', items: purchaseHistoryImportRows }));
       }).then(parseApiResponse).then(function(result) {
         (result.duplicates || []).forEach(function(duplicate) {
