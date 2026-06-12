@@ -103,4 +103,30 @@ assert.strictEqual(compactH9Rows[0].model, 'PZ-G51N');
 assert.strictEqual(compactH9Rows[0].qty_ordered, 1);
 assert.strictEqual(compactH9Rows[0].price_status, 'TBC');
 
+
+
+// Exact production failure fallback: sections are found, but PDF.js exposes no
+// usable table-header tokens. Parse the system-exported H9 body rows directly.
+const headerlessPages = [[
+  line('5. Top Urgent Items'),
+  line('1 Sensor Fiber Unit Reflective 2 High 1900', [token('1', 20), token('Sensor', 55), token('Fiber Unit Reflective', 120), token('2', 405), token('High', 450), token('1900', 510)]),
+  line('KEYENCE / FU-67V', [token('KEYENCE / FU-67V', 120)]),
+  line('6. Confirmed Price Items'),
+  line('1 Sensor Fiber Unit Reflective 2 High 1900', [token('1', 20), token('Sensor', 55), token('Fiber Unit Reflective', 120), token('2', 405), token('High', 450), token('1900', 510)]),
+  line('KEYENCE / FU-67V', [token('KEYENCE / FU-67V', 120)]),
+  line('2 Sensor Photoelectric Sensor 1 Critical TBC', [token('2', 20), token('Sensor', 55), token('Photoelectric Sensor', 120), token('1', 405), token('Critical', 450), token('TBC', 510)]),
+  line('KEYENCE / PZ-G51N', [token('KEYENCE / PZ-G51N', 120)]),
+  line('8. Approval Signatures')
+]];
+const headerlessRows = context.parsePdfRowsWithoutHeader(headerlessPages, { file_name: 'PR Report H9.pdf', file_hash: 'h9-real' }, h9Header);
+assert.strictEqual(headerlessRows.length, 2);
+assert.strictEqual(headerlessRows[0].part_name, 'Fiber Unit Reflective');
+assert.strictEqual(headerlessRows[0].brand, 'KEYENCE');
+assert.strictEqual(headerlessRows[0].model, 'FU-67V');
+assert.strictEqual(headerlessRows[0].qty_ordered, 2);
+assert.strictEqual(headerlessRows[0].unit_price, 1900);
+assert.strictEqual(headerlessRows[1].part_name, 'Photoelectric Sensor');
+assert.strictEqual(headerlessRows[1].model, 'PZ-G51N');
+assert.strictEqual(headerlessRows[1].price_status, 'TBC');
+
 console.log('System-exported PR PDF parser regression checks passed');

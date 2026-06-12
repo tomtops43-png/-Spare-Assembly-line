@@ -4873,6 +4873,84 @@ function inferRequestPriority(stock, min) {
       return rows;
     }
 
+    function parsePdfRowsWithoutHeader(pages, fileMeta, headerMeta) {
+      var rows = [], allowed = false, excluded = false, current = null;
+      function numericText(value) { return String(value || '').trim().replace(/,/g, ''); }
+      function isRowNumber(value) { return /^\d+\.?$/.test(numericText(value)); }
+      function isNumber(value) { return /^-?\d+(?:\.\d+)?$/.test(numericText(value)); }
+      function isCritical(value) { return /^(critical|high|medium|low)$/i.test(String(value || '').trim()); }
+      function buildRow(rawLines) {
+        if (!rawLines || !rawLines.length) return null;
+        var firstItems = (rawLines[0].items || []).slice().sort(function(a, b) { return Number(a.x || 0) - Number(b.x || 0); });
+        var rowToken = firstItems.filter(function(token, index) { return index <= 2 && isRowNumber(token.text); })[0];
+        if (!rowToken) return null;
+        var allTokens = [];
+        rawLines.forEach(function(rawLine, lineIndex) {
+          (rawLine.items || []).forEach(function(token) { allTokens.push({ text: String(token.text || '').trim(), x: Number(token.x || 0), lineIndex: lineIndex }); });
+        });
+        allTokens = allTokens.filter(function(token) { return token.text; });
+        var critical = allTokens.filter(function(token) { return isCritical(token.text); })[0];
+        if (!critical) return null;
+        var qtyCandidates = allTokens.filter(function(token) { return isNumber(token.text) && token.x < critical.x && token.x > Number(rowToken.x || 0) + 8; }).sort(function(a, b) { return b.x - a.x; });
+        if (!qtyCandidates.length) return null;
+        var qtyToken = qtyCandidates[0];
+        var priceCandidates = allTokens.filter(function(token) { return token.x > critical.x && (/^tbc$/i.test(token.text) || isNumber(token.text)); }).sort(function(a, b) { return a.x - b.x; });
+        var priceToken = priceCandidates[0] || { text: '' };
+        var itemLines = rawLines.map(function(rawLine, lineIndex) {
+          var values = (rawLine.items || []).slice().sort(function(a, b) { return Number(a.x || 0) - Number(b.x || 0); }).filter(function(token) {
+            var x = Number(token.x || 0), text = String(token.text || '').trim();
+            return text && x > Number(rowToken.x || 0) + 8 && x < qtyToken.x - 2 && !isRowNumber(text);
+          }).map(function(token) { return String(token.text || '').trim(); });
+          if (lineIndex === 0 && values.length > 1) values.shift(); // first body cell is Category
+          return values.join(' ').trim();
+        }).filter(Boolean);
+        var partName = itemLines[0] || '', brand = '', model = '';
+        var brandModelText = itemLines.slice(1).join(' ');
+        if (brandModelText.indexOf('/') > -1) {
+          var brandModel = brandModelText.split(/\s*\/\s*/);
+          brand = String(brandModel.shift() || '').trim();
+          model = String(brandModel.join(' / ') || '').trim();
+        }
+        if (!model && partName.indexOf('/') > -1) {
+          var inlineParts = partName.split(/\s*\/\s*/);
+          partName = String(inlineParts.shift() || '').trim();
+          model = String(inlineParts.pop() || '').trim();
+          brand = String(inlineParts.join(' / ') || '').trim();
+        }
+        var qty = Number(numericText(qtyToken.text) || 0);
+        var priceRaw = numericText(priceToken.text);
+        var unitPrice = !priceRaw || /^tbc$/i.test(priceRaw) ? '' : Number(priceRaw);
+        var row = {
+          source_file_name: fileMeta.file_name, source_file_hash: fileMeta.file_hash, request_period: headerMeta.request_period,
+          requested_date: headerMeta.requested_date, requested_by: headerMeta.prepared_by, line: headerMeta.line || '', part_id: '',
+          part_name: partName, brand: brand, model: model, qty_ordered: qty, unit: 'PCS', unit_price: unitPrice,
+          currency: unitPrice === '' ? '' : 'THB', total_amount: unitPrice === '' ? '' : qty * unitPrice,
+          price_status: unitPrice === '' ? 'TBC' : 'Confirmed', status: headerMeta.has_pr_header ? 'PR Created' : 'Requested',
+          remark: 'Imported from PR PDF (headerless fallback)', row_number: Number(numericText(rowToken.text)), duplicate: false, duplicate_action: 'skip'
+        };
+        row.review_required = !row.part_name || !row.model || !(row.qty_ordered > 0);
+        row.include = !row.review_required;
+        return row;
+      }
+      function flush() { var row = buildRow(current); if (row) rows.push(row); current = null; }
+      (pages || []).forEach(function(pageLines) {
+        (pageLines || []).forEach(function(line) {
+          var text = String(line.text || '');
+          if (/Top Urgent Items/i.test(text)) { flush(); excluded = true; allowed = false; return; }
+          if (/(Confirmed Price Items|Price Confirmation Required|TBC Items|Detailed Requested Item List|Additional Item List)/i.test(text)) { flush(); excluded = false; allowed = true; return; }
+          if (allowed && /Approval Signatures|Drawing Files|Annex|Risk \/ Benefits/i.test(text)) { flush(); allowed = false; return; }
+          if (!allowed || excluded) return;
+          var ordered = (line.items || []).slice().sort(function(a, b) { return Number(a.x || 0) - Number(b.x || 0); });
+          var beginsRow = ordered.some(function(token, index) { return index <= 2 && isRowNumber(token.text); });
+          if (beginsRow) { flush(); current = [line]; return; }
+          if (!current && isPdfTableHeaderFragment(line)) return;
+          if (current) current.push(line);
+        });
+      });
+      flush();
+      return rows;
+    }
+
     function parsePurchaseHistoryPdf(file) {
       if (!window.pdfjsLib) return Promise.reject(new Error('PDF parser ยังโหลดไม่สำเร็จ กรุณารีเฟรชหน้าเว็บ'));
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -4893,12 +4971,17 @@ function inferRequestPriority(stock, min) {
           var fileMeta = { file_name: file.name, file_hash: hash, total_rows: 0, review_required_rows: 0 };
           var rows = [], parseState = {};
           pages.forEach(function(lines) { rows = rows.concat(parsePdfTableRows(lines, fileMeta, header, parseState)); });
+          if (!rows.length && header.has_pr_header && Number(parseState.sectionsFound || 0) > 0) {
+            rows = parsePdfRowsWithoutHeader(pages, fileMeta, header);
+            if (rows.length) parseState.headerlessFallback = true;
+          }
           fileMeta.total_rows = rows.length;
           fileMeta.review_required_rows = rows.filter(function(row) { return row.review_required; }).length;
           fileMeta.is_system_report = header.has_pr_header;
           fileMeta.sections_found = Number(parseState.sectionsFound || 0);
           fileMeta.header_found = !!parseState.headerFound;
-          fileMeta.row_numbers_found = Number(parseState.rowNumbersFound || 0);
+          fileMeta.row_numbers_found = rows.length || Number(parseState.rowNumbersFound || 0);
+          fileMeta.headerless_fallback = !!parseState.headerlessFallback;
           return { file: fileMeta, rows: rows, header: header };
         });
       });
