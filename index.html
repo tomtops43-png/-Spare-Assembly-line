@@ -4735,9 +4735,16 @@ function inferRequestPriority(stock, min) {
     }
 
     function pdfColumnForX(x, starts) {
-      var ordered = Object.keys(starts).map(function(key) { return { key: key, x: starts[key] }; }).sort(function(a, b) { return a.x - b.x; });
-      var selected = ordered[0] ? ordered[0].key : 'item';
-      ordered.forEach(function(column) { if (x >= column.x - 2) selected = column.key; });
+      var ordered = Object.keys(starts).map(function(key) { return { key: key, x: Number(starts[key]) }; }).sort(function(a, b) { return a.x - b.x; });
+      if (!ordered.length) return 'item';
+      var selected = ordered[0].key;
+      for (var i = 1; i < ordered.length; i += 1) {
+        // Exported reports center header labels but left-align cell values. Move each
+        // boundary toward the previous header so values still land in their real cell.
+        var boundary = ordered[i - 1].x + ((ordered[i].x - ordered[i - 1].x) * 0.3);
+        if (Number(x) >= boundary) selected = ordered[i].key;
+        else break;
+      }
       return selected;
     }
 

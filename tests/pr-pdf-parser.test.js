@@ -19,12 +19,12 @@ const splitHeader = [
 ];
 const firstRow = [
   // Category token intentionally precedes the row number in PDF text order.
-  line('Mechanical 1 Bearing Lug&Screw 4 High 100', [token('Mechanical', 55), token('1', 20), token('Bearing', 125), token('Lug&Screw', 285), token('4', 325), token('High', 365), token('100', 430)]),
-  line('NSK / 6201', [token('NSK / 6201', 125)])
+  line('Mechanical 1 Bearing Lug&Screw 4 High 100', [token('Mechanical', 45), token('1', 20), token('Bearing', 90), token('Lug&Screw', 245), token('4', 315), token('High', 350), token('100', 415)]),
+  line('NSK / 6201', [token('NSK / 6201', 90)])
 ];
 const secondRowOnNextPage = [
-  line('Electrical 2 Sensor Lug&Screw 2 Critical TBC', [token('Electrical', 55), token('2', 20), token('Sensor', 125), token('Lug&Screw', 285), token('2', 325), token('Critical', 365), token('TBC', 430)]),
-  line('Omron / E2E-X5', [token('Omron / E2E-X5', 125)])
+  line('Electrical 2 Sensor Lug&Screw 2 Critical TBC', [token('Electrical', 45), token('2', 20), token('Sensor', 90), token('Lug&Screw', 245), token('2', 315), token('Critical', 350), token('TBC', 415)]),
+  line('Omron / E2E-X5', [token('Omron / E2E-X5', 90)])
 ];
 const state = {};
 const meta = { file_name: 'PR Report Lug&Screw.pdf', file_hash: 'hash' };
