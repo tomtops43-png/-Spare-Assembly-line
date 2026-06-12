@@ -748,7 +748,7 @@
           <p class="font-bold text-violet-950">นำเข้าประวัติจาก PR Report เดิม</p>
           <p class="text-sm text-violet-700">เลือกไฟล์ PR PDF ได้หลายไฟล์ ตรวจสอบ Preview แล้วจึงยืนยันนำเข้า</p>
         </div>
-        <button id="purchaseHistoryImportBtn" type="button" class="h-11 shrink-0 rounded-lg bg-violet-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2">Import PR PDF</button>
+        <button id="purchaseHistoryImportBtn" type="button" class="h-11 shrink-0 rounded-lg px-5 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2" style="background-color:#7c3aed;color:#ffffff;border:1px solid #6d28d9;">📄 เลือกไฟล์ PR PDF</button>
       </div>
       <div id="purchaseHistorySummary" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"></div>
       <div class="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-4">
@@ -774,8 +774,15 @@
     <div id="purchaseHistoryImportModal" class="fixed inset-0 z-[125] hidden items-start justify-center overflow-y-auto bg-slate-900/70 p-3 md:p-6">
       <div class="my-3 w-full max-w-7xl rounded-2xl bg-white p-4 shadow-2xl md:p-5">
         <div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-bold">Import PR PDF</h3><p class="text-sm text-slate-500">อัปโหลด PDF จาก PR Report เดิม ตรวจ Preview แล้วจึง Confirm Import</p></div><button id="purchaseHistoryImportClose" type="button" class="h-9 w-9 rounded-full border border-slate-300">×</button></div>
-        <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3"><input id="purchaseHistoryPdfFiles" type="file" accept="application/pdf,.pdf" multiple class="block w-full text-sm" /><p class="mt-1 text-xs text-violet-700">รองรับหลายไฟล์ • ระบบจะไม่อ่าน Top Urgent Items • รายการข้อมูลไม่ครบจะถูก Mark Review Required</p></div>
-        <div class="mt-3 flex flex-wrap items-center gap-2"><button id="purchaseHistoryParsePdfBtn" type="button" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white">Read PDF & Preview</button><select id="purchaseHistoryDuplicateDefault" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="skip">Duplicate: Skip</option><option value="replace">Duplicate: Replace</option></select><span id="purchaseHistoryImportStatus" class="text-sm text-slate-500"></span></div>
+        <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4">
+          <input id="purchaseHistoryPdfFiles" type="file" accept="application/pdf,.pdf" multiple class="sr-only" />
+          <div class="flex flex-wrap items-center gap-3">
+            <label for="purchaseHistoryPdfFiles" class="inline-flex h-11 cursor-pointer items-center rounded-lg px-5 text-sm font-bold shadow-sm" style="background-color:#2563eb;color:#ffffff;border:1px solid #1d4ed8;">📂 เลือกไฟล์ PDF</label>
+            <span id="purchaseHistorySelectedFiles" class="text-sm font-semibold text-slate-700">ยังไม่ได้เลือกไฟล์</span>
+          </div>
+          <p class="mt-2 text-xs text-violet-700">เลือกได้หลายไฟล์ • ระบบจะไม่อ่าน Top Urgent Items • รายการข้อมูลไม่ครบจะถูก Mark Review Required</p>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-2"><button id="purchaseHistoryParsePdfBtn" type="button" class="rounded-lg px-4 py-2 text-sm font-semibold" style="background-color:#7c3aed;color:#ffffff;border:1px solid #6d28d9;">อ่าน PDF และแสดง Preview</button><select id="purchaseHistoryDuplicateDefault" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="skip">Duplicate: Skip</option><option value="replace">Duplicate: Replace</option></select><span id="purchaseHistoryImportStatus" class="text-sm text-slate-500"></span></div>
         <div id="purchaseHistoryImportSummary" class="mt-3 grid grid-cols-2 gap-2 md:grid-cols-5"></div>
         <div class="mt-3 max-h-[58vh] overflow-auto rounded-xl border border-slate-200"><table class="w-full min-w-[1700px] text-xs"><thead class="sticky top-0 z-10 bg-slate-100"><tr><th class="px-2 py-2">Import</th><th class="px-2 py-2">Source File</th><th class="px-2 py-2">Requested Date</th><th class="px-2 py-2">Line</th><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">Model / Part No.</th><th class="px-2 py-2">Qty</th><th class="px-2 py-2">Unit</th><th class="px-2 py-2">Unit Price</th><th class="px-2 py-2">Total Amount</th><th class="px-2 py-2">Price Status</th><th class="px-2 py-2">Status</th><th class="px-2 py-2">Duplicate</th><th class="px-2 py-2">Review</th></tr></thead><tbody id="purchaseHistoryImportPreview"></tbody></table></div>
         <div class="mt-4 flex justify-end gap-2"><button id="purchaseHistoryImportCancel" type="button" class="rounded-lg border border-slate-300 px-4 py-2">Cancel</button><button id="purchaseHistoryConfirmImport" type="button" class="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white disabled:opacity-40">Confirm Import</button></div>
@@ -1410,6 +1417,7 @@
     var purchaseHistoryImportBtn = document.getElementById('purchaseHistoryImportBtn');
     var purchaseHistoryImportModal = document.getElementById('purchaseHistoryImportModal');
     var purchaseHistoryPdfFiles = document.getElementById('purchaseHistoryPdfFiles');
+    var purchaseHistorySelectedFiles = document.getElementById('purchaseHistorySelectedFiles');
     var purchaseHistoryParsePdfBtn = document.getElementById('purchaseHistoryParsePdfBtn');
     var purchaseHistoryImportPreview = document.getElementById('purchaseHistoryImportPreview');
     var purchaseHistoryImportSummary = document.getElementById('purchaseHistoryImportSummary');
@@ -4641,9 +4649,12 @@ function inferRequestPriority(stock, min) {
       if (!canEditPurchaseHistory()) return alert('เฉพาะ Admin / Engineer เท่านั้นที่ Import PR PDF ได้');
       purchaseHistoryImportRows = [];
       purchaseHistoryImportFilesMeta = [];
+      if (purchaseHistoryPdfFiles) purchaseHistoryPdfFiles.value = '';
+      if (purchaseHistorySelectedFiles) purchaseHistorySelectedFiles.textContent = 'ยังไม่ได้เลือกไฟล์';
       renderPurchaseHistoryImportPreview();
       purchaseHistoryImportModal.classList.remove('hidden');
       purchaseHistoryImportModal.classList.add('flex');
+      if (purchaseHistoryPdfFiles) purchaseHistoryPdfFiles.click();
     }
 
     function closePurchaseHistoryImport() {
@@ -7174,6 +7185,11 @@ function inferRequestPriority(stock, min) {
     ['purchaseHistoryEditClose', 'purchaseHistoryEditCancel'].forEach(function(id) { var button = document.getElementById(id); if (button) button.addEventListener('click', closePurchaseHistoryEdit); });
     if (purchaseHistoryEditModal) purchaseHistoryEditModal.addEventListener('click', function(e) { if (e.target === purchaseHistoryEditModal) closePurchaseHistoryEdit(); });
     if (purchaseHistoryImportBtn) purchaseHistoryImportBtn.addEventListener('click', openPurchaseHistoryImport);
+    if (purchaseHistoryPdfFiles) purchaseHistoryPdfFiles.addEventListener('change', function() {
+      var files = Array.prototype.slice.call(purchaseHistoryPdfFiles.files || []);
+      if (purchaseHistorySelectedFiles) purchaseHistorySelectedFiles.textContent = files.length ? ('เลือกแล้ว ' + files.length + ' ไฟล์: ' + files.map(function(file) { return file.name; }).join(', ')) : 'ยังไม่ได้เลือกไฟล์';
+      if (purchaseHistoryImportStatus) purchaseHistoryImportStatus.textContent = files.length ? 'เลือกไฟล์แล้ว กด “อ่าน PDF และแสดง Preview”' : '';
+    });
     ['purchaseHistoryImportClose', 'purchaseHistoryImportCancel'].forEach(function(id) { var button = document.getElementById(id); if (button) button.addEventListener('click', closePurchaseHistoryImport); });
     if (purchaseHistoryImportModal) purchaseHistoryImportModal.addEventListener('click', function(e) { if (e.target === purchaseHistoryImportModal) closePurchaseHistoryImport(); });
     if (purchaseHistoryParsePdfBtn) purchaseHistoryParsePdfBtn.addEventListener('click', function() {
