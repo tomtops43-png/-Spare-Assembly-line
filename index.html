@@ -743,7 +743,7 @@
         </div>
         <button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
       </div>
-      <div id="purchaseHistorySummary" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5"></div>
+      <div id="purchaseHistorySummary" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"></div>
       <div class="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-4">
         <select id="purchaseHistoryMonthFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุกเดือน</option></select>
         <select id="purchaseHistoryLineFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุก Line</option></select>
@@ -753,13 +753,28 @@
         <input id="purchaseHistorySearch" type="search" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm" placeholder="ค้นหา Part Name / Model" />
       </div>
       <div class="overflow-x-auto rounded-xl border border-slate-200">
-        <table class="w-full min-w-[1050px] text-sm">
-          <thead class="bg-slate-100 text-left text-slate-600"><tr><th class="px-3 py-3">Month</th><th class="px-3 py-3">Line</th><th class="px-3 py-3">Part Name</th><th class="px-3 py-3">Brand</th><th class="px-3 py-3">Model / Part No.</th><th class="px-3 py-3 text-right">Qty Ordered</th><th class="px-3 py-3">Unit</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Requested By</th><th class="px-3 py-3">Updated At</th><th class="px-3 py-3">Remark</th></tr></thead>
+        <table class="w-full min-w-[1500px] text-sm">
+          <thead class="bg-slate-100 text-left text-slate-600"><tr><th class="px-3 py-3">Requested Date</th><th class="px-3 py-3">Line</th><th class="px-3 py-3">Part Name</th><th class="px-3 py-3">Brand</th><th class="px-3 py-3">Model / Part No.</th><th class="px-3 py-3 text-right">Qty Ordered</th><th class="px-3 py-3">Unit</th><th class="px-3 py-3 text-right">Unit Price</th><th class="px-3 py-3 text-right">Total Amount</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Requested By</th><th class="px-3 py-3">Updated At</th><th class="px-3 py-3">Remark</th><th class="px-3 py-3">Action</th></tr></thead>
           <tbody id="purchaseHistoryTable"></tbody>
         </table>
       </div>
-      <p id="purchaseHistoryMessage" class="text-sm text-slate-500"></p>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p id="purchaseHistoryMessage" class="text-sm text-slate-500"></p>
+        <div class="flex items-center gap-2"><button id="purchaseHistoryPrevBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-40">Previous</button><span id="purchaseHistoryPageInfo" class="text-sm font-semibold text-slate-600">Page 1</span><button id="purchaseHistoryNextBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-40">Next</button></div>
+      </div>
     </section>
+
+    <div id="purchaseHistoryEditModal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-slate-900/60 p-4">
+      <form id="purchaseHistoryEditForm" class="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl">
+        <div class="flex items-center justify-between"><div><h3 class="text-lg font-bold">Edit Purchase History</h3><p id="purchaseHistoryEditLabel" class="text-xs text-slate-500"></p></div><button id="purchaseHistoryEditClose" type="button" class="h-9 w-9 rounded-full border border-slate-300">×</button></div>
+        <input id="purchaseHistoryEditId" type="hidden" />
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><label class="text-sm font-semibold text-slate-700">Qty Ordered<input id="purchaseHistoryEditQty" type="number" min="0.000001" step="any" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" /></label><label class="text-sm font-semibold text-slate-700">Unit Price<input id="purchaseHistoryEditPrice" type="number" min="0" step="any" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="ไม่มีราคาให้เว้นว่าง" /></label></div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><label class="text-sm font-semibold text-slate-700">Currency<input id="purchaseHistoryEditCurrency" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="THB" /></label><label class="text-sm font-semibold text-slate-700">Status<select id="purchaseHistoryEditStatus" class="mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3"><option>Requested</option><option>PR Created</option><option>Ordered</option><option>Partial Received</option><option>Received</option><option>Cancelled</option></select></label></div>
+        <label class="block text-sm font-semibold text-slate-700">Remark<textarea id="purchaseHistoryEditRemark" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></textarea></label>
+        <label class="block text-sm font-semibold text-slate-700">Reason for change<input id="purchaseHistoryEditReason" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" /></label>
+        <div class="flex justify-end gap-2"><button id="purchaseHistoryEditCancel" type="button" class="rounded-lg border border-slate-300 px-4 py-2">Cancel</button><button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white">Save</button></div>
+      </form>
+    </div>
 
     <section id="adminPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -1095,7 +1110,7 @@
                 <span id="detailPurchaseHistorySummary" class="text-xs text-slate-500"></span>
               </div>
               <div class="overflow-x-auto rounded-lg border border-emerald-100 bg-white">
-                <table class="w-full min-w-[520px] text-sm"><thead class="bg-emerald-50 text-left text-slate-600"><tr><th class="px-3 py-2">Month</th><th class="px-3 py-2 text-right">Qty Ordered</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">Requested By</th><th class="px-3 py-2">Updated At</th></tr></thead><tbody id="detailPurchaseHistoryRows"><tr><td colspan="5" class="px-3 py-3 text-center text-slate-400">กำลังโหลด...</td></tr></tbody></table>
+                <table class="w-full min-w-[520px] text-sm"><thead class="bg-emerald-50 text-left text-slate-600"><tr><th class="px-3 py-2">Requested Date</th><th class="px-3 py-2 text-right">Qty Ordered</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">Requested By</th><th class="px-3 py-2">Updated At</th></tr></thead><tbody id="detailPurchaseHistoryRows"><tr><td colspan="5" class="px-3 py-3 text-center text-slate-400">กำลังโหลด...</td></tr></tbody></table>
               </div>
             </section>
             <section id="detailDrawingSection" class="rounded-xl border border-blue-100 bg-blue-50/50 p-3">
@@ -1360,6 +1375,19 @@
     var purchaseHistorySearch = document.getElementById('purchaseHistorySearch');
     var purchaseHistoryMessage = document.getElementById('purchaseHistoryMessage');
     var purchaseHistoryRefreshBtn = document.getElementById('purchaseHistoryRefreshBtn');
+    var purchaseHistoryPrevBtn = document.getElementById('purchaseHistoryPrevBtn');
+    var purchaseHistoryNextBtn = document.getElementById('purchaseHistoryNextBtn');
+    var purchaseHistoryPageInfo = document.getElementById('purchaseHistoryPageInfo');
+    var purchaseHistoryEditModal = document.getElementById('purchaseHistoryEditModal');
+    var purchaseHistoryEditForm = document.getElementById('purchaseHistoryEditForm');
+    var purchaseHistoryEditId = document.getElementById('purchaseHistoryEditId');
+    var purchaseHistoryEditQty = document.getElementById('purchaseHistoryEditQty');
+    var purchaseHistoryEditPrice = document.getElementById('purchaseHistoryEditPrice');
+    var purchaseHistoryEditCurrency = document.getElementById('purchaseHistoryEditCurrency');
+    var purchaseHistoryEditStatus = document.getElementById('purchaseHistoryEditStatus');
+    var purchaseHistoryEditRemark = document.getElementById('purchaseHistoryEditRemark');
+    var purchaseHistoryEditReason = document.getElementById('purchaseHistoryEditReason');
+    var purchaseHistoryEditLabel = document.getElementById('purchaseHistoryEditLabel');
     var tabRequestOrder = document.getElementById('requestOrderNavBtn');
     var prMode = document.getElementById('prMode');
     var prLineFilter = document.getElementById('prLineFilter');
@@ -1388,6 +1416,8 @@
     var partsData = [];
     var purchaseHistoryCache = [];
     var purchaseHistoryLoaded = false;
+    var purchaseHistoryCurrentPage = 1;
+    var PURCHASE_HISTORY_PAGE_SIZE = 20;
     var prHistoryBatchId = '';
     var stockSheetMemoryCache = {};
     var fullDetailSheetCache = {};
@@ -4427,15 +4457,27 @@ function inferRequestPriority(stock, min) {
         .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
     }
 
+    function canEditPurchaseHistory() {
+      var role = String(currentUser && currentUser.role || '').toLowerCase();
+      return role === 'admin' || role === 'leader' || role === 'engineer';
+    }
+
+    function formatPurchaseHistoryDateThai(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return '-';
+      var normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw) ? raw.replace(' ', 'T') + '+07:00' : raw;
+      var date = new Date(normalized);
+      if (isNaN(date.getTime())) return '-';
+      return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' }).format(date).replace(',', '');
+    }
+
+    function formatPurchaseHistoryMoney(value, currency) {
+      if (value === '' || value === null || value === undefined || !Number.isFinite(Number(value))) return '-';
+      return Number(value).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (currency ? ' ' + currency : '');
+    }
+
     function purchaseHistoryStatusBadge(status) {
-      var styles = {
-        Requested: 'bg-amber-100 text-amber-800',
-        'PR Created': 'bg-violet-100 text-violet-800',
-        Ordered: 'bg-blue-100 text-blue-800',
-        'Partial Received': 'bg-cyan-100 text-cyan-800',
-        Received: 'bg-emerald-100 text-emerald-800',
-        Cancelled: 'bg-slate-200 text-slate-700'
-      };
+      var styles = { Requested: 'bg-amber-100 text-amber-800', 'PR Created': 'bg-violet-100 text-violet-800', Ordered: 'bg-blue-100 text-blue-800', 'Partial Received': 'bg-cyan-100 text-cyan-800', Received: 'bg-emerald-100 text-emerald-800', Cancelled: 'bg-slate-200 text-slate-700' };
       var normalized = String(status || 'Requested');
       return '<span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold ' + (styles[normalized] || styles.Requested) + '">' + escapePurchaseHistoryText(normalized) + '</span>';
     }
@@ -4461,8 +4503,8 @@ function inferRequestPriority(stock, min) {
         if (month !== 'all' && String(item.month || '') !== month) return false;
         if (line !== 'all' && String(item.line || '') !== line) return false;
         if (status !== 'all' && String(item.status || '') !== status) return false;
-        if (query && [item.part_name, item.model, item.part_id].join(' ').toLowerCase().indexOf(query) === -1) return false;
-        return true;
+        if (query && [item.part_name, item.model, item.part_id, item.request_id].join(' ').toLowerCase().indexOf(query) === -1) return false;
+        return Number(item.qty_ordered || 0) > 0;
       });
     }
 
@@ -4470,79 +4512,90 @@ function inferRequestPriority(stock, min) {
       if (!purchaseHistoryTable) return;
       var rows = getFilteredPurchaseHistory();
       var totalQty = rows.reduce(function(sum, item) { return sum + Number(item.qty_ordered || 0); }, 0);
-      var itemStats = {};
-      var lineStats = {};
+      var knownRows = rows.filter(function(item) { return item.unit_price !== '' && item.unit_price !== null && item.unit_price !== undefined && Number.isFinite(Number(item.unit_price)); });
+      var knownAmount = knownRows.reduce(function(sum, item) { return sum + Number(item.qty_ordered || 0) * Number(item.unit_price || 0); }, 0);
+      var itemStats = {}, lineStats = {};
       rows.forEach(function(item) {
-        var itemKey = String(item.part_id || item.part_name || '-');
-        if (!itemStats[itemKey]) itemStats[itemKey] = { name: item.part_name || itemKey, qty: 0, count: 0 };
-        itemStats[itemKey].qty += Number(item.qty_ordered || 0);
-        itemStats[itemKey].count += 1;
-        var lineKey = String(item.line || '-');
-        lineStats[lineKey] = (lineStats[lineKey] || 0) + Number(item.qty_ordered || 0);
+        var key = String(item.part_id || item.part_name || '-');
+        if (!itemStats[key]) itemStats[key] = { name: item.part_name || key, qty: 0, count: 0 };
+        itemStats[key].qty += Number(item.qty_ordered || 0); itemStats[key].count += 1;
+        lineStats[String(item.line || '-')] = (lineStats[String(item.line || '-')] || 0) + Number(item.qty_ordered || 0);
       });
       var itemValues = Object.keys(itemStats).map(function(key) { return itemStats[key]; });
-      var topOrdered = itemValues.sort(function(a, b) { return b.qty - a.qty; })[0];
+      var topOrdered = itemValues.slice().sort(function(a, b) { return b.qty - a.qty; })[0];
       var mostFrequent = itemValues.slice().sort(function(a, b) { return b.count - a.count; })[0];
       var topLine = Object.keys(lineStats).sort(function(a, b) { return lineStats[b] - lineStats[a]; })[0];
-      var pendingCount = rows.filter(function(item) { return item.status === 'Requested' || item.status === 'Ordered'; }).length;
+      var pendingCount = rows.filter(function(item) { return ['Requested', 'PR Created', 'Ordered', 'Partial Received'].indexOf(item.status) > -1; }).length;
       if (purchaseHistorySummary) {
         var cards = [
-          ['Total ordered qty', totalQty.toLocaleString()],
-          ['Order frequency', mostFrequent ? (mostFrequent.name + ' • ' + mostFrequent.count + ' ครั้ง') : '-'],
-          ['Top ordered spare part', topOrdered ? (topOrdered.name + ' • ' + topOrdered.qty.toLocaleString()) : '-'],
-          ['Top line', topLine ? (topLine + ' • ' + lineStats[topLine].toLocaleString()) : '-'],
-          ['Not received', pendingCount.toLocaleString() + ' รายการ']
+          ['Total ordered qty', totalQty.toLocaleString('th-TH')], ['Total Amount', formatPurchaseHistoryMoney(knownAmount, 'THB')],
+          ['Known Amount', knownRows.length + ' รายการ'], ['TBC Price Items', (rows.length - knownRows.length) + ' รายการ'],
+          ['Order frequency', mostFrequent ? mostFrequent.name + ' • ' + mostFrequent.count + ' ครั้ง' : '-'],
+          ['Top ordered spare part', topOrdered ? topOrdered.name + ' • ' + topOrdered.qty.toLocaleString('th-TH') : '-'],
+          ['Top line', topLine ? topLine + ' • ' + lineStats[topLine].toLocaleString('th-TH') : '-'], ['Not received', pendingCount + ' รายการ']
         ];
         purchaseHistorySummary.innerHTML = cards.map(function(card) { return '<article class="rounded-xl border border-slate-200 bg-slate-50 p-3"><p class="text-xs font-semibold text-slate-500">' + escapePurchaseHistoryText(card[0]) + '</p><p class="mt-1 text-base font-bold text-slate-900">' + escapePurchaseHistoryText(card[1]) + '</p></article>'; }).join('');
       }
-      purchaseHistoryTable.innerHTML = rows.length ? rows.map(function(item, index) {
+
+      var totalPages = Math.max(1, Math.ceil(rows.length / PURCHASE_HISTORY_PAGE_SIZE));
+      if (purchaseHistoryCurrentPage > totalPages) purchaseHistoryCurrentPage = totalPages;
+      var start = (purchaseHistoryCurrentPage - 1) * PURCHASE_HISTORY_PAGE_SIZE;
+      var pageRows = rows.slice(start, start + PURCHASE_HISTORY_PAGE_SIZE);
+      purchaseHistoryTable.innerHTML = pageRows.length ? pageRows.map(function(item, index) {
+        var actions = canEditPurchaseHistory() ? '<div class="flex gap-1"><button type="button" data-ph-edit="' + escapePurchaseHistoryText(item.history_id) + '" class="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">Edit</button><button type="button" data-ph-delete="' + escapePurchaseHistoryText(item.history_id) + '" class="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">Delete</button></div>' : '-';
         return '<tr class="border-t border-slate-100 ' + (index % 2 ? 'bg-slate-50/60' : 'bg-white') + '">' +
-          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(item.month || '-') + '</td>' +
-          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.line || '-') + '</td>' +
-          '<td class="px-3 py-3 font-semibold text-slate-800">' + escapePurchaseHistoryText(item.part_name || '-') + '</td>' +
-          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.brand || '-') + '</td>' +
-          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.model || '-') + '</td>' +
-          '<td class="px-3 py-3 text-right font-semibold">' + Number(item.qty_ordered || 0).toLocaleString() + '</td>' +
-          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.unit || '-') + '</td>' +
-          '<td class="px-3 py-3">' + purchaseHistoryStatusBadge(item.status) + '</td>' +
-          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.requested_by || '-') + '</td>' +
-          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(item.updated_at || '-') + '</td>' +
-          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.remark || '-') + '</td></tr>';
-      }).join('') : '<tr><td colspan="11" class="px-3 py-8 text-center text-slate-400">ไม่พบประวัติการสั่งซื้อ</td></tr>';
-      if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'แสดง ' + rows.length + ' จาก ' + purchaseHistoryCache.length + ' รายการ';
+          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(item.date)) + '<div class="text-[10px] text-slate-400">' + escapePurchaseHistoryText(item.source || '-') + ' • ' + escapePurchaseHistoryText(item.request_id || '-') + '</div></td>' +
+          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.line || '-') + '</td><td class="px-3 py-3 font-semibold text-slate-800">' + escapePurchaseHistoryText(item.part_name || '-') + '</td>' +
+          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.brand || '-') + '</td><td class="px-3 py-3">' + escapePurchaseHistoryText(item.model || '-') + '</td>' +
+          '<td class="px-3 py-3 text-right font-semibold">' + Number(item.qty_ordered || 0).toLocaleString('th-TH') + '</td><td class="px-3 py-3">' + escapePurchaseHistoryText(item.unit || '-') + '</td>' +
+          '<td class="px-3 py-3 text-right">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.unit_price, item.currency)) + '</td><td class="px-3 py-3 text-right font-semibold">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.total_amount, item.currency)) + '</td>' +
+          '<td class="px-3 py-3">' + purchaseHistoryStatusBadge(item.status) + '</td><td class="px-3 py-3">' + escapePurchaseHistoryText(item.requested_by || '-') + '</td>' +
+          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(item.updated_at)) + '</td><td class="px-3 py-3">' + escapePurchaseHistoryText(item.remark || '-') + '</td><td class="px-3 py-3">' + actions + '</td></tr>';
+      }).join('') : '<tr><td colspan="14" class="px-3 py-8 text-center text-slate-400">ไม่พบประวัติการสั่งซื้อ</td></tr>';
+
+      var first = rows.length ? start + 1 : 0, last = Math.min(start + PURCHASE_HISTORY_PAGE_SIZE, rows.length);
+      if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'Showing ' + first + '–' + last + ' of ' + rows.length;
+      if (purchaseHistoryPageInfo) purchaseHistoryPageInfo.textContent = 'Page ' + purchaseHistoryCurrentPage + ' / ' + totalPages;
+      if (purchaseHistoryPrevBtn) purchaseHistoryPrevBtn.disabled = purchaseHistoryCurrentPage <= 1;
+      if (purchaseHistoryNextBtn) purchaseHistoryNextBtn.disabled = purchaseHistoryCurrentPage >= totalPages;
     }
 
     function loadPurchaseHistory(forceRefresh) {
-      if (purchaseHistoryLoaded && !forceRefresh) {
-        renderPurchaseHistory();
-        return Promise.resolve(purchaseHistoryCache);
-      }
+      if (purchaseHistoryLoaded && !forceRefresh) { renderPurchaseHistory(); return Promise.resolve(purchaseHistoryCache); }
       if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'กำลังโหลด Purchase History...';
       return requestApi(withAuthPayload({ action: 'getPurchaseHistory' })).then(parseApiResponse).then(function(rows) {
-        purchaseHistoryCache = Array.isArray(rows) ? rows : [];
-        purchaseHistoryLoaded = true;
-        populatePurchaseHistoryFilters();
-        renderPurchaseHistory();
-        return purchaseHistoryCache;
-      }).catch(function(err) {
-        if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'โหลด Purchase History ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
-        throw err;
-      });
+        purchaseHistoryCache = Array.isArray(rows) ? rows : []; purchaseHistoryLoaded = true; populatePurchaseHistoryFilters(); renderPurchaseHistory(); return purchaseHistoryCache;
+      }).catch(function(err) { if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'โหลด Purchase History ไม่สำเร็จ: ' + (err && err.message ? err.message : err); throw err; });
+    }
+
+    function openPurchaseHistoryEdit(historyId) {
+      if (!canEditPurchaseHistory()) return;
+      var item = purchaseHistoryCache.filter(function(row) { return row.history_id === historyId; })[0];
+      if (!item || !purchaseHistoryEditModal) return;
+      purchaseHistoryEditId.value = item.history_id; purchaseHistoryEditQty.value = item.qty_ordered || '';
+      purchaseHistoryEditPrice.value = item.unit_price === undefined || item.unit_price === null ? '' : item.unit_price;
+      purchaseHistoryEditCurrency.value = item.currency || 'THB'; purchaseHistoryEditStatus.value = item.status || 'Requested';
+      purchaseHistoryEditRemark.value = item.remark || ''; purchaseHistoryEditReason.value = '';
+      purchaseHistoryEditLabel.textContent = (item.part_name || '-') + ' • ' + (item.request_id || '-');
+      purchaseHistoryEditModal.classList.remove('hidden'); purchaseHistoryEditModal.classList.add('flex');
+    }
+
+    function closePurchaseHistoryEdit() {
+      if (!purchaseHistoryEditModal) return;
+      purchaseHistoryEditModal.classList.add('hidden'); purchaseHistoryEditModal.classList.remove('flex');
     }
 
     function renderPartPurchaseHistory(item) {
       var rowsEl = document.getElementById('detailPurchaseHistoryRows');
       var summaryEl = document.getElementById('detailPurchaseHistorySummary');
       if (!rowsEl || !item) return;
-      var partId = String(item.no || item.part_id || '').trim();
-      var partName = String(item.name || '').trim().toLowerCase();
-      var model = String(item.model || '').trim().toLowerCase();
+      var partId = String(item.no || item.part_id || '').trim(), partName = String(item.name || '').trim().toLowerCase(), model = String(item.model || '').trim().toLowerCase();
       var matched = purchaseHistoryCache.filter(function(history) {
         if (partId && String(history.part_id || '').trim() === partId) return true;
         return partName && String(history.part_name || '').trim().toLowerCase() === partName && (!model || String(history.model || '').trim().toLowerCase() === model);
       });
       rowsEl.innerHTML = matched.length ? matched.slice(0, 10).map(function(history) {
-        return '<tr class="border-t border-emerald-50"><td class="px-3 py-2">' + escapePurchaseHistoryText(history.month || '-') + '</td><td class="px-3 py-2 text-right font-semibold">' + Number(history.qty_ordered || 0).toLocaleString() + '</td><td class="px-3 py-2">' + purchaseHistoryStatusBadge(history.status) + '</td><td class="px-3 py-2">' + escapePurchaseHistoryText(history.requested_by || '-') + '</td><td class="px-3 py-2 whitespace-nowrap">' + escapePurchaseHistoryText(history.updated_at || '-') + '</td></tr>';
+        return '<tr class="border-t border-emerald-50"><td class="px-3 py-2">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(history.date)) + '</td><td class="px-3 py-2 text-right font-semibold">' + Number(history.qty_ordered || 0).toLocaleString('th-TH') + '</td><td class="px-3 py-2">' + purchaseHistoryStatusBadge(history.status) + '</td><td class="px-3 py-2">' + escapePurchaseHistoryText(history.requested_by || '-') + '</td><td class="px-3 py-2 whitespace-nowrap">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(history.updated_at)) + '</td></tr>';
       }).join('') : '<tr><td colspan="5" class="px-3 py-3 text-center text-slate-400">ยังไม่มีประวัติการสั่งซื้อ</td></tr>';
       if (summaryEl) summaryEl.textContent = matched.length + ' รายการ';
     }
@@ -4550,12 +4603,8 @@ function inferRequestPriority(stock, min) {
     function loadPartPurchaseHistory(item) {
       renderPartPurchaseHistory(item);
       if (purchaseHistoryLoaded) return;
-      loadPurchaseHistory(false).then(function() {
-        if (String(detailModalCurrentNo || '') === String(item.no || '')) renderPartPurchaseHistory(item);
-      }).catch(function() {
-        var rowsEl = document.getElementById('detailPurchaseHistoryRows');
-        if (rowsEl) rowsEl.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-center text-rose-500">โหลดประวัติไม่สำเร็จ</td></tr>';
-      });
+      loadPurchaseHistory(false).then(function() { if (String(detailModalCurrentNo || '') === String(item.no || '')) renderPartPurchaseHistory(item); })
+        .catch(function() { var rowsEl = document.getElementById('detailPurchaseHistoryRows'); if (rowsEl) rowsEl.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-center text-rose-500">โหลดประวัติไม่สำเร็จ</td></tr>'; });
     }
 
     function switchToPurchaseHistoryPage() {
@@ -6863,11 +6912,38 @@ function inferRequestPriority(stock, min) {
     if (tabRequestOrder) tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
-    if (purchaseHistoryRefreshBtn) purchaseHistoryRefreshBtn.addEventListener('click', function() { loadPurchaseHistory(true).catch(function() {}); });
+    if (purchaseHistoryRefreshBtn) purchaseHistoryRefreshBtn.addEventListener('click', function() { purchaseHistoryCurrentPage = 1; loadPurchaseHistory(true).catch(function() {}); });
     [purchaseHistoryMonthFilter, purchaseHistoryLineFilter, purchaseHistoryStatusFilter, purchaseHistorySearch].forEach(function(control) {
       if (!control) return;
-      control.addEventListener(control.tagName === 'INPUT' ? 'input' : 'change', renderPurchaseHistory);
+      control.addEventListener(control.tagName === 'INPUT' ? 'input' : 'change', function() { purchaseHistoryCurrentPage = 1; renderPurchaseHistory(); });
     });
+    if (purchaseHistoryPrevBtn) purchaseHistoryPrevBtn.addEventListener('click', function() { if (purchaseHistoryCurrentPage > 1) { purchaseHistoryCurrentPage -= 1; renderPurchaseHistory(); } });
+    if (purchaseHistoryNextBtn) purchaseHistoryNextBtn.addEventListener('click', function() { var pages = Math.max(1, Math.ceil(getFilteredPurchaseHistory().length / PURCHASE_HISTORY_PAGE_SIZE)); if (purchaseHistoryCurrentPage < pages) { purchaseHistoryCurrentPage += 1; renderPurchaseHistory(); } });
+    if (purchaseHistoryTable) purchaseHistoryTable.addEventListener('click', function(e) {
+      var editBtn = e.target.closest('[data-ph-edit]');
+      if (editBtn) return openPurchaseHistoryEdit(editBtn.getAttribute('data-ph-edit'));
+      var deleteBtn = e.target.closest('[data-ph-delete]');
+      if (!deleteBtn || !canEditPurchaseHistory()) return;
+      var historyId = deleteBtn.getAttribute('data-ph-delete');
+      var reason = prompt('ระบุเหตุผลการลบ Purchase History');
+      if (!reason) return;
+      if (!confirm('ยืนยันการลบรายการนี้? ระบบจะ Soft Delete และเก็บ Audit Log')) return;
+      postJson(withAuthPayload({ action: 'deletePurchaseHistory', history_id: historyId, reason: reason })).then(parseApiResponse).then(function() {
+        purchaseHistoryLoaded = false; return loadPurchaseHistory(true);
+      }).catch(function(err) { alert('ลบไม่สำเร็จ: ' + (err && err.message ? err.message : err)); });
+    });
+    if (purchaseHistoryEditForm) purchaseHistoryEditForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      postJson(withAuthPayload({
+        action: 'editPurchaseHistory', history_id: purchaseHistoryEditId.value, qty_ordered: purchaseHistoryEditQty.value,
+        unit_price: purchaseHistoryEditPrice.value, currency: purchaseHistoryEditCurrency.value, status: purchaseHistoryEditStatus.value,
+        remark: purchaseHistoryEditRemark.value, reason: purchaseHistoryEditReason.value
+      })).then(parseApiResponse).then(function() {
+        closePurchaseHistoryEdit(); purchaseHistoryLoaded = false; return loadPurchaseHistory(true);
+      }).catch(function(err) { alert('แก้ไขไม่สำเร็จ: ' + (err && err.message ? err.message : err)); });
+    });
+    ['purchaseHistoryEditClose', 'purchaseHistoryEditCancel'].forEach(function(id) { var button = document.getElementById(id); if (button) button.addEventListener('click', closePurchaseHistoryEdit); });
+    if (purchaseHistoryEditModal) purchaseHistoryEditModal.addEventListener('click', function(e) { if (e.target === purchaseHistoryEditModal) closePurchaseHistoryEdit(); });
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
     if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1); });
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
@@ -7503,6 +7579,8 @@ if (dashboardPage) {
             line: item.line || '',
             qty_ordered: Number(item.suggestedQty || 0),
             unit: item.unit || '',
+            unit_price: Number(item.unitPrice || 0) > 0 ? Number(item.unitPrice) : '',
+            currency: item.currency || 'THB',
             remark: item.reason || ''
           };
         })
@@ -7733,6 +7811,8 @@ if (dashboardPage) {
         max: isNewItemMode ? 0 : roSelectedItem.max,
         request_qty: qty,
         unit: isNewItemMode ? '' : (roSelectedItem.unit || ''),
+        unit_price: isNewItemMode ? '' : (roSelectedItem.unit_price !== undefined && roSelectedItem.unit_price !== null ? roSelectedItem.unit_price : (roSelectedItem.unitPrice !== undefined && roSelectedItem.unitPrice !== null ? roSelectedItem.unitPrice : '')),
+        currency: isNewItemMode ? '' : (roSelectedItem.currency || 'THB'),
         reason: reason,
         priority: isNewItemMode ? 'Normal' : inferRequestPriority(roSelectedItem.stock, roSelectedItem.min),
         remark: document.getElementById('roRemark').value,
