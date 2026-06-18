@@ -782,6 +782,24 @@
       </div>
     </section>
 
+    <!-- Datalists for PDF import autocomplete (populated from partsData at runtime) -->
+    <datalist id="phPartNameList"></datalist>
+    <datalist id="phBrandList"></datalist>
+    <datalist id="phModelList"></datalist>
+
+    <!-- Custom confirm dialog for destructive actions -->
+    <div id="confirmDialog" class="fixed inset-0 z-[10002] hidden items-center justify-center bg-slate-900/60 p-4" style="display:none;">
+      <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <div id="confirmDialogIcon" class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-2xl">🗑️</div>
+        <h3 id="confirmDialogTitle" class="text-center text-lg font-bold text-slate-900">ยืนยันการลบ</h3>
+        <p id="confirmDialogMessage" class="mt-2 text-center text-sm text-slate-500"></p>
+        <div class="mt-5 flex gap-3">
+          <button id="confirmDialogCancel" type="button" class="flex-1 rounded-xl border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">ยกเลิก</button>
+          <button id="confirmDialogOk" type="button" class="flex-1 rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-700">ยืนยันลบ</button>
+        </div>
+      </div>
+    </div>
+
     <div id="purchaseHistoryImportModal" class="fixed inset-0 z-[125] hidden items-start justify-center overflow-y-auto bg-slate-900/70 p-3 md:p-6">
       <div class="my-3 w-full max-w-7xl rounded-2xl bg-white p-4 shadow-2xl md:p-5">
         <div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-bold">Import PR PDF</h3><p class="text-sm text-slate-500">อัปโหลด PDF จาก PR Report เดิม ตรวจ Preview แล้วจึง Confirm Import</p></div><button id="purchaseHistoryImportClose" type="button" class="h-9 w-9 rounded-full border border-slate-300">×</button></div>
@@ -3459,8 +3477,13 @@ function getIssueCartEntries() {
       Array.prototype.slice.call(document.querySelectorAll('[data-delete-user]')).forEach(function(btn) {
         btn.addEventListener('click', function() {
           var username = btn.getAttribute('data-delete-user');
-          if (!confirm('ลบผู้ใช้ ' + username + ' ?')) return;
-          requestApi(withAuthPayload({ action: 'deleteUser', username: username }))
+          showConfirmDialog({
+            title: 'ลบผู้ใช้',
+            message: 'ต้องการลบผู้ใช้ "' + username + '" ออกจากระบบ? ไม่สามารถกู้คืนได้',
+            okLabel: 'ยืนยันลบ'
+          }).then(function(confirmed) {
+            if (!confirmed) return;
+            requestApi(withAuthPayload({ action: 'deleteUser', username: username }))
             .then(parseApiResponse)
             .then(function() {
               userManageMessage.className = 'mb-3 text-sm text-emerald-600';
@@ -3472,6 +3495,7 @@ function getIssueCartEntries() {
               userManageMessage.className = 'mb-3 text-sm text-rose-600';
               userManageMessage.textContent = err.message;
             });
+          });
         });
       });
     }
@@ -4675,12 +4699,56 @@ function inferRequestPriority(stock, min) {
         .catch(function() { var rowsEl = document.getElementById('detailPurchaseHistoryRows'); if (rowsEl) rowsEl.innerHTML = '<tr><td colspan="5" class="px-3 py-3 text-center text-rose-500">โหลดประวัติไม่สำเร็จ</td></tr>'; });
     }
 
+    function populatePhDataLists() {
+      var partNames = {}, brands = {}, models = {};
+      (partsData || []).forEach(function(p) {
+        if (p.part_name) partNames[String(p.part_name).trim()] = true;
+        if (p.brand)     brands[String(p.brand).trim()] = true;
+        if (p.model)     models[String(p.model).trim()] = true;
+      });
+      ['phPartNameList', 'phBrandList', 'phModelList'].forEach(function(id, i) {
+        var dl = document.getElementById(id);
+        if (!dl) return;
+        var vals = [Object.keys(partNames), Object.keys(brands), Object.keys(models)][i];
+        dl.innerHTML = vals.sort().map(function(v) { return '<option value="' + v.replace(/"/g, '&quot;') + '">'; }).join('');
+      });
+    }
+
+    function showConfirmDialog(opts) {
+      return new Promise(function(resolve) {
+        var dialog = document.getElementById('confirmDialog');
+        var title  = document.getElementById('confirmDialogTitle');
+        var msg    = document.getElementById('confirmDialogMessage');
+        var okBtn  = document.getElementById('confirmDialogOk');
+        var cancelBtn = document.getElementById('confirmDialogCancel');
+        if (!dialog) { resolve(window.confirm(opts.message || 'ยืนยัน?')); return; }
+        if (title)  title.textContent  = opts.title   || 'ยืนยัน';
+        if (msg)    msg.textContent    = opts.message  || '';
+        if (okBtn)  okBtn.textContent  = opts.okLabel  || 'ยืนยัน';
+        dialog.style.display = 'flex';
+        function cleanup(result) {
+          dialog.style.display = 'none';
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          resolve(result);
+        }
+        function onOk()     { cleanup(true);  }
+        function onCancel() { cleanup(false); }
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        dialog.addEventListener('click', function onBg(e) {
+          if (e.target === dialog) { dialog.removeEventListener('click', onBg); cleanup(false); }
+        });
+      });
+    }
+
     function openPurchaseHistoryImport() {
       if (!canEditPurchaseHistory()) return alert('เฉพาะ Admin / Engineer เท่านั้นที่ Import PR PDF ได้');
       purchaseHistoryImportRows = [];
       purchaseHistoryImportFilesMeta = [];
       if (purchaseHistoryPdfFiles) purchaseHistoryPdfFiles.value = '';
       if (purchaseHistorySelectedFiles) purchaseHistorySelectedFiles.textContent = 'ยังไม่ได้เลือกไฟล์';
+      populatePhDataLists();
       renderPurchaseHistoryImportPreview();
       purchaseHistoryImportModal.classList.remove('hidden');
       purchaseHistoryImportModal.classList.add('flex');
@@ -5089,8 +5157,8 @@ function inferRequestPriority(stock, min) {
         return '<tr class="border-t ' + reviewClass + '" data-ph-import-row="' + index + '">' +
           '<td class="px-2 py-2 text-center"><input type="checkbox" data-import-field="include" ' + (row.include ? 'checked' : '') + ' /></td><td class="px-2 py-2">' + escapePurchaseHistoryText(row.source_file_name) + '</td>' +
           '<td class="px-2 py-2"><input data-import-field="requested_date" value="' + escapePurchaseHistoryText(row.requested_date) + '" class="w-40 rounded border px-1 py-1" /></td><td class="px-2 py-2"><input data-import-field="line" value="' + escapePurchaseHistoryText(row.line) + '" class="w-28 rounded border px-1 py-1" /></td>' +
-          '<td class="px-2 py-2"><input data-import-field="part_name" value="' + escapePurchaseHistoryText(row.part_name) + '" class="w-52 rounded border px-1 py-1" /></td><td class="px-2 py-2"><input data-import-field="brand" value="' + escapePurchaseHistoryText(row.brand) + '" class="w-28 rounded border px-1 py-1" /></td>' +
-          '<td class="px-2 py-2"><input data-import-field="model" value="' + escapePurchaseHistoryText(row.model) + '" class="w-40 rounded border px-1 py-1" /></td><td class="px-2 py-2"><input type="number" min="0" step="any" data-import-field="qty_ordered" value="' + escapePurchaseHistoryText(row.qty_ordered) + '" class="w-20 rounded border px-1 py-1" /></td>' +
+          '<td class="px-2 py-2"><input data-import-field="part_name" list="phPartNameList" value="' + escapePurchaseHistoryText(row.part_name) + '" class="w-52 rounded border px-1 py-1" placeholder="ค้นหาชื่อชิ้นส่วน..." /></td><td class="px-2 py-2"><input data-import-field="brand" list="phBrandList" value="' + escapePurchaseHistoryText(row.brand) + '" class="w-28 rounded border px-1 py-1" placeholder="Brand..." /></td>' +
+          '<td class="px-2 py-2"><input data-import-field="model" list="phModelList" value="' + escapePurchaseHistoryText(row.model) + '" class="w-40 rounded border px-1 py-1" placeholder="Model..." /></td><td class="px-2 py-2"><input type="number" min="0" step="any" data-import-field="qty_ordered" value="' + escapePurchaseHistoryText(row.qty_ordered) + '" class="w-20 rounded border px-1 py-1" /></td>' +
           '<td class="px-2 py-2"><input data-import-field="unit" value="' + escapePurchaseHistoryText(row.unit) + '" class="w-20 rounded border px-1 py-1" /></td><td class="px-2 py-2"><input type="number" min="0" step="any" data-import-field="unit_price" value="' + escapePurchaseHistoryText(row.unit_price) + '" class="w-24 rounded border px-1 py-1" /></td>' +
           '<td class="px-2 py-2 text-right">' + escapePurchaseHistoryText(row.total_amount === '' ? '-' : formatPurchaseHistoryMoney(row.total_amount, row.currency)) + '</td><td class="px-2 py-2">' + escapePurchaseHistoryText(row.price_status) + '</td><td class="px-2 py-2">' + escapePurchaseHistoryText(row.status) + '</td>' +
           '<td class="px-2 py-2">' + (row.duplicate ? '<select data-import-field="duplicate_action" class="rounded border px-1 py-1"><option value="skip" ' + (row.duplicate_action === 'skip' ? 'selected' : '') + '>Skip</option><option value="replace" ' + (row.duplicate_action === 'replace' ? 'selected' : '') + '>Replace</option></select>' : '-') + '</td>' +
@@ -8642,8 +8710,13 @@ if (dashboardPage) {
       if (!hasPermission('delete_user')) return;
       var username = document.getElementById('uUsername').value;
       if (!username) return;
-      if (!confirm('ลบผู้ใช้ ' + username + ' ?')) return;
-      requestApi(withAuthPayload({ action: 'deleteUser', username: username }))
+      showConfirmDialog({
+        title: 'ลบผู้ใช้',
+        message: 'ต้องการลบผู้ใช้ "' + username + '" ออกจากระบบ?\nไม่สามารถกู้คืนได้',
+        okLabel: 'ยืนยันลบ'
+      }).then(function(confirmed) {
+        if (!confirmed) return;
+        requestApi(withAuthPayload({ action: 'deleteUser', username: username }))
         .then(parseApiResponse)
         .then(function() {
           userManageMessage.className = 'mb-3 text-sm text-emerald-600';
@@ -8656,6 +8729,7 @@ if (dashboardPage) {
           userManageMessage.className = 'mb-3 text-sm text-rose-600';
           userManageMessage.textContent = err.message;
         });
+      });
     });
     document.getElementById('uRole').addEventListener('change', function() {
       applyRolePreset(this.value);
