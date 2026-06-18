@@ -46,6 +46,9 @@
     body.quick-issue-open #lineMenuBackdrop {
       display: none !important;
     }
+    /* Refresh button spin animation for SVG icon */
+    @keyframes btn-spin { to { transform: rotate(360deg); } }
+    #refreshStockSpinner { animation: btn-spin .75s linear infinite; }
     
     .search-clear-btn {
       width: 28px; height: 28px;
@@ -65,8 +68,15 @@
       font-size: 13px; font-weight: 700; z-index: 10; pointer-events: none;
     }
     .request-order-nav-badge.hidden { display: none !important; }
+    /* ── Z-index hierarchy ─────────────────────────────────
+       50  : sticky header / nav
+       60  : side panels / drawers
+       9000: detail modals (roDetailModal)
+       9500: image lightbox (roImageModal)
+       10000: splash screen
+    ────────────────────────────────────────────────────── */
     #roDetailModal {
-      position: fixed; inset: 0; z-index: 9999; background: rgba(15, 23, 42, 0.45);
+      position: fixed; inset: 0; z-index: 9000; background: rgba(15, 23, 42, 0.45);
       display: flex; align-items: center; justify-content: center; padding: 16px;
     }
     #roDetailModal.hidden { display: none !important; }
@@ -174,7 +184,10 @@
                 <option value="Main List Stock">General</option>
                 <option value="Stock for MC">Stock for MC</option>
               </select>
-              <button id="refreshStockDataBtn" type="button" class="ml-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700">Refresh Stock Data</button>
+              <button id="refreshStockDataBtn" type="button" class="ml-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 flex items-center gap-1.5 transition-opacity">
+                <svg id="refreshStockSpinner" class="hidden h-3.5 w-3.5 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a10 10 0 100 10z"/></svg>
+                <span id="refreshStockBtnLabel">🔄 Refresh</span>
+              </button>
             </div>
           </div>
           <div id="stockUtilityMenuMobile" class="mt-2 hidden md:hidden grid grid-cols-3 gap-2 text-xs">
@@ -334,7 +347,7 @@
             <div id="roDetailList" class="space-y-2"></div>
         </div>
       </div>
-      <div id="roImageModal" class="fixed inset-0 z-[60] hidden bg-black/70 p-4">
+      <div id="roImageModal" class="fixed inset-0 z-[9500] hidden bg-black/70 p-4">
         <div class="flex h-full w-full items-center justify-center">
           <div class="relative max-h-full max-w-4xl">
             <button id="roImageModalClose" type="button" class="absolute -right-2 -top-2 rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-800 shadow">ปิด</button>
@@ -5042,12 +5055,25 @@ function inferRequestPriority(stock, min) {
     function loadPurchaseImportMasterRows(rows) {
       var lines = Array.from(new Set((rows || []).map(function(row) { return canonicalLineName(row.line || ''); }).filter(Boolean)));
       if (!lines.length) lines = [currentLine || 'H9'];
+      var failedLines = [];
       return Promise.all(lines.map(function(line) {
         return loadPrSourceItems('line_specific', line).catch(function(err) {
           console.warn('purchase import master load failed', line, err);
+          failedLines.push(line);
           return [];
         });
-      })).then(function(sets) { return [].concat.apply([], sets); });
+      })).then(function(sets) {
+        if (failedLines.length) {
+          var statusEl = document.getElementById('purchaseHistoryImportStatus');
+          var msg = '⚠️ โหลด Item Master ไม่สำเร็จสำหรับ Line: ' + failedLines.join(', ') + ' — ข้อมูล Brand/Model อาจไม่ครบถ้วน';
+          if (statusEl) {
+            statusEl.textContent = msg;
+            statusEl.classList.add('text-amber-700');
+          }
+          showQuickToast(msg, 'warn');
+        }
+        return [].concat.apply([], sets);
+      });
     }
 
     function renderPurchaseHistoryImportPreview() {
@@ -5459,7 +5485,7 @@ function inferRequestPriority(stock, min) {
       renderStockSkeleton('Loading spare parts lite data...');
       txnResultList.innerHTML = '<div class="md:col-span-2 py-8 text-center text-slate-400">กำลังโหลดรายการสำหรับเบิก/รับ...</div>';
       var hasAppliedCache = false;
-      Promise.all(activeSheets.map(function(sheetName, idx) {
+      return Promise.all(activeSheets.map(function(sheetName, idx) {
         return fetchSheetRows(sheetName, { lite: true, refresh: skipCache }).finally(function() {
           if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
           desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
@@ -5861,14 +5887,30 @@ function inferRequestPriority(stock, min) {
     function showQuickToast(message, tone) {
       var existing = document.getElementById('quickActionToast');
       if (existing) existing.remove();
+      var colorClass = tone === 'success' ? 'bg-emerald-600'
+                     : tone === 'error'   ? 'bg-rose-600'
+                     : tone === 'warn'    ? 'bg-amber-500'
+                     : 'bg-slate-800';
+      var icon = tone === 'success' ? '✓ '
+               : tone === 'error'   ? '✕ '
+               : tone === 'warn'    ? '⚠ '
+               : '';
+      var duration = (tone === 'warn' || tone === 'error') ? 4000 : 2000;
       var toast = document.createElement('div');
       toast.id = 'quickActionToast';
-      toast.className = 'fixed left-1/2 top-4 z-[160] -translate-x-1/2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg ' + (tone === 'success' ? 'bg-emerald-600' : 'bg-slate-800');
-      toast.textContent = message || 'บันทึกสำเร็จ';
+      toast.className = 'fixed left-1/2 top-4 z-[10001] -translate-x-1/2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-xl transition-all ' + colorClass;
+      toast.style.cssText = 'transform:translate(-50%,-12px);opacity:0;transition:transform .2s ease,opacity .2s ease;max-width:90vw;text-align:center;';
+      toast.textContent = icon + (message || 'บันทึกสำเร็จ');
       document.body.appendChild(toast);
+      requestAnimationFrame(function() {
+        toast.style.transform = 'translate(-50%,0)';
+        toast.style.opacity = '1';
+      });
       setTimeout(function() {
-        if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
-      }, 1800);
+        toast.style.transform = 'translate(-50%,-12px)';
+        toast.style.opacity = '0';
+        setTimeout(function() { if (toast && toast.parentNode) toast.parentNode.removeChild(toast); }, 220);
+      }, duration);
     }
 
     function setQuickIssueSubmitState(isSubmitting) {
@@ -7593,7 +7635,29 @@ if (dashboardPage) {
       var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Missing';
       setAttachmentLink('eDrawingView', '');
     });
-    if (refreshStockDataBtn) refreshStockDataBtn.addEventListener('click', function(){ loadPartsData({ skipCache: true }); });
+    if (refreshStockDataBtn) refreshStockDataBtn.addEventListener('click', function() {
+      var spinner = document.getElementById('refreshStockSpinner');
+      var label = document.getElementById('refreshStockBtnLabel');
+      if (refreshStockDataBtn.disabled) return;
+      refreshStockDataBtn.disabled = true;
+      refreshStockDataBtn.classList.add('opacity-60', 'cursor-not-allowed');
+      if (spinner) spinner.classList.remove('hidden');
+      if (label) label.textContent = 'กำลังโหลด...';
+      var done = function() {
+        refreshStockDataBtn.disabled = false;
+        refreshStockDataBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+        if (spinner) spinner.classList.add('hidden');
+        if (label) label.textContent = '🔄 Refresh';
+      };
+      try {
+        var p = loadPartsData({ skipCache: true });
+        if (p && typeof p.then === 'function') {
+          p.then(done).catch(done);
+        } else {
+          setTimeout(done, 3000);
+        }
+      } catch (e) { done(); }
+    });
     manageForm.addEventListener('submit', submitManageItem);
     var mCoilSize = document.getElementById('mCoilSize'); var mCoilSizeOther = document.getElementById('mCoilSizeOther'); if (mCoilSize) mCoilSize.addEventListener('change', function(){ if(!mCoilSizeOther) return; mCoilSizeOther.classList.toggle('hidden', mCoilSize.value !== 'Other'); });
     syncManageCoilSizeVisibility();
