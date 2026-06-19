@@ -760,6 +760,34 @@ function createPurchaseHistoryBatch(payload) {
   return { status: 'success', count: results.length, history_ids: results.map(function(result) { return result.history_id; }) };
 }
 
+function addManualPurchaseHistory(payload) {
+  var session = getSessionUser({ authToken: payload.authToken });
+  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  var qty = Number(payload.qty_ordered || 0);
+  if (!isFinite(qty) || qty <= 0) throw new Error('Qty Ordered ต้องมากกว่า 0');
+  if (!String(payload.part_name || '').trim()) throw new Error('กรุณาระบุ Part Name');
+  var status = String(payload.status || 'Requested').trim();
+  if (PURCHASE_HISTORY_STATUSES.indexOf(status) === -1) throw new Error('Status ไม่ถูกต้อง');
+  var result = upsertPurchaseHistoryRecord({
+    source: 'Manual',
+    date: payload.date || new Date(),
+    line: payload.line || '',
+    part_name: String(payload.part_name || '').trim(),
+    brand: payload.brand || '',
+    model: payload.model || '',
+    qty_ordered: qty,
+    unit: payload.unit || '',
+    unit_price: payload.unit_price !== undefined && payload.unit_price !== '' ? Number(payload.unit_price) : undefined,
+    currency: payload.currency || (payload.unit_price ? 'THB' : ''),
+    status: status,
+    requested_by: String(payload.requested_by || session.user.username || '').trim(),
+    updated_by: session.user.username,
+    remark: payload.remark || '',
+    force_status: true
+  });
+  return { status: 'success', history: result };
+}
+
 function syncPurchaseHistoryForRequest(requestRow, status, updatedBy, remark, preserveExistingQty) {
   var statusMap = { Pending: 'Requested', Approved: 'Requested', 'On Hold': 'Requested', 'Converted to PR': 'PR Created', Purchased: 'Ordered', Received: 'Received', Rejected: 'Cancelled', Closed: 'Cancelled' };
   var purchaseStatus = statusMap[status] || 'Requested';
@@ -2258,6 +2286,7 @@ function doGet(e) {
     if (action === 'editPurchaseHistory') return respond(editPurchaseHistory(e.parameter), e);
     if (action === 'deletePurchaseHistory') return respond(deletePurchaseHistory(e.parameter), e);
     if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(e.parameter), e);
+    if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(e.parameter), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(e.parameter), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
@@ -2494,6 +2523,7 @@ function doPost(e) {
     if (action === 'editPurchaseHistory') return respond(editPurchaseHistory(body), e);
     if (action === 'deletePurchaseHistory') return respond(deletePurchaseHistory(body), e);
     if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(body), e);
+    if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(body), e);
     if (action === 'importPurchaseHistoryPdfBatch') return respond(importPurchaseHistoryPdfBatch(body), e);
     if (action === 'createPurchaseHistoryBatch') return respond(createPurchaseHistoryBatch(body), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(body), e);

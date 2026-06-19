@@ -752,7 +752,10 @@
           <h2 class="text-xl font-bold text-slate-900">Purchase History</h2>
           <p class="text-sm text-slate-500">ประวัติการขอซื้อและสั่งซื้ออะไหล่สำหรับดูย้อนหลังและวิเคราะห์เบื้องต้น</p>
         </div>
-        <button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
+        <div class="flex gap-2">
+          <button id="purchaseHistoryAddBtn" type="button" class="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white">+ เพิ่มรายการ Manual</button>
+          <button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
+        </div>
       </div>
       <div class="flex flex-col gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -830,6 +833,78 @@
         <label class="block text-sm font-semibold text-slate-700">Remark<textarea id="purchaseHistoryEditRemark" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></textarea></label>
         <label class="block text-sm font-semibold text-slate-700">Reason for change<input id="purchaseHistoryEditReason" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" /></label>
         <div class="flex justify-end gap-2"><button id="purchaseHistoryEditCancel" type="button" class="rounded-lg border border-slate-300 px-4 py-2">Cancel</button><button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white">Save</button></div>
+      </form>
+    </div>
+
+    <!-- Manual Add Purchase History Modal -->
+    <div id="phManualModal" class="fixed inset-0 z-[125] hidden overflow-y-auto bg-slate-900/60 p-4">
+      <form id="phManualForm" class="mx-auto w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl md:my-8">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div><h3 class="text-lg font-bold text-slate-900">เพิ่มรายการ Manual</h3><p class="text-xs text-slate-500 mt-0.5">บันทึกประวัติการสั่งซื้อด้วยตนเอง (source: Manual)</p></div>
+          <button id="phManualClose" type="button" class="h-9 w-9 rounded-full border border-slate-300 text-slate-500 text-lg leading-none">×</button>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="text-sm font-semibold text-slate-700">Line <span class="text-rose-500">*</span>
+            <select id="phManualLine" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3">
+              <option value="">-- เลือก Line --</option>
+              <option value="H9">H9</option>
+              <option value="Arc Chute">Arc Chute</option>
+              <option value="Coil Winding">Coil Winding</option>
+              <option value="Lug&amp;Screw">Lug&amp;Screw</option>
+            </select>
+          </label>
+          <label class="text-sm font-semibold text-slate-700">Status <span class="text-rose-500">*</span>
+            <select id="phManualStatus" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3">
+              <option value="Requested">Requested</option>
+              <option value="PR Created">PR Created</option>
+              <option value="Ordered">Ordered</option>
+              <option value="Partial Received">Partial Received</option>
+              <option value="Received">Received</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </label>
+        </div>
+        <label class="block text-sm font-semibold text-slate-700">Part Name <span class="text-rose-500">*</span>
+          <input id="phManualPartName" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="ชื่ออะไหล่" list="phPartNameList" />
+        </label>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="text-sm font-semibold text-slate-700">Model / Part No.
+            <input id="phManualModel" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="-" list="phModelList" />
+          </label>
+          <label class="text-sm font-semibold text-slate-700">Brand
+            <input id="phManualBrand" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="-" list="phBrandList" />
+          </label>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <label class="text-sm font-semibold text-slate-700">Qty <span class="text-rose-500">*</span>
+            <input id="phManualQty" type="number" min="0.000001" step="any" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="0" />
+          </label>
+          <label class="text-sm font-semibold text-slate-700">Unit
+            <input id="phManualUnit" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="PCS" />
+          </label>
+          <label class="text-sm font-semibold text-slate-700">Unit Price
+            <input id="phManualUnitPrice" type="number" min="0" step="any" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="0.00" />
+          </label>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="text-sm font-semibold text-slate-700">Currency
+            <input id="phManualCurrency" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" value="THB" />
+          </label>
+          <label class="text-sm font-semibold text-slate-700">Requested By
+            <input id="phManualRequestedBy" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="ชื่อผู้ขอ" />
+          </label>
+        </div>
+        <label class="block text-sm font-semibold text-slate-700">วันที่ขอ (Request Date)
+          <input id="phManualDate" type="date" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" />
+        </label>
+        <label class="block text-sm font-semibold text-slate-700">Remark
+          <textarea id="phManualRemark" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
+        </label>
+        <p id="phManualMessage" class="text-sm"></p>
+        <div class="flex justify-end gap-2 pt-1">
+          <button id="phManualCancel" type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">ยกเลิก</button>
+          <button id="phManualSubmit" type="submit" class="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white">บันทึก</button>
+        </div>
       </form>
     </div>
 
@@ -1446,6 +1521,10 @@
     var purchaseHistoryEditReason = document.getElementById('purchaseHistoryEditReason');
     var purchaseHistoryEditLabel = document.getElementById('purchaseHistoryEditLabel');
     var purchaseHistoryImportBtn = document.getElementById('purchaseHistoryImportBtn');
+    var purchaseHistoryAddBtn = document.getElementById('purchaseHistoryAddBtn');
+    var phManualModal = document.getElementById('phManualModal');
+    var phManualForm = document.getElementById('phManualForm');
+    var phManualMessage = document.getElementById('phManualMessage');
     var purchaseHistoryImportModal = document.getElementById('purchaseHistoryImportModal');
     var purchaseHistoryPdfFiles = document.getElementById('purchaseHistoryPdfFiles');
     var purchaseHistorySelectedFiles = document.getElementById('purchaseHistorySelectedFiles');
@@ -7547,6 +7626,57 @@ function inferRequestPriority(stock, min) {
     });
     ['purchaseHistoryEditClose', 'purchaseHistoryEditCancel'].forEach(function(id) { var button = document.getElementById(id); if (button) button.addEventListener('click', closePurchaseHistoryEdit); });
     if (purchaseHistoryEditModal) purchaseHistoryEditModal.addEventListener('click', function(e) { if (e.target === purchaseHistoryEditModal) closePurchaseHistoryEdit(); });
+    if (purchaseHistoryAddBtn) purchaseHistoryAddBtn.addEventListener('click', function() {
+      if (!hasPermission('view_logs')) return;
+      phManualForm.reset();
+      document.getElementById('phManualCurrency').value = 'THB';
+      document.getElementById('phManualRequestedBy').value = currentUser ? (currentUser.name || currentUser.username || '') : '';
+      var today = new Date(); var mm = String(today.getMonth()+1).padStart(2,'0'); var dd = String(today.getDate()).padStart(2,'0');
+      document.getElementById('phManualDate').value = today.getFullYear() + '-' + mm + '-' + dd;
+      phManualMessage.textContent = ''; phManualMessage.className = 'text-sm';
+      document.getElementById('phManualSubmit').disabled = false;
+      document.getElementById('phManualSubmit').textContent = 'บันทึก';
+      phManualModal.classList.remove('hidden');
+      phManualModal.scrollTop = 0;
+      lockBodyScroll();
+    });
+    function closePhManualModal() { phManualModal.classList.add('hidden'); unlockBodyScroll(); }
+    ['phManualClose','phManualCancel'].forEach(function(id){ var b=document.getElementById(id); if(b) b.addEventListener('click', closePhManualModal); });
+    if (phManualModal) phManualModal.addEventListener('click', function(e){ if(e.target===phManualModal) closePhManualModal(); });
+    if (phManualForm) phManualForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var submitBtn = document.getElementById('phManualSubmit');
+      var line = document.getElementById('phManualLine').value.trim();
+      var partName = document.getElementById('phManualPartName').value.trim();
+      var qty = document.getElementById('phManualQty').value.trim();
+      var unitPrice = document.getElementById('phManualUnitPrice').value.trim();
+      if (!line) { phManualMessage.textContent = 'กรุณาเลือก Line'; phManualMessage.className = 'text-sm text-rose-600'; return; }
+      phManualMessage.textContent = 'กำลังบันทึก...'; phManualMessage.className = 'text-sm text-slate-500';
+      submitBtn.disabled = true; submitBtn.textContent = 'กำลังบันทึก...';
+      var payload = withAuthPayload({
+        action: 'addManualPurchaseHistory',
+        line: line, part_name: partName,
+        model: document.getElementById('phManualModel').value.trim(),
+        brand: document.getElementById('phManualBrand').value.trim(),
+        qty_ordered: qty, unit: document.getElementById('phManualUnit').value.trim(),
+        unit_price: unitPrice !== '' ? unitPrice : undefined,
+        currency: document.getElementById('phManualCurrency').value.trim() || 'THB',
+        status: document.getElementById('phManualStatus').value,
+        requested_by: document.getElementById('phManualRequestedBy').value.trim(),
+        date: document.getElementById('phManualDate').value,
+        remark: document.getElementById('phManualRemark').value.trim()
+      });
+      requestApi(payload).then(parseApiResponse).then(function() {
+        phManualMessage.textContent = 'บันทึกสำเร็จ!'; phManualMessage.className = 'text-sm text-emerald-600';
+        submitBtn.disabled = false; submitBtn.textContent = 'บันทึก';
+        purchaseHistoryLoaded = false;
+        setTimeout(function() { closePhManualModal(); loadPurchaseHistory(true).catch(function(){}); }, 800);
+      }).catch(function(err) {
+        phManualMessage.textContent = (err && err.message) ? err.message : 'เกิดข้อผิดพลาด';
+        phManualMessage.className = 'text-sm text-rose-600';
+        submitBtn.disabled = false; submitBtn.textContent = 'บันทึก';
+      });
+    });
     if (purchaseHistoryImportBtn) purchaseHistoryImportBtn.addEventListener('click', openPurchaseHistoryImport);
     if (purchaseHistoryPdfFiles) purchaseHistoryPdfFiles.addEventListener('change', function() {
       var files = Array.prototype.slice.call(purchaseHistoryPdfFiles.files || []);
