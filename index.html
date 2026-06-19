@@ -1061,7 +1061,7 @@
           </div>
         </div>
                 <div class="md:col-span-3">
-          <img id="eImageMainPreview" src="images/no-image.svg" alt="edit main preview" class="h-24 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" />
+          <img id="eImageMainPreview" src="images/no-image.svg" alt="edit main preview" class="h-24 w-full rounded-lg border border-slate-200 object-cover bg-slate-100" onerror="var fb=this.getAttribute('data-fallback-src');if(fb){this.setAttribute('data-fallback-src','');this.src=fb;}else{this.src='images/no-image.svg';}" />
         </div>
         <section class="md:col-span-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
           <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -6310,7 +6310,11 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eCategory').value = item.category || '';
       document.getElementById('eBrand').value = item.brand || '';
       document.getElementById('eImageMainFile').value = '';
-      document.getElementById('eImageMainPreview').src = toSafeImageUrl(item.image_main_url);
+      var ePreview = document.getElementById('eImageMainPreview');
+      var eThumb = getSecondaryDriveImageUrl(item.image_main_url, 800);
+      var eFallback = toSafeImageUrl(item.image_main_url);
+      ePreview.src = eThumb || eFallback;
+      ePreview.setAttribute('data-fallback-src', eThumb ? eFallback : '');
       document.getElementById('eMax').value = item.max != null ? item.max : '';
       document.getElementById('eMin').value = item.min != null ? item.min : '';
       document.getElementById('eUnit').value = item.unit || '';
