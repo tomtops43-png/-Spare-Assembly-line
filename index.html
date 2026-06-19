@@ -6311,11 +6311,11 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eBrand').value = item.brand || '';
       document.getElementById('eImageMainFile').value = '';
       document.getElementById('eImageMainPreview').src = toSafeImageUrl(item.image_main_url);
-      document.getElementById('eMax').value = item.max || '';
-      document.getElementById('eMin').value = item.min || '';
+      document.getElementById('eMax').value = item.max != null ? item.max : '';
+      document.getElementById('eMin').value = item.min != null ? item.min : '';
       document.getElementById('eUnit').value = item.unit || '';
-      document.getElementById('eStock').value = item.stock || '';
-      document.getElementById('eUnitPrice').value = item.unit_price || '';
+      document.getElementById('eStock').value = item.stock != null ? item.stock : '';
+      document.getElementById('eUnitPrice').value = item.unit_price != null ? item.unit_price : '';
       document.getElementById('eCurrency').value = item.currency || 'THB';
       document.getElementById('eSupplier').value = item.supplier || '';
       document.getElementById('ePriceUpdatedAt').value = item.price_updated_at || '';
@@ -6334,6 +6334,7 @@ function inferRequestPriority(stock, min) {
       editModalSubtitle.textContent = 'ชีต: ' + getCurrentSheetName() + ' | NO: ' + (item.no || '-');
       editModal.classList.remove('hidden');
       editModal.classList.add('flex');
+      editModal.scrollTop = 0;
       document.body.classList.add('edit-modal-open');
       lockBodyScroll();
       setTimeout(function() {
