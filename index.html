@@ -242,75 +242,117 @@
         <!-- /#topNavTabs -->
 
     <section id="stockPage" class="space-y-4 eng-gridline p-2 rounded-2xl">
-      <section id="stockStickyHeader" class="sticky top-0 z-50 -mx-2 border-b border-slate-200 bg-white px-2 pb-3 pt-2 shadow-md">
-        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-          <div class="flex items-center justify-between gap-2 text-xs">
-            <div class="hidden md:flex items-center gap-1.5">
-              <button id="stockNavLogBtn" type="button" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">📜 Log ประวัติ</button>
-              <button id="stockNavManageBtn" type="button" class="rounded-md border border-yellow-700 bg-yellow-600 px-2.5 py-1 text-white">🛠 เพิ่มรายการเข้าระบบ</button>
-              <button id="stockNavAdminBtn" type="button" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">⚙️ Admin Panel</button>
-            </div>
-            <button id="stockUtilityMenuBtn" type="button" class="md:hidden rounded-md border border-slate-300 bg-white px-2.5 py-1 text-slate-700">☰ เมนูลัด</button>
-            <div id="sheetSelectorWrap" class="ml-auto flex items-center gap-2">
-              <select id="sheetSelector" class="h-8 rounded-lg border border-slate-300 px-3 bg-white text-xs">
-                <option value="Main List Stock">General</option>
-                <option value="Stock for MC">Stock for MC</option>
-              </select>
-              <button id="refreshStockDataBtn" type="button" class="h-8 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-700 flex items-center gap-1.5 transition-opacity">
-                <svg id="refreshStockSpinner" class="hidden h-3.5 w-3.5 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a10 10 0 100 10z"/></svg>
-                <span id="refreshStockBtnLabel">🔄 Refresh</span>
-              </button>
-            </div>
+      <section id="stockStickyHeader" class="sticky top-0 z-50 -mx-2 px-2 pb-3 pt-2" style="background:rgba(241,245,249,0.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(203,213,225,0.6);">
+        <!-- Utility bar -->
+        <div class="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white/80 px-3 py-2 text-xs shadow-sm">
+          <div class="hidden md:flex items-center gap-1.5">
+            <button id="stockNavLogBtn" type="button" class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 font-semibold transition hover:bg-slate-50 hover:shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              Log ประวัติ
+            </button>
+            <button id="stockNavManageBtn" type="button" class="flex items-center gap-1.5 rounded-lg border border-amber-400 bg-amber-500 px-3 py-1.5 text-white font-semibold transition hover:bg-amber-600 hover:shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              เพิ่มรายการเข้าระบบ
+            </button>
+            <button id="stockNavAdminBtn" type="button" class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 font-semibold transition hover:bg-slate-50 hover:shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              Admin Panel
+            </button>
           </div>
-          <div id="stockUtilityMenuMobile" class="mt-2 hidden md:hidden grid-cols-3 gap-2 text-xs">
-            <button id="stockNavLogBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">📜 Log</button>
-            <button id="stockNavManageBtnMobile" type="button" class="rounded-md border border-yellow-700 bg-yellow-600 px-2 py-1.5 text-white">🛠 เพิ่มรายการ</button>
-            <button id="stockNavAdminBtnMobile" type="button" class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-700">⚙️ Admin</button>
-          </div>
-          <div id="stockLineLockBar" class="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 md:hidden">
-            <p class="flex flex-nowrap items-center gap-2 overflow-hidden text-base font-extrabold leading-none whitespace-nowrap">
-              <span id="stockLineLockLabel" class="shrink-0 text-[15px] tracking-[0.03em] uppercase whitespace-nowrap">LINE MAIN</span>
-              <span class="text-slate-400">:</span>
-              <span id="stockLineLockText" class="min-w-0 truncate whitespace-nowrap">H9</span>
-            </p>
+          <button id="stockUtilityMenuBtn" type="button" class="md:hidden flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 font-semibold">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            เมนู
+          </button>
+          <div id="sheetSelectorWrap" class="ml-auto flex items-center gap-2">
+            <select id="sheetSelector" class="h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700">
+              <option value="Main List Stock">General</option>
+              <option value="Stock for MC">Stock for MC</option>
+            </select>
+            <button id="refreshStockDataBtn" type="button" class="h-8 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 flex items-center gap-1.5 hover:bg-blue-100 transition-all">
+              <svg id="refreshStockSpinner" class="hidden h-3.5 w-3.5 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a10 10 0 100 10z"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              <span id="refreshStockBtnLabel" class="hidden sm:inline">Refresh</span>
+            </button>
           </div>
         </div>
-        <div class="mt-2 grid gap-2 md:flex md:flex-wrap md:items-center">
+        <!-- Mobile utility menu -->
+        <div id="stockUtilityMenuMobile" class="mt-2 hidden grid-cols-3 gap-2 text-xs md:hidden">
+          <button id="stockNavLogBtnMobile" type="button" class="flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white py-2.5 font-semibold text-slate-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Log
+          </button>
+          <button id="stockNavManageBtnMobile" type="button" class="flex items-center justify-center gap-1 rounded-xl border border-amber-400 bg-amber-500 py-2.5 font-semibold text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            เพิ่มรายการ
+          </button>
+          <button id="stockNavAdminBtnMobile" type="button" class="flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white py-2.5 font-semibold text-slate-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Admin
+          </button>
+        </div>
+        <!-- Mobile line lock -->
+        <div id="stockLineLockBar" class="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 md:hidden">
+          <p class="flex flex-nowrap items-center gap-2 overflow-hidden text-base font-extrabold leading-none whitespace-nowrap">
+            <span id="stockLineLockLabel" class="shrink-0 text-[15px] tracking-[0.03em] uppercase whitespace-nowrap">LINE MAIN</span>
+            <span class="text-slate-400">:</span>
+            <span id="stockLineLockText" class="min-w-0 truncate whitespace-nowrap">H9</span>
+          </p>
+        </div>
+        <!-- Search row -->
+        <div class="mt-2 flex items-center gap-2">
           <div class="hidden shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2 md:inline-flex">
             <span class="text-lg">🏭</span>
             <div class="leading-tight">
-              <p class="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Spare Parts</p>
+              <p class="text-[10px] font-bold uppercase tracking-wide text-blue-700">SPARE PARTS</p>
               <p class="text-xs font-bold text-blue-900">Stock Portal</p>
             </div>
           </div>
-          <div class="flex items-center gap-2 md:hidden">
-            <div class="relative flex-1 overflow-hidden">
-              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-              <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-11 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-              <button id="searchClearBtnMobile" type="button" class="search-clear-btn hidden absolute right-2 top-[47%] -translate-y-1/2 text-sm leading-none" aria-label="ล้างคำค้นหา">×</button>
+          <!-- Mobile search + cart -->
+          <div class="flex flex-1 items-center gap-2 md:hidden">
+            <div class="relative flex-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm shadow-sm focus:ring-2 focus:ring-blue-400 outline-none" />
+              <button id="searchClearBtnMobile" type="button" class="search-clear-btn hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg leading-none">×</button>
             </div>
-            <button id="openIssueCartBtnMobile" type="button" class="relative h-11 w-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-lg md:hidden">🛒<span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+            <button id="openIssueCartBtnMobile" type="button" class="relative h-11 w-11 shrink-0 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xl">🛒<span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
           </div>
-          <button id="openIssueCartBtn" type="button" class="relative hidden h-11 shrink-0 rounded-xl border border-blue-300 bg-blue-50 px-4 text-blue-700 text-sm font-semibold md:inline-flex md:items-center">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
-          <div class="order-1 hidden w-full min-w-0 md:order-none md:block md:flex-1 md:w-auto">
-            <div class="relative flex-1 overflow-hidden">
-              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-              <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-11 w-full rounded-xl border border-slate-300 pl-10 pr-11 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-              <button id="searchClearBtn" type="button" class="search-clear-btn hidden absolute right-2 top-[47%] -translate-y-1/2 text-sm leading-none" aria-label="ล้างคำค้นหา">×</button>
+          <!-- Desktop search + cart -->
+          <button id="openIssueCartBtn" type="button" class="relative hidden h-11 shrink-0 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition md:inline-flex">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+          <div class="hidden flex-1 md:block">
+            <div class="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm shadow-sm focus:ring-2 focus:ring-blue-400 outline-none" />
+              <button id="searchClearBtn" type="button" class="search-clear-btn hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg leading-none">×</button>
             </div>
           </div>
         </div>
       </section>
       <p id="updatedAtText" class="hidden text-xs text-slate-500"></p>
       <p id="searchScopeHint" class="hidden text-xs text-blue-700"></p>
-      <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-        <div class="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
-          <button id="qaIssueBtn" class="h-11 w-full rounded-xl bg-blue-600 px-4 text-white text-sm font-semibold shadow-sm md:h-9 md:w-auto md:rounded-full md:text-sm">⚡ เบิกอะไหล่</button>
-          <button id="qaManageBtn" class="h-11 w-full rounded-xl border border-yellow-700 bg-yellow-600 px-4 text-sm font-semibold text-white shadow-sm md:h-9 md:w-auto md:rounded-full md:text-sm">🛠 เพิ่มรายการเข้าระบบ</button>
-          <button id="qaReceiveBtn" style="background-color:#059669;border-color:#047857;color:#ffffff;" class="inline-flex h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-4 text-sm font-semibold shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 md:h-9 md:w-auto md:rounded-full md:text-sm"><span aria-hidden="true">📥</span><span>รับเข้า</span></button>
+      <!-- Quick Actions -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:p-4">
+        <p class="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Quick Actions</p>
+        <div class="grid grid-cols-3 gap-2.5 md:flex md:flex-wrap md:gap-3">
+          <button id="qaIssueBtn" class="group relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl px-3 py-3.5 text-white shadow-md transition-all hover:scale-[1.03] hover:shadow-lg active:scale-95 md:flex-row md:gap-2 md:rounded-xl md:px-5 md:py-2.5" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);">
+            <span class="text-xl md:text-base">⚡</span>
+            <span class="text-xs font-bold md:text-sm">เบิกอะไหล่</span>
+            <span class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition group-hover:opacity-100 md:rounded-xl" style="background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent)"></span>
+          </button>
+          <button id="qaManageBtn" class="group relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl px-3 py-3.5 text-white shadow-md transition-all hover:scale-[1.03] hover:shadow-lg active:scale-95 md:flex-row md:gap-2 md:rounded-xl md:px-5 md:py-2.5" style="background:linear-gradient(135deg,#d97706,#b45309);">
+            <span class="text-xl md:text-base">🛠</span>
+            <span class="text-xs font-bold md:text-sm">เพิ่มรายการ</span>
+            <span class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition group-hover:opacity-100 md:rounded-xl" style="background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent)"></span>
+          </button>
+          <button id="qaReceiveBtn" class="group relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl px-3 py-3.5 text-white shadow-md transition-all hover:scale-[1.03] hover:shadow-lg active:scale-95 md:flex-row md:gap-2 md:rounded-xl md:px-5 md:py-2.5" style="background:linear-gradient(135deg,#059669,#047857);">
+            <span class="text-xl md:text-base">📥</span>
+            <span class="text-xs font-bold md:text-sm">รับเข้า</span>
+            <span class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition group-hover:opacity-100 md:rounded-xl" style="background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent)"></span>
+          </button>
         </div>
       </section>
-      <section id="stockTodayAlert" class="hidden overflow-x-auto whitespace-nowrap rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[13px] text-rose-700 lg:px-5 lg:py-3 lg:text-sm"></section>
+      <!-- Today Alert -->
+      <section id="stockTodayAlert" class="hidden overflow-x-auto whitespace-nowrap rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50 to-red-50 px-4 py-3 text-[13px] text-rose-700 shadow-sm lg:px-5 lg:text-sm"></section>
+      <!-- Stat Cards -->
       <section class="grid grid-cols-2 auto-rows-fr gap-3 lg:grid-cols-4 mb-2" id="stat-cards"></section>
 
       <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
@@ -7107,19 +7149,23 @@ function inferRequestPriority(stock, min) {
         stockTodayAlert.innerHTML = '🚨 <b>Today Alert</b> • ต้องสั่งซื้อ <b>' + needPO + '</b> • อะไหล่Out of Stock <b>' + outCount + '</b> • Below Min <b>' + lowCount + '</b>';
       }
 
-      if (window.innerWidth >= 1024) {
-        document.getElementById('stat-cards').innerHTML =
-          '<button data-status-card="all" class="bg-white rounded-xl border border-slate-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-slate-500">📦 รายการอะไหล่ทั้งหมด</p><p class="text-xl font-bold text-blue-700 mt-0.5">' + totalItems + '</p></button>' +
-          '<button data-status-card="out" class="bg-white rounded-xl border border-rose-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-rose-600">❌ อะไหล่หมด</p><p class="text-xl font-bold text-rose-700 mt-0.5">' + outCount + '</p></button>' +
-          '<button data-status-card="low" class="bg-white rounded-xl border border-amber-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-amber-600">⚠️ ต่ำกว่า Min</p><p class="text-xl font-bold text-amber-700 mt-0.5">' + lowCount + '</p></button>' +
-          '<button data-status-card="near" class="bg-white rounded-xl border border-slate-200 px-3 py-2.5 shadow-sm text-left"><p class="text-[11px] uppercase tracking-wide text-slate-500">🧭 Need PO</p><p class="text-xl font-bold text-slate-800 mt-0.5">' + needPO + '</p></button>';
-      } else {
-        document.getElementById('stat-cards').innerHTML =
-          '<button data-status-card="all" class="min-h-[110px] bg-white rounded-2xl border border-slate-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-slate-600 leading-snug">📦 รายการอะไหล่ทั้งหมด</p><p class="text-[44px] leading-[1] font-extrabold text-blue-700 mt-2">' + totalItems + '</p></button>' +
-          '<button data-status-card="out" class="min-h-[110px] bg-white rounded-2xl border border-rose-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-rose-600 leading-snug">❌ อะไหล่หมด</p><p class="text-[44px] leading-[1] font-extrabold text-rose-700 mt-2">' + outCount + '</p></button>' +
-          '<button data-status-card="low" class="min-h-[110px] bg-white rounded-2xl border border-amber-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-amber-700 leading-snug">⚠️ ต่ำกว่า Min</p><p class="text-[44px] leading-[1] font-extrabold text-amber-600 mt-2">' + lowCount + '</p></button>' +
-          '<button data-status-card="near" class="min-h-[110px] bg-white rounded-2xl border border-slate-200 px-3 py-3 shadow-sm panel-shadow text-left"><p class="text-[13px] font-semibold text-slate-600 leading-snug">🧭 Need PO</p><p class="text-[44px] leading-[1] font-extrabold text-slate-800 mt-2">' + needPO + '</p></button>';
+      function makeStatCard(status, icon, label, value, grad, textColor, badgeClass, urgent) {
+        var pulse = urgent && value > 0 ? '<span class="absolute right-3 top-3 flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style="background:' + textColor + '"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full" style="background:' + textColor + '"></span></span>' : '';
+        return '<button data-status-card="' + status + '" class="group relative overflow-hidden rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-md active:scale-95 ' + badgeClass + '" style="background:' + grad + '">' +
+          pulse +
+          '<div class="flex items-start justify-between">' +
+          '<span class="text-2xl">' + icon + '</span>' +
+          '</div>' +
+          '<p class="mt-2 text-3xl font-black leading-none lg:text-2xl" style="color:' + textColor + '">' + value + '</p>' +
+          '<p class="mt-1 text-xs font-semibold leading-snug text-slate-600">' + label + '</p>' +
+          '<span class="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition group-hover:opacity-100" style="background:linear-gradient(135deg,rgba(255,255,255,0.25),transparent)"></span>' +
+          '</button>';
       }
+      document.getElementById('stat-cards').innerHTML =
+        makeStatCard('all',  '📦', 'รายการทั้งหมด',     totalItems, 'linear-gradient(135deg,#eff6ff,#dbeafe)', '#1d4ed8', 'border-blue-200',  false) +
+        makeStatCard('out',  '🚨', 'อะไหล่หมด (= 0)',   outCount,   outCount  > 0 ? 'linear-gradient(135deg,#fff1f2,#ffe4e6)' : 'linear-gradient(135deg,#f0fdf4,#dcfce7)', outCount  > 0 ? '#be123c' : '#16a34a', outCount  > 0 ? 'border-rose-300'  : 'border-green-200', true)  +
+        makeStatCard('low',  '⚠️', 'ต่ำกว่า Min',        lowCount,   lowCount  > 0 ? 'linear-gradient(135deg,#fffbeb,#fef3c7)' : 'linear-gradient(135deg,#f0fdf4,#dcfce7)', lowCount  > 0 ? '#b45309' : '#16a34a', lowCount  > 0 ? 'border-amber-300' : 'border-green-200', true)  +
+        makeStatCard('near', '🛒', 'Need PO',            needPO,     needPO    > 0 ? 'linear-gradient(135deg,#f0f9ff,#e0f2fe)' : 'linear-gradient(135deg,#f0fdf4,#dcfce7)', needPO    > 0 ? '#0369a1' : '#16a34a', needPO    > 0 ? 'border-sky-200'   : 'border-green-200', false);
 
       Array.prototype.slice.call(document.querySelectorAll('[data-status-card]')).forEach(function(btn){
         btn.addEventListener('click', function(){
