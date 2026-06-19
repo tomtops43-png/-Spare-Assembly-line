@@ -7644,6 +7644,7 @@ function inferRequestPriority(stock, min) {
       document.getElementById('phManualPartId').value = '';
       var _pnClear = document.getElementById('phPartNameClear'); if (_pnClear) _pnClear.classList.add('hidden');
       var _pnDd = document.getElementById('phPartNameDropdown'); if (_pnDd) _pnDd.classList.add('hidden');
+      if (!partsData || partsData.length === 0) { loadPartsData({ silent: true }).catch(function(){}); }
       phManualModal.classList.remove('hidden');
       phManualModal.scrollTop = 0;
       lockBodyScroll();
@@ -7666,7 +7667,7 @@ function inferRequestPriority(stock, min) {
       function fillFromPart(p) {
         _isOther = false;
         phPartIdHidden.value = p.id || p.part_id || '';
-        phPartInput.value = p.part_name || '';
+        phPartInput.value = p.name || p.part_name || '';
         if (phPartClear) phPartClear.classList.remove('hidden');
         document.getElementById('phManualModel').value     = p.model     || '';
         document.getElementById('phManualBrand').value     = p.brand     || '';
@@ -7697,13 +7698,15 @@ function inferRequestPriority(stock, min) {
         if (!dd || !partsData) return;
         var q = (query || '').toLowerCase().trim();
         _matchedParts = q.length === 0 ? [] : (partsData || []).filter(function(p) {
-          return p.part_name && String(p.part_name).toLowerCase().indexOf(q) !== -1;
+          var n = String(p.name || p.part_name || '').toLowerCase();
+          var m = String(p.model || '').toLowerCase();
+          return n && n !== '-' && (n.indexOf(q) !== -1 || m.indexOf(q) !== -1);
         }).slice(0, 15);
 
         var html = '';
         _matchedParts.forEach(function(p, i) {
-          var name = escHtml(String(p.part_name || ''));
-          var sub  = [p.model, p.brand].filter(Boolean).map(function(s){ return escHtml(String(s)); }).join(' · ');
+          var name = escHtml(String(p.name || p.part_name || ''));
+          var sub  = [p.model, p.brand].filter(function(s){ return s && s !== '-'; }).map(function(s){ return escHtml(String(s)); }).join(' · ');
           html += '<div class="ph-part-opt px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100" data-i="' + i + '">' +
             '<div class="text-sm font-medium text-slate-800">' + name + '</div>' +
             (sub ? '<div class="text-xs text-slate-500 mt-0.5">' + sub + '</div>' : '') +
