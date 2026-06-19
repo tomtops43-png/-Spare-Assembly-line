@@ -760,8 +760,8 @@
           <p class="text-sm text-violet-700">เลือกไฟล์ PR PDF ได้หลายไฟล์ ตรวจสอบ Preview แล้วจึงยืนยันนำเข้า</p>
         </div>
         <div class="flex flex-wrap gap-2 shrink-0">
-          <button id="purchaseHistoryAddBtn" type="button" class="h-11 rounded-lg bg-green-600 px-5 text-sm font-bold text-white shadow-sm hover:bg-green-700">+ เพิ่มรายการ Manual</button>
-          <button id="purchaseHistoryImportBtn" type="button" class="h-11 rounded-lg px-5 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2" style="background-color:#7c3aed;color:#ffffff;border:1px solid #6d28d9;">📄 เลือกไฟล์ PR PDF</button>
+          <button id="purchaseHistoryAddBtn" type="button" class="h-11 rounded-lg bg-green-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-green-700"><span class="hidden sm:inline">+ เพิ่มรายการ Manual</span><span class="sm:hidden">+ Manual</span></button>
+          <button id="purchaseHistoryImportBtn" type="button" class="h-11 rounded-lg px-4 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2" style="background-color:#7c3aed;color:#ffffff;border:1px solid #6d28d9;"><span class="hidden sm:inline">📄 เลือกไฟล์ PR PDF</span><span class="sm:hidden">📄 PR PDF</span></button>
         </div>
       </div>
       <div id="purchaseHistorySummary" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"></div>
@@ -774,8 +774,23 @@
         <input id="purchaseHistorySearch" type="search" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm" placeholder="ค้นหา Part Name / Model" />
       </div>
       <div class="overflow-x-auto rounded-xl border border-slate-200">
-        <table class="w-full min-w-[1500px] text-sm">
-          <thead class="bg-slate-100 text-left text-slate-600"><tr><th class="px-3 py-3">Requested Date</th><th class="px-3 py-3">Line</th><th class="px-3 py-3">Part Name</th><th class="px-3 py-3">Brand</th><th class="px-3 py-3">Model / Part No.</th><th class="px-3 py-3 text-right">Qty Ordered</th><th class="px-3 py-3">Unit</th><th class="px-3 py-3 text-right">Unit Price</th><th class="px-3 py-3 text-right">Total Amount</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Requested By</th><th class="px-3 py-3">Updated At</th><th class="px-3 py-3">Remark</th><th class="px-3 py-3">Action</th></tr></thead>
+        <table class="w-full min-w-[700px] text-sm">
+          <thead class="bg-slate-100 text-left text-slate-600"><tr>
+            <th class="px-3 py-3">Requested Date</th>
+            <th class="px-3 py-3">Line</th>
+            <th class="px-3 py-3">Part Name</th>
+            <th class="px-3 py-3 hidden md:table-cell">Brand</th>
+            <th class="px-3 py-3 hidden sm:table-cell">Model / Part No.</th>
+            <th class="px-3 py-3 text-right">Qty</th>
+            <th class="px-3 py-3 hidden sm:table-cell">Unit</th>
+            <th class="px-3 py-3 text-right hidden md:table-cell">Unit Price</th>
+            <th class="px-3 py-3 text-right hidden lg:table-cell">Total Amount</th>
+            <th class="px-3 py-3">Status</th>
+            <th class="px-3 py-3 hidden md:table-cell">Requested By</th>
+            <th class="px-3 py-3 hidden lg:table-cell">Updated At</th>
+            <th class="px-3 py-3 hidden lg:table-cell">Remark</th>
+            <th class="px-3 py-3">Action</th>
+          </tr></thead>
           <tbody id="purchaseHistoryTable"></tbody>
         </table>
       </div>
@@ -824,8 +839,8 @@
       </div>
     </div>
 
-    <div id="purchaseHistoryEditModal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-slate-900/60 p-4">
-      <form id="purchaseHistoryEditForm" class="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl">
+    <div id="purchaseHistoryEditModal" class="fixed inset-0 z-[120] hidden overflow-y-auto bg-slate-900/60 p-4">
+      <form id="purchaseHistoryEditForm" class="mx-auto w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl md:my-8">
         <div class="flex items-center justify-between"><div><h3 class="text-lg font-bold">Edit Purchase History</h3><p id="purchaseHistoryEditLabel" class="text-xs text-slate-500"></p></div><button id="purchaseHistoryEditClose" type="button" class="h-9 w-9 rounded-full border border-slate-300">×</button></div>
         <input id="purchaseHistoryEditId" type="hidden" />
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><label class="text-sm font-semibold text-slate-700">Qty Ordered<input id="purchaseHistoryEditQty" type="number" min="0.000001" step="any" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" /></label><label class="text-sm font-semibold text-slate-700">Unit Price<input id="purchaseHistoryEditPrice" type="number" min="0" step="any" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="ไม่มีราคาให้เว้นว่าง" /></label></div>
@@ -868,7 +883,7 @@
           <div class="relative mt-1" id="phPartNameWrapper">
             <input id="phManualPartName" required autocomplete="off" class="h-10 w-full rounded-lg border border-slate-300 px-3 pr-8" placeholder="พิมพ์เพื่อค้นหาในระบบ..." />
             <span id="phPartNameClear" class="absolute right-2 top-1/2 -translate-y-1/2 hidden cursor-pointer text-slate-400 hover:text-slate-700 text-lg leading-none select-none">×</span>
-            <div id="phPartNameDropdown" class="absolute z-[200] hidden w-full rounded-lg border border-slate-200 bg-white shadow-xl overflow-hidden" style="top:calc(100% + 2px); max-height:240px; overflow-y:auto;"></div>
+            <div id="phPartNameDropdown" class="absolute z-[200] hidden w-full rounded-lg border border-slate-200 bg-white shadow-xl" style="top:calc(100% + 2px); max-height:240px; overflow-y:auto;"></div>
           </div>
           <input type="hidden" id="phManualPartId" />
         </label>
@@ -1818,14 +1833,29 @@
     ];
     var isLineMenuVisible = false;
 
+    var _bodyScrollY = 0;
     function lockBodyScroll() {
+      if (modalLockCount === 0) {
+        _bodyScrollY = window.scrollY || window.pageYOffset || 0;
+        document.body.style.position = 'fixed';
+        document.body.style.top = '-' + _bodyScrollY + 'px';
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.overflow = 'hidden';
+      }
       modalLockCount += 1;
-      document.body.style.overflow = 'hidden';
     }
 
     function unlockBodyScroll() {
       modalLockCount = Math.max(0, modalLockCount - 1);
-      if (modalLockCount === 0) document.body.style.overflow = '';
+      if (modalLockCount === 0) {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, _bodyScrollY);
+      }
     }
 
 
@@ -4725,11 +4755,17 @@ function inferRequestPriority(stock, min) {
         return '<tr class="border-t border-slate-100 ' + (index % 2 ? 'bg-slate-50/60' : 'bg-white') + '">' +
           '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(item.date)) + '<div class="text-[10px] text-slate-400">' + escapePurchaseHistoryText(item.source || '-') + ' • ' + escapePurchaseHistoryText(item.request_id || '-') + '</div></td>' +
           '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.line || '-') + '</td><td class="px-3 py-3 font-semibold text-slate-800">' + escapePurchaseHistoryText(item.part_name || '-') + '</td>' +
-          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.brand || '-') + '</td><td class="px-3 py-3">' + escapePurchaseHistoryText(item.model || '-') + '</td>' +
-          '<td class="px-3 py-3 text-right font-semibold">' + Number(item.qty_ordered || 0).toLocaleString('th-TH') + '</td><td class="px-3 py-3">' + escapePurchaseHistoryText(item.unit || '-') + '</td>' +
-          '<td class="px-3 py-3 text-right">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.unit_price, item.currency)) + '</td><td class="px-3 py-3 text-right font-semibold">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.total_amount, item.currency)) + '</td>' +
-          '<td class="px-3 py-3">' + purchaseHistoryStatusBadge(item.status) + '</td><td class="px-3 py-3">' + escapePurchaseHistoryText(item.requested_by || '-') + '</td>' +
-          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(item.updated_at)) + '</td><td class="px-3 py-3">' + escapePurchaseHistoryText(item.remark || '-') + '</td><td class="px-3 py-3">' + actions + '</td></tr>';
+          '<td class="px-3 py-3 hidden md:table-cell">' + escapePurchaseHistoryText(item.brand || '-') + '</td>' +
+          '<td class="px-3 py-3 hidden sm:table-cell">' + escapePurchaseHistoryText(item.model || '-') + '</td>' +
+          '<td class="px-3 py-3 text-right font-semibold">' + Number(item.qty_ordered || 0).toLocaleString('th-TH') + '</td>' +
+          '<td class="px-3 py-3 hidden sm:table-cell">' + escapePurchaseHistoryText(item.unit || '-') + '</td>' +
+          '<td class="px-3 py-3 text-right hidden md:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.unit_price, item.currency)) + '</td>' +
+          '<td class="px-3 py-3 text-right font-semibold hidden lg:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.total_amount, item.currency)) + '</td>' +
+          '<td class="px-3 py-3">' + purchaseHistoryStatusBadge(item.status) + '</td>' +
+          '<td class="px-3 py-3 hidden md:table-cell">' + escapePurchaseHistoryText(item.requested_by || '-') + '</td>' +
+          '<td class="px-3 py-3 whitespace-nowrap hidden lg:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(item.updated_at)) + '</td>' +
+          '<td class="px-3 py-3 hidden lg:table-cell">' + escapePurchaseHistoryText(item.remark || '-') + '</td>' +
+          '<td class="px-3 py-3">' + actions + '</td></tr>';
       }).join('') : '<tr><td colspan="14" class="px-3 py-8 text-center text-slate-400">ไม่พบประวัติการสั่งซื้อ</td></tr>';
 
       var first = rows.length ? start + 1 : 0, last = Math.min(start + PURCHASE_HISTORY_PAGE_SIZE, rows.length);
