@@ -719,7 +719,9 @@ function importPurchaseHistoryPdfBatch(payload) {
     if (!result.skipped) {
       imported += 1;
       fileStats[fileName].imported += 1;
-      values = sheet.getDataRange().getValues();
+      // append new row to local copy so duplicate detection in subsequent iterations stays accurate
+      // without making an extra Sheets API call per item
+      if (result.row) values.push(result.row);
     }
   });
 
@@ -804,9 +806,39 @@ function bulkUpdateOrderRequestStatus(payload) {
   var allowed = { Purchased: 'request_order_approve', Received: 'request_order_approve', Rejected: 'request_order_reject' };
   if (!ids.length) throw new Error('กรุณาเลือกรายการอย่างน้อย 1 รายการ');
   if (!allowed[targetStatus]) throw new Error('สถานะ Bulk Update ไม่ถูกต้อง');
-  requirePermission({ authToken: payload.authToken }, allowed[targetStatus]);
-  ids.forEach(function(id) { updateOrderRequestStatus({ authToken: payload.authToken, request_id: id, admin_comment: payload.admin_comment || '' }, targetStatus); });
-  return { status: 'success', updated_status: targetStatus, count: ids.length };
+  var user = requirePermission({ authToken: payload.authToken }, allowed[targetStatus]);
+  if (ORDER_REQUEST_STATUSES.indexOf(targetStatus) === -1) throw new Error('สถานะไม่ถูกต้อง: ' + targetStatus);
+
+  var sheet = getOrderRequestSheet();
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0] || [];
+  var idx = {};
+  headers.forEach(function(h, i) { idx[h] = i; });
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var idSet = {};
+  ids.forEach(function(id) { idSet[String(id)] = true; });
+  var updatedCount = 0;
+
+  for (var i = 1; i < values.length; i += 1) {
+    if (!idSet[String(values[i][idx.request_id])]) continue;
+    var updatedRow = values[i].slice();
+    updatedRow[idx.status] = targetStatus;
+    updatedRow[idx.admin_comment] = payload.admin_comment || '';
+    updatedRow[idx.updated_at] = now;
+    if (targetStatus === 'Approved') {
+      updatedRow[idx.approved_by] = user.username || '';
+      updatedRow[idx.approved_date] = now;
+    }
+    sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
+    try {
+      syncPurchaseHistoryForRequest(toRequestObject(headers, updatedRow), targetStatus, user.username, payload.admin_comment || values[i][idx.remark] || '', true);
+    } catch (historyErr) {
+      Logger.log('bulkUpdateOrderRequestStatus PurchaseHistory warning [' + values[i][idx.request_id] + ']: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
+    }
+    updatedCount += 1;
+  }
+
+  return { status: 'success', updated_status: targetStatus, count: updatedCount };
 }
 
 
@@ -966,17 +998,20 @@ function updateOrderRequestStatus(payload, nextStatus) {
   var headers = values[0];
   var idx = {};
   headers.forEach(function(h, i) { idx[h] = i; });
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
   for (var i = 1; i < values.length; i += 1) {
     if (String(values[i][idx.request_id]) === String(payload.request_id)) {
-      sheet.getRange(i + 1, idx.status + 1).setValue(nextStatus);
-      sheet.getRange(i + 1, idx.admin_comment + 1).setValue(payload.admin_comment || '');
-      sheet.getRange(i + 1, idx.updated_at + 1).setValue(Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'));
+      var updatedRow = values[i].slice();
+      updatedRow[idx.status] = nextStatus;
+      updatedRow[idx.admin_comment] = payload.admin_comment || '';
+      updatedRow[idx.updated_at] = now;
       if (nextStatus === 'Approved') {
-        sheet.getRange(i + 1, idx.approved_by + 1).setValue(user.username || '');
-        sheet.getRange(i + 1, idx.approved_date + 1).setValue(Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'));
+        updatedRow[idx.approved_by] = user.username || '';
+        updatedRow[idx.approved_date] = now;
       }
+      sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
       try {
-        syncPurchaseHistoryForRequest(toRequestObject(headers, values[i]), nextStatus, user.username, payload.admin_comment || values[i][idx.remark] || '', true);
+        syncPurchaseHistoryForRequest(toRequestObject(headers, updatedRow), nextStatus, user.username, payload.admin_comment || values[i][idx.remark] || '', true);
       } catch (historyErr) {
         Logger.log('updateOrderRequestStatus PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
       }
@@ -1076,12 +1111,27 @@ function toBoolean(val, defaultValue) {
   return !(s === 'false' || s === '0' || s === 'no');
 }
 
+function hashPassword(password) {
+  var bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(password || ''),
+    Utilities.Charset.UTF_8
+  );
+  return bytes.map(function(b) {
+    return ('0' + (b & 0xFF).toString(16)).slice(-2);
+  }).join('');
+}
+
+function isPasswordHashed(stored) {
+  return /^[0-9a-f]{64}$/.test(String(stored || ''));
+}
+
 function ensureDefaultAdminUser() {
   var usersSheet = getUsersSheet();
   if (usersSheet.getLastRow() > 1) return;
   usersSheet.appendRow([
     'admin',
-    'admin123',
+    hashPassword('admin123'),
     'admin',
     'true',
     JSON.stringify({ allow: [], deny: [] }),
@@ -1235,7 +1285,16 @@ function loginUser(payload) {
   if (!username || !password) throw new Error('กรุณาระบุ username และ password');
   var user = findUserByUsername(username);
   if (!user || !user.isActive) throw new Error('ไม่พบผู้ใช้หรือผู้ใช้ถูกปิดใช้งาน');
-  if (String(user.password) !== password) throw new Error('รหัสผ่านไม่ถูกต้อง');
+  var storedPw = String(user.password || '');
+  var alreadyHashed = isPasswordHashed(storedPw);
+  var passwordMatch = alreadyHashed
+    ? (storedPw === hashPassword(password))
+    : (storedPw === password);
+  if (!passwordMatch) throw new Error('รหัสผ่านไม่ถูกต้อง');
+  if (!alreadyHashed) {
+    // auto-migrate plain-text password to hash
+    getUsersSheet().getRange(user.rowIndex, 2).setValue(hashPassword(password));
+  }
 
   cleanupExpiredSessionRecords();
   var token = Utilities.getUuid() + '-' + Date.now();
@@ -1330,7 +1389,8 @@ function upsertUser(payload) {
   var existing = findUserByUsername(username);
   if (existing) {
     if (String(payload.password || '') !== '') {
-      usersSheet.getRange(existing.rowIndex, 2).setValue(password);
+      if (password.length < 4) throw new Error('password ต้องมีอย่างน้อย 4 ตัวอักษร');
+      usersSheet.getRange(existing.rowIndex, 2).setValue(hashPassword(password));
     }
     usersSheet.getRange(existing.rowIndex, 3).setValue(role);
     usersSheet.getRange(existing.rowIndex, 4).setValue(String(isActive));
@@ -1341,7 +1401,8 @@ function upsertUser(payload) {
 
   if (!actor.permissions.add_user) throw new Error('ไม่มีสิทธิ์เพิ่มผู้ใช้');
   if (!password) throw new Error('ต้องระบุ password สำหรับผู้ใช้ใหม่');
-  usersSheet.appendRow([username, password, role, String(isActive), permissionsJson, '', '']);
+  if (password.length < 4) throw new Error('password ต้องมีอย่างน้อย 4 ตัวอักษร');
+  usersSheet.appendRow([username, hashPassword(password), role, String(isActive), permissionsJson, '', '']);
   return { status: 'success', mode: 'create', username: username };
 }
 
@@ -1469,6 +1530,16 @@ function getLogRows() {
 }
 
 function processTransaction(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    return processTransactionUnlocked(payload);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function processTransactionUnlocked(payload) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
   var resolvedSheetName = resolveReadSheetName({ sheet: payload.sheetName });
