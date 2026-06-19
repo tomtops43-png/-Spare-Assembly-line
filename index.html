@@ -357,116 +357,136 @@
       </div>
     </section>
 
-    <section id="dashboardPage" class="hidden mb-6 rounded-2xl bg-slate-100/70 p-2 md:p-4">
-      <div class="grid grid-cols-1 gap-4 xl:grid-cols-12">
-      <aside id="dashboardSidebarWrap" class="hidden xl:block xl:col-span-3">
-        <div class="sticky top-6 h-[calc(100vh-48px)] overflow-auto rounded-2xl bg-white p-4 shadow-sm border border-slate-200">
-          <h3 class="text-lg font-bold text-blue-700">Dashboard Menu</h3>
-          <ul id="dashboardSidebarMenu" class="mt-3 space-y-2 text-sm text-slate-600">
-            <li><button data-dash-target="dashExecutive" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Executive Summary</button></li>
-            <li><button data-dash-target="dashAlerts" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Critical Alerts</button></li>
-            <li><button data-dash-target="dashTopUsage" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Top Usage</button></li>
-            <li><button data-dash-target="dashRecentActivities" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Recent Activities</button></li>
-            <li><button data-dash-target="dashRisk" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">At-Risk Parts</button></li>
-            <li><button data-dash-target="dashRequestStatus" class="dashboard-nav-btn w-full rounded-lg px-3 py-2 text-left">Request Status</button></li>
-          </ul>
-        </div>
-      </aside>
-      <div class="xl:col-span-9 space-y-4">
-      <div id="dashExecutive" class="rounded-2xl bg-white p-4 shadow-sm border border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 class="text-2xl font-bold text-slate-900">Factory Spare Parts Dashboard</h2>
-          <p class="text-sm text-slate-500">Cross-line spare inventory overview for production operations</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <select id="dashboardLineFilter" class="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm">
-            <option value="all">All Lines</option>
-            <option value="H9">H9</option>
-            <option value="Arc Chute">Arc Chute</option>
-            <option value="Coil Winding">Coil Winding</option>
-            <option value="Lug&Screw">Lug&Screw</option>
-          </select>
-          <button id="dashboardRefreshBtn" type="button" class="h-10 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 hover:bg-blue-100">Refresh Dashboard</button>
+    <section id="dashboardPage" class="hidden mb-6 space-y-4 p-2 md:p-4">
+      <!-- Header -->
+      <div id="dashExecutive" class="rounded-2xl bg-white p-4 shadow-sm border border-slate-200">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Factory Spare Parts Dashboard</h2>
+            <p id="dashLastUpdated" class="mt-0.5 text-xs text-slate-400">กำลังโหลดข้อมูล...</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="dashboardLineFilter" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+              <option value="all">ทุก Line</option>
+              <option value="H9">H9</option>
+              <option value="Arc Chute">Arc Chute</option>
+              <option value="Coil Winding">Coil Winding</option>
+              <option value="Lug&Screw">Lug&amp;Screw</option>
+            </select>
+            <button id="dashboardRefreshBtn" type="button" class="h-9 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 hover:bg-blue-100">🔄 Refresh</button>
+          </div>
         </div>
       </div>
-      <div id="dashboardSummary" class="grid grid-cols-2 gap-3 lg:grid-cols-5"></div>
-      <div id="dashAlerts" class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">Stock by Primary Line</h3><div id="dashboardLineBars" class="mt-3 space-y-2 text-xs"></div></div>
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">Stock Health</h3><div id="dashboardStockDonut" class="mt-4 h-40 w-40 mx-auto rounded-full"></div><p id="dashboardStockDonutText" class="mt-2 text-center text-xs text-slate-500"></p></div>
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm lg:col-span-1"><h3 class="text-sm font-semibold text-slate-600">Need PO by Category</h3><div id="dashboardNeedPoBars" class="mt-3 space-y-2 text-xs"></div></div>
+      <!-- KPI Cards -->
+      <div id="dashboardSummary" class="grid grid-cols-2 gap-3 sm:grid-cols-4"></div>
+      <!-- Charts Row -->
+      <div id="dashAlerts" class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-700">📦 Stock by Line</h3>
+          <div id="dashboardLineBars" class="mt-3 space-y-2.5 text-xs"></div>
+        </div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm flex flex-col items-center">
+          <h3 class="text-sm font-bold text-slate-700 self-start">🩺 Stock Health</h3>
+          <div id="dashboardStockDonut" class="mt-3 h-36 w-36 rounded-full shadow-inner"></div>
+          <div id="dashboardStockDonutLegend" class="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs"></div>
+          <p id="dashboardStockDonutText" class="mt-1 text-center text-[11px] text-slate-400"></p>
+        </div>
+        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-700">🛒 Need PO by Category</h3>
+          <div id="dashboardNeedPoBars" class="mt-3 space-y-2.5 text-xs"></div>
+        </div>
       </div>
-      <div id="dashRisk" class="rounded-2xl bg-white border border-slate-200 shadow-sm">
-        <div id="dashboardLoading" class="px-3 py-3 text-sm text-slate-500">Loading data...</div>
-        <div id="dashboardEmpty" class="hidden px-3 py-3 text-sm text-slate-500">No data</div>
+      <!-- Critical Items -->
+      <div id="dashRisk" class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+          <div>
+            <h3 class="font-bold text-slate-800">🚨 รายการวิกฤต — ต้องดำเนินการ</h3>
+            <p class="text-xs text-slate-400">Stock หมดหรือต่ำกว่า Min — เรียงตาม Need PO มากสุดก่อน</p>
+          </div>
+          <span id="dashRiskCount" class="hidden rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700"></span>
+        </div>
+        <div id="dashboardLoading" class="px-4 py-8 text-center text-sm text-slate-400">⏳ กำลังโหลด...</div>
+        <div id="dashboardEmpty" class="hidden px-4 py-8 text-center text-sm font-semibold text-green-600">✅ ไม่มีรายการวิกฤต ทุกอย่างปกติดี</div>
         <div class="overflow-x-auto">
-          <table class="min-w-full text-xs sm:text-sm">
-            <thead class="bg-slate-50 sticky top-0 z-10">
-              <tr class="text-left">
-                <th class="px-2 py-2">Line / Sheet</th>
-                <th class="px-2 py-2">NO</th>
-                <th class="px-2 py-2">Part Name</th>
-                <th class="px-2 py-2">Model</th>
-                <th class="px-2 py-2">Stock</th>
-                <th class="px-2 py-2">Min</th>
-                <th class="px-2 py-2">Need to PO</th>
-                <th class="px-2 py-2">Location</th>
-                <th class="px-2 py-2">Risk Reason</th>
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-3 py-2.5 text-left">Line</th>
+                <th class="px-3 py-2.5 text-left">Part Name</th>
+                <th class="px-3 py-2.5 text-left hidden sm:table-cell">Model</th>
+                <th class="px-3 py-2.5 text-center">Stock</th>
+                <th class="px-3 py-2.5 text-center">Min</th>
+                <th class="px-3 py-2.5 text-center">Need PO</th>
+                <th class="px-3 py-2.5 text-left">ระดับ</th>
               </tr>
             </thead>
-            <tbody id="dashboardRiskBody" class="[&>tr:nth-child(even)]:bg-slate-50"></tbody>
+            <tbody id="dashboardRiskBody"></tbody>
           </table>
         </div>
       </div>
-      <div id="dashRequestStatus" class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
-        <h3 class="text-base font-semibold">Recent Purchase Requests</h3>
-        <div id="dashboardRequestSummary" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8"></div>
-        <div id="dashboardRequestEmpty" class="hidden mt-3 text-sm text-slate-500">No purchase requests yet</div>
-        <div class="mt-3 max-h-80 overflow-auto">
-          <table class="min-w-full text-xs sm:text-sm">
-            <thead class="bg-slate-50">
-              <tr class="text-left">
-                <th class="px-2 py-2">Request ID</th>
-                <th class="px-2 py-2">Requester</th>
-                <th class="px-2 py-2">Primary Line</th>
-                <th class="px-2 py-2">Part Name</th>
-                <th class="px-2 py-2">Qty</th>
-                <th class="px-2 py-2">Priority</th>
-                <th class="px-2 py-2">Status</th>
-                <th class="px-2 py-2">Requested At</th>
-                <th class="px-2 py-2">Last Updated</th>
-                <th class="px-2 py-2">Details</th>
-              </tr>
-            </thead>
-            <tbody id="dashboardRequestTableBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
+      <!-- Requests + Activity (2 cols) -->
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div id="dashRequestStatus" class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <div class="border-b border-slate-100 px-4 py-3">
+            <h3 class="font-bold text-slate-800">📋 Purchase Requests</h3>
+            <div id="dashboardRequestSummary" class="mt-2 flex flex-wrap gap-1.5"></div>
+          </div>
+          <div id="dashboardRequestEmpty" class="hidden px-4 py-6 text-center text-sm text-slate-400">ยังไม่มีคำขอซื้อ</div>
+          <div class="max-h-72 overflow-y-auto overflow-x-auto">
+            <table class="min-w-full text-xs">
+              <thead class="sticky top-0 bg-slate-50 text-slate-500"><tr>
+                <th class="px-3 py-2 text-left">Part Name</th>
+                <th class="px-3 py-2 text-left hidden sm:table-cell">Line</th>
+                <th class="px-3 py-2 text-center">Qty</th>
+                <th class="px-3 py-2 text-left">Status</th>
+                <th class="px-3 py-2 text-left hidden sm:table-cell">วันที่</th>
+              </tr></thead>
+              <tbody id="dashboardRequestTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="dashRecentActivities" class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+          <div class="border-b border-slate-100 px-4 py-3">
+            <h3 class="font-bold text-slate-800">🔄 Recent Activities</h3>
+            <div id="dashboardLogSummary" class="mt-2 flex flex-wrap gap-1.5"></div>
+          </div>
+          <div id="dashboardLogEmpty" class="hidden px-4 py-6 text-center text-sm text-slate-400">ยังไม่มีกิจกรรม</div>
+          <div class="max-h-72 overflow-y-auto overflow-x-auto">
+            <table class="min-w-full text-xs">
+              <thead class="sticky top-0 bg-slate-50 text-slate-500"><tr>
+                <th class="px-3 py-2 text-left">Part Name</th>
+                <th class="px-3 py-2 text-left hidden sm:table-cell">ประเภท</th>
+                <th class="px-3 py-2 text-center">Qty</th>
+                <th class="px-3 py-2 text-left hidden sm:table-cell">โดย</th>
+                <th class="px-3 py-2 text-left">เวลา</th>
+              </tr></thead>
+              <tbody id="dashboardLatestIssueBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- Top Usage -->
+      <div id="dashTopUsage" class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <div class="border-b border-slate-100 px-4 py-3">
+          <h3 class="font-bold text-slate-800">📊 Top 10 อะไหล่ที่เบิกบ่อย</h3>
+          <p class="text-xs text-slate-400 mt-0.5">เรียงตามจำนวนครั้งที่เบิกออกในระบบ</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500"><tr>
+              <th class="px-3 py-2.5 w-8 text-center">#</th>
+              <th class="px-3 py-2.5 text-left">Part Name</th>
+              <th class="px-3 py-2.5 text-left hidden sm:table-cell">Model</th>
+              <th class="px-3 py-2.5 text-center">ครั้งที่เบิก</th>
+              <th class="px-3 py-2.5 text-center">Qty รวม</th>
+              <th class="px-3 py-2.5 text-left hidden sm:table-cell">เบิกล่าสุด</th>
+            </tr></thead>
+            <tbody id="dashboardTopPartsBody"></tbody>
           </table>
         </div>
       </div>
-      <div id="dashRecentActivities" class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
-        <h3 class="text-base font-semibold">Recent Activities</h3>
-        <div id="dashboardLogSummary" class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"></div>
-        <div id="dashboardLogEmpty" class="hidden mt-3 text-sm text-slate-500">No issue/receive history yet</div>
-        <h4 class="mt-4 font-semibold">Latest Issue Transactions</h4>
-        <div class="mt-2 max-h-72 overflow-auto">
-          <table class="min-w-full text-xs sm:text-sm">
-            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">Timestamp</th><th class="px-2 py-2">Type</th><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">Qty</th><th class="px-2 py-2">By</th></tr></thead>
-            <tbody id="dashboardLatestIssueBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
-          </table>
-        </div>
-        <h4 id="dashTopUsage" class="mt-4 font-semibold">Top 10 Issued Parts</h4>
-        <div class="mt-2 max-h-72 overflow-auto">
-          <table class="min-w-full text-xs sm:text-sm">
-            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">Part Name</th><th class="px-2 py-2">Model</th><th class="px-2 py-2">Brand</th><th class="px-2 py-2">Issue Count</th><th class="px-2 py-2">Issued Qty Total</th><th class="px-2 py-2">Last Issue Date</th></tr></thead>
-            <tbody id="dashboardTopPartsBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
-          </table>
-        </div>
-        <h4 class="mt-4 font-semibold">Top 10 Issuers</h4>
-        <div class="mt-2 max-h-72 overflow-auto">
-          <table class="min-w-full text-xs sm:text-sm">
-            <thead class="bg-slate-50"><tr class="text-left"><th class="px-2 py-2">Issuer Name</th><th class="px-2 py-2">Issue Count</th><th class="px-2 py-2">Issued Qty Total</th><th class="px-2 py-2">Last Activity</th></tr></thead>
-            <tbody id="dashboardTopUsersBody" class="[&>tr:nth-child(even)]:bg-slate-50 [&>tr:hover]:bg-blue-50"></tbody>
-          </table>
-        </div>
-      </div></div></div>
+      <!-- Top Issuers (hidden — data stored in dashboardTopUsersBody for compat) -->
+      <tbody id="dashboardTopUsersBody" class="hidden"></tbody>
     </section>
 
     <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
@@ -4384,79 +4404,131 @@ function inferRequestPriority(stock, min) {
         if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
         return String(lineRaw || '-');
       }
+      function num(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
       var summaryEl = document.getElementById('dashboardSummary');
       var loadingEl = document.getElementById('dashboardLoading');
       var emptyEl = document.getElementById('dashboardEmpty');
       var bodyEl = document.getElementById('dashboardRiskBody');
+      var riskCountEl = document.getElementById('dashRiskCount');
+      var lastUpdatedEl = document.getElementById('dashLastUpdated');
       if (!summaryEl || !loadingEl || !emptyEl || !bodyEl) return;
       loadingEl.classList.remove('hidden');
       emptyEl.classList.add('hidden');
+      if (bodyEl) bodyEl.innerHTML = '';
       var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
       var sourceRows = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
       var rows = sourceRows.filter(function(r) {
         if (selectedLine === 'all') return true;
         return normalizeMainLine(r.line) === selectedLine;
       });
-      function card(title, value) {
-        var color = /Out|Stock = 0/.test(title) ? 'rose' : /Min|Need/.test(title) ? 'amber' : /Missing/.test(title) ? 'slate' : 'blue';
-        var icon = /Stock = 0/.test(title) ? '🚨' : /Total Stock/.test(title) ? '📦' : /Min/.test(title) ? '⚠️' : /Need/.test(title) ? '🛒' : /Pending/.test(title) ? '📝' : 'ℹ️';
-        return '<div class="rounded-2xl border border-' + color + '-100 bg-white p-3 shadow-sm hover:shadow-md transition"><div class="flex items-center justify-between"><p class="text-[11px] text-' + color + '-600">' + title + '</p><span>' + icon + '</span></div><p class="text-2xl font-extrabold text-slate-900">' + value + '</p></div>';
+      function kpiCard(icon, label, value, colorClass, subLabel) {
+        return '<div class="rounded-2xl border ' + colorClass + ' bg-white p-4 shadow-sm">' +
+          '<div class="flex items-start justify-between">' +
+          '<p class="text-xs font-semibold text-slate-500 leading-snug">' + label + '</p>' +
+          '<span class="text-xl leading-none">' + icon + '</span>' +
+          '</div>' +
+          '<p class="mt-2 text-3xl font-black text-slate-900 leading-none">' + value + '</p>' +
+          (subLabel ? '<p class="mt-1 text-[11px] text-slate-400">' + subLabel + '</p>' : '') +
+          '</div>';
       }
-      if (!rows.length) {
-        summaryEl.innerHTML = card('Total Parts', 0) + card('Total Stock', 0) + card('Stock = 0', 0) + card('Stock < Min', 0) + card('Need PO', 0) + card('Missing Location', 0) + card('Missing Image', 0) + card('Pending Request', 0);
-        bodyEl.innerHTML = '';
-        loadingEl.classList.add('hidden');
-        emptyEl.classList.remove('hidden');
-        renderDashboardRequestSummary();
-        return;
-      }
-      function num(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
-      var totalStock = 0, outZero = 0, lowMin = 0, needPoCount = 0, noLocation = 0, noImage = 0;
       var health = getStockHealthCounts(rows);
-      var riskRows = [];
-      rows.forEach(function(item) {
-        var stock = num(item.stock), min = num(item.min), need = num(item.need_to_po || (min - stock));
-        totalStock += stock;
-        if (!String(item.location || '').trim()) noLocation++;
-        if (!String(item.image_main || item.photo || '').trim()) noImage++;
-        var reasons = [];
-        if (stock <= 0) reasons.push('Stock = 0');
-        if (stock < min) reasons.push('Stock < Min');
-        if (need > 0) reasons.push('Need to PO > 0');
-        if (!String(item.location || '').trim()) reasons.push('Missing Location');
-        if (!String(item.image_main || item.photo || '').trim()) reasons.push('Missing Image');
-        if (reasons.length) riskRows.push({ item: item, need: need, reason: reasons.join(', ') });
-      });
-      outZero = health.outOfStockCount;
-      lowMin = health.belowMinCount;
-      needPoCount = health.needPOCount;
-      summaryEl.innerHTML = card('Total Parts', rows.length.toLocaleString('th-TH')) + card('Total Stock', totalStock.toLocaleString('th-TH')) + card('Stock = 0', outZero.toLocaleString('th-TH')) + card('Stock < Min', lowMin.toLocaleString('th-TH')) + card('Need PO', needPoCount.toLocaleString('th-TH')) + card('Missing Location', noLocation.toLocaleString('th-TH')) + card('Missing Image', noImage.toLocaleString('th-TH')) + card('Pending Request', '...');
+      var outZero = health.outOfStockCount || 0;
+      var lowMin = health.belowMinCount || 0;
+      var needPoCount = health.needPOCount || 0;
+      var totalStock = 0;
+      rows.forEach(function(r) { totalStock += num(r.stock); });
+      var criticalItems = outZero;
+      var warningItems = Math.max(0, lowMin - outZero);
+      summaryEl.innerHTML =
+        kpiCard('🚨', 'Stock หมด (= 0)', outZero.toLocaleString('th-TH'), 'border-rose-200', criticalItems > 0 ? 'ต้องสั่งซื้อด่วน' : 'ปกติดี') +
+        kpiCard('⚠️', 'ต่ำกว่า Min', lowMin.toLocaleString('th-TH'), 'border-amber-200', warningItems > 0 ? 'ควรเติมสต็อก' : 'ปกติดี') +
+        kpiCard('🛒', 'Need PO', needPoCount.toLocaleString('th-TH'), 'border-blue-200', 'รายการที่ต้องสั่งซื้อ') +
+        kpiCard('📝', 'Pending Request', '...', 'border-violet-200', 'กำลังโหลด...');
       var lineBars = document.getElementById('dashboardLineBars');
       var donut = document.getElementById('dashboardStockDonut');
+      var donutLegend = document.getElementById('dashboardStockDonutLegend');
       var donutText = document.getElementById('dashboardStockDonutText');
       var poBars = document.getElementById('dashboardNeedPoBars');
       var lineMap = {}, catMap = {}, normal = 0;
-      rows.forEach(function(r){ var line=normalizeMainLine(r.line||'N/A'); lineMap[line]=(lineMap[line]||0)+num(r.stock); var cat=String(r.category||'ทั่วไป'); catMap[cat]=(catMap[cat]||0)+Math.max(0,num(r.min)-num(r.stock)); if(num(r.stock)>=num(r.min)&&num(r.stock)>0) normal++; });
-      if (lineBars) { var maxLine=Math.max.apply(null,Object.keys(lineMap).map(function(k){return lineMap[k];}).concat([1])); lineBars.innerHTML=Object.keys(lineMap).slice(0,6).map(function(k){ var v=lineMap[k]; return '<div><div class=\"flex justify-between\"><span>'+k+'</span><span>'+v+'</span></div><div class=\"h-2 rounded bg-slate-100\"><div class=\"h-2 rounded bg-blue-500\" style=\"width:' + Math.max(4,(v/maxLine)*100) + '%\"></div></div></div>'; }).join(''); }
-      if (poBars) { var cats=Object.keys(catMap).sort(function(a,b){return catMap[b]-catMap[a];}).slice(0,6); var maxCat=Math.max.apply(null,cats.map(function(k){return catMap[k];}).concat([1])); poBars.innerHTML=cats.map(function(k){ var v=catMap[k]; return '<div><div class=\"flex justify-between\"><span>'+k+'</span><span>'+v+'</span></div><div class=\"h-2 rounded bg-slate-100\"><div class=\"h-2 rounded bg-amber-500\" style=\"width:' + Math.max(4,(v/maxCat)*100) + '%\"></div></div></div>'; }).join('') || '<p class=\"text-slate-400\">No data</p>'; }
-      if (donut) { var total=Math.max(rows.length,1),ok=Math.round((normal/total)*100),out=Math.round((outZero/total)*100),low=Math.max(0,100-ok-out); donut.style.background='conic-gradient(#22c55e 0 '+ok+'%, #ef4444 '+ok+'% '+(ok+out)+'%, #f59e0b '+(ok+out)+'% 100%)'; donutText.textContent='Normal '+ok+'% • Out of Stock '+out+'% • Below Min '+low+'%'; }
-      bodyEl.innerHTML = riskRows.slice(0, 10).map(function(row) {
+      rows.forEach(function(r) {
+        var line = normalizeMainLine(r.line || 'N/A');
+        lineMap[line] = (lineMap[line] || 0) + num(r.stock);
+        var cat = String(r.category || 'ทั่วไป');
+        catMap[cat] = (catMap[cat] || 0) + Math.max(0, num(r.min) - num(r.stock));
+        if (num(r.stock) >= num(r.min) && num(r.stock) > 0) normal++;
+      });
+      if (lineBars) {
+        var maxLine = Math.max.apply(null, Object.keys(lineMap).map(function(k){ return lineMap[k]; }).concat([1]));
+        lineBars.innerHTML = Object.keys(lineMap).slice(0, 7).map(function(k) {
+          var v = lineMap[k]; var pct = Math.max(4, (v / maxLine) * 100);
+          return '<div>' +
+            '<div class="mb-1 flex justify-between text-slate-600"><span class="font-medium">' + k + '</span><span class="font-bold">' + v.toLocaleString('th-TH') + '</span></div>' +
+            '<div class="h-2.5 rounded-full bg-slate-100"><div class="h-2.5 rounded-full bg-blue-500 transition-all" style="width:' + pct + '%"></div></div>' +
+            '</div>';
+        }).join('');
+      }
+      if (poBars) {
+        var cats = Object.keys(catMap).sort(function(a,b){ return catMap[b]-catMap[a]; }).slice(0, 7);
+        var maxCat = Math.max.apply(null, cats.map(function(k){ return catMap[k]; }).concat([1]));
+        poBars.innerHTML = cats.length ? cats.map(function(k) {
+          var v = catMap[k]; if (!v) return ''; var pct = Math.max(4, (v / maxCat) * 100);
+          return '<div>' +
+            '<div class="mb-1 flex justify-between text-slate-600"><span class="font-medium">' + k + '</span><span class="font-bold text-amber-600">' + v + '</span></div>' +
+            '<div class="h-2.5 rounded-full bg-slate-100"><div class="h-2.5 rounded-full bg-amber-400 transition-all" style="width:' + pct + '%"></div></div>' +
+            '</div>';
+        }).join('') : '<p class="text-slate-400 text-xs">ไม่มีรายการ Need PO</p>';
+      }
+      if (donut) {
+        var total = Math.max(rows.length, 1);
+        var okPct = Math.round((normal / total) * 100);
+        var outPct = Math.round((outZero / total) * 100);
+        var lowPct = Math.max(0, 100 - okPct - outPct);
+        donut.style.background = 'conic-gradient(#22c55e 0 ' + okPct + '%, #ef4444 ' + okPct + '% ' + (okPct + outPct) + '%, #f59e0b ' + (okPct + outPct) + '% 100%)';
+        if (donutLegend) donutLegend.innerHTML =
+          '<span class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-green-500"></span>ปกติ ' + okPct + '%</span>' +
+          '<span class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-red-500"></span>หมด ' + outPct + '%</span>' +
+          '<span class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-amber-400"></span>ต่ำกว่า Min ' + lowPct + '%</span>';
+        if (donutText) donutText.textContent = rows.length + ' รายการทั้งหมด';
+      }
+      // Critical items: stock=0 or below min only (not missing image/location)
+      var riskRows = [];
+      rows.forEach(function(item) {
+        var stock = num(item.stock), min = num(item.min), need = Math.max(0, min - stock);
+        var isCritical = stock <= 0;
+        var isWarning = !isCritical && stock < min;
+        if (isCritical || isWarning) riskRows.push({ item: item, need: need, critical: isCritical });
+      });
+      riskRows.sort(function(a, b) {
+        if (a.critical !== b.critical) return a.critical ? -1 : 1;
+        return b.need - a.need;
+      });
+      var displayRows = riskRows.slice(0, 20);
+      if (riskCountEl) {
+        riskCountEl.classList.toggle('hidden', riskRows.length === 0);
+        riskCountEl.textContent = riskRows.length + ' รายการ';
+      }
+      bodyEl.innerHTML = displayRows.map(function(row, idx) {
         var r = row.item;
-        var riskBadge = '<span class="inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">' + row.reason + '</span>';
-        return '<tr class="border-b">' +
-          '<td class="px-2 py-2">' + normalizeMainLine(r.line || '-') + '</td>' +
-          '<td class="px-2 py-2">' + (r.no || '-') + '</td>' +
-          '<td class="px-2 py-2">' + (r.name || '-') + '</td>' +
-          '<td class="px-2 py-2">' + (r.model || '-') + '</td>' +
-          '<td class="px-2 py-2">' + num(r.stock) + '</td>' +
-          '<td class="px-2 py-2">' + num(r.min) + '</td>' +
-          '<td class="px-2 py-2">' + row.need + '</td>' +
-          '<td class="px-2 py-2">' + (r.location || '-') + '</td>' +
-          '<td class="px-2 py-2">' + riskBadge + '</td>' +
+        var levelBadge = row.critical
+          ? '<span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">🚨 หมดสต็อก</span>'
+          : '<span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">⚠️ ต่ำกว่า Min</span>';
+        var rowBg = row.critical ? 'bg-rose-50/40' : (idx % 2 ? 'bg-slate-50' : 'bg-white');
+        return '<tr class="border-b border-slate-100 ' + rowBg + ' hover:bg-blue-50/40 transition">' +
+          '<td class="px-3 py-2.5 text-xs font-semibold text-slate-600">' + normalizeMainLine(r.line || '-') + '</td>' +
+          '<td class="px-3 py-2.5 font-semibold text-slate-800">' + (r.name || '-') + '</td>' +
+          '<td class="px-3 py-2.5 hidden sm:table-cell text-slate-500 text-xs">' + (r.model !== '-' ? r.model : '') + '</td>' +
+          '<td class="px-3 py-2.5 text-center font-bold ' + (row.critical ? 'text-rose-600' : 'text-amber-600') + '">' + num(r.stock) + '</td>' +
+          '<td class="px-3 py-2.5 text-center text-slate-500">' + num(r.min) + '</td>' +
+          '<td class="px-3 py-2.5 text-center font-bold text-blue-600">' + row.need + '</td>' +
+          '<td class="px-3 py-2.5">' + levelBadge + '</td>' +
         '</tr>';
       }).join('');
       loadingEl.classList.add('hidden');
       emptyEl.classList.toggle('hidden', riskRows.length > 0);
+      if (lastUpdatedEl) {
+        var now = new Date();
+        lastUpdatedEl.textContent = 'อัพเดทล่าสุด: ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น. • ' + rows.length + ' รายการ';
+      }
       renderDashboardRequestSummary();
       renderDashboardLogSummary();
     }
@@ -4489,14 +4561,20 @@ function inferRequestPriority(stock, min) {
         if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
         return String(lineRaw || '-');
       }
+      function reqStatusBadge(status) {
+        var s = String(status || '');
+        var map = { 'Pending': 'bg-amber-100 text-amber-700', 'Approved': 'bg-blue-100 text-blue-700', 'Purchased': 'bg-violet-100 text-violet-700', 'Received': 'bg-green-100 text-green-700', 'Closed': 'bg-slate-100 text-slate-500', 'Rejected': 'bg-rose-100 text-rose-700', 'On Hold': 'bg-orange-100 text-orange-700' };
+        var cls = map[s] || 'bg-slate-100 text-slate-500';
+        return '<span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ' + cls + '">' + s + '</span>';
+      }
       var summaryEl = document.getElementById('dashboardRequestSummary');
       var emptyEl = document.getElementById('dashboardRequestEmpty');
       var tableBody = document.getElementById('dashboardRequestTableBody');
       if (!summaryEl || !emptyEl || !tableBody) return;
-      function card(title, value) {
-        return '<div class="rounded-lg border border-slate-200 p-2"><p class="text-[11px] text-slate-500">' + title + '</p><p class="text-lg font-bold">' + value + '</p></div>';
+      function chip(label, val, cls) {
+        return '<span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ' + cls + '">' + label + ' <span class="font-black">' + val + '</span></span>';
       }
-      summaryEl.innerHTML = card('Pending', 0) + card('Approved', 0) + card('Rejected', 0) + card('On Hold', 0) + card('Purchased', 0) + card('Received', 0) + card('Closed', 0) + card('All Requests', 0);
+      summaryEl.innerHTML = chip('Pending', '...', 'border-amber-200 bg-amber-50 text-amber-700');
       tableBody.innerHTML = '';
       emptyEl.classList.add('hidden');
       requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
@@ -4504,43 +4582,33 @@ function inferRequestPriority(stock, min) {
         rows = Array.isArray(rows) ? rows : [];
         var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
         rows = rows.filter(function(r){ return selectedLine === 'all' ? true : normalizeMainLine(r.line) === selectedLine; });
-        if (!rows.length) {
-          emptyEl.classList.remove('hidden');
-          var summaryElMain = document.getElementById('dashboardSummary');
-          if (summaryElMain) summaryElMain.innerHTML = summaryElMain.innerHTML.replace('Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">...</p>', 'Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">0</p>');
-          return;
-        }
         var counts = { 'Pending': 0, 'Approved': 0, 'Rejected': 0, 'On Hold': 0, 'Purchased': 0, 'Received': 0, 'Closed': 0 };
-        rows.forEach(function(r) {
-          var status = String(r.status || 'Pending');
-          if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status]++;
-        });
-        summaryEl.innerHTML = card('Pending', counts['Pending']) + card('Approved', counts['Approved']) + card('Rejected', counts['Rejected']) + card('On Hold', counts['On Hold']) + card('Purchased', counts['Purchased']) + card('Received', counts['Received']) + card('Closed', counts['Closed']) + card('All Requests', rows.length);
-        var summaryElMain2 = document.getElementById('dashboardSummary');
-        if (summaryElMain2) summaryElMain2.innerHTML = summaryElMain2.innerHTML.replace('Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">...</p>', 'Pending Request</p><p class=\"text-2xl font-extrabold text-slate-900\">' + counts['Pending'] + '</p>');
-        rows.sort(function(a, b) {
-          return new Date(String(b.updated_at || b.requested_date || 0)).getTime() - new Date(String(a.updated_at || a.requested_date || 0)).getTime();
-        });
-        tableBody.innerHTML = rows.slice(0, 30).map(function(r) {
-          var reqDate = formatThaiDateTime(r.requested_date);
-          var updDate = formatThaiDateTime(r.updated_at);
-          var reqId = String(r.request_id || '-');
-          return '<tr class="border-b">' +
-            '<td class="px-2 py-2">' + reqId + '</td>' +
-            '<td class="px-2 py-2">' + (r.requested_by || '-') + '</td>' +
-            '<td class="px-2 py-2">' + normalizeMainLine(r.line || '-') + '</td>' +
-            '<td class="px-2 py-2">' + (r.item_name || '-') + '</td>' +
-            '<td class="px-2 py-2">' + (r.request_qty || 0) + '</td>' +
-            '<td class="px-2 py-2">' + (r.priority || '-') + '</td>' +
-            '<td class="px-2 py-2">' + (r.status || '-') + '</td>' +
-            '<td class="px-2 py-2">' + reqDate + '</td>' +
-            '<td class="px-2 py-2">' + updDate + '</td>' +
-            '<td class="px-2 py-2"><button type="button" data-dashboard-request-id="' + reqId + '" class="rounded border border-slate-300 bg-white px-2 py-1 text-xs">ดูDetails</button></td>' +
+        rows.forEach(function(r) { var s = String(r.status || 'Pending'); if (Object.prototype.hasOwnProperty.call(counts, s)) counts[s]++; });
+        summaryEl.innerHTML =
+          chip('Pending', counts['Pending'], 'border-amber-200 bg-amber-50 text-amber-700') +
+          chip('Approved', counts['Approved'], 'border-blue-200 bg-blue-50 text-blue-700') +
+          chip('Purchased', counts['Purchased'], 'border-violet-200 bg-violet-50 text-violet-700') +
+          chip('Received', counts['Received'], 'border-green-200 bg-green-50 text-green-700') +
+          chip('Closed', counts['Closed'], 'border-slate-200 bg-slate-50 text-slate-500') +
+          chip('ทั้งหมด', rows.length, 'border-slate-300 bg-white text-slate-700');
+        // update KPI card
+        var summaryMain = document.getElementById('dashboardSummary');
+        if (summaryMain) summaryMain.innerHTML = summaryMain.innerHTML
+          .replace(/>\.\.\.(<\/p>[\s\S]*?กำลังโหลด\.\.\.)/, '>' + counts['Pending'] + '$1')
+          .replace('กำลังโหลด...', counts['Pending'] > 0 ? counts['Pending'] + ' รายการรอดำเนินการ' : 'ไม่มีคำขอรอ');
+        if (!rows.length) { emptyEl.classList.remove('hidden'); return; }
+        rows.sort(function(a,b){ return new Date(String(b.updated_at || b.requested_date || 0)).getTime() - new Date(String(a.updated_at || a.requested_date || 0)).getTime(); });
+        tableBody.innerHTML = rows.slice(0, 25).map(function(r, idx) {
+          var rowBg = idx % 2 ? 'bg-slate-50/60' : 'bg-white';
+          return '<tr class="border-b border-slate-100 ' + rowBg + ' hover:bg-blue-50/40">' +
+            '<td class="px-3 py-2 font-medium text-slate-800">' + (r.item_name || '-') + '</td>' +
+            '<td class="px-3 py-2 hidden sm:table-cell text-slate-500">' + normalizeMainLine(r.line || '-') + '</td>' +
+            '<td class="px-3 py-2 text-center font-bold text-slate-700">' + (r.request_qty || 0) + '</td>' +
+            '<td class="px-3 py-2">' + reqStatusBadge(r.status) + '</td>' +
+            '<td class="px-3 py-2 hidden sm:table-cell text-slate-400 text-[11px]">' + formatThaiDateTime(r.requested_date) + '</td>' +
           '</tr>';
         }).join('');
-      }).catch(function() {
-        emptyEl.classList.remove('hidden');
-      });
+      }).catch(function() { emptyEl.classList.remove('hidden'); });
     }
 
     function renderDashboardLogSummary() {
@@ -4552,19 +4620,17 @@ function inferRequestPriority(stock, min) {
         if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
         return String(lineRaw || '-');
       }
+      function chip(label, val, cls) {
+        return '<span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ' + cls + '">' + label + ' <span class="font-black">' + val + '</span></span>';
+      }
       var summaryEl = document.getElementById('dashboardLogSummary');
       var emptyEl = document.getElementById('dashboardLogEmpty');
       var latestBody = document.getElementById('dashboardLatestIssueBody');
       var topPartsBody = document.getElementById('dashboardTopPartsBody');
       var topUsersBody = document.getElementById('dashboardTopUsersBody');
-      if (!summaryEl || !emptyEl || !latestBody || !topPartsBody || !topUsersBody) return;
-      function card(title, value) {
-        return '<div class="rounded-lg border border-slate-200 p-2"><p class="text-[11px] text-slate-500">' + title + '</p><p class="text-lg font-bold">' + value + '</p></div>';
-      }
-      summaryEl.innerHTML = card('เบิกออกวันนี้', 0) + card('รับเข้าวันนี้', 0) + card('เบิกออกเดือนนี้', 0) + card('รับเข้าเดือนนี้', 0);
-      latestBody.innerHTML = '';
-      topPartsBody.innerHTML = '';
-      topUsersBody.innerHTML = '';
+      if (!summaryEl || !emptyEl || !latestBody || !topPartsBody) return;
+      summaryEl.innerHTML = chip('เบิกวันนี้', '...', 'border-blue-200 bg-blue-50 text-blue-700') + chip('รับเข้าวันนี้', '...', 'border-green-200 bg-green-50 text-green-700');
+      latestBody.innerHTML = ''; topPartsBody.innerHTML = '';
       emptyEl.classList.add('hidden');
       loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); }).then(function(rawData) {
         var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
@@ -4574,10 +4640,7 @@ function inferRequestPriority(stock, min) {
         var now = new Date();
         var isSameDay = function(d){ return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate(); };
         var isSameMonth = function(d){ return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth(); };
-        var outToday = 0, inToday = 0, outMonth = 0, inMonth = 0;
-        var issues = [];
-        var partMap = {};
-        var userMap = {};
+        var outToday = 0, inToday = 0, outMonth = 0, inMonth = 0, issues = [], partMap = {}, userMap = {};
         rows.forEach(function(r) {
           var t = String(r.type || r.txnType || '').toLowerCase();
           var dt = new Date(r.timestamp || r.date || r.created_at || 0);
@@ -4588,30 +4651,55 @@ function inferRequestPriority(stock, min) {
             issues.push(r);
             if (isSameDay(dt)) outToday += qty;
             if (isSameMonth(dt)) outMonth += qty;
-            var pKey = [r.partName || r.name || '-', r.model || '-', r.brand || '-'].join('||');
-            if (!partMap[pKey]) partMap[pKey] = { name: r.partName || r.name || '-', model: r.model || '-', brand: r.brand || '-', count: 0, qty: 0, last: 0 };
-            partMap[pKey].count += 1; partMap[pKey].qty += qty; partMap[pKey].last = Math.max(partMap[pKey].last, dt.getTime() || 0);
+            var pKey = [r.partName || r.name || '-', r.model || '-'].join('||');
+            if (!partMap[pKey]) partMap[pKey] = { name: r.partName || r.name || '-', model: r.model || '-', count: 0, qty: 0, last: 0 };
+            partMap[pKey].count++; partMap[pKey].qty += qty; partMap[pKey].last = Math.max(partMap[pKey].last, dt.getTime() || 0);
             var by = String(r.by || r.requestedBy || '-').trim() || '-';
             if (!userMap[by]) userMap[by] = { by: by, count: 0, qty: 0, last: 0 };
-            userMap[by].count += 1; userMap[by].qty += qty; userMap[by].last = Math.max(userMap[by].last, dt.getTime() || 0);
+            userMap[by].count++; userMap[by].qty += qty; userMap[by].last = Math.max(userMap[by].last, dt.getTime() || 0);
           }
-          if (isIn) {
-            if (isSameDay(dt)) inToday += qty;
-            if (isSameMonth(dt)) inMonth += qty;
-          }
+          if (isIn) { if (isSameDay(dt)) inToday += qty; if (isSameMonth(dt)) inMonth += qty; }
         });
-        summaryEl.innerHTML = card('เบิกออกวันนี้', outToday) + card('รับเข้าวันนี้', inToday) + card('เบิกออกเดือนนี้', outMonth) + card('รับเข้าเดือนนี้', inMonth);
-        issues.sort(function(a,b){ return new Date(b.timestamp || b.date || 0) - new Date(a.timestamp || a.date || 0); });
-        latestBody.innerHTML = issues.slice(0, 20).map(function(r){
-          return '<tr class="border-b"><td class="px-2 py-2">' + formatThaiDateTime(r.timestamp || r.date) + '</td><td class="px-2 py-2">' + (r.type || '-') + '</td><td class="px-2 py-2">' + (r.partName || r.name || '-') + '</td><td class="px-2 py-2">' + (r.model || '-') + '</td><td class="px-2 py-2">' + (r.brand || '-') + '</td><td class="px-2 py-2">' + (Number(r.qty || r.quantity || 0) || 0) + '</td><td class="px-2 py-2">' + (r.by || '-') + '</td></tr>';
-        }).join('') || '<tr><td colspan="7" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
-        var topParts = Object.keys(partMap).map(function(k){ return partMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topPartsBody.innerHTML = topParts.map(function(p){ return '<tr class="border-b"><td class="px-2 py-2">' + p.name + '</td><td class="px-2 py-2">' + p.model + '</td><td class="px-2 py-2">' + p.brand + '</td><td class="px-2 py-2">' + p.count + '</td><td class="px-2 py-2">' + p.qty + '</td><td class="px-2 py-2">' + (p.last ? formatThaiDateTime(p.last) : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="6" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
-        var topUsers = Object.keys(userMap).map(function(k){ return userMap[k]; }).sort(function(a,b){ return b.count - a.count || b.qty - a.qty; }).slice(0,10);
-        topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? formatThaiDateTime(u.last) : '-') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="px-2 py-3 text-slate-500">No issue/receive history yet</td></tr>';
-      }).catch(function() {
-        emptyEl.classList.remove('hidden');
-      });
+        summaryEl.innerHTML =
+          chip('เบิกวันนี้', outToday, 'border-blue-200 bg-blue-50 text-blue-700') +
+          chip('รับเข้าวันนี้', inToday, 'border-green-200 bg-green-50 text-green-700') +
+          chip('เบิกเดือนนี้', outMonth, 'border-blue-100 bg-white text-blue-600') +
+          chip('รับเข้าเดือนนี้', inMonth, 'border-green-100 bg-white text-green-600');
+        issues.sort(function(a,b){ return new Date(b.timestamp||b.date||0) - new Date(a.timestamp||a.date||0); });
+        var typeLabel = function(t) {
+          var tl = String(t || '').toLowerCase();
+          if (tl.indexOf('issue') !== -1 || tl.indexOf('output') !== -1) return '<span class="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">เบิก</span>';
+          if (tl.indexOf('receive') !== -1 || tl.indexOf('input') !== -1) return '<span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">รับเข้า</span>';
+          return '<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">' + t + '</span>';
+        };
+        latestBody.innerHTML = issues.slice(0, 15).map(function(r, idx) {
+          var rowBg = idx % 2 ? 'bg-slate-50/60' : 'bg-white';
+          return '<tr class="border-b border-slate-100 ' + rowBg + '">' +
+            '<td class="px-3 py-2 font-medium text-slate-800">' + (r.partName || r.name || '-') + '</td>' +
+            '<td class="px-3 py-2 hidden sm:table-cell">' + typeLabel(r.type) + '</td>' +
+            '<td class="px-3 py-2 text-center font-bold text-slate-700">' + Math.abs(Number(r.qty || r.quantity || 0)) + '</td>' +
+            '<td class="px-3 py-2 hidden sm:table-cell text-slate-500">' + (r.by || '-') + '</td>' +
+            '<td class="px-3 py-2 text-slate-400 text-[11px]">' + formatThaiDateTime(r.timestamp || r.date) + '</td>' +
+          '</tr>';
+        }).join('') || '<tr><td colspan="5" class="px-3 py-4 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>';
+        var topParts = Object.keys(partMap).map(function(k){ return partMap[k]; }).sort(function(a,b){ return b.count-a.count || b.qty-a.qty; }).slice(0,10);
+        topPartsBody.innerHTML = topParts.map(function(p, idx) {
+          var rowBg = idx % 2 ? 'bg-slate-50/60' : 'bg-white';
+          var rankColor = idx === 0 ? 'text-amber-500 font-black' : idx === 1 ? 'text-slate-400 font-bold' : idx === 2 ? 'text-amber-700 font-bold' : 'text-slate-400';
+          return '<tr class="border-b border-slate-100 ' + rowBg + '">' +
+            '<td class="px-3 py-2.5 text-center ' + rankColor + '">' + (idx+1) + '</td>' +
+            '<td class="px-3 py-2.5 font-semibold text-slate-800">' + p.name + '</td>' +
+            '<td class="px-3 py-2.5 hidden sm:table-cell text-slate-500 text-xs">' + (p.model !== '-' ? p.model : '') + '</td>' +
+            '<td class="px-3 py-2.5 text-center font-bold text-blue-600">' + p.count + '</td>' +
+            '<td class="px-3 py-2.5 text-center font-semibold">' + p.qty + '</td>' +
+            '<td class="px-3 py-2.5 hidden sm:table-cell text-slate-400 text-[11px]">' + (p.last ? formatThaiDateTime(p.last) : '-') + '</td>' +
+          '</tr>';
+        }).join('') || '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>';
+        if (topUsersBody) {
+          var topUsers = Object.keys(userMap).map(function(k){ return userMap[k]; }).sort(function(a,b){ return b.count-a.count; }).slice(0,10);
+          topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? formatThaiDateTime(u.last) : '-') + '</td></tr>'; }).join('');
+        }
+      }).catch(function() { emptyEl.classList.remove('hidden'); });
     }
 
     function switchToDashboardPage() {
@@ -4627,17 +4715,7 @@ function inferRequestPriority(stock, min) {
       adminPage.classList.add('hidden');
       setTabStyles('dashboard');
       loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1);
-      initDashboardSidebarNav();
-      var firstDashBtn = document.querySelector('#dashboardSidebarMenu [data-dash-target="dashExecutive"]');
-      if (firstDashBtn) {
-        Array.prototype.slice.call(document.querySelectorAll('#dashboardSidebarMenu [data-dash-target]')).forEach(function(b){ b.classList.remove('bg-blue-50','text-blue-700','font-semibold'); });
-        firstDashBtn.classList.add('bg-blue-50','text-blue-700','font-semibold');
-      }
       if (dashboardPage) dashboardPage.scrollTop = 0;
-      var dashExecutiveSection = document.getElementById('dashExecutive');
-      if (dashExecutiveSection && dashExecutiveSection.scrollIntoView) {
-        dashExecutiveSection.scrollIntoView({ behavior: 'auto', block: 'start' });
-      }
     }
 
     function switchToRequestOrderPage() {
