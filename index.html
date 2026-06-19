@@ -865,7 +865,12 @@
           </label>
         </div>
         <label class="block text-sm font-semibold text-slate-700">Part Name <span class="text-rose-500">*</span>
-          <input id="phManualPartName" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="ชื่ออะไหล่" list="phPartNameList" />
+          <div class="relative mt-1" id="phPartNameWrapper">
+            <input id="phManualPartName" required autocomplete="off" class="h-10 w-full rounded-lg border border-slate-300 px-3 pr-8" placeholder="พิมพ์เพื่อค้นหาในระบบ..." />
+            <span id="phPartNameClear" class="absolute right-2 top-1/2 -translate-y-1/2 hidden cursor-pointer text-slate-400 hover:text-slate-700 text-lg leading-none select-none">×</span>
+            <div id="phPartNameDropdown" class="absolute z-[200] hidden w-full rounded-lg border border-slate-200 bg-white shadow-xl overflow-hidden" style="top:calc(100% + 2px); max-height:240px; overflow-y:auto;"></div>
+          </div>
+          <input type="hidden" id="phManualPartId" />
         </label>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label class="text-sm font-semibold text-slate-700">Model / Part No.
@@ -7636,11 +7641,126 @@ function inferRequestPriority(stock, min) {
       phManualMessage.textContent = ''; phManualMessage.className = 'text-sm';
       document.getElementById('phManualSubmit').disabled = false;
       document.getElementById('phManualSubmit').textContent = 'บันทึก';
+      document.getElementById('phManualPartId').value = '';
+      var _pnClear = document.getElementById('phPartNameClear'); if (_pnClear) _pnClear.classList.add('hidden');
+      var _pnDd = document.getElementById('phPartNameDropdown'); if (_pnDd) _pnDd.classList.add('hidden');
       phManualModal.classList.remove('hidden');
       phManualModal.scrollTop = 0;
       lockBodyScroll();
     });
-    function closePhManualModal() { phManualModal.classList.add('hidden'); unlockBodyScroll(); }
+    function closePhManualModal() {
+      phManualModal.classList.add('hidden'); unlockBodyScroll();
+      var dd = document.getElementById('phPartNameDropdown'); if (dd) dd.classList.add('hidden');
+    }
+    // ── Part Name autocomplete ──────────────────────────────────────────
+    (function() {
+      var phPartInput   = document.getElementById('phManualPartName');
+      var phPartIdHidden = document.getElementById('phManualPartId');
+      var phPartClear   = document.getElementById('phPartNameClear');
+      var dd            = document.getElementById('phPartNameDropdown');
+      var _matchedParts = [];
+      var _isOther      = false;
+
+      function hideDropdown() { if (dd) dd.classList.add('hidden'); }
+
+      function fillFromPart(p) {
+        _isOther = false;
+        phPartIdHidden.value = p.id || p.part_id || '';
+        phPartInput.value = p.part_name || '';
+        if (phPartClear) phPartClear.classList.remove('hidden');
+        document.getElementById('phManualModel').value     = p.model     || '';
+        document.getElementById('phManualBrand').value     = p.brand     || '';
+        document.getElementById('phManualUnit').value      = p.unit      || '';
+        document.getElementById('phManualUnitPrice').value = (p.unit_price != null && p.unit_price !== '') ? p.unit_price : '';
+        hideDropdown();
+      }
+
+      function clearPartSelection() {
+        phPartIdHidden.value = '';
+        _isOther = false;
+        if (phPartClear) phPartClear.classList.add('hidden');
+      }
+
+      function selectOther() {
+        _isOther = true;
+        phPartIdHidden.value = '';
+        if (phPartClear) phPartClear.classList.remove('hidden');
+        document.getElementById('phManualModel').value     = '';
+        document.getElementById('phManualBrand').value     = '';
+        document.getElementById('phManualUnit').value      = '';
+        document.getElementById('phManualUnitPrice').value = '';
+        hideDropdown();
+        if (phPartInput) phPartInput.focus();
+      }
+
+      function renderDropdown(query) {
+        if (!dd || !partsData) return;
+        var q = (query || '').toLowerCase().trim();
+        _matchedParts = q.length === 0 ? [] : (partsData || []).filter(function(p) {
+          return p.part_name && String(p.part_name).toLowerCase().indexOf(q) !== -1;
+        }).slice(0, 15);
+
+        var html = '';
+        _matchedParts.forEach(function(p, i) {
+          var name = escHtml(String(p.part_name || ''));
+          var sub  = [p.model, p.brand].filter(Boolean).map(function(s){ return escHtml(String(s)); }).join(' · ');
+          html += '<div class="ph-part-opt px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100" data-i="' + i + '">' +
+            '<div class="text-sm font-medium text-slate-800">' + name + '</div>' +
+            (sub ? '<div class="text-xs text-slate-500 mt-0.5">' + sub + '</div>' : '') +
+            '</div>';
+        });
+        // divider + other option
+        if (_matchedParts.length > 0) html += '<div class="border-t border-slate-200"></div>';
+        html += '<div class="ph-part-other px-3 py-2.5 cursor-pointer hover:bg-blue-50 flex items-center gap-2">' +
+          '<span class="text-sm font-semibold text-blue-600">+ รายการอื่นๆ</span>' +
+          '<span class="text-xs text-slate-400">(ไม่มีในระบบ — พิมพ์เองได้)</span>' +
+          '</div>';
+
+        dd.innerHTML = html;
+        dd.classList.remove('hidden');
+
+        dd.querySelectorAll('.ph-part-opt').forEach(function(el) {
+          el.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            var i = parseInt(el.getAttribute('data-i'), 10);
+            if (_matchedParts[i]) fillFromPart(_matchedParts[i]);
+          });
+        });
+        var otherEl = dd.querySelector('.ph-part-other');
+        if (otherEl) otherEl.addEventListener('mousedown', function(e) { e.preventDefault(); selectOther(); });
+      }
+
+      if (phPartInput) {
+        phPartInput.addEventListener('input', function() {
+          clearPartSelection();
+          var q = phPartInput.value.trim();
+          if (phPartClear) phPartClear.classList.toggle('hidden', q.length === 0);
+          renderDropdown(q);
+        });
+        phPartInput.addEventListener('focus', function() {
+          if (phPartInput.value.trim().length > 0) renderDropdown(phPartInput.value.trim());
+        });
+        phPartInput.addEventListener('blur', function() { setTimeout(hideDropdown, 150); });
+        phPartInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') { hideDropdown(); phPartInput.blur(); }
+        });
+      }
+      if (phPartClear) phPartClear.addEventListener('click', function() {
+        phPartInput.value = ''; phPartClear.classList.add('hidden');
+        clearPartSelection(); hideDropdown(); phPartInput.focus();
+        document.getElementById('phManualModel').value     = '';
+        document.getElementById('phManualBrand').value     = '';
+        document.getElementById('phManualUnit').value      = '';
+        document.getElementById('phManualUnitPrice').value = '';
+      });
+
+      // reset when modal opens
+      var _origOpen = purchaseHistoryAddBtn ? purchaseHistoryAddBtn.onclick : null;
+      document.addEventListener('phManualModalOpen', function() {
+        clearPartSelection(); if (phPartClear) phPartClear.classList.add('hidden'); hideDropdown();
+      });
+    })();
+    // ────────────────────────────────────────────────────────────────────
     ['phManualClose','phManualCancel'].forEach(function(id){ var b=document.getElementById(id); if(b) b.addEventListener('click', closePhManualModal); });
     if (phManualModal) phManualModal.addEventListener('click', function(e){ if(e.target===phManualModal) closePhManualModal(); });
     if (phManualForm) phManualForm.addEventListener('submit', function(e) {
