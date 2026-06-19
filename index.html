@@ -62,10 +62,10 @@
 
     .request-order-nav-btn { position: relative; overflow: visible; }
     .request-order-nav-badge {
-      position: absolute; top: -8px; right: -8px; min-width: 24px; height: 24px; padding: 0 6px;
-      border-radius: 999px; background: #2563eb; color: #fff; border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.25); display: inline-flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 700; z-index: 10; pointer-events: none;
+      position: absolute; top: -8px; right: -8px; min-width: 22px; height: 22px; padding: 0 5px;
+      border-radius: 999px; background: #ef4444; color: #fff; border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.20); display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800; z-index: 1; pointer-events: none; isolation: isolate;
     }
     .request-order-nav-badge.hidden { display: none !important; }
     /* ── Z-index hierarchy ─────────────────────────────────
@@ -199,7 +199,7 @@
 
     <div class="grid grid-cols-1 gap-4 items-start">
       <div id="mainContentPanel" class="min-w-0">
-        <div id="topNavTabs" class="mb-4 flex items-center gap-1 overflow-x-auto overflow-y-visible rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm md:gap-1.5">
+        <div id="topNavTabs" class="mb-4 flex items-center gap-1 overflow-x-auto overflow-y-visible rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm md:gap-1.5" style="isolation:isolate;z-index:1;position:relative;">
           <button id="tabStock" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl bg-blue-600 px-2.5 py-2 text-sm font-semibold text-white shadow-sm md:px-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/></svg>
             <span class="hidden sm:inline">Stock</span>
@@ -243,26 +243,13 @@
 
     <section id="stockPage" class="space-y-4 eng-gridline p-2 rounded-2xl">
       <section id="stockStickyHeader" class="sticky top-0 z-50 -mx-2 px-2 pb-3 pt-2" style="background:rgba(241,245,249,0.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(203,213,225,0.6);">
-        <!-- Utility bar -->
+        <!-- Sheet selector + Refresh only -->
         <div class="flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-white/80 px-3 py-2 text-xs shadow-sm">
-          <div class="hidden md:flex items-center gap-1.5">
-            <button id="stockNavLogBtn" type="button" class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 font-semibold transition hover:bg-slate-50 hover:shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-              Log ประวัติ
-            </button>
-            <button id="stockNavManageBtn" type="button" class="flex items-center gap-1.5 rounded-lg border border-amber-400 bg-amber-500 px-3 py-1.5 text-white font-semibold transition hover:bg-amber-600 hover:shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-              เพิ่มรายการเข้าระบบ
-            </button>
-            <button id="stockNavAdminBtn" type="button" class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 font-semibold transition hover:bg-slate-50 hover:shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-              Admin Panel
-            </button>
-          </div>
-          <button id="stockUtilityMenuBtn" type="button" class="md:hidden flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 font-semibold">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
-            เมนู
-          </button>
+          <!-- hidden buttons kept for JS compatibility -->
+          <button id="stockNavLogBtn" type="button" class="hidden"></button>
+          <button id="stockNavManageBtn" type="button" class="hidden"></button>
+          <button id="stockNavAdminBtn" type="button" class="hidden"></button>
+          <button id="stockUtilityMenuBtn" type="button" class="hidden"></button>
           <div id="sheetSelectorWrap" class="ml-auto flex items-center gap-2">
             <select id="sheetSelector" class="h-8 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700">
               <option value="Main List Stock">General</option>
@@ -275,20 +262,11 @@
             </button>
           </div>
         </div>
-        <!-- Mobile utility menu -->
-        <div id="stockUtilityMenuMobile" class="mt-2 hidden grid-cols-3 gap-2 text-xs md:hidden">
-          <button id="stockNavLogBtnMobile" type="button" class="flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white py-2.5 font-semibold text-slate-600">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            Log
-          </button>
-          <button id="stockNavManageBtnMobile" type="button" class="flex items-center justify-center gap-1 rounded-xl border border-amber-400 bg-amber-500 py-2.5 font-semibold text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            เพิ่มรายการ
-          </button>
-          <button id="stockNavAdminBtnMobile" type="button" class="flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white py-2.5 font-semibold text-slate-600">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            Admin
-          </button>
+        <!-- hidden mobile buttons for JS compatibility -->
+        <div id="stockUtilityMenuMobile" class="hidden">
+          <button id="stockNavLogBtnMobile" type="button" class="hidden"></button>
+          <button id="stockNavManageBtnMobile" type="button" class="hidden"></button>
+          <button id="stockNavAdminBtnMobile" type="button" class="hidden"></button>
         </div>
         <!-- Mobile line lock -->
         <div id="stockLineLockBar" class="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 md:hidden">
