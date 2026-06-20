@@ -59,6 +59,8 @@
     .search-clear-btn:hover { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
     .search-clear-btn:active { transform: scale(0.97); }
     @media (min-width: 768px) { .search-clear-btn { width: 28px; height: 28px; } }
+    /* Always hide sheet selector on mobile regardless of JS class manipulation */
+    @media (max-width: 767px) { #sheetSelectorWrap { display: none !important; } }
 
     .request-order-nav-btn { position: relative; overflow: visible; }
     .request-order-nav-badge {
@@ -243,7 +245,7 @@
         <!-- /#topNavTabs -->
 
     <section id="stockPage" class="space-y-4 eng-gridline p-2 rounded-2xl">
-      <section id="stockStickyHeader" class="sticky top-0 z-50 -mx-2 px-2 pb-3 pt-2" style="background:rgba(241,245,249,0.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(203,213,225,0.6);">
+      <section id="stockStickyHeader" class="sticky top-0 z-50 -mx-2 px-2 pb-2 pt-2" style="background:rgba(241,245,249,0.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(203,213,225,0.6);">
         <!-- hidden buttons for JS compatibility only -->
         <button id="stockNavLogBtn" type="button" class="hidden"></button>
         <button id="stockNavManageBtn" type="button" class="hidden"></button>
@@ -271,17 +273,20 @@
               <p class="text-xs font-bold text-blue-900">Stock Portal</p>
             </div>
           </div>
-          <!-- Mobile search + cart -->
-          <div class="flex flex-1 items-center gap-2 md:hidden">
-            <div class="relative flex-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm shadow-sm focus:ring-2 focus:ring-blue-400 outline-none" />
-              <button id="searchClearBtnMobile" type="button" class="search-clear-btn hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg leading-none">×</button>
+          <!-- Mobile search + cart + refresh -->
+          <div class="flex flex-1 items-center gap-1.5 md:hidden">
+            <div class="relative flex flex-1 items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none ml-3 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่..." class="h-10 flex-1 bg-transparent pl-2 pr-2 text-sm outline-none" />
+              <button id="searchClearBtnMobile" type="button" class="search-clear-btn hidden mr-1.5 shrink-0 text-slate-400 text-lg leading-none">×</button>
             </div>
-            <button id="openIssueCartBtnMobile" type="button" class="relative h-10 w-10 shrink-0 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-lg">🛒<span id="issueCartBadgeMobile" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+            <button id="openIssueCartBtnMobile" type="button" class="flex items-center justify-center gap-0.5 h-10 px-2.5 shrink-0 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-base font-bold">🛒<span id="issueCartBadgeMobile" class="hidden min-w-[16px] h-4 rounded-full bg-red-500 px-1 text-[10px] font-black text-white leading-4">0</span></button>
+            <button id="refreshStockDataBtnMobile" type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-600">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
           </div>
           <!-- Desktop: search + cart + sheet selector -->
-          <button id="openIssueCartBtn" type="button" class="relative hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition md:inline-flex">🛒 Issue Cart <span id="issueCartBadge" class="hidden absolute -right-1 -top-1 min-w-[18px] rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">0</span></button>
+          <button id="openIssueCartBtn" type="button" class="hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition md:inline-flex">🛒 Issue Cart <span id="issueCartBadge" class="hidden min-w-[16px] h-4 rounded-full bg-red-500 px-1 text-[10px] font-black text-white leading-4">0</span></button>
           <div class="hidden flex-1 md:block">
             <div class="relative flex items-center rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-400 overflow-hidden">
               <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none ml-3 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -7177,12 +7182,12 @@ function inferRequestPriority(stock, min) {
         function qaStat(icon, value, label, color, bg, clickStatus) {
           var urgent = value > 0 && (clickStatus === 'out' || clickStatus === 'low');
           var ping = urgent ? '<span class="absolute -top-1 -right-1 flex h-2.5 w-2.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style="background:' + color + '"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full" style="background:' + color + '"></span></span>' : '';
-          return '<button data-status-card="' + clickStatus + '" class="relative group flex items-center gap-2.5 rounded-xl border px-3 py-2 transition-all hover:scale-[1.03] hover:shadow-md active:scale-95 shrink-0" style="background:' + bg + ';border-color:' + color + '30;">' +
+          return '<button data-status-card="' + clickStatus + '" class="relative group flex items-center gap-2 rounded-xl border px-2.5 py-2 transition-all hover:scale-[1.03] hover:shadow-md active:scale-95 shrink-0 whitespace-nowrap" style="background:' + bg + ';border-color:' + color + '30;">' +
             ping +
-            '<span class="text-xl leading-none">' + icon + '</span>' +
-            '<div class="text-left">' +
-              '<p class="text-[18px] font-black leading-none" style="color:' + color + '">' + value + '</p>' +
-              '<p class="text-[10px] font-semibold text-slate-500 leading-tight mt-0.5">' + label + '</p>' +
+            '<span class="text-lg leading-none shrink-0">' + icon + '</span>' +
+            '<div class="text-left min-w-0">' +
+              '<p class="text-[17px] font-black leading-none" style="color:' + color + '">' + value + '</p>' +
+              '<p class="text-[10px] font-semibold text-slate-500 leading-tight mt-0.5 whitespace-nowrap">' + label + '</p>' +
             '</div>' +
             '</button>';
         }
@@ -8307,6 +8312,10 @@ if (dashboardPage) {
       var fileEl = document.getElementById('eDrawingFile'); if (fileEl) fileEl.value = '';
       var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Missing';
       setAttachmentLink('eDrawingView', '');
+    });
+    var refreshStockDataBtnMobile = document.getElementById('refreshStockDataBtnMobile');
+    if (refreshStockDataBtnMobile) refreshStockDataBtnMobile.addEventListener('click', function() {
+      if (refreshStockDataBtn) refreshStockDataBtn.click();
     });
     if (refreshStockDataBtn) refreshStockDataBtn.addEventListener('click', function() {
       var spinner = document.getElementById('refreshStockSpinner');
