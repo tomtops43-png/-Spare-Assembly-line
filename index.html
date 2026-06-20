@@ -1484,16 +1484,19 @@
       <div id="issueCartList" class="min-h-0 flex-1 max-h-[calc(100vh-250px)] md:max-h-none space-y-2 overflow-y-auto overscroll-contain pr-1" style="-webkit-overflow-scrolling:touch;touch-action:pan-y;"></div>
       <div class="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
         <input id="issueCartBy" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm bg-slate-100 text-slate-700" placeholder="ผู้เบิก (Auto)" readonly />
-        <input id="issueCartProcess" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="ไลน์/งาน" />
+        <div class="relative">
+          <input id="issueCartProcess" type="text" class="h-10 w-full rounded-lg border border-slate-200 bg-slate-100 px-3 text-sm font-semibold text-slate-700 cursor-not-allowed" placeholder="ไลน์/งาน (Auto)" readonly />
+          <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">🔒 Auto</span>
+        </div>
         <select id="issueCartReason" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm bg-white">
-          <option value="">Reason / เหตุผลการเบิก</option>
-          <option value="PM">PM</option>
-          <option value="Breakdown">Breakdown</option>
-          <option value="Improvement">Improvement</option>
-          <option value="Trial">Trial</option>
-          <option value="Replace NG">Replace NG</option>
-          <option value="Production Support">Production Support</option>
-          <option value="Other">Other</option>
+          <option value="">— เลือกเหตุผลการเบิก —</option>
+          <option value="PM">🔧 บำรุงรักษาตามแผน (PM)</option>
+          <option value="Breakdown">🚨 เครื่องเสีย / Breakdown</option>
+          <option value="Improvement">⚙️ ปรับปรุง / Improvement</option>
+          <option value="Trial">🧪 ทดสอบ / Trial</option>
+          <option value="Replace NG">♻️ เปลี่ยนของชำรุด (Replace NG)</option>
+          <option value="Production Support">🏭 สนับสนุนการผลิต</option>
+          <option value="Other">📝 อื่นๆ (Other)</option>
         </select>
         <input id="issueCartReasonRemark" type="text" class="hidden h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="Reason Remark" />
         <input id="issueCartNote" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="หมายเหตุ (optional)" />
@@ -1534,16 +1537,19 @@
         </select>
         <input id="quickIssueQty" type="number" min="1" step="1" inputmode="numeric" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="จำนวน" required />
         <input id="quickIssueBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base bg-slate-100 text-slate-700" placeholder="ผู้เบิก/ผู้รับ" required readonly />
-        <input id="quickIssueProcess" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="ไลน์/งาน" />
+        <div class="relative">
+          <input id="quickIssueProcess" type="text" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 text-base font-semibold text-slate-700 cursor-not-allowed" placeholder="ไลน์/งาน (Auto)" readonly />
+          <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">🔒 Auto</span>
+        </div>
         <select id="quickIssueReason" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
-          <option value="">Reason / เหตุผลการเบิก</option>
-          <option value="PM">PM</option>
-          <option value="Breakdown">Breakdown</option>
-          <option value="Improvement">Improvement</option>
-          <option value="Trial">Trial</option>
-          <option value="Replace NG">Replace NG</option>
-          <option value="Production Support">Production Support</option>
-          <option value="Other">Other</option>
+          <option value="">— เลือกเหตุผลการเบิก —</option>
+          <option value="PM">🔧 บำรุงรักษาตามแผน (PM)</option>
+          <option value="Breakdown">🚨 เครื่องเสีย / Breakdown</option>
+          <option value="Improvement">⚙️ ปรับปรุง / Improvement</option>
+          <option value="Trial">🧪 ทดสอบ / Trial</option>
+          <option value="Replace NG">♻️ เปลี่ยนของชำรุด (Replace NG)</option>
+          <option value="Production Support">🏭 สนับสนุนการผลิต</option>
+          <option value="Other">📝 อื่นๆ (Other)</option>
         </select>
         <input id="quickIssueReasonRemark" type="text" class="hidden h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="Reason Remark" />
         </div>
