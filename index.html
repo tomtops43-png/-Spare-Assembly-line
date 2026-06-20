@@ -1096,18 +1096,28 @@
             </select>
           </div>
         </div>
-        <div class="flex flex-wrap gap-3">
-          <button id="prBuildReportBtn" type="button" class="flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            Preview รายงาน
-          </button>
-          <button id="prPrintBtn" type="button" class="flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Export PDF
-          </button>
-          <button id="prExportCsvBtn" type="button" class="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
-            📊 Export CSV
-          </button>
+        <div class="flex flex-wrap gap-3 items-start">
+          <!-- Preview — ไม่บันทึก Purchase History -->
+          <div class="flex flex-col gap-1">
+            <button id="prBuildReportBtn" type="button" class="flex items-center gap-2 rounded-2xl border-2 border-emerald-400 bg-white px-6 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              👁 ดูตัวอย่างรายงาน
+            </button>
+            <p class="text-[11px] text-slate-400 text-center">ไม่บันทึก Purchase History</p>
+          </div>
+          <!-- Export PDF — บันทึก Purchase History ทันที -->
+          <div class="flex flex-col gap-1">
+            <button id="prPrintBtn" type="button" class="flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              📄 Export PDF (ยืนยัน)
+            </button>
+            <p class="text-[11px] text-blue-500 font-semibold text-center">✅ บันทึก Purchase History อัตโนมัติ</p>
+          </div>
+          <div class="flex flex-col gap-1 mt-0.5">
+            <button id="prExportCsvBtn" type="button" class="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+              📊 Export CSV
+            </button>
+          </div>
         </div>
       </div>
 
@@ -9352,7 +9362,7 @@ if (dashboardPage) {
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) {
-        if (prReportPreview) prReportPreview.innerHTML = '<p class="text-sm text-rose-600">กรุณาเลือกรายการก่อนสร้างรายงาน</p>';
+        if (prReportPreview) prReportPreview.innerHTML = '<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">กรุณาเลือกรายการอย่างน้อย 1 รายการก่อนดูตัวอย่าง</div>';
         var pw = document.getElementById('prPreviewWrap'); if (pw) pw.classList.remove('hidden');
         return;
       }
@@ -9360,22 +9370,32 @@ if (dashboardPage) {
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
       var opts = getPrReportOptions(allSelectedMode);
       opts.prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
-      prReportPreview.innerHTML = buildDocumentGradeReport(selected, opts);
+      prReportPreview.innerHTML =
+        '<div class="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-700">' +
+        '<span class="text-lg">👁</span><span>นี่คือ <b>ตัวอย่างเท่านั้น</b> — ยังไม่ได้บันทึก Purchase History กด <b>Export PDF (ยืนยัน)</b> เมื่อพร้อมส่งอนุมัติ</span></div>' +
+        buildDocumentGradeReport(selected, opts);
       var pw = document.getElementById('prPreviewWrap'); if (pw) { pw.classList.remove('hidden'); pw.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-      recordAutoPrPurchaseHistory(selected).catch(function(err) {
-        prReportPreview.insertAdjacentHTML('afterbegin', '<div class="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">สร้างรายงานแล้ว แต่บันทึก Purchase History ไม่สำเร็จ: ' + escapePurchaseHistoryText(err && err.message ? err.message : err) + '</div>');
-      });
+      // ❌ ไม่บันทึก Purchase History ที่ Preview
     });
     if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Drawing Status','Drawing Revision','Drawing File Name','Drawing Link','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); var drawingUrl=String(c.drawingUrl||c.drawing_url||'').trim(); var drawingStatus=normalizeDrawingStatus(Object.assign({}, c, { drawing_url: drawingUrl, drawingUrl: drawingUrl })); if(!drawingUrl && drawingStatus!=='Not Required') drawingStatus='Missing'; var drawingLink=(drawingUrl && (drawingStatus==='Available'||drawingStatus==='Access Required')) ? drawingUrl : ''; return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,drawingStatus,c.drawingRevision||c.drawing_revision||'',c.drawingFileName||c.drawing_file_name||'',drawingLink,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = getFilteredPrCandidates(true);
-      if (!selected.length) return;
-      recordAutoPrPurchaseHistory(selected).catch(function(err) {
-        console.warn('recordAutoPrPurchaseHistory before print failed', err);
-      });
+      if (!selected.length) { showQuickToast('กรุณาเลือกรายการก่อน Export', 'warn'); return; }
       var totalFiltered = getFilteredPrCandidates(false).length;
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
-      var docHtml = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
+      var opts = getPrReportOptions(allSelectedMode);
+      opts.prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
+      var docHtml = buildDocumentGradeReport(selected, opts);
+      // ✅ บันทึก Purchase History เมื่อ Export จริง
+      prPrintBtn.disabled = true; prPrintBtn.textContent = '⏳ กำลังบันทึก...';
+      recordAutoPrPurchaseHistory(selected).then(function() {
+        showQuickToast('✅ บันทึก Purchase History ' + selected.length + ' รายการแล้ว (PR: ' + opts.prNumber + ')', 'success');
+        purchaseHistoryLoaded = false;
+      }).catch(function(err) {
+        showQuickToast('⚠️ Export สำเร็จ แต่บันทึก History ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
+      }).finally(function() {
+        prPrintBtn.disabled = false; prPrintBtn.innerHTML = '📄 Export PDF (ยืนยัน)';
+      });
       var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap\");' +
         'body{margin:0;padding:16px;background:#f8fafc;}' +
         '.pr-doc{font-family:\"Noto Sans Thai\",\"Sarabun\",\"Prompt\",Arial,sans-serif;color:#1e293b;max-width:960px;margin:0 auto;line-height:1.5;font-size:13px;}' +
