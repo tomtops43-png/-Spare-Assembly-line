@@ -9273,7 +9273,7 @@ if (dashboardPage) {
       var separateDrawingHtml = attachDrawingsSeparately ? ('<h2 class="section-table">Drawing Files to Attach Separately</h2><p class="sub">Use these source links to attach drawing files outside the main PR PDF package.</p><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + drawingAttachmentRows(normalized) + '</tbody></table>') : '';
       var fullDrawingsHtml = fullDrawingPages(normalized);
 
-      var prNumber = (opts && opts.prNumber) ? String(opts.prNumber) : ('PR-' + generatedAt.replace(/[^0-9]/g,'').substring(0,6) + '-MON-' + Math.floor(Math.random()*900+100));
+      var prNumber = (options && options.prNumber) ? String(options.prNumber) : ('PR-' + generatedAt.replace(/[^0-9]/g,'').substring(0,6) + '-MON-' + Math.floor(Math.random()*900+100));
       var urgentCount = urgentItems.length;
       var critLabel = urgentCount > 0 ? '⚠️ มีรายการด่วน ' + urgentCount + ' รายการ — ต้องอนุมัติเร่งด่วน' : '✅ ไม่มีรายการที่หยุดไลน์ได้ทันที';
       var sectionOffset = isLineSpecific ? 1 : 0;
