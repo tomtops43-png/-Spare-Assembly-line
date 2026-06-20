@@ -7175,44 +7175,52 @@ function inferRequestPriority(stock, min) {
         var visualState = getCardVisualState(item);
         var itemKey = getItemIdentityKey(item);
         var drawingBadge = normalizeDrawingStatus(item) === 'Available' ? '<span class="inline-flex flex-shrink-0 items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">Drawing</span>' : '';
-        var locationBadge = (item.location && item.location !== '-') ? '<span class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500"><svg xmlns=\'http://www.w3.org/2000/svg\' class=\'h-3 w-3\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' stroke-width=\'2\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M15 11a3 3 0 11-6 0 3 3 0 016 0z\'/></svg>' + item.location + '</span>' : '';
-        var priceBadge = (item.unit_price && item.unit_price !== '' && Number(item.unit_price) > 0) ? '<span class="text-[11px] text-slate-400">' + Number(item.unit_price).toLocaleString('th-TH') + ' ' + (item.currency || 'THB') + '</span>' : '';
+        var locationTxt = (item.location && item.location !== '-') ? item.location : '';
+        var priceNum = (item.unit_price && item.unit_price !== '' && Number(item.unit_price) > 0) ? Number(item.unit_price).toLocaleString('th-TH') + ' ' + (item.currency || 'THB') : '';
         var brandVal = item.brand && item.brand !== '-' ? item.brand : '';
         var modelVal = item.model && item.model !== '-' ? item.model : '';
-        return '<article data-row-key="' + itemKey + '" class="group relative flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:border-blue-200 cursor-pointer ' + visualState.cardClass + '">' +
+        // status color scheme
+        var qtyBg = status === 'OUT' ? 'background:linear-gradient(135deg,#fff1f2,#ffe4e6)' : status === 'LOW' ? 'background:linear-gradient(135deg,#fffbeb,#fef3c7)' : 'background:linear-gradient(135deg,#f0fdf4,#dcfce7)';
+        var qtyColor = status === 'OUT' ? 'color:#be123c' : status === 'LOW' ? 'color:#b45309' : 'color:#15803d';
+        var topStripe = status === 'OUT' ? 'background:#fda4af' : status === 'LOW' ? 'background:#fcd34d' : 'background:#86efac';
+        return '<article data-row-key="' + itemKey + '" class="group relative flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer ' + visualState.cardClass + '">' +
+          '<div class="h-1 w-full shrink-0" style="' + topStripe + '"></div>' +
           '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:4/3;">' +
             '<img loading="lazy" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain p-2 transition duration-300 group-hover:scale-105 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\''+ FALLBACK_IMAGE +'\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-xl') + '</div>' : '') +
-            '<div class="absolute top-2 right-2 flex gap-1">' + drawingBadge + '</div>' +
+            (drawingBadge ? '<div class="absolute top-2 right-2">' + drawingBadge + '</div>' : '') +
           '</div>' +
-          '<div class="flex flex-1 flex-col p-3.5 ' + visualState.contentClass + '">' +
-            '<p class="font-bold text-[15px] leading-snug text-slate-900 line-clamp-2" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.name + '</p>' +
-            '<div class="mt-2 flex flex-wrap gap-1">' +
-              (modelVal ? '<span class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-mono text-slate-500">' + modelVal + '</span>' : '') +
-              (brandVal ? '<span class="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600">' + brandVal + '</span>' : '') +
+          '<div class="flex flex-1 flex-col px-3.5 pt-3 pb-2 ' + visualState.contentClass + '">' +
+            '<p class="font-extrabold text-[15px] leading-snug text-slate-900" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.name + '</p>' +
+            '<div class="mt-2 flex flex-wrap items-center gap-1.5">' +
+              (modelVal ? '<span class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-mono font-medium text-slate-500 max-w-[120px] truncate">' + modelVal + '</span>' : '') +
+              (brandVal ? '<span class="rounded-md px-2 py-0.5 text-[11px] font-bold" style="background:#eff6ff;color:#1d4ed8;">' + brandVal + '</span>' : '') +
             '</div>' +
-            '<div class="mt-1.5 flex flex-wrap gap-1">' + locationBadge + '</div>' +
-            '<div class="mt-auto flex items-end justify-between gap-2 pt-3">' +
-              '<div class="flex flex-col gap-1"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ' + tone.badgeClass + '">' + status + '</span>' + priceBadge + '</div>' +
-              '<div class="text-right"><p class="text-[11px] text-slate-400 leading-none">Qty</p><p class="text-[28px] font-black leading-tight ' + stockClass + '">' + item.stock + '</p></div>' +
+            (locationTxt ? '<div class="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400"><svg xmlns=\'http://www.w3.org/2000/svg\' class=\'h-3 w-3 shrink-0\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' stroke-width=\'2\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M15 11a3 3 0 11-6 0 3 3 0 016 0z\'/></svg>' + locationTxt + '</div>' : '') +
+            '<div class="mt-3 rounded-xl px-3 py-2.5 flex items-center justify-between" style="' + qtyBg + '">' +
+              '<div>' +
+                '<p class="text-[10px] font-bold uppercase tracking-widest" style="' + qtyColor + ';opacity:0.7">คงเหลือ</p>' +
+                '<div class="mt-1 flex items-center gap-1.5">' +
+                  '<span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold ' + tone.badgeClass + '">' + status + '</span>' +
+                  (priceNum ? '<span class="text-[11px] font-medium" style="' + qtyColor + ';opacity:0.6">' + priceNum + '</span>' : '') +
+                '</div>' +
+              '</div>' +
+              '<p class="text-[44px] font-black leading-none" style="' + qtyColor + '">' + item.stock + '</p>' +
             '</div>' +
           '</div>' +
-          '<div class="border-t border-slate-100 p-3 ' + visualState.contentClass + '">' +
-            '<button data-view-key="' + itemKey + '" class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100" type="button"><svg xmlns=\'http://www.w3.org/2000/svg\' class=\'h-3.5 w-3.5\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' stroke-width=\'2\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M15 12a3 3 0 11-6 0 3 3 0 016 0z\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z\'/></svg>ดูรายละเอียด</button>' +
+          '<div class="px-3 pb-3 ' + visualState.contentClass + '">' +
+            '<button data-view-key="' + itemKey + '" class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:border-slate-300" type="button"><svg xmlns=\'http://www.w3.org/2000/svg\' class=\'h-3.5 w-3.5\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' stroke-width=\'2\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M15 12a3 3 0 11-6 0 3 3 0 016 0z\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z\'/></svg>ดูรายละเอียด</button>' +
             (canIssue ?
               '<div class="grid grid-cols-2 gap-2">' +
-                '<button data-issue-no="' + item.no + '" class="flex items-center justify-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 py-2 text-xs font-bold text-orange-600 transition hover:bg-orange-100"><span>⚡</span><span>เบิก</span></button>' +
-                '<button data-cart-add-no="' + item.no + '" class="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 py-2 text-xs font-bold text-blue-600 transition hover:bg-blue-100"><span>🛒</span><span>ตะกร้า</span></button>' +
+                '<button data-issue-no="' + item.no + '" class="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-white transition hover:opacity-90 shadow-sm" style="background:linear-gradient(135deg,#f97316,#ea580c)"><span>⚡</span><span>เบิก</span></button>' +
+                '<button data-cart-add-no="' + item.no + '" class="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 py-2.5 text-sm font-bold text-blue-600 transition hover:bg-blue-100"><span>🛒</span><span>ตะกร้า</span></button>' +
               '</div>'
             : (canTransact ?
-              '<div class="grid grid-cols-2 gap-2">' +
-                '<span class="flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 py-2 text-xs font-semibold text-slate-400">หมดสต็อก</span>' +
-                '<button disabled class="flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 py-2 text-slate-300 text-base">🛒</button>' +
-              '</div>'
-            : '<span class="flex items-center justify-center rounded-xl border border-slate-100 py-2 text-xs text-slate-400">ไม่มีสิทธิ์</span>')) +
+              '<div class="flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-semibold text-slate-400">หมดสต็อก — ไม่สามารถเบิกได้</div>'
+            : '<div class="flex items-center justify-center rounded-xl border border-slate-100 py-2 text-xs text-slate-400">ไม่มีสิทธิ์</div>')) +
           '</div>' +
           (canManageItems || canDeleteItems ?
-            '<div class="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">' +
+            '<div class="absolute right-2 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">' +
               (canManageItems ? '<button data-edit-key="' + itemKey + '" class="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white/90 text-xs shadow-sm backdrop-blur" title="Edit">✏️</button>' : '') +
               (canDeleteItems ? '<button data-delete-no="' + item.no + '" class="flex h-7 w-7 items-center justify-center rounded-lg border border-rose-200 bg-white/90 text-xs shadow-sm backdrop-blur" title="Delete">🗑️</button>' : '') +
             '</div>'
@@ -7276,27 +7284,32 @@ function inferRequestPriority(stock, min) {
         var drawingBadge = normalizeDrawingStatus(item) === 'Available' ? '<span class="inline-flex flex-shrink-0 items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700">Drawing</span>' : '';
         var mBrandVal = item.brand && item.brand !== '-' ? item.brand : '';
         var mModelVal = item.model && item.model !== '-' ? item.model : '';
+        var mQtyBg = status === 'OUT' ? 'background:linear-gradient(135deg,#fff1f2,#ffe4e6)' : status === 'LOW' ? 'background:linear-gradient(135deg,#fffbeb,#fef3c7)' : 'background:linear-gradient(135deg,#f0fdf4,#dcfce7)';
+        var mQtyColor = status === 'OUT' ? 'color:#be123c' : status === 'LOW' ? 'color:#b45309' : 'color:#15803d';
+        var mTopStripe = status === 'OUT' ? 'background:#fda4af' : status === 'LOW' ? 'background:#fcd34d' : 'background:#86efac';
         return '<article data-view-key="' + itemKey + '" class="relative flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 active:scale-95 cursor-pointer ' + visualState.cardClass + '">' +
+          '<div class="h-1 w-full shrink-0" style="' + mTopStripe + '"></div>' +
           '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:1/1;">' +
             '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain p-2 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-base') + '</div>' : '') +
-            '<div class="absolute top-1.5 left-1.5"><span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ' + tone.badgeClass + '">' + status + '</span></div>' +
           '</div>' +
-          '<div class="flex flex-1 flex-col p-2.5 ' + visualState.contentClass + '">' +
-            '<p class="font-bold text-[13px] leading-snug text-slate-900" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.name + '</p>' +
-            (mModelVal ? '<p class="mt-1 text-[11px] font-mono text-slate-400 truncate">' + mModelVal + '</p>' : '') +
-            (mBrandVal ? '<p class="text-[11px] text-blue-500 font-semibold truncate">' + mBrandVal + '</p>' : '') +
-            '<div class="mt-auto flex items-center justify-between pt-2">' +
-              '<span class="text-[11px] text-slate-400">Qty</span>' +
-              '<span class="text-[22px] font-black leading-none ' + stockClass + '">' + item.stock + '</span>' +
+          '<div class="flex flex-1 flex-col px-2.5 pt-2.5 pb-1 ' + visualState.contentClass + '">' +
+            '<p class="font-extrabold text-[13px] leading-snug text-slate-900" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.name + '</p>' +
+            '<div class="mt-1.5 flex flex-wrap items-center gap-1">' +
+              (mModelVal ? '<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-500 max-w-[90px] truncate">' + mModelVal + '</span>' : '') +
+              (mBrandVal ? '<span class="rounded px-1.5 py-0.5 text-[10px] font-bold" style="background:#eff6ff;color:#1d4ed8;">' + mBrandVal + '</span>' : '') +
+            '</div>' +
+            '<div class="mt-2 flex items-center justify-between rounded-lg px-2.5 py-2" style="' + mQtyBg + '">' +
+              '<span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ' + tone.badgeClass + '">' + status + '</span>' +
+              '<span class="text-[32px] font-black leading-none" style="' + mQtyColor + '">' + item.stock + '</span>' +
             '</div>' +
           '</div>' +
-          '<div class="border-t border-slate-100 p-2 ' + visualState.contentClass + '">' +
-            '<button data-view-key="' + itemKey + '" class="mb-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 text-[11px] font-semibold text-slate-600">👁 รายละเอียด</button>' +
+          '<div class="p-2 ' + visualState.contentClass + '">' +
+            '<button data-view-key="' + itemKey + '" class="mb-1.5 flex w-full items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white py-1.5 text-[11px] font-semibold text-slate-500"><svg xmlns=\'http://www.w3.org/2000/svg\' class=\'h-3 w-3\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' stroke-width=\'2\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M15 12a3 3 0 11-6 0 3 3 0 016 0z\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z\'/></svg>รายละเอียด</button>' +
             (canIssue ?
               '<div class="grid grid-cols-2 gap-1.5">' +
-                '<button data-mobile-issue-no="' + item.no + '" class="rounded-lg border border-orange-200 bg-orange-50 py-2 text-base font-bold text-orange-500" title="เบิกด่วน">⚡</button>' +
-                '<button data-mobile-cart-add-no="' + item.no + '" class="rounded-lg border border-blue-200 bg-blue-50 py-2 text-base text-blue-500" title="ตะกร้า">🛒</button>' +
+                '<button data-mobile-issue-no="' + item.no + '" class="flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-bold text-white shadow-sm" style="background:linear-gradient(135deg,#f97316,#ea580c)" title="เบิกด่วน"><span>⚡</span><span>เบิก</span></button>' +
+                '<button data-mobile-cart-add-no="' + item.no + '" class="flex items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 py-2 text-xs font-bold text-blue-600" title="ตะกร้า"><span>🛒</span><span>ตะกร้า</span></button>' +
               '</div>'
             : (canTransact ?
               '<span class="flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 py-2 text-[11px] text-slate-400 font-semibold">หมดสต็อก</span>'
