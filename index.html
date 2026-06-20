@@ -8334,12 +8334,48 @@ function inferRequestPriority(stock, min) {
       var deleteBtn = e.target.closest('[data-ph-delete]');
       if (!deleteBtn || !canEditPurchaseHistory()) return;
       var historyId = deleteBtn.getAttribute('data-ph-delete');
-      var reason = prompt('ระบุเหตุผลการลบ Purchase History');
-      if (!reason) return;
-      if (!confirm('ยืนยันการลบรายการนี้? ระบบจะ Soft Delete และเก็บ Audit Log')) return;
-      postJson(withAuthPayload({ action: 'deletePurchaseHistory', history_id: historyId, reason: reason })).then(parseApiResponse).then(function() {
-        purchaseHistoryLoaded = false; return loadPurchaseHistory(true);
-      }).catch(function(err) { alert('ลบไม่สำเร็จ: ' + (err && err.message ? err.message : err)); });
+      // สร้าง dialog ลบแบบ inline สวยงาม
+      (function() {
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10010;background:rgba(15,23,42,0.6);display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.innerHTML =
+          '<div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
+            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+              '<div style="width:44px;height:44px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🗑️</div>' +
+              '<div><p style="font-weight:700;font-size:16px;color:#1e293b;margin:0;">ยืนยันการลบ</p><p style="font-size:12px;color:#64748b;margin:2px 0 0 0;">ระบบจะ Soft Delete และเก็บ Audit Log</p></div>' +
+            '</div>' +
+            '<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">เหตุผลการลบ <span style="color:#ef4444;">*</span></label>' +
+            '<input id="_phDelReason" type="text" placeholder="เช่น บันทึกผิดพลาด, ข้อมูลซ้ำ" style="width:100%;box-sizing:border-box;height:40px;border:1.5px solid #d1d5db;border-radius:10px;padding:0 12px;font-size:14px;outline:none;"/>' +
+            '<p id="_phDelErr" style="color:#ef4444;font-size:12px;margin:4px 0 0 0;min-height:16px;"></p>' +
+            '<div style="display:flex;gap:10px;margin-top:16px;">' +
+              '<button id="_phDelCancel" style="flex:1;height:40px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;font-weight:600;font-size:14px;cursor:pointer;color:#374151;">ยกเลิก</button>' +
+              '<button id="_phDelOk" style="flex:1;height:40px;border-radius:10px;border:none;background:#dc2626;color:#fff;font-weight:700;font-size:14px;cursor:pointer;">ลบรายการ</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(overlay);
+        var inp = overlay.querySelector('#_phDelReason');
+        var errEl = overlay.querySelector('#_phDelErr');
+        var okBtn = overlay.querySelector('#_phDelOk');
+        var cancelBtn = overlay.querySelector('#_phDelCancel');
+        setTimeout(function(){ if(inp) inp.focus(); }, 50);
+        function close() { document.body.removeChild(overlay); }
+        cancelBtn.addEventListener('click', close);
+        overlay.addEventListener('click', function(ev){ if (ev.target === overlay) close(); });
+        inp.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') okBtn.click(); if (ev.key === 'Escape') close(); });
+        okBtn.addEventListener('click', function() {
+          var reason = inp.value.trim();
+          if (!reason) { errEl.textContent = 'กรุณาระบุเหตุผลก่อนลบ'; inp.style.borderColor = '#ef4444'; return; }
+          okBtn.disabled = true; okBtn.textContent = 'กำลังลบ...';
+          postJson(withAuthPayload({ action: 'deletePurchaseHistory', history_id: historyId, reason: reason })).then(parseApiResponse).then(function() {
+            close();
+            showQuickToast('🗑️ ลบรายการสำเร็จแล้ว', 'success');
+            purchaseHistoryLoaded = false; return loadPurchaseHistory(true);
+          }).catch(function(err) {
+            close();
+            showQuickToast('ลบไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+          });
+        });
+      })();
     });
     if (purchaseHistoryEditForm) purchaseHistoryEditForm.addEventListener('submit', function(e) {
       e.preventDefault();
