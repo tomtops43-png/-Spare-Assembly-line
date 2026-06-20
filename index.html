@@ -9360,21 +9360,33 @@ if (dashboardPage) {
     }
 
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
+      var pw = document.getElementById('prPreviewWrap');
+      var rp = document.getElementById('prReportPreview') || prReportPreview;
+      if (!rp) return;
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) {
-        if (prReportPreview) prReportPreview.innerHTML = '<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">กรุณาเลือกรายการอย่างน้อย 1 รายการก่อนดูตัวอย่าง</div>';
-        var pw = document.getElementById('prPreviewWrap'); if (pw) pw.classList.remove('hidden');
+        rp.innerHTML = '<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">⚠️ กรุณาเลือกรายการอย่างน้อย 1 รายการก่อนดูตัวอย่าง</div>';
+        if (pw) { pw.classList.remove('hidden'); pw.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
         return;
       }
-      var totalFiltered = getFilteredPrCandidates(false).length;
-      var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
-      var opts = getPrReportOptions(allSelectedMode);
-      opts.prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
-      prReportPreview.innerHTML =
-        '<div class="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-700">' +
-        '<span class="text-lg">👁</span><span>นี่คือ <b>ตัวอย่างเท่านั้น</b> — ยังไม่ได้บันทึก Purchase History กด <b>Export PDF (ยืนยัน)</b> เมื่อพร้อมส่งอนุมัติ</span></div>' +
-        buildDocumentGradeReport(selected, opts);
-      var pw = document.getElementById('prPreviewWrap'); if (pw) { pw.classList.remove('hidden'); pw.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      rp.innerHTML = '<div class="py-6 text-center text-slate-400">⏳ กำลังสร้างตัวอย่างรายงาน...</div>';
+      if (pw) pw.classList.remove('hidden');
+      try {
+        var totalFiltered = getFilteredPrCandidates(false).length;
+        var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
+        var opts = getPrReportOptions(allSelectedMode);
+        opts.prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
+        var html = buildDocumentGradeReport(selected, opts);
+        rp.innerHTML =
+          '<div class="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">' +
+          '<span class="text-lg shrink-0">👁</span>' +
+          '<span>นี่คือ <b>ตัวอย่างเท่านั้น</b> — ยังไม่ได้บันทึก Purchase History<br/>' +
+          'กด <b>📄 Export PDF (ยืนยัน)</b> เมื่อพร้อมส่งอนุมัติ</span></div>' + html;
+        if (pw) pw.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch(err) {
+        rp.innerHTML = '<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">❌ เกิดข้อผิดพลาด: ' + escHtml(err && err.message ? err.message : String(err)) + '</div>';
+        if (pw) pw.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
       // ❌ ไม่บันทึก Purchase History ที่ Preview
     });
     if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Drawing Status','Drawing Revision','Drawing File Name','Drawing Link','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); var drawingUrl=String(c.drawingUrl||c.drawing_url||'').trim(); var drawingStatus=normalizeDrawingStatus(Object.assign({}, c, { drawing_url: drawingUrl, drawingUrl: drawingUrl })); if(!drawingUrl && drawingStatus!=='Not Required') drawingStatus='Missing'; var drawingLink=(drawingUrl && (drawingStatus==='Available'||drawingStatus==='Access Required')) ? drawingUrl : ''; return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,drawingStatus,c.drawingRevision||c.drawing_revision||'',c.drawingFileName||c.drawing_file_name||'',drawingLink,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
