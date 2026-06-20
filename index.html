@@ -786,40 +786,68 @@
       <p id="manageMessage" class="mt-3 text-sm"></p>
     </section>
 
-    <section id="logPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6">
-      <h2 class="text-lg font-semibold mb-3">ประวัติการเบิก / คืน (Log)</h2>
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
-        <p id="logPageSummary">รายการทั้งหมด | Out of Stock: 0 รายการ</p>
-        <p id="logPageIndicator">หน้า 1 / 1</p>
+    <section id="logPage" class="hidden space-y-4 p-2 md:p-0">
+      <!-- Header -->
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">ประวัติการเบิก / คืน</h2>
+          <p class="text-sm text-slate-500 mt-0.5">บันทึกการเบิก-คืนอะไหล่ทั้งหมดในระบบ</p>
+        </div>
+        <button id="logRefreshBtn" type="button" class="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          รีเฟรชข้อมูล
+        </button>
       </div>
-      <div class="overflow-x-auto rounded-xl border border-slate-200">
-        <table class="min-w-[1400px] w-full text-sm">
-          <thead class="sticky top-0 z-10 bg-slate-100">
-            <tr class="text-left text-slate-700 border-b border-slate-200">
-              <th class="py-3 px-3">เวลา</th>
-              <th class="py-3 px-3">ประเภท</th>
-              <th class="py-3 px-3">ไลน์/กระบวนการ</th>
-              <th class="py-3 px-3">หมวดหมู่</th>
-              <th class="py-3 px-3">Part Name</th>
-              <th class="py-3 px-3">รุ่น</th>
-              <th class="py-3 px-3">แบรนด์</th>
-              <th class="py-3 px-3">จำนวน</th>
-              <th class="py-3 px-3">หน่วย</th>
-              <th class="py-3 px-3">ผู้ทำรายการ</th>
-              <th class="py-3 px-3">Reason</th>
-              <th class="py-3 px-3">Reason Remark</th>
-              <th class="py-3 px-3">รหัสอะไหล่</th>
-              <th class="py-3 px-3 text-center">ก่อน</th>
-              <th class="py-3 px-3 text-center">หลัง</th>
-            </tr>
-          </thead>
-          <tbody id="logTable" class="divide-y divide-slate-100"></tbody>
-        </table>
+      <!-- Stats Cards -->
+      <div id="logStatCards" class="grid grid-cols-2 gap-3 sm:grid-cols-4"></div>
+      <!-- Stats Detail Row -->
+      <div id="logStatDetail" class="grid grid-cols-2 gap-3 sm:grid-cols-4"></div>
+      <!-- Filters -->
+      <div class="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-4">
+        <select id="logFilterLine" class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm">
+          <option value="all">ทุก Line</option>
+        </select>
+        <select id="logFilterType" class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm">
+          <option value="all">ทุกประเภท</option>
+          <option value="output">เบิกออก (Output)</option>
+          <option value="input">รับเข้า (Input)</option>
+        </select>
+        <select id="logFilterMonth" class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm">
+          <option value="all">ทุกเดือน</option>
+        </select>
+        <input id="logFilterSearch" type="search" placeholder="ค้นหา Part / รุ่น / ผู้ทำรายการ" class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm col-span-2 sm:col-span-1" />
       </div>
-      <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <button id="logPrevBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-50">ก่อนหน้า</button>
-        <p id="logPaginationText" class="text-sm text-slate-600">หน้า 1 / 1</p>
-        <button id="logNextBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-50">ถัดไป</button>
+      <!-- Table -->
+      <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-[1200px] w-full text-sm">
+            <thead class="sticky top-0 z-10 bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr class="border-b border-slate-200">
+                <th class="py-3 px-3 text-left">เวลา</th>
+                <th class="py-3 px-3 text-left">ประเภท</th>
+                <th class="py-3 px-3 text-left">Line</th>
+                <th class="py-3 px-3 text-left">Part Name</th>
+                <th class="py-3 px-3 text-left hidden md:table-cell">รุ่น</th>
+                <th class="py-3 px-3 text-left hidden md:table-cell">แบรนด์</th>
+                <th class="py-3 px-3 text-center">จำนวน</th>
+                <th class="py-3 px-3 text-left hidden sm:table-cell">หน่วย</th>
+                <th class="py-3 px-3 text-left">ผู้ทำรายการ</th>
+                <th class="py-3 px-3 text-left hidden lg:table-cell">Reason</th>
+                <th class="py-3 px-3 text-center hidden lg:table-cell">ก่อน</th>
+                <th class="py-3 px-3 text-center hidden lg:table-cell">หลัง</th>
+              </tr>
+            </thead>
+            <tbody id="logTable" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3">
+          <p id="logPageSummary" class="text-sm text-slate-500">-</p>
+          <div class="flex items-center gap-2">
+            <button id="logPrevBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-40">ก่อนหน้า</button>
+            <p id="logPaginationText" class="text-sm font-semibold text-slate-600">หน้า 1 / 1</p>
+            <button id="logNextBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-40">ถัดไป</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -4133,66 +4161,169 @@ function getIssueCartEntries() {
       return '<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">' + (type || '-') + '</span>';
     }
 
-    function renderLogTable(rows) {
-      var total = rows.length;
+    // ── Log page filter state ─────────────────────────────────────
+    var logFilterLineVal = 'all', logFilterTypeVal = 'all', logFilterMonthVal = 'all', logFilterSearchVal = '';
+
+    function getLogFilteredRows() {
+      return (logCache || []).filter(function(item) {
+        var line = String(item.process || item.line || '');
+        var type = String(item.type || '').toLowerCase();
+        var ts   = String(item.timestamp || '');
+        var q    = logFilterSearchVal.toLowerCase();
+        if (logFilterLineVal  !== 'all' && line.indexOf(logFilterLineVal) === -1) return false;
+        if (logFilterTypeVal  !== 'all' && type !== logFilterTypeVal) return false;
+        if (logFilterMonthVal !== 'all' && ts.indexOf(logFilterMonthVal) === -1) return false;
+        if (q) {
+          var haystack = [item.partName, item.model, item.brand, item.by, item.reason].join(' ').toLowerCase();
+          if (haystack.indexOf(q) === -1) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderLogStats(allRows) {
+      var statCards = document.getElementById('logStatCards');
+      var statDetail = document.getElementById('logStatDetail');
+      if (!statCards) return;
+      var outCount = 0, outQty = 0, inCount = 0, inQty = 0;
+      var lineMap = {}, partMap = {}, userMap = {}, monthSet = {};
+      allRows.forEach(function(r) {
+        var isOut = String(r.type || '').toLowerCase() === 'output';
+        var qty = Math.abs(Number(r.qty || 0));
+        var line = String(r.process || r.line || '-');
+        var part = String(r.partName || '-');
+        var user = String(r.by || '-');
+        var ts   = String(r.timestamp || '');
+        var month = ts.length >= 7 ? ts.substring(0, 7) : '';
+        if (isOut) { outCount++; outQty += qty; }
+        else       { inCount++;  inQty  += qty; }
+        lineMap[line] = (lineMap[line] || 0) + 1;
+        partMap[part] = (partMap[part] || 0) + qty;
+        userMap[user] = (userMap[user] || 0) + 1;
+        if (month) monthSet[month] = true;
+      });
+      function statCard(icon, label, val, color) {
+        return '<div class="rounded-2xl border p-4 bg-white shadow-sm" style="border-color:' + color + '30;background:linear-gradient(135deg,#fff,' + color + '08)">' +
+          '<p class="text-xl">' + icon + '</p>' +
+          '<p class="text-2xl font-black mt-1 leading-none" style="color:' + color + '">' + val + '</p>' +
+          '<p class="text-xs font-semibold text-slate-500 mt-1">' + label + '</p></div>';
+      }
+      statCards.innerHTML =
+        statCard('📋', 'รายการทั้งหมด',       allRows.length.toLocaleString('th-TH'), '#1d4ed8') +
+        statCard('🔻', 'เบิกออก (ครั้ง)',       outCount.toLocaleString('th-TH'),       '#be123c') +
+        statCard('🔺', 'รับเข้า (ครั้ง)',       inCount.toLocaleString('th-TH'),        '#15803d') +
+        statCard('📦', 'Qty เบิกออกรวม',        outQty.toLocaleString('th-TH'),         '#b45309');
+      // top line/part/user
+      var topLine = Object.keys(lineMap).sort(function(a,b){return lineMap[b]-lineMap[a];})[0] || '-';
+      var topPart = Object.keys(partMap).sort(function(a,b){return partMap[b]-partMap[a];})[0] || '-';
+      var topUser = Object.keys(userMap).sort(function(a,b){return userMap[b]-userMap[a];})[0] || '-';
+      var months  = Object.keys(monthSet).length;
+      if (statDetail) {
+        statDetail.innerHTML =
+          statCard('🏭', 'Line ที่เบิกมากสุด',    topLine + ' · ' + (lineMap[topLine]||0) + ' ครั้ง', '#7c3aed') +
+          statCard('⚡', 'Part ที่ใช้มากสุด',     topPart,  '#0369a1') +
+          statCard('👤', 'ผู้ทำรายการมากสุด',     topUser + ' · ' + (userMap[topUser]||0) + ' ครั้ง', '#0891b2') +
+          statCard('📅', 'จำนวนเดือนที่มีข้อมูล', months + ' เดือน', '#059669');
+      }
+      // populate line filter
+      var logFilterLineEl = document.getElementById('logFilterLine');
+      if (logFilterLineEl && logFilterLineEl.options.length <= 1) {
+        var lines = Object.keys(lineMap).sort();
+        lines.forEach(function(l) {
+          var opt = document.createElement('option'); opt.value = l; opt.textContent = l;
+          logFilterLineEl.appendChild(opt);
+        });
+      }
+      // populate month filter
+      var logFilterMonthEl = document.getElementById('logFilterMonth');
+      if (logFilterMonthEl && logFilterMonthEl.options.length <= 1) {
+        Object.keys(monthSet).sort().reverse().forEach(function(m) {
+          var opt = document.createElement('option'); opt.value = m; opt.textContent = m;
+          logFilterMonthEl.appendChild(opt);
+        });
+      }
+    }
+
+    function renderLogTable(allRows) {
+      if (allRows && allRows !== logCache) { /* filtered call */ }
+      var filtered = getLogFilteredRows();
+      var total = filtered.length;
       var totalPages = Math.max(1, Math.ceil(total / LOG_PAGE_SIZE));
       if (logCurrentPage > totalPages) logCurrentPage = totalPages;
       var start = (logCurrentPage - 1) * LOG_PAGE_SIZE;
-      var pageRows = rows.slice(start, start + LOG_PAGE_SIZE);
+      var pageRows = filtered.slice(start, start + LOG_PAGE_SIZE);
 
       if (!total) {
-        logTable.innerHTML = '<tr><td colspan="15" class="py-6 text-center text-slate-400">ยังไม่มีประวัติการเบิก/คืน</td></tr>';
+        logTable.innerHTML = '<tr><td colspan="12" class="py-8 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
       } else {
         logTable.innerHTML = pageRows.map(function(item, idx) {
-          var rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50';
-          var isOutput = String(item.type || '').toLowerCase() === 'output';
+          var rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60';
+          var isOut = String(item.type || '').toLowerCase() === 'output';
           var qty = Number(item.qty || 0);
-          var displayQty = isOutput ? -Math.abs(qty) : qty;
-          return '<tr class="' + rowBg + ' hover:bg-blue-50 transition-colors">' +
-            '<td class="py-3 px-3 whitespace-nowrap">' + formatThaiDateTime(item.timestamp) + '</td>' +
-            '<td class="py-3 px-3">' + getLogTypeBadge(item.type) + '</td>' +
-            '<td class="py-3 px-3">' + (item.process || item.line || '-') + '</td>' +
-            '<td class="py-3 px-3">' + (item.category || '-') + '</td>' +
-            '<td class="py-3 px-3">' + (item.partName || '-') + '</td>' +
-            '<td class="py-3 px-3">' + (item.model || '-') + '</td>' +
-            '<td class="py-3 px-3">' + (item.brand || '-') + '</td>' +
-            '<td class="py-3 px-3 ' + (isOutput ? 'text-rose-600 font-semibold' : 'text-slate-800') + '">' + displayQty + '</td>' +
-            '<td class="py-3 px-3">' + (item.unit || '-') + '</td>' +
-            '<td class="py-3 px-3">' + (item.by || '-') + '</td>' +
-            '<td class="py-3 px-3">' + (item.reason || '-') + '</td>' +
-            '<td class="py-3 px-3">' + (item.reasonRemark || '-') + '</td>' +
-            '<td class="py-3 px-3">' + (item.partNo || item.no || '-') + '</td>' +
-            '<td class="py-3 px-3 text-center">' + (item.stockBefore || 0) + '</td>' +
-            '<td class="py-3 px-3 text-center">' + (item.stockAfter || 0) + '</td>' +
+          var displayQty = isOut ? -Math.abs(qty) : Math.abs(qty);
+          return '<tr class="' + rowBg + ' hover:bg-blue-50/60 transition-colors">' +
+            '<td class="py-2.5 px-3 whitespace-nowrap text-xs text-slate-500">' + formatThaiDateTime(item.timestamp) + '</td>' +
+            '<td class="py-2.5 px-3">' + getLogTypeBadge(item.type) + '</td>' +
+            '<td class="py-2.5 px-3 text-xs font-semibold text-slate-700">' + (item.process || item.line || '-') + '</td>' +
+            '<td class="py-2.5 px-3 font-semibold text-slate-800">' + (item.partName || '-') + '</td>' +
+            '<td class="py-2.5 px-3 text-xs text-slate-500 hidden md:table-cell">' + (item.model || '-') + '</td>' +
+            '<td class="py-2.5 px-3 text-xs text-slate-500 hidden md:table-cell">' + (item.brand || '-') + '</td>' +
+            '<td class="py-2.5 px-3 text-center font-bold text-base ' + (isOut ? 'text-rose-600' : 'text-emerald-600') + '">' + (isOut ? '-' : '+') + Math.abs(qty) + '</td>' +
+            '<td class="py-2.5 px-3 text-xs text-slate-500 hidden sm:table-cell">' + (item.unit || '-') + '</td>' +
+            '<td class="py-2.5 px-3 text-xs text-slate-600">' + (item.by || '-') + '</td>' +
+            '<td class="py-2.5 px-3 text-xs text-slate-500 hidden lg:table-cell">' + (item.reason || '-') + '</td>' +
+            '<td class="py-2.5 px-3 text-center text-xs text-slate-400 hidden lg:table-cell">' + (item.stockBefore != null ? item.stockBefore : '-') + '</td>' +
+            '<td class="py-2.5 px-3 text-center text-xs font-semibold hidden lg:table-cell ' + (isOut ? 'text-rose-500' : 'text-emerald-600') + '">' + (item.stockAfter != null ? item.stockAfter : '-') + '</td>' +
           '</tr>';
         }).join('');
       }
-
-      var pageText = 'หน้า ' + logCurrentPage + ' / ' + totalPages;
-      if (logPageSummary) logPageSummary.textContent = 'รายการทั้งหมด | Out of Stock: ' + total + ' รายการ';
-      if (logPageIndicator) logPageIndicator.textContent = pageText;
-      if (logPaginationText) logPaginationText.textContent = pageText;
+      var startItem = total ? start + 1 : 0;
+      var endItem = Math.min(start + LOG_PAGE_SIZE, total);
+      if (logPageSummary) logPageSummary.textContent = 'แสดง ' + startItem + '–' + endItem + ' จาก ' + total + ' รายการ';
+      var logPageIndicator = document.getElementById('logPageIndicator');
+      if (logPageIndicator) logPageIndicator.textContent = 'หน้า ' + logCurrentPage + ' / ' + totalPages;
+      if (logPaginationText) logPaginationText.textContent = 'หน้า ' + logCurrentPage + ' / ' + totalPages;
       if (logPrevBtn) logPrevBtn.disabled = logCurrentPage <= 1;
       if (logNextBtn) logNextBtn.disabled = logCurrentPage >= totalPages;
     }
 
     function loadLogData() {
-      logTable.innerHTML = '<tr><td colspan="15" class="py-6 text-center text-slate-400">กำลังโหลดประวัติ...</td></tr>';
-      if (logPageSummary) logPageSummary.textContent = 'รายการทั้งหมด | Out of Stock: 0 รายการ';
+      if (logTable) logTable.innerHTML = '<tr><td colspan="12" class="py-8 text-center text-slate-400">⏳ กำลังโหลด...</td></tr>';
       loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); })
         .then(function(rawData) {
           if (rawData && rawData.status === 'error') throw new Error(rawData.message || 'โหลด log ไม่สำเร็จ');
           if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูล Log ไม่ถูกต้อง');
           logCache = rawData.slice();
           logCurrentPage = 1;
-          renderLogTable(rawData);
+          logFilterLineVal = 'all'; logFilterTypeVal = 'all'; logFilterMonthVal = 'all'; logFilterSearchVal = '';
+          var fl = document.getElementById('logFilterLine');   if (fl) fl.value = 'all';
+          var ft = document.getElementById('logFilterType');   if (ft) ft.value = 'all';
+          var fm = document.getElementById('logFilterMonth');  if (fm) fm.value = 'all';
+          var fs = document.getElementById('logFilterSearch'); if (fs) fs.value = '';
+          renderLogStats(logCache);
+          renderLogTable(logCache);
         })
         .catch(function(err) {
           if (isAuthSessionError(err)) logout();
-          logTable.innerHTML = '<tr><td colspan="15" class="py-6 text-center text-rose-500">' + escHtml(err.message) + '</td></tr>';
+          if (logTable) logTable.innerHTML = '<tr><td colspan="12" class="py-6 text-center text-rose-500">' + escHtml(err.message) + '</td></tr>';
         });
     }
 
+    // Log filter event bindings (run after DOM ready)
+    (function() {
+      function bindLogFilter(id, setter) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', function() { setter(el.value); logCurrentPage = 1; renderLogTable(logCache); });
+        if (id === 'logFilterSearch') el.addEventListener('input', function() { setter(el.value); logCurrentPage = 1; renderLogTable(logCache); });
+      }
+      bindLogFilter('logFilterLine',   function(v){ logFilterLineVal   = v; });
+      bindLogFilter('logFilterType',   function(v){ logFilterTypeVal   = v; });
+      bindLogFilter('logFilterMonth',  function(v){ logFilterMonthVal  = v; });
+      bindLogFilter('logFilterSearch', function(v){ logFilterSearchVal = v; });
+      var refreshBtn = document.getElementById('logRefreshBtn');
+      if (refreshBtn) refreshBtn.addEventListener('click', function() { logCache = []; loadLogData(); });
+    })();
 
     if (logPrevBtn) {
       logPrevBtn.addEventListener('click', function() {
@@ -4203,7 +4334,7 @@ function getIssueCartEntries() {
     }
     if (logNextBtn) {
       logNextBtn.addEventListener('click', function() {
-        var totalPages = Math.max(1, Math.ceil(logCache.length / LOG_PAGE_SIZE));
+        var totalPages = Math.max(1, Math.ceil(getLogFilteredRows().length / LOG_PAGE_SIZE));
         if (logCurrentPage >= totalPages) return;
         logCurrentPage += 1;
         renderLogTable(logCache);
