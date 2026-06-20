@@ -3286,14 +3286,11 @@ function getIssueCartEntries() {
         badge.classList.remove('hidden');
         badge.style.display = 'inline-flex';
         badge.style.opacity = '1';
-        badge.style.visibility = 'visible';
+        badge.style.removeProperty('visibility'); // ไม่ override inherited visibility:hidden จาก parent
       } else {
         badge.classList.add('hidden');
         badge.style.display = 'none';
       }
-      console.log('requestOrderBadgeCount:', requestOrderBadgeCount);
-      console.log(document.getElementById('requestOrderNavBadge'));
-      console.log(btn.contains(badge));
     }
 
     function refreshRequestOrderBadgeCount() {
