@@ -1384,49 +1384,84 @@
               </div>
             </section>
             <section class="rounded-xl border border-slate-200 p-3">
-              <h4 class="mb-2 text-sm font-semibold text-slate-700">สิทธิ์การใช้งาน</h4>
-              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <select id="uRole" class="h-10 rounded-xl border border-slate-300 px-3 text-sm bg-white">
-                  <option value="user">user</option>
-                  <option value="leader">leader</option>
-                  <option value="admin">admin</option>
-                </select>
-                <label class="h-10 rounded-xl border border-slate-300 px-3 bg-white text-sm flex items-center gap-2">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-sm font-semibold text-slate-700">สิทธิ์การใช้งาน</h4>
+                <label class="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm cursor-pointer">
                   <input id="uIsActive" type="checkbox" class="h-4 w-4" checked /> Active
                 </label>
               </div>
+              <!-- Role select (hidden — ยังคงส่งไป backend) -->
+              <select id="uRole" class="hidden">
+                <option value="user">user</option>
+                <option value="leader">leader</option>
+                <option value="admin">admin</option>
+              </select>
               <input id="uPermissionsJson" type="hidden" />
-              <div class="mt-3 space-y-3">
-                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5" open>
-                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">A. Stock Permissions</summary>
-                  <div id="permGroupStock" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
-                </details>
-                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5" open>
-                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">B. Item Permissions</summary>
-                  <div id="permGroupItem" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
-                </details>
-                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">C. Log / Dashboard Permissions</summary>
-                  <div id="permGroupDashboard" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
-                </details>
-                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">D. User / System Permissions</summary>
-                  <div id="permGroupSystem" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
-                </details>
-                <details class="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">E. Line Access Permissions</summary>
-                  <div id="permGroupLine" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
-                </details>
+              <!-- Role Preset Cards -->
+              <div class="mb-3">
+                <p class="mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">เลือกระดับสิทธิ์ (กด 1 ปุ่ม)</p>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <button type="button" data-role-preset="user" class="role-preset-btn group flex flex-col items-start gap-1.5 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-blue-300 hover:bg-blue-50">
+                    <div class="flex items-center gap-2"><span class="text-xl">👤</span><span class="text-sm font-bold text-slate-800">ช่างทั่วไป</span></div>
+                    <p class="text-[11px] text-slate-500 leading-relaxed">ดูสต็อก • เบิกอะไหล่ • ดู Alerts • ขอซื้อ</p>
+                  </button>
+                  <button type="button" data-role-preset="leader" class="role-preset-btn group flex flex-col items-start gap-1.5 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-violet-300 hover:bg-violet-50">
+                    <div class="flex items-center gap-2"><span class="text-xl">🔧</span><span class="text-sm font-bold text-slate-800">Engineer / Leader</span></div>
+                    <p class="text-[11px] text-slate-500 leading-relaxed">ช่าง + รับเข้า • ดู Log • แก้ไขรายการ • อนุมัติ PR</p>
+                  </button>
+                  <button type="button" data-role-preset="admin" class="role-preset-btn group flex flex-col items-start gap-1.5 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-rose-300 hover:bg-rose-50">
+                    <div class="flex items-center gap-2"><span class="text-xl">🔴</span><span class="text-sm font-bold text-slate-800">Admin</span></div>
+                    <p class="text-[11px] text-slate-500 leading-relaxed">ทุกสิทธิ์ • จัดการผู้ใช้ • ระบบทั้งหมด</p>
+                  </button>
+                </div>
               </div>
-              <div id="permissionSummary" class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800"></div>
+              <!-- Preset Summary -->
+              <div id="presetSummaryBanner" class="hidden mb-3 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5">
+                <p class="text-xs font-bold text-green-700" id="presetSummaryTitle"></p>
+                <p class="text-[11px] text-green-600 mt-0.5" id="presetSummaryDetail"></p>
+              </div>
+              <!-- Advanced toggle -->
+              <details id="advancedPermDetails" class="rounded-xl border border-slate-200 bg-slate-50">
+                <summary class="cursor-pointer px-3 py-2.5 text-xs font-semibold text-slate-600 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  ปรับแต่งสิทธิ์ขั้นสูง (Advanced)
+                </summary>
+                <div class="px-3 pb-3 space-y-3 pt-2">
+                  <details class="rounded-lg border border-slate-200 bg-white p-2.5" open>
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-600">📦 Stock & การใช้งาน</summary>
+                    <div id="permGroupStock" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                  </details>
+                  <details class="rounded-lg border border-slate-200 bg-white p-2.5">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-600">🗂 จัดการรายการอะไหล่</summary>
+                    <div id="permGroupItem" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                  </details>
+                  <details class="rounded-lg border border-slate-200 bg-white p-2.5">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-600">📊 Log / Dashboard</summary>
+                    <div id="permGroupDashboard" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                  </details>
+                  <details class="rounded-lg border border-slate-200 bg-white p-2.5">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-600">🛒 ขอซื้ออะไหล่</summary>
+                    <div id="permGroupRequestOrder" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                  </details>
+                  <details class="rounded-lg border border-slate-200 bg-white p-2.5">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-600">⚙️ ระบบ / Admin</summary>
+                    <div id="permGroupSystem" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                  </details>
+                  <details class="rounded-lg border border-slate-200 bg-white p-2.5">
+                    <summary class="cursor-pointer text-xs font-semibold text-slate-600">🏭 Line Access</summary>
+                    <div id="permGroupLine" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                  </details>
+                </div>
+              </details>
+              <div id="permissionSummary" class="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] text-blue-700"></div>
             </section>
             <section class="rounded-xl border border-slate-200 p-3">
-              <h4 class="mb-2 text-sm font-semibold text-slate-700">การเข้าถึง line</h4>
-              <label class="mb-2 flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+              <h4 class="mb-2 text-sm font-semibold text-slate-700">🏭 การเข้าถึง Line</h4>
+              <label class="mb-2 flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm cursor-pointer">
                 <input id="uAllLinesAccess" type="checkbox" class="h-4 w-4" />
-                Full access ทุก line
+                <span class="font-semibold text-blue-700">Full access — ทุก Line</span>
               </label>
-              <div id="lineAccessGrid" class="grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+              <div id="lineAccessGrid" class="grid grid-cols-2 gap-2"></div>
             </section>
             <section class="rounded-xl border border-slate-200 p-3">
               <h4 class="mb-2 text-sm font-semibold text-slate-700">การจัดการบัญชี</h4>
@@ -9872,6 +9907,81 @@ if (dashboardPage) {
     if (userRoleFilter) userRoleFilter.addEventListener('change', applyUserFiltersAndRender);
     if (userStatusFilter) userStatusFilter.addEventListener('change', applyUserFiltersAndRender);
     if (userLineFilter) userLineFilter.addEventListener('change', applyUserFiltersAndRender);
+    // ── Role Preset Definitions ────────────────────────────────────
+    var ROLE_PRESETS = {
+      user: {
+        role: 'user', label: '👤 ช่างทั่วไป (User)',
+        detail: 'ดูสต็อก · เบิกอะไหล่ · ดู Alerts · ขอซื้อ',
+        borderColor: '#3b82f6', bg: '#eff6ff',
+        permissions: ['view_stock','view_detail','issue_part','use_issue_cart','view_alerts',
+                      'request_order_create','request_order_view_own']
+      },
+      leader: {
+        role: 'leader', label: '🔧 Engineer / Leader',
+        detail: 'ช่าง + รับเข้า · ดู Log/Dashboard · แก้ไขรายการ · จัดการ PR',
+        borderColor: '#7c3aed', bg: '#f5f3ff',
+        permissions: ['view_stock','view_detail','issue_part','receive_part','use_issue_cart',
+                      'view_alerts','view_logs','view_dashboard','export_data',
+                      'edit_item','manage_minmax','manage_item_image',
+                      'request_order_create','request_order_view_own','request_order_view_all',
+                      'request_order_approve','request_order_reject','request_order_convert_pr','request_order_close',
+                      'view_purchase_history']
+      },
+      admin: {
+        role: 'admin', label: '🔴 Admin',
+        detail: 'ทุกสิทธิ์ · จัดการผู้ใช้ · ระบบทั้งหมด',
+        borderColor: '#dc2626', bg: '#fff1f2',
+        permissions: ['view_stock','view_detail','issue_part','receive_part','use_issue_cart',
+                      'create_item','edit_item','delete_item','manage_minmax','manage_item_image',
+                      'view_logs','view_alerts','view_dashboard','export_data',
+                      'request_order_create','request_order_view_own','request_order_view_all',
+                      'request_order_approve','request_order_reject','request_order_convert_pr','request_order_close',
+                      'view_purchase_history','manage_users','delete_users','assign_permissions',
+                      'access_admin_panel','reset_password',
+                      'manage_h9','manage_arc_chute','manage_coil_winding','manage_lug_screw']
+      }
+    };
+
+    function applyRolePreset(presetKey) {
+      var preset = ROLE_PRESETS[presetKey];
+      if (!preset) return;
+      // set role dropdown (hidden)
+      var uRole = document.getElementById('uRole');
+      if (uRole) uRole.value = preset.role;
+      // check/uncheck all permission checkboxes
+      var allPerms = preset.permissions;
+      document.querySelectorAll('[data-perm-key]').forEach(function(cb) {
+        cb.checked = allPerms.indexOf(cb.getAttribute('data-perm-key')) !== -1;
+      });
+      // show summary banner
+      var banner = document.getElementById('presetSummaryBanner');
+      var title = document.getElementById('presetSummaryTitle');
+      var detail = document.getElementById('presetSummaryDetail');
+      if (banner && title && detail) {
+        banner.classList.remove('hidden');
+        title.textContent = '✅ ใช้ Preset: ' + preset.label;
+        detail.textContent = preset.detail;
+      }
+      // highlight active preset button
+      document.querySelectorAll('.role-preset-btn').forEach(function(btn) {
+        var bKey = btn.getAttribute('data-role-preset');
+        if (bKey === presetKey) {
+          btn.style.cssText = 'border-color:' + preset.borderColor + ';background:' + preset.bg + ';';
+        } else {
+          btn.style.cssText = 'border-color:#e2e8f0;background:#fff;';
+        }
+      });
+      // trigger permission summary update
+      if (typeof renderPermissionSummary === 'function') renderPermissionSummary();
+    }
+
+    // Bind preset buttons
+    document.querySelectorAll('.role-preset-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        applyRolePreset(btn.getAttribute('data-role-preset'));
+      });
+    });
+
     if (newUserBtn) newUserBtn.addEventListener('click', function() {
       setUserEditorValues(null);
       openAdminEditorOnMobile();
