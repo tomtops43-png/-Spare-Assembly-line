@@ -409,50 +409,142 @@
       </section>
     </section>
 
-    <section id="requestOrderPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow p-4 md:p-6 mb-6">
-      <h2 class="text-xl font-bold mb-3">ขอซื้ออะไหล่</h2>
-      <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <form id="requestOrderForm" class="space-y-3 border border-slate-200 rounded-xl p-3 xl:col-span-4">
-          <label class="text-sm font-semibold text-slate-700">ประเภทคำขอซื้อ</label>
-          <select id="roRequestType" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm">
-            <option value="existing">รายการที่มีอยู่ (ดึงข้อมูลอัตโนมัติ)</option>
-            <option value="new">รายการใหม่ (กรอกเอง)</option>
-          </select>
-          <div id="roNewItemFields" class="hidden space-y-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
-            <p class="text-xs font-semibold text-blue-700">กรอกข้อมูลอะไหล่ใหม่</p>
-            <input id="roNewItemName" placeholder="Part Name ใหม่" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
-            <input id="roNewItemModel" placeholder="Model" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
-            <input id="roNewItemBrand" placeholder="Brand" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
+    <section id="requestOrderPage" class="hidden space-y-4 p-2 md:p-0 mb-6">
+      <!-- Header + Stats -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">🛒 ขอซื้ออะไหล่</h2>
+            <p class="text-xs text-slate-500 mt-0.5">ส่งคำขอซื้อ / ดูสถานะ / จัดการคำขอ</p>
           </div>
-          <div id="roExistingItemFields" class="space-y-2">
-            <label class="text-sm font-semibold text-slate-700">ค้นหาอะไหล่</label>
-            <input id="roItemSearch" placeholder="ค้นหาอะไหล่" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
-            <div id="roItemSearchResults" class="max-h-48 overflow-auto rounded border border-slate-200 bg-white text-sm"></div>
+          <button id="roRefreshBtn" type="button" class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            รีเฟรช
+          </button>
+        </div>
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-center">
+            <p class="text-2xl font-black text-amber-600" id="roPendingCount">0</p>
+            <p class="text-[11px] font-semibold text-amber-700">🟡 รอดำเนินการ</p>
           </div>
-          <div id="roSelectedCard" class="hidden rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm md:text-sm"></div>
-          <input id="roQty" type="number" min="1" placeholder="จำนวนที่ต้องการ" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" required />
-          <select id="roReasonPreset" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm">
-            <option value="">เลือกเหตุผล</option><option value="อะไหล่หมด">อะไหล่หมด</option><option value="ต่ำกว่าขั้นต่ำ">ต่ำกว่าขั้นต่ำ</option><option value="ใช้ซ่อมเครื่อง">ใช้ซ่อมเครื่อง</option><option value="เตรียมอะไหล่สำรอง">เตรียมอะไหล่สำรอง</option><option value="อื่นๆ">อื่นๆ</option>
-          </select>
-          <input id="roReasonOther" placeholder="ระบุเหตุผลเพิ่มเติม" class="hidden h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
-          <input id="roRemark" placeholder="หมายเหตุ (ไม่บังคับ)" class="h-11 w-full rounded border px-3 py-2 text-base md:h-10 md:text-sm" />
-          <label class="text-sm font-semibold text-slate-700">แนบรูปภาพ (ไม่บังคับ)</label>
-          <input id="roAttachmentFile" type="file" accept="image/*" class="h-11 w-full rounded border px-3 py-2 bg-white text-sm" />
-          <p id="roAttachmentInfo" class="text-xs text-slate-500">ยังไม่ได้แนบรูป</p>
-          <img id="roAttachmentPreview" class="hidden h-24 w-24 rounded border object-cover" />
-          <button class="h-12 w-full rounded bg-blue-600 text-base font-semibold text-white md:h-10 md:text-sm">ส่งคำขอซื้อ</button>
-        </form>
+          <div class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-center">
+            <p class="text-2xl font-black text-rose-600" id="roUrgentCount">0</p>
+            <p class="text-[11px] font-semibold text-rose-700">🔴 ด่วน/วิกฤติ</p>
+          </div>
+          <div class="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-center">
+            <p class="text-2xl font-black text-blue-600" id="roApprovedCount">0</p>
+            <p class="text-[11px] font-semibold text-blue-700">✅ อนุมัติแล้ว</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-center">
+            <p class="text-2xl font-black text-slate-600" id="roTotalCount">0</p>
+            <p class="text-[11px] font-semibold text-slate-600">📋 ทั้งหมด</p>
+          </div>
+        </div>
+      </div>
 
-        <div class="border border-slate-200 rounded-xl p-3 xl:col-span-8">
-          <div class="flex items-center justify-between mb-2"><h3 class="font-semibold">รายการรอดำเนินการ (ผู้ดูแล)</h3><button id="roRefreshBtn" class="text-sm px-2 py-1 border rounded">รีเฟรช</button></div>
-          <div class="mb-2 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-            <div class="rounded-xl border border-amber-300 bg-amber-100 px-3 py-2 font-semibold text-amber-900 shadow-sm">🟠 รอดำเนินการ: <b id="roPendingCount">0</b> ออร์เดอร์</div>
-            <div class="rounded-xl border border-rose-300 bg-rose-100 px-3 py-2 font-semibold text-rose-900 shadow-sm">🔴 ด่วน/วิกฤติ: <b id="roUrgentCount">0</b> ออร์เดอร์</div>
+      <!-- Main Grid -->
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-[380px_1fr]">
+        <!-- Left: Request Form -->
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div class="border-b border-slate-100 bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3">
+            <h3 class="font-bold text-white">➕ ส่งคำขอซื้อใหม่</h3>
+            <p class="text-[11px] text-blue-200 mt-0.5">เลือกอะไหล่จากระบบ หรือกรอกรายการใหม่</p>
           </div>
-          <select id="roStatusFilter" class="mb-2 w-full rounded border px-2 py-1 text-sm">
-            <option value="all">ทุกStatus</option><option value="Pending">รอดำเนินการ</option><option value="Approved">อนุมัติแล้ว</option><option value="On Hold">พักรายการ</option><option value="Converted to PR">แปลงเป็น PR แล้ว</option><option value="Rejected">ปฏิเสธ</option><option value="Purchased">สั่งซื้อแล้ว</option><option value="Received">รับเข้าแล้ว</option><option value="Closed">ปิดรายการ</option>
-          </select>
-          <div id="roList" class="space-y-2 text-sm"></div>
+          <form id="requestOrderForm" class="space-y-3 p-4">
+            <!-- Type selector -->
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" data-ro-type="existing" class="ro-type-btn flex flex-col items-center gap-1 rounded-xl border-2 border-blue-500 bg-blue-50 p-2.5 text-center transition">
+                <span class="text-xl">🔍</span><span class="text-xs font-bold text-blue-700">อะไหล่ในระบบ</span>
+              </button>
+              <button type="button" data-ro-type="new" class="ro-type-btn flex flex-col items-center gap-1 rounded-xl border-2 border-slate-200 bg-white p-2.5 text-center transition hover:border-violet-400">
+                <span class="text-xl">✏️</span><span class="text-xs font-bold text-slate-600">รายการใหม่</span>
+              </button>
+            </div>
+            <select id="roRequestType" class="hidden">
+              <option value="existing">รายการที่มีอยู่</option>
+              <option value="new">รายการใหม่</option>
+            </select>
+            <!-- Existing part search -->
+            <div id="roExistingItemFields" class="space-y-2">
+              <div class="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input id="roItemSearch" placeholder="ค้นหาชื่ออะไหล่ / รุ่น" class="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 text-sm focus:ring-2 focus:ring-blue-400 outline-none" />
+              </div>
+              <div id="roItemSearchResults" class="max-h-48 overflow-auto rounded-xl border border-slate-200 bg-white text-sm shadow-sm"></div>
+            </div>
+            <!-- New item fields -->
+            <div id="roNewItemFields" class="hidden space-y-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
+              <p class="text-xs font-bold text-violet-700">กรอกข้อมูลอะไหล่ใหม่</p>
+              <input id="roNewItemName" placeholder="ชื่ออะไหล่ *" class="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+              <div class="grid grid-cols-2 gap-2">
+                <input id="roNewItemModel" placeholder="รุ่น / Model" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" />
+                <input id="roNewItemBrand" placeholder="แบรนด์" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" />
+              </div>
+            </div>
+            <!-- Selected part card -->
+            <div id="roSelectedCard" class="hidden rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm"></div>
+            <!-- Qty + Reason -->
+            <div class="grid grid-cols-2 gap-2">
+              <label class="block text-xs font-semibold text-slate-600">จำนวนที่ต้องการ *
+                <input id="roQty" type="number" min="1" placeholder="0" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" required />
+              </label>
+              <label class="block text-xs font-semibold text-slate-600">เหตุผล *
+                <select id="roReasonPreset" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                  <option value="">เลือกเหตุผล</option>
+                  <option value="อะไหล่หมด">🔴 อะไหล่หมด</option>
+                  <option value="ต่ำกว่าขั้นต่ำ">🟡 ต่ำกว่า Min</option>
+                  <option value="ใช้ซ่อมเครื่อง">🔧 ซ่อมเครื่อง</option>
+                  <option value="เตรียมอะไหล่สำรอง">📦 อะไหล่สำรอง</option>
+                  <option value="อื่นๆ">📝 อื่นๆ</option>
+                </select>
+              </label>
+            </div>
+            <input id="roReasonOther" placeholder="ระบุเหตุผลเพิ่มเติม" class="hidden h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+            <input id="roRemark" placeholder="หมายเหตุ (ไม่บังคับ)" class="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+            <!-- Attachment -->
+            <label class="block">
+              <span class="text-xs font-semibold text-slate-600">แนบรูปภาพ <span class="text-slate-400">(ไม่บังคับ)</span></span>
+              <input id="roAttachmentFile" type="file" accept="image/*" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm" />
+            </label>
+            <p id="roAttachmentInfo" class="text-[11px] text-slate-400">ยังไม่ได้แนบรูป</p>
+            <img id="roAttachmentPreview" class="hidden h-20 w-20 rounded-xl border object-cover" />
+            <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              ส่งคำขอซื้อ
+            </button>
+          </form>
+        </div>
+
+        <!-- Right: Request List -->
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div class="border-b border-slate-100 p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h3 class="font-bold text-slate-800">📋 รายการคำขอ</h3>
+              <!-- Monthly PR Report Button -->
+              <button id="roMonthlyPrBtn" type="button" class="flex items-center gap-1.5 rounded-xl border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100 transition">
+                📄 สร้าง PR Report ประจำเดือน
+              </button>
+            </div>
+            <!-- Status filter tabs -->
+            <div class="flex flex-wrap gap-1.5">
+              <select id="roStatusFilter" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm flex-1 min-w-[140px]">
+                <option value="all">ทุก Status</option>
+                <option value="Pending">🟡 รอดำเนินการ</option>
+                <option value="Approved">✅ อนุมัติแล้ว</option>
+                <option value="On Hold">⏸ พักรายการ</option>
+                <option value="Rejected">❌ ปฏิเสธ</option>
+                <option value="Purchased">🛒 สั่งซื้อแล้ว</option>
+                <option value="Received">📥 รับเข้าแล้ว</option>
+                <option value="Converted to PR">📋 แปลงเป็น PR</option>
+                <option value="Closed">🔒 ปิดรายการ</option>
+              </select>
+              <select id="roMonthFilter" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm">
+                <option value="all">ทุกเดือน</option>
+              </select>
+            </div>
+          </div>
+          <div id="roList" class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto"></div>
         </div>
       </div>
 
@@ -4816,34 +4908,92 @@ function getIssueCartEntries() {
           grouped[key].push(r);
         });
         var groupKeys = Object.keys(grouped);
-        if (!groupKeys.length) { roList.innerHTML = '<p class="text-slate-400">ยังไม่มีคำขอ</p>'; return; }
+        // Populate month filter
+        var monthFilter = document.getElementById('roMonthFilter');
+        if (monthFilter && monthFilter.options.length <= 1) {
+          var monthSet = {};
+          rows.forEach(function(r) {
+            var d = String(r.requested_date || '');
+            if (d.length >= 7) monthSet[d.substring(0,7)] = true;
+          });
+          Object.keys(monthSet).sort().reverse().forEach(function(m) {
+            var opt = document.createElement('option'); opt.value = m; opt.textContent = m;
+            monthFilter.appendChild(opt);
+          });
+        }
+        // Apply month filter
+        var monthVal = monthFilter ? monthFilter.value : 'all';
+        if (monthVal !== 'all') filtered = filtered.filter(function(r){ return String(r.requested_date||'').indexOf(monthVal) !== -1; });
+
+        // Update extra stat counts
+        var approvedCount = rows.filter(function(r){ return String(r.status||'') === 'Approved'; }).length;
+        var approvedEl = document.getElementById('roApprovedCount'); if (approvedEl) approvedEl.textContent = String(approvedCount);
+        var totalEl = document.getElementById('roTotalCount'); if (totalEl) totalEl.textContent = String(rows.length);
+
+        function getStatusStyle(status) {
+          var s = String(status || '');
+          var map = {
+            'Pending':          { dot: '#f59e0b', bg: '#fffbeb', border: '#fcd34d', text: '#92400e', label: '🟡 รอดำเนินการ' },
+            'Approved':         { dot: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', label: '✅ อนุมัติแล้ว' },
+            'On Hold':          { dot: '#8b5cf6', bg: '#f5f3ff', border: '#ddd6fe', text: '#5b21b6', label: '⏸ พักรายการ' },
+            'Rejected':         { dot: '#ef4444', bg: '#fff1f2', border: '#fecaca', text: '#be123c', label: '❌ ปฏิเสธ' },
+            'Purchased':        { dot: '#0891b2', bg: '#ecfeff', border: '#a5f3fc', text: '#0e7490', label: '🛒 สั่งซื้อแล้ว' },
+            'Received':         { dot: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d', label: '📥 รับเข้าแล้ว' },
+            'Converted to PR':  { dot: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', text: '#6d28d9', label: '📋 แปลงเป็น PR' },
+            'Closed':           { dot: '#6b7280', bg: '#f9fafb', border: '#e5e7eb', text: '#4b5563', label: '🔒 ปิดรายการ' }
+          };
+          return map[s] || { dot: '#94a3b8', bg: '#f8fafc', border: '#e2e8f0', text: '#475569', label: s };
+        }
+
+        var grouped = {};
+        filtered.forEach(function(r) {
+          var key = String(r.requested_by || '').trim() || '__missing__';
+          grouped[key] = grouped[key] || [];
+          grouped[key].push(r);
+        });
+        var groupKeys = Object.keys(grouped);
+        if (!groupKeys.length) {
+          roList.innerHTML = '<div class="px-4 py-10 text-center text-slate-400"><p class="text-3xl mb-2">📭</p><p class="text-sm">ไม่มีคำขอในช่วงนี้</p></div>';
+          return;
+        }
         var groupedEntries = groupKeys.map(function(name){ return { name: name, items: grouped[name] || [] }; });
         window.__roGroupedEntries = groupedEntries;
         roList.innerHTML = groupedEntries.map(function(entry, gIdx) {
           var name = entry.name;
           var items = entry.items || [];
-          var pendingItems = items.filter(function(r){ return String(r.status || '') === 'Pending'; });
-          var pendingCount = pendingItems.length;
-          var urgentCount = pendingItems.filter(function(r){ var p = String(r.priority || '').toLowerCase(); return p === 'urgent' || p === 'critical'; }).length;
-          var lines = Array.from(new Set(items.map(function(r){ return String(r.line || '-').trim() || '-'; }))).join(', ');
-          var latest = items.reduce(function(acc, r){ var d = new Date(r.requested_date || r.updated_at || 0).getTime(); return d > acc ? d : acc; }, 0);
-          var latestText = latest ? new Date(latest).toLocaleDateString('th-TH') : '-';
-          var displayName = name === '__missing__' ? 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' : name;
-          return '<div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">' +
-            '<div class="flex items-start justify-between gap-2">' +
-              '<div class="min-w-0">' +
-                '<p class="font-semibold text-base">👤 ' + displayName + '</p>' +
-                '<p class="text-xs text-slate-600">ไลน์ที่เกี่ยวข้อง: ' + lines + '</p>' +
-                '<p class="text-xs text-slate-500">Last Updated: ' + (latest ? formatThaiDateTime(latest) : '-') + '</p>' +
+          var pendingItems = items.filter(function(r){ return String(r.status||'') === 'Pending'; });
+          var urgentItems = pendingItems.filter(function(r){ var p = String(r.priority||'').toLowerCase(); return p==='urgent'||p==='critical'; });
+          var displayName = name === '__missing__' ? 'ไม่ระบุชื่อ' : name;
+          var initial = displayName.charAt(0).toUpperCase();
+          var latest = items.reduce(function(acc,r){ var d=new Date(r.requested_date||r.updated_at||0).getTime(); return d>acc?d:acc; },0);
+          var lines = Array.from(new Set(items.map(function(r){ return String(r.line||'').trim(); }).filter(Boolean))).join(' · ');
+          // Status summary chips
+          var statusMap = {};
+          items.forEach(function(r){ var s=String(r.status||'Pending'); statusMap[s]=(statusMap[s]||0)+1; });
+          var statusChips = Object.keys(statusMap).map(function(s) {
+            var st = getStatusStyle(s);
+            return '<span style="background:' + st.bg + ';border:1px solid ' + st.border + ';color:' + st.text + ';" class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold">' + st.label + ' ' + statusMap[s] + '</span>';
+          }).join('');
+          var urgentBanner = urgentItems.length > 0
+            ? '<div style="background:#fff1f2;border:1px solid #fecaca;" class="mt-2 rounded-lg px-3 py-1.5 text-xs font-bold text-rose-700">🚨 มี ' + urgentItems.length + ' รายการด่วน/วิกฤติ — ต้องดำเนินการทันที</div>'
+            : '';
+          return '<div class="px-4 py-3 transition hover:bg-slate-50/80">' +
+            '<div class="flex items-start gap-3">' +
+              '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-black text-white shadow-sm">' + initial + '</div>' +
+              '<div class="min-w-0 flex-1">' +
+                '<div class="flex items-center justify-between gap-2">' +
+                  '<p class="font-bold text-slate-900">' + displayName + '</p>' +
+                  '<span class="rounded-full bg-blue-600 px-2.5 py-0.5 text-[11px] font-black text-white">' + items.length + ' รายการ</span>' +
+                '</div>' +
+                '<p class="text-[11px] text-slate-500 mt-0.5">' + (lines || '-') + ' · ' + (latest ? formatThaiDateTime(latest) : '-') + '</p>' +
+                '<div class="mt-1.5 flex flex-wrap gap-1">' + statusChips + '</div>' +
+                urgentBanner +
               '</div>' +
-              '<span class="inline-flex min-w-[28px] items-center justify-center rounded-full bg-blue-600 px-2 py-1 text-xs font-extrabold text-white shadow-sm">' + pendingCount + '</span>' +
             '</div>' +
-            '<button type="button" data-group-idx="' + gIdx + '" class="mt-2 w-full cursor-pointer rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm text-blue-900 transition hover:-translate-y-[1px] hover:bg-blue-100">' +
-              '💬 มีคำขอซื้อใหม่จาก <b>' + displayName + '</b> จำนวน <b>' + pendingCount + '</b> รายการ' + (urgentCount > 0 ? ' • ด่วน <b>' + urgentCount + '</b>' : '') + (items.length !== pendingCount ? ' • ทั้งOut of Stock <b>' + items.length + '</b>' : '') + ' • กดดูDetails' +
+            '<button type="button" data-group-idx="' + gIdx + '" class="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 transition">' +
+              '<svg xmlns=\'http://www.w3.org/2000/svg\' class=\'h-3.5 w-3.5\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' stroke-width=\'2\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M15 12a3 3 0 11-6 0 3 3 0 016 0z\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z\'/></svg>' +
+              'ดูรายละเอียดและจัดการ' +
             '</button>' +
-            '<div class="mt-2 flex flex-wrap gap-2">' +
-              '<button type="button" data-group-idx="' + gIdx + '" class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-700">ดูDetails</button>' +
-            '</div>' +
           '</div>';
         }).join('');
         
@@ -4903,30 +5053,58 @@ function getIssueCartEntries() {
       window.__roBulkSelected = {};
       updateRequestOrderBulkToolbar();
       detailTitle.textContent = 'รายการของ: ' + (name === '__missing__' ? 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' : name);
-      detailList.innerHTML = items.map(function(r, idx) {
-        var invalid = !String(r.item_name || '').trim() || Number(r.request_qty || 0) <= 0 || !String(r.requested_by || '').trim();
-        var warning = invalid ? '<p class="text-xs text-rose-600 font-semibold">ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ</p>' : '';
-        var actions = '';
-        if (hasPermission('request_order_approve')) actions += '<button data-id="'+r.request_id+'" data-act="approve" class="rounded border px-2 py-1.5">อนุมัติ</button> <button data-id="'+r.request_id+'" data-act="hold" class="rounded border px-2 py-1.5">พักรายการ</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestPurchased" class="rounded border px-2 py-1.5">สั่งซื้อแล้ว</button> <button data-id="'+r.request_id+'" data-act="markOrderRequestReceived" class="rounded border px-2 py-1.5">รับเข้าแล้ว</button> ';
-        if (hasPermission('request_order_reject')) actions += '<button data-id="'+r.request_id+'" data-act="reject" class="rounded border px-2 py-1.5">ปฏิเสธ</button> ';
-        if (hasPermission('request_order_convert_pr')) actions += '<button data-id="'+r.request_id+'" data-act="convert" class="rounded border px-2 py-1.5">แปลงเป็น PR</button> ';
-        if (hasPermission('request_order_close')) actions += '<button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="rounded border px-2 py-1.5">ปิดรายการ</button>';
-        var selectControl = (hasPermission('request_order_approve') || hasPermission('request_order_reject')) ? '<label class="mb-2 flex items-center gap-2 rounded-lg bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-700"><input type="checkbox" data-ro-select="' + r.request_id + '" class="h-4 w-4" /> เลือกรายการนี้</label>' : '';
-        return '<div class="rounded-xl border p-3">' + selectControl +
-          '<p class="font-semibold">' + (idx + 1) + '. ' + (r.item_name || '-') + '</p>' +
-          '<p class="text-sm">Requesterซื้อ: <b>' + (r.requested_by || '-') + '</b></p>' +
-          '<p class="text-sm">Requested Atซื้อ: ' + formatThaiDateTime(r.requested_date) + '</p>' +
-          '<p class="text-sm">ไลน์ที่เกี่ยวข้อง: ' + (r.line || '-') + '</p>' +
-          '<p class="text-sm">Model: ' + (r.model || r.item_model || '-') + '</p>' +
-          '<p class="text-sm">Brand: ' + (r.brand || r.item_brand || '-') + '</p>' +
-          '<p class="text-sm">จำนวนที่ต้องการ: ' + (r.request_qty || 0) + '</p>' +
-          '<p class="text-sm">เหตุผล: ' + (r.reason || '-') + '</p>' +
-          '<p class="text-sm">หมายเหตุ: ' + (r.remark || '-') + '</p>' +
-          '<p class="text-sm">Status: <b>' + toThaiRequestStatus(r.status) + '</b></p>' +
-          '<div class="mt-2">' + ((r.attachment_url || r.image_main_url) ? '<div class="flex items-center gap-2"><img src="' + (r.attachment_url || r.image_main_url) + '" class="h-24 w-24 rounded border object-cover" onerror="this.style.display=\'none\'; this.nextElementSibling.classList.remove(\'hidden\');"/><a href="' + (r.attachment_url || r.image_main_url) + '" target="_blank" rel="noopener" class="hidden rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-700">เปิดรูปในแท็บใหม่</a><button type="button" data-view-image="' + (r.attachment_url || r.image_main_url) + '" class="rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700">ดูรูปขนาดใหญ่</button></div>' : '<span class="text-xs text-slate-400">ไม่มีรูปแนบ</span>') + '</div>' + warning +
-          '<div class="mt-2 flex flex-wrap gap-1.5 text-xs">' + actions + '</div>' +
+      var canManage = hasPermission('request_order_approve') || hasPermission('request_order_reject');
+      function statusBadge(status) {
+        var m = {'Pending':'bg-amber-100 text-amber-800','Approved':'bg-blue-100 text-blue-800','On Hold':'bg-violet-100 text-violet-800','Rejected':'bg-rose-100 text-rose-800','Purchased':'bg-cyan-100 text-cyan-800','Received':'bg-emerald-100 text-emerald-800','Converted to PR':'bg-purple-100 text-purple-800','Closed':'bg-slate-100 text-slate-600'};
+        return '<span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold ' + (m[status]||'bg-slate-100 text-slate-600') + '">' + toThaiRequestStatus(status) + '</span>';
+      }
+      detailList.innerHTML = '<div class="space-y-3 p-3">' + (items.map(function(r, idx) {
+        var s = String(r.status || 'Pending');
+        var isPending = s === 'Pending';
+        var invalid = !String(r.item_name || '').trim() || Number(r.request_qty || 0) <= 0;
+        var border = isPending ? 'border-amber-200' : s === 'Approved' ? 'border-blue-200' : s === 'Rejected' ? 'border-rose-200' : 'border-slate-200';
+        var selectCtrl = canManage ? '<label class="mb-3 flex items-center gap-2 cursor-pointer"><input type="checkbox" data-ro-select="' + r.request_id + '" class="h-4 w-4 rounded" /><span class="text-xs font-semibold text-slate-600">เลือกรายการนี้ (bulk action)</span></label>' : '';
+        // Action buttons with colors
+        var acts = [];
+        if (hasPermission('request_order_approve') && isPending) {
+          acts.push('<button data-id="'+r.request_id+'" data-act="approve" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">✅ อนุมัติ</button>');
+          acts.push('<button data-id="'+r.request_id+'" data-act="hold" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100">⏸ พัก</button>');
+        }
+        if (hasPermission('request_order_reject') && isPending) {
+          acts.push('<button data-id="'+r.request_id+'" data-act="reject" class="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">❌ ปฏิเสธ</button>');
+        }
+        if (hasPermission('request_order_approve') && (s==='Approved'||s==='Purchased')) {
+          if (s==='Approved') acts.push('<button data-id="'+r.request_id+'" data-act="markOrderRequestPurchased" class="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-700 hover:bg-cyan-100">🛒 สั่งซื้อแล้ว</button>');
+          if (s==='Purchased') acts.push('<button data-id="'+r.request_id+'" data-act="markOrderRequestReceived" class="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100">📥 รับเข้าแล้ว</button>');
+        }
+        if (hasPermission('request_order_convert_pr')) acts.push('<button data-id="'+r.request_id+'" data-act="convert" class="rounded-xl border border-purple-300 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100">📋 แปลงเป็น PR</button>');
+        if (hasPermission('request_order_close') && s!=='Closed') acts.push('<button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">🔒 ปิดรายการ</button>');
+        var imgHtml = (r.attachment_url || r.image_main_url)
+          ? '<div class="flex items-center gap-2 mt-2"><img src="' + (r.attachment_url||r.image_main_url) + '" class="h-16 w-16 rounded-xl border object-cover" onerror="this.style.display=\'none\'"/><button type="button" data-view-image="' + (r.attachment_url||r.image_main_url) + '" class="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700">🔍 ดูรูปขนาดใหญ่</button></div>'
+          : '<p class="text-[11px] text-slate-400 mt-1">ไม่มีรูปแนบ</p>';
+        return '<div class="rounded-2xl border ' + border + ' bg-white p-4 shadow-sm' + (invalid?' ring-2 ring-rose-300':'') + '">' +
+          selectCtrl +
+          '<div class="flex items-start justify-between gap-2 mb-3">' +
+            '<div>' +
+              '<p class="font-bold text-slate-900">' + (idx+1) + '. ' + (r.item_name||'-') + '</p>' +
+              '<p class="text-xs text-slate-500">' + (r.model||r.item_model||'-') + (r.brand||r.item_brand ? ' · ' + (r.brand||r.item_brand) : '') + '</p>' +
+            '</div>' +
+            statusBadge(s) +
+          '</div>' +
+          '<div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-3">' +
+            '<div><span class="text-slate-400">ขอโดย</span> <span class="font-semibold text-slate-800">' + (r.requested_by||'-') + '</span></div>' +
+            '<div><span class="text-slate-400">วันที่</span> <span class="font-semibold">' + formatThaiDateTime(r.requested_date) + '</span></div>' +
+            '<div><span class="text-slate-400">Line</span> <span class="font-semibold">' + (r.line||'-') + '</span></div>' +
+            '<div><span class="text-slate-400">จำนวน</span> <span class="font-bold text-blue-600 text-base">' + (r.request_qty||0) + ' ' + (r.unit||'ชิ้น') + '</span></div>' +
+            '<div class="col-span-2"><span class="text-slate-400">เหตุผล</span> <span class="font-semibold text-amber-700">' + (r.reason||'-') + '</span></div>' +
+            (r.remark && r.remark !== '-' ? '<div class="col-span-2"><span class="text-slate-400">หมายเหตุ</span> <span class="font-semibold">' + r.remark + '</span></div>' : '') +
+            (r.admin_comment ? '<div class="col-span-2 rounded-lg bg-blue-50 px-2 py-1"><span class="text-blue-500">💬 comment:</span> <span class="font-semibold text-blue-800">' + r.admin_comment + '</span></div>' : '') +
+          '</div>' +
+          imgHtml +
+          (acts.length ? '<div class="mt-3 flex flex-wrap gap-1.5">' + acts.join('') + '</div>' : '') +
+          (invalid ? '<p class="mt-2 text-[11px] font-bold text-rose-600">⚠️ ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ</p>' : '') +
         '</div>';
-      }).join('') || '<p class="text-slate-400">ไม่พบรายการ</p>';
+      }).join('') || '<p class="text-slate-400 text-center py-6">ไม่พบรายการ</p>') + '</div>';
       detailModal.classList.remove('hidden');
       document.body.classList.add('overflow-hidden');
     }
@@ -9810,6 +9988,70 @@ if (dashboardPage) {
     var roListEl = document.getElementById('roList');
     if (roRefreshBtn) roRefreshBtn.addEventListener('click', function(){ loadOrderRequests(); refreshRequestOrderBadgeCount(); });
     if (roStatusFilter) roStatusFilter.addEventListener('change', loadOrderRequests);
+    var roMonthFilter = document.getElementById('roMonthFilter');
+    if (roMonthFilter) roMonthFilter.addEventListener('change', loadOrderRequests);
+
+    // ── Type preset buttons ─────────────────────────────────────────
+    document.querySelectorAll('[data-ro-type]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var t = btn.getAttribute('data-ro-type');
+        var roType = document.getElementById('roRequestType');
+        if (roType) { roType.value = t; roType.dispatchEvent(new Event('change')); }
+        document.querySelectorAll('[data-ro-type]').forEach(function(b) {
+          var active = b.getAttribute('data-ro-type') === t;
+          b.style.cssText = active
+            ? 'border-color:#2563eb;background:#eff6ff;'
+            : 'border-color:#e2e8f0;background:#fff;';
+          var label = b.querySelector('span:last-child');
+          if (label) label.style.color = active ? '#1d4ed8' : '#374151';
+        });
+      });
+    });
+
+    // ── Monthly PR Report button ────────────────────────────────────
+    var roMonthlyPrBtn = document.getElementById('roMonthlyPrBtn');
+    if (roMonthlyPrBtn) roMonthlyPrBtn.addEventListener('click', function() {
+      var monthVal = roMonthFilter ? roMonthFilter.value : 'all';
+      var allRows = window.__roGroupedEntries ? window.__roGroupedEntries.reduce(function(acc, g){ return acc.concat(g.items||[]); }, []) : [];
+      var target = monthVal !== 'all' ? allRows.filter(function(r){ return String(r.requested_date||'').indexOf(monthVal)!==-1; }) : allRows;
+      var pending = target.filter(function(r){ var s=String(r.status||''); return s==='Pending'||s==='Approved'; });
+      if (!pending.length) { showQuickToast('ไม่มีรายการ Pending/Approved ในเดือนที่เลือก', 'warn'); return; }
+      // Build summary overlay
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:10010;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;padding:16px;';
+      var listHtml = pending.slice(0,20).map(function(r,i){
+        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9;">' +
+          '<input type="checkbox" checked data-pr-rid="'+r.request_id+'" style="width:16px;height:16px;flex-shrink:0;" />' +
+          '<div style="min-width:0;flex:1;"><p style="font-size:13px;font-weight:600;margin:0;color:#1e293b;">'+r.item_name+'</p>' +
+          '<p style="font-size:11px;color:#64748b;margin:2px 0 0;">'+(r.requested_by||'-')+' · '+(r.request_qty||0)+' '+(r.unit||'ชิ้น')+'</p></div>' +
+          '<span style="font-size:11px;color:#2563eb;font-weight:700;">'+(r.status||'Pending')+'</span></div>';
+      }).join('');
+      overlay.innerHTML = '<div style="background:#fff;border-radius:20px;width:100%;max-width:520px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.3);">' +
+        '<div style="padding:20px 24px;border-bottom:1px solid #e2e8f0;">' +
+          '<p style="font-size:18px;font-weight:800;margin:0;color:#1e293b;">📋 สร้าง PR Report ประจำเดือน</p>' +
+          '<p style="font-size:12px;color:#64748b;margin:4px 0 0;">เลือกรายการที่จะรวมใน PR Report · ' + (monthVal !== 'all' ? monthVal : 'ทุกเดือน') + '</p>' +
+        '</div>' +
+        '<div style="padding:16px 24px;overflow-y:auto;flex:1;">' + listHtml + '</div>' +
+        '<div style="padding:16px 24px;border-top:1px solid #e2e8f0;display:flex;gap:10px;">' +
+          '<button id="_prMonthCancel" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;font-weight:600;font-size:14px;cursor:pointer;color:#374151;">ยกเลิก</button>' +
+          '<button id="_prMonthOk" style="flex:2;height:42px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">📄 สร้าง PR Report</button>' +
+        '</div>' +
+      '</div>';
+      document.body.appendChild(overlay);
+      overlay.querySelector('#_prMonthCancel').addEventListener('click', function(){ document.body.removeChild(overlay); });
+      overlay.addEventListener('click', function(e){ if(e.target===overlay) document.body.removeChild(overlay); });
+      overlay.querySelector('#_prMonthOk').addEventListener('click', function() {
+        var selected = Array.prototype.slice.call(overlay.querySelectorAll('[data-pr-rid]:checked')).map(function(cb){ return cb.getAttribute('data-pr-rid'); });
+        var selItems = pending.filter(function(r){ return selected.indexOf(r.request_id)!==-1; });
+        document.body.removeChild(overlay);
+        // Store for PR Report page and navigate
+        window.__prFromRequests = selItems;
+        showQuickToast('นำ ' + selItems.length + ' รายการไปสร้าง PR Report แล้ว', 'success');
+        // Switch to PR Report tab
+        var prTab = document.getElementById('tabPrReport');
+        if (prTab) prTab.click();
+      });
+    });
     if (roListEl) roListEl.addEventListener('click', function(e){
       var btn = e.target.closest('[data-group-idx]');
       var groupIdx = btn ? btn.getAttribute('data-group-idx') : '';
