@@ -937,68 +937,189 @@
       </div>
     </section>
 
-    <section id="prReportPage" class="hidden space-y-4 bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow p-4 md:p-6">
-      <h2 class="text-xl font-bold">Purchase Request Report Generator</h2>
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <div class="rounded-xl border border-slate-200 p-3">
-          <p class="font-semibold mb-2">1) Scope</p>
-          <div class="grid grid-cols-1 gap-2 text-sm">
-            <label class="text-xs font-semibold text-slate-600">Request Period</label>
-            <input id="prPeriod" type="month" class="h-10 rounded-lg border border-slate-300 px-3" />
-            <label class="text-xs font-semibold text-slate-600">Request Date From / To</label>
-            <div class="grid grid-cols-2 gap-2"><input id="prFrom" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /><input id="prTo" type="date" class="h-10 rounded-lg border border-slate-300 px-3" /></div>
-            <label class="text-xs font-semibold text-slate-600">Prepared by</label>
-            <input id="prPreparedBy" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Prepared by" />
-            <label class="text-xs font-semibold text-slate-600">Department</label>
-            <input id="prDepartment" class="h-10 rounded-lg border border-slate-300 px-3" placeholder="Department" value="Production / Maintenance" />
-            <label class="text-xs font-semibold text-slate-600">Report Mode</label>
-            <select id="prMode" class="h-10 rounded-lg border border-slate-300 px-3 bg-white">
-              <option value="assembly_monthly" selected>Assembly Monthly PR (All lines)</option>
-              <option value="line_specific">Line-specific PR</option>
-              <option value="urgent">Urgent PR (Stock 0 / Critical)</option>
-            </select>
-            <select id="prLineFilter" class="h-10 rounded-lg border border-slate-300 px-3 bg-white hidden">
-              <option value="all">All lines</option>
+    <section id="prReportPage" class="hidden space-y-4 p-2 md:p-0">
+      <!-- Header -->
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">📋 สร้างใบขอซื้ออะไหล่ (PR Report)</h2>
+          <p class="text-sm text-slate-500 mt-0.5">สร้างเอกสารขออนุมัติสั่งซื้ออะไหล่ สำหรับผู้จัดการอนุมัติ</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="prNumberDisplay" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700"></span>
+        </div>
+      </div>
+
+      <!-- Step 1: Quick Mode Selection -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">ขั้นตอนที่ 1 — เลือกประเภท PR</p>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <button type="button" data-pr-preset="assembly_monthly" class="pr-preset-btn group flex flex-col items-start gap-2 rounded-2xl border-2 border-blue-500 bg-blue-50 p-4 text-left transition hover:shadow-md">
+            <span class="text-2xl">📅</span>
+            <div>
+              <p class="font-bold text-blue-800">PR ประจำเดือน</p>
+              <p class="text-xs text-blue-600 mt-0.5">รวมทุก Line — Stock ต่ำ + ใช้บ่อย</p>
+            </div>
+          </button>
+          <button type="button" data-pr-preset="urgent" class="pr-preset-btn group flex flex-col items-start gap-2 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left transition hover:border-rose-400 hover:bg-rose-50 hover:shadow-md">
+            <span class="text-2xl">🚨</span>
+            <div>
+              <p class="font-bold text-slate-800">PR เร่งด่วน</p>
+              <p class="text-xs text-slate-500 mt-0.5">เฉพาะ Stock หมด / Critical — สั่งด่วน</p>
+            </div>
+          </button>
+          <button type="button" data-pr-preset="line_specific" class="pr-preset-btn group flex flex-col items-start gap-2 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left transition hover:border-violet-400 hover:bg-violet-50 hover:shadow-md">
+            <span class="text-2xl">🏭</span>
+            <div>
+              <p class="font-bold text-slate-800">PR เฉพาะ Line</p>
+              <p class="text-xs text-slate-500 mt-0.5">เลือก Line เดียว — รายงานแยก Line</p>
+            </div>
+          </button>
+        </div>
+        <select id="prMode" class="hidden">
+          <option value="assembly_monthly" selected>Assembly Monthly PR (All lines)</option>
+          <option value="line_specific">Line-specific PR</option>
+          <option value="urgent">Urgent PR (Stock 0 / Critical)</option>
+        </select>
+      </div>
+
+      <!-- Step 2: Details + Generate -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">ขั้นตอนที่ 2 — รายละเอียด & ตั้งค่า</p>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <label class="block text-xs font-semibold text-slate-600">รอบเดือน (Request Period)
+            <input id="prPeriod" type="month" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+          </label>
+          <label class="block text-xs font-semibold text-slate-600">จากวันที่
+            <input id="prFrom" type="date" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+          </label>
+          <label class="block text-xs font-semibold text-slate-600">ถึงวันที่
+            <input id="prTo" type="date" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+          </label>
+          <label class="block text-xs font-semibold text-slate-600">จัดทำโดย
+            <input id="prPreparedBy" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" placeholder="ชื่อ Engineer" />
+          </label>
+          <label class="block text-xs font-semibold text-slate-600">แผนก / Department
+            <input id="prDepartment" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" value="Production / Maintenance" />
+          </label>
+          <label id="prLineFilterWrap" class="hidden block text-xs font-semibold text-slate-600">เลือก Line
+            <select id="prLineFilter" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+              <option value="all">ทุก Line</option>
               <option value="H9">H9</option>
               <option value="Arc Chute">Arc Chute</option>
               <option value="Coil Winding">Coil Winding</option>
-              <option value="Lug&Screw">Lug&Screw</option>
+              <option value="Lug&Screw">Lug&amp;Screw</option>
             </select>
-                        <p class="text-xs font-semibold text-slate-700">Include Conditions</p><label><input id="prIncludeOut" type="checkbox" checked /> Out of stock</label><label><input id="prIncludeBelow" type="checkbox" checked /> Below min</label><label><input id="prIncludeUsage" type="checkbox" checked /> Usage-based</label><p class="text-xs font-semibold text-slate-700">Additional Filter</p><label><input id="prCriticalOnly" type="checkbox" /> Critical items only</label>
-            <button id="prRunBtn" type="button" class="h-10 rounded-lg bg-blue-600 text-white font-semibold">Generate PR List</button>
+          </label>
+        </div>
+        <!-- Conditions -->
+        <div class="mt-3 flex flex-wrap items-center gap-4 rounded-xl bg-slate-50 px-4 py-3 text-sm">
+          <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">เงื่อนไขที่รวม:</span>
+          <label class="flex items-center gap-2 cursor-pointer"><input id="prIncludeOut" type="checkbox" checked class="h-4 w-4 rounded" /><span>🔴 Stock หมด</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input id="prIncludeBelow" type="checkbox" checked class="h-4 w-4 rounded" /><span>🟡 ต่ำกว่า Min</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input id="prIncludeUsage" type="checkbox" checked class="h-4 w-4 rounded" /><span>🔵 ใช้บ่อย (Usage)</span></label>
+          <label class="flex items-center gap-2 cursor-pointer"><input id="prCriticalOnly" type="checkbox" class="h-4 w-4 rounded" /><span>⭐ Critical เท่านั้น</span></label>
+        </div>
+        <button id="prRunBtn" type="button" class="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition sm:w-auto sm:px-8">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          โหลดรายการที่ต้องสั่ง
+        </button>
+      </div>
+
+      <!-- Step 3: Items -->
+      <div id="prStep3" class="hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="border-b border-slate-100 p-4">
+          <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">ขั้นตอนที่ 3 — ตรวจสอบ & เลือกรายการ</p>
+          <!-- Summary chips -->
+          <div id="prSummaryCards" class="flex flex-wrap gap-2 mb-3"></div>
+          <div id="prCostSummary" class="text-xs text-slate-500"></div>
+          <!-- Line tabs -->
+          <div id="prLineTabs" class="mt-2 flex flex-wrap gap-1.5"></div>
+        </div>
+        <!-- Toolbar -->
+        <div id="prCandidateToolbar" class="border-b border-slate-100 bg-slate-50 px-4 py-3">
+          <div class="flex flex-wrap gap-2">
+            <input id="prCandidateSearch" class="h-9 flex-1 min-w-[180px] rounded-xl border border-slate-300 bg-white px-3 text-sm" placeholder="🔍 ค้นหา Part / Model / Brand" />
+            <select id="prCriticalFilter" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+              <option value="all">ความเร่งด่วน: ทั้งหมด</option>
+              <option value="Critical">🔴 Critical</option>
+              <option value="High">🟠 High</option>
+              <option value="Medium">🟡 Medium</option>
+              <option value="Low">🟢 Low</option>
+            </select>
+            <select id="prPriceFilter" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+              <option value="all">ราคา: ทั้งหมด</option>
+              <option value="confirmed">✅ มีราคา</option>
+              <option value="tbc">❓ TBC</option>
+            </select>
+            <select id="prReasonFilter" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-sm">
+              <option value="all">เหตุผล: ทั้งหมด</option>
+              <option value="OOS">หมดสต็อก</option>
+              <option value="BMIN">ต่ำกว่า Min</option>
+              <option value="REP">ใช้บ่อย</option>
+              <option value="CRIT">Critical</option>
+            </select>
+            <label class="flex h-9 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm cursor-pointer">
+              <input id="prSelectedOnly" type="checkbox" class="h-4 w-4" /> เฉพาะที่เลือก
+            </label>
           </div>
         </div>
-        <div class="rounded-xl border border-slate-200 p-3 lg:col-span-2">
-          <p class="font-semibold mb-2">2) Recommended PR Items</p>
-          <div id="prSummaryCards" class="mb-2 grid grid-cols-2 md:grid-cols-8 gap-2"></div><div id="prCostSummary" class="mb-2 text-xs text-slate-600"></div>
-<div id="prCandidateToolbar" class="mb-2 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs">
-  <div id="prLineTabs" class="flex flex-wrap gap-1"></div>
-  <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-    <input id="prCandidateSearch" class="h-9 rounded border border-slate-300 px-2 text-sm md:col-span-2" placeholder="Search name / brand / model / line / category / reason code" />
-    <select id="prCriticalFilter" class="h-9 rounded border border-slate-300 px-2"><option value="all">Critical: All</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
-    <select id="prPriceFilter" class="h-9 rounded border border-slate-300 px-2"><option value="all">Price: All</option><option value="confirmed">Confirmed Price</option><option value="tbc">TBC Price</option></select>
-    <select id="prReasonFilter" class="h-9 rounded border border-slate-300 px-2"><option value="all">Reason: All</option><option>OOS</option><option>BMIN</option><option>REP</option><option>CRIT</option></select>
-  </div>
-  <label class="inline-flex items-center gap-2"><input id="prSelectedOnly" type="checkbox" /> Selected only</label>
-</div>
-<div id="prCandidateList" class="space-y-2 max-h-[480px] overflow-auto"></div>
+        <div id="prCandidateList" class="max-h-[500px] space-y-0 overflow-auto divide-y divide-slate-100"></div>
+      </div>
 
+      <!-- Step 4: Build & Export -->
+      <div id="prStep4" class="hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+        <p class="text-xs font-bold uppercase tracking-widest text-emerald-600 mb-3">ขั้นตอนที่ 4 — สร้าง & ส่งออก PDF</p>
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <div class="flex flex-wrap gap-2 text-xs">
+            <label class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 cursor-pointer">
+              <input id="prIncludeAnnexC" type="checkbox" checked class="h-3.5 w-3.5" /> รูปอะไหล่ (Annex C)
+            </label>
+            <label class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 cursor-pointer">
+              <input id="prIncludeAnnexD" type="checkbox" checked class="h-3.5 w-3.5" /> Drawing List (Annex D)
+            </label>
+            <label class="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-700 cursor-pointer">
+              <input id="prPrintFullDrawings" type="checkbox" class="h-3.5 w-3.5" /> แนบ Drawing เต็มหน้า
+            </label>
+            <label class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 cursor-pointer">
+              <input id="prAttachDrawingsSeparately" type="checkbox" class="h-3.5 w-3.5" /> Drawing แยกท้ายเล่ม
+            </label>
+          </div>
+          <div class="flex gap-2 ml-auto">
+            <select id="prAnnexMode" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs">
+              <option value="important">Annex C: สำคัญเท่านั้น</option>
+              <option value="all" selected>Annex C: ทุกรายการ</option>
+            </select>
+            <select id="prAnnexLimit" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs">
+              <option value="24">จำกัด 24 รูป</option>
+              <option value="100">จำกัด 100 รูป</option>
+              <option value="0" selected>ไม่จำกัด</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button id="prBuildReportBtn" type="button" class="flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            Preview รายงาน
+          </button>
+          <button id="prPrintBtn" type="button" class="flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Export PDF
+          </button>
+          <button id="prExportCsvBtn" type="button" class="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+            📊 Export CSV
+          </button>
         </div>
       </div>
-      <div class="rounded-xl border border-slate-200 p-3">
-        <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
-          <p class="font-semibold">3) Report Preview</p>
-          <div class="flex gap-2 items-center flex-wrap">
-            <select id="prAnnexMode" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="important">Annex C: Important only</option><option value="all" selected>Annex C: All selected items</option></select><select id="prAnnexLimit" class="h-9 rounded-lg border border-slate-300 px-2 text-sm"><option value="24">Limit: 24</option><option value="100">Limit: 100</option><option value="0" selected>Limit: Unlimited</option></select>
-            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexC" type="checkbox" checked /> Include Annex C</label>
-            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prIncludeAnnexD" type="checkbox" checked /> Include Annex D</label>
-            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 text-xs text-blue-700" title="Optional: load PDF/JPG/PNG drawings only when exporting/previewing full drawing pages; CAD files remain referenced in Annex D."><input id="prPrintFullDrawings" type="checkbox" /> Include Full Drawing Pages</label>
-            <label class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-xs"><input id="prAttachDrawingsSeparately" type="checkbox" /> Attach drawings separately</label>
-            <button id="prBuildReportBtn" type="button" class="h-9 rounded-lg bg-emerald-600 px-3 text-white text-sm font-semibold">Build Report</button>
-            <button id="prPrintBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export PDF</button><button id="prExportCsvBtn" type="button" class="h-9 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Export CSV</button>
-          </div>
+
+      <!-- Preview -->
+      <div id="prPreviewWrap" class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="mb-3 flex items-center justify-between">
+          <p class="text-sm font-bold text-slate-700">📄 ตัวอย่างรายงาน</p>
+          <span class="text-xs text-slate-400">กด Export PDF เพื่อดาวน์โหลด</span>
         </div>
-        <div id="prReportPreview" class="prose prose-sm max-w-none text-slate-500">Report preview will appear here after clicking Build Report.</div>
+        <div id="prReportPreview" class="prose prose-sm max-w-none rounded-xl border border-slate-100 bg-slate-50 p-4 text-slate-500 min-h-[100px]">
+          กด "Preview รายงาน" เพื่อดูตัวอย่าง
+        </div>
       </div>
     </section>
 
@@ -8647,7 +8768,65 @@ if (dashboardPage) {
     });
     editForm.addEventListener('submit', submitEditModal);
     bindFilePreview('mImageMainFile', 'mImageMainPreview');
-    if (prRunBtn) prRunBtn.addEventListener('click', runPrCandidateSelection);
+    // ── PR Preset buttons ──────────────────────────────────────────
+    (function() {
+      var presetColors = {
+        assembly_monthly: { border: '#3b82f6', bg: '#eff6ff', text: '#1e40af' },
+        urgent: { border: '#ef4444', bg: '#fff1f2', text: '#be123c' },
+        line_specific: { border: '#7c3aed', bg: '#f5f3ff', text: '#5b21b6' }
+      };
+      function applyPreset(mode) {
+        if (prMode) prMode.value = mode;
+        document.querySelectorAll('.pr-preset-btn').forEach(function(btn) {
+          var bMode = btn.getAttribute('data-pr-preset');
+          var c = presetColors[bMode] || {};
+          if (bMode === mode) {
+            btn.style.cssText = 'border-color:' + c.border + ';background:' + c.bg + ';';
+            btn.querySelector('p').style.color = c.text;
+          } else {
+            btn.style.cssText = 'border-color:#e2e8f0;background:#fff;';
+            btn.querySelector('p').style.color = '#1e293b';
+          }
+        });
+        var lineWrap = document.getElementById('prLineFilterWrap');
+        if (lineWrap) lineWrap.classList.toggle('hidden', mode !== 'line_specific');
+        if (mode === 'urgent') {
+          var inc = document.getElementById('prIncludeOut'); if (inc) inc.checked = true;
+          var crit = document.getElementById('prCriticalOnly'); if (crit) crit.checked = true;
+        }
+        if (mode !== 'line_specific') prLineTabState = 'all';
+      }
+      document.querySelectorAll('.pr-preset-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { applyPreset(btn.getAttribute('data-pr-preset')); });
+      });
+      // default highlight
+      applyPreset('assembly_monthly');
+      if (prMode) prMode.addEventListener('change', function() { applyPreset(prMode.value); });
+    })();
+
+    // ── PR Number generator ────────────────────────────────────────
+    function generatePrNumber(mode, line) {
+      var now = new Date();
+      var yy = now.getFullYear();
+      var mm = String(now.getMonth() + 1).padStart(2, '0');
+      var modeCode = mode === 'urgent' ? 'URG' : mode === 'line_specific' ? (String(line || 'LINE').replace(/[^A-Z0-9]/gi, '').toUpperCase().substring(0, 4)) : 'MON';
+      var seq = String(Math.floor(Math.random() * 900) + 100);
+      return 'PR-' + yy + mm + '-' + modeCode + '-' + seq;
+    }
+
+    if (prRunBtn) prRunBtn.addEventListener('click', function() {
+      var mode = prMode ? prMode.value : 'assembly_monthly';
+      var line = prLineFilter ? prLineFilter.value : 'all';
+      var prNum = generatePrNumber(mode, line);
+      var numDisplay = document.getElementById('prNumberDisplay');
+      if (numDisplay) { numDisplay.textContent = '📋 ' + prNum; numDisplay.classList.remove('hidden'); }
+      // store for PDF
+      window._currentPrNumber = prNum;
+      runPrCandidateSelection();
+      // show steps
+      var s3 = document.getElementById('prStep3'); if (s3) s3.classList.remove('hidden');
+      var s4 = document.getElementById('prStep4'); if (s4) s4.classList.remove('hidden');
+    });
     ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
     var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; if(line !== 'all') prLineCollapsedState[line] = false; renderPrCandidates(); });
     if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } });
@@ -9084,37 +9263,63 @@ if (dashboardPage) {
       var separateDrawingHtml = attachDrawingsSeparately ? ('<h2 class="section-table">Drawing Files to Attach Separately</h2><p class="sub">Use these source links to attach drawing files outside the main PR PDF package.</p><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + drawingAttachmentRows(normalized) + '</tbody></table>') : '';
       var fullDrawingsHtml = fullDrawingPages(normalized);
 
+      var prNumber = (opts && opts.prNumber) ? String(opts.prNumber) : ('PR-' + generatedAt.replace(/[^0-9]/g,'').substring(0,6) + '-MON-' + Math.floor(Math.random()*900+100));
+      var urgentCount = urgentItems.length;
+      var critLabel = urgentCount > 0 ? '⚠️ มีรายการด่วน ' + urgentCount + ' รายการ — ต้องอนุมัติเร่งด่วน' : '✅ ไม่มีรายการที่หยุดไลน์ได้ทันที';
+      var sectionOffset = isLineSpecific ? 1 : 0;
       return '<div class="pr-doc">' +
-        '<div class="doc-head">Purchase Request Supporting Report | Assembly Line</div>' +
-        '<h1>PURCHASE REQUEST SUPPORTING REPORT</h1>' +
-        '<h3>Spare Parts, Maintenance Tools and Production Support Tools</h3>' +
-        '<p class="center">Assembly Line / Line Area: ' + esc(lineLabel) + '</p>' +
-        '<table class="meta"><thead><tr><th>Field</th><th>Detail</th></tr></thead><tbody>' +
-        '<tr><td>Document Title</td><td>Purchase Request Supporting Report</td></tr>' +
-        '<tr><td>Request Scope</td><td>Spare Parts, Maintenance Tools and Production Support Tools</td></tr>' +
-        '<tr><td>Line / Area</td><td>' + esc(lineLabel) + '</td></tr>' +
-        '<tr><td>Request Period</td><td>' + esc(period) + '</td></tr>' +
-        '<tr><td>Prepared by</td><td>' + esc(preparedBy) + '</td></tr>' +
-        '<tr><td>Department</td><td>' + esc(department) + '</td></tr>' +
-        '<tr><td>Submission Date</td><td>' + esc(submissionDate) + '</td></tr>' +
-        '<tr><td>Report Generated At</td><td>' + esc(generatedAt) + '</td></tr>' +
+        // ─── COVER BLOCK ───────────────────────────────────────────────────
+        '<div class="doc-head">ใบขออนุมัติสั่งซื้ออะไหล่ | Purchase Request Supporting Report</div>' +
+        '<div style="text-align:center;border-bottom:3px solid #1f4e78;padding-bottom:12px;margin-bottom:16px;">' +
+          '<p style="font-size:11px;color:#475569;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">เอกสารใบขออนุมัติสั่งซื้ออะไหล่และวัสดุสิ้นเปลือง</p>' +
+          '<h1 style="font-size:26px;margin:4px 0;">ใบขอสั่งซื้ออะไหล่ (Purchase Request)</h1>' +
+          '<p style="font-size:13px;color:#334155;margin:4px 0;">อะไหล่, เครื่องมือบำรุงรักษา และวัสดุสนับสนุนการผลิต</p>' +
+          '<p style="font-size:14px;font-weight:bold;color:#1f4e78;margin-top:8px;">Line / พื้นที่: ' + esc(lineLabel) + '</p>' +
+        '</div>' +
+        // ─── DOC INFO TABLE ────────────────────────────────────────────────
+        '<table class="meta" style="margin-bottom:16px;"><thead><tr><th>รายการ</th><th>รายละเอียด</th><th>รายการ</th><th>รายละเอียด</th></tr></thead><tbody>' +
+        '<tr><td><b>เลขที่เอกสาร</b></td><td style="color:#1f4e78;font-weight:bold;">' + esc(prNumber) + '</td><td>Line / พื้นที่</td><td>' + esc(lineLabel) + '</td></tr>' +
+        '<tr><td>รอบการสั่งซื้อ</td><td>' + esc(period) + '</td><td>ฝ่าย / แผนก</td><td>' + esc(department) + '</td></tr>' +
+        '<tr><td>จัดทำโดย</td><td>' + esc(preparedBy) + '</td><td>วันที่จัดทำ</td><td>' + esc(submissionDate) + '</td></tr>' +
+        '<tr><td>สร้างเมื่อ</td><td>' + esc(generatedAt) + '</td><td>สถานะ</td><td style="color:#dc2626;font-weight:bold;">รอการอนุมัติ</td></tr>' +
         '</tbody></table>' +
-        '<h2>1. Purpose / Background</h2><p>This report supports internal approval for spare parts and production support purchases required to maintain assembly line continuity and reduce downtime risk.</p>' +
-        '<h2 class="section-table">2. Executive Summary</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>' +
-        '<tr><td>Total requested items</td><td>'+normalized.length+'</td></tr><tr><td>Confirmed price items</td><td>'+confirmed.length+'</td></tr><tr><td>TBC price items</td><td>'+tbc.length+'</td></tr><tr><td>Confirmed amount (THB)</td><td>'+(confirmed.length?money(totalAmount):'TBC')+'</td></tr><tr><td>Out-of-stock items</td><td>'+outCount+'</td></tr><tr><td>High/Critical items</td><td>'+highCriticalCount+'</td></tr></tbody></table>' +
-        '<h2 class="section-table">3. Critical Level Definition</h2><table><thead><tr><th>Critical Level</th><th>Definition</th></tr></thead><tbody><tr><td>Critical</td><td>Machine may stop immediately if unavailable.</td></tr><tr><td>High</td><td>Production output or quality may be affected.</td></tr><tr><td>Medium</td><td>Needed for maintenance or adjustment.</td></tr><tr><td>Low</td><td>General support item.</td></tr></tbody></table>' +
-        '<h2>4. Risk / Benefits</h2><p>Potential impacts include downtime and emergency purchase cost. Benefits are better availability and stable production continuity.</p>' +
-        '<h2 class="section-table">5. Top Urgent Items</h2><table class="pr-items">'+detailColgroup(includeLineColumn)+'<thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' +
+        // ─── EXECUTIVE SUMMARY (ผู้บริหารดูหน้านี้ก่อน) ──────────────────
+        '<h2 class="section-table" style="color:#991b1b;page-break-before:avoid;">1. สรุปสำหรับผู้บริหาร (Executive Summary)</h2>' +
+        '<div style="border:2px solid #fca5a5;border-radius:8px;padding:12px;background:#fff7f7;margin-bottom:12px;">' +
+          '<p style="font-size:13px;font-weight:bold;color:#dc2626;margin:0 0 8px 0;">' + critLabel + '</p>' +
+          '<table style="width:100%;border-collapse:collapse;"><tbody>' +
+            '<tr><td style="padding:4px 8px;border:1px solid #fca5a5;background:#fee2e2;font-weight:bold;width:50%;">🔴 หยุดไลน์ได้ทันที (Stock = 0)</td><td style="padding:4px 8px;border:1px solid #fca5a5;font-weight:bold;font-size:16px;">' + outCount + ' รายการ</td>' +
+                '<td style="padding:4px 8px;border:1px solid #e2e8f0;background:#fef3c7;font-weight:bold;width:50%;">🟡 ต่ำกว่า Min — ควรสั่งด่วน</td><td style="padding:4px 8px;border:1px solid #e2e8f0;font-weight:bold;font-size:16px;">' + highCriticalCount + ' รายการ</td></tr>' +
+            '<tr><td style="padding:4px 8px;border:1px solid #e2e8f0;background:#eff6ff;">📦 รายการทั้งหมดที่ขออนุมัติ</td><td style="padding:4px 8px;border:1px solid #e2e8f0;font-weight:bold;font-size:16px;">' + normalized.length + ' รายการ</td>' +
+                '<td style="padding:4px 8px;border:1px solid #e2e8f0;background:#f0fdf4;">💰 วงเงินรวม (ที่มีราคา)</td><td style="padding:4px 8px;border:1px solid #e2e8f0;font-weight:bold;font-size:16px;">' + (confirmed.length ? money(totalAmount) : 'TBC') + ' บาท</td></tr>' +
+            '<tr><td style="padding:4px 8px;border:1px solid #e2e8f0;">✅ รายการที่มีราคาแล้ว</td><td style="padding:4px 8px;border:1px solid #e2e8f0;">' + confirmed.length + ' รายการ</td>' +
+                '<td style="padding:4px 8px;border:1px solid #e2e8f0;">❓ รายการที่ยังไม่มีราคา (TBC)</td><td style="padding:4px 8px;border:1px solid #e2e8f0;">' + tbc.length + ' รายการ ' + (tbc.length > 0 ? '— ต้องสอบถามราคาเพิ่มเติม' : '') + '</td></tr>' +
+          '</tbody></table>' +
+        '</div>' +
+        // ─── APPROVAL BLOCK (อยู่หน้า 1 ให้เซ็นทันที) ─────────────────────
+        '<h2 class="section-table" style="page-break-before:avoid;">2. การอนุมัติ</h2>' +
+        '<table><thead><tr><th style="width:20%">บทบาท</th><th style="width:22%">ชื่อ-นามสกุล</th><th style="width:20%">ตำแหน่ง</th><th style="width:18%">วันที่อนุมัติ</th><th style="width:20%">ลายมือชื่อ</th></tr></thead><tbody>' +
+        '<tr><td>จัดทำโดย (Prepared by)</td><td>'+esc(preparedBy)+'</td><td>วิศวกร (Engineer)</td><td>'+esc(submissionDate)+'</td><td>___________________</td></tr>' +
+        '<tr><td>ตรวจสอบโดย (Checked by)</td><td>___________________</td><td>___________________</td><td>___________________</td><td>___________________</td></tr>' +
+        '<tr><td>อนุมัติโดย (Approved by)</td><td>___________________</td><td>ผู้จัดการ (Manager)</td><td>___________________</td><td>___________________</td></tr>' +
+        '</tbody></table>' +
+        // ─── URGENT ITEMS ──────────────────────────────────────────────────
+        (urgentItems.length ? '<h2 class="section-table">3. รายการเร่งด่วน — ต้องดำเนินการทันที</h2><p style="color:#dc2626;font-size:12px;margin-bottom:6px;">รายการด้านล่างมีสต็อก = 0 หรือ Critical — หากไม่ได้รับการอนุมัติอาจกระทบการผลิต</p><table class="pr-items">'+detailColgroup(includeLineColumn)+'<thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' : '') +
+        // ─── FULL ITEM LIST ────────────────────────────────────────────────
         (isLineSpecific
           ? buildLineSpecificSections()
-          : ('<h2 class="section-table">6. Detailed Requested Item List by Line</h2>' + buildLineSections())
+          : ('<h2 class="section-table">' + (urgentItems.length ? '4' : '3') + '. รายการทั้งหมดที่ขออนุมัติ — แยกตาม Line</h2>' + buildLineSections())
         ) +
-        '<h2 class="section-table">' + (isLineSpecific ? '8' : '7') + '. Approval Signatures</h2><table><thead><tr><th>Role</th><th>Name</th><th>Position</th><th>Date</th><th>Signature</th></tr></thead><tbody><tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>________________</td></tr><tr><td>Checked by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr><tr><td>Approved by</td><td>________________</td><td>________________</td><td>________________</td><td>________________</td></tr></tbody></table>' +
-        annexCHtml +
-        annexDHtml +
+        // ─── ANNEXES ───────────────────────────────────────────────────────
+        annexCHtml.replace(/\d+\. Annex C/, (isLineSpecific ? '9' : (urgentItems.length ? '5' : '4')) + '. ภาคผนวก ก (Annex C)') +
+        annexDHtml.replace(/\d+\. Annex D/, (isLineSpecific ? '10' : (urgentItems.length ? '6' : '5')) + '. ภาคผนวก ข (Annex D)') +
         separateDrawingHtml +
         fullDrawingsHtml +
-        '<p class="footer">Confidential - For internal approval use only</p></div>';
+        '<div style="text-align:center;margin:24px 0 8px 0;padding-top:12px;border-top:1px solid #cbd5e1;font-size:11px;color:#94a3b8;">' +
+          'เอกสารนี้จัดทำโดย Spare Parts Portal ระบบบริหารจัดการอะไหล่ | เลขที่: ' + esc(prNumber) + ' | ' + esc(generatedAt) +
+          '<br/>เอกสารลับ — ใช้ภายในองค์กรเพื่อขออนุมัติเท่านั้น (Confidential - Internal Use Only)' +
+        '</div>' +
+        '</div>';
     }
     function recordAutoPrPurchaseHistory(selected) {
       if (!selected || !selected.length) return Promise.resolve();
@@ -9146,10 +9351,17 @@ if (dashboardPage) {
 
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
       var selected = getFilteredPrCandidates(true);
-      if (!selected.length) { prReportPreview.innerHTML = '<p class="text-sm text-rose-600">Please select at least one item.</p>'; return; }
+      if (!selected.length) {
+        if (prReportPreview) prReportPreview.innerHTML = '<p class="text-sm text-rose-600">กรุณาเลือกรายการก่อนสร้างรายงาน</p>';
+        var pw = document.getElementById('prPreviewWrap'); if (pw) pw.classList.remove('hidden');
+        return;
+      }
       var totalFiltered = getFilteredPrCandidates(false).length;
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
-      prReportPreview.innerHTML = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
+      var opts = getPrReportOptions(allSelectedMode);
+      opts.prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
+      prReportPreview.innerHTML = buildDocumentGradeReport(selected, opts);
+      var pw = document.getElementById('prPreviewWrap'); if (pw) { pw.classList.remove('hidden'); pw.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
       recordAutoPrPurchaseHistory(selected).catch(function(err) {
         prReportPreview.insertAdjacentHTML('afterbegin', '<div class="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">สร้างรายงานแล้ว แต่บันทึก Purchase History ไม่สำเร็จ: ' + escapePurchaseHistoryText(err && err.message ? err.message : err) + '</div>');
       });
@@ -9164,7 +9376,40 @@ if (dashboardPage) {
       var totalFiltered = getFilteredPrCandidates(false).length;
       var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
       var docHtml = buildDocumentGradeReport(selected, getPrReportOptions(allSelectedMode));
-      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Prompt:wght@400;500;700&display=swap\");.pr-doc{font-family:\"Noto Sans Thai\",\"Prompt\",Arial,sans-serif;color:#111;max-width:1000px;margin:0 auto;line-height:1.45}.pr-doc h1{text-align:center;color:#1f4e78;margin:8px 0;font-size:42px}.pr-doc h2{color:#1f4e78;border-bottom:1px solid #c7d5e8;padding-bottom:4px;margin-top:18px}.pr-doc h3{color:#1f4e78;margin-top:14px}.pr-doc .sub{font-size:11px;color:#475569}.pr-doc .top-note{text-align:right;font-size:12px}.pr-doc .center{text-align:center}.pr-doc table{width:100%;border-collapse:collapse;margin:8px 0;table-layout:fixed}.pr-doc th,.pr-doc td{border:1px solid #aebfd4;padding:6px 7px;font-size:12px;vertical-align:top;word-break:normal;overflow-wrap:anywhere}.pr-doc th{background:#1f4e78;color:#fff}.pr-doc .pr-items th:nth-child(1),.pr-doc .pr-items td:nth-child(1){text-align:center;white-space:nowrap;word-break:keep-all;overflow-wrap:normal}.pr-doc .pr-items td:nth-child(4),.pr-doc .pr-items td:nth-child(5){text-align:center}.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right}.pr-doc img{width:95px;height:68px;object-fit:contain}.pr-doc .annex-table td:first-child{text-align:center;padding:4px}.pr-doc .annex-table td:first-child img{display:block;margin:0 auto;width:72px;height:52px;max-width:72px;max-height:52px;object-fit:contain;border-radius:2px}.pr-doc .footer{text-align:center;margin:26px 0;font-size:12px}.pr-doc .empty{text-align:center;color:#64748b}.pr-doc .drawing-page{page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px}.pr-doc .drawing-full-image{display:block;width:100%;height:auto;max-height:900px;object-fit:contain}.pr-doc .drawing-pdf-frame{width:100%;height:900px;border:1px solid #cbd5e1}@media print{@page{size:A4 portrait;margin:12mm}.pr-doc{max-width:none} .pr-doc h2.section-table{page-break-before:always} .pr-doc h2.section-table:first-of-type{page-break-before:auto} .pr-doc h2,.pr-doc h3{page-break-after:avoid} .pr-doc table,tr,td,th{page-break-inside:avoid}}';
+      var css = '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap\");' +
+        'body{margin:0;padding:16px;background:#f8fafc;}' +
+        '.pr-doc{font-family:\"Noto Sans Thai\",\"Sarabun\",\"Prompt\",Arial,sans-serif;color:#1e293b;max-width:960px;margin:0 auto;line-height:1.5;font-size:13px;}' +
+        '.pr-doc .doc-head{text-align:right;font-size:10px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;}' +
+        '.pr-doc h1{text-align:center;color:#1e3a5f;margin:6px 0;font-size:22px;font-weight:700;letter-spacing:0.5px;}' +
+        '.pr-doc h2{color:#1e3a5f;border-left:4px solid #1e3a5f;padding:4px 0 4px 10px;margin-top:20px;margin-bottom:8px;font-size:14px;font-weight:700;background:#f0f4f8;}' +
+        '.pr-doc h3{color:#1e3a5f;margin-top:12px;font-size:13px;font-weight:600;}' +
+        '.pr-doc .sub{font-size:10px;color:#64748b;}' +
+        '.pr-doc .subhead{font-weight:700;color:#1e3a5f;margin:10px 0 4px;font-size:12px;}' +
+        '.pr-doc .center{text-align:center;}' +
+        '.pr-doc table{width:100%;border-collapse:collapse;margin:6px 0;table-layout:fixed;}' +
+        '.pr-doc th,.pr-doc td{border:1px solid #cbd5e1;padding:5px 7px;font-size:11.5px;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;}' +
+        '.pr-doc th{background:#1e3a5f;color:#fff;font-weight:600;font-size:11px;}' +
+        '.pr-doc tr:nth-child(even){background:#f8fafc;}' +
+        '.pr-doc .meta td:first-child{background:#f1f5f9;font-weight:600;color:#334155;width:22%;}' +
+        '.pr-doc .pr-items th:first-child,.pr-doc .pr-items td:first-child{text-align:center;white-space:nowrap;word-break:keep-all;width:40px;}' +
+        '.pr-doc .pr-items td:nth-child(5),.pr-doc .pr-items td:nth-child(6){text-align:center;}' +
+        '.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right;}' +
+        '.pr-doc img{width:90px;height:65px;object-fit:contain;}' +
+        '.pr-doc .annex-table td:first-child{text-align:center;padding:4px;width:100px;}' +
+        '.pr-doc .annex-table td:first-child img{display:block;margin:0 auto;width:72px;height:52px;object-fit:contain;border-radius:2px;}' +
+        '.pr-doc .empty{text-align:center;color:#94a3b8;font-style:italic;}' +
+        '.pr-doc .drawing-page{page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px;}' +
+        '.pr-doc .drawing-full-image{display:block;width:100%;height:auto;max-height:900px;object-fit:contain;}' +
+        '.pr-doc .drawing-pdf-frame{width:100%;height:900px;border:1px solid #cbd5e1;}' +
+        '@media print{' +
+          '@page{size:A4 portrait;margin:14mm 12mm;}' +
+          'body{padding:0;background:#fff;}' +
+          '.pr-doc{max-width:none;}' +
+          '.pr-doc h2.section-table{page-break-before:always;}' +
+          '.pr-doc h2.section-table:first-of-type{page-break-before:auto;}' +
+          '.pr-doc h2,.pr-doc h3{page-break-after:avoid;}' +
+          'tr,td,th{page-break-inside:avoid;}' +
+        '}';
       var win = window.open('', '_blank');
       win.document.write('<html lang=\"th\"><head><meta charset=\"utf-8\"/><title>PR Report</title><style>'+css+'</style></head><body>'+docHtml+'</body></html>');
       win.document.close();
