@@ -4164,13 +4164,25 @@ function getIssueCartEntries() {
     // ── Log page filter state ─────────────────────────────────────
     var logFilterLineVal = 'all', logFilterTypeVal = 'all', logFilterMonthVal = 'all', logFilterSearchVal = '';
 
+    function normalizeLogLine(raw) {
+      // ตัด " | note:..." หรือ " | ..." ออก แล้ว normalize ชื่อ line
+      var line = String(raw || '').split(' | ')[0].trim();
+      var known = {
+        'h9': 'H9', 'arc chute': 'Arc Chute', 'arc chut': 'Arc Chute',
+        'coil winding': 'Coil Winding', 'coilwinding': 'Coil Winding',
+        'lug&screw': 'Lug&Screw', 'lug & screw': 'Lug&Screw', 'lug screw': 'Lug&Screw',
+        'gv.2': 'Gv.2', 'gv2': 'Gv.2', 'gv 2': 'Gv.2', 'h1': 'H1'
+      };
+      return known[line.toLowerCase()] || line;
+    }
+
     function getLogFilteredRows() {
       return (logCache || []).filter(function(item) {
-        var line = String(item.process || item.line || '');
+        var line = normalizeLogLine(item.process || item.line || '');
         var type = String(item.type || '').toLowerCase();
         var ts   = String(item.timestamp || '');
         var q    = logFilterSearchVal.toLowerCase();
-        if (logFilterLineVal  !== 'all' && line.indexOf(logFilterLineVal) === -1) return false;
+        if (logFilterLineVal  !== 'all' && line !== logFilterLineVal) return false;
         if (logFilterTypeVal  !== 'all' && type !== logFilterTypeVal) return false;
         if (logFilterMonthVal !== 'all' && ts.indexOf(logFilterMonthVal) === -1) return false;
         if (q) {
@@ -4190,7 +4202,7 @@ function getIssueCartEntries() {
       allRows.forEach(function(r) {
         var isOut = String(r.type || '').toLowerCase() === 'output';
         var qty = Math.abs(Number(r.qty || 0));
-        var line = String(r.process || r.line || '-');
+        var line = normalizeLogLine(r.process || r.line || '-');
         var part = String(r.partName || '-');
         var user = String(r.by || '-');
         var ts   = String(r.timestamp || '');
@@ -4264,7 +4276,7 @@ function getIssueCartEntries() {
           return '<tr class="' + rowBg + ' hover:bg-blue-50/60 transition-colors">' +
             '<td class="py-2.5 px-3 whitespace-nowrap text-xs text-slate-500">' + formatThaiDateTime(item.timestamp) + '</td>' +
             '<td class="py-2.5 px-3">' + getLogTypeBadge(item.type) + '</td>' +
-            '<td class="py-2.5 px-3 text-xs font-semibold text-slate-700">' + (item.process || item.line || '-') + '</td>' +
+            '<td class="py-2.5 px-3 text-xs font-semibold text-slate-700">' + normalizeLogLine(item.process || item.line || '-') + '</td>' +
             '<td class="py-2.5 px-3 font-semibold text-slate-800">' + (item.partName || '-') + '</td>' +
             '<td class="py-2.5 px-3 text-xs text-slate-500 hidden md:table-cell">' + (item.model || '-') + '</td>' +
             '<td class="py-2.5 px-3 text-xs text-slate-500 hidden md:table-cell">' + (item.brand || '-') + '</td>' +
