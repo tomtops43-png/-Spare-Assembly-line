@@ -33,6 +33,14 @@
       body.line-menu-mobile-open #lineMenuDockToggle {
         visibility: visible;
       }
+      /* Force-hide all badges when line menu is open on mobile */
+      body.line-menu-mobile-open #requestOrderNavBadge,
+      body.line-menu-mobile-open #issueCartBadge,
+      body.line-menu-mobile-open #issueCartBadgeMobile {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
     }
     body.edit-modal-open .out-stock-overlay {
       display: none !important;
