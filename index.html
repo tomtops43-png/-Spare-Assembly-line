@@ -5275,10 +5275,11 @@ function getIssueCartEntries() {
           total: items.length, matched: matched, diffCount: diffItems.length });
         localStorage.setItem('sc_history', JSON.stringify(hist.slice(0,30)));
 
-        // ── STEP 3: Export PDF ─────────────────────────────────
-        scExportPdf(scSession, res.sessionId, matched, diffItems);
+        // ── STEP 3: สรุปผลและถามว่าจะ Export PDF ─────────────────
+        var pct = items.length ? Math.round((matched/items.length)*100) : 0;
+        var sessionCopy = JSON.parse(JSON.stringify(scSession)); // เก็บ copy ก่อนล้าง
 
-        // ปิด session
+        // ปิด session ก่อน
         scSession = null;
         document.getElementById('scActiveSession').classList.add('hidden');
         document.getElementById('scNoSession').classList.remove('hidden');
@@ -5286,6 +5287,48 @@ function getIssueCartEntries() {
         document.getElementById('scSummaryPanel').classList.add('hidden');
         var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.add('hidden');
         scUpdateStats(); scLoadHistory();
+
+        // แสดง Result dialog
+        (function() {
+          var ol = document.createElement('div');
+          ol.style.cssText = 'position:fixed;inset:0;z-index:10020;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;padding:16px;';
+          var pctColor = pct>=95?'#15803d':pct>=80?'#b45309':'#be123c';
+          var pctBg = pct>=95?'#f0fdf4':pct>=80?'#fffbeb':'#fff1f2';
+          ol.innerHTML = '<div style="background:#fff;border-radius:20px;width:100%;max-width:440px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.3);">' +
+            '<div style="background:linear-gradient(135deg,#4f46e5,#3730a3);padding:20px 24px;">' +
+              '<p style="font-size:13px;font-weight:600;color:#a5b4fc;margin:0 0 4px">✅ บันทึกผลสำเร็จ</p>' +
+              '<p style="font-size:18px;font-weight:800;color:#fff;margin:0">' + res.sessionId + '</p>' +
+              '<p style="font-size:12px;color:#c7d2fe;margin:4px 0 0">' + sessionCopy.month + ' · ' + (sessionCopy.line==='all'?'ทุก Line':sessionCopy.line) + '</p>' +
+            '</div>' +
+            '<div style="padding:20px 24px;">' +
+              '<div style="display:flex;gap:12px;margin-bottom:16px;">' +
+                '<div style="flex:1;text-align:center;border-radius:12px;border:2px solid #e2e8f0;padding:12px">' +
+                  '<p style="font-size:26px;font-weight:900;color:#1d4ed8;margin:0">' + items.length + '</p>' +
+                  '<p style="font-size:11px;color:#64748b;margin:4px 0 0">รายการทั้งหมด</p>' +
+                '</div>' +
+                '<div style="flex:1;text-align:center;border-radius:12px;border:2px solid #bbf7d0;background:#f0fdf4;padding:12px">' +
+                  '<p style="font-size:26px;font-weight:900;color:#15803d;margin:0">' + matched + '</p>' +
+                  '<p style="font-size:11px;color:#166534;margin:4px 0 0">✅ ตรงกัน</p>' +
+                '</div>' +
+                '<div style="flex:1;text-align:center;border-radius:12px;border:2px solid;border-color:'+pctColor+';background:'+pctBg+';padding:12px">' +
+                  '<p style="font-size:26px;font-weight:900;margin:0;color:'+pctColor+'">' + pct + '%</p>' +
+                  '<p style="font-size:11px;margin:4px 0 0;color:'+pctColor+'">ความถูกต้อง</p>' +
+                '</div>' +
+              '</div>' +
+              (diffItems.length > 0 ? '<div style="background:#fff1f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:#be123c;font-weight:600">⚠️ ไม่ตรง ' + diffItems.length + ' รายการ — ระบบปรับ Stock ให้แล้ว</div>' : '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:#15803d;font-weight:600">✅ ทุกรายการตรงกัน — ไม่มีการปรับ Stock</div>') +
+              '<div style="display:flex;gap:10px;">' +
+                '<button id="_scResultClose" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;font-weight:600;font-size:14px;cursor:pointer;color:#374151;">ปิด</button>' +
+                '<button id="_scResultPdf" style="flex:2;height:42px;border-radius:12px;border:none;background:linear-gradient(135deg,#4f46e5,#3730a3);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">📄 Export PDF รายงาน</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+          document.body.appendChild(ol);
+          ol.querySelector('#_scResultClose').addEventListener('click', function(){ document.body.removeChild(ol); });
+          ol.querySelector('#_scResultPdf').addEventListener('click', function(){
+            document.body.removeChild(ol);
+            scExportPdf(sessionCopy, res.sessionId, matched, diffItems);
+          });
+        })();
 
       }).catch(function(err) {
         showQuickToast('บันทึกไม่สำเร็จ: '+(err&&err.message?err.message:err), 'error');
