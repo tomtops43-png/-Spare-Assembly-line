@@ -1118,9 +1118,9 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 ยกเลิก Session
               </button>
-              <button id="scSubmitBtn" type="button" style="background:#059669;color:#ffffff;border:2px solid #047857;border-radius:12px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#ffffff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                ส่งผลและปรับ Stock
+              <button id="scSubmitBtn" type="button" style="background:#4f46e5;color:#ffffff;border:2px solid #3730a3;border-radius:12px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#ffffff" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                ส่งผลให้ Engineer ตรวจสอบ
               </button>
             </div>
           </div>
@@ -1181,6 +1181,22 @@
       </div>
 
       <!-- History Section -->
+      <!-- Pending Approval — เห็นเฉพาะ Engineer/Admin -->
+      <div id="scPendingSection" class="hidden rounded-2xl border-2 border-amber-300 bg-amber-50 shadow-sm overflow-hidden">
+        <div class="border-b border-amber-200 bg-amber-100 px-4 py-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">⏳</span>
+            <div>
+              <h3 class="font-bold text-amber-900">รออนุมัติ — ผลเช็คสต็อก</h3>
+              <p class="text-xs text-amber-700">กด "อนุมัติ" เพื่อปรับ Stock ตามผลที่นับได้จริง</p>
+            </div>
+          </div>
+          <span id="scPendingBadge" class="rounded-full bg-amber-500 px-3 py-1 text-xs font-black text-white">0</span>
+        </div>
+        <div id="scPendingList" class="divide-y divide-amber-100 max-h-80 overflow-y-auto"></div>
+      </div>
+
+      <!-- History -->
       <div id="scHistorySection" class="hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div class="border-b border-slate-100 px-4 py-3 flex items-center justify-between">
           <h3 class="font-bold text-slate-800">📋 ประวัติการเช็คสต็อก</h3>
@@ -5251,32 +5267,18 @@ function getIssueCartEntries() {
 
       postJson(savePayload).then(parseApiResponse).then(function(result) {
         var sessionId = result.session_id || ('SC-' + Date.now());
-        showQuickToast('✅ บันทึกลง Google Sheet แล้ว — ' + sessionId, 'success');
-
-        // ── STEP 2: ปรับ Stock ที่ไม่ตรง (POST) ────────────────
-        if (diffItems.length === 0) return Promise.resolve({ sessionId: sessionId, adjusted: 0 });
-        var adjPayload = withAuthPayload({
-          action: 'adjustStockFromCount',
-          session_id: sessionId,
-          line: scSession.line,
-          diff_items: JSON.stringify(diffItems.map(function(it){
-            return { id: it.id, name: it.name, model: it.model, brand: it.brand,
-                     unit: it.unit, counted: it.counted, system_qty: it.systemQty,
-                     reason: it.reason || 'ปรับจากการนับจริง', line: scSession.line };
-          }))
-        });
-        return postJson(adjPayload).then(parseApiResponse).then(function(adj){
-          showQuickToast('🔄 ปรับ Stock ' + (adj.adjusted||0) + ' รายการเรียบร้อย', 'success');
-          purchaseHistoryLoaded = false;
-          return { sessionId: sessionId, adjusted: adj.adjusted||0 };
-        });
+        // ไม่ปรับ Stock ทันที — รอ Engineer อนุมัติก่อน
+        return Promise.resolve({ sessionId: sessionId, adjusted: 0 });
 
       }).then(function(res) {
-        // Backup ใน localStorage ด้วย
+        // Backup ใน localStorage พร้อม status + items สำหรับ approve
         var hist = JSON.parse(localStorage.getItem('sc_history')||'[]');
-        hist.unshift({ id: res.sessionId, month: scSession.month, line: scSession.line,
-          createdBy: scSession.createdBy, submittedAt: new Date().toISOString(),
-          total: items.length, matched: matched, diffCount: diffItems.length });
+        hist.unshift({ id: res.sessionId, month: sessionCopy.month, line: sessionCopy.line,
+          createdBy: sessionCopy.createdBy, submittedAt: new Date().toISOString(),
+          total: items.length, matched: matched, diffCount: diffItems.length,
+          status: 'pending_approval',
+          items: items // เก็บ items ไว้สำหรับ Engineer approve
+        });
         localStorage.setItem('sc_history', JSON.stringify(hist.slice(0,30)));
 
         // ── STEP 3: สรุปผลและถามว่าจะ Export PDF ─────────────────
@@ -5297,29 +5299,36 @@ function getIssueCartEntries() {
           var ol = document.createElement('div');
           ol.style.cssText = 'position:fixed;inset:0;z-index:10020;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;padding:16px;';
           var pctColor = pct>=95?'#15803d':pct>=80?'#b45309':'#be123c';
-          var pctBg = pct>=95?'#f0fdf4':pct>=80?'#fffbeb':'#fff1f2';
-          ol.innerHTML = '<div style="background:#fff;border-radius:20px;width:100%;max-width:440px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.3);">' +
+          var pctBg   = pct>=95?'#f0fdf4':pct>=80?'#fffbeb':'#fff1f2';
+          ol.innerHTML = '<div style="background:#fff;border-radius:20px;width:100%;max-width:460px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.3);">' +
             '<div style="background:linear-gradient(135deg,#4f46e5,#3730a3);padding:20px 24px;">' +
-              '<p style="font-size:13px;font-weight:600;color:#a5b4fc;margin:0 0 4px">✅ บันทึกผลสำเร็จ</p>' +
+              '<p style="font-size:13px;font-weight:600;color:#a5b4fc;margin:0 0 4px">📤 ส่งผลให้ Engineer ตรวจสอบแล้ว</p>' +
               '<p style="font-size:18px;font-weight:800;color:#fff;margin:0">' + res.sessionId + '</p>' +
               '<p style="font-size:12px;color:#c7d2fe;margin:4px 0 0">' + sessionCopy.month + ' · ' + (sessionCopy.line==='all'?'ทุก Line':sessionCopy.line) + '</p>' +
             '</div>' +
             '<div style="padding:20px 24px;">' +
-              '<div style="display:flex;gap:12px;margin-bottom:16px;">' +
-                '<div style="flex:1;text-align:center;border-radius:12px;border:2px solid #e2e8f0;padding:12px">' +
-                  '<p style="font-size:26px;font-weight:900;color:#1d4ed8;margin:0">' + items.length + '</p>' +
-                  '<p style="font-size:11px;color:#64748b;margin:4px 0 0">รายการทั้งหมด</p>' +
+              '<div style="display:flex;gap:10px;margin-bottom:14px;">' +
+                '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #e2e8f0;padding:10px">' +
+                  '<p style="font-size:24px;font-weight:900;color:#1d4ed8;margin:0">' + items.length + '</p>' +
+                  '<p style="font-size:11px;color:#64748b;margin:2px 0 0">ทั้งหมด</p>' +
                 '</div>' +
-                '<div style="flex:1;text-align:center;border-radius:12px;border:2px solid #bbf7d0;background:#f0fdf4;padding:12px">' +
-                  '<p style="font-size:26px;font-weight:900;color:#15803d;margin:0">' + matched + '</p>' +
-                  '<p style="font-size:11px;color:#166534;margin:4px 0 0">✅ ตรงกัน</p>' +
+                '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #bbf7d0;background:#f0fdf4;padding:10px">' +
+                  '<p style="font-size:24px;font-weight:900;color:#15803d;margin:0">' + matched + '</p>' +
+                  '<p style="font-size:11px;color:#166534;margin:2px 0 0">✅ ตรงกัน</p>' +
                 '</div>' +
-                '<div style="flex:1;text-align:center;border-radius:12px;border:2px solid;border-color:'+pctColor+';background:'+pctBg+';padding:12px">' +
-                  '<p style="font-size:26px;font-weight:900;margin:0;color:'+pctColor+'">' + pct + '%</p>' +
-                  '<p style="font-size:11px;margin:4px 0 0;color:'+pctColor+'">ความถูกต้อง</p>' +
+                '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #fca5a5;background:#fff1f2;padding:10px">' +
+                  '<p style="font-size:24px;font-weight:900;color:#dc2626;margin:0">' + diffItems.length + '</p>' +
+                  '<p style="font-size:11px;color:#9f1239;margin:2px 0 0">⚠️ ไม่ตรง</p>' +
+                '</div>' +
+                '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid;border-color:'+pctColor+';background:'+pctBg+';padding:10px">' +
+                  '<p style="font-size:24px;font-weight:900;margin:0;color:'+pctColor+'">' + pct + '%</p>' +
+                  '<p style="font-size:11px;margin:2px 0 0;color:'+pctColor+'">ความแม่น</p>' +
                 '</div>' +
               '</div>' +
-              (diffItems.length > 0 ? '<div style="background:#fff1f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:#be123c;font-weight:600">⚠️ ไม่ตรง ' + diffItems.length + ' รายการ — ระบบปรับ Stock ให้แล้ว</div>' : '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:12px;color:#15803d;font-weight:600">✅ ทุกรายการตรงกัน — ไม่มีการปรับ Stock</div>') +
+              '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px;margin-bottom:14px;">' +
+                '<p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 4px">⏳ รอ Engineer / Admin อนุมัติ</p>' +
+                '<p style="font-size:12px;color:#78350f;margin:0">ผลจะถูกบันทึกลง Google Sheet แล้ว — Stock จะถูกปรับเมื่อ Engineer อนุมัติเท่านั้น</p>' +
+              '</div>' +
               '<div style="display:flex;gap:10px;">' +
                 '<button id="_scResultClose" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;font-weight:600;font-size:14px;cursor:pointer;color:#374151;">ปิด</button>' +
                 '<button id="_scResultPdf" style="flex:2;height:42px;border-radius:12px;border:none;background:linear-gradient(135deg,#4f46e5,#3730a3);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">📄 Export PDF รายงาน</button>' +
@@ -5418,18 +5427,117 @@ function getIssueCartEntries() {
       list.innerHTML = history.map(function(h){
         var pct = h.total ? Math.round((h.matched/h.total)*100) : 0;
         var color = pct>=95?'text-emerald-600':pct>=80?'text-amber-600':'text-rose-600';
+        var statusBadge = h.status==='approved'
+          ? '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">✅ อนุมัติแล้ว</span>'
+          : h.status==='rejected'
+          ? '<span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">❌ ส่งคืน</span>'
+          : '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">⏳ รออนุมัติ</span>';
         return '<div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">' +
           '<div class="flex-1 min-w-0">' +
-            '<p class="font-bold text-slate-900 text-sm">'+h.month+' — '+(h.line==='all'?'ทุก Line':h.line)+'</p>' +
+            '<div class="flex items-center gap-2 flex-wrap">' +
+              '<p class="font-bold text-slate-900 text-sm">'+h.month+' — '+(h.line==='all'?'ทุก Line':h.line)+'</p>' +
+              statusBadge +
+            '</div>' +
             '<p class="text-xs text-slate-500">โดย '+h.createdBy+' · '+new Date(h.submittedAt).toLocaleString('th-TH')+'</p>' +
           '</div>' +
           '<div class="text-right shrink-0">' +
             '<p class="font-black text-lg '+color+'">'+pct+'%</p>' +
             '<p class="text-[11px] text-slate-400">ตรง '+h.matched+'/'+h.total+'</p>' +
           '</div>' +
-          '<div class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center '+( h.diffCount===0?'bg-emerald-100':'bg-rose-100')+'"><span class="text-lg">'+(h.diffCount===0?'✅':'⚠️')+'</span></div>' +
         '</div>';
       }).join('');
+      // Load pending for Engineer/Admin
+      scLoadPending();
+    }
+
+    function scLoadPending() {
+      var canApprove = hasPermission('manage_items') || isAdminUser();
+      var pendingSec = document.getElementById('scPendingSection');
+      var pendingList = document.getElementById('scPendingList');
+      var pendingBadge = document.getElementById('scPendingBadge');
+      if (!pendingSec || !pendingList) return;
+      var history = JSON.parse(localStorage.getItem('sc_history')||'[]');
+      var pending = history.filter(function(h){ return !h.status || h.status === 'pending_approval'; });
+      pendingBadge.textContent = String(pending.length);
+      if (!canApprove || pending.length === 0) { pendingSec.classList.add('hidden'); return; }
+      pendingSec.classList.remove('hidden');
+      pendingList.innerHTML = pending.map(function(h, idx) {
+        var pct = h.total ? Math.round((h.matched/h.total)*100) : 0;
+        var hasDiff = h.diffCount > 0;
+        return '<div class="px-4 py-4 bg-white">' +
+          '<div class="flex items-center justify-between gap-3 flex-wrap">' +
+            '<div>' +
+              '<p class="font-bold text-slate-900">' + h.month + ' — ' + (h.line==='all'?'ทุก Line':h.line) + '</p>' +
+              '<p class="text-xs text-slate-500 mt-0.5">ส่งโดย ' + h.createdBy + ' · ' + new Date(h.submittedAt).toLocaleString('th-TH') + '</p>' +
+              '<div class="mt-1.5 flex gap-3 text-xs">' +
+                '<span class="font-semibold text-slate-700">รายการทั้งหมด: ' + h.total + '</span>' +
+                '<span class="font-semibold text-emerald-700">✅ ตรง: ' + h.matched + '</span>' +
+                (hasDiff ? '<span class="font-bold text-rose-600">⚠️ ไม่ตรง: ' + h.diffCount + '</span>' : '') +
+                '<span class="font-bold" style="color:'+(pct>=95?'#15803d':pct>=80?'#b45309':'#be123c')+'">' + pct + '%</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="flex gap-2 shrink-0">' +
+              '<button data-sc-reject="'+idx+'" class="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition">↩ ส่งคืนแก้ไข</button>' +
+              '<button data-sc-approve="'+idx+'" class="rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition" style="background:#059669;">✅ อนุมัติและปรับ Stock</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      // Bind approve/reject
+      pendingList.querySelectorAll('[data-sc-approve]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var idx = Number(btn.getAttribute('data-sc-approve'));
+          var hist = JSON.parse(localStorage.getItem('sc_history')||'[]');
+          var pending = hist.filter(function(h){ return !h.status||h.status==='pending_approval'; });
+          var session = pending[idx];
+          if (!session) return;
+          showConfirmDialog({ title:'อนุมัติและปรับ Stock?', message:'ระบบจะปรับ Stock '+session.diffCount+' รายการที่นับไม่ตรงทันที', okLabel:'อนุมัติ' }).then(function(ok) {
+            if (!ok) return;
+            btn.disabled = true; btn.textContent = '⏳ กำลังปรับ...';
+            var diffItems = (session.items||[]).filter(function(it){ return it.counted!==null && it.counted!=='' && Number(it.counted)!==Number(it.systemQty); });
+            if (!diffItems.length) {
+              scMarkApproved(session, hist, 'approved'); return;
+            }
+            var adjPayload = withAuthPayload({
+              action: 'adjustStockFromCount',
+              session_id: session.id || ('SC-'+Date.now()),
+              line: session.line,
+              diff_items: JSON.stringify(diffItems.map(function(it){
+                return { id: it.id||'', name: it.name, model: it.model||'-', brand: it.brand||'-',
+                         unit: it.unit||'PCS', counted: it.counted, system_qty: it.systemQty,
+                         reason: it.reason||'อนุมัติโดย '+(currentUser?currentUser.username:'Engineer'), line: session.line };
+              }))
+            });
+            postJson(adjPayload).then(parseApiResponse).then(function(adj){
+              showQuickToast('✅ ปรับ Stock ' + (adj.adjusted||0) + ' รายการแล้ว','success');
+              scMarkApproved(session, hist, 'approved');
+            }).catch(function(err){ showQuickToast('ปรับ Stock ไม่สำเร็จ: '+(err&&err.message?err.message:err),'error'); btn.disabled=false; btn.textContent='✅ อนุมัติและปรับ Stock'; });
+          });
+        });
+      });
+      pendingList.querySelectorAll('[data-sc-reject]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var idx = Number(btn.getAttribute('data-sc-reject'));
+          var hist = JSON.parse(localStorage.getItem('sc_history')||'[]');
+          var pending = hist.filter(function(h){ return !h.status||h.status==='pending_approval'; });
+          var session = pending[idx];
+          if (!session) return;
+          showConfirmDialog({ title:'ส่งคืนให้แก้ไข?', message:'ช่างจะต้องเปิด Session ใหม่และนับใหม่', okLabel:'ส่งคืน' }).then(function(ok) {
+            if (!ok) return;
+            scMarkApproved(session, hist, 'rejected');
+            showQuickToast('↩ ส่งคืนให้แก้ไขแล้ว','warn');
+          });
+        });
+      });
+    }
+
+    function scMarkApproved(session, hist, newStatus) {
+      hist.forEach(function(h) {
+        if (h.id === session.id && h.submittedAt === session.submittedAt) h.status = newStatus;
+      });
+      localStorage.setItem('sc_history', JSON.stringify(hist));
+      scLoadHistory();
     }
 
     // ── Stock Count event bindings ─────────────────────────────────
