@@ -2296,6 +2296,9 @@ function doGet(e) {
     if (action === 'markOrderRequestPurchased') return respond(markOrderRequestPurchased(e.parameter), e);
     if (action === 'markOrderRequestReceived') return respond(markOrderRequestReceived(e.parameter), e);
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(e.parameter, e.parameter.status), e);
+    if (action === 'saveStockCountResult') return respond(saveStockCountResult(e.parameter), e);
+    if (action === 'getStockCountHistory') return respond(getStockCountHistory(e.parameter), e);
+    if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(e.parameter), e);
     requirePermission(authPayload, 'view');
     if (action === 'transact') {
       requirePermission(authPayload, 'transact');
@@ -2516,6 +2519,8 @@ function doPost(e) {
     if (action === 'deleteUser') {
       return respond(deleteUser({ authToken: authPayload.authToken, username: body.username }), e);
     }
+    if (action === 'saveStockCountResult') return respond(saveStockCountResult(body), e);
+    if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(body), e);
     if (action === 'createOrderRequest') return respond(createOrderRequest(body), e);
     if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(body), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(body), e);
@@ -2604,6 +2609,99 @@ function doPost(e) {
     Logger.log('doPost error: ' + err);
     return respond(buildErrorResponse(err), e);
   }
+}
+
+// =============================
+// STOCK COUNT
+// =============================
+var STOCK_COUNT_SHEET_NAME = 'StockCount';
+var STOCK_COUNT_HEADERS = ['session_id','month','line','category','sheets','created_by','created_at','submitted_at','status','total_items','matched','diff_count','items_json'];
+
+function getOrCreateStockCountSheet() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(STOCK_COUNT_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(STOCK_COUNT_SHEET_NAME);
+    sheet.appendRow(STOCK_COUNT_HEADERS);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1,1,1,STOCK_COUNT_HEADERS.length).setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
+  }
+  return sheet;
+}
+
+function saveStockCountResult(payload) {
+  var session = getSessionUser({ authToken: payload.authToken });
+  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  var sessionId = 'SC-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + (String(payload.line||'ALL').replace(/[^A-Za-z0-9]/g,'')).toUpperCase().substring(0,4);
+  var sheet = getOrCreateStockCountSheet();
+  var items = payload.items;
+  if (typeof items === 'string') { try { items = JSON.parse(items); } catch(e) { items = []; } }
+  sheet.appendRow([
+    sessionId,
+    String(payload.month || ''),
+    String(payload.line || 'all'),
+    String(payload.category || 'all'),
+    String(payload.sheets || ''),
+    String(payload.created_by || session.user.username),
+    String(payload.created_at || ''),
+    Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
+    'submitted',
+    Number(payload.total_items || 0),
+    Number(payload.matched || 0),
+    Number(payload.diff_count || 0),
+    JSON.stringify(items || [])
+  ]);
+  return { status: 'success', session_id: sessionId, message: 'บันทึกผลเช็คสต็อกแล้ว' };
+}
+
+function getStockCountHistory(payload) {
+  getSessionUser({ authToken: payload.authToken });
+  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  var sheet = getOrCreateStockCountSheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var headers = data[0];
+  return data.slice(1).map(function(row) {
+    var obj = {};
+    headers.forEach(function(h, i) { obj[String(h)] = row[i]; });
+    obj.items_json = undefined; // ไม่ส่ง items ทั้งหมด (ใหญ่เกิน)
+    return obj;
+  }).reverse();
+}
+
+function adjustStockFromCount(payload) {
+  var session = getSessionUser({ authToken: payload.authToken });
+  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  var diffItems = payload.diff_items;
+  if (typeof diffItems === 'string') { try { diffItems = JSON.parse(diffItems); } catch(e) { diffItems = []; } }
+  if (!diffItems || !diffItems.length) return { status: 'success', adjusted: 0, results: [] };
+  var results = [];
+  diffItems.forEach(function(item) {
+    try {
+      var variance = Number(item.counted) - Number(item.system_qty);
+      if (variance === 0) return;
+      var txnPayload = {
+        authToken: payload.authToken,
+        partName: String(item.name || ''),
+        model: String(item.model || '-'),
+        brand: String(item.brand || '-'),
+        type: variance > 0 ? 'Input' : 'Output',
+        qty: Math.abs(variance),
+        unit: String(item.unit || 'PCS'),
+        by: session.user.username,
+        process: String(payload.line || item.line || ''),
+        reason: 'Stock Adjustment',
+        reasonRemark: 'Stock Count: ' + String(payload.session_id || '') + ' | ' + String(item.reason || 'ปรับจากการนับจริง'),
+        partNo: String(item.id || ''),
+        category: String(item.category || 'General')
+      };
+      processTransaction(txnPayload);
+      results.push({ name: item.name, variance: variance, status: 'adjusted' });
+    } catch(err) {
+      results.push({ name: item.name, status: 'error', error: err.message || String(err) });
+    }
+  });
+  return { status: 'success', adjusted: results.filter(function(r){ return r.status==='adjusted'; }).length, results: results };
 }
 
 // =============================

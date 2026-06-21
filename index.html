@@ -5224,21 +5224,141 @@ function getIssueCartEntries() {
     }
 
     function scDoSubmit() {
-      var diffItems = scSession.items.filter(function(it){ return scGetStatusClass(it)==='diff'; });
-      // Save to history in localStorage
-      var history = JSON.parse(localStorage.getItem('sc_history')||'[]');
-      history.unshift({ id: 'SC-'+Date.now(), month: scSession.month, line: scSession.line, createdBy: scSession.createdBy, submittedAt: new Date().toISOString(), total: scSession.items.length, matched: scSession.items.filter(function(it){return scGetStatusClass(it)==='match';}).length, diffCount: diffItems.length, items: scSession.items });
-      localStorage.setItem('sc_history', JSON.stringify(history.slice(0,20)));
-      // Optionally record diff as log
-      var msg = '✅ บันทึกผลเช็คสต็อกแล้ว | ตรง: '+(scSession.items.length-diffItems.length)+' | ไม่ตรง: '+diffItems.length;
-      showQuickToast(msg,'success');
-      // Close session
-      scSession = null;
-      document.getElementById('scActiveSession').classList.add('hidden');
-      document.getElementById('scNoSession').classList.remove('hidden');
-      document.getElementById('scCountSheet').classList.add('hidden');
-      var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.add('hidden');
-      scUpdateStats(); scLoadHistory();
+      var items = scSession.items;
+      var diffItems = items.filter(function(it){ return scGetStatusClass(it)==='diff'; });
+      var matched = items.filter(function(it){ return scGetStatusClass(it)==='match'; }).length;
+      var submitBtn = document.getElementById('scSubmitBtn');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ กำลังบันทึก...'; }
+
+      // ── STEP 1: บันทึกลง Google Sheet ──────────────────────────
+      var savePayload = withAuthPayload({
+        action: 'saveStockCountResult',
+        month: scSession.month,
+        line: scSession.line,
+        category: scSession.category,
+        sheets: (scSession.sheets || []).join(', '),
+        created_by: scSession.createdBy,
+        created_at: scSession.createdAt,
+        total_items: items.length,
+        matched: matched,
+        diff_count: diffItems.length,
+        items: JSON.stringify(items)
+      });
+
+      requestApi(savePayload).then(parseApiResponse).then(function(result) {
+        var sessionId = result.session_id || ('SC-' + Date.now());
+        showQuickToast('✅ บันทึกลง Google Sheet แล้ว — ' + sessionId, 'success');
+
+        // ── STEP 2: ปรับ Stock ที่ไม่ตรง ───────────────────────
+        if (diffItems.length === 0) return Promise.resolve({ sessionId: sessionId, adjusted: 0 });
+        var adjPayload = withAuthPayload({
+          action: 'adjustStockFromCount',
+          session_id: sessionId,
+          line: scSession.line,
+          diff_items: JSON.stringify(diffItems.map(function(it){
+            return { id: it.id, name: it.name, model: it.model, brand: it.brand,
+                     unit: it.unit, counted: it.counted, system_qty: it.systemQty,
+                     reason: it.reason || 'ปรับจากการนับจริง', line: scSession.line };
+          }))
+        });
+        return requestApi(adjPayload).then(parseApiResponse).then(function(adj){
+          showQuickToast('🔄 ปรับ Stock ' + adj.adjusted + ' รายการเรียบร้อย', 'success');
+          purchaseHistoryLoaded = false;
+          return { sessionId: sessionId, adjusted: adj.adjusted };
+        });
+
+      }).then(function(res) {
+        // Backup ใน localStorage ด้วย
+        var hist = JSON.parse(localStorage.getItem('sc_history')||'[]');
+        hist.unshift({ id: res.sessionId, month: scSession.month, line: scSession.line,
+          createdBy: scSession.createdBy, submittedAt: new Date().toISOString(),
+          total: items.length, matched: matched, diffCount: diffItems.length });
+        localStorage.setItem('sc_history', JSON.stringify(hist.slice(0,30)));
+
+        // ── STEP 3: Export PDF ─────────────────────────────────
+        scExportPdf(scSession, res.sessionId, matched, diffItems);
+
+        // ปิด session
+        scSession = null;
+        document.getElementById('scActiveSession').classList.add('hidden');
+        document.getElementById('scNoSession').classList.remove('hidden');
+        document.getElementById('scCountSheet').classList.add('hidden');
+        document.getElementById('scSummaryPanel').classList.add('hidden');
+        var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.add('hidden');
+        scUpdateStats(); scLoadHistory();
+
+      }).catch(function(err) {
+        showQuickToast('บันทึกไม่สำเร็จ: '+(err&&err.message?err.message:err), 'error');
+      }).finally(function() {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.style.background='#059669'; submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> ส่งผลและปรับ Stock'; }
+      });
+    }
+
+    // ── PDF Export ─────────────────────────────────────────────────
+    function scExportPdf(session, sessionId, matched, diffItems) {
+      var items = session.items || [];
+      var pct = items.length ? Math.round((matched/items.length)*100) : 0;
+      var now = new Date().toLocaleString('th-TH');
+      var diffRows = diffItems.map(function(it, i) {
+        var v = Number(it.counted) - Number(it.systemQty);
+        var color = v < 0 ? '#be123c' : '#0369a1';
+        return '<tr style="background:'+(i%2?'#f8fafc':'#fff')+'">' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:600">' + it.name + '</td>' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#64748b">' + it.model + '</td>' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0;text-align:center">' + it.location + '</td>' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0;text-align:center;font-weight:bold">' + it.systemQty + '</td>' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0;text-align:center;font-weight:bold">' + it.counted + '</td>' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0;text-align:center;font-weight:900;color:' + color + '">' + (v>0?'+':'') + v + '</td>' +
+          '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#92400e">' + (it.reason||'-') + '</td>' +
+          '</tr>';
+      }).join('');
+      var allRows = items.map(function(it, i) {
+        var s = scGetStatusClass(it);
+        var bg = s==='match'?'#f0fdf4':s==='diff'?'#fff1f2':'#f8fafc';
+        var v = (it.counted!==null&&it.counted!=='') ? Number(it.counted)-Number(it.systemQty) : null;
+        return '<tr style="background:'+(i%2?bg:'#fff')+'">' +
+          '<td style="padding:5px 8px;border:1px solid #e2e8f0;color:#94a3b8;text-align:center">' + (i+1) + '</td>' +
+          '<td style="padding:5px 8px;border:1px solid #e2e8f0;font-weight:600">' + it.name + '</td>' +
+          '<td style="padding:5px 8px;border:1px solid #e2e8f0;font-size:11px;color:#64748b">' + it.model + '</td>' +
+          '<td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;font-size:11px">' + it.location + '</td>' +
+          '<td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:bold">' + it.systemQty + '</td>' +
+          '<td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:bold">' + (it.counted!==null&&it.counted!==''?it.counted:'—') + '</td>' +
+          '<td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:900;color:' + (v===null?'#94a3b8':v===0?'#16a34a':v<0?'#be123c':'#0369a1') + '">' + (v===null?'—':v===0?'✓':(v>0?'+':'')+v) + '</td>' +
+          '</tr>';
+      }).join('');
+      var html = '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/><title>Stock Count Report — ' + sessionId + '</title>' +
+        '<style>@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&display=swap");' +
+        'body{font-family:"Noto Sans Thai",sans-serif;color:#1e293b;max-width:960px;margin:0 auto;padding:20px;}' +
+        'h1{font-size:22px;color:#1e3a5f;margin:0;}h2{font-size:14px;color:#1e3a5f;border-left:4px solid #4f46e5;padding:4px 0 4px 10px;margin-top:24px;background:#f0f4f8;}' +
+        'table{width:100%;border-collapse:collapse;margin:8px 0;}th{background:#1e293b;color:#fff;padding:8px 10px;font-size:11px;text-align:left;}' +
+        '.stat-box{display:inline-block;text-align:center;border-radius:12px;padding:12px 20px;min-width:100px;margin:4px;}' +
+        '@media print{@page{size:A4 portrait;margin:12mm}h2{page-break-before:always}h2:first-of-type{page-break-before:auto}}' +
+        '</style></head><body>' +
+        '<div style="border-bottom:3px solid #4f46e5;padding-bottom:12px;margin-bottom:16px;">' +
+          '<h1>รายงานเช็คสต็อกประจำเดือน</h1>' +
+          '<p style="color:#64748b;margin:4px 0">Session: <b>' + sessionId + '</b> &nbsp;·&nbsp; ' + session.month + ' &nbsp;·&nbsp; Line: ' + (session.line==='all'?'ทุก Line':session.line) + '</p>' +
+          '<p style="font-size:12px;color:#94a3b8">จัดทำโดย: ' + session.createdBy + ' &nbsp;·&nbsp; วันที่: ' + now + '</p>' +
+        '</div>' +
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:16px 0">' +
+          '<div class="stat-box" style="background:#eff6ff;border:2px solid #bfdbfe"><p style="font-size:28px;font-weight:900;color:#1d4ed8;margin:0">' + items.length + '</p><p style="font-size:11px;color:#1e40af;margin:4px 0 0">รายการทั้งหมด</p></div>' +
+          '<div class="stat-box" style="background:#f0fdf4;border:2px solid #bbf7d0"><p style="font-size:28px;font-weight:900;color:#15803d;margin:0">' + matched + '</p><p style="font-size:11px;color:#166534;margin:4px 0 0">✅ ตรงกัน</p></div>' +
+          '<div class="stat-box" style="background:#fff1f2;border:2px solid #fecaca"><p style="font-size:28px;font-weight:900;color:#be123c;margin:0">' + diffItems.length + '</p><p style="font-size:11px;color:#9f1239;margin:4px 0 0">⚠️ ไม่ตรง</p></div>' +
+          '<div class="stat-box" style="background:'+(pct>=95?'#f0fdf4':pct>=80?'#fffbeb':'#fff1f2')+';border:2px solid '+(pct>=95?'#bbf7d0':pct>=80?'#fcd34d':'#fecaca')+'"><p style="font-size:28px;font-weight:900;color:'+(pct>=95?'#15803d':pct>=80?'#b45309':'#be123c')+';margin:0">' + pct + '%</p><p style="font-size:11px;margin:4px 0 0">ความถูกต้อง</p></div>' +
+        '</div>' +
+        (diffItems.length > 0 ? '<h2>รายการที่ไม่ตรง — ต้องดำเนินการ (' + diffItems.length + ' รายการ)</h2><table><thead><tr><th>ชื่ออะไหล่</th><th>รุ่น</th><th>ตำแหน่ง</th><th style="text-align:center">ในระบบ</th><th style="text-align:center">นับจริง</th><th style="text-align:center">ส่วนต่าง</th><th>เหตุผล</th></tr></thead><tbody>' + diffRows + '</tbody></table>' : '<p style="color:#16a34a;font-weight:700;font-size:14px;margin:16px 0">✅ ทุกรายการตรงกับระบบ — ไม่มีส่วนต่าง</p>') +
+        '<h2>รายการทั้งหมด (' + items.length + ' รายการ)</h2><table><thead><tr><th>#</th><th>ชื่ออะไหล่</th><th>รุ่น</th><th style="text-align:center">ตำแหน่ง</th><th style="text-align:center">ในระบบ</th><th style="text-align:center">นับจริง</th><th style="text-align:center">ผลต่าง</th></tr></thead><tbody>' + allRows + '</tbody></table>' +
+        '<div style="margin-top:40px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">' +
+          '<div style="border-top:2px solid #1e293b;padding-top:8px;text-align:center"><p style="font-size:11px;color:#64748b">จัดทำโดย (Engineer)</p><p style="margin:20px 0 4px;font-size:11px">________________________</p><p style="font-size:12px;font-weight:600">' + session.createdBy + '</p></div>' +
+          '<div style="border-top:2px solid #1e293b;padding-top:8px;text-align:center"><p style="font-size:11px;color:#64748b">ตรวจสอบโดย (Leader)</p><p style="margin:20px 0 4px;font-size:11px">________________________</p><p style="font-size:12px">&nbsp;</p></div>' +
+          '<div style="border-top:2px solid #1e293b;padding-top:8px;text-align:center"><p style="font-size:11px;color:#64748b">อนุมัติโดย (Manager)</p><p style="margin:20px 0 4px;font-size:11px">________________________</p><p style="font-size:12px">&nbsp;</p></div>' +
+        '</div>' +
+        '<p style="text-align:center;color:#94a3b8;font-size:10px;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:8px">Spare Parts Portal · ' + sessionId + ' · ' + now + '</p>' +
+        '</body></html>';
+      var win = window.open('','_blank');
+      if (!win) { showQuickToast('อนุญาต popup เพื่อดู PDF','warn'); return; }
+      win.document.write(html);
+      win.document.close();
+      setTimeout(function(){ win.print(); }, 800);
     }
 
     function scLoadHistory() {
