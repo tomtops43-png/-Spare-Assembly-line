@@ -4279,14 +4279,16 @@ function getIssueCartEntries() {
       var canDeleteUser = hasPermission('delete_user');
       function getRoleBadge(role) {
         var r = String(role || '').toLowerCase();
-        if (r === 'admin') return '<span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-[11px] font-bold text-rose-700">🔴 Admin</span>';
-        if (r === 'leader' || r === 'engineer') return '<span class="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-bold text-violet-700">🔧 Leader</span>';
-        return '<span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">👤 ช่าง</span>';
+        if (r === 'admin')
+          return '<span style="background:#fff1f2;color:#be123c;border:1.5px solid #fca5a5;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:4px;">🔴 Admin</span>';
+        if (r === 'leader' || r === 'engineer')
+          return '<span style="background:#f5f3ff;color:#6d28d9;border:1.5px solid #c4b5fd;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:4px;">🔑 Engineer / Leader</span>';
+        return '<span style="background:#eff6ff;color:#1e40af;border:1.5px solid #bfdbfe;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">🔧 ช่าง</span>';
       }
       function getAvatarBg(role) {
         var r = String(role || '').toLowerCase();
-        if (r === 'admin') return 'background:linear-gradient(135deg,#dc2626,#b91c1c)';
-        if (r === 'leader') return 'background:linear-gradient(135deg,#7c3aed,#6d28d9)';
+        if (r === 'admin')   return 'background:linear-gradient(135deg,#dc2626,#b91c1c)';
+        if (r === 'leader')  return 'background:linear-gradient(135deg,#7c3aed,#6d28d9)';
         return 'background:linear-gradient(135deg,#2563eb,#1d4ed8)';
       }
       usersTable.innerHTML = list.map(function(user) {
@@ -4338,10 +4340,38 @@ function getIssueCartEntries() {
 
       Array.prototype.slice.call(document.querySelectorAll('[data-edit-user]')).forEach(function(btn) {
         btn.addEventListener('click', function() {
-          var selected = adminUsersCache.filter(function(u){ return u.username === btn.getAttribute('data-edit-user'); })[0];
+          var username = btn.getAttribute('data-edit-user');
+          var selected = adminUsersCache.filter(function(u){ return u.username === username; })[0];
           if (!selected) return;
+
+          // 1. Highlight row ที่คลิก
+          document.querySelectorAll('#usersTable tr, #usersMobileList > div').forEach(function(row) {
+            row.style.background = '';
+            row.style.outline = '';
+          });
+          var row = btn.closest('tr') || btn.closest('[class*="flex"]');
+          if (row) {
+            row.style.background = '#eff6ff';
+            row.style.outline = '2px solid #3b82f6';
+            row.style.borderRadius = '8px';
+            setTimeout(function(){ if(row){ row.style.outline=''; row.style.background=''; } }, 2500);
+          }
+
+          // 2. Toast แจ้ง
+          var roleLabel = String(selected.role||'').toLowerCase() === 'admin' ? '🔴 Admin' : String(selected.role||'').toLowerCase() === 'leader' ? '🔑 Leader' : '🔧 ช่าง';
+          showQuickToast('✏️ กำลังแก้ไข: ' + username + ' (' + roleLabel + ')', 'info');
+
+          // 3. Load form
           setUserEditorValues(selected);
           openAdminEditorOnMobile();
+
+          // 4. Scroll ลงหา editor (desktop)
+          setTimeout(function() {
+            var editor = document.getElementById('adminEditorPanel');
+            if (editor && window.innerWidth >= 768) {
+              editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 100);
         });
       });
 
