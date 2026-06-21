@@ -235,6 +235,10 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <span class="hidden sm:inline">PR Report</span>
           </button>
+          <button id="tabStockCount" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            <span class="hidden sm:inline">เช็คสต็อก</span>
+          </button>
           <button id="tabPurchaseHistory" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
             <span class="hidden md:inline">Purchase History</span><span class="hidden sm:inline md:hidden">History</span>
@@ -1027,6 +1031,158 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         STOCK COUNT PAGE
+    ═══════════════════════════════════════════════════════════ -->
+    <section id="stockCountPage" class="hidden space-y-4 p-2 md:p-0 mb-6">
+
+      <!-- Header -->
+      <div class="rounded-2xl overflow-hidden shadow-sm">
+        <div class="bg-gradient-to-r from-indigo-700 via-indigo-600 to-blue-600 px-5 py-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 text-2xl">📦</div>
+              <div>
+                <h2 class="text-xl font-extrabold text-white">เช็คสต็อกประจำเดือน</h2>
+                <p class="text-indigo-200 text-xs mt-0.5">ตรวจนับอะไหล่จริง · เปรียบเทียบกับระบบ · ปรับยอดให้ถูกต้อง</p>
+              </div>
+            </div>
+            <div id="scActiveSessionBadge" class="hidden rounded-full bg-emerald-400 px-3 py-1 text-xs font-bold text-white animate-pulse">🟢 Session กำลังเปิดอยู่</div>
+          </div>
+        </div>
+        <!-- Summary stats bar -->
+        <div class="grid grid-cols-2 gap-0 sm:grid-cols-4 bg-indigo-900">
+          <div class="border-r border-white/10 px-4 py-3 text-center">
+            <p class="text-2xl font-black text-white" id="scStatTotal">—</p>
+            <p class="text-[10px] font-semibold text-indigo-300 uppercase tracking-wide">รายการทั้งหมด</p>
+          </div>
+          <div class="border-r border-white/10 px-4 py-3 text-center">
+            <p class="text-2xl font-black text-emerald-400" id="scStatMatch">—</p>
+            <p class="text-[10px] font-semibold text-indigo-300 uppercase tracking-wide">✅ ตรงกัน</p>
+          </div>
+          <div class="border-r border-white/10 px-4 py-3 text-center">
+            <p class="text-2xl font-black text-rose-400" id="scStatDiff">—</p>
+            <p class="text-[10px] font-semibold text-indigo-300 uppercase tracking-wide">⚠️ ไม่ตรง</p>
+          </div>
+          <div class="px-4 py-3 text-center">
+            <p class="text-2xl font-black text-amber-400" id="scStatPending">—</p>
+            <p class="text-[10px] font-semibold text-indigo-300 uppercase tracking-wide">⏳ ยังไม่นับ</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session Control -->
+      <div id="scSessionPanel" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <!-- No active session -->
+        <div id="scNoSession">
+          <p class="text-sm font-bold text-slate-700 mb-3">🚀 เปิด Session เช็คสต็อกใหม่</p>
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <label class="block text-xs font-semibold text-slate-600">เดือน
+              <input id="scMonth" type="month" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+            </label>
+            <label class="block text-xs font-semibold text-slate-600">Line
+              <select id="scLine" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                <option value="all">ทุก Line</option>
+                <option value="H9">H9</option>
+                <option value="Arc Chute">Arc Chute</option>
+                <option value="Coil Winding">Coil Winding</option>
+                <option value="Lug&Screw">Lug&amp;Screw</option>
+              </select>
+            </label>
+            <label class="block text-xs font-semibold text-slate-600">หมวดหมู่
+              <select id="scCategory" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                <option value="all">ทุกหมวด</option>
+              </select>
+            </label>
+            <div class="flex flex-col justify-end">
+              <button id="scStartBtn" type="button" class="h-10 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                เริ่มนับ
+              </button>
+            </div>
+          </div>
+          <!-- History button -->
+          <button id="scShowHistoryBtn" type="button" class="mt-3 text-xs text-indigo-600 font-semibold hover:underline">📋 ดูประวัติการเช็คสต็อกที่ผ่านมา →</button>
+        </div>
+        <!-- Active session info -->
+        <div id="scActiveSession" class="hidden">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-bold text-slate-800" id="scActiveTitle">Session: มิ.ย. 2026 — H9</p>
+              <p class="text-xs text-slate-500 mt-0.5" id="scActiveSubtitle">เริ่มโดย Admin · กำลังดำเนินการ</p>
+            </div>
+            <div class="flex gap-2">
+              <button id="scCancelSessionBtn" type="button" class="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition">❌ ยกเลิก Session</button>
+              <button id="scSubmitBtn" type="button" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition">✅ ส่งผลและปรับ Stock</button>
+            </div>
+          </div>
+          <!-- Progress bar -->
+          <div class="mt-3">
+            <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1">
+              <span>ความคืบหน้าการนับ</span>
+              <span id="scProgressText">0 / 0 รายการ</span>
+            </div>
+            <div class="h-2 w-full rounded-full bg-slate-100">
+              <div id="scProgressBar" class="h-2 rounded-full bg-indigo-500 transition-all duration-300" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Count Sheet -->
+      <div id="scCountSheet" class="hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <!-- Toolbar -->
+        <div class="border-b border-slate-100 bg-slate-50 px-4 py-3 flex flex-wrap items-center gap-2">
+          <div class="relative flex-1 min-w-[160px]">
+            <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input id="scSearch" type="text" placeholder="ค้นหา Part / รุ่น / Location" class="h-9 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm" />
+          </div>
+          <select id="scFilterStatus" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm">
+            <option value="all">ทั้งหมด</option>
+            <option value="match">✅ ตรงกัน</option>
+            <option value="diff">⚠️ ไม่ตรง</option>
+            <option value="pending">⏳ ยังไม่นับ</option>
+          </select>
+          <button id="scFillZeroBtn" type="button" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">ใส่ 0 ทุกรายการที่ยังไม่นับ</button>
+          <button id="scFillSystemBtn" type="button" class="h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition">คัดลอกจำนวนจากระบบทั้งหมด</button>
+        </div>
+        <!-- Table header -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[700px]">
+            <thead class="bg-indigo-50 text-xs font-bold uppercase tracking-wide text-indigo-700">
+              <tr>
+                <th class="px-3 py-3 text-left w-8">#</th>
+                <th class="px-3 py-3 text-left">ชื่ออะไหล่</th>
+                <th class="px-3 py-3 text-left hidden md:table-cell">รุ่น / แบรนด์</th>
+                <th class="px-3 py-3 text-center hidden sm:table-cell">ตำแหน่ง</th>
+                <th class="px-3 py-3 text-center">ในระบบ</th>
+                <th class="px-3 py-3 text-center w-28">นับได้จริง</th>
+                <th class="px-3 py-3 text-center w-20">ส่วนต่าง</th>
+                <th class="px-3 py-3 text-left w-32 hidden lg:table-cell">เหตุผล</th>
+              </tr>
+            </thead>
+            <tbody id="scTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Discrepancy Summary (shows after first count) -->
+      <div id="scSummaryPanel" class="hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+        <h3 class="font-bold text-amber-900 mb-3">⚠️ รายการที่ไม่ตรงกับระบบ — ต้องตรวจสอบ</h3>
+        <div id="scDiffList" class="space-y-2"></div>
+      </div>
+
+      <!-- History Section -->
+      <div id="scHistorySection" class="hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+          <h3 class="font-bold text-slate-800">📋 ประวัติการเช็คสต็อก</h3>
+          <button id="scHideHistoryBtn" type="button" class="text-xs text-slate-500 hover:text-slate-700">ซ่อน ✕</button>
+        </div>
+        <div id="scHistoryList" class="divide-y divide-slate-100 max-h-72 overflow-y-auto"></div>
+      </div>
+
     </section>
 
     <section id="prReportPage" class="hidden space-y-4 p-2 md:p-0">
@@ -4752,6 +4908,7 @@ function getIssueCartEntries() {
       var tabActiveClass = 'eng-tab shrink-0 flex items-center gap-1.5 rounded-xl bg-blue-600 px-2.5 py-2 text-sm font-semibold text-white shadow-sm md:px-4';
       var tabManageBase = 'eng-tab shrink-0 flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold md:px-4';
       var tabManageActive = 'eng-tab shrink-0 flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold shadow-sm md:px-4';
+      var tabStockCount = document.getElementById('tabStockCount');
       tabStock.className = tabBaseClass;
       if (tabDashboard) tabDashboard.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
@@ -4759,6 +4916,7 @@ function getIssueCartEntries() {
       tabPrReport.className = tabBaseClass;
       if (tabPurchaseHistory) tabPurchaseHistory.className = tabBaseClass;
       if (tabRequestOrder) tabRequestOrder.className = tabBaseClass;
+      if (tabStockCount) tabStockCount.className = tabBaseClass;
       tabManage.className = tabManageBase;
       tabManage.style.cssText = 'background:#fef3c7;color:#b45309;border:1px solid #fcd34d;';
       tabAdmin.className = tabBaseClass;
@@ -4769,6 +4927,7 @@ function getIssueCartEntries() {
       if (active === 'pr') tabPrReport.className = tabActiveClass;
       if (active === 'purchase-history' && tabPurchaseHistory) tabPurchaseHistory.className = tabActiveClass;
       if (active === 'request-order' && tabRequestOrder) tabRequestOrder.className = tabActiveClass;
+      if (active === 'stock-count' && tabStockCount) { tabStockCount.className = tabBaseClass; tabStockCount.style.cssText = 'background:#4f46e5;color:#fff;border:1px solid #3730a3;'; }
       if (tabRequestOrder) tabRequestOrder.classList.add('request-order-nav-btn');
       if (active === 'manage') { tabManage.className = tabManageActive; tabManage.style.cssText = 'background:#d97706;color:#ffffff;border:1px solid #b45309;'; }
       if (active === 'admin') tabAdmin.className = tabActiveClass;
@@ -4777,10 +4936,12 @@ function getIssueCartEntries() {
       tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
       if (tabPurchaseHistory) tabPurchaseHistory.classList.toggle('hidden', !hasPermission('view'));
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
+      if (tabStockCount) tabStockCount.classList.toggle('hidden', !hasPermission('view_logs'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       tabTxn.classList.toggle('hidden', !canReceivePart() || window.innerWidth < 768);
       if (tabDashboard) tabDashboard.classList.toggle('hidden', !hasPermission('view_dashboard'));
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
+      if (stockCountPage) stockCountPage.classList.toggle('hidden', active !== 'stock-count');
       updateRequestOrderBadgeUI(requestOrderBadgeCount);
     }
 
@@ -4845,6 +5006,263 @@ function getIssueCartEntries() {
       setTabStyles('log');
       loadLogData();
     }
+
+    // ── Stock Count Page ──────────────────────────────────────────
+    var stockCountPage = document.getElementById('stockCountPage');
+    var scSession = null; // { month, line, items: [{...}] }
+
+    function switchToStockCountPage() {
+      stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
+      if (stockCountPage) stockCountPage.classList.remove('hidden');
+      setTabStyles('stock-count');
+      scInitPage();
+    }
+
+    function scInitPage() {
+      // Set default month to current
+      var mi = document.getElementById('scMonth');
+      if (mi && !mi.value) {
+        var n = new Date(); mi.value = n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0');
+      }
+      // Populate category filter
+      var catEl = document.getElementById('scCategory');
+      if (catEl && catEl.options.length <= 1) {
+        var cats = Array.from(new Set((partsData||[]).map(function(p){ return String(p.category||'General'); }))).sort();
+        cats.forEach(function(c){ var o=document.createElement('option'); o.value=c; o.textContent=c; catEl.appendChild(o); });
+      }
+      scUpdateStats();
+    }
+
+    function scGetStatusClass(item) {
+      if (item.counted === null || item.counted === undefined || item.counted === '') return 'pending';
+      return Number(item.counted) === Number(item.systemQty) ? 'match' : 'diff';
+    }
+
+    function scUpdateStats() {
+      if (!scSession) {
+        ['scStatTotal','scStatMatch','scStatDiff','scStatPending'].forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent='—'; });
+        return;
+      }
+      var items = scSession.items || [];
+      var total = items.length, match = 0, diff = 0, pending = 0;
+      items.forEach(function(it) {
+        var s = scGetStatusClass(it);
+        if (s==='match') match++; else if (s==='diff') diff++; else pending++;
+      });
+      var el = function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+      el('scStatTotal', total); el('scStatMatch', match); el('scStatDiff', diff); el('scStatPending', pending);
+      // Progress
+      var counted = match + diff;
+      var pct = total ? Math.round((counted/total)*100) : 0;
+      var pb = document.getElementById('scProgressBar'); if(pb) pb.style.width = pct+'%';
+      var pt = document.getElementById('scProgressText'); if(pt) pt.textContent = counted+' / '+total+' รายการ ('+pct+'%)';
+      // Discrepancy panel
+      var diffItems = items.filter(function(it){ return scGetStatusClass(it)==='diff'; });
+      var diffPanel = document.getElementById('scSummaryPanel');
+      var diffList = document.getElementById('scDiffList');
+      if (diffPanel && diffList) {
+        diffPanel.classList.toggle('hidden', diffItems.length===0);
+        diffList.innerHTML = diffItems.map(function(it){
+          var v = Number(it.counted)-Number(it.systemQty);
+          var color = v<0 ? '#be123c':'#0369a1';
+          return '<div class="flex items-center justify-between rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-sm">' +
+            '<div><p class="font-semibold text-slate-800">'+it.name+'</p><p class="text-xs text-slate-500">'+it.model+'&nbsp;·&nbsp;'+it.location+'</p></div>' +
+            '<div class="text-right shrink-0 ml-4">' +
+              '<p class="text-xs text-slate-500">ระบบ: '+it.systemQty+' | นับได้: '+it.counted+'</p>' +
+              '<p class="font-black text-base" style="color:'+color+'">'+(v>0?'+':'')+v+' ชิ้น</p>' +
+            '</div>' +
+            (it.reason ? '<p class="text-[11px] text-slate-400 ml-3">'+it.reason+'</p>' : '') +
+          '</div>';
+        }).join('');
+      }
+    }
+
+    function scRenderTable() {
+      var tbody = document.getElementById('scTableBody');
+      if (!tbody || !scSession) return;
+      var q = String((document.getElementById('scSearch')||{}).value||'').toLowerCase();
+      var fs = String((document.getElementById('scFilterStatus')||{}).value||'all');
+      var items = (scSession.items||[]).filter(function(it, i) {
+        it._idx = i;
+        var statusClass = scGetStatusClass(it);
+        if (fs !== 'all' && statusClass !== fs) return false;
+        if (q && [it.name,it.model,it.location,it.brand].join(' ').toLowerCase().indexOf(q)===-1) return false;
+        return true;
+      });
+      if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">ไม่พบรายการ</td></tr>'; return; }
+      tbody.innerHTML = items.map(function(it) {
+        var s = scGetStatusClass(it);
+        var varNum = (it.counted!==null&&it.counted!==''&&it.counted!==undefined) ? Number(it.counted)-Number(it.systemQty) : null;
+        var varHtml = varNum===null ? '<span class="text-slate-300">—</span>'
+          : varNum===0 ? '<span class="font-bold text-emerald-600">✓</span>'
+          : '<span class="font-bold '+(varNum<0?'text-rose-600':'text-blue-600')+'">'+(varNum>0?'+':'')+varNum+'</span>';
+        var rowBg = s==='match'?'bg-emerald-50/40':s==='diff'?'bg-rose-50/40':'bg-white';
+        var borderL = s==='match'?'border-l-4 border-emerald-400':s==='diff'?'border-l-4 border-rose-400':'border-l-4 border-transparent';
+        return '<tr class="'+rowBg+' '+borderL+' hover:bg-indigo-50/30 transition">' +
+          '<td class="px-3 py-2.5 text-xs text-slate-400 font-mono">'+(it._idx+1)+'</td>' +
+          '<td class="px-3 py-2.5"><p class="font-semibold text-slate-900 text-sm leading-tight">'+it.name+'</p></td>' +
+          '<td class="px-3 py-2.5 hidden md:table-cell text-xs text-slate-500">'+it.model+'<br/><span class="text-indigo-500 font-semibold">'+it.brand+'</span></td>' +
+          '<td class="px-3 py-2.5 text-center hidden sm:table-cell"><span class="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-mono text-slate-600">'+it.location+'</span></td>' +
+          '<td class="px-3 py-2.5 text-center font-bold text-slate-800 text-base">'+it.systemQty+'</td>' +
+          '<td class="px-3 py-2.5 text-center">' +
+            '<input type="number" min="0" step="1" data-sc-idx="'+it._idx+'" data-sc-field="counted"' +
+            ' value="'+(it.counted!==null&&it.counted!==undefined&&it.counted!==''?it.counted:'')+'"' +
+            ' placeholder="—" class="h-9 w-20 rounded-xl border-2 '+(s==='diff'?'border-rose-400 bg-rose-50':s==='match'?'border-emerald-400 bg-emerald-50':'border-slate-300 bg-white')+' px-2 text-center text-sm font-bold outline-none focus:border-indigo-500 transition" />' +
+          '</td>' +
+          '<td class="px-3 py-2.5 text-center text-lg">'+varHtml+'</td>' +
+          '<td class="px-3 py-2.5 hidden lg:table-cell">' +
+            (s==='diff' ? '<input type="text" data-sc-idx="'+it._idx+'" data-sc-field="reason" value="'+(it.reason||'')+'" placeholder="ระบุเหตุผล..." class="h-8 w-full rounded-lg border border-slate-300 px-2 text-xs" />' : '<span class="text-slate-300 text-xs">—</span>') +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function scStartSession() {
+      var month = (document.getElementById('scMonth')||{}).value;
+      var line = (document.getElementById('scLine')||{}).value||'all';
+      var cat = (document.getElementById('scCategory')||{}).value||'all';
+      if (!month) { showQuickToast('กรุณาเลือกเดือนก่อน','warn'); return; }
+      var pool = (partsData||[]).filter(function(p){
+        if (line!=='all' && String(p.line||'').indexOf(line)===-1) return false;
+        if (cat!=='all' && String(p.category||'General')!==cat) return false;
+        return p.name && p.name !== '-';
+      });
+      if (!pool.length) { showQuickToast('ไม่พบรายการอะไหล่สำหรับ Line/หมวดที่เลือก','warn'); return; }
+      scSession = {
+        month: month, line: line, category: cat,
+        createdBy: currentUser ? currentUser.username : 'Unknown',
+        createdAt: new Date().toISOString(),
+        status: 'counting',
+        items: pool.map(function(p){ return { id: p.id||p.no, name: p.name, model: p.model||'-', brand: p.brand||'-', location: p.location||'-', unit: p.unit||'PCS', systemQty: Number(p.stock||0), counted: null, reason: '' }; })
+      };
+      // Show count sheet
+      document.getElementById('scNoSession').classList.add('hidden');
+      document.getElementById('scActiveSession').classList.remove('hidden');
+      var title = document.getElementById('scActiveTitle');
+      if (title) title.textContent = 'Session: '+month+' — '+(line==='all'?'ทุก Line':line)+(cat!=='all'?' / '+cat:'');
+      var sub = document.getElementById('scActiveSubtitle');
+      if (sub) sub.textContent = 'เริ่มโดย '+(currentUser?currentUser.username:'?')+' · '+pool.length+' รายการ · กำลังนับ';
+      var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.remove('hidden');
+      document.getElementById('scCountSheet').classList.remove('hidden');
+      scUpdateStats(); scRenderTable();
+      showQuickToast('เปิด Session สำเร็จ — '+pool.length+' รายการ','success');
+    }
+
+    function scSubmitSession() {
+      if (!scSession) return;
+      var uncounted = scSession.items.filter(function(it){ return it.counted===null||it.counted===''; });
+      if (uncounted.length > 0) {
+        showConfirmDialog({ title:'ยังมี '+uncounted.length+' รายการที่ยังไม่ได้นับ', message:'ต้องการส่งผลโดยถือว่ารายการที่ยังไม่นับ = ยังไม่ทราบ?', okLabel:'ส่งผลต่อไป' }).then(function(ok){ if(ok) scDoSubmit(); });
+      } else { scDoSubmit(); }
+    }
+
+    function scDoSubmit() {
+      var diffItems = scSession.items.filter(function(it){ return scGetStatusClass(it)==='diff'; });
+      // Save to history in localStorage
+      var history = JSON.parse(localStorage.getItem('sc_history')||'[]');
+      history.unshift({ id: 'SC-'+Date.now(), month: scSession.month, line: scSession.line, createdBy: scSession.createdBy, submittedAt: new Date().toISOString(), total: scSession.items.length, matched: scSession.items.filter(function(it){return scGetStatusClass(it)==='match';}).length, diffCount: diffItems.length, items: scSession.items });
+      localStorage.setItem('sc_history', JSON.stringify(history.slice(0,20)));
+      // Optionally record diff as log
+      var msg = '✅ บันทึกผลเช็คสต็อกแล้ว | ตรง: '+(scSession.items.length-diffItems.length)+' | ไม่ตรง: '+diffItems.length;
+      showQuickToast(msg,'success');
+      // Close session
+      scSession = null;
+      document.getElementById('scActiveSession').classList.add('hidden');
+      document.getElementById('scNoSession').classList.remove('hidden');
+      document.getElementById('scCountSheet').classList.add('hidden');
+      var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.add('hidden');
+      scUpdateStats(); scLoadHistory();
+    }
+
+    function scLoadHistory() {
+      var sec = document.getElementById('scHistorySection');
+      var list = document.getElementById('scHistoryList');
+      if (!sec || !list) return;
+      sec.classList.remove('hidden');
+      var history = JSON.parse(localStorage.getItem('sc_history')||'[]');
+      if (!history.length) { list.innerHTML='<div class="px-4 py-6 text-center text-slate-400 text-sm">ยังไม่มีประวัติ</div>'; return; }
+      list.innerHTML = history.map(function(h){
+        var pct = h.total ? Math.round((h.matched/h.total)*100) : 0;
+        var color = pct>=95?'text-emerald-600':pct>=80?'text-amber-600':'text-rose-600';
+        return '<div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="font-bold text-slate-900 text-sm">'+h.month+' — '+(h.line==='all'?'ทุก Line':h.line)+'</p>' +
+            '<p class="text-xs text-slate-500">โดย '+h.createdBy+' · '+new Date(h.submittedAt).toLocaleString('th-TH')+'</p>' +
+          '</div>' +
+          '<div class="text-right shrink-0">' +
+            '<p class="font-black text-lg '+color+'">'+pct+'%</p>' +
+            '<p class="text-[11px] text-slate-400">ตรง '+h.matched+'/'+h.total+'</p>' +
+          '</div>' +
+          '<div class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center '+( h.diffCount===0?'bg-emerald-100':'bg-rose-100')+'"><span class="text-lg">'+(h.diffCount===0?'✅':'⚠️')+'</span></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ── Stock Count event bindings ─────────────────────────────────
+    (function() {
+      var startBtn = document.getElementById('scStartBtn');
+      var submitBtn = document.getElementById('scSubmitBtn');
+      var cancelBtn = document.getElementById('scCancelSessionBtn');
+      var searchEl = document.getElementById('scSearch');
+      var filterEl = document.getElementById('scFilterStatus');
+      var histBtn = document.getElementById('scShowHistoryBtn');
+      var hideHistBtn = document.getElementById('scHideHistoryBtn');
+      var fillZeroBtn = document.getElementById('scFillZeroBtn');
+      var fillSysBtn = document.getElementById('scFillSystemBtn');
+      var tbody = document.getElementById('scTableBody');
+
+      if (startBtn) startBtn.addEventListener('click', scStartSession);
+      if (submitBtn) submitBtn.addEventListener('click', scSubmitSession);
+      if (cancelBtn) cancelBtn.addEventListener('click', function(){
+        showConfirmDialog({ title:'ยกเลิก Session?', message:'ข้อมูลที่กรอกไปจะหายทั้งหมด', okLabel:'ยกเลิก Session' }).then(function(ok){
+          if (!ok) return;
+          scSession = null;
+          document.getElementById('scActiveSession').classList.add('hidden');
+          document.getElementById('scNoSession').classList.remove('hidden');
+          document.getElementById('scCountSheet').classList.add('hidden');
+          document.getElementById('scSummaryPanel').classList.add('hidden');
+          var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.add('hidden');
+          scUpdateStats();
+        });
+      });
+      if (searchEl) searchEl.addEventListener('input', scRenderTable);
+      if (filterEl) filterEl.addEventListener('change', scRenderTable);
+      if (histBtn) histBtn.addEventListener('click', scLoadHistory);
+      if (hideHistBtn) hideHistBtn.addEventListener('click', function(){ document.getElementById('scHistorySection').classList.add('hidden'); });
+      if (fillZeroBtn) fillZeroBtn.addEventListener('click', function(){
+        if (!scSession) return;
+        scSession.items.forEach(function(it){ if(it.counted===null||it.counted==='') it.counted=0; });
+        scRenderTable(); scUpdateStats();
+      });
+      if (fillSysBtn) fillSysBtn.addEventListener('click', function(){
+        if (!scSession) return;
+        scSession.items.forEach(function(it){ it.counted = it.systemQty; it.reason = ''; });
+        scRenderTable(); scUpdateStats(); showQuickToast('คัดลอกจำนวนจากระบบเรียบร้อย','success');
+      });
+      if (tbody) tbody.addEventListener('input', function(e){
+        var idx = e.target.getAttribute('data-sc-idx');
+        var field = e.target.getAttribute('data-sc-field');
+        if (idx===null || !field || !scSession) return;
+        var item = scSession.items[Number(idx)];
+        if (!item) return;
+        item[field] = field==='counted' ? (e.target.value===''?null:Number(e.target.value)) : e.target.value;
+        // Re-style input
+        if (field==='counted') {
+          var s = scGetStatusClass(item);
+          e.target.className = e.target.className.replace(/border-\S+|bg-\S+/g,'').trim();
+          e.target.className += s==='match'?' border-emerald-400 bg-emerald-50':s==='diff'?' border-rose-400 bg-rose-50':' border-slate-300 bg-white';
+        }
+        scUpdateStats();
+      });
+    })();
 
     function switchToManagePage() {
       if (!hasPermission('manage_items')) return switchToStockPage();
@@ -8575,6 +8993,8 @@ function inferRequestPriority(stock, min) {
     tabLog.addEventListener('click', switchToLogPage);
     tabPrReport.addEventListener('click', switchToPrReportPage);
     if (tabPurchaseHistory) tabPurchaseHistory.addEventListener('click', switchToPurchaseHistoryPage);
+    var tabStockCountEl = document.getElementById('tabStockCount');
+    if (tabStockCountEl) tabStockCountEl.addEventListener('click', switchToStockCountPage);
     if (tabRequestOrder) tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
