@@ -5130,30 +5130,83 @@ function getIssueCartEntries() {
       var line = (document.getElementById('scLine')||{}).value||'all';
       var cat = (document.getElementById('scCategory')||{}).value||'all';
       if (!month) { showQuickToast('กรุณาเลือกเดือนก่อน','warn'); return; }
-      var pool = (partsData||[]).filter(function(p){
-        if (line!=='all' && String(p.line||'').indexOf(line)===-1) return false;
-        if (cat!=='all' && String(p.category||'General')!==cat) return false;
-        return p.name && p.name !== '-';
+
+      // บอก user ว่ากำลังโหลด
+      var startBtn = document.getElementById('scStartBtn');
+      if (startBtn) { startBtn.disabled = true; startBtn.textContent = '⏳ กำลังโหลด...'; }
+
+      // หา sheets ทั้งหมดของ line ที่เลือก
+      function getSheetsForLine(lineKey) {
+        if (lineKey === 'all') {
+          var all = [];
+          Object.keys(LINE_SHEET_OPTIONS||{}).forEach(function(k){ (LINE_SHEET_OPTIONS[k]||[]).forEach(function(s){ all.push(s); }); });
+          return Array.from(new Set(all));
+        }
+        return (LINE_SHEET_OPTIONS[lineKey] || [lineKey]);
+      }
+      var sheets = getSheetsForLine(line);
+
+      // โหลดทุก sheet แบบ parallel
+      Promise.all(sheets.map(function(sheetName) {
+        return loadJsonpWithFallback(function(base){
+          return base + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName));
+        }).then(function(rows) {
+          return Array.isArray(rows) ? rows : [];
+        }).catch(function() { return []; });
+      })).then(function(results) {
+        // Merge + normalize + dedup
+        var merged = [];
+        results.forEach(function(rows) { merged = merged.concat(rows); });
+        var normalized = normalizeRecordsInBatches ? normalizeRecordsInBatches(merged) : merged;
+        // normalizeRecordsInBatches may return promise or array
+        return Promise.resolve(normalized);
+      }).then(function(allRows) {
+        // dedup by name+model
+        var seen = {};
+        var pool = allRows.filter(function(p) {
+          if (!p.name || p.name === '-') return false;
+          if (cat!=='all' && String(p.category||'General')!==cat) return false;
+          var key = [p.name, p.model||'', p.no||''].join('::');
+          if (seen[key]) return false;
+          seen[key] = true;
+          return true;
+        });
+
+        if (!pool.length) {
+          showQuickToast('ไม่พบรายการสำหรับ Line/หมวดที่เลือก','warn');
+          if (startBtn) { startBtn.disabled = false; startBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> เริ่มนับ'; }
+          return;
+        }
+
+        scSession = {
+          month: month, line: line, category: cat,
+          sheets: sheets,
+          createdBy: currentUser ? currentUser.username : 'Unknown',
+          createdAt: new Date().toISOString(),
+          status: 'counting',
+          items: pool.map(function(p){
+            return { id: p.id||p.no, name: p.name, model: p.model||'-', brand: p.brand||'-',
+              location: p.location||'-', unit: p.unit||'PCS',
+              systemQty: Number(p.stock||0), counted: null, reason: '', sheet: p.__sourceSheet||'' };
+          })
+        };
+
+        // Show count sheet
+        document.getElementById('scNoSession').classList.add('hidden');
+        document.getElementById('scActiveSession').classList.remove('hidden');
+        var title = document.getElementById('scActiveTitle');
+        if (title) title.textContent = 'Session: '+month+' — '+(line==='all'?'ทุก Line':line)+(cat!=='all'?' / '+cat:'')+' ('+sheets.length+' sheets)';
+        var sub = document.getElementById('scActiveSubtitle');
+        if (sub) sub.textContent = 'เริ่มโดย '+(currentUser?currentUser.username:'?')+' · '+pool.length+' รายการ จาก '+sheets.join(', ')+' · กำลังนับ';
+        var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.remove('hidden');
+        document.getElementById('scCountSheet').classList.remove('hidden');
+        scUpdateStats(); scRenderTable();
+        showQuickToast('✅ เปิด Session สำเร็จ — '+pool.length+' รายการ ('+sheets.length+' sheets)','success');
+      }).catch(function(err) {
+        showQuickToast('โหลดข้อมูลไม่สำเร็จ: '+(err&&err.message?err.message:err),'error');
+      }).finally(function() {
+        if (startBtn) { startBtn.disabled = false; startBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> เริ่มนับ'; }
       });
-      if (!pool.length) { showQuickToast('ไม่พบรายการอะไหล่สำหรับ Line/หมวดที่เลือก','warn'); return; }
-      scSession = {
-        month: month, line: line, category: cat,
-        createdBy: currentUser ? currentUser.username : 'Unknown',
-        createdAt: new Date().toISOString(),
-        status: 'counting',
-        items: pool.map(function(p){ return { id: p.id||p.no, name: p.name, model: p.model||'-', brand: p.brand||'-', location: p.location||'-', unit: p.unit||'PCS', systemQty: Number(p.stock||0), counted: null, reason: '' }; })
-      };
-      // Show count sheet
-      document.getElementById('scNoSession').classList.add('hidden');
-      document.getElementById('scActiveSession').classList.remove('hidden');
-      var title = document.getElementById('scActiveTitle');
-      if (title) title.textContent = 'Session: '+month+' — '+(line==='all'?'ทุก Line':line)+(cat!=='all'?' / '+cat:'');
-      var sub = document.getElementById('scActiveSubtitle');
-      if (sub) sub.textContent = 'เริ่มโดย '+(currentUser?currentUser.username:'?')+' · '+pool.length+' รายการ · กำลังนับ';
-      var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.remove('hidden');
-      document.getElementById('scCountSheet').classList.remove('hidden');
-      scUpdateStats(); scRenderTable();
-      showQuickToast('เปิด Session สำเร็จ — '+pool.length+' รายการ','success');
     }
 
     function scSubmitSession() {
