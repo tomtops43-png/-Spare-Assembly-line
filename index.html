@@ -5230,7 +5230,7 @@ function getIssueCartEntries() {
       var submitBtn = document.getElementById('scSubmitBtn');
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ กำลังบันทึก...'; }
 
-      // ── STEP 1: บันทึกลง Google Sheet ──────────────────────────
+      // ── STEP 1: บันทึกลง Google Sheet (ใช้ POST เพราะ payload ใหญ่) ──
       var savePayload = withAuthPayload({
         action: 'saveStockCountResult',
         month: scSession.month,
@@ -5242,14 +5242,18 @@ function getIssueCartEntries() {
         total_items: items.length,
         matched: matched,
         diff_count: diffItems.length,
-        items: JSON.stringify(items)
+        items: JSON.stringify(items.map(function(it){
+          return { name: it.name, model: it.model, location: it.location,
+                   systemQty: it.systemQty, counted: it.counted,
+                   reason: it.reason || '', unit: it.unit };
+        }))
       });
 
-      requestApi(savePayload).then(parseApiResponse).then(function(result) {
+      postJson(savePayload).then(parseApiResponse).then(function(result) {
         var sessionId = result.session_id || ('SC-' + Date.now());
         showQuickToast('✅ บันทึกลง Google Sheet แล้ว — ' + sessionId, 'success');
 
-        // ── STEP 2: ปรับ Stock ที่ไม่ตรง ───────────────────────
+        // ── STEP 2: ปรับ Stock ที่ไม่ตรง (POST) ────────────────
         if (diffItems.length === 0) return Promise.resolve({ sessionId: sessionId, adjusted: 0 });
         var adjPayload = withAuthPayload({
           action: 'adjustStockFromCount',
@@ -5261,10 +5265,10 @@ function getIssueCartEntries() {
                      reason: it.reason || 'ปรับจากการนับจริง', line: scSession.line };
           }))
         });
-        return requestApi(adjPayload).then(parseApiResponse).then(function(adj){
-          showQuickToast('🔄 ปรับ Stock ' + adj.adjusted + ' รายการเรียบร้อย', 'success');
+        return postJson(adjPayload).then(parseApiResponse).then(function(adj){
+          showQuickToast('🔄 ปรับ Stock ' + (adj.adjusted||0) + ' รายการเรียบร้อย', 'success');
           purchaseHistoryLoaded = false;
-          return { sessionId: sessionId, adjusted: adj.adjusted };
+          return { sessionId: sessionId, adjusted: adj.adjusted||0 };
         });
 
       }).then(function(res) {
