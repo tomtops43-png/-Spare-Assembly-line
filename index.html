@@ -383,6 +383,10 @@
         </div>
 
         <div class="hidden md:flex md:flex-row md:items-center gap-3 md:gap-4 mb-4">
+          <!-- ชีตย่อย filter (hidden เมื่อมีแค่ 1 sheet) -->
+          <select id="subSheetFilter" class="hidden w-full lg:w-48 rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2.5 text-indigo-700 font-semibold">
+            <option value="all">📂 ทุกชีตย่อย</option>
+          </select>
           <select id="categoryFilter" class="w-full lg:w-56 rounded-xl border border-slate-300 px-4 py-2.5 bg-white">
             <option value="all">ทุกหมวดหมู่</option>
           </select>
@@ -7305,30 +7309,30 @@ function inferRequestPriority(stock, min) {
       var skipCache = !!opts.skipCache;
       var requestSeq = ++partsLoadRequestSeq;
       var lineSheets = getSheetOptionsForLine(currentLine);
-      var selectedSheetForLoad = getCurrentSheetName();
+      var selectedSheetForLoad = 'ALL_SHEETS'; // โหลดทุก sheet รวมกันเสมอ
       if (loadedStockSheetKey && partsData.length) saveLineCache(currentLine, partsData, loadedStockSheetKey);
-      var activeSheets = (selectedSheetForLoad && lineSheets.indexOf(selectedSheetForLoad) > -1)
-        ? [selectedSheetForLoad]
-        : (lineSheets.length ? [lineSheets[0]] : []);
+      // โหลดทุก sheet ของ Line พร้อมกัน (รวม sub-sheets)
+      var activeSheets = lineSheets.length ? lineSheets : [getCurrentSheetName()];
       var totalSheets = activeSheets.length;
-      var cachePayload = skipCache ? null : loadLineCache(currentLine, selectedSheetForLoad);
+      var cacheKey = currentLine + '::ALL';
+      var cachePayload = skipCache ? null : loadLineCache(currentLine, cacheKey);
       if (cachePayload && cachePayload.items && cachePayload.items.length) {
         applyLoadedPartsData(cachePayload.items);
-        loadedStockSheetKey = selectedSheetForLoad;
+        loadedStockSheetKey = cacheKey;
+        // background refresh ทุก sheet
         setTimeout(function() {
-          fetchSheetRows(selectedSheetForLoad, { lite: true }).then(function(rows) {
-            return normalizeRecordsInBatches(rows);
-          }).then(function(normalizedData) {
-            saveLineCache(currentLine, normalizedData, selectedSheetForLoad);
-            if (requestSeq === partsLoadRequestSeq && getCurrentSheetName() === selectedSheetForLoad) {
-              applyLoadedPartsData(normalizedData);
-              loadedStockSheetKey = selectedSheetForLoad;
-            }
-            prefetchLineSheetsInBackground(currentLine, selectedSheetForLoad);
-          }).catch(function(err) {
-            console.warn('background refresh failed', selectedSheetForLoad, err);
-          });
-        }, 50);
+          Promise.all(activeSheets.map(function(sn){ return fetchSheetRows(sn, { lite: true }); }))
+            .then(function(chunks){ return normalizeRecordsInBatches([].concat.apply([], chunks)); })
+            .then(function(normalizedData) {
+              saveLineCache(currentLine, normalizedData, cacheKey);
+              if (requestSeq === partsLoadRequestSeq) {
+                applyLoadedPartsData(normalizedData);
+                loadedStockSheetKey = cacheKey;
+                populateSubSheetFilter(normalizedData);
+              }
+            }).catch(function(err){ console.warn('background refresh failed', err); });
+        }, 80);
+        populateSubSheetFilter(cachePayload.items);
         return;
       }
       renderStockSkeleton('Loading spare parts lite data...');
@@ -7337,23 +7341,21 @@ function inferRequestPriority(stock, min) {
       return Promise.all(activeSheets.map(function(sheetName, idx) {
         return fetchSheetRows(sheetName, { lite: true, refresh: skipCache }).finally(function() {
           if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
-          desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
-          mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">Loading data... ชีต ' + (idx + 1) + '/' + totalSheets + '</div>';
+          desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลด... (' + (idx+1) + '/' + totalSheets + ' sheets)</div>';
+          mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลด... ' + (idx+1) + '/' + totalSheets + '</div>';
         });
       })).then(function(sheetChunks) {
           var rawData = [].concat.apply([], sheetChunks);
           return normalizeRecordsInBatches(rawData, function(done, total) {
             if (requestSeq !== partsLoadRequestSeq || hasAppliedCache) return;
-            var progress = 'กำลังประมวลผลข้อมูล... ' + done + '/' + total;
-            desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">' + progress + '</div>';
-            mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">' + progress + '</div>';
+            desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังประมวลผล... ' + done + '/' + total + '</div>';
           });
         }).then(function(normalizedData) {
           if (requestSeq !== partsLoadRequestSeq) return;
           applyLoadedPartsData(normalizedData);
-          loadedStockSheetKey = selectedSheetForLoad;
-          saveLineCache(currentLine, normalizedData, selectedSheetForLoad);
-          prefetchLineSheetsInBackground(currentLine, selectedSheetForLoad);
+          loadedStockSheetKey = cacheKey;
+          saveLineCache(currentLine, normalizedData, cacheKey);
+          populateSubSheetFilter(normalizedData);
         })
         .catch(function(err) {
           if (requestSeq !== partsLoadRequestSeq) return;
@@ -9154,28 +9156,20 @@ function inferRequestPriority(stock, min) {
       var selectedStatus = tableStatusMode !== 'all' ? tableStatusMode : statusFilter.value;
       var selectedBrand = brandFilter.value;
       var selectedCoilSize = coilSizeFilter ? coilSizeFilter.value : 'all';
-      var selectedSheet = getCurrentSheetName();
+      var subSheetFilterEl = document.getElementById('subSheetFilter');
+      var selectedSubSheet = subSheetFilterEl ? subSheetFilterEl.value : 'all';
       var hasKeyword = !!keyword;
 
       if (searchScopeHint) {
-        if (hasKeyword) {
-          searchScopeHint.textContent = 'กำลังค้นหาในทุกไลน์ย่อยของ ' + currentLine;
-          searchScopeHint.classList.remove('hidden');
-        } else {
-          searchScopeHint.classList.add('hidden');
-        }
+        searchScopeHint.classList.toggle('hidden', !hasKeyword);
+        if (hasKeyword) searchScopeHint.textContent = 'กำลังค้นหาในทุกชีตย่อยของ ' + currentLine;
       }
 
       var filtered = partsData.filter(function(item) {
         var hitSearch = [item.name, item.model, item.brand, item.coil_size].join(' ').toLowerCase().indexOf(keyword) > -1;
         var hitCategory = category === 'all' || item.category === category;
-        var lineText = String(item.line || '').toLowerCase();
-        var withinMainLine = LINE_SHEET_OPTIONS[currentLine]
-          ? true
-          : (currentLine === 'H9' ? lineText.indexOf('h9') > -1 || lineText === '' : lineText.indexOf(currentLine.toLowerCase()) > -1);
         var sourceSheet = getItemSourceSheet(item);
-        var hitSubLine = !selectedSheet || sourceSheet === String(selectedSheet);
-        var hitLine = withinMainLine && hitSubLine;
+        var hitLine = selectedSubSheet === 'all' || sourceSheet === selectedSubSheet;
         var status = getStockStatus(item);
         var hitStatus = selectedStatus === 'all'
           || (selectedStatus === 'out' && status === 'OUT')
@@ -10589,10 +10583,33 @@ if (dashboardPage) {
       });
     });
     bindFilePreview('eImageMainFile', 'eImageMainPreview');
+    // sheetSelector ยังคงไว้เพื่อ backward-compat แต่ซ่อนจาก UI แล้ว
+    // การเปลี่ยน sheet ทำผ่าน subSheetFilter แทน
     sheetSelector.addEventListener('change', function() {
       loadPartsData({ skipCache: true });
-      if (!logPage.classList.contains('hidden')) loadLogData();
     });
+
+    // ── Sub-sheet filter ─────────────────────────────────────────────
+    function populateSubSheetFilter(data) {
+      var el = document.getElementById('subSheetFilter');
+      if (!el) return;
+      var sheets = Array.from(new Set((data||[]).map(function(p){
+        return String(p.__sourceSheet || p.subLine || '').trim();
+      }).filter(Boolean))).sort();
+      // ซ่อนถ้ามีแค่ sheet เดียว
+      if (sheets.length <= 1) { el.classList.add('hidden'); return; }
+      el.classList.remove('hidden');
+      // เก็บค่าเดิม
+      var prev = el.value;
+      el.innerHTML = '<option value="all">📂 ทุกชีตย่อย (' + sheets.length + ')</option>' +
+        sheets.map(function(s){ return '<option value="' + s.replace(/"/g,'&quot;') + '">' + s + '</option>'; }).join('');
+      if (prev && sheets.indexOf(prev) > -1) el.value = prev;
+    }
+
+    (function() {
+      var ssf = document.getElementById('subSheetFilter');
+      if (ssf) ssf.addEventListener('change', function(){ applyFilters(true); });
+    })();
     var roReasonPreset = document.getElementById('roReasonPreset');
     var roReasonOther = document.getElementById('roReasonOther');
     var roItemSearch = document.getElementById('roItemSearch');
