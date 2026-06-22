@@ -2863,25 +2863,14 @@
       }
     }
     function applyLoadedPartsData(normalizedData) {
-      // กรองชื่อว่าง
-      var filtered = normalizedData.filter(function(item) {
-        return item.name && item.name !== '-';
-      });
-      // Dedup: ถ้า no เดียวกันข้ามหลาย sheet ให้ใช้อันที่ stock สูงกว่า
-      // ป้องกัน cart ใส่ item ผิดเมื่อ no ซ้ำกัน
-      var noMap = {};
-      filtered.forEach(function(item) {
-        var k = String(item.no || '').trim();
-        if (!k) return;
-        if (!noMap[k] || safeNum(item.stock) > safeNum(noMap[k].stock)) {
-          noMap[k] = item;
-        }
-      });
-      // รวม: items ที่มี no + items ที่ไม่มี no
-      partsData = filtered.filter(function(item) {
-        var k = String(item.no || '').trim();
-        if (!k) return true; // ไม่มี no → เก็บไว้
-        return noMap[k] === item; // เก็บเฉพาะ no ที่ stock สูงสุด
+      // กรองชื่อว่าง + dedup ด้วย name+no+sheet (ป้องกัน item เดียวกันถูกโหลดซ้ำ)
+      var seen = {};
+      partsData = normalizedData.filter(function(item) {
+        if (!item.name || item.name === '-') return false;
+        var k = [String(item.name||''), String(item.no||''), String(item.__sourceSheet||'')].join('::');
+        if (seen[k]) return false;
+        seen[k] = true;
+        return true;
       });
 
       console.log('[item data after save/load]', partsData);
