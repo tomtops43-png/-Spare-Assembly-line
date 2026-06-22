@@ -46,7 +46,9 @@
         opacity: 0 !important;
       }
     }
-    body.edit-modal-open .out-stock-overlay {
+    body.edit-modal-open .out-stock-overlay,
+    body.issue-cart-open .out-stock-overlay,
+    body.quick-issue-open .out-stock-overlay {
       display: none !important;
     }
     body.edit-modal-open #stockPage {
@@ -3115,6 +3117,7 @@
       if (!filterSheet.classList.contains('hidden')) filterSheet.classList.add('hidden');
       issueCartModal.classList.remove('hidden');
       issueCartModal.classList.add('flex');
+      document.body.classList.add('issue-cart-open');
       modalLockCount = 0;
       document.body.style.overflow = '';
       if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
@@ -3128,6 +3131,7 @@
       if (!issueCartModal || issueCartModal.classList.contains('hidden')) return;
       issueCartModal.classList.add('hidden');
       issueCartModal.classList.remove('flex');
+      document.body.classList.remove('issue-cart-open');
       modalLockCount = 0;
       document.body.style.overflow = '';
       if (stockStickyHeader) stockStickyHeader.classList.remove('hidden');
