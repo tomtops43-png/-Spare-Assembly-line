@@ -8699,7 +8699,7 @@ function inferRequestPriority(stock, min) {
             (canIssue ?
               '<div class="grid grid-cols-2 gap-2">' +
                 '<button data-issue-no="' + item.no + '" class="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-white transition hover:opacity-90 shadow-sm" style="background:linear-gradient(135deg,#f97316,#ea580c)"><span>⚡</span><span>เบิก</span></button>' +
-                '<button data-cart-add-no="' + item.no + '" class="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 py-2.5 text-sm font-bold text-blue-600 transition hover:bg-blue-100"><span>🛒</span><span>ตะกร้า</span></button>' +
+                '<button data-cart-add-no="' + item.no + '" data-cart-add-sheet="' + (item.__sourceSheet||'') + '" class="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 py-2.5 text-sm font-bold text-blue-600 transition hover:bg-blue-100"><span>🛒</span><span>ตะกร้า</span></button>' +
               '</div>'
             : (canTransact ?
               '<div class="flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-semibold text-slate-400">หมดสต็อก — ไม่สามารถเบิกได้</div>'
@@ -8717,7 +8717,7 @@ function inferRequestPriority(stock, min) {
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('article[data-row-key]')).forEach(function(row){ row.addEventListener('click', function(e){ if (e.target.closest('button')) return; var f=findItemByIdentityKey(row.getAttribute('data-row-key')); if(f) openDetailModal(f); }); });
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-view-key]')).forEach(function(btn){btn.addEventListener('click', function(){var f=findItemByIdentityKey(btn.getAttribute('data-view-key')); if(f) openDetailModal(f);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-issue-no]')).forEach(function(btn){btn.addEventListener('click', function(){openQuickIssueModal(btn.getAttribute('data-issue-no'));});});
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-cart-add-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var no=btn.getAttribute('data-cart-add-no'); var f=partsData.filter(function(p){return String(p.no)===String(no);})[0]; if(!f||safeNum(f.stock)<=0) return; addItemToIssueCart(f,1);});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-cart-add-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var no=btn.getAttribute('data-cart-add-no'); var sheet=btn.getAttribute('data-cart-add-sheet')||''; var f=partsData.filter(function(p){return String(p.no)===String(no)&&(!sheet||String(p.__sourceSheet||'')===sheet);})[0]||partsData.filter(function(p){return String(p.no)===String(no);})[0]; if(!f||safeNum(f.stock)<=0) return; addItemToIssueCart(f,1);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-key]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=findItemByIdentityKey(btn.getAttribute('data-edit-key')); if(f) openEditModal(f);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-delete-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); deleteItemByNo(btn.getAttribute('data-delete-no'));});});
       desktopCardGrid.onclick = function(e) {
@@ -8795,7 +8795,7 @@ function inferRequestPriority(stock, min) {
             (canIssue ?
               '<div class="grid grid-cols-2 gap-1.5">' +
                 '<button data-mobile-issue-no="' + item.no + '" class="flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-bold text-white shadow-sm" style="background:linear-gradient(135deg,#f97316,#ea580c)" title="เบิกด่วน"><span>⚡</span><span>เบิก</span></button>' +
-                '<button data-mobile-cart-add-no="' + item.no + '" class="flex items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 py-2 text-xs font-bold text-blue-600" title="ตะกร้า"><span>🛒</span><span>ตะกร้า</span></button>' +
+                '<button data-mobile-cart-add-no="' + item.no + '" data-cart-add-sheet="' + (item.__sourceSheet||'') + '" class="flex items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 py-2 text-xs font-bold text-blue-600" title="ตะกร้า"><span>🛒</span><span>ตะกร้า</span></button>' +
               '</div>'
             : (canTransact ?
               '<span class="flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 py-2 text-[11px] text-slate-400 font-semibold">หมดสต็อก</span>'
@@ -8822,7 +8822,8 @@ function inferRequestPriority(stock, min) {
           e.preventDefault();
           e.stopPropagation();
           var cartNo = mobileCartBtn.getAttribute('data-mobile-cart-add-no');
-          var cartItem = partsData.filter(function(p){ return String(p.no) === String(cartNo); })[0];
+          var cartSheet = mobileCartBtn.getAttribute('data-cart-add-sheet')||'';
+          var cartItem = partsData.filter(function(p){ return String(p.no)===String(cartNo)&&(!cartSheet||String(p.__sourceSheet||'')===cartSheet); })[0]||partsData.filter(function(p){ return String(p.no)===String(cartNo); })[0];
           if (!cartItem || safeNum(cartItem.stock) <= 0) return alert('Stock ไม่พอ');
           addItemToIssueCart(cartItem, 1);
           return;
