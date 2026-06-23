@@ -10378,66 +10378,60 @@ if (dashboardPage) {
         // ─── COVER BLOCK ───────────────────────────────────────────────────
         '<div class="doc-head">ใบขออนุมัติสั่งซื้ออะไหล่ | Purchase Request Supporting Report</div>' +
         '<div style="text-align:center;border-bottom:3px solid #1f4e78;padding-bottom:12px;margin-bottom:16px;">' +
-          '<p style="font-size:11px;color:#475569;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">เอกสารใบขออนุมัติสั่งซื้ออะไหล่และวัสดุสิ้นเปลือง</p>' +
-          '<h1 style="font-size:26px;margin:4px 0;">ใบขอสั่งซื้ออะไหล่ (Purchase Request)</h1>' +
-          '<p style="font-size:13px;color:#334155;margin:4px 0;">อะไหล่, เครื่องมือบำรุงรักษา และวัสดุสนับสนุนการผลิต</p>' +
-          '<p style="font-size:14px;font-weight:bold;color:#1f4e78;margin-top:8px;">Line / พื้นที่: ' + esc(lineLabel) + '</p>' +
+          '<p style="font-size:11px;color:#475569;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">Purchase Request Supporting Report — Spare Parts & Maintenance Tools</p>' +
+          '<h1 style="font-size:26px;margin:4px 0;">PURCHASE REQUEST</h1>' +
+          '<p style="font-size:13px;color:#334155;margin:4px 0;">Spare Parts, Maintenance Tools and Production Support Materials</p>' +
+          '<p style="font-size:14px;font-weight:bold;color:#1f4e78;margin-top:8px;">Line / Area: ' + esc(lineLabel) + '</p>' +
         '</div>' +
-        // ─── DOC INFO TABLE ────────────────────────────────────────────────
-        '<table class="meta" style="margin-bottom:16px;"><thead><tr><th>รายการ</th><th>รายละเอียด</th><th>รายการ</th><th>รายละเอียด</th></tr></thead><tbody>' +
-        '<tr><td><b>เลขที่เอกสาร</b></td><td style="color:#1f4e78;font-weight:bold;">' + esc(prNumber) + '</td><td>Line / พื้นที่</td><td>' + esc(lineLabel) + '</td></tr>' +
-        '<tr><td>รอบการสั่งซื้อ</td><td>' + esc(period) + '</td><td>ฝ่าย / แผนก</td><td>' + esc(department) + '</td></tr>' +
-        '<tr><td>จัดทำโดย</td><td>' + esc(preparedBy) + '</td><td>วันที่จัดทำ</td><td>' + esc(submissionDate) + '</td></tr>' +
-        '<tr><td>สร้างเมื่อ</td><td>' + esc(generatedAt) + '</td><td>สถานะ</td><td style="color:#dc2626;font-weight:bold;">รอการอนุมัติ</td></tr>' +
+        '<table class="meta" style="margin-bottom:16px;"><thead><tr><th>Field</th><th>Detail</th><th>Field</th><th>Detail</th></tr></thead><tbody>' +
+        '<tr><td><b>Document No.</b></td><td style="color:#1f4e78;font-weight:bold;">' + esc(prNumber) + '</td><td>Line / Area</td><td>' + esc(lineLabel) + '</td></tr>' +
+        '<tr><td>Request Period</td><td>' + esc(period) + '</td><td>Department</td><td>' + esc(department) + '</td></tr>' +
+        '<tr><td>Prepared by</td><td>' + esc(preparedBy) + '</td><td>Date</td><td>' + esc(submissionDate) + '</td></tr>' +
+        '<tr><td>Generated at</td><td>' + esc(generatedAt) + '</td><td>Status</td><td style="color:#dc2626;font-weight:bold;">Pending Approval</td></tr>' +
         '</tbody></table>' +
-        // ─── EXECUTIVE SUMMARY (ผู้บริหารดูหน้านี้ก่อน) ──────────────────
-        '<h2 class="section-table" style="color:#991b1b;page-break-before:avoid;">1. สรุปสำหรับผู้บริหาร (Executive Summary)</h2>' +
+        '<h2 class="section-table" style="color:#991b1b;page-break-before:avoid;">1. Executive Summary</h2>' +
         '<div style="border:2px solid #fca5a5;border-radius:8px;padding:12px;background:#fff7f7;margin-bottom:12px;">' +
-          '<p style="font-size:13px;font-weight:bold;color:#dc2626;margin:0 0 8px 0;">' + critLabel + '</p>' +
+          '<p style="font-size:13px;font-weight:bold;color:#dc2626;margin:0 0 8px 0;">' + (urgentCount > 0 ? '⚠️ URGENT: ' + urgentCount + ' item(s) require immediate approval — production line at risk' : '✅ No critical items requiring immediate action') + '</p>' +
           '<table style="width:100%;border-collapse:collapse;table-layout:auto;"><tbody>' +
             '<tr>' +
-              '<td style="padding:6px 10px;border:1px solid #fca5a5;background:#fee2e2;font-weight:bold;">🔴 หยุดไลน์ได้ทันที (Stock = 0)</td>' +
-              '<td style="padding:6px 10px;border:1px solid #fca5a5;font-weight:bold;font-size:18px;white-space:nowrap;text-align:right;width:120px;">' + outCount + ' รายการ</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;background:#fef3c7;font-weight:bold;">🟡 ต่ำกว่า Min — ควรสั่งด่วน</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:bold;font-size:18px;white-space:nowrap;text-align:right;width:120px;">' + highCriticalCount + ' รายการ</td>' +
+              '<td style="padding:6px 10px;border:1px solid #fca5a5;background:#fee2e2;font-weight:bold;">🔴 Out of Stock (= 0)</td>' +
+              '<td style="padding:6px 10px;border:1px solid #fca5a5;font-weight:bold;font-size:18px;white-space:nowrap;text-align:right;width:120px;">' + outCount + ' item(s)</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;background:#fef3c7;font-weight:bold;">🟡 Below Min — Reorder Required</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:bold;font-size:18px;white-space:nowrap;text-align:right;width:120px;">' + highCriticalCount + ' item(s)</td>' +
             '</tr>' +
             '<tr>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;background:#eff6ff;">📦 รายการทั้งหมดที่ขออนุมัติ</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:bold;font-size:18px;white-space:nowrap;text-align:right;width:120px;">' + normalized.length + ' รายการ</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;background:#f0fdf4;">💰 วงเงินรวม (ที่มีราคา)</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:bold;font-size:15px;white-space:nowrap;text-align:right;width:120px;">' + (confirmed.length ? money(totalAmount) : 'TBC') + ' บาท</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;background:#eff6ff;">📦 Total Requested Items</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:bold;font-size:18px;white-space:nowrap;text-align:right;width:120px;">' + normalized.length + ' item(s)</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;background:#f0fdf4;">💰 Total Amount (Confirmed)</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:bold;font-size:15px;white-space:nowrap;text-align:right;width:120px;">' + (confirmed.length ? money(totalAmount) + ' THB' : 'TBC') + '</td>' +
             '</tr>' +
             '<tr>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;">✅ รายการที่มีราคาแล้ว</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;white-space:nowrap;text-align:right;width:120px;">' + confirmed.length + ' รายการ</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;">❓ รายการที่ยังไม่มีราคา (TBC)</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;white-space:nowrap;text-align:right;width:120px;">' + tbc.length + ' รายการ' + (tbc.length > 0 ? ' *' : '') + '</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;">✅ Confirmed Price Items</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;white-space:nowrap;text-align:right;width:120px;">' + confirmed.length + ' item(s)</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;">❓ TBC Price Items</td>' +
+              '<td style="padding:6px 10px;border:1px solid #e2e8f0;white-space:nowrap;text-align:right;width:120px;">' + tbc.length + ' item(s)' + (tbc.length > 0 ? ' *' : '') + '</td>' +
             '</tr>' +
           '</tbody></table>' +
-          (tbc.length > 0 ? '<p style="font-size:10px;color:#92400e;margin:4px 0 0 0;">* ต้องสอบถามราคาเพิ่มเติมก่อนอนุมัติ</p>' : '') +
+          (tbc.length > 0 ? '<p style="font-size:10px;color:#92400e;margin:4px 0 0 0;">* Price confirmation required before final approval.</p>' : '') +
         '</div>' +
-        // ─── APPROVAL BLOCK (อยู่หน้า 1 ให้เซ็นทันที) ─────────────────────
-        '<h2 class="section-table" style="page-break-before:avoid;">2. การอนุมัติ</h2>' +
-        '<table><thead><tr><th style="width:20%">บทบาท</th><th style="width:22%">ชื่อ-นามสกุล</th><th style="width:20%">ตำแหน่ง</th><th style="width:18%">วันที่อนุมัติ</th><th style="width:20%">ลายมือชื่อ</th></tr></thead><tbody>' +
-        '<tr><td>จัดทำโดย (Prepared by)</td><td>'+esc(preparedBy)+'</td><td>วิศวกร (Engineer)</td><td>'+esc(submissionDate)+'</td><td>___________________</td></tr>' +
-        '<tr><td>ตรวจสอบโดย (Checked by)</td><td>___________________</td><td>___________________</td><td>___________________</td><td>___________________</td></tr>' +
-        '<tr><td>อนุมัติโดย (Approved by)</td><td>___________________</td><td>ผู้จัดการ (Manager)</td><td>___________________</td><td>___________________</td></tr>' +
+        '<h2 class="section-table" style="page-break-before:avoid;">2. Approval Signatures</h2>' +
+        '<table><thead><tr><th style="width:20%">Role</th><th style="width:22%">Name</th><th style="width:20%">Position</th><th style="width:18%">Date</th><th style="width:20%">Signature</th></tr></thead><tbody>' +
+        '<tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>___________________</td></tr>' +
+        '<tr><td>Checked by</td><td>___________________</td><td>___________________</td><td>___________________</td><td>___________________</td></tr>' +
+        '<tr><td>Approved by</td><td>___________________</td><td>Manager</td><td>___________________</td><td>___________________</td></tr>' +
         '</tbody></table>' +
-        // ─── URGENT ITEMS ──────────────────────────────────────────────────
-        (urgentItems.length ? '<h2 class="section-table">3. รายการเร่งด่วน — ต้องดำเนินการทันที</h2><p style="color:#dc2626;font-size:12px;margin-bottom:6px;">รายการด้านล่างมีสต็อก = 0 หรือ Critical — หากไม่ได้รับการอนุมัติอาจกระทบการผลิต</p><table class="pr-items">'+detailColgroup(includeLineColumn)+'<thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' : '') +
-        // ─── FULL ITEM LIST ────────────────────────────────────────────────
+        (urgentItems.length ? '<h2 class="section-table">3. Top Urgent Items — Immediate Action Required</h2><p style="color:#dc2626;font-size:12px;margin-bottom:6px;">Items below have Stock = 0 or Critical level — production may be affected if not approved promptly.</p><table class="pr-items">'+detailColgroup(includeLineColumn)+'<thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' : '') +
         (isLineSpecific
           ? buildLineSpecificSections()
-          : ('<h2 class="section-table">' + (urgentItems.length ? '4' : '3') + '. รายการทั้งหมดที่ขออนุมัติ — แยกตาม Line</h2>' + buildLineSections())
+          : ('<h2 class="section-table">' + (urgentItems.length ? '4' : '3') + '. Detailed Requested Item List by Line</h2>' + buildLineSections())
         ) +
-        // ─── ANNEXES ───────────────────────────────────────────────────────
-        annexCHtml.replace(/\d+\. Annex C/, (isLineSpecific ? '9' : (urgentItems.length ? '5' : '4')) + '. ภาคผนวก ก (Annex C)') +
-        annexDHtml.replace(/\d+\. Annex D/, (isLineSpecific ? '10' : (urgentItems.length ? '6' : '5')) + '. ภาคผนวก ข (Annex D)') +
+        annexCHtml.replace(/\d+\. (ภาคผนวก ก \()?Annex C(\))?/, (isLineSpecific ? '9' : (urgentItems.length ? '5' : '4')) + '. Annex C: Reference Pictures') +
+        annexDHtml.replace(/\d+\. (ภาคผนวก ข \()?Annex D(\))?/, (isLineSpecific ? '10' : (urgentItems.length ? '6' : '5')) + '. Annex D: Drawing Reference List') +
         separateDrawingHtml +
         fullDrawingsHtml +
         '<div style="text-align:center;margin:24px 0 8px 0;padding-top:12px;border-top:1px solid #cbd5e1;font-size:11px;color:#94a3b8;">' +
-          'เอกสารนี้จัดทำโดย Spare Parts Portal ระบบบริหารจัดการอะไหล่ | เลขที่: ' + esc(prNumber) + ' | ' + esc(generatedAt) +
-          '<br/>เอกสารลับ — ใช้ภายในองค์กรเพื่อขออนุมัติเท่านั้น (Confidential - Internal Use Only)' +
+          'Generated by Spare Parts Portal | Doc No: ' + esc(prNumber) + ' | ' + esc(generatedAt) +
+          '<br/>Confidential — For internal approval use only.' +
         '</div>' +
         '</div>';
     }
