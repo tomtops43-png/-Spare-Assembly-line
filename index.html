@@ -6704,11 +6704,14 @@ function inferRequestPriority(stock, min) {
       }
       pageLines.forEach(function(line) {
         var text = line.text;
-        if (/Top Urgent Items/i.test(text)) { flush(); excluded = true; allowed = false; starts = null; headerBuffer = []; return; }
-        if (/(Confirmed Price Items|Price Confirmation Required|TBC Items|Detailed Requested Item List|Additional Item List)/i.test(text)) {
+        // Section excludes (skip these sections)
+        if (/Top Urgent Items|รายการเร่งด่วน.*ต้องดำเนินการ/i.test(text)) { flush(); excluded = true; allowed = false; starts = null; headerBuffer = []; return; }
+        // Section includes (parse these sections)
+        if (/(Confirmed Price Items|Price Confirmation Required|TBC Items|Detailed Requested Item List|Additional Item List|รายการทั้งหมดที่ขออนุมัติ|Detailed Requested|รายการที่ขออนุมัติ)/i.test(text)) {
           flush(); excluded = false; allowed = true; starts = null; headerBuffer = []; parseState.sectionsFound = Number(parseState.sectionsFound || 0) + 1; return;
         }
-        if (allowed && /Approval Signatures|Drawing Files|Annex|Risk \/ Benefits/i.test(text)) { flush(); allowed = false; starts = null; headerBuffer = []; return; }
+        // Section stops
+        if (allowed && /Approval Signatures|การอนุมัติ|Drawing Files|Annex|ภาคผนวก|Risk \/ Benefits/i.test(text)) { flush(); allowed = false; starts = null; headerBuffer = []; return; }
         if (!allowed || excluded) return;
 
         if (isPdfTableHeaderFragment(line)) {
@@ -6812,9 +6815,9 @@ function inferRequestPriority(stock, min) {
       (pages || []).forEach(function(pageLines) {
         (pageLines || []).forEach(function(line) {
           var text = String(line.text || '');
-          if (/Top Urgent Items/i.test(text)) { flush(); excluded = true; allowed = false; return; }
-          if (/(Confirmed Price Items|Price Confirmation Required|TBC Items|Detailed Requested Item List|Additional Item List)/i.test(text)) { flush(); excluded = false; allowed = true; return; }
-          if (allowed && /Approval Signatures|Drawing Files|Annex|Risk \/ Benefits/i.test(text)) { flush(); allowed = false; return; }
+          if (/Top Urgent Items|รายการเร่งด่วน.*ต้องดำเนินการ/i.test(text)) { flush(); excluded = true; allowed = false; return; }
+          if (/(Confirmed Price Items|Price Confirmation Required|TBC Items|Detailed Requested Item List|Additional Item List|รายการทั้งหมดที่ขออนุมัติ|Detailed Requested|รายการที่ขออนุมัติ)/i.test(text)) { flush(); excluded = false; allowed = true; return; }
+          if (allowed && /Approval Signatures|การอนุมัติ|Drawing Files|Annex|ภาคผนวก|Risk \/ Benefits/i.test(text)) { flush(); allowed = false; return; }
           if (!allowed || excluded) return;
           var ordered = (line.items || []).slice().sort(function(a, b) { return Number(a.x || 0) - Number(b.x || 0); });
           var beginsRow = ordered.some(function(token, index) { return index <= 2 && isRowNumber(token.text); });
