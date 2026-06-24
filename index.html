@@ -6696,7 +6696,23 @@ function inferRequestPriority(stock, min) {
         var priceRaw = String(current.price || '').replace(/,/g, '').trim();
         var priceMatch = priceRaw.match(/\d+(?:\.\d+)?/);
         var unitPrice = (/tbc/i.test(priceRaw) || !priceMatch) ? '' : Number(priceMatch[0]);
-        var line = current.line || headerMeta.line || '';
+        var lineRaw = current.line || headerMeta.line || '';
+        // ตัด garbage ที่ parser ดึงมาพร้อม section header ออก
+        // เช่น "Lug&Screw Field Detail Document No. PR-..." → "Lug&Screw"
+        var line = (function(raw) {
+          if (!raw) return '';
+          var knownLines = ['Lug&Screw', 'Arc Chute', 'Coil Winding', 'H9', 'Gv.2', 'GV.2'];
+          for (var ki = 0; ki < knownLines.length; ki++) {
+            var kl = knownLines[ki];
+            if (raw.toLowerCase().indexOf(kl.toLowerCase()) === 0) return kl;
+            if (raw.toLowerCase().indexOf(kl.toLowerCase()) > -1 && raw.length > kl.length + 3) {
+              // line name อยู่ในก้อน text ใหญ่ → extract แค่ชื่อ line
+              return kl;
+            }
+          }
+          // fallback: ตัดที่ space แรกถ้าสั้นกว่า 20 ตัว หรือใช้ canonicalLineName
+          return raw.length <= 20 ? raw : (canonicalLineName(raw) || raw.split(/\s{2,}|(?=Field|Document|Line\s*\/)/)[0].trim());
+        })(lineRaw);
         var row = {
           source_file_name: fileMeta.file_name, source_file_hash: fileMeta.file_hash, request_period: headerMeta.request_period,
           requested_date: headerMeta.requested_date, requested_by: headerMeta.prepared_by, line: line, part_id: '', part_name: partName,
