@@ -2020,10 +2020,16 @@
     </div>
   </div>
 
-  <div id="imageViewer" class="fixed inset-0 z-[60] hidden bg-black bg-opacity-90 p-4">
-    <button id="closeImageViewer" type="button" class="absolute right-4 top-4 h-10 w-10 rounded-full bg-white/20 text-white text-2xl leading-none">×</button>
-    <div class="flex h-full w-full items-center justify-center">
-      <img id="imageViewerImg" src="" alt="full image" class="max-h-full max-w-full object-contain" />
+  <div id="imageViewer" class="fixed inset-0 z-[60] hidden bg-black bg-opacity-90" style="touch-action:pan-y;">
+    <!-- ปุ่มปิด — ใหญ่ขึ้น ชัดขึ้น หนีจาก notch -->
+    <button id="closeImageViewer" type="button"
+      style="position:absolute;top:max(env(safe-area-inset-top,16px),20px);right:16px;z-index:10;width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.25);backdrop-filter:blur(8px);border:2px solid rgba(255,255,255,0.5);color:#fff;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+      ×
+    </button>
+    <!-- hint tap to close -->
+    <p style="position:absolute;bottom:max(env(safe-area-inset-bottom,16px),20px);left:0;right:0;text-align:center;color:rgba(255,255,255,0.5);font-size:13px;pointer-events:none;">แตะนอกรูปหรือกด × เพื่อปิด</p>
+    <div id="imageViewerInner" class="flex h-full w-full items-center justify-center p-4 pt-16 pb-10" style="touch-action:pinch-zoom;">
+      <img id="imageViewerImg" src="" alt="full image" class="max-h-full max-w-full object-contain" style="border-radius:8px;" />
     </div>
   </div>
 
@@ -9826,9 +9832,26 @@ if (dashboardPage) {
     });
     bindDetailModalCloseBehavior();
     closeImageViewerBtn.addEventListener('click', closeImageViewer);
+    // แตะ backdrop (นอกรูป) ปิด
     imageViewer.addEventListener('click', function(e) {
-      if (e.target === imageViewer) closeImageViewer();
+      var inner = document.getElementById('imageViewerInner');
+      var img = document.getElementById('imageViewerImg');
+      if (e.target === imageViewer || e.target === inner) closeImageViewer();
     });
+    // Swipe down เพื่อปิด (mobile)
+    (function() {
+      var startY = 0, moved = false;
+      imageViewer.addEventListener('touchstart', function(e) {
+        startY = e.touches[0].clientY; moved = false;
+      }, { passive: true });
+      imageViewer.addEventListener('touchmove', function(e) {
+        if (e.touches[0].clientY - startY > 5) moved = true;
+      }, { passive: true });
+      imageViewer.addEventListener('touchend', function(e) {
+        var dy = e.changedTouches[0].clientY - startY;
+        if (moved && dy > 80) closeImageViewer(); // swipe down 80px+ ปิด
+      }, { passive: true });
+    })();
     document.addEventListener('keydown', function(e) {
       if (e.key !== 'Escape') return;
       if (!imageViewer.classList.contains('hidden')) return closeImageViewer();
