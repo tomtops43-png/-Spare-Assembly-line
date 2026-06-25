@@ -4321,12 +4321,22 @@ function getIssueCartEntries() {
         return true;
       });
       var canDeleteUser = hasPermission('delete_user');
-      function getRoleBadge(role) {
+      function getRoleBadge(role, permissionsJson) {
         var r = String(role || '').toLowerCase();
         if (r === 'admin')
           return '<span style="background:#fff1f2;color:#be123c;border:1.5px solid #fca5a5;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:4px;">🔴 Admin</span>';
         if (r === 'leader' || r === 'engineer')
           return '<span style="background:#f5f3ff;color:#6d28d9;border:1.5px solid #c4b5fd;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:4px;">🔑 Engineer / Leader</span>';
+        // สำหรับ role='user' ให้ดูจาก permissions จริง
+        var allow = [];
+        try { allow = JSON.parse(permissionsJson || '{}').allow || []; } catch(e) {}
+        var canIssue    = allow.indexOf('issue_part') !== -1;
+        var canRequest  = allow.indexOf('request_order_create') !== -1;
+        var canView     = allow.indexOf('view_stock') !== -1;
+        if (!canView && !canIssue && !canRequest)
+          return '<span style="background:#f8fafc;color:#475569;border:1.5px solid #cbd5e1;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">👁 Viewer</span>';
+        if (canView && canRequest && !canIssue)
+          return '<span style="background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">📋 Leader PD</span>';
         return '<span style="background:#eff6ff;color:#1e40af;border:1.5px solid #bfdbfe;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">🔧 ช่าง</span>';
       }
       function getAvatarBg(role) {
@@ -4352,7 +4362,7 @@ function getIssueCartEntries() {
               '</div>' +
             '</div>' +
           '</td>' +
-          '<td class="px-4 py-3">' + getRoleBadge(user.role) + '</td>' +
+          '<td class="px-4 py-3">' + getRoleBadge(user.role, user.permissionsJson) + '</td>' +
           '<td class="px-4 py-3 text-xs text-slate-600 max-w-[160px] truncate">' + getLineSummary(user) + '</td>' +
           '<td class="px-4 py-3 text-xs text-slate-500 hidden lg:table-cell max-w-[180px] truncate">' + getPermissionSummary(user) + '</td>' +
           '<td class="px-4 py-3 text-center">' +
@@ -4370,7 +4380,7 @@ function getIssueCartEntries() {
           '<div class="min-w-0 flex-1">' +
             '<div class="flex items-center gap-2">' +
               '<p class="text-sm font-semibold text-slate-900">' + user.username + '</p>' +
-              getRoleBadge(user.role) +
+              getRoleBadge(user.role, user.permissionsJson) +
               (user.isActive ? '<span class="text-[10px] text-emerald-600 font-semibold">● Active</span>' : '<span class="text-[10px] text-slate-400">○ Inactive</span>') +
             '</div>' +
             '<p class="text-[11px] text-slate-400 truncate">' + getLineSummary(user) + '</p>' +
