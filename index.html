@@ -7785,29 +7785,48 @@ function inferRequestPriority(stock, min) {
     function showQuickToast(message, tone) {
       var existing = document.getElementById('quickActionToast');
       if (existing) existing.remove();
-      var colorClass = tone === 'success' ? 'bg-emerald-600'
-                     : tone === 'error'   ? 'bg-rose-600'
-                     : tone === 'warn'    ? 'bg-amber-500'
-                     : 'bg-slate-800';
-      var icon = tone === 'success' ? '✓ '
-               : tone === 'error'   ? '✕ '
-               : tone === 'warn'    ? '⚠ '
+      // Solid colors — ห้ามพื้นหลังจาง
+      var bg = tone === 'success' ? '#16a34a'
+             : tone === 'error'   ? '#dc2626'
+             : tone === 'warn'    ? '#d97706'
+             : tone === 'info'    ? '#2563eb'
+             : '#1e293b';
+      var icon = tone === 'success' ? '✅ '
+               : tone === 'error'   ? '❌ '
+               : tone === 'warn'    ? '⚠️ '
+               : tone === 'info'    ? 'ℹ️ '
                : '';
-      var duration = (tone === 'warn' || tone === 'error') ? 4000 : 2000;
+      var duration = (tone === 'warn' || tone === 'error') ? 4500 : 2500;
       var toast = document.createElement('div');
       toast.id = 'quickActionToast';
-      toast.className = 'fixed left-1/2 top-4 z-[10001] -translate-x-1/2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-xl transition-all ' + colorClass;
-      toast.style.cssText = 'transform:translate(-50%,-12px);opacity:0;transition:transform .2s ease,opacity .2s ease;max-width:90vw;text-align:center;';
+      // Inline style ทั้งหมด — ไม่พึ่ง Tailwind ป้องกันปัญหาสี
+      toast.style.cssText = [
+        'position:fixed',
+        'top:20px',
+        'left:50%',
+        'transform:translate(-50%,0)',
+        'z-index:10001',
+        'background:' + bg,
+        'color:#ffffff',
+        'padding:12px 24px',
+        'border-radius:14px',
+        'font-size:14px',
+        'font-weight:700',
+        'box-shadow:0 8px 24px rgba(0,0,0,0.35)',
+        'max-width:90vw',
+        'text-align:center',
+        'white-space:nowrap',
+        'pointer-events:none',
+        'opacity:1',
+        'transition:opacity .25s ease,top .25s ease',
+        'border:2px solid rgba(255,255,255,0.2)'
+      ].join(';');
       toast.textContent = icon + (message || 'บันทึกสำเร็จ');
       document.body.appendChild(toast);
-      requestAnimationFrame(function() {
-        toast.style.transform = 'translate(-50%,0)';
-        toast.style.opacity = '1';
-      });
       setTimeout(function() {
-        toast.style.transform = 'translate(-50%,-12px)';
         toast.style.opacity = '0';
-        setTimeout(function() { if (toast && toast.parentNode) toast.parentNode.removeChild(toast); }, 220);
+        toast.style.top = '8px';
+        setTimeout(function() { if (toast && toast.parentNode) toast.parentNode.removeChild(toast); }, 260);
       }, duration);
     }
 
