@@ -1775,10 +1775,26 @@ function uploadImageToDrive(payload) {
 
   var target = getUploadTargetFolder(line, itemId, kind);
   var folder = target.folder;
+
+  // ย้ายรูปเก่าไป _archive แทนที่จะ Trash (ป้องกันรูปหายถาวร)
+  var archiveFolderName = '_archive';
   var existing = folder.getFiles();
+  var hasOldFiles = false;
+  var oldFiles = [];
   while (existing.hasNext()) {
-    var oldFile = existing.next();
-    if (!oldFile.isTrashed()) oldFile.setTrashed(true);
+    var f = existing.next();
+    if (!f.isTrashed()) { oldFiles.push(f); hasOldFiles = true; }
+  }
+  if (hasOldFiles) {
+    try {
+      var archiveFolder = getOrCreateChildFolder(folder, archiveFolderName);
+      for (var oi = 0; oi < oldFiles.length; oi++) {
+        oldFiles[oi].moveTo(archiveFolder);
+      }
+    } catch (archiveErr) {
+      Logger.log('archive warning: ' + (archiveErr && archiveErr.message ? archiveErr.message : archiveErr));
+      // ถ้า archive ไม่ได้ ไม่ลบ ปล่อยทับไปก็ได้
+    }
   }
 
   var file = null;
