@@ -4106,9 +4106,9 @@ function getIssueCartEntries() {
         var container = document.getElementById(group.targetId);
         if (!container) return;
         container.innerHTML = group.items.map(function(item) {
-          return '<label class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm">' +
-            '<span class="text-slate-700">' + item.label + '</span>' +
-            '<input type="checkbox" class="h-4 w-4 rounded border-slate-300" data-permission-key="' + item.key + '" />' +
+          return '<label class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm cursor-pointer hover:bg-slate-50 transition">' +
+            '<span class="text-slate-800 font-medium select-none">' + item.label + '</span>' +
+            '<input type="checkbox" class="h-4 w-4 rounded accent-blue-600" data-permission-key="' + item.key + '" />' +
           '</label>';
         }).join('');
       });
@@ -11186,11 +11186,13 @@ if (dashboardPage) {
       // set role dropdown (hidden)
       var uRole = document.getElementById('uRole');
       if (uRole) uRole.value = preset.role;
-      // check/uncheck all permission checkboxes
+      // check/uncheck all permission checkboxes (ต้องใช้ data-permission-key ให้ตรงกับ renderPermissionControls)
       var allPerms = preset.permissions;
-      document.querySelectorAll('[data-perm-key]').forEach(function(cb) {
-        cb.checked = allPerms.indexOf(cb.getAttribute('data-perm-key')) !== -1;
+      document.querySelectorAll('[data-permission-key]').forEach(function(cb) {
+        cb.checked = allPerms.indexOf(cb.getAttribute('data-permission-key')) !== -1;
       });
+      // อัพเดท permissionsJson hidden field ทันที
+      if (typeof syncPermissionsJsonFromUI === 'function') syncPermissionsJsonFromUI();
       // show summary banner
       var banner = document.getElementById('presetSummaryBanner');
       var title = document.getElementById('presetSummaryTitle');
