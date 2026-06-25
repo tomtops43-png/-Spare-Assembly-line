@@ -11039,25 +11039,44 @@ if (dashboardPage) {
     userForm.addEventListener('submit', function(e) {
       e.preventDefault();
       if (!hasPermission('manage_auth')) return;
+      var saveBtn = document.getElementById('saveUserBtn');
+      var username = document.getElementById('uUsername').value.trim();
+      if (!username) { showQuickToast('กรุณาระบุ Username ก่อนบันทึก', 'warn'); return; }
+      // Loading state
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<svg class="inline-block h-4 w-4 animate-spin mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a10 10 0 100 10z"/></svg>กำลังบันทึก...';
+        saveBtn.style.background = '#6b7280';
+      }
       var payload = withAuthPayload({
         action: 'upsertUser',
-        username: document.getElementById('uUsername').value,
+        username: username,
         password: document.getElementById('uPassword').value,
         role: document.getElementById('uRole').value,
         isActive: document.getElementById('uIsActive').checked,
         permissionsJson: document.getElementById('uPermissionsJson').value || '{"allow":[],"deny":[]}'
       });
-      userManageMessage.className = 'mb-3 text-sm text-slate-500';
-      userManageMessage.textContent = 'กำลังบันทึกผู้ใช้...';
       requestApi(payload).then(parseApiResponse).then(function() {
-        selectedAdminUser = document.getElementById('uUsername').value;
-        userManageMessage.className = 'mb-3 text-sm text-emerald-600';
-        userManageMessage.textContent = 'บันทึกผู้ใช้สำเร็จ';
+        selectedAdminUser = username;
+        showQuickToast('✅ บันทึก "' + username + '" สำเร็จ', 'success');
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '✓ บันทึกแล้ว';
+          saveBtn.style.background = '#16a34a';
+          setTimeout(function() {
+            saveBtn.innerHTML = 'บันทึก';
+            saveBtn.style.background = '#2563eb';
+          }, 2000);
+        }
         loadUsers();
         closeAdminEditorOnMobile();
       }).catch(function(err) {
-        userManageMessage.className = 'mb-3 text-sm text-rose-600';
-        userManageMessage.textContent = err.message;
+        showQuickToast('❌ บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = 'บันทึก';
+          saveBtn.style.background = '#2563eb';
+        }
       });
     });
     refreshUsersBtn.addEventListener('click', function() { loadUsers(); });
