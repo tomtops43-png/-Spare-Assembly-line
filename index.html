@@ -11057,7 +11057,10 @@ if (dashboardPage) {
     });
     userForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      if (!hasPermission('manage_auth')) return;
+      // ตรวจสิทธิ์ — ใช้ manage_users (canonical) หรือ isAdminUser
+      if (!isAdminUser() && !hasPermission('manage_users') && !hasPermission('manage_auth')) {
+        showQuickToast('ไม่มีสิทธิ์จัดการผู้ใช้', 'error'); return;
+      }
       var saveBtn = document.getElementById('saveUserBtn');
       var username = document.getElementById('uUsername').value.trim();
       if (!username) { showQuickToast('กรุณาระบุ Username ก่อนบันทึก', 'warn'); return; }
@@ -11075,7 +11078,8 @@ if (dashboardPage) {
         isActive: document.getElementById('uIsActive').checked,
         permissionsJson: document.getElementById('uPermissionsJson').value || '{"allow":[],"deny":[]}'
       });
-      requestApi(payload).then(parseApiResponse).then(function() {
+      // ใช้ postJson แทน requestApi เพื่อส่ง permissionsJson ที่ยาวได้ (ไม่ติด URL limit)
+      postJson(payload).then(parseApiResponse).then(function() {
         selectedAdminUser = username;
         showQuickToast('✅ บันทึก "' + username + '" สำเร็จ', 'success');
         if (saveBtn) {
