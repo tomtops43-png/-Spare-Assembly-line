@@ -1693,7 +1693,19 @@
               <!-- Role Preset Cards -->
               <div class="mb-3">
                 <p class="mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">เลือกระดับสิทธิ์ (กด 1 ปุ่ม)</p>
-                <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <!-- Viewer ทั่วไป -->
+                  <button type="button" data-role-preset="viewer" class="role-preset-btn flex flex-col items-start gap-1.5 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-slate-400 hover:bg-slate-50">
+                    <div class="flex items-center gap-1.5"><span class="text-lg">👁</span><span class="text-xs font-bold text-slate-800">Viewer</span></div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">ดูสต็อกอย่างเดียว • ห้ามเบิก/ขอซื้อ</p>
+                    <span class="mt-0.5 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600">Read-only</span>
+                  </button>
+                  <!-- Leader PD -->
+                  <button type="button" data-role-preset="leader_pd" class="role-preset-btn flex flex-col items-start gap-1.5 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-orange-300 hover:bg-orange-50">
+                    <div class="flex items-center gap-1.5"><span class="text-lg">📋</span><span class="text-xs font-bold text-slate-800">Leader PD</span></div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">ดูสต็อก • ขอซื้อได้ • ห้ามเบิก</p>
+                    <span class="mt-0.5 rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-bold text-orange-700">View+Request</span>
+                  </button>
                   <!-- ช่างทั่วไป -->
                   <button type="button" data-role-preset="user" class="role-preset-btn flex flex-col items-start gap-1.5 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-blue-300 hover:bg-blue-50">
                     <div class="flex items-center gap-1.5"><span class="text-lg">🔧</span><span class="text-xs font-bold text-slate-800">ช่างทั่วไป</span></div>
@@ -1709,7 +1721,7 @@
                   <!-- Engineer/Supervisor -->
                   <button type="button" data-role-preset="leader" class="role-preset-btn flex flex-col items-start gap-1.5 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-violet-300 hover:bg-violet-50">
                     <div class="flex items-center gap-1.5"><span class="text-lg">🔑</span><span class="text-xs font-bold text-slate-800">Engineer</span></div>
-                    <p class="text-[10px] text-slate-400 leading-relaxed">หัวหน้า + Log • Dashboard • PR Report</p>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">หัวหน้า + Log • Dashboard • PR</p>
                     <span class="mt-0.5 rounded-full bg-violet-100 px-2 py-0.5 text-[9px] font-bold text-violet-700">Leader+</span>
                   </button>
                   <!-- Admin -->
@@ -11055,6 +11067,34 @@ if (dashboardPage) {
     if (userLineFilter) userLineFilter.addEventListener('change', applyUserFiltersAndRender);
     // ── Role Preset Definitions (4 ระดับ) ─────────────────────────
     var ROLE_PRESETS = {
+      // ระดับ 0: Viewer ทั่วไป — ดูอย่างเดียว ห้ามทุกอย่าง
+      viewer: {
+        role: 'user',
+        label: '👁 Viewer / ผู้เยี่ยมชม',
+        detail: 'ดูสต็อกอย่างเดียว · ห้ามเบิก · ห้ามขอซื้อ · ห้ามทุกอย่าง',
+        borderColor: '#64748b', bg: '#f8fafc',
+        permissions: [
+          'view_stock', 'view_detail', 'view_alerts'
+          // ❌ ไม่มี issue_part, receive_part, use_issue_cart
+          // ❌ ไม่มี request_order_*
+          // ❌ ไม่มี view_logs, view_dashboard
+        ]
+      },
+
+      // ระดับ 0.5: Leader PD — ดูสต็อก + ขอซื้อได้ แต่ห้ามเบิก
+      leader_pd: {
+        role: 'user',
+        label: '📋 Leader PD',
+        detail: 'ดูสต็อก · ขอซื้ออะไหล่ได้ · ดูคำขอตัวเอง · ห้ามเบิก/รับเข้า',
+        borderColor: '#ea580c', bg: '#fff7ed',
+        permissions: [
+          'view_stock', 'view_detail', 'view_alerts',
+          'request_order_create', 'request_order_view_own'
+          // ❌ ไม่มี issue_part, receive_part, use_issue_cart
+          // ❌ ไม่มี view_logs, view_dashboard
+        ]
+      },
+
       // ระดับ 1: ช่างทั่วไป — เบิก / ขอซื้อ / นับสต็อก เท่านั้น
       user: {
         role: 'user',
