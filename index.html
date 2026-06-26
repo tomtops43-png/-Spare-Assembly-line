@@ -2135,16 +2135,23 @@
       </form>
     </div>
   </div>
-  <div id="uploadQueuePanel" class="fixed bottom-4 right-4 z-[260] hidden w-[320px] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
-    <div class="flex items-center justify-between">
-      <p class="text-sm font-semibold text-slate-800">Background Upload Queue</p>
-      <span id="uploadQueueBadge" class="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">0</span>
+  <div id="uploadQueuePanel" class="fixed bottom-4 right-4 z-[260] hidden w-[290px] overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-2xl">
+    <!-- Header gradient -->
+    <div class="flex items-center justify-between gap-2 px-4 py-3" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);">
+      <div class="flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" style="animation:btn-spin .9s linear infinite;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        <p class="text-sm font-bold text-white">กำลังบันทึกข้อมูล</p>
+      </div>
+      <span id="uploadQueueBadge" class="rounded-full px-2 py-0.5 text-[11px] font-black text-blue-700" style="background:rgba(255,255,255,0.9);">0</span>
     </div>
-    <p id="uploadQueueCurrent" class="mt-2 text-xs text-slate-600">Idle</p>
-    <div class="mt-2 h-2 w-full rounded bg-slate-200">
-      <div id="uploadQueueProgressBar" class="h-2 rounded bg-blue-600" style="width:0%"></div>
+    <!-- Body -->
+    <div class="px-4 py-3">
+      <p id="uploadQueueCurrent" class="text-sm font-semibold text-slate-800">กำลังเตรียมข้อมูล...</p>
+      <div class="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+        <div id="uploadQueueProgressBar" class="h-2.5 rounded-full bg-blue-500 transition-all duration-300" style="width:0%;background:linear-gradient(90deg,#3b82f6,#2563eb);"></div>
+      </div>
+      <p id="uploadQueuePending" class="mt-2 text-[11px] text-slate-400">รอคิว: 0 รายการ</p>
     </div>
-    <p id="uploadQueuePending" class="mt-2 text-xs text-slate-500">Pending: 0</p>
   </div>
 
   <div id="filterSheet" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 md:hidden">
@@ -2667,13 +2674,17 @@
       var visible = !!active || pending > 0;
       uploadQueuePanel.classList.toggle('hidden', !visible);
       if (uploadQueueBadge) uploadQueueBadge.textContent = String(pending + (active ? 1 : 0));
-      if (uploadQueuePending) uploadQueuePending.textContent = 'Pending: ' + pending;
+      if (uploadQueuePending) uploadQueuePending.textContent = 'รอคิว: ' + pending + (pending > 0 ? ' รายการ' : ' รายการ (พร้อมแล้ว)');
       if (!active) {
-        if (uploadQueueCurrent) uploadQueueCurrent.textContent = 'Idle';
+        if (uploadQueueCurrent) uploadQueueCurrent.textContent = 'เสร็จสิ้น ✓';
         if (uploadQueueProgressBar) uploadQueueProgressBar.style.width = '0%';
         return;
       }
-      if (uploadQueueCurrent) uploadQueueCurrent.textContent = active.label + ' • ' + Math.round(active.progress || 0) + '%';
+      var pct = Math.round(active.progress || 0);
+      var labelThai = String(active.label || '')
+        .replace(/Save #(\d+)/, 'บันทึกรายการที่ $1')
+        .replace(/^Save /, 'บันทึก ');
+      if (uploadQueueCurrent) uploadQueueCurrent.textContent = labelThai + ' (' + pct + '%)';
       if (uploadQueueProgressBar) uploadQueueProgressBar.style.width = Math.max(0, Math.min(100, active.progress || 0)) + '%';
     }
     function enqueueUploadJob(job) {
@@ -8446,7 +8457,17 @@ function inferRequestPriority(stock, min) {
 
     function submitManageItem(event) {
       event.preventDefault();
-      if (!confirm('ยืนยันการบันทึก/อัปเดตรายการนี้?')) return;
+      var itemName = (document.getElementById('mName') && document.getElementById('mName').value.trim()) || 'รายการนี้';
+      showConfirmDialog({
+        title: 'ยืนยันการบันทึก',
+        message: 'บันทึก / อัปเดต "' + itemName + '" ลงระบบ?',
+        okLabel: '💾 บันทึก'
+      }).then(function(ok) {
+        if (!ok) return;
+        _doSubmitManageItem();
+      });
+    }
+    function _doSubmitManageItem() {
       var itemNo = document.getElementById('mNo').value.trim();
       var selectedManageSheet = document.getElementById('mSheet').value.trim();
       var selectedManageLine = document.getElementById('mLine').value.trim();
@@ -8553,7 +8574,7 @@ function inferRequestPriority(stock, min) {
         manageMessage.className = 'mt-3 text-sm text-rose-600';
         manageMessage.textContent = err.message;
       });
-    }
+    } // end _doSubmitManageItem
 
     function deleteManageItem() {
       var no = document.getElementById('mNo').value.trim();
