@@ -7193,24 +7193,34 @@ function inferRequestPriority(stock, min) {
         } else {
           rows = rows.filter(function(r) { return PR_FROM_REQUEST_OPEN_STATUSES[String(r.status || 'Pending')]; });
         }
-        return rows.map(function(r) {
-          var priorityRaw = String(r.priority || '').toLowerCase();
-          var critical = priorityRaw === 'urgent' || priorityRaw === 'critical' ? 'Critical' : priorityRaw === 'high' ? 'High' : 'Medium';
-          var qty = Number(r.request_qty || 0) || 1;
-          return {
-            id: 'REQ-' + (r.request_id || r.item_id || r.item_name),
-            request_id: r.request_id || '',
-            selected: true, no: r.item_id || '-', name: r.item_name || '-', model: r.model || '-', brand: r.brand || '-',
-            category: r.category || '-', line: canonicalLineName(r.line || currentLine), subLine: r.line || '-',
-            location: r.location || '-', unit: r.unit || 'PCS', stock: Number(r.stock || 0), min: Number(r.min || 0), max: Number(r.max || 0),
-            need: qty, suggestedQty: qty, recentUsage: 0, critical: critical, priority: critical,
-            reason: 'REQ', requestedBy: r.requested_by || '-', requestStatus: r.status || 'Pending',
-            unitPrice: Number(r.unit_price || 0), currency: r.currency || 'THB', supplier: r.supplier || '',
-            priceUpdatedAt: '', priceRemark: '', machineStation: '', purpose: r.purpose || r.remark || '',
-            mainImage: '', drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
-            drawingRevision: '', drawing_revision: '', drawingStatus: '', drawing_status: '',
-            datasheetUrl: '', quotationUrl: ''
-          };
+        return loadPrSourceItems('assembly_monthly', 'all').catch(function() { return []; }).then(function(allItems) {
+          var imageByNo = {};
+          allItems.forEach(function(it) {
+            var key = String(it.no || '').trim();
+            if (!key) return;
+            var img = it.image_main_url || it.mainImage || it.imageUrlMain || it.imageMain || it.image || '';
+            if (img && !imageByNo[key]) imageByNo[key] = img;
+          });
+          return rows.map(function(r) {
+            var priorityRaw = String(r.priority || '').toLowerCase();
+            var critical = priorityRaw === 'urgent' || priorityRaw === 'critical' ? 'Critical' : priorityRaw === 'high' ? 'High' : 'Medium';
+            var qty = Number(r.request_qty || 0) || 1;
+            var noKey = String(r.item_id || '').trim();
+            return {
+              id: 'REQ-' + (r.request_id || r.item_id || r.item_name),
+              request_id: r.request_id || '',
+              selected: true, no: r.item_id || '-', name: r.item_name || '-', model: r.model || '-', brand: r.brand || '-',
+              category: r.category || '-', line: canonicalLineName(r.line || currentLine), subLine: r.line || '-',
+              location: r.location || '-', unit: r.unit || 'PCS', stock: Number(r.stock || 0), min: Number(r.min || 0), max: Number(r.max || 0),
+              need: qty, suggestedQty: qty, recentUsage: 0, critical: critical, priority: critical,
+              reason: 'REQ', requestedBy: r.requested_by || '-', requestStatus: r.status || 'Pending',
+              unitPrice: Number(r.unit_price || 0), currency: r.currency || 'THB', supplier: r.supplier || '',
+              priceUpdatedAt: '', priceRemark: '', machineStation: '', purpose: r.purpose || r.remark || '',
+              mainImage: (noKey && imageByNo[noKey]) || '', drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
+              drawingRevision: '', drawing_revision: '', drawingStatus: '', drawing_status: '',
+              datasheetUrl: '', quotationUrl: ''
+            };
+          });
         });
       });
     }
