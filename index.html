@@ -8181,7 +8181,12 @@ function inferRequestPriority(stock, min) {
         }
 
         txnMessage.className = 'mt-3 text-sm text-emerald-600';
-        txnMessage.textContent = 'บันทึกสำเร็จ: Stock ' + res.stockBefore + ' → ' + res.stockAfter;
+        var phSync = res.purchaseHistorySync;
+        if (phSync && phSync.matched > 0) {
+          txnMessage.textContent = 'บันทึกสำเร็จ: Stock ' + res.stockBefore + ' → ' + res.stockAfter + ' • ✅ ตัดยอดคำสั่งซื้อค้างอยู่ ' + phSync.matched + ' รายการอัตโนมัติ' + (phSync.unmatched_qty > 0 ? ' (เหลือ ' + phSync.unmatched_qty + ' ' + (selected.unit || 'PCS') + ' ที่ไม่มี PO ค้างให้ตัด)' : '');
+        } else {
+          txnMessage.textContent = 'บันทึกสำเร็จ: Stock ' + res.stockBefore + ' → ' + res.stockAfter;
+        }
         if (payload.type === 'Input') purchaseHistoryLoaded = false;
         var preservedSearch = txnSearchInput.value;
         var preservedCategory = txnCategoryFilter.value;
