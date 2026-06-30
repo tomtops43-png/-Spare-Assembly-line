@@ -426,6 +426,11 @@ function appendPurchaseHistoryAudit(user, historyId, actionType, oldValue, newVa
 
 function buildPurchaseHistoryId(prefix) { return String(prefix || 'PH') + '-' + Utilities.getUuid(); }
 function normalizePurchaseHistoryKeyPart(value) { return String(value || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+// เทียบรุ่น/Part Number โดยตัดอักขระที่ไม่ใช่ตัวอักษร-ตัวเลขออก (กัน "-", ช่องว่าง, จุด ที่เพี้ยนจากการ import PDF)
+function normalizePurchaseHistoryModel(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9฀-๿]/g, ''); }
+function isMeaningfulPurchaseHistoryModel(value) { var m = normalizePurchaseHistoryModel(value); return m.length >= 3 && m !== 'na'; }
+// เทียบชื่อแบบไม่สนช่องว่าง (กันชื่อไทยที่ถูกแยกด้วยช่องว่างตอน import PDF)
+function normalizePurchaseHistoryName(value) { return String(value || '').trim().toLowerCase().replace(/\s+/g, ''); }
 
 function purchaseHistoryRowsMatch(row, payload) {
   var requestId = normalizePurchaseHistoryKeyPart(payload.request_id || payload.requestId);
@@ -808,13 +813,21 @@ function syncPurchaseHistoryOnReceive(payload, updatedBy) {
   var remaining = Number(payload.qty || 0);
   var partId = normalizePurchaseHistoryKeyPart(payload.partNo);
   var line = normalizePurchaseHistoryKeyPart(payload.process);
-  var model = normalizePurchaseHistoryKeyPart(payload.model);
+  var modelNorm = normalizePurchaseHistoryModel(payload.model);
+  var modelOk = isMeaningfulPurchaseHistoryModel(payload.model);
+  var nameNorm = normalizePurchaseHistoryName(payload.partName);
   var openStatuses = { 'Requested': true, 'PR Created': true, 'Ordered': true, 'Partial Received': true };
   var matched = 0;
   for (var i = 1; i < values.length && remaining > 0; i += 1) {
     var row = values[i];
     if (toBoolean(row[22], false) || !openStatuses[String(row[16] || '')]) continue;
-    var matches = (partId && normalizePurchaseHistoryKeyPart(row[6]) === partId) || (line && model && normalizePurchaseHistoryKeyPart(row[5]) === line && normalizePurchaseHistoryKeyPart(row[9]) === model);
+    // 1) part_id ตรงกัน = match ทันที (ไม่ต้องเช็ค line)
+    var partIdMatch = partId && normalizePurchaseHistoryKeyPart(row[6]) === partId;
+    // 2/3) จับคู่ด้วยรุ่น (เป็นหลัก) หรือชื่อ (fallback) แต่ต้องอยู่ Line เดียวกัน เพื่อกันหักยอดผิดไลน์
+    var lineMatch = !line || normalizePurchaseHistoryKeyPart(row[5]) === line;
+    var modelMatch = modelOk && isMeaningfulPurchaseHistoryModel(row[9]) && normalizePurchaseHistoryModel(row[9]) === modelNorm;
+    var nameMatch = nameNorm && normalizePurchaseHistoryName(row[7]) === nameNorm;
+    var matches = partIdMatch || (lineMatch && (modelMatch || nameMatch));
     if (!matches) continue;
     var orderedQty = Number(row[10] || 0), receivedBefore = Number(row[19] || 0), outstanding = Math.max(orderedQty - receivedBefore, 0);
     if (outstanding <= 0) continue;
