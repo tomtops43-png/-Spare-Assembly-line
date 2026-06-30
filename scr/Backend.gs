@@ -431,6 +431,8 @@ function normalizePurchaseHistoryModel(value) { return String(value || '').toLow
 function isMeaningfulPurchaseHistoryModel(value) { var m = normalizePurchaseHistoryModel(value); return m.length >= 3 && m !== 'na'; }
 // เทียบชื่อแบบไม่สนช่องว่าง (กันชื่อไทยที่ถูกแยกด้วยช่องว่างตอน import PDF)
 function normalizePurchaseHistoryName(value) { return String(value || '').trim().toLowerCase().replace(/\s+/g, ''); }
+// ยี่ห้อที่ "มีความหมาย" (ไม่ใช่ค่าว่าง/Unknown) ใช้เป็นตัวกันชื่อซ้ำต่างยี่ห้อ
+function isMeaningfulPurchaseHistoryBrand(value) { var b = normalizePurchaseHistoryName(value); return !!b && b !== '-' && b !== 'na' && b !== 'unknown' && b !== 'unknownbrand' && b !== 'nobrand'; }
 
 function purchaseHistoryRowsMatch(row, payload) {
   var requestId = normalizePurchaseHistoryKeyPart(payload.request_id || payload.requestId);
@@ -816,18 +818,31 @@ function syncPurchaseHistoryOnReceive(payload, updatedBy) {
   var modelNorm = normalizePurchaseHistoryModel(payload.model);
   var modelOk = isMeaningfulPurchaseHistoryModel(payload.model);
   var nameNorm = normalizePurchaseHistoryName(payload.partName);
+  var brandOk = isMeaningfulPurchaseHistoryBrand(payload.brand);
+  var brandNorm = normalizePurchaseHistoryName(payload.brand);
   var openStatuses = { 'Requested': true, 'PR Created': true, 'Ordered': true, 'Partial Received': true };
   var matched = 0;
   for (var i = 1; i < values.length && remaining > 0; i += 1) {
     var row = values[i];
     if (toBoolean(row[22], false) || !openStatuses[String(row[16] || '')]) continue;
+    // จับคู่โดยดึงทุกฟิลด์มาเทียบตามลำดับ: NO → รุ่น → ชื่อ (+ยี่ห้อกันชื่อซ้ำต่างยี่ห้อ)
+    var matches = false;
     // 1) part_id ตรงกัน = match ทันที (ไม่ต้องเช็ค line)
-    var partIdMatch = partId && normalizePurchaseHistoryKeyPart(row[6]) === partId;
-    // 2/3) จับคู่ด้วยรุ่น (เป็นหลัก) หรือชื่อ (fallback) แต่ต้องอยู่ Line เดียวกัน เพื่อกันหักยอดผิดไลน์
-    var lineMatch = !line || normalizePurchaseHistoryKeyPart(row[5]) === line;
-    var modelMatch = modelOk && isMeaningfulPurchaseHistoryModel(row[9]) && normalizePurchaseHistoryModel(row[9]) === modelNorm;
-    var nameMatch = nameNorm && normalizePurchaseHistoryName(row[7]) === nameNorm;
-    var matches = partIdMatch || (lineMatch && (modelMatch || nameMatch));
+    if (partId && normalizePurchaseHistoryKeyPart(row[6]) === partId) {
+      matches = true;
+    } else if (!line || normalizePurchaseHistoryKeyPart(row[5]) === line) {
+      // ต้องอยู่ Line เดียวกัน เพื่อกันหักยอดผิดไลน์
+      var rowModelOk = isMeaningfulPurchaseHistoryModel(row[9]);
+      if (modelOk && rowModelOk) {
+        // 2) ทั้งคู่มีรุ่น -> ตัดสินด้วยรุ่นเป็นหลัก (รุ่นต่างกัน = คนละตัว แม้ชื่อจะซ้ำ)
+        matches = normalizePurchaseHistoryModel(row[9]) === modelNorm;
+      } else if (nameNorm && normalizePurchaseHistoryName(row[7]) === nameNorm) {
+        // 3) ฝั่งใดไม่มีรุ่น (อะไหล่ที่ไม่มี Model/Brand) -> เทียบชื่อ
+        //    ถ้าทั้งคู่มียี่ห้อชัดเจนแต่คนละยี่ห้อ -> ถือว่าคนละตัว
+        var rowBrandOk = isMeaningfulPurchaseHistoryBrand(row[8]);
+        matches = !(brandOk && rowBrandOk && normalizePurchaseHistoryName(row[8]) !== brandNorm);
+      }
+    }
     if (!matches) continue;
     var orderedQty = Number(row[10] || 0), receivedBefore = Number(row[19] || 0), outstanding = Math.max(orderedQty - receivedBefore, 0);
     if (outstanding <= 0) continue;

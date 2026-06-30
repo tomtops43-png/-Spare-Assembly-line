@@ -6561,6 +6561,8 @@ function inferRequestPriority(stock, min) {
     // เทียบรุ่น/Part Number โดยตัดอักขระที่ไม่ใช่ตัวอักษร-ตัวเลขออก (กัน "-", ช่องว่าง, จุด)
     function normPhModel(v) { return String(v || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); }
     function isMeaningfulPhModel(v) { var m = normPhModel(v); return m.length >= 3 && m !== 'na'; }
+    function isMeaningfulPhBrand(v) { var b = normPhText(v); return !!b && b !== '-' && b !== 'na' && b !== 'unknown' && b !== 'unknownbrand' && b !== 'nobrand'; }
+    // จับคู่โดยดึงทุกฟิลด์มาเทียบตามลำดับความน่าเชื่อถือ: NO → รุ่น → ชื่อ (มียี่ห้อกันชื่อซ้ำต่างยี่ห้อ)
     function purchaseHistoryMatchesItem(history, item) {
       // 1) เลข NO / part_id ตรงกัน = match ทันที (แม่นที่สุด)
       var partId = String(item.no || item.part_id || '').trim();
@@ -6572,10 +6574,13 @@ function inferRequestPriority(stock, min) {
       if (itemModelOk && histModelOk) {
         return normPhModel(history.model) === normPhModel(item.model);
       }
-      // 3) ถ้าฝั่งใดไม่มีรุ่น ให้ fallback ไปเทียบชื่อแบบไม่สนช่องว่าง
+      // 3) ฝั่งใดไม่มีรุ่น (เช่นอะไหล่ที่ไม่มี Model/Brand) -> เทียบ "ชื่อ" แบบไม่สนช่องว่าง
       var itemName = normPhText(item.name || item.part_name);
       var histName = normPhText(history.part_name);
-      return !!itemName && itemName === histName;
+      if (!itemName || itemName !== histName) return false;
+      // ถ้าทั้งคู่มียี่ห้อชัดเจน แต่คนละยี่ห้อ -> ถือว่าคนละตัว (กันชื่อซ้ำต่างยี่ห้อ)
+      if (isMeaningfulPhBrand(item.brand) && isMeaningfulPhBrand(history.brand) && normPhText(item.brand) !== normPhText(history.brand)) return false;
+      return true;
     }
     function renderPartPurchaseHistory(item) {
       var rowsEl = document.getElementById('detailPurchaseHistoryRows');
