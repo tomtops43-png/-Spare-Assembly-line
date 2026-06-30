@@ -2413,6 +2413,7 @@
     var LOG_PAGE_SIZE = 15;
     var logCurrentPage = 1;
     var prCandidateState = [];
+    var prLastFilteredCandidates = [];
     var prLineTabState = "all";
     var prLineCollapsedState = {"H9": true, "Arc Chute": true, "Coil Winding": true, "Lug&Screw": true};
     var dashboardAllPartsData = [];
@@ -7389,6 +7390,36 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    function computePrSums(filtered) {
+      var sums={oos:0,bmin:0,critical:0,confirmed:0,tbc:0,total:filtered.length,selected:0,cost:0};
+      filtered.forEach(function(c){ var codes=String(c.reason||'').toUpperCase(); if(codes.indexOf('OOS')>-1) sums.oos++; if(codes.indexOf('BMIN')>-1) sums.bmin++; if(codes.indexOf('CRIT')>-1) sums.critical++; if(Number(c.unitPrice||0)>0) sums.confirmed++; else sums.tbc++; if(c.selected){sums.selected++; sums.cost += Number(c.suggestedQty||0)*Number(c.unitPrice||0);} });
+      return sums;
+    }
+    function getPrSummaryDefs(sums) {
+      return [['Out of Stock',sums.oos],['Below Min',sums.bmin],['Critical',sums.critical],['Confirmed Price',sums.confirmed],['TBC Price',sums.tbc],['Total Recommended',sums.total],['Selected Items',sums.selected],['Estimated Cost',sums.cost.toLocaleString()]];
+    }
+    function getPrCostSummaryText(sums) {
+      return 'Selected item count: '+sums.selected+' • Total estimated cost: '+sums.cost.toLocaleString()+' THB';
+    }
+    function lineAmountText(line, items) {
+      var selectedCount=items.filter(function(i){return i.selected;}).length;
+      var amount=items.filter(function(i){return i.selected && Number(i.unitPrice||0)>0;}).reduce(function(s,i){return s+Number(i.unitPrice||0)*Number(i.suggestedQty||0);},0);
+      var tbc=items.filter(function(i){return Number(i.unitPrice||0)<=0;}).length;
+      return line+' — '+items.length+' items | Selected '+selectedCount+' | Amount '+amount.toLocaleString()+' THB | TBC '+tbc;
+    }
+    function livePatchPrTotals(idx) {
+      var c = prCandidateState[idx];
+      if (!c) return;
+      var rowTotalEl = prCandidateList.querySelector('[data-pr-row-total="'+idx+'"]');
+      if (rowTotalEl) rowTotalEl.textContent = (Number(c.suggestedQty||0) * Number(c.unitPrice||0)).toLocaleString();
+      var sums = computePrSums(prLastFilteredCandidates);
+      var defs = getPrSummaryDefs(sums);
+      defs.forEach(function(x, i){ var el = document.getElementById('prSumVal'+i); if (el) el.textContent = x[1]; });
+      if (prCostSummary) prCostSummary.textContent = getPrCostSummaryText(sums);
+      var lineItems = prLastFilteredCandidates.filter(function(it){ return String(it.line||'-') === String(c.line||'-'); });
+      var lineBtn = prCandidateList.querySelector('[data-pr-line-header="'+c.line+'"]');
+      if (lineBtn && lineItems.length) lineBtn.textContent = lineAmountText(c.line, lineItems);
+    }
     function renderPrCandidates() {
       var searchEl = document.getElementById('prCandidateSearch');
       var criticalEl = document.getElementById('prCriticalFilter');
@@ -7411,10 +7442,10 @@ function inferRequestPriority(stock, min) {
         var hitSelected = !so || !!c.selected;
         return hitQ && hitLine && hitCritical && hitPrice && hitReason && hitSelected;
       });
-      var sums={oos:0,bmin:0,critical:0,confirmed:0,tbc:0,total:filtered.length,selected:0,cost:0};
-      filtered.forEach(function(c){ var codes=String(c.reason||'').toUpperCase(); if(codes.indexOf('OOS')>-1) sums.oos++; if(codes.indexOf('BMIN')>-1) sums.bmin++; if(codes.indexOf('CRIT')>-1) sums.critical++; if(Number(c.unitPrice||0)>0) sums.confirmed++; else sums.tbc++; if(c.selected){sums.selected++; sums.cost += Number(c.suggestedQty||0)*Number(c.unitPrice||0);} });
-      if(prSummaryCards) prSummaryCards.innerHTML=[['Out of Stock',sums.oos],['Below Min',sums.bmin],['Critical',sums.critical],['Confirmed Price',sums.confirmed],['TBC Price',sums.tbc],['Total Recommended',sums.total],['Selected Items',sums.selected],['Estimated Cost',sums.cost.toLocaleString()]].map(function(x){return '<div class="rounded-lg border border-slate-200 p-2 text-center"><p class="text-[11px] text-slate-500">'+x[0]+'</p><p class="text-lg font-bold">'+x[1]+'</p></div>';}).join('');
-      if(prCostSummary) prCostSummary.textContent='Selected item count: '+sums.selected+' • Total estimated cost: '+sums.cost.toLocaleString()+' THB';
+      prLastFilteredCandidates = filtered;
+      var sums=computePrSums(filtered);
+      if(prSummaryCards) prSummaryCards.innerHTML=getPrSummaryDefs(sums).map(function(x,i){return '<div class="rounded-lg border border-slate-200 p-2 text-center"><p class="text-[11px] text-slate-500">'+x[0]+'</p><p id="prSumVal'+i+'" class="text-lg font-bold">'+x[1]+'</p></div>';}).join('');
+      if(prCostSummary) prCostSummary.textContent=getPrCostSummaryText(sums);
       var lines=['H9','Arc Chute','Coil Winding','Lug&Screw'];
       var tabs = document.getElementById('prLineTabs'); if (tabs) tabs.innerHTML = ['all'].concat(lines).map(function(l){ var active=(prLineTabState===l); return '<button data-pr-line-tab="'+l+'" class="h-8 rounded border px-2 '+(active?'bg-blue-600 text-white border-blue-600':'bg-white border-slate-300')+'">'+(l==='all'?'All':l)+'</button>'; }).join('');
       var lineMap={}; filtered.forEach(function(c){ var ln=String(c.line||'-'); (lineMap[ln]=lineMap[ln]||[]).push(c); });
@@ -7449,7 +7480,7 @@ function inferRequestPriority(stock, min) {
                 + '<div><label class="block text-[10px] font-medium text-slate-400">จำนวนที่สั่ง</label><input data-pr-qty="'+idx+'" type="number" value="'+qtyVal+'" class="mt-0.5 h-8 w-full rounded-lg border border-slate-300 px-2 text-xs" /></div>'
                 + '<div><label class="block text-[10px] font-medium text-slate-400">Priority</label><input data-pr-critical="'+idx+'" value="'+c.critical+'" class="mt-0.5 h-8 w-full rounded-lg border border-slate-300 px-2 text-xs" /></div>'
                 + '<div><label class="block text-[10px] font-medium text-slate-400">ราคา/หน่วย</label><input data-pr-price="'+idx+'" type="number" value="'+priceVal+'" class="mt-0.5 h-8 w-full rounded-lg border border-slate-300 px-2 text-xs" /></div>'
-                + '<div><label class="block text-[10px] font-medium text-slate-400">รวม (THB)</label><p class="mt-0.5 flex h-8 items-center rounded-lg bg-slate-50 px-2 text-xs font-bold text-slate-700">'+total.toLocaleString()+'</p></div>'
+                + '<div><label class="block text-[10px] font-medium text-slate-400">รวม (THB)</label><p data-pr-row-total="'+idx+'" class="mt-0.5 flex h-8 items-center rounded-lg bg-slate-50 px-2 text-xs font-bold text-slate-700">'+total.toLocaleString()+'</p></div>'
               + '</div>'
               + '<details class="mt-2"><summary class="cursor-pointer text-xs font-semibold text-blue-700">⚙️ แก้ไขเพิ่มเติม</summary>'
                 + '<div class="mt-1.5 grid grid-cols-1 sm:grid-cols-3 gap-2">'
@@ -7468,7 +7499,7 @@ function inferRequestPriority(stock, min) {
         return m ? m[1] : 'Other';
       }
       var html='';
-      lines.forEach(function(line){ var items=lineMap[line]||[]; if(!items.length) return; var selectedCount=items.filter(function(i){return i.selected;}).length; var amount=items.filter(function(i){return i.selected && Number(i.unitPrice||0)>0;}).reduce(function(s,i){return s+Number(i.unitPrice||0)*Number(i.suggestedQty||0);},0); var tbc=items.filter(function(i){return Number(i.unitPrice||0)<=0;}).length; var collapsed=!!prLineCollapsedState[line]; html += '<section class="rounded-lg border border-slate-200"><div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2"><button data-pr-toggle-line="'+line+'" class="font-semibold text-left">'+line+' — '+items.length+' items | Selected '+selectedCount+' | Amount '+amount.toLocaleString()+' THB | TBC '+tbc+'</button><div class="flex gap-1"><button data-pr-select-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Select all</button><button data-pr-unselect-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Unselect all</button><button data-pr-toggle-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">'+(collapsed?'Expand':'Collapse')+'</button></div></div>'; if(!collapsed){ if(line === 'Coil Winding'){ var groupOrder=['10A','16A','20A','32A','Other']; var gmap={}; items.forEach(function(it){ var g=detectCoilGroup(it); (gmap[g]=gmap[g]||[]).push(it); }); html += '<div class="space-y-2 p-2">'+groupOrder.map(function(g){ var arr=gmap[g]||[]; if(!arr.length) return ''; return '<div class="rounded border border-slate-200"><div class="bg-slate-100 px-2 py-1 text-xs font-semibold">Model Group: '+g+' ('+arr.length+' items)</div><div class="space-y-2 bg-slate-50 p-2">'+arr.map(renderItemCard).join('')+'</div></div>'; }).join('')+'</div>'; } else { html += '<div class="space-y-2 bg-slate-50 p-2">'+items.map(renderItemCard).join('')+'</div>'; } } html += '</section>'; });
+      lines.forEach(function(line){ var items=lineMap[line]||[]; if(!items.length) return; var collapsed=!!prLineCollapsedState[line]; html += '<section class="rounded-lg border border-slate-200"><div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2"><button data-pr-toggle-line="'+line+'" data-pr-line-header="'+line+'" class="font-semibold text-left">'+escHtml(lineAmountText(line, items))+'</button><div class="flex gap-1"><button data-pr-select-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Select all</button><button data-pr-unselect-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Unselect all</button><button data-pr-toggle-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">'+(collapsed?'Expand':'Collapse')+'</button></div></div>'; if(!collapsed){ if(line === 'Coil Winding'){ var groupOrder=['10A','16A','20A','32A','Other']; var gmap={}; items.forEach(function(it){ var g=detectCoilGroup(it); (gmap[g]=gmap[g]||[]).push(it); }); html += '<div class="space-y-2 p-2">'+groupOrder.map(function(g){ var arr=gmap[g]||[]; if(!arr.length) return ''; return '<div class="rounded border border-slate-200"><div class="bg-slate-100 px-2 py-1 text-xs font-semibold">Model Group: '+g+' ('+arr.length+' items)</div><div class="space-y-2 bg-slate-50 p-2">'+arr.map(renderItemCard).join('')+'</div></div>'; }).join('')+'</div>'; } else { html += '<div class="space-y-2 bg-slate-50 p-2">'+items.map(renderItemCard).join('')+'</div>'; } } html += '</section>'; });
       prCandidateList.innerHTML = html;
       setTimeout(function(){ var n = document.getElementById('prCandidateToolbar'); if(n) n.scrollIntoView({behavior:'smooth',block:'start'}); }, 60);
     }
@@ -10266,6 +10297,7 @@ if (dashboardPage) {
       if (e.target.dataset.prMachine !== undefined) c.machineStation = e.target.value;
       if (e.target.dataset.prPurpose !== undefined) c.purpose = e.target.value;
       if (e.target.dataset.prPriority !== undefined) c.priority = e.target.value;
+      if (e.target.dataset.prQty !== undefined || e.target.dataset.prPrice !== undefined || e.target.dataset.prSelect !== undefined) livePatchPrTotals(idx);
     });
     function getPrReportOptions(allSelectedMode) {
       return {
