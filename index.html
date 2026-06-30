@@ -8470,8 +8470,6 @@ function inferRequestPriority(stock, min) {
 
     function submitEditModal(event) {
       event.preventDefault();
-      showConfirmDialog({ title: 'ยืนยันการแก้ไข', message: 'ยืนยันการบันทึกการแก้ไขรายการนี้?', okLabel: 'บันทึก' }).then(function(ok) {
-        if (!ok) return;
       var itemNo = document.getElementById('eNo').value.trim();
       var editSheetName = document.getElementById('eSheet').value.trim() || getCurrentSheetName();
       var oldItem = partsData.filter(function(p){
@@ -8547,7 +8545,6 @@ function inferRequestPriority(stock, min) {
           });
         }
       });
-      }); // end showConfirmDialog
     }
 
     function deleteEditModalItem() {
