@@ -7403,10 +7403,14 @@ function inferRequestPriority(stock, min) {
         var critKey = String(c.critical||'').toLowerCase();
         var critBadgeClass = PR_CRITICAL_BADGE[critKey] || 'bg-slate-100 text-slate-600';
         var pendingHtml = c.pendingOrder ? '<div class="mb-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800"><span class="text-base leading-none">⚠️</span><span>มีคำสั่งซื้อค้างอยู่ <b>'+Number(c.pendingOrder.qty||0).toLocaleString('th-TH')+'</b> ชิ้น (สถานะ: '+escHtml(c.pendingOrder.status||'-')+(c.pendingOrder.date ? ' • สั่งเมื่อ '+escHtml(String(c.pendingOrder.date).slice(0,10)) : '')+') — ตรวจสอบก่อนสั่งซ้ำ</span></div>' : '';
+        var thumbSrc = getSecondaryDriveImageUrl(c.mainImage, 200) || toSafeImageUrl(c.mainImage);
+        var thumbFallback = getSecondaryDriveImageUrl(c.mainImage, 200) ? toSafeImageUrl(c.mainImage) : '';
+        var thumbHtml = '<img loading="lazy" src="'+thumbSrc+'" data-fallback-src="'+(thumbFallback||'')+'" alt="'+escHtml(c.name||'')+'" class="h-14 w-14 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1 cursor-zoom-in" data-pr-zoom="'+idx+'" onerror="if(this.dataset.fallbackSrc){var n=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=n;}else{this.src=\''+FALLBACK_IMAGE+'\';}" />';
         return '<div class="rounded-xl border '+(c.pendingOrder?'border-amber-300 bg-amber-50/20':'border-slate-200 bg-white')+' p-3 text-sm shadow-sm">'
           + pendingHtml
           + '<div class="flex items-start gap-2.5">'
             + '<input data-pr-select="'+idx+'" type="checkbox" class="mt-1 h-4 w-4 shrink-0" '+(c.selected?'checked':'')+' />'
+            + thumbHtml
             + '<div class="min-w-0 flex-1">'
               + '<div class="flex flex-wrap items-center justify-between gap-1.5">'
                 + '<p class="font-semibold text-slate-800">'+c.name+'</p>'
@@ -10203,7 +10207,7 @@ if (dashboardPage) {
     });
     ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
     var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; if(line !== 'all') prLineCollapsedState[line] = false; renderPrCandidates(); });
-    if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } });
+    if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } var zi=t.getAttribute('data-pr-zoom'); if(zi!==null){ var item=prCandidateState[Number(zi)]; if(item) openImageViewer(toSafeImageUrl(item.mainImage)); return; } });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
     if (prPeriodEl) { if (!prPeriodEl.value) { var now=new Date(); prPeriodEl.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'); } syncPrPeriodToDates(); prPeriodEl.addEventListener('change', syncPrPeriodToDates); }
