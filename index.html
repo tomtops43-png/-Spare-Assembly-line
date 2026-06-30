@@ -6555,14 +6555,34 @@ function inferRequestPriority(stock, min) {
       purchaseHistoryEditModal.classList.add('hidden'); purchaseHistoryEditModal.classList.remove('flex');
     }
 
+    // ── การจับคู่ประวัติการสั่งซื้อกับอะไหล่ (ใช้ร่วมกันทั้งหน้า PR และ Detail) ──
+    // เทียบแบบไม่สนช่องว่าง (กันชื่อไทยที่เพี้ยนจากการ import PDF)
+    function normPhText(v) { return String(v || '').trim().toLowerCase().replace(/\s+/g, ''); }
+    // เทียบรุ่น/Part Number โดยตัดอักขระที่ไม่ใช่ตัวอักษร-ตัวเลขออก (กัน "-", ช่องว่าง, จุด)
+    function normPhModel(v) { return String(v || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); }
+    function isMeaningfulPhModel(v) { var m = normPhModel(v); return m.length >= 3 && m !== 'na'; }
+    function purchaseHistoryMatchesItem(history, item) {
+      // 1) เลข NO / part_id ตรงกัน = match ทันที (แม่นที่สุด)
+      var partId = String(item.no || item.part_id || '').trim();
+      if (partId && String(history.part_id || '').trim() === partId) return true;
+      // 2) ถ้าทั้งสองฝั่งมีรุ่น/Part Number ที่ใช้งานได้ ให้ตัดสินด้วยรุ่นเป็นหลัก
+      //    (รุ่นเดียวกัน = match, รุ่นต่างกัน = ไม่ match — กันชื่อซ้ำข้ามรุ่น เช่น Air Cylinder คนละรุ่น)
+      var itemModelOk = isMeaningfulPhModel(item.model);
+      var histModelOk = isMeaningfulPhModel(history.model);
+      if (itemModelOk && histModelOk) {
+        return normPhModel(history.model) === normPhModel(item.model);
+      }
+      // 3) ถ้าฝั่งใดไม่มีรุ่น ให้ fallback ไปเทียบชื่อแบบไม่สนช่องว่าง
+      var itemName = normPhText(item.name || item.part_name);
+      var histName = normPhText(history.part_name);
+      return !!itemName && itemName === histName;
+    }
     function renderPartPurchaseHistory(item) {
       var rowsEl = document.getElementById('detailPurchaseHistoryRows');
       var summaryEl = document.getElementById('detailPurchaseHistorySummary');
       if (!rowsEl || !item) return;
-      var partId = String(item.no || item.part_id || '').trim(), partName = String(item.name || '').trim().toLowerCase(), model = String(item.model || '').trim().toLowerCase();
       var matched = purchaseHistoryCache.filter(function(history) {
-        if (partId && String(history.part_id || '').trim() === partId) return true;
-        return partName && String(history.part_name || '').trim().toLowerCase() === partName && (!model || String(history.model || '').trim().toLowerCase() === model);
+        return purchaseHistoryMatchesItem(history, item);
       });
       rowsEl.innerHTML = matched.length ? matched.slice(0, 10).map(function(history) {
         return '<tr class="border-t border-emerald-50"><td class="px-3 py-2">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(history.date)) + '</td><td class="px-3 py-2 text-right font-semibold">' + Number(history.qty_ordered || 0).toLocaleString('th-TH') + '</td><td class="px-3 py-2">' + purchaseHistoryStatusBadge(history.status) + '</td><td class="px-3 py-2">' + escapePurchaseHistoryText(history.requested_by || '-') + '</td><td class="px-3 py-2 whitespace-nowrap">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(history.updated_at)) + '</td></tr>';
@@ -7312,14 +7332,10 @@ function inferRequestPriority(stock, min) {
 
     var PR_PENDING_STATUSES = ['requested', 'pr created', 'ordered', 'partial received'];
     function findPendingPurchaseForItem(item) {
-      var partId = String(item.no || '').trim();
-      var partName = String(item.name || '').trim().toLowerCase();
-      var model = String(item.model || '').trim().toLowerCase();
       var matches = (purchaseHistoryCache || []).filter(function(h) {
         var statusOk = PR_PENDING_STATUSES.indexOf(String(h.status || '').trim().toLowerCase()) > -1;
         if (!statusOk) return false;
-        if (partId && String(h.part_id || '').trim() === partId) return true;
-        return partName && String(h.part_name || '').trim().toLowerCase() === partName && (!model || String(h.model || '').trim().toLowerCase() === model);
+        return purchaseHistoryMatchesItem(h, item);
       });
       if (!matches.length) return null;
       matches.sort(function(a, b) { return new Date(b.date || b.updated_at || 0) - new Date(a.date || a.updated_at || 0); });
