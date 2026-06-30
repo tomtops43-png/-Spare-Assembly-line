@@ -6562,15 +6562,17 @@ function inferRequestPriority(stock, min) {
     function normPhModel(v) { return String(v || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, ''); }
     function isMeaningfulPhModel(v) { var m = normPhModel(v); return m.length >= 3 && m !== 'na'; }
     function isMeaningfulPhBrand(v) { var b = normPhText(v); return !!b && b !== '-' && b !== 'na' && b !== 'unknown' && b !== 'unknownbrand' && b !== 'nobrand'; }
-    // จับคู่โดยดึงทุกฟิลด์มาเทียบตามลำดับความน่าเชื่อถือ: NO+Line → รุ่น → ชื่อ (มียี่ห้อกันชื่อซ้ำต่างยี่ห้อ)
+    // จับคู่โดยดึงทุกฟิลด์มาเทียบตามลำดับความน่าเชื่อถือ: NO → รุ่น → ชื่อ (มียี่ห้อกันชื่อซ้ำต่างยี่ห้อ)
+    // ทุกเส้นทางต้องอยู่ Line เดียวกันเสมอ — อะไหล่ของแต่ละ Line นับสต็อก/สั่งซื้อแยกกัน
+    // แม้จะเป็นรุ่น/ชื่อเดียวกัน ก็ห้ามเอา PR ของ Line อื่นมารวมเตือนกับ Line นี้
     function purchaseHistoryMatchesItem(history, item) {
-      // 1) เลข NO / part_id ตรงกัน = match ทันที — แต่เลข NO เป็นแค่ลำดับในแต่ละ Sheet/Line เท่านั้น
-      //    ไม่ unique ทั้งระบบ (Line อื่นอาจมีเลข NO ซ้ำกัน) จึงต้องเช็ค Line ประกอบด้วยเสมอ
-      //    ถ้าฝั่งใดฝั่งหนึ่งไม่ระบุ Line ไว้ ให้ถือว่าเสี่ยงเกินไป ข้ามไปเทียบรุ่น/ชื่อต่อแทน
-      var partId = String(item.no || item.part_id || '').trim();
       var itemLine = normPhText(item.line);
       var histLine = normPhText(history.line);
-      if (partId && String(history.part_id || '').trim() === partId && itemLine && histLine && itemLine === histLine) return true;
+      // ถ้าทั้งสองฝั่งระบุ Line ไว้และไม่ตรงกัน -> ถือว่าคนละตัวทันที ไม่ต้องเทียบฟิลด์อื่นต่อ
+      if (itemLine && histLine && itemLine !== histLine) return false;
+      // 1) เลข NO / part_id ตรงกัน = match ทันที (แม่นที่สุด เมื่ออยู่ Line เดียวกันแล้ว)
+      var partId = String(item.no || item.part_id || '').trim();
+      if (partId && String(history.part_id || '').trim() === partId) return true;
       // 2) ถ้าทั้งสองฝั่งมีรุ่น/Part Number ที่ใช้งานได้ ให้ตัดสินด้วยรุ่นเป็นหลัก
       //    (รุ่นเดียวกัน = match, รุ่นต่างกัน = ไม่ match — กันชื่อซ้ำข้ามรุ่น เช่น Air Cylinder คนละรุ่น)
       var itemModelOk = isMeaningfulPhModel(item.model);
