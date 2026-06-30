@@ -519,9 +519,9 @@
             </label>
             <p id="roAttachmentInfo" class="text-[11px] text-slate-400">ยังไม่ได้แนบรูป</p>
             <img id="roAttachmentPreview" class="hidden h-20 w-20 rounded-xl border object-cover" />
-            <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-              ส่งคำขอซื้อ
+            <button id="roSubmitBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition disabled:opacity-70 disabled:cursor-not-allowed">
+              <svg id="roSubmitIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              <span id="roSubmitLabel">ส่งคำขอซื้อ</span>
             </button>
           </form>
         </div>
@@ -11060,11 +11060,11 @@ if (dashboardPage) {
     if (requestOrderFormEl) requestOrderFormEl.addEventListener('submit', function(e){
       e.preventDefault();
       var isNewItemMode = !!(roRequestType && roRequestType.value === 'new');
-      if (!isNewItemMode && !roSelectedItem) return alert('กรุณาเลือกอะไหล่จากรายการก่อน');
+      if (!isNewItemMode && !roSelectedItem) { showQuickToast('กรุณาเลือกอะไหล่จากรายการก่อน', 'warn'); return; }
       var qty = Number(document.getElementById('roQty').value || 0);
-      if (!qty || qty <= 0) return alert('จำนวนที่ต้องการต้องมากกว่า 0');
+      if (!qty || qty <= 0) { showQuickToast('จำนวนที่ต้องการต้องมากกว่า 0', 'warn'); return; }
       var reason = roReasonPreset && roReasonPreset.value === 'อื่นๆ' ? String((roReasonOther && roReasonOther.value) || '').trim() : (roReasonPreset ? roReasonPreset.value : '');
-      if (!reason) return alert('กรุณาระบุเหตุผล');
+      if (!reason) { showQuickToast('กรุณาระบุเหตุผล', 'warn'); return; }
       var payload = withAuthPayload({
         action: 'createOrderRequest',
         item_id: isNewItemMode ? '' : roSelectedItem.no,
@@ -11085,8 +11085,18 @@ if (dashboardPage) {
         remark: document.getElementById('roRemark').value,
         attachment_url: ''
       });
-      var submitBtn = requestOrderFormEl.querySelector('button[type="submit"], button');
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'กำลังส่ง...'; }
+      var submitBtn = document.getElementById('roSubmitBtn');
+      var submitIcon = document.getElementById('roSubmitIcon');
+      var submitLabel = document.getElementById('roSubmitLabel');
+      var submitIconOriginal = submitIcon ? submitIcon.outerHTML : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('bg-blue-400', 'hover:bg-blue-400');
+        submitBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        if (submitIcon) submitIcon.outerHTML = '<svg id="roSubmitIcon" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
+        if (submitLabel) submitLabel.textContent = 'กำลังส่งคำขอ...';
+      }
+      showQuickToast('⏳ กำลังบันทึกคำขอซื้อ...', 'info');
       var submitPromise = Promise.resolve().then(function() {
         if (!roAttachmentDataUrl) return null;
         return uploadRequestAttachmentData(
@@ -11103,22 +11113,30 @@ if (dashboardPage) {
       });
       submitPromise.then(function(res){
         if (res && res.status === 'error') throw new Error(res.message || 'ส่งคำขอไม่สำเร็จ');
-        if (res && res.purchase_history_recorded === false) alert('ส่งคำขอซื้อเรียบร้อย แต่บันทึก Purchase History ไม่สำเร็จ กรุณาแจ้งผู้ดูแลระบบ');
-        else alert('ส่งคำขอซื้อเรียบร้อย • Status: รอการอนุมัติ');
+        if (res && res.purchase_history_recorded === false) showQuickToast('ส่งคำขอซื้อเรียบร้อย แต่บันทึก Purchase History ไม่สำเร็จ กรุณาแจ้งผู้ดูแลระบบ', 'warn');
+        else showQuickToast('ส่งคำขอซื้อเรียบร้อย • Status: รอการอนุมัติ', 'success');
         e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests(); refreshRequestOrderBadgeCount();
       }).catch(function(err) {
         var rawMessage = err && err.message ? err.message : String(err || '');
         if (/load failed/i.test(rawMessage)) {
-          alert('ส่งคำขอไม่สำเร็จ: การเชื่อมต่อกับ Apps Script ถูกบล็อก (Load failed) กรุณา Deploy เว็บแอปล่าสุดและตรวจสอบสิทธิ์การเข้าถึง');
+          showQuickToast('ส่งคำขอไม่สำเร็จ: การเชื่อมต่อกับ Apps Script ถูกบล็อก (Load failed) กรุณา Deploy เว็บแอปล่าสุดและตรวจสอบสิทธิ์การเข้าถึง', 'error');
           return;
         }
         if (/JSONP/i.test(rawMessage)) {
-          alert('ส่งคำขอไม่สำเร็จ: ขนาดข้อมูลรูปภาพอาจใหญ่เกินไปหรือเครือข่ายไม่เสถียร กรุณาลองรูปที่เล็กลงแล้วส่งใหม่');
+          showQuickToast('ส่งคำขอไม่สำเร็จ: ขนาดข้อมูลรูปภาพอาจใหญ่เกินไปหรือเครือข่ายไม่เสถียร กรุณาลองรูปที่เล็กลงแล้วส่งใหม่', 'error');
         } else {
-          alert('ส่งคำขอไม่สำเร็จ: ' + rawMessage);
+          showQuickToast('ส่งคำขอไม่สำเร็จ: ' + rawMessage, 'error');
         }
       }).finally(function() {
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'ส่งคำขอซื้อ'; }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('bg-blue-400', 'hover:bg-blue-400');
+          submitBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+          var icon = document.getElementById('roSubmitIcon');
+          if (icon && submitIconOriginal) icon.outerHTML = submitIconOriginal;
+          var label = document.getElementById('roSubmitLabel');
+          if (label) label.textContent = 'ส่งคำขอซื้อ';
+        }
       });
     });
     var roRefreshBtn = document.getElementById('roRefreshBtn');
