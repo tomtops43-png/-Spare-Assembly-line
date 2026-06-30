@@ -7380,7 +7380,7 @@ function inferRequestPriority(stock, min) {
         var need = Number(i.needToOrder || i.need_to_order || Math.max((max || min) - stock, 0));
         var reasons = [];
         if (includeOut && stock <= 0) reasons.push('OOS');
-        if (includeBelow && stock <= min) reasons.push('BMIN');
+        if (includeBelow && stock < min) reasons.push('BMIN');
         var recentUsage = Number(usage[String(i.no || '')] || 0);
         var usageThreshold = Math.max(5, min);
         var usageTier = recentUsage <= 0 ? 'none' : (recentUsage >= usageThreshold ? 'frequent' : 'occasional');
@@ -7393,14 +7393,14 @@ function inferRequestPriority(stock, min) {
           var isToolFamily = /(tool|maintenance|support|fixture|equipment)/.test(String(i.category || '').toLowerCase());
           if (criticalFlag.indexOf('critical') > -1 || criticalFlag === 'y' || criticalFlag === 'yes' || criticalFlag === 'true') critical = 'Critical';
           else if (stock <= 0) critical = isToolFamily ? 'High' : 'Critical';
-          else if (stock <= min) critical = isToolFamily ? 'Medium' : 'High';
+          else if (stock < min) critical = isToolFamily ? 'Medium' : 'High';
           else if (need > 0) critical = isToolFamily ? 'Low' : 'Medium';
           else critical = 'Low';
         }
         if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons));
+        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons));
         var pendingOrder = findPendingPurchaseForItem(i);
         if (pendingOrder) reasons.push('PENDING');
         return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', unit: i.unit || '', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, usageTier: usageTier, critical: critical, priority: priority, reason: reasons.join(', '), pendingOrder: pendingOrder, unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
