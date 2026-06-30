@@ -1333,6 +1333,7 @@
               <option value="BMIN">ต่ำกว่า Min</option>
               <option value="REP">ใช้บ่อย</option>
               <option value="CRIT">Critical</option>
+              <option value="PENDING">⚠️ มีคำสั่งซื้อค้างอยู่</option>
             </select>
             <label class="flex h-9 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm cursor-pointer">
               <input id="prSelectedOnly" type="checkbox" class="h-4 w-4" /> เฉพาะที่เลือก
@@ -7242,6 +7243,22 @@ function inferRequestPriority(stock, min) {
       }
     }
 
+    var PR_PENDING_STATUSES = ['requested', 'pr created', 'ordered', 'partial received'];
+    function findPendingPurchaseForItem(item) {
+      var partId = String(item.no || '').trim();
+      var partName = String(item.name || '').trim().toLowerCase();
+      var model = String(item.model || '').trim().toLowerCase();
+      var matches = (purchaseHistoryCache || []).filter(function(h) {
+        var statusOk = PR_PENDING_STATUSES.indexOf(String(h.status || '').trim().toLowerCase()) > -1;
+        if (!statusOk) return false;
+        if (partId && String(h.part_id || '').trim() === partId) return true;
+        return partName && String(h.part_name || '').trim().toLowerCase() === partName && (!model || String(h.model || '').trim().toLowerCase() === model);
+      });
+      if (!matches.length) return null;
+      matches.sort(function(a, b) { return new Date(b.date || b.updated_at || 0) - new Date(a.date || a.updated_at || 0); });
+      var totalQty = matches.reduce(function(s, h) { return s + Number(h.qty_ordered || 0); }, 0);
+      return { qty: totalQty, status: matches[0].status || '-', date: matches[0].date || matches[0].updated_at || '' };
+    }
     function runPrCandidateSelection() {
       var mode = prMode ? String(prMode.value || 'assembly_monthly') : 'assembly_monthly';
       var lineFilterValue = prLineFilter ? String(prLineFilter.value || 'all') : 'all';
@@ -7253,7 +7270,8 @@ function inferRequestPriority(stock, min) {
       var criticalOnly = document.getElementById('prCriticalOnly').checked;
       var usage = buildUsageMap(fromDate, toDate);
       setPrGenerationLoading(true, 'Loading and evaluating PR candidates...');
-      loadPrSourceItems(mode, lineFilterValue).then(function(sourceItems) {
+      Promise.all([loadPrSourceItems(mode, lineFilterValue), loadPurchaseHistory(false).catch(function(){ return purchaseHistoryCache || []; })]).then(function(results) {
+      var sourceItems = results[0];
       prCandidateState = sourceItems.map(function(i) {
         var stock = Number(i.stock || 0), min = Number(i.min || 0), max = Number(i.max || 0);
         var need = Number(i.needToOrder || i.need_to_order || Math.max((max || min) - stock, 0));
@@ -7276,7 +7294,10 @@ function inferRequestPriority(stock, min) {
         if (mode === 'urgent' && !(stock <= 0 || critical.toLowerCase().indexOf('critical') > -1 || critical.toLowerCase().indexOf('high') > -1)) return null;
         if (criticalOnly && ['high', 'critical'].indexOf(critical.toLowerCase()) === -1) return null;
         if (!reasons.length) return null;
-        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons)); return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', unit: i.unit || '', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
+        var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons));
+        var pendingOrder = findPendingPurchaseForItem(i);
+        if (pendingOrder) reasons.push('PENDING');
+        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', unit: i.unit || '', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), pendingOrder: pendingOrder, unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
       }).filter(Boolean);
       prHistoryBatchId = 'AUTOPR-' + Date.now();
       renderPrCandidates();
@@ -7318,7 +7339,8 @@ function inferRequestPriority(stock, min) {
       var lineMap={}; filtered.forEach(function(c){ var ln=String(c.line||'-'); (lineMap[ln]=lineMap[ln]||[]).push(c); });
       function renderItemCard(c){
         var idx=prCandidateState.indexOf(c); var qtyVal = Number(c.suggestedQty); if(!Number.isFinite(qtyVal)) qtyVal = 1; var priceVal = Number(c.unitPrice); if(!Number.isFinite(priceVal)) priceVal = 0; var total=qtyVal*priceVal;
-        return '<label class="block rounded border border-slate-200 p-2 text-xs"><div class="grid grid-cols-1 md:grid-cols-10 gap-1 items-center"><input data-pr-select="'+idx+'" type="checkbox" '+(c.selected?'checked':'')+' /><div class="md:col-span-3 font-semibold">'+c.name+'</div><div class="md:col-span-2 text-slate-500">'+(c.brand||'-')+' / '+(c.model||'-')+'</div><div>'+c.line+'</div><div>Stock/Min '+c.stock+'/'+c.min+'</div><input data-pr-qty="'+idx+'" type="number" value="'+qtyVal+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-critical="'+idx+'" value="'+c.critical+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-price="'+idx+'" type="number" value="'+priceVal+'" class="h-7 rounded border border-slate-300 px-1" /><div>Total '+total.toLocaleString()+'</div><div>'+String(c.reason||'').replace(/,/g,' / ')+'</div></div><details class="mt-1"><summary class="cursor-pointer text-blue-700">Edit advanced</summary><div class="mt-1 grid grid-cols-1 md:grid-cols-3 gap-1"><input data-pr-machine="'+idx+'" value="'+(c.machineStation||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Machine/Station" /><input data-pr-purpose="'+idx+'" value="'+(c.purpose||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Reason/Purpose" /><input data-pr-priority="'+idx+'" value="'+(c.priority||'Medium')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Priority" /></div></details></label>';
+        var pendingHtml = c.pendingOrder ? '<div class="md:col-span-10 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-amber-800">⚠️ มีคำสั่งซื้อค้างอยู่ ' + Number(c.pendingOrder.qty||0).toLocaleString('th-TH') + ' ชิ้น (สถานะ: ' + escHtml(c.pendingOrder.status||'-') + (c.pendingOrder.date ? ' • สั่งเมื่อ ' + escHtml(String(c.pendingOrder.date).slice(0,10)) : '') + ') — ตรวจสอบก่อนสั่งซ้ำ</div>' : '';
+        return '<label class="block rounded border '+(c.pendingOrder?'border-amber-300 bg-amber-50/30':'border-slate-200')+' p-2 text-xs"><div class="grid grid-cols-1 md:grid-cols-10 gap-1 items-center">'+pendingHtml+'<input data-pr-select="'+idx+'" type="checkbox" '+(c.selected?'checked':'')+' /><div class="md:col-span-3 font-semibold">'+c.name+'</div><div class="md:col-span-2 text-slate-500">'+(c.brand||'-')+' / '+(c.model||'-')+'</div><div>'+c.line+'</div><div>Stock/Min '+c.stock+'/'+c.min+'</div><input data-pr-qty="'+idx+'" type="number" value="'+qtyVal+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-critical="'+idx+'" value="'+c.critical+'" class="h-7 rounded border border-slate-300 px-1" /><input data-pr-price="'+idx+'" type="number" value="'+priceVal+'" class="h-7 rounded border border-slate-300 px-1" /><div>Total '+total.toLocaleString()+'</div><div>'+String(c.reason||'').replace(/,/g,' / ')+'</div></div><details class="mt-1"><summary class="cursor-pointer text-blue-700">Edit advanced</summary><div class="mt-1 grid grid-cols-1 md:grid-cols-3 gap-1"><input data-pr-machine="'+idx+'" value="'+(c.machineStation||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Machine/Station" /><input data-pr-purpose="'+idx+'" value="'+(c.purpose||'')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Reason/Purpose" /><input data-pr-priority="'+idx+'" value="'+(c.priority||'Medium')+'" class="h-7 rounded border border-slate-300 px-1" placeholder="Priority" /></div></details></label>';
       }
       function detectCoilGroup(c){
         var txt = String(c.model || c.name || '').toUpperCase();
