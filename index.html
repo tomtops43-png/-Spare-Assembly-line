@@ -10662,7 +10662,26 @@ if (dashboardPage) {
         return html;
       }
 
-      var annexCHtml = includeAnnexC ? ('<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table"><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (annexItems.some(function(x){ return String(x.line || '') === 'Coil Winding'; }) ? annexRowsByModelGroup(annexItems, true) : annexRows(annexItems, true)) + '</tbody></table>') : '';
+      function annexRowsByLine(items) {
+        if (!items.length) return annexRows(items, true);
+        var lineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+        var grouped = {};
+        items.forEach(function(it){ var ln = String(it.line || '-').trim() || '-'; (grouped[ln] = grouped[ln] || []).push(it); });
+        var orderedKeys = Object.keys(grouped).sort(function(a, b){
+          var ia = lineOrder.indexOf(a), ib = lineOrder.indexOf(b);
+          if (ia !== -1 || ib !== -1) { if (ia === -1) return 1; if (ib === -1) return -1; return ia - ib; }
+          return a.localeCompare(b);
+        });
+        var html = '';
+        orderedKeys.forEach(function(ln){
+          var arr = grouped[ln] || [];
+          if (!arr.length) return;
+          html += '<tr><td colspan="8" style="background:#e2e8f0;font-weight:800">Line: '+esc(ln)+' ('+arr.length+' items)</td></tr>';
+          html += ln === 'Coil Winding' ? annexRowsByModelGroup(arr, true) : annexRows(arr, true);
+        });
+        return html || annexRows(items, true);
+      }
+      var annexCHtml = includeAnnexC ? ('<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table"><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (isLineSpecific ? annexRows(annexItems, true) : annexRowsByLine(annexItems)) + '</tbody></table>') : '';
       var annexDNumber = (isLineSpecific ? (includeAnnexC ? '10' : '9') : (includeAnnexC ? '9' : '8'));
       var annexDHtml = includeAnnexD ? ('<h2 class="section-table">' + annexDNumber + '. Annex D: Drawing Reference List</h2><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Drawing Status</th><th>Drawing Revision</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + annexDrawingRows(normalized) + '</tbody></table>') : '';
       var separateDrawingHtml = attachDrawingsSeparately ? ('<h2 class="section-table">Drawing Files to Attach Separately</h2><p class="sub">Use these source links to attach drawing files outside the main PR PDF package.</p><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + drawingAttachmentRows(normalized) + '</tbody></table>') : '';
