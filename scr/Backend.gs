@@ -825,12 +825,14 @@ function syncPurchaseHistoryOnReceive(payload, updatedBy) {
   for (var i = 1; i < values.length && remaining > 0; i += 1) {
     var row = values[i];
     if (toBoolean(row[22], false) || !openStatuses[String(row[16] || '')]) continue;
-    // จับคู่โดยดึงทุกฟิลด์มาเทียบตามลำดับ: NO → รุ่น → ชื่อ (+ยี่ห้อกันชื่อซ้ำต่างยี่ห้อ)
+    // จับคู่โดยดึงทุกฟิลด์มาเทียบตามลำดับ: NO+Line → รุ่น → ชื่อ (+ยี่ห้อกันชื่อซ้ำต่างยี่ห้อ)
     var matches = false;
-    // 1) part_id ตรงกัน = match ทันที (ไม่ต้องเช็ค line)
-    if (partId && normalizePurchaseHistoryKeyPart(row[6]) === partId) {
+    var rowLineMatch = !line || normalizePurchaseHistoryKeyPart(row[5]) === line;
+    // 1) part_id ตรงกัน = match ทันที — แต่เลข NO เป็นแค่ลำดับในแต่ละ Sheet/Line เท่านั้น
+    //    ไม่ unique ทั้งระบบ จึงต้องอยู่ Line เดียวกันด้วยเสมอ ไม่งั้นข้ามไปเทียบรุ่น/ชื่อแทน
+    if (partId && line && rowLineMatch && normalizePurchaseHistoryKeyPart(row[6]) === partId) {
       matches = true;
-    } else if (!line || normalizePurchaseHistoryKeyPart(row[5]) === line) {
+    } else if (rowLineMatch) {
       // ต้องอยู่ Line เดียวกัน เพื่อกันหักยอดผิดไลน์
       var rowModelOk = isMeaningfulPurchaseHistoryModel(row[9]);
       if (modelOk && rowModelOk) {
