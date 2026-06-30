@@ -7161,7 +7161,8 @@ function inferRequestPriority(stock, min) {
         if (String(l.type || '').toLowerCase().indexOf('output') === -1) return;
         var key = String((l.partNo || l.no || '')).trim();
         if (!key) return;
-        map[key] = (map[key] || 0) + Number(l.qty || 0);
+        // qty ใน log เก็บเป็นค่าติดลบสำหรับ Output transaction (signedQty) ต้องใช้ค่าสัมบูรณ์
+        map[key] = (map[key] || 0) + Math.abs(Number(l.qty || 0));
       });
       return map;
     }
@@ -7369,7 +7370,9 @@ function inferRequestPriority(stock, min) {
         });
         return;
       }
-      Promise.all([loadPrSourceItems(mode, lineFilterValue), loadPurchaseHistory(false).catch(function(){ return purchaseHistoryCache || []; }), ensureLogCacheForPr(false)]).then(function(results) {
+      // บังคับโหลด Purchase History ใหม่ทุกครั้งที่ Generate PR เพื่อเทียบ "เคยสั่งหรือยัง" ด้วยข้อมูลล่าสุดเสมอ
+      // (ไม่ใช้ cache เก่าที่อาจค้างจากตอนเข้าหน้าอื่นมาก่อน)
+      Promise.all([loadPrSourceItems(mode, lineFilterValue), loadPurchaseHistory(true).catch(function(){ return purchaseHistoryCache || []; }), ensureLogCacheForPr(true)]).then(function(results) {
       var sourceItems = results[0];
       var usage = buildUsageMap(fromDate, toDate);
       prCandidateState = sourceItems.map(function(i) {
