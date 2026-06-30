@@ -1340,7 +1340,9 @@
               <option value="all">เหตุผล: ทั้งหมด</option>
               <option value="OOS">หมดสต็อก</option>
               <option value="BMIN">ต่ำกว่า Min</option>
-              <option value="REP">ใช้บ่อย</option>
+              <option value="REP">ใช้บ่อย (จากประวัติเบิก)</option>
+              <option value="OCCAS">ใช้บางครั้ง</option>
+              <option value="TOPUP">เติมให้เต็ม Max เท่านั้น</option>
               <option value="CRIT">Critical</option>
               <option value="PENDING">⚠️ มีคำสั่งซื้อค้างอยู่</option>
             </select>
@@ -7137,6 +7139,17 @@ function inferRequestPriority(stock, min) {
       });
       return map;
     }
+    var logCacheLoadedForPr = false;
+    function ensureLogCacheForPr(forceRefresh) {
+      if (logCacheLoadedForPr && !forceRefresh && logCache.length) return Promise.resolve(logCache);
+      return loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); }).then(function(rawData) {
+        if (Array.isArray(rawData)) { logCache = rawData.slice(); logCacheLoadedForPr = true; }
+        return logCache;
+      }).catch(function(err) {
+        console.warn('ensureLogCacheForPr failed', err);
+        return logCache;
+      });
+    }
 
     function getAllLineKeys() {
       return Object.keys(LINE_SHEET_OPTIONS || {});
@@ -7311,7 +7324,6 @@ function inferRequestPriority(stock, min) {
       var includeBelow = document.getElementById('prIncludeBelow').checked;
       var includeUsage = document.getElementById('prIncludeUsage').checked;
       var criticalOnly = document.getElementById('prCriticalOnly').checked;
-      var usage = buildUsageMap(fromDate, toDate);
       setPrGenerationLoading(true, 'Loading and evaluating PR candidates...');
       if (mode === 'from_request') {
         loadOrderRequestPrCandidates().then(function(candidates) {
@@ -7325,17 +7337,21 @@ function inferRequestPriority(stock, min) {
         });
         return;
       }
-      Promise.all([loadPrSourceItems(mode, lineFilterValue), loadPurchaseHistory(false).catch(function(){ return purchaseHistoryCache || []; })]).then(function(results) {
+      Promise.all([loadPrSourceItems(mode, lineFilterValue), loadPurchaseHistory(false).catch(function(){ return purchaseHistoryCache || []; }), ensureLogCacheForPr(false)]).then(function(results) {
       var sourceItems = results[0];
+      var usage = buildUsageMap(fromDate, toDate);
       prCandidateState = sourceItems.map(function(i) {
         var stock = Number(i.stock || 0), min = Number(i.min || 0), max = Number(i.max || 0);
         var need = Number(i.needToOrder || i.need_to_order || Math.max((max || min) - stock, 0));
         var reasons = [];
         if (includeOut && stock <= 0) reasons.push('OOS');
         if (includeBelow && stock <= min) reasons.push('BMIN');
-        if (need > 0) reasons.push('REP');
         var recentUsage = Number(usage[String(i.no || '')] || 0);
-        if (includeUsage && recentUsage >= Math.max(5, min)) reasons.push('REP');
+        var usageThreshold = Math.max(5, min);
+        var usageTier = recentUsage <= 0 ? 'none' : (recentUsage >= usageThreshold ? 'frequent' : 'occasional');
+        if (includeUsage && usageTier === 'frequent') reasons.push('REP');
+        else if (includeUsage && usageTier === 'occasional') reasons.push('OCCAS');
+        if (need > 0) reasons.push('TOPUP');
         var criticalFlag = String(i.criticalFlag || i.isCritical || i.priority || '').toLowerCase();
         var critical = String(i.criticalLevel || i.critical || '').trim();
         if (!critical) {
@@ -7352,7 +7368,7 @@ function inferRequestPriority(stock, min) {
         var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<=min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons));
         var pendingOrder = findPendingPurchaseForItem(i);
         if (pendingOrder) reasons.push('PENDING');
-        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', unit: i.unit || '', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, critical: critical, priority: priority, reason: reasons.join(', '), pendingOrder: pendingOrder, unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
+        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', unit: i.unit || '', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, usageTier: usageTier, critical: critical, priority: priority, reason: reasons.join(', '), pendingOrder: pendingOrder, unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
       }).filter(Boolean);
       prHistoryBatchId = 'AUTOPR-' + Date.now();
       renderPrCandidates();
@@ -7392,7 +7408,7 @@ function inferRequestPriority(stock, min) {
       var lines=['H9','Arc Chute','Coil Winding','Lug&Screw'];
       var tabs = document.getElementById('prLineTabs'); if (tabs) tabs.innerHTML = ['all'].concat(lines).map(function(l){ var active=(prLineTabState===l); return '<button data-pr-line-tab="'+l+'" class="h-8 rounded border px-2 '+(active?'bg-blue-600 text-white border-blue-600':'bg-white border-slate-300')+'">'+(l==='all'?'All':l)+'</button>'; }).join('');
       var lineMap={}; filtered.forEach(function(c){ var ln=String(c.line||'-'); (lineMap[ln]=lineMap[ln]||[]).push(c); });
-      var PR_REASON_LABELS = { OOS: ['หมดสต็อก', 'bg-rose-100 text-rose-700'], BMIN: ['ต่ำกว่า Min', 'bg-orange-100 text-orange-700'], REP: ['ใช้บ่อย', 'bg-blue-100 text-blue-700'], CRIT: ['Critical', 'bg-rose-100 text-rose-700'], PENDING: ['มีคำสั่งซื้อค้าง', 'bg-amber-100 text-amber-800'], REQ: ['จากคำขอซื้อ', 'bg-violet-100 text-violet-700'] };
+      var PR_REASON_LABELS = { OOS: ['หมดสต็อก', 'bg-rose-100 text-rose-700'], BMIN: ['ต่ำกว่า Min', 'bg-orange-100 text-orange-700'], REP: ['ใช้บ่อย', 'bg-blue-100 text-blue-700'], OCCAS: ['ใช้บางครั้ง', 'bg-slate-200 text-slate-600'], TOPUP: ['เติมให้เต็ม Max', 'bg-slate-100 text-slate-500'], CRIT: ['Critical', 'bg-rose-100 text-rose-700'], PENDING: ['มีคำสั่งซื้อค้าง', 'bg-amber-100 text-amber-800'], REQ: ['จากคำขอซื้อ', 'bg-violet-100 text-violet-700'] };
       var PR_CRITICAL_BADGE = { critical: 'bg-rose-100 text-rose-700', high: 'bg-orange-100 text-orange-700', medium: 'bg-amber-100 text-amber-800', low: 'bg-slate-100 text-slate-600' };
       function renderItemCard(c){
         var idx=prCandidateState.indexOf(c); var qtyVal = Number(c.suggestedQty); if(!Number.isFinite(qtyVal)) qtyVal = 1; var priceVal = Number(c.unitPrice); if(!Number.isFinite(priceVal)) priceVal = 0; var total=qtyVal*priceVal;
@@ -7417,6 +7433,7 @@ function inferRequestPriority(stock, min) {
                 + '<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold '+critBadgeClass+'">'+(c.critical||'-')+'</span>'
               + '</div>'
               + '<p class="mt-0.5 text-xs text-slate-500">'+(c.brand||'-')+' / '+(c.model||'-')+' &nbsp;•&nbsp; Line: '+c.line+' &nbsp;•&nbsp; Stock/Min: <span class="font-semibold text-slate-700">'+c.stock+'/'+c.min+'</span>'+(c.requestedBy ? ' &nbsp;•&nbsp; ขอโดย: <span class="font-semibold text-slate-700">'+escHtml(c.requestedBy)+'</span>' : '')+'</p>'
+              + (typeof c.recentUsage === 'number' ? '<p class="mt-0.5 text-[11px] '+(c.usageTier==='frequent'?'text-blue-600 font-semibold':c.usageTier==='occasional'?'text-slate-500':'text-slate-400')+'">📦 เบิกจริงในช่วงที่เลือก: <b>'+c.recentUsage.toLocaleString('th-TH')+'</b> '+(c.unit||'ชิ้น')+' — '+(c.usageTier==='frequent'?'ใช้บ่อย':c.usageTier==='occasional'?'ใช้บางครั้ง':'ไม่เคยเบิกในช่วงนี้')+'</p>' : '')
               + '<div class="mt-1.5 flex flex-wrap gap-1">'+reasonChips+'</div>'
               + '<div class="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2">'
                 + '<div><label class="block text-[10px] font-medium text-slate-400">จำนวนที่สั่ง</label><input data-pr-qty="'+idx+'" type="number" value="'+qtyVal+'" class="mt-0.5 h-8 w-full rounded-lg border border-slate-300 px-2 text-xs" /></div>'
