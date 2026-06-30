@@ -1421,7 +1421,12 @@
       </div>
     </section>
 
-    <section id="purchaseHistoryPage" class="hidden space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm panel-shadow md:p-6">
+    <section id="purchaseHistoryPage" class="relative hidden space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm panel-shadow md:p-6">
+      <div id="purchaseHistoryReconcileOverlay" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/80 backdrop-blur-sm">
+        <svg class="h-10 w-10 animate-spin text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+        <p class="text-sm font-semibold text-emerald-700">🔄 กำลังตรวจสอบและหักยอดย้อนหลัง...</p>
+        <p class="text-xs text-slate-500">เทียบรายการที่ค้างอยู่กับประวัติการรับเข้าทั้งหมด อาจใช้เวลาสักครู่</p>
+      </div>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-xl font-bold text-slate-900">Purchase History</h2>
@@ -9723,10 +9728,14 @@ function inferRequestPriority(stock, min) {
     tabAdmin.addEventListener('click', switchToAdminPage);
     if (purchaseHistoryRefreshBtn) purchaseHistoryRefreshBtn.addEventListener('click', function() { purchaseHistoryCurrentPage = 1; loadPurchaseHistory(true).catch(function() {}); });
     var purchaseHistoryReconcileBtn = document.getElementById('purchaseHistoryReconcileBtn');
+    var purchaseHistoryReconcileOverlay = document.getElementById('purchaseHistoryReconcileOverlay');
     if (purchaseHistoryReconcileBtn) purchaseHistoryReconcileBtn.addEventListener('click', function() {
       if (!canEditPurchaseHistory()) { showQuickToast('เฉพาะ Admin / Engineer เท่านั้นที่ใช้ Reconcile ได้', 'warn'); return; }
       purchaseHistoryReconcileBtn.disabled = true;
-      purchaseHistoryReconcileBtn.textContent = '⏳ กำลังตรวจสอบ...';
+      purchaseHistoryReconcileBtn.innerHTML = '<svg class="inline-block h-4 w-4 animate-spin align-[-2px]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> กำลังตรวจสอบ...';
+      if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = '🔄 กำลังเทียบรายการที่ค้างอยู่กับประวัติการรับเข้าทั้งหมด อาจใช้เวลาสักครู่...';
+      if (purchaseHistoryReconcileOverlay) purchaseHistoryReconcileOverlay.classList.remove('hidden');
+      showQuickToast('⏳ เริ่มตรวจสอบ/Reconcile แล้ว...', 'info');
       requestApi(withAuthPayload({ action: 'reconcilePurchaseHistory' })).then(parseApiResponse).then(function(res) {
         if (res && res.updated > 0) {
           showQuickToast('✅ พบและหักยอดที่ตกหล่น ' + res.updated + ' รายการ (รวม ' + res.qty_applied + ' ชิ้น)', 'success');
@@ -9738,6 +9747,7 @@ function inferRequestPriority(stock, min) {
       }).catch(function(err) {
         showQuickToast('Reconcile ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
       }).finally(function() {
+        if (purchaseHistoryReconcileOverlay) purchaseHistoryReconcileOverlay.classList.add('hidden');
         purchaseHistoryReconcileBtn.disabled = false;
         purchaseHistoryReconcileBtn.textContent = '🔄 ตรวจสอบ/Reconcile';
       });
