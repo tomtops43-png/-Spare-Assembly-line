@@ -1871,64 +1871,93 @@
     </div>
   </div>
 
-  <div id="editModal" class="fixed inset-0 z-[130] hidden overflow-y-auto bg-black bg-opacity-40 p-3 md:p-6">
-    <div class="bg-white w-full max-w-3xl mx-auto rounded-2xl p-4 shadow-xl md:p-5 md:my-6">
-      <div class="sticky top-0 z-10 -mx-4 mb-4 flex items-center justify-between border-b border-slate-200 bg-white px-4 pb-2 pt-1 md:static md:mx-0 md:border-0 md:px-0 md:pb-0 md:pt-0">
-        <div><h3 class="text-lg font-bold">แก้ไขรายการอะไหล่</h3><p id="editModalSubtitle" class="text-xs text-slate-500 mt-1"></p></div>
-        <button id="closeEditModal" class="text-slate-500">✕</button>
+  <div id="editModal" class="fixed inset-0 z-[130] hidden overflow-y-auto bg-slate-900/50 backdrop-blur-[2px] p-0 md:p-6">
+    <div class="bg-white w-full max-w-4xl mx-auto rounded-none md:rounded-3xl shadow-2xl md:my-6 overflow-hidden flex flex-col max-h-screen md:max-h-[calc(100vh-3rem)]">
+      <div class="shrink-0 flex items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4 text-white">
+        <div class="min-w-0">
+          <h3 class="text-lg font-bold leading-tight">✏️ แก้ไขรายการอะไหล่</h3>
+          <p id="editModalSubtitle" class="text-xs text-blue-100 mt-0.5 truncate"></p>
+        </div>
+        <button id="closeEditModal" type="button" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white text-lg hover:bg-white/25 transition">✕</button>
       </div>
-      <form id="editForm" class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div><label class="text-xs text-slate-500">NO</label><input id="eNo" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
-        <div><label class="text-xs text-slate-500">Sheet</label><input id="eSheet" class="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-600" readonly /></div>
-        <div><label class="text-xs text-slate-500">Name / Description</label><input id="eName" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" required /></div>
-        <div><label class="text-xs text-slate-500">Model</label><input id="eModel" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-          <div><label class="text-xs text-slate-500">Machine Model / Coil Size</label><input id="eCoilSize" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Location</label><input id="eLocation" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div>
-          <label class="text-xs text-slate-500">รูปหลัก</label>
-          <div class="mt-1">
-            <p class="text-[11px] text-slate-500 mb-1">เลือกรูปภาพ</p>
-            <input id="eImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white" />
-          </div>
-        </div>
-                <div class="md:col-span-3">
-          <img id="eImageMainPreview" src="images/no-image.svg" alt="edit main preview" class="h-40 w-full rounded-lg border border-slate-200 object-contain bg-slate-100 p-1" onerror="var fb=this.getAttribute('data-fallback-src');if(fb){this.setAttribute('data-fallback-src','');this.src=fb;}else{this.src='images/no-image.svg';}" />
-        </div>
-        <section class="md:col-span-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
-          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div><p class="text-sm font-bold text-blue-900">Drawing</p><p id="eDrawingHint" class="text-[11px] text-blue-700">Upload / View / Remove / Replace drawing attachment.</p></div>
-            <div class="flex flex-wrap gap-2"><a id="eDrawingView" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700">View Drawing</a><button id="eDrawingRemove" type="button" class="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700">Remove Drawing</button></div>
-          </div>
-          <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
-            <input id="eDrawingFile" type="file" accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.step,.stp,application/pdf,image/jpeg,image/png" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5" />
-            <input id="eDrawingRevision" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing Revision" />
-            <select id="eDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Missing">Missing</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Access Required">Access Required</option></select>
-            <input id="eDrawingFileName" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5" placeholder="Drawing File Name" readonly />
-          </div>
-          <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
-            <input id="eDatasheetUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Datasheet URL" />
-            <input id="eQuotationUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Quotation URL" />
-            <input id="eDrawingUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5" placeholder="Drawing URL" />
+
+      <form id="editForm" class="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5 space-y-4">
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-4">
+          <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">📋 ข้อมูลพื้นฐาน</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div><label class="text-xs font-medium text-slate-500">NO</label><input id="eNo" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" required /></div>
+            <div><label class="text-xs font-medium text-slate-500">Sheet</label><input id="eSheet" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-500" readonly /></div>
+            <div class="sm:col-span-2 md:col-span-1"><label class="text-xs font-medium text-slate-500">Name / Description</label><input id="eName" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" required /></div>
+            <div><label class="text-xs font-medium text-slate-500">Model</label><input id="eModel" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Machine Model / Coil Size</label><input id="eCoilSize" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Location</label><input id="eLocation" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
           </div>
         </section>
-        <div><label class="text-xs text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Unit</label><input id="eUnit" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Qty / Stock</label><input id="eStock" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Unit Price</label><input id="eUnitPrice" type="number" step="0.01" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Currency</label><input id="eCurrency" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" value="THB" /></div>
-        <div><label class="text-xs text-slate-500">Supplier</label><input id="eSupplier" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Price Updated At</label><input id="ePriceUpdatedAt" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div><label class="text-xs text-slate-500">Price Remark</label><input id="ePriceRemark" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></div>
-        <div class="md:col-span-3 flex gap-2">
-          <button type="submit" class="eng-primary-btn flex-1 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold">บันทึก</button>
-          <button id="deleteEditItem" type="button" class="flex-1 rounded-xl bg-rose-600 text-white px-4 py-2.5 font-semibold">ลบ</button>
-        </div>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-4">
+          <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">🖼️ รูปหลัก</p>
+          <div class="flex flex-col sm:flex-row gap-4">
+            <img id="eImageMainPreview" src="images/no-image.svg" alt="edit main preview" class="h-32 w-32 shrink-0 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1 mx-auto sm:mx-0" onerror="var fb=this.getAttribute('data-fallback-src');if(fb){this.setAttribute('data-fallback-src','');this.src=fb;}else{this.src='images/no-image.svg';}" />
+            <div class="flex-1 flex flex-col justify-center">
+              <p class="text-xs text-slate-500 mb-1.5">เลือกรูปภาพใหม่เพื่อแทนที่รูปเดิม (jpg / png / webp)</p>
+              <input id="eImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white text-sm" />
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div><p class="text-sm font-bold text-blue-900">📐 Drawing & เอกสารแนบ</p><p id="eDrawingHint" class="text-[11px] text-blue-700 mt-0.5">Upload / View / Remove / Replace drawing attachment.</p></div>
+            <div class="flex flex-wrap gap-2">
+              <a id="eDrawingView" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition">View Drawing</a>
+              <button id="eDrawingRemove" type="button" class="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 transition">Remove Drawing</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
+            <input id="eDrawingFile" type="file" accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.step,.stp,application/pdf,image/jpeg,image/png" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm" />
+            <input id="eDrawingRevision" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" placeholder="Drawing Revision" />
+            <select id="eDrawingStatus" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="Missing">Missing</option><option value="Available">Available</option><option value="Not Required">Not Required</option><option value="Access Required">Access Required</option></select>
+            <input id="eDrawingFileName" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-500" placeholder="Drawing File Name" readonly />
+          </div>
+          <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
+            <input id="eDatasheetUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" placeholder="Datasheet URL" />
+            <input id="eQuotationUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" placeholder="Quotation URL" />
+            <input id="eDrawingUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2.5 bg-white" placeholder="Drawing URL" />
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-4">
+          <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">📦 สต็อก & หน่วย</p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div><label class="text-xs font-medium text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Unit</label><input id="eUnit" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Qty / Stock</label><input id="eStock" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-4">
+          <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">💰 ราคา & ซัพพลายเออร์</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div><label class="text-xs font-medium text-slate-500">Unit Price</label><input id="eUnitPrice" type="number" step="0.01" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Currency</label><input id="eCurrency" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" value="THB" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Supplier</label><input id="eSupplier" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Price Updated At</label><input id="ePriceUpdatedAt" type="date" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div class="sm:col-span-2 md:col-span-1"><label class="text-xs font-medium text-slate-500">Price Remark</label><input id="ePriceRemark" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+          </div>
+        </section>
+
+        <p id="editMessage" class="text-sm"></p>
       </form>
-      <p id="editMessage" class="mt-3 text-sm"></p>
+
+      <div class="shrink-0 flex gap-2 border-t border-slate-200 bg-white px-4 py-3 md:px-6">
+        <button type="submit" form="editForm" class="eng-primary-btn flex-1 rounded-xl bg-blue-600 text-white px-4 py-2.5 font-semibold shadow-sm hover:bg-blue-700 transition">💾 บันทึก</button>
+        <button id="deleteEditItem" type="button" class="flex-1 rounded-xl bg-rose-600 text-white px-4 py-2.5 font-semibold shadow-sm hover:bg-rose-700 transition">🗑️ ลบ</button>
+      </div>
     </div>
   </div>
 
@@ -5873,17 +5902,19 @@ function getIssueCartEntries() {
       var ids = getSelectedRequestOrderIds();
       if (!ids.length) return alert('กรุณาเลือกรายการอย่างน้อย 1 รายการ');
       var labels = { Purchased: 'Mark as Ordered', Received: 'Mark as Received', Rejected: 'Cancel Request' };
-      if (!confirm((labels[status] || status) + ' จำนวน ' + ids.length + ' รายการ?')) return;
-      return postJson(withAuthPayload({ action: 'bulkUpdateOrderRequestStatus', request_ids: ids, status: status })).then(parseApiResponse).then(function(result) {
-        window.__roBulkSelected = {};
-        purchaseHistoryLoaded = false;
-        updateRequestOrderBulkToolbar();
-        alert('อัปเดตสำเร็จ ' + Number(result.count || ids.length) + ' รายการ');
-        closeRequestOrderDetailModal();
-        loadOrderRequests();
-        return refreshRequestOrderBadgeCount();
-      }).catch(function(err) {
-        alert('Bulk Status Update ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+      showConfirmDialog({ title: (labels[status] || status), message: (labels[status] || status) + ' จำนวน ' + ids.length + ' รายการ?', okLabel: 'ยืนยัน' }).then(function(ok) {
+        if (!ok) return;
+        postJson(withAuthPayload({ action: 'bulkUpdateOrderRequestStatus', request_ids: ids, status: status })).then(parseApiResponse).then(function(result) {
+          window.__roBulkSelected = {};
+          purchaseHistoryLoaded = false;
+          updateRequestOrderBulkToolbar();
+          alert('อัปเดตสำเร็จ ' + Number(result.count || ids.length) + ' รายการ');
+          closeRequestOrderDetailModal();
+          loadOrderRequests();
+          return refreshRequestOrderBadgeCount();
+        }).catch(function(err) {
+          alert('Bulk Status Update ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+        });
       });
     }
 
@@ -7723,7 +7754,8 @@ function inferRequestPriority(stock, min) {
       var noteValue = String((issueCartNote && issueCartNote.value) || '').trim();
       var reasonValue = String((issueCartReason && issueCartReason.value) || '').trim();
       var reasonRemarkValue = String((issueCartReasonRemark && issueCartReasonRemark.value) || '').trim();
-      if (!confirm('ยืนยันการเบิก ' + entries.length + ' รายการ ?')) return;
+      showConfirmDialog({ title: 'ยืนยันการเบิก', message: 'ยืนยันการเบิก ' + entries.length + ' รายการ ?', okLabel: 'เบิกสินค้า' }).then(function(ok) {
+        if (!ok) return;
 
       setIssueCartSubmitState(true);
       setIssueCartMessage('กำลังบันทึกรายการ 0/' + entries.length + ' ...', 'muted');
@@ -7801,6 +7833,7 @@ function inferRequestPriority(stock, min) {
         applyIssueCartAuthorizationUi();
       applyReceivePermissionUi();
       });
+      }); // end showConfirmDialog
     }
 
     function showQuickToast(message, tone) {
@@ -8081,7 +8114,8 @@ function inferRequestPriority(stock, min) {
         txnMessage.textContent = 'ไม่พบ Line ของอะไหล่ กรุณาตรวจข้อมูล Master';
         return;
       }
-      if (!confirm('ยืนยันรับเข้า ' + qty + ' ' + (selected.unit || 'PCS') + ' สำหรับ ' + (selected.name || '-') + '?')) return;
+      showConfirmDialog({ title: 'ยืนยันรับเข้า', message: 'ยืนยันรับเข้า ' + qty + ' ' + (selected.unit || 'PCS') + ' สำหรับ ' + (selected.name || '-') + '?', okLabel: 'รับเข้า' }).then(function(ok) {
+        if (!ok) return;
       var isOutputTxn = false;
       var reasonValue = String((txnReason && txnReason.value) || '').trim();
       var reasonRemarkValue = String((txnReasonRemark && txnReasonRemark.value) || '').trim();
@@ -8149,6 +8183,7 @@ function inferRequestPriority(stock, min) {
         txnMessage.className = 'mt-3 text-sm text-rose-600';
         txnMessage.textContent = 'บันทึกไม่สำเร็จ: ' + err.message;
       });
+      }); // end showConfirmDialog
     }
 
 
@@ -8227,7 +8262,8 @@ function inferRequestPriority(stock, min) {
 
     function submitEditModal(event) {
       event.preventDefault();
-      if (!confirm('ยืนยันการบันทึกการแก้ไขรายการนี้?')) return;
+      showConfirmDialog({ title: 'ยืนยันการแก้ไข', message: 'ยืนยันการบันทึกการแก้ไขรายการนี้?', okLabel: 'บันทึก' }).then(function(ok) {
+        if (!ok) return;
       var itemNo = document.getElementById('eNo').value.trim();
       var editSheetName = document.getElementById('eSheet').value.trim() || getCurrentSheetName();
       var oldItem = partsData.filter(function(p){
@@ -8303,19 +8339,22 @@ function inferRequestPriority(stock, min) {
           });
         }
       });
+      }); // end showConfirmDialog
     }
 
     function deleteEditModalItem() {
       var no = document.getElementById('eNo').value.trim();
       if (!no) return;
-      if (!confirm('ยืนยันการลบรายการ NO: ' + no + ' ?')) return;
-      callManageAction('deleteItem', { sheet: document.getElementById('eSheet').value.trim() || getCurrentSheetName(), no: no }).then(function(res){
-        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
-        loadPartsData();
-        closeEditModal();
-      }).catch(function(err){
-        editMessage.className = 'mt-3 text-sm text-rose-600';
-        editMessage.textContent = err.message;
+      showConfirmDialog({ title: 'ยืนยันการลบ', message: 'ยืนยันการลบรายการ NO: ' + no + ' ?', okLabel: 'ลบ' }).then(function(ok) {
+        if (!ok) return;
+        callManageAction('deleteItem', { sheet: document.getElementById('eSheet').value.trim() || getCurrentSheetName(), no: no }).then(function(res){
+          if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+          loadPartsData();
+          closeEditModal();
+        }).catch(function(err){
+          editMessage.className = 'mt-3 text-sm text-rose-600';
+          editMessage.textContent = err.message;
+        });
       });
     }
 
@@ -8566,13 +8605,15 @@ function inferRequestPriority(stock, min) {
       if (!itemNo) return;
       var found = partsData.filter(function(p){ return String(p.no) === itemNo; })[0] || {};
       var targetSheet = String(found.__sourceSheet || getCurrentSheetName() || '').trim();
-      if (!confirm('ยืนยันการลบรายการ NO: ' + itemNo + ' ?')) return;
-      callManageAction('deleteItem', { sheet: targetSheet, no: itemNo }).then(function(res){
-        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
-        loadPartsData();
-      }).catch(function(err){
-        manageMessage.className = 'mt-3 text-sm text-rose-600';
-        manageMessage.textContent = err.message;
+      showConfirmDialog({ title: 'ยืนยันการลบ', message: 'ยืนยันการลบรายการ NO: ' + itemNo + ' ?', okLabel: 'ลบ' }).then(function(ok) {
+        if (!ok) return;
+        callManageAction('deleteItem', { sheet: targetSheet, no: itemNo }).then(function(res){
+          if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+          loadPartsData();
+        }).catch(function(err){
+          manageMessage.className = 'mt-3 text-sm text-rose-600';
+          manageMessage.textContent = err.message;
+        });
       });
     } // end _doSubmitManageItem
 
@@ -9770,19 +9811,21 @@ function inferRequestPriority(stock, min) {
     if (purchaseHistoryConfirmImport) purchaseHistoryConfirmImport.addEventListener('click', function() {
       var ready = purchaseHistoryImportRows.filter(function(row) { return row.include && !row.review_required; });
       if (!ready.length) return alert('ไม่มีรายการที่พร้อม Import');
-      if (!confirm('ยืนยัน Import Purchase History จำนวน ' + ready.length + ' รายการ?')) return;
-      purchaseHistoryConfirmImport.disabled = true;
-      purchaseHistoryImportStatus.textContent = 'กำลัง Import...';
-      postJson(withAuthPayload({
-        action: 'importPurchaseHistoryPdfBatch', import_batch_id: 'PHIMP-' + Date.now(), items: ready,
-        files: purchaseHistoryImportFilesMeta, duplicate_action: purchaseHistoryDuplicateDefault ? purchaseHistoryDuplicateDefault.value : 'skip'
-      })).then(parseApiResponse).then(function(result) {
-        alert('Import สำเร็จ ' + Number(result.imported_rows || 0) + ' รายการ • Skip duplicate ' + Number(result.skipped_duplicate_rows || 0) + ' • Review required ' + Number(result.review_required_rows || 0));
-        closePurchaseHistoryImport(); purchaseHistoryLoaded = false; purchaseHistoryCurrentPage = 1; return loadPurchaseHistory(true);
-      }).catch(function(err) {
-        purchaseHistoryImportStatus.textContent = 'Import ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
-        alert(purchaseHistoryImportStatus.textContent);
-      }).finally(function() { purchaseHistoryConfirmImport.disabled = false; });
+      showConfirmDialog({ title: 'ยืนยัน Import', message: 'ยืนยัน Import Purchase History จำนวน ' + ready.length + ' รายการ?', okLabel: 'Import' }).then(function(ok) {
+        if (!ok) return;
+        purchaseHistoryConfirmImport.disabled = true;
+        purchaseHistoryImportStatus.textContent = 'กำลัง Import...';
+        postJson(withAuthPayload({
+          action: 'importPurchaseHistoryPdfBatch', import_batch_id: 'PHIMP-' + Date.now(), items: ready,
+          files: purchaseHistoryImportFilesMeta, duplicate_action: purchaseHistoryDuplicateDefault ? purchaseHistoryDuplicateDefault.value : 'skip'
+        })).then(parseApiResponse).then(function(result) {
+          alert('Import สำเร็จ ' + Number(result.imported_rows || 0) + ' รายการ • Skip duplicate ' + Number(result.skipped_duplicate_rows || 0) + ' • Review required ' + Number(result.review_required_rows || 0));
+          closePurchaseHistoryImport(); purchaseHistoryLoaded = false; purchaseHistoryCurrentPage = 1; return loadPurchaseHistory(true);
+        }).catch(function(err) {
+          purchaseHistoryImportStatus.textContent = 'Import ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+          alert(purchaseHistoryImportStatus.textContent);
+        }).finally(function() { purchaseHistoryConfirmImport.disabled = false; });
+      });
     });
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
     if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1); });
@@ -9863,11 +9906,13 @@ if (dashboardPage) {
     if (eDrawingUrlInput) eDrawingUrlInput.addEventListener('input', function(){ setAttachmentLink('eDrawingView', eDrawingUrlInput.value); });
     var eDrawingRemoveBtn = document.getElementById('eDrawingRemove');
     if (eDrawingRemoveBtn) eDrawingRemoveBtn.addEventListener('click', function(){
-      if (!confirm('Remove drawing link from this part?')) return;
-      ['eDrawingUrl','eDrawingFileName','eDrawingRevision'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-      var fileEl = document.getElementById('eDrawingFile'); if (fileEl) fileEl.value = '';
-      var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Missing';
-      setAttachmentLink('eDrawingView', '');
+      showConfirmDialog({ title: 'ลบ Drawing', message: 'ลบ Drawing link ออกจากชิ้นส่วนนี้?', okLabel: 'ลบ' }).then(function(ok) {
+        if (!ok) return;
+        ['eDrawingUrl','eDrawingFileName','eDrawingRevision'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+        var fileEl = document.getElementById('eDrawingFile'); if (fileEl) fileEl.value = '';
+        var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Missing';
+        setAttachmentLink('eDrawingView', '');
+      });
     });
     var refreshStockDataBtnMobile = document.getElementById('refreshStockDataBtnMobile');
     if (refreshStockDataBtnMobile) refreshStockDataBtnMobile.addEventListener('click', function() {
