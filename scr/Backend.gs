@@ -858,6 +858,64 @@ function syncPurchaseHistoryOnReceive(payload, updatedBy) {
   return { matched: matched, unmatched_qty: remaining };
 }
 
+// ตรวจสอบ/ Reconcile: หักยอด PO ที่ยังค้างอยู่ ย้อนหลังกับประวัติการรับเข้าทั้งหมด
+// (ครอบคลุมเคสที่คำขอซื้อถูกสร้างขึ้น "ทีหลัง" การรับของจริง ซึ่งระบบหักยอดแบบ
+// real-time ตอนรับของ (syncPurchaseHistoryOnReceive) ไม่มีโอกาสจับคู่ให้ เพราะ
+// มันทำงานเฉพาะตอนมีการรับของใหม่เกิดขึ้นเท่านั้น ไม่ย้อนสแกนของเก่า)
+function purchaseHistoryReconcileKey(line, partId, model, name) {
+  var l = normalizePurchaseHistoryKeyPart(line);
+  var pid = normalizePurchaseHistoryKeyPart(partId);
+  if (pid) return 'P|' + l + '|' + pid;
+  if (isMeaningfulPurchaseHistoryModel(model)) return 'M|' + l + '|' + normalizePurchaseHistoryModel(model);
+  return 'N|' + l + '|' + normalizePurchaseHistoryName(name);
+}
+function reconcilePurchaseHistory(payload) {
+  var user = requirePurchaseHistoryEditor({ authToken: payload.authToken });
+  var sheet = getPurchaseHistorySheet();
+  var values = sheet.getDataRange().getValues();
+  var openStatuses = { 'Requested': true, 'PR Created': true, 'Ordered': true, 'Partial Received': true };
+
+  var openByKey = {};
+  for (var i = 1; i < values.length; i += 1) {
+    var row = values[i];
+    if (toBoolean(row[22], false) || !openStatuses[String(row[16] || '')]) continue;
+    var key = purchaseHistoryReconcileKey(row[5], row[6], row[9], row[7]);
+    (openByKey[key] = openByKey[key] || []).push({ rowIndex: i, orderedQty: Number(row[10] || 0), receivedBefore: Number(row[19] || 0), date: row[3] });
+  }
+  var openKeys = Object.keys(openByKey);
+  if (!openKeys.length) return { status: 'success', updated: 0, qty_applied: 0 };
+  openKeys.forEach(function(k) { openByKey[k].sort(function(a, b) { return new Date(a.date) - new Date(b.date); }); });
+
+  var logRows = getLogRows().filter(function(l) { return String(l.type || '').toLowerCase().indexOf('input') > -1; });
+  var inputByKey = {};
+  logRows.forEach(function(l) {
+    var key = purchaseHistoryReconcileKey(l.process, l.partNo, l.model, l.partName);
+    if (openByKey[key] === undefined) return; // ข้ามถ้าไม่มี PO เปิดค้างสำหรับชิ้นนี้ ลดงานคำนวณ
+    inputByKey[key] = (inputByKey[key] || 0) + Math.abs(Number(l.qty || 0));
+  });
+
+  var updatedCount = 0, totalApplied = 0;
+  openKeys.forEach(function(key) {
+    var avail = Number(inputByKey[key] || 0);
+    if (avail <= 0) return;
+    var rows = openByKey[key];
+    for (var j = 0; j < rows.length && avail > 0; j += 1) {
+      var r = rows[j];
+      var outstanding = Math.max(r.orderedQty - r.receivedBefore, 0);
+      if (outstanding <= 0) continue;
+      var applied = Math.min(outstanding, avail);
+      var receivedTotal = r.receivedBefore + applied;
+      var existingRow = values[r.rowIndex];
+      upsertPurchaseHistoryRecord({
+        request_id: existingRow[1], part_id: existingRow[6], status: receivedTotal >= r.orderedQty ? 'Received' : 'Partial Received',
+        received_date: new Date(), received_qty: receivedTotal, updated_by: user.username, remark: existingRow[21]
+      });
+      avail -= applied; updatedCount += 1; totalApplied += applied;
+    }
+  });
+  return { status: 'success', updated: updatedCount, qty_applied: totalApplied };
+}
+
 function bulkUpdateOrderRequestStatus(payload) {
   var ids = Array.isArray(payload.request_ids) ? payload.request_ids : [];
   var targetStatus = String(payload.status || '');
@@ -2577,6 +2635,7 @@ function doPost(e) {
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(body), e);
     if (action === 'importPurchaseHistoryPdfBatch') return respond(importPurchaseHistoryPdfBatch(body), e);
     if (action === 'createPurchaseHistoryBatch') return respond(createPurchaseHistoryBatch(body), e);
+    if (action === 'reconcilePurchaseHistory') return respond(reconcilePurchaseHistory(body), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(body), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(body), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(body), e);

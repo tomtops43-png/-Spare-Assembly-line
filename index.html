@@ -1427,7 +1427,10 @@
           <h2 class="text-xl font-bold text-slate-900">Purchase History</h2>
           <p class="text-sm text-slate-500">ประวัติการขอซื้อและสั่งซื้ออะไหล่สำหรับดูย้อนหลังและวิเคราะห์เบื้องต้น</p>
         </div>
-        <button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
+        <div class="flex flex-wrap gap-2">
+          <button id="purchaseHistoryReconcileBtn" type="button" class="h-10 rounded-lg border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700" title="เทียบรายการที่ยังค้างอยู่กับประวัติการรับเข้าทั้งหมด (รวมรายการที่รับเข้าไปก่อนคำขอซื้อจะถูกสร้าง)">🔄 ตรวจสอบ/Reconcile</button>
+          <button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
+        </div>
       </div>
       <div class="flex flex-col gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -9719,6 +9722,26 @@ function inferRequestPriority(stock, min) {
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
     if (purchaseHistoryRefreshBtn) purchaseHistoryRefreshBtn.addEventListener('click', function() { purchaseHistoryCurrentPage = 1; loadPurchaseHistory(true).catch(function() {}); });
+    var purchaseHistoryReconcileBtn = document.getElementById('purchaseHistoryReconcileBtn');
+    if (purchaseHistoryReconcileBtn) purchaseHistoryReconcileBtn.addEventListener('click', function() {
+      if (!canEditPurchaseHistory()) { showQuickToast('เฉพาะ Admin / Engineer เท่านั้นที่ใช้ Reconcile ได้', 'warn'); return; }
+      purchaseHistoryReconcileBtn.disabled = true;
+      purchaseHistoryReconcileBtn.textContent = '⏳ กำลังตรวจสอบ...';
+      requestApi(withAuthPayload({ action: 'reconcilePurchaseHistory' })).then(parseApiResponse).then(function(res) {
+        if (res && res.updated > 0) {
+          showQuickToast('✅ พบและหักยอดที่ตกหล่น ' + res.updated + ' รายการ (รวม ' + res.qty_applied + ' ชิ้น)', 'success');
+        } else {
+          showQuickToast('ตรวจสอบแล้ว ไม่พบรายการที่ต้องอัปเดต', 'info');
+        }
+        purchaseHistoryCurrentPage = 1;
+        return loadPurchaseHistory(true);
+      }).catch(function(err) {
+        showQuickToast('Reconcile ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      }).finally(function() {
+        purchaseHistoryReconcileBtn.disabled = false;
+        purchaseHistoryReconcileBtn.textContent = '🔄 ตรวจสอบ/Reconcile';
+      });
+    });
     [purchaseHistoryMonthFilter, purchaseHistoryLineFilter, purchaseHistoryStatusFilter, purchaseHistorySearch].forEach(function(control) {
       if (!control) return;
       control.addEventListener(control.tagName === 'INPUT' ? 'input' : 'change', function() { purchaseHistoryCurrentPage = 1; renderPurchaseHistory(); });
