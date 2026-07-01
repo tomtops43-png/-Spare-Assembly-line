@@ -1981,98 +1981,97 @@
     </div>
   </div>
 
-  <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-start justify-center z-50 p-3 md:px-6 md:pt-10 md:pb-6 overflow-y-auto">
-    <div class="relative mt-2 mb-4 bg-white w-full md:max-w-4xl rounded-2xl shadow-xl overflow-hidden max-h-[calc(100vh-2rem)] md:max-h-[calc(100vh-6rem)]">
-      <div class="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-5">
-        <h3 class="text-lg font-bold">Details อะไหล่</h3>
-        <button id="closeDetailModal" type="button" class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 text-xl leading-none shadow-sm">×</button>
+  <div id="detailModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] hidden items-start justify-center z-50 p-0 md:p-6 overflow-y-auto">
+    <div class="relative md:mt-2 mb-4 bg-white w-full md:max-w-4xl rounded-none md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-screen md:max-h-[calc(100vh-3rem)]">
+      <div class="shrink-0 flex items-center justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4 text-white">
+        <h3 class="text-lg font-bold leading-tight">📦 Details อะไหล่</h3>
+        <button id="closeDetailModal" type="button" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white text-lg hover:bg-white/25 transition">✕</button>
       </div>
-      <div class="overflow-y-auto max-h-[calc(100vh-9.5rem)] md:max-h-[calc(100vh-11rem)] px-4 pb-4 pt-3 md:px-5 md:pb-5">
-        <div>
-          <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1" />
-          <p id="detailMainEmpty" class="hidden text-sm text-slate-500 mt-2">ไม่มีรูป</p>
-          <p class="text-xs text-slate-500 mt-2">รูปหลัก</p>
+      <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-5">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+          <img id="detailMainImage" src="images/no-image.svg" alt="main image" class="w-full h-56 md:h-72 object-contain bg-white p-2" />
+          <p id="detailMainEmpty" class="hidden px-3 pb-2 text-sm text-slate-500">ไม่มีรูป</p>
         </div>
       <div class="mt-4">
-        <div class="flex items-center justify-between gap-2">
-          <p id="detailName" class="text-xl md:text-2xl font-bold leading-tight">-</p>
-          <span id="detailStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs bg-slate-100 text-slate-700">-</span>
+        <div class="flex items-start justify-between gap-2">
+          <p id="detailName" class="text-xl md:text-2xl font-bold leading-tight text-slate-900">-</p>
+          <span id="detailStatus" class="inline-flex shrink-0 items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">-</span>
         </div>
         <p id="detailMeta" class="mt-1 text-xs text-slate-500"></p>
-        <button id="detailAddToCartBtn" type="button" class="mt-3 h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">🛒 Add to issue cart</button>
         <div class="mt-3 flex flex-wrap gap-2">
-          <a id="detailViewPhoto" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">View Photo</a>
-          <a id="detailViewDrawing" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">View Drawing</a>
-          <a id="detailViewDatasheet" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">View Datasheet</a>
-          <a id="detailViewQuotation" href="#" target="_blank" rel="noopener" class="hidden rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">View Quotation</a>
+          <button id="detailAddToCartBtn" type="button" class="h-10 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition">🛒 Add to issue cart</button>
+          <a id="detailViewPhoto" href="#" target="_blank" rel="noopener" class="hidden h-10 items-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">🖼️ View Photo</a>
+          <a id="detailViewDrawing" href="#" target="_blank" rel="noopener" class="hidden h-10 items-center rounded-xl border border-blue-300 bg-blue-50 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition">📐 View Drawing</a>
+          <a id="detailViewDatasheet" href="#" target="_blank" rel="noopener" class="hidden h-10 items-center rounded-xl border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition">📄 View Datasheet</a>
+          <a id="detailViewQuotation" href="#" target="_blank" rel="noopener" class="hidden h-10 items-center rounded-xl border border-amber-300 bg-amber-50 px-3 text-sm font-semibold text-amber-700 hover:bg-amber-100 transition">💵 View Quotation</a>
         </div>
-        <div class="mt-3 space-y-3">
-            <section>
-              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลหลัก</p>
+        <div class="mt-4 space-y-3">
+            <section class="rounded-2xl border border-slate-200 bg-white p-4">
+              <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">📋 ข้อมูลหลัก</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div id="detailFieldModel" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Model</p><p id="detailModel" class="font-semibold text-base">-</p></div>
-                <div id="detailFieldBrand" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Brand</p><p id="detailBrand" class="font-semibold text-base">-</p></div>
-                <div id="detailFieldCategory" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Category</p><p id="detailCategory" class="font-semibold text-base">-</p></div>
-                <div id="detailFieldLine" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Line</p><p id="detailLine" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldModel" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Model</p><p id="detailModel" class="font-semibold text-base text-slate-800">-</p></div>
+                <div id="detailFieldBrand" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Brand</p><p id="detailBrand" class="font-semibold text-base text-slate-800">-</p></div>
+                <div id="detailFieldCategory" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Category</p><p id="detailCategory" class="font-semibold text-base text-slate-800">-</p></div>
+                <div id="detailFieldLine" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Line</p><p id="detailLine" class="font-semibold text-base text-slate-800">-</p></div>
               </div>
             </section>
-            <section>
-              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Status สต็อก</p>
+            <section class="rounded-2xl border border-slate-200 bg-white p-4">
+              <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">📦 Status สต็อก</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div id="detailFieldStock" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Stock</p><p id="detailStock" class="font-semibold text-base">0</p></div>
-                <div id="detailFieldMinMax" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Min/Max</p><p id="detailMinMax" class="font-semibold text-base">0/0</p></div>
-                <div id="detailFieldNeedToOrder" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Need to order</p><p id="detailNeedToOrder" class="font-semibold text-base">0</p></div>
+                <div id="detailFieldStock" class="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2"><p class="text-xs text-blue-500">Stock</p><p id="detailStock" class="font-bold text-lg text-blue-800">0</p></div>
+                <div id="detailFieldMinMax" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Min/Max</p><p id="detailMinMax" class="font-semibold text-base text-slate-800">0/0</p></div>
+                <div id="detailFieldNeedToOrder" class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 sm:col-span-2"><p class="text-xs text-amber-600">Need to order</p><p id="detailNeedToOrder" class="font-bold text-base text-amber-800">0</p></div>
               </div>
             </section>
-            <section>
-              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลใช้งาน</p>
+            <section class="rounded-2xl border border-slate-200 bg-white p-4">
+              <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">📍 ข้อมูลใช้งาน</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div id="detailFieldLocation" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Location</p><p id="detailLocation" class="font-semibold text-base">-</p></div>
-                <div id="detailFieldNo" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">NO</p><p id="detailNo" class="font-semibold text-base">-</p></div>
-                <div id="detailFieldUnit" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Unit</p><p id="detailUnit" class="font-semibold text-base">-</p></div>
-                <div id="detailFieldSubLine" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Sub-line / Sheet</p><p id="detailSubLine" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldLocation" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Location</p><p id="detailLocation" class="font-semibold text-base text-slate-800">-</p></div>
+                <div id="detailFieldNo" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">NO</p><p id="detailNo" class="font-semibold text-base text-slate-800">-</p></div>
+                <div id="detailFieldUnit" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Unit</p><p id="detailUnit" class="font-semibold text-base text-slate-800">-</p></div>
+                <div id="detailFieldSubLine" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Sub-line / Sheet</p><p id="detailSubLine" class="font-semibold text-base text-slate-800">-</p></div>
               </div>
             </section>
-            <section>
-              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลราคา</p>
+            <section class="rounded-2xl border border-slate-200 bg-white p-4">
+              <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">💰 ข้อมูลราคา</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div id="detailFieldUnitPrice" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Unit Price</p><p id="detailUnitPrice" class="font-semibold text-base">To be confirmed</p></div>
-                <div id="detailFieldCurrency" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Currency</p><p id="detailCurrency" class="font-semibold text-base">THB</p></div>
-                <div id="detailFieldSupplier" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Supplier</p><p id="detailSupplier" class="font-semibold text-base">-</p></div>
-                <div id="detailFieldPriceUpdatedAt" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Price Updated At</p><p id="detailPriceUpdatedAt" class="font-semibold text-base">-</p></div>
-                <div id="detailFieldPriceRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Price Remark</p><p id="detailPriceRemark" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldUnitPrice" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Unit Price</p><p id="detailUnitPrice" class="font-semibold text-base text-slate-800">To be confirmed</p></div>
+                <div id="detailFieldCurrency" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Currency</p><p id="detailCurrency" class="font-semibold text-base text-slate-800">THB</p></div>
+                <div id="detailFieldSupplier" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Supplier</p><p id="detailSupplier" class="font-semibold text-base text-slate-800">-</p></div>
+                <div id="detailFieldPriceUpdatedAt" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Price Updated At</p><p id="detailPriceUpdatedAt" class="font-semibold text-base text-slate-800">-</p></div>
+                <div id="detailFieldPriceRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 sm:col-span-2"><p class="text-xs text-slate-500">Price Remark</p><p id="detailPriceRemark" class="font-semibold text-base text-slate-800">-</p></div>
               </div>
             </section>
-            <section class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
-              <div class="mb-2 flex items-center justify-between gap-2">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Purchase History</p>
+            <section class="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <p class="text-[11px] font-bold uppercase tracking-wide text-emerald-700">✅ Purchase History</p>
                 <span id="detailPurchaseHistorySummary" class="text-xs text-slate-500"></span>
               </div>
-              <div class="overflow-x-auto rounded-lg border border-emerald-100 bg-white">
+              <div class="overflow-x-auto rounded-xl border border-emerald-100 bg-white">
                 <table class="w-full min-w-[520px] text-sm"><thead class="bg-emerald-50 text-left text-slate-600"><tr><th class="px-3 py-2">Requested Date</th><th class="px-3 py-2 text-right">Qty Ordered</th><th class="px-3 py-2">Status</th><th class="px-3 py-2">Requested By</th><th class="px-3 py-2">Updated At</th></tr></thead><tbody id="detailPurchaseHistoryRows"><tr><td colspan="5" class="px-3 py-3 text-center text-slate-400">กำลังโหลด...</td></tr></tbody></table>
               </div>
             </section>
-            <section id="detailDrawingSection" class="rounded-xl border border-blue-100 bg-blue-50/50 p-3">
-              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p class="text-[11px] uppercase tracking-wide text-blue-700 font-semibold">Drawing / Attachments</p>
+            <section id="detailDrawingSection" class="rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+              <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p class="text-[11px] uppercase tracking-wide text-blue-700 font-bold">📐 Drawing / Attachments</p>
                 <span id="detailDrawingRequirement" class="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-blue-700"></span>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing Status</p><p id="detailDrawingStatus" class="font-semibold text-base">-</p></div>
-                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing Rev.</p><p id="detailDrawingRevision" class="font-semibold text-base">-</p></div>
-                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing File Name</p><p id="detailDrawingFileName" class="font-semibold text-base break-all">-</p></div>
+                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing Status</p><p id="detailDrawingStatus" class="font-semibold text-base text-slate-800">-</p></div>
+                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing Rev.</p><p id="detailDrawingRevision" class="font-semibold text-base text-slate-800">-</p></div>
+                <div class="rounded-xl bg-white border border-blue-100 px-3 py-2"><p class="text-xs text-slate-500">Drawing File Name</p><p id="detailDrawingFileName" class="font-semibold text-base break-all text-slate-800">-</p></div>
               </div>
-              <p id="detailDrawingMessage" class="mt-2 rounded-lg bg-white/80 px-3 py-2 text-sm text-slate-600">-</p>
+              <p id="detailDrawingMessage" class="mt-2 rounded-xl bg-white/80 px-3 py-2 text-sm text-slate-600">-</p>
               <div id="detailDrawingActions" class="mt-2 flex flex-wrap gap-2"></div>
               <div class="mt-3">
                 <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Attachment Files</p>
                 <div id="detailAttachmentList" class="space-y-2"></div>
               </div>
             </section>
-            <section>
-              <p class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">ข้อมูลเพิ่มเติม</p>
+            <section class="rounded-2xl border border-slate-200 bg-white p-4">
+              <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">📝 ข้อมูลเพิ่มเติม</p>
               <div class="grid grid-cols-1 gap-2 text-sm">
-                <div id="detailFieldRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Remark</p><p id="detailRemark" class="font-semibold text-base">-</p></div>
+                <div id="detailFieldRemark" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Remark</p><p id="detailRemark" class="font-semibold text-base text-slate-800">-</p></div>
               </div>
             </section>
           </div>
@@ -2411,7 +2410,8 @@
       else pageSize = 30;
     }
     var tableStatusMode = 'all';
-    var issueCartState = {};
+    var issueCartState = {}; // keyed by getItemIdentityKey(item) — กัน NO ซ้ำข้าม Sheet ชนกัน
+    var issueCartRenderEntries = [];
     var issueCartSubmitting = false;
     var currentQuickIssueItemNo = '';
     var currentQuickIssueSelectedPart = null;
@@ -2510,6 +2510,7 @@
     var editModalSubtitle = document.getElementById('editModalSubtitle');
     var detailModal = document.getElementById('detailModal');
     var detailModalCurrentNo = null;
+    var currentDetailModalItem = null;
     var imageViewer = document.getElementById('imageViewer');
     var imageViewerImg = document.getElementById('imageViewerImg');
     var closeImageViewerBtn = document.getElementById('closeImageViewer');
@@ -3177,13 +3178,13 @@
 
     function syncIssueCartWithStock() {
       var nextState = {};
-      Object.keys(issueCartState).forEach(function(no) {
-        var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+      Object.keys(issueCartState).forEach(function(key) {
+        var found = findItemByIdentityKey(key);
         if (!found) return;
         var stock = safeNum(found.stock);
         if (stock <= 0) return;
-        var qty = Math.min(Math.max(1, safeNum(issueCartState[no])), stock);
-        nextState[no] = qty;
+        var qty = Math.min(Math.max(1, safeNum(issueCartState[key])), stock);
+        nextState[key] = qty;
       });
       issueCartState = nextState;
       updateIssueCartBadges();
@@ -3220,39 +3221,41 @@
       if (!item) return;
       var stock = safeNum(item.stock);
       if (stock <= 0) return;
-      var currentQty = safeNum(issueCartState[item.no] || 0);
+      var key = getItemIdentityKey(item);
+      var currentQty = safeNum(issueCartState[key] || 0);
       var nextQty = Math.min(stock, Math.max(1, currentQty + safeNum(qtyToAdd || 1)));
-      issueCartState[item.no] = nextQty;
+      issueCartState[key] = nextQty;
       updateIssueCartBadges();
       if (!issueCartModal.classList.contains('hidden')) renderIssueCart();
     }
 
-    function setIssueCartQty(no, qty) {
-      var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+    function setIssueCartQty(key, qty) {
+      var found = findItemByIdentityKey(key);
       if (!found) return;
       var stock = safeNum(found.stock);
       if (stock <= 0) {
-        delete issueCartState[no];
+        delete issueCartState[key];
       } else {
         var nextQty = Math.max(1, Math.min(stock, safeNum(qty)));
-        issueCartState[no] = nextQty;
+        issueCartState[key] = nextQty;
       }
       updateIssueCartBadges();
       renderIssueCart();
     }
 
-    function removeFromIssueCart(no) {
-      delete issueCartState[no];
+    function removeFromIssueCart(key) {
+      delete issueCartState[key];
       updateIssueCartBadges();
       renderIssueCart();
     }
 
     function renderIssueCart() {
-      var entries = Object.keys(issueCartState).map(function(no) {
-        var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+      var entries = Object.keys(issueCartState).map(function(key) {
+        var found = findItemByIdentityKey(key);
         if (!found) return null;
-        return { item: found, qty: safeNum(issueCartState[no]) || 1 };
+        return { key: key, item: found, qty: safeNum(issueCartState[key]) || 1 };
       }).filter(Boolean);
+      issueCartRenderEntries = entries;
 
       issueCartSummary.textContent = entries.length + ' รายการ';
       if (issueCartSubmitBtn && !issueCartSubmitting) {
@@ -3266,7 +3269,7 @@
         return;
       }
 
-      issueCartList.innerHTML = entries.map(function(entry) {
+      issueCartList.innerHTML = entries.map(function(entry, entryIdx) {
         var item = entry.item;
         var qty = Math.min(entry.qty, safeNum(item.stock));
         var img = toSafeImageUrl(item.image_main_url);
@@ -3282,32 +3285,33 @@
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2">' +
             '<div class="inline-flex items-center rounded-lg border border-slate-300 overflow-hidden">' +
-              '<button data-cart-minus="' + item.no + '" class="h-8 w-8 bg-white text-slate-700">-</button>' +
+              '<button data-cart-minus="' + entryIdx + '" class="h-8 w-8 bg-white text-slate-700">-</button>' +
               '<span class="inline-flex h-8 min-w-[34px] items-center justify-center text-sm font-semibold">' + qty + '</span>' +
-              '<button data-cart-plus="' + item.no + '" class="h-8 w-8 bg-white text-slate-700">+</button>' +
+              '<button data-cart-plus="' + entryIdx + '" class="h-8 w-8 bg-white text-slate-700">+</button>' +
             '</div>' +
-            '<button data-cart-remove="' + item.no + '" class="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700">Remove</button>' +
+            '<button data-cart-remove="' + entryIdx + '" class="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700">Remove</button>' +
           '</div>' +
         '</article>';
       }).join('');
 
       Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-minus]')).forEach(function(btn) {
         btn.addEventListener('click', function() {
-          var no = btn.getAttribute('data-cart-minus');
-          var qty = safeNum(issueCartState[no] || 1) - 1;
-          if (qty < 1) return removeFromIssueCart(no);
-          setIssueCartQty(no, qty);
+          var entry = issueCartRenderEntries[Number(btn.getAttribute('data-cart-minus'))]; if (!entry) return;
+          var qty = safeNum(issueCartState[entry.key] || 1) - 1;
+          if (qty < 1) return removeFromIssueCart(entry.key);
+          setIssueCartQty(entry.key, qty);
         });
       });
       Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-plus]')).forEach(function(btn) {
         btn.addEventListener('click', function() {
-          var no = btn.getAttribute('data-cart-plus');
-          setIssueCartQty(no, safeNum(issueCartState[no] || 1) + 1);
+          var entry = issueCartRenderEntries[Number(btn.getAttribute('data-cart-plus'))]; if (!entry) return;
+          setIssueCartQty(entry.key, safeNum(issueCartState[entry.key] || 1) + 1);
         });
       });
       Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-remove]')).forEach(function(btn) {
         btn.addEventListener('click', function() {
-          removeFromIssueCart(btn.getAttribute('data-cart-remove'));
+          var entry = issueCartRenderEntries[Number(btn.getAttribute('data-cart-remove'))]; if (!entry) return;
+          removeFromIssueCart(entry.key);
         });
       });
     }
@@ -3353,10 +3357,10 @@
     }
 
 function getIssueCartEntries() {
-      return Object.keys(issueCartState).map(function(no) {
-        var found = partsData.filter(function(p){ return String(p.no) === String(no); })[0];
+      return Object.keys(issueCartState).map(function(key) {
+        var found = findItemByIdentityKey(key);
         if (!found) return null;
-        return { no: String(no), item: found, qty: safeNum(issueCartState[no]) };
+        return { key: key, no: String(found.no), item: found, qty: safeNum(issueCartState[key]) };
       }).filter(Boolean);
     }
 
@@ -7978,19 +7982,20 @@ function inferRequestPriority(stock, min) {
       setIssueCartMessage('กำลังบันทึกรายการ 0/' + entries.length + ' ...', 'muted');
 
       var idx = 0;
-      var successNos = [];
+      var successKeys = [];
       var failures = [];
 
       function runNext() {
         if (idx >= entries.length) return Promise.resolve();
         var entry = entries[idx++];
-        var latestItem = partsData.filter(function(p){ return String(p.no) === String(entry.no); })[0];
+        // resolve จาก identity key ของ entry โดยตรง (กัน NO ซ้ำข้าม Sheet หยิบผิดตัว)
+        var latestItem = findItemByIdentityKey(entry.key) || entry.item;
         if (!latestItem) {
           failures.push((entry.item.name || entry.no) + ': ไม่พบข้อมูลล่าสุด');
           return runNext();
         }
         var latestStock = safeNum(latestItem.stock);
-        var latestQty = safeNum(issueCartState[entry.no] || entry.qty);
+        var latestQty = safeNum(issueCartState[entry.key] || entry.qty);
         if (latestQty <= 0 || latestStock <= 0 || latestQty > latestStock) {
           failures.push((latestItem.name || entry.no) + ': stock ไม่พอสำหรับเบิก');
           return runNext();
@@ -8002,7 +8007,7 @@ function inferRequestPriority(stock, min) {
         setIssueCartMessage('กำลังบันทึกรายการ ' + (idx - failures.length) + '/' + entries.length + ' ...', 'muted');
         return callTransactionViaJsonp(payload).then(function(res) {
           if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
-          successNos.push(entry.no);
+          successKeys.push(entry.key);
         }).catch(function(err) {
           latestItem.stock = beforeStock;
           applyFilters(false);
@@ -8011,12 +8016,12 @@ function inferRequestPriority(stock, min) {
       }
 
       runNext().then(function() {
-        successNos.forEach(function(no) { delete issueCartState[no]; });
+        successKeys.forEach(function(key) { delete issueCartState[key]; });
         updateIssueCartBadges();
         renderIssueCart();
 
-        if (successNos.length) {
-          var refreshRefs = entries.filter(function(entry){ return successNos.indexOf(entry.no) > -1; }).map(function(entry){
+        if (successKeys.length) {
+          var refreshRefs = entries.filter(function(entry){ return successKeys.indexOf(entry.key) > -1; }).map(function(entry){
             var source = entry.item || {};
             return { no: entry.no, sheetName: source.__sourceSheet || source.subLine || getCurrentSheetName() };
           });
@@ -8024,8 +8029,8 @@ function inferRequestPriority(stock, min) {
             if (!updated) loadPartsData({ skipCache: true });
           });
           loadLogData();
-          if (detailModalCurrentNo && successNos.indexOf(String(detailModalCurrentNo)) > -1) {
-            var updated = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
+          if (currentDetailModalItem && successKeys.indexOf(getItemIdentityKey(currentDetailModalItem)) > -1) {
+            var updated = findItemByIdentityKey(getItemIdentityKey(currentDetailModalItem));
             if (updated) {
               document.getElementById('detailStock').textContent = String(updated.stock || 0);
               document.getElementById('detailNeedToOrder').textContent = String(getNeedToOrder(updated));
@@ -8034,12 +8039,12 @@ function inferRequestPriority(stock, min) {
         }
 
         if (!failures.length) {
-          setIssueCartMessage('บันทึกสำเร็จทั้งOut of Stock ' + successNos.length + ' รายการ', 'success');
+          setIssueCartMessage('บันทึกสำเร็จทั้งหมด ' + successKeys.length + ' รายการ', 'success');
           if (issueCartNote) issueCartNote.value = '';
           if (issueCartReason) issueCartReason.value = '';
           if (issueCartReasonRemark) { issueCartReasonRemark.value = ''; issueCartReasonRemark.classList.add('hidden'); }
-        } else if (successNos.length) {
-          setIssueCartMessage('สำเร็จ ' + successNos.length + ' รายการ, ไม่สำเร็จ ' + failures.length + ' รายการ: ' + failures.join(' | '), 'error');
+        } else if (successKeys.length) {
+          setIssueCartMessage('สำเร็จ ' + successKeys.length + ' รายการ, ไม่สำเร็จ ' + failures.length + ' รายการ: ' + failures.join(' | '), 'error');
         } else {
           setIssueCartMessage('บันทึกไม่สำเร็จ: ' + failures.join(' | '), 'error');
         }
@@ -8111,29 +8116,25 @@ function inferRequestPriority(stock, min) {
     }
 
     function getCurrentQuickIssueItem() {
-      if (currentQuickIssueSelectedPart && currentQuickIssueSelectedPart.no !== undefined) {
-        var latestByNo = partMap[String(currentQuickIssueSelectedPart.no)] || null;
-        if (latestByNo) return latestByNo;
-      }
-      if (currentQuickIssueItemNo) {
-        var latest = partMap[String(currentQuickIssueItemNo)] || null;
-        if (latest) return latest;
+      // ใช้อะไหล่ตัวที่เลือกไว้จริงเป็นหลัก resolve ด้วย identity key (กัน NO ซ้ำข้าม Sheet หยิบผิดตัว)
+      if (currentQuickIssueSelectedPart) {
+        var byKey = findItemByIdentityKey(getItemIdentityKey(currentQuickIssueSelectedPart));
+        if (byKey) return byKey;
+        if (currentQuickIssueSelectedPart.no !== undefined) return currentQuickIssueSelectedPart;
       }
       try {
         var raw = sessionStorage.getItem(QUICK_ISSUE_SELECTED_PART_KEY);
         if (!raw) return null;
         var selectedPart = JSON.parse(raw);
-        console.log("Issue form selected part:", selectedPart);
         if (!selectedPart) return null;
+        var byKey2 = findItemByIdentityKey(getItemIdentityKey(selectedPart));
+        if (byKey2) return byKey2;
         var candidateNo = String(selectedPart.no || '').trim();
-        var candidateId = String(selectedPart.id || selectedPart.partId || '').trim();
-        var candidateCode = String(selectedPart.code || '').trim().toLowerCase();
+        var candidateSheet = String(selectedPart.__sourceSheet || selectedPart.subLine || '').trim();
+        // ผูก Sheet ด้วยเพื่อไม่ให้หยิบ NO ซ้ำจาก Sheet อื่น
         return partsData.filter(function(p) {
-          if (candidateNo && String(p.no || '').trim() === candidateNo) return true;
-          if (candidateId && String(p.id || p.partId || '').trim() === candidateId) return true;
-          if (candidateCode && String(p.code || '').trim().toLowerCase() === candidateCode) return true;
-          return false;
-        })[0] || null;
+          return candidateNo && String(p.no || '').trim() === candidateNo && (!candidateSheet || String(p.__sourceSheet || p.subLine || '').trim() === candidateSheet);
+        })[0] || (selectedPart.no !== undefined ? selectedPart : null);
       } catch (err) {
         return null;
       }
@@ -8819,6 +8820,31 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    // แก้บั๊กสำคัญ: เลข NO ไม่ unique ทั้งระบบ (แต่ละ Sheet/Line มี NO ซ้ำกันได้)
+    // การ์ดในหน้า Stock จึงต้อง resolve อะไหล่จาก identity key ของการ์ดนั้นโดยตรง
+    // ไม่ใช่ค้นด้วย NO อย่างเดียว (ซึ่งจะเจออะไหล่ตัวแรกที่ NO ตรงจาก Sheet อื่น = ผิดตัว)
+    function resolveCardItem(btn) {
+      if (!btn || !btn.closest) return null;
+      var art = btn.closest('article[data-row-key]') || btn.closest('article[data-view-key]');
+      if (!art) return null;
+      var key = art.getAttribute('data-row-key') || art.getAttribute('data-view-key');
+      return findItemByIdentityKey(key);
+    }
+    function deleteItemResolved(item) {
+      if (!item) return;
+      var itemNo = String(item.no || '').trim();
+      var targetSheet = String(item.__sourceSheet || item.subLine || getCurrentSheetName() || '').trim();
+      showConfirmDialog({ title: 'ยืนยันการลบ', message: 'ยืนยันการลบรายการ NO: ' + itemNo + (item.name ? ' (' + item.name + ')' : '') + ' ?', okLabel: 'ลบ' }).then(function(ok) {
+        if (!ok) return;
+        callManageAction('deleteItem', { sheet: targetSheet, no: itemNo }).then(function(res){
+          if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+          loadPartsData();
+        }).catch(function(err){
+          manageMessage.className = 'mt-3 text-sm text-rose-600';
+          manageMessage.textContent = err.message;
+        });
+      });
+    }
     function deleteItemByNo(no) {
       var itemNo = String(no || '').trim();
       if (!itemNo) return;
@@ -9067,10 +9093,10 @@ function inferRequestPriority(stock, min) {
 
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('article[data-row-key]')).forEach(function(row){ row.addEventListener('click', function(e){ if (e.target.closest('button')) return; var f=findItemByIdentityKey(row.getAttribute('data-row-key')); if(f) openDetailModal(f); }); });
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-view-key]')).forEach(function(btn){btn.addEventListener('click', function(){var f=findItemByIdentityKey(btn.getAttribute('data-view-key')); if(f) openDetailModal(f);});});
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-issue-no]')).forEach(function(btn){btn.addEventListener('click', function(){openQuickIssueModal(btn.getAttribute('data-issue-no'));});});
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-cart-add-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var no=btn.getAttribute('data-cart-add-no'); var sheet=btn.getAttribute('data-cart-add-sheet')||''; var f=partsData.filter(function(p){return String(p.no)===String(no)&&(!sheet||String(p.__sourceSheet||'')===sheet);})[0]||partsData.filter(function(p){return String(p.no)===String(no);})[0]; if(!f||safeNum(f.stock)<=0) return; addItemToIssueCart(f,1);});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-issue-no]')).forEach(function(btn){btn.addEventListener('click', function(){var f=resolveCardItem(btn); if(f) openQuickIssueModal(f); else openQuickIssueModal(btn.getAttribute('data-issue-no'));});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-cart-add-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=resolveCardItem(btn); if(!f){var no=btn.getAttribute('data-cart-add-no'); var sheet=btn.getAttribute('data-cart-add-sheet')||''; f=partsData.filter(function(p){return String(p.no)===String(no)&&(!sheet||String(p.__sourceSheet||'')===sheet);})[0];} if(!f||safeNum(f.stock)<=0) return; addItemToIssueCart(f,1);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-key]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=findItemByIdentityKey(btn.getAttribute('data-edit-key')); if(f) openEditModal(f);});});
-      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-delete-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); deleteItemByNo(btn.getAttribute('data-delete-no'));});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-delete-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=resolveCardItem(btn); if(f) deleteItemResolved(f); else deleteItemByNo(btn.getAttribute('data-delete-no'));});});
       desktopCardGrid.onclick = function(e) {
         var target = e.target;
         if (!target || !target.closest) return;
@@ -9172,9 +9198,12 @@ function inferRequestPriority(stock, min) {
         if (mobileCartBtn) {
           e.preventDefault();
           e.stopPropagation();
-          var cartNo = mobileCartBtn.getAttribute('data-mobile-cart-add-no');
-          var cartSheet = mobileCartBtn.getAttribute('data-cart-add-sheet')||'';
-          var cartItem = partsData.filter(function(p){ return String(p.no)===String(cartNo)&&(!cartSheet||String(p.__sourceSheet||'')===cartSheet); })[0]||partsData.filter(function(p){ return String(p.no)===String(cartNo); })[0];
+          var cartItem = resolveCardItem(mobileCartBtn);
+          if (!cartItem) {
+            var cartNo = mobileCartBtn.getAttribute('data-mobile-cart-add-no');
+            var cartSheet = mobileCartBtn.getAttribute('data-cart-add-sheet')||'';
+            cartItem = partsData.filter(function(p){ return String(p.no)===String(cartNo)&&(!cartSheet||String(p.__sourceSheet||'')===cartSheet); })[0];
+          }
           if (!cartItem || safeNum(cartItem.stock) <= 0) return alert('Stock ไม่พอ');
           addItemToIssueCart(cartItem, 1);
           return;
@@ -9183,7 +9212,9 @@ function inferRequestPriority(stock, min) {
         if (issueBtn) {
           e.preventDefault();
           e.stopPropagation();
-          openQuickIssueModal(issueBtn.getAttribute('data-mobile-issue-no'));
+          var issueItem = resolveCardItem(issueBtn);
+          if (issueItem) openQuickIssueModal(issueItem);
+          else openQuickIssueModal(issueBtn.getAttribute('data-mobile-issue-no'));
           return;
         }
 
@@ -9201,7 +9232,9 @@ function inferRequestPriority(stock, min) {
         if (mobileDeleteBtn) {
           e.preventDefault();
           e.stopPropagation();
-          deleteItemByNo(mobileDeleteBtn.getAttribute('data-mobile-delete-no'));
+          var delItem = resolveCardItem(mobileDeleteBtn);
+          if (delItem) deleteItemResolved(delItem);
+          else deleteItemByNo(mobileDeleteBtn.getAttribute('data-mobile-delete-no'));
           return;
         }
 
@@ -9293,6 +9326,7 @@ function inferRequestPriority(stock, min) {
         });
       }
       detailModalCurrentNo = item.no;
+      currentDetailModalItem = item;
       document.getElementById('detailName').textContent = item.name || '-';
       document.getElementById('detailNo').textContent = item.no || '-';
       document.getElementById('detailModel').textContent = item.model || '-';
@@ -10262,8 +10296,9 @@ if (dashboardPage) {
     if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } });
     if (issueCartSubmitBtn) issueCartSubmitBtn.addEventListener('click', submitIssueCartTransactions);
     if (detailAddToCartBtn) detailAddToCartBtn.addEventListener('click', function() {
-      if (!detailModalCurrentNo) return;
-      var found = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
+      // ใช้ item ตัวที่เปิดอยู่จริงในหน้า Detail โดยตรง (กัน NO ซ้ำข้าม Sheet แล้วหยิบผิดตัว)
+      var found = currentDetailModalItem;
+      if (!found && detailModalCurrentNo) found = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
       if (!found) return;
       addItemToIssueCart(found, 1);
       setIssueCartMessage('เพิ่มลง cart แล้ว: ' + (found.name || found.no), 'success');
