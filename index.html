@@ -118,6 +118,369 @@
     .splash-fade-out { opacity: 0; transition: opacity .45s ease; pointer-events: none; }
     @keyframes splash-spin { to { transform: rotate(360deg); } }
   </style>
+  <style id="fccStyles">
+    /* ═══════════════════════════════════════════════════════════════
+       FACTORY COMMAND CENTER (FCC) — scoped to #dashboardPage.fcc
+       Design language: dark ops-room glass, neon accents, motion with meaning
+       ═══════════════════════════════════════════════════════════════ */
+    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap');
+    #dashboardPage.fcc{
+      --bg0:#05070d; --bg1:#0a1120; --bg2:#0d1729;
+      --panel:rgba(13,20,38,.74); --panel2:rgba(21,31,58,.5);
+      --line:rgba(122,152,205,.14); --line2:rgba(122,152,205,.3);
+      --tx:#e8eefb; --mut:#93a5c4; --dim:#5d6f8e;
+      --cyan:#3be2ff; --blue:#5c8dff; --green:#34e3a1; --amber:#ffc555; --rose:#ff5f7e; --violet:#b192ff;
+      --fnum:'Chakra Petch','Prompt',sans-serif;
+      color:var(--tx);
+    }
+    /* accent presets: --a solid · --as soft fill · --ab border · --ag glow */
+    #dashboardPage.fcc .fa-cyan  { --a:#3be2ff; --as:rgba(59,226,255,.11);  --ab:rgba(59,226,255,.36);  --ag:rgba(59,226,255,.45); }
+    #dashboardPage.fcc .fa-blue  { --a:#5c8dff; --as:rgba(92,141,255,.12);  --ab:rgba(92,141,255,.38);  --ag:rgba(92,141,255,.45); }
+    #dashboardPage.fcc .fa-green { --a:#34e3a1; --as:rgba(52,227,161,.11);  --ab:rgba(52,227,161,.36);  --ag:rgba(52,227,161,.45); }
+    #dashboardPage.fcc .fa-amber { --a:#ffc555; --as:rgba(255,197,85,.11);  --ab:rgba(255,197,85,.38);  --ag:rgba(255,197,85,.42); }
+    #dashboardPage.fcc .fa-rose  { --a:#ff5f7e; --as:rgba(255,95,126,.12);  --ab:rgba(255,95,126,.4);   --ag:rgba(255,95,126,.45); }
+    #dashboardPage.fcc .fa-violet{ --a:#b192ff; --as:rgba(177,146,255,.12); --ab:rgba(177,146,255,.38); --ag:rgba(177,146,255,.45); }
+    #dashboardPage.fcc .fa-slate { --a:#93a5c4; --as:rgba(147,165,196,.1);  --ab:rgba(147,165,196,.3);  --ag:rgba(147,165,196,.3); }
+    #dashboardPage.fcc *::selection{ background:rgba(59,226,255,.25); }
+    .fcc-canvas{
+      position:relative; border-radius:26px; padding:18px 18px 26px; overflow:hidden; isolation:isolate;
+      background:
+        radial-gradient(1100px 480px at 12% -8%, rgba(59,141,255,.16), transparent 60%),
+        radial-gradient(900px 420px at 95% 0%, rgba(177,146,255,.12), transparent 55%),
+        radial-gradient(800px 500px at 50% 115%, rgba(52,227,161,.07), transparent 60%),
+        linear-gradient(175deg, var(--bg1) 0%, var(--bg0) 55%, #070b16 100%);
+      border:1px solid rgba(122,152,205,.18);
+      box-shadow:0 30px 80px -20px rgba(2,6,16,.9), inset 0 1px 0 rgba(160,190,255,.08);
+    }
+    .fcc-canvas::before{ /* engineering dot-grid */
+      content:''; position:absolute; inset:0; z-index:-1; opacity:.5; pointer-events:none;
+      background-image:radial-gradient(rgba(140,170,225,.13) 1px, transparent 1.4px);
+      background-size:26px 26px;
+    }
+    .fcc-canvas::after{ /* sweeping top beam */
+      content:''; position:absolute; top:0; left:8%; right:8%; height:1px; z-index:-1;
+      background:linear-gradient(90deg, transparent, rgba(59,226,255,.7), rgba(177,146,255,.6), transparent);
+    }
+    @media (min-width:768px){ .fcc-canvas{ padding:26px 26px 34px; } }
+
+    /* ── grid system ─────────────────────────────────────────── */
+    .fcc-row{ display:grid; gap:12px; grid-template-columns:repeat(12,minmax(0,1fr)); }
+    .fcc-c3{grid-column:span 12} .fcc-c4{grid-column:span 12} .fcc-c5{grid-column:span 12}
+    .fcc-c6{grid-column:span 12} .fcc-c7{grid-column:span 12} .fcc-c8{grid-column:span 12} .fcc-c12{grid-column:span 12}
+    @media (min-width:1024px){
+      .fcc-c3{grid-column:span 3} .fcc-c4{grid-column:span 4} .fcc-c5{grid-column:span 5}
+      .fcc-c6{grid-column:span 6} .fcc-c7{grid-column:span 7} .fcc-c8{grid-column:span 8}
+    }
+
+    /* ── header ──────────────────────────────────────────────── */
+    .fcc-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; }
+    .fcc-brand{ display:flex; align-items:center; gap:12px; min-width:0; }
+    .fcc-brand-mark{ width:44px; height:44px; flex:none; filter:drop-shadow(0 0 14px rgba(59,226,255,.45)); }
+    .fcc-kicker{ font-family:var(--fnum); font-size:10px; letter-spacing:.34em; color:var(--cyan); text-transform:uppercase; }
+    .fcc-title{ font-size:21px; font-weight:700; letter-spacing:.01em; line-height:1.15; color:var(--tx);
+      text-shadow:0 0 30px rgba(92,141,255,.35); }
+    @media (min-width:768px){ .fcc-title{ font-size:25px; } }
+    .fcc-head-meta{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin-top:5px; font-size:11.5px; color:var(--mut); }
+    .fcc-clock{ font-family:var(--fnum); font-weight:600; font-size:13px; color:var(--tx); letter-spacing:.08em; font-variant-numeric:tabular-nums; }
+    .fcc-live{ display:inline-flex; align-items:center; gap:6px; font-family:var(--fnum); font-size:10px; letter-spacing:.22em; color:var(--green); }
+    .fcc-live-dot{ position:relative; width:7px; height:7px; border-radius:999px; background:var(--green); box-shadow:0 0 10px var(--green); }
+    .fcc-live-dot::after{ content:''; position:absolute; inset:-4px; border-radius:999px; border:1px solid var(--green); opacity:.7; animation:fccPing 1.8s cubic-bezier(0,0,.2,1) infinite; }
+    @keyframes fccPing{ 0%{transform:scale(.5);opacity:.8} 80%,100%{transform:scale(1.9);opacity:0} }
+    .fcc-controls{ display:flex; align-items:center; gap:8px; }
+    #dashboardPage.fcc select#dashboardLineFilter{
+      appearance:none; -webkit-appearance:none; height:38px; padding:0 34px 0 14px; border-radius:12px; cursor:pointer;
+      background:linear-gradient(180deg, rgba(30,44,80,.9), rgba(18,27,52,.9)); color:var(--tx);
+      border:1px solid var(--line2); font-size:13px; font-weight:600; outline:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2393a5c4' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 12px center;
+      transition:border-color .2s, box-shadow .2s;
+    }
+    #dashboardPage.fcc select#dashboardLineFilter:hover,
+    #dashboardPage.fcc select#dashboardLineFilter:focus{ border-color:rgba(59,226,255,.55); box-shadow:0 0 0 3px rgba(59,226,255,.14); }
+    #dashboardPage.fcc select#dashboardLineFilter option{ background:#0d1526; color:#e8eefb; }
+    .fcc-btn{
+      display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 15px; border-radius:12px; cursor:pointer;
+      background:rgba(30,44,80,.55); color:var(--tx); border:1px solid var(--line2); font-size:13px; font-weight:600;
+      transition:transform .18s, border-color .18s, box-shadow .18s, background .18s; white-space:nowrap;
+    }
+    .fcc-btn:hover{ border-color:rgba(59,226,255,.6); box-shadow:0 6px 18px -6px rgba(59,226,255,.35); transform:translateY(-1px); }
+    .fcc-btn:active{ transform:translateY(0) scale(.98); }
+    .fcc-btn.fcc-spin svg{ animation:btn-spin .7s linear infinite; }
+
+    /* ── zone dividers ───────────────────────────────────────── */
+    .fcc-zone-h{ display:flex; align-items:center; gap:12px; margin:26px 2px 12px; }
+    .fcc-zone-no{ font-family:var(--fnum); font-weight:700; font-size:12px; letter-spacing:.18em; padding:3px 10px; border-radius:8px;
+      color:var(--cyan); background:rgba(59,226,255,.08); border:1px solid rgba(59,226,255,.28); text-shadow:0 0 12px rgba(59,226,255,.6); }
+    .fcc-zone-t{ font-family:var(--fnum); font-size:12px; font-weight:600; letter-spacing:.3em; text-transform:uppercase; color:var(--mut); }
+    .fcc-zone-sub{ font-size:11.5px; color:var(--dim); }
+    .fcc-zone-line{ flex:1; height:1px; background:linear-gradient(90deg, var(--line2), transparent); }
+
+    /* ── cards ───────────────────────────────────────────────── */
+    .fcc-card{
+      position:relative; border-radius:18px; border:1px solid var(--line); background:var(--panel);
+      -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+      box-shadow:0 14px 34px -18px rgba(2,6,16,.9), inset 0 1px 0 rgba(160,190,255,.06);
+      transition:transform .25s cubic-bezier(.22,.9,.28,1), border-color .25s, box-shadow .25s;
+    }
+    .fcc-card::before{ content:''; position:absolute; top:0; left:14px; right:14px; height:1px; pointer-events:none;
+      background:linear-gradient(90deg, transparent, rgba(160,190,255,.28), transparent); }
+    .fcc-card:hover{ transform:translateY(-2px); border-color:var(--line2);
+      box-shadow:0 20px 44px -18px rgba(2,6,16,.95), 0 0 0 1px rgba(122,152,205,.08), inset 0 1px 0 rgba(160,190,255,.1); }
+    .fcc-card-h{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px 0; }
+    .fcc-card-t{ font-size:13.5px; font-weight:700; letter-spacing:.02em; display:flex; align-items:center; gap:8px; }
+    .fcc-card-t .ico{ display:inline-flex; width:26px; height:26px; align-items:center; justify-content:center; border-radius:8px;
+      background:rgba(92,141,255,.14); border:1px solid rgba(92,141,255,.3); font-size:13px; }
+    .fcc-card-sub{ font-size:11px; color:var(--dim); margin-top:2px; }
+    .fcc-card-b{ padding:12px 16px 16px; }
+    .fcc-link{ font-size:11px; font-weight:600; color:var(--cyan); cursor:pointer; background:none; border:none; padding:4px 6px; border-radius:8px; }
+    .fcc-link:hover{ background:rgba(59,226,255,.1); }
+
+    /* ── entrance animation ──────────────────────────────────── */
+    @keyframes fccIn{ from{ opacity:0; transform:translateY(16px) scale(.985); } to{ opacity:1; transform:none; } }
+    .fcc-in{ animation:fccIn .55s cubic-bezier(.22,.9,.28,1) both; animation-delay:var(--d,0ms); }
+
+    /* ── skeleton shimmer ────────────────────────────────────── */
+    .fcc-skel{ position:relative; overflow:hidden; border-radius:12px; background:rgba(122,152,205,.08); min-height:16px; }
+    .fcc-skel::after{ content:''; position:absolute; inset:0; transform:translateX(-100%);
+      background:linear-gradient(90deg, transparent, rgba(160,190,255,.12), transparent);
+      animation:fccShimmer 1.4s infinite; }
+    @keyframes fccShimmer{ 100%{ transform:translateX(100%); } }
+
+    /* ── KPI cards ───────────────────────────────────────────── */
+    .fcc-kpis{ display:grid; gap:10px; grid-template-columns:repeat(2,minmax(0,1fr)); height:100%; grid-auto-rows:minmax(96px,1fr); }
+    @media (min-width:640px){ .fcc-kpis{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    .fcc-kpi{ position:relative; overflow:hidden; padding:13px 14px 10px; cursor:pointer; min-height:96px; }
+    .fcc-kpi::after{ content:''; position:absolute; left:0; top:14px; bottom:14px; width:3px; border-radius:0 4px 4px 0;
+      background:linear-gradient(180deg, var(--a,var(--blue)), transparent); opacity:.9; }
+    .fcc-kpi:hover{ border-color:var(--ab,var(--line2)); }
+    .fcc-kpi-top{ display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .fcc-kpi-lb{ font-size:11px; font-weight:600; color:var(--mut); letter-spacing:.02em; line-height:1.3; }
+    .fcc-kpi-ic{ width:28px; height:28px; flex:none; display:inline-flex; align-items:center; justify-content:center; border-radius:9px; font-size:14px;
+      background:var(--as,rgba(92,141,255,.12)); border:1px solid var(--ab,rgba(92,141,255,.3));
+      box-shadow:0 0 16px -4px var(--ag,transparent); }
+    .fcc-kpi-val{ margin-top:7px; font-family:var(--fnum); font-weight:700; font-size:25px; line-height:1; color:var(--tx);
+      font-variant-numeric:tabular-nums; letter-spacing:.01em; }
+    .fcc-kpi-val .u{ font-size:12px; color:var(--mut); font-weight:600; margin-left:3px; }
+    .fcc-kpi-sub{ margin-top:5px; font-size:10.5px; color:var(--dim); display:flex; align-items:center; gap:6px; min-height:15px; position:relative; z-index:1; }
+    .fcc-delta{ font-family:var(--fnum); font-size:10px; font-weight:700; padding:1px 7px; border-radius:999px; letter-spacing:.03em; }
+    .fcc-delta.up{ color:var(--green); background:rgba(52,227,161,.1); border:1px solid rgba(52,227,161,.3); }
+    .fcc-delta.dn{ color:var(--rose); background:rgba(255,95,126,.1); border:1px solid rgba(255,95,126,.3); }
+    .fcc-delta.fl{ color:var(--mut); background:rgba(122,152,205,.1); border:1px solid var(--line); }
+    .fcc-kpi .fcc-spark{ position:absolute; right:0; bottom:0; left:34%; height:30px; width:66%; opacity:.8; pointer-events:none; }
+
+    /* ── health gauge ────────────────────────────────────────── */
+    .fcc-health{ display:flex; flex-direction:column; height:100%; }
+    .fcc-health-b{ display:flex; align-items:center; gap:16px; padding:8px 16px 16px; flex-wrap:wrap; }
+    .fcc-gauge-wrap{ position:relative; width:148px; height:148px; flex:none; margin:0 auto; }
+    .fcc-gauge-svg{ width:100%; height:100%; transform:rotate(-90deg); }
+    .fcc-gauge-track{ fill:none; stroke:rgba(122,152,205,.14); stroke-width:10; }
+    .fcc-gauge-val{ fill:none; stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 1.3s cubic-bezier(.25,.8,.25,1);
+      filter:drop-shadow(0 0 8px rgba(59,226,255,.55)); }
+    .fcc-gauge-c{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    .fcc-gauge-n{ font-family:var(--fnum); font-weight:700; font-size:35px; line-height:1; font-variant-numeric:tabular-nums; }
+    .fcc-gauge-g{ font-family:var(--fnum); font-size:10px; font-weight:700; letter-spacing:.26em; margin-top:4px; }
+    .fcc-health-why{ flex:1; min-width:180px; display:flex; flex-direction:column; gap:7px; }
+    .fcc-why-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11.5px; color:var(--mut);
+      padding:7px 10px; border-radius:10px; background:rgba(122,152,205,.06); border:1px solid var(--line); cursor:pointer;
+      transition:border-color .18s, background .18s; }
+    .fcc-why-row:hover{ border-color:var(--line2); background:rgba(122,152,205,.1); }
+    .fcc-why-pts{ font-family:var(--fnum); font-weight:700; font-size:12px; }
+
+    /* ── alert strip ─────────────────────────────────────────── */
+    .fcc-alerts{ display:flex; gap:8px; overflow-x:auto; padding:2px; scrollbar-width:none; }
+    .fcc-alerts::-webkit-scrollbar{ display:none; }
+    .fcc-alert{ flex:none; display:inline-flex; align-items:center; gap:9px; padding:9px 14px; border-radius:13px; cursor:pointer;
+      background:linear-gradient(0deg, var(--as,transparent), var(--as,transparent)), linear-gradient(0deg, rgba(13,20,38,.72), rgba(13,20,38,.72));
+      border:1px solid var(--ab,var(--line2));
+      transition:transform .18s, box-shadow .18s; }
+    .fcc-alert:hover{ transform:translateY(-1px); box-shadow:0 8px 20px -10px var(--ag,transparent); }
+    .fcc-alert .n{ font-family:var(--fnum); font-weight:700; font-size:16px; color:var(--a,var(--tx)); font-variant-numeric:tabular-nums; }
+    .fcc-alert .t{ font-size:11px; font-weight:600; color:var(--tx); white-space:nowrap; }
+    .fcc-alert .s{ font-size:9.5px; color:var(--dim); white-space:nowrap; }
+    .fcc-alert.crit .n{ animation:fccBlink 1.6s ease-in-out infinite; }
+    @keyframes fccBlink{ 0%,100%{opacity:1} 50%{opacity:.45} }
+
+    /* ── factory map ─────────────────────────────────────────── */
+    .fcc-map{ display:grid; gap:10px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    @media (min-width:640px){ .fcc-map{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    .fcc-zoneblk{ position:relative; overflow:hidden; border-radius:14px; padding:12px 12px 10px; cursor:pointer;
+      background:linear-gradient(160deg, var(--as,rgba(52,227,161,.08)), rgba(11,17,32,.85));
+      border:1px solid var(--ab,rgba(52,227,161,.3));
+      transition:transform .22s cubic-bezier(.22,.9,.28,1), box-shadow .22s, border-color .22s; }
+    .fcc-zoneblk:hover{ transform:translateY(-3px); box-shadow:0 14px 30px -12px var(--ag,transparent); }
+    .fcc-zoneblk.sel{ outline:2px solid var(--a,var(--cyan)); outline-offset:1px; }
+    .fcc-zoneblk::before{ content:''; position:absolute; inset:0; pointer-events:none; opacity:.35;
+      background-image:linear-gradient(rgba(140,170,225,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(140,170,225,.09) 1px, transparent 1px);
+      background-size:14px 14px; }
+    .fcc-zoneblk .zt{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:2px 6px; }
+    .fcc-zoneblk .zn{ font-family:var(--fnum); font-weight:700; font-size:14px; letter-spacing:.04em; }
+    .fcc-zoneblk .zs{ display:inline-flex; align-items:center; gap:5px; font-size:9px; font-weight:700; letter-spacing:.14em;
+      color:var(--a,var(--green)); text-transform:uppercase; font-family:var(--fnum); }
+    .fcc-zoneblk .zdot{ width:6px; height:6px; border-radius:99px; background:var(--a,var(--green)); box-shadow:0 0 8px var(--a,var(--green)); }
+    .fcc-zoneblk .zmeta{ margin-top:9px; display:grid; grid-template-columns:1fr 1fr; gap:3px 8px; font-size:10px; color:var(--mut); }
+    .fcc-zoneblk .zmeta b{ font-family:var(--fnum); font-size:12px; color:var(--tx); font-weight:700; }
+    .fcc-zoneblk .zbar{ margin-top:9px; height:4px; border-radius:99px; background:rgba(122,152,205,.14); overflow:hidden; }
+    .fcc-zoneblk .zbar>i{ display:block; height:100%; border-radius:99px; background:var(--a,var(--green)); width:0; transition:width 1s cubic-bezier(.25,.8,.25,1) .2s; }
+
+    /* ── heatmap ─────────────────────────────────────────────── */
+    .fcc-hm{ display:grid; gap:5px; font-size:10px; }
+    .fcc-hm-row{ display:grid; grid-template-columns:minmax(76px,120px) repeat(4,minmax(0,1fr)); gap:5px; align-items:stretch; }
+    .fcc-hm-lb{ display:flex; align-items:center; font-size:10.5px; color:var(--mut); font-weight:600; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .fcc-hm-cell{ position:relative; border-radius:8px; min-height:30px; display:flex; align-items:center; justify-content:center;
+      font-family:var(--fnum); font-weight:700; font-size:11.5px; border:1px solid transparent; cursor:default;
+      transition:transform .15s, box-shadow .15s; }
+    .fcc-hm-cell:hover{ transform:scale(1.06); z-index:2; box-shadow:0 6px 16px -6px rgba(0,0,0,.7); }
+    .fcc-hm-head{ font-family:var(--fnum); font-size:9.5px; letter-spacing:.08em; color:var(--dim); display:flex; align-items:flex-end; justify-content:center; padding-bottom:2px; text-transform:uppercase; }
+    .fcc-hm-legend{ display:flex; align-items:center; gap:6px; margin-top:10px; font-size:9.5px; color:var(--dim); }
+    .fcc-hm-swatch{ width:22px; height:8px; border-radius:4px; }
+
+    /* ── charts ──────────────────────────────────────────────── */
+    .fcc-chart svg{ width:100%; height:auto; display:block; }
+    .fcc-chart-legend{ display:flex; gap:14px; font-size:10.5px; color:var(--mut); margin-top:6px; }
+    .fcc-chart-legend i{ display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; }
+
+    /* ── list rows / bars / tabs ─────────────────────────────── */
+    .fcc-tabs{ display:flex; gap:5px; }
+    .fcc-tab{ font-size:11px; font-weight:600; color:var(--mut); background:none; border:1px solid transparent; padding:5px 11px; border-radius:9px; cursor:pointer; transition:all .18s; font-family:'Prompt',sans-serif; }
+    .fcc-tab:hover{ color:var(--tx); }
+    .fcc-tab.on{ color:var(--cyan); background:rgba(59,226,255,.08); border-color:rgba(59,226,255,.3); }
+    .fcc-blist{ display:flex; flex-direction:column; gap:8px; }
+    .fcc-brow .m{ display:flex; justify-content:space-between; gap:8px; font-size:11.5px; margin-bottom:4px; }
+    .fcc-brow .m b{ font-weight:600; color:var(--tx); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .fcc-brow .m span{ font-family:var(--fnum); font-weight:700; color:var(--mut); flex:none; }
+    .fcc-bar{ height:6px; border-radius:99px; background:rgba(122,152,205,.12); overflow:hidden; }
+    .fcc-bar>i{ display:block; height:100%; border-radius:99px; width:0; transition:width .9s cubic-bezier(.25,.8,.25,1) .15s;
+      background:linear-gradient(90deg, var(--blue), var(--cyan)); }
+
+    /* ── insight engine ──────────────────────────────────────── */
+    .fcc-ins{ display:flex; flex-direction:column; gap:9px; }
+    .fcc-ins-card{ display:flex; gap:11px; padding:11px 12px; border-radius:14px; align-items:flex-start;
+      background:linear-gradient(0deg, var(--as,transparent), var(--as,transparent)), linear-gradient(0deg, rgba(16,24,46,.65), rgba(16,24,46,.65));
+      border:1px solid var(--ab,var(--line2));
+      transition:transform .18s, border-color .18s; }
+    .fcc-ins-card:hover{ transform:translateX(3px); }
+    .fcc-ins-ic{ flex:none; width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:16px;
+      background:var(--as,transparent); border:1px solid var(--ab,var(--line2));
+      box-shadow:0 0 18px -4px var(--ag,transparent); }
+    .fcc-ins-t{ font-size:12.5px; font-weight:700; line-height:1.35; }
+    .fcc-ins-d{ font-size:11px; color:var(--mut); margin-top:2px; line-height:1.5; }
+    .fcc-ins-meta{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+    .fcc-chip{ display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600; padding:2px 8px; border-radius:999px;
+      background:rgba(122,152,205,.1); border:1px solid var(--line); color:var(--mut); white-space:nowrap; }
+    .fcc-chip.hot{ color:var(--amber); border-color:rgba(255,197,85,.35); background:rgba(255,197,85,.08); }
+    .fcc-ai-badge{ display:inline-flex; align-items:center; gap:6px; font-family:var(--fnum); font-size:9px; font-weight:700; letter-spacing:.2em;
+      color:var(--violet); background:rgba(177,146,255,.1); border:1px solid rgba(177,146,255,.35); padding:3px 9px; border-radius:999px; }
+
+    /* ── action queue ────────────────────────────────────────── */
+    .fcc-q-group{ margin-bottom:10px; }
+    .fcc-q-gh{ display:flex; align-items:center; gap:8px; font-family:var(--fnum); font-size:10.5px; font-weight:700; letter-spacing:.16em; margin-bottom:7px; }
+    .fcc-q-gh .ln{ flex:1; height:1px; background:linear-gradient(90deg, currentColor, transparent); opacity:.3; }
+    .fcc-q-item{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:12px; border:1px solid transparent;
+      transition:background .15s, border-color .15s; }
+    .fcc-q-item:hover{ background:rgba(122,152,205,.07); border-color:var(--line); }
+    .fcc-q-img{ width:38px; height:38px; flex:none; border-radius:9px; object-fit:cover; background:#101a30; border:1px solid var(--line); }
+    .fcc-q-main{ flex:1; min-width:0; }
+    .fcc-q-name{ font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .fcc-q-meta{ font-size:9.5px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+    .fcc-q-stock{ flex:none; width:74px; }
+    .fcc-q-stock .t{ display:flex; justify-content:space-between; font-family:var(--fnum); font-size:10px; margin-bottom:3px; }
+    .fcc-q-need{ flex:none; text-align:center; min-width:44px; }
+    .fcc-q-need b{ font-family:var(--fnum); font-size:15px; font-weight:700; }
+    .fcc-q-need span{ display:block; font-size:8.5px; color:var(--dim); letter-spacing:.08em; }
+    .fcc-q-btn{ flex:none; font-size:10.5px; font-weight:700; padding:6px 11px; border-radius:9px; cursor:pointer; border:1px solid rgba(59,226,255,.4);
+      background:rgba(59,226,255,.1); color:var(--cyan); transition:all .18s; white-space:nowrap; font-family:'Prompt',sans-serif; }
+    .fcc-q-btn:hover{ background:rgba(59,226,255,.22); box-shadow:0 4px 14px -4px rgba(59,226,255,.5); }
+
+    /* ── critical spare rail ─────────────────────────────────── */
+    .fcc-rail{ display:flex; gap:11px; overflow-x:auto; padding:4px 2px 10px; scroll-snap-type:x mandatory; }
+    .fcc-rail::-webkit-scrollbar{ height:6px; }
+    .fcc-rail::-webkit-scrollbar-thumb{ background:rgba(122,152,205,.25); border-radius:99px; }
+    .fcc-rail::-webkit-scrollbar-track{ background:transparent; }
+    .fcc-spare{ scroll-snap-align:start; flex:none; width:226px; border-radius:16px; overflow:hidden; position:relative;
+      background:linear-gradient(170deg, rgba(24,34,62,.85), rgba(12,18,36,.9)); border:1px solid var(--line);
+      transition:transform .22s, border-color .22s, box-shadow .22s; }
+    .fcc-spare:hover{ transform:translateY(-4px); border-color:var(--line2); box-shadow:0 18px 38px -14px rgba(2,6,16,.95); }
+    .fcc-spare.crit{ border-color:rgba(255,95,126,.4); }
+    .fcc-spare.crit:hover{ box-shadow:0 18px 38px -12px rgba(255,95,126,.35); }
+    .fcc-spare-ribbon{ position:absolute; top:10px; left:10px; z-index:2; font-family:var(--fnum); font-size:8.5px; font-weight:700; letter-spacing:.16em;
+      padding:3px 9px; border-radius:999px; -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+    .fcc-spare-img{ width:100%; height:104px; object-fit:cover; background:#0d1526; display:block; opacity:.92; }
+    .fcc-spare-b{ padding:10px 12px 12px; }
+    .fcc-spare-n{ font-size:12px; font-weight:700; line-height:1.35; height:32px; overflow:hidden; }
+    .fcc-spare-m{ font-size:9.5px; color:var(--dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .fcc-spare-grid{ display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; margin-top:8px; font-size:9.5px; color:var(--mut); }
+    .fcc-spare-grid b{ font-family:var(--fnum); font-size:12.5px; color:var(--tx); font-weight:700; }
+    .fcc-spare-foot{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:10px; }
+
+    /* ── pipeline ────────────────────────────────────────────── */
+    .fcc-pipe{ display:flex; align-items:flex-start; margin:14px 4px 6px; }
+    .fcc-pipe-step{ flex:1; display:flex; flex-direction:column; align-items:center; position:relative; }
+    .fcc-pipe-step::before{ content:''; position:absolute; top:15px; left:-50%; width:100%; height:2px; background:rgba(122,152,205,.16); }
+    .fcc-pipe-step:first-child::before{ display:none; }
+    .fcc-pipe-step.done::before{ background:linear-gradient(90deg, rgba(59,226,255,.5), var(--cyan)); box-shadow:0 0 8px rgba(59,226,255,.4); }
+    .fcc-pipe-dot{ position:relative; z-index:1; width:30px; height:30px; border-radius:999px; display:flex; align-items:center; justify-content:center;
+      font-family:var(--fnum); font-weight:700; font-size:11.5px; background:#0f1830; border:1.5px solid rgba(122,152,205,.3); color:var(--mut);
+      transition:all .3s; }
+    .fcc-pipe-step.hot .fcc-pipe-dot{ border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 16px -2px rgba(59,226,255,.6); }
+    .fcc-pipe-lb{ margin-top:6px; font-size:9px; font-weight:600; letter-spacing:.06em; color:var(--dim); text-transform:uppercase; font-family:var(--fnum); }
+    .fcc-req-row{ display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:10px; font-size:11.5px; transition:background .15s; }
+    .fcc-req-row:hover{ background:rgba(122,152,205,.07); }
+    .fcc-pill{ font-size:9px; font-weight:700; padding:2px 8px; border-radius:999px; letter-spacing:.05em; white-space:nowrap; font-family:var(--fnum); }
+
+    /* ── activity timeline ───────────────────────────────────── */
+    .fcc-tl{ position:relative; max-height:330px; overflow-y:auto; padding:2px 4px 2px 2px; }
+    .fcc-tl::-webkit-scrollbar{ width:5px; } .fcc-tl::-webkit-scrollbar-thumb{ background:rgba(122,152,205,.25); border-radius:99px; }
+    .fcc-tl-item{ position:relative; display:flex; gap:11px; padding:7px 2px; }
+    .fcc-tl-item::before{ content:''; position:absolute; left:14px; top:36px; bottom:-8px; width:1.5px; background:rgba(122,152,205,.14); }
+    .fcc-tl-item:last-child::before{ display:none; }
+    .fcc-tl-ic{ flex:none; width:29px; height:29px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:12px; z-index:1;
+      background:#0f1830; border:1px solid var(--line2); }
+    .fcc-tl-main{ flex:1; min-width:0; }
+    .fcc-tl-t{ font-size:11.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .fcc-tl-s{ font-size:9.5px; color:var(--dim); margin-top:1px; }
+    .fcc-tl-q{ flex:none; font-family:var(--fnum); font-weight:700; font-size:12px; align-self:center; }
+
+    /* ── executive strip ─────────────────────────────────────── */
+    .fcc-exec{ display:grid; gap:10px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    @media (min-width:900px){ .fcc-exec{ grid-template-columns:repeat(5,minmax(0,1fr)); } }
+    .fcc-exec-card{ padding:13px 14px; }
+    .fcc-exec-lb{ font-size:10px; font-weight:600; color:var(--dim); letter-spacing:.1em; text-transform:uppercase; font-family:var(--fnum); }
+    .fcc-exec-v{ font-family:var(--fnum); font-weight:700; font-size:19px; margin-top:6px; font-variant-numeric:tabular-nums; }
+    .fcc-exec-s{ font-size:10px; color:var(--mut); margin-top:4px; line-height:1.5; }
+    .fcc-abc{ display:flex; height:8px; border-radius:99px; overflow:hidden; margin-top:8px; background:rgba(122,152,205,.1); }
+    .fcc-abc>i{ display:block; height:100%; transition:width 1s cubic-bezier(.25,.8,.25,1) .2s; width:0; }
+
+    /* ── floating dock ───────────────────────────────────────── */
+    .fcc-dock{ position:fixed; right:18px; bottom:18px; z-index:70; display:flex; flex-direction:column-reverse; align-items:flex-end; gap:9px; }
+    .fcc-dock-main{ width:54px; height:54px; border-radius:18px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(135deg,#1e5eff,#00c2e0); color:#fff; box-shadow:0 12px 30px -8px rgba(30,120,255,.8), inset 0 0 0 1px rgba(160,220,255,.25);
+      transition:transform .22s cubic-bezier(.22,.9,.28,1), box-shadow .22s; }
+    .fcc-dock-main:hover{ transform:translateY(-2px) scale(1.04); }
+    .fcc-dock-main svg{ transition:transform .28s cubic-bezier(.22,.9,.28,1); }
+    .fcc-dock.open .fcc-dock-main svg{ transform:rotate(45deg); }
+    .fcc-dock-items{ display:flex; flex-direction:column; align-items:flex-end; gap:7px; }
+    .fcc-dock-it{ display:flex; align-items:center; gap:9px; cursor:pointer; border:none; background:none; padding:0;
+      opacity:0; transform:translateY(10px) scale(.9); pointer-events:none; transition:all .25s cubic-bezier(.22,.9,.28,1); transition-delay:var(--d,0ms); }
+    .fcc-dock.open .fcc-dock-it{ opacity:1; transform:none; pointer-events:auto; }
+    .fcc-dock-it .lb{ font-size:11px; font-weight:600; color:var(--tx); background:rgba(13,20,38,.92); border:1px solid var(--line2);
+      padding:5px 11px; border-radius:10px; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); box-shadow:0 8px 20px -8px rgba(0,0,0,.8); white-space:nowrap; }
+    .fcc-dock-it .ic{ width:42px; height:42px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:17px;
+      background:rgba(20,30,55,.95); border:1px solid var(--line2); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); box-shadow:0 10px 24px -10px rgba(0,0,0,.85);
+      transition:border-color .18s, box-shadow .18s; }
+    .fcc-dock-it:hover .ic{ border-color:rgba(59,226,255,.6); box-shadow:0 10px 26px -8px rgba(59,226,255,.45); }
+
+    /* ── footer / misc ───────────────────────────────────────── */
+    .fcc-foot{ margin-top:24px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px;
+      padding-top:14px; border-top:1px solid var(--line); font-size:10px; color:var(--dim); font-family:var(--fnum); letter-spacing:.08em; }
+    .fcc-empty{ padding:22px 10px; text-align:center; font-size:11.5px; color:var(--dim); }
+    .fcc-num{ font-variant-numeric:tabular-nums; }
+    #dashboardPage.fcc ::-webkit-scrollbar{ width:8px; height:8px; }
+    #dashboardPage.fcc ::-webkit-scrollbar-thumb{ background:rgba(122,152,205,.22); border-radius:99px; }
+    #dashboardPage.fcc ::-webkit-scrollbar-track{ background:transparent; }
+    @media (prefers-reduced-motion: reduce){
+      #dashboardPage.fcc *, #dashboardPage.fcc *::before, #dashboardPage.fcc *::after{ animation-duration:.001s !important; transition-duration:.001s !important; }
+    }
+  </style>
 </head>
 <body class="bg-slate-100 text-slate-800 overflow-x-hidden">
   <div id="appSplash" class="splash-overlay">
@@ -585,136 +948,270 @@
       </div>
     </section>
 
-    <section id="dashboardPage" class="hidden mb-6 space-y-4 p-2 md:p-4">
-      <!-- Header -->
-      <div id="dashExecutive" class="rounded-2xl bg-white p-4 shadow-sm border border-slate-200">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-xl font-bold text-slate-900">Factory Spare Parts Dashboard</h2>
-            <p id="dashLastUpdated" class="mt-0.5 text-xs text-slate-400">กำลังโหลดข้อมูล...</p>
+    <!-- ═══════════════ FACTORY COMMAND CENTER ═══════════════ -->
+    <section id="dashboardPage" class="hidden fcc mb-6">
+      <div class="fcc-canvas">
+
+        <!-- Command header -->
+        <header class="fcc-head">
+          <div class="fcc-brand">
+            <svg class="fcc-brand-mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="fccMarkGrad" x1="0" y1="0" x2="48" y2="48">
+                  <stop offset="0" stop-color="#3be2ff"/><stop offset="1" stop-color="#5c8dff"/>
+                </linearGradient>
+              </defs>
+              <path d="M24 3 42 13v22L24 45 6 35V13L24 3Z" stroke="url(#fccMarkGrad)" stroke-width="2.4" fill="rgba(59,141,255,.08)"/>
+              <path d="M24 12 33 17v14l-9 5-9-5V17l9-5Z" stroke="url(#fccMarkGrad)" stroke-width="1.6" fill="rgba(59,226,255,.14)"/>
+              <circle cx="24" cy="24" r="3" fill="#3be2ff"/>
+            </svg>
+            <div class="min-w-0">
+              <div class="fcc-kicker">JR &middot; Spare Parts Operations</div>
+              <h2 class="fcc-title">Factory Command Center</h2>
+              <div class="fcc-head-meta">
+                <span class="fcc-live"><span class="fcc-live-dot"></span>LIVE</span>
+                <span class="fcc-clock" id="fccClock">--:--:--</span>
+                <span id="dashLastUpdated">กำลังเชื่อมต่อข้อมูล...</span>
+              </div>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <select id="dashboardLineFilter" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-sm">
-              <option value="all">ทุก Line</option>
+          <div class="fcc-controls">
+            <select id="dashboardLineFilter" aria-label="เลือก Line">
+              <option value="all">ทุก Line ทั้งโรงงาน</option>
               <option value="H9">H9</option>
               <option value="Arc Chute">Arc Chute</option>
               <option value="Coil Winding">Coil Winding</option>
               <option value="Lug&Screw">Lug&amp;Screw</option>
             </select>
-            <button id="dashboardRefreshBtn" type="button" class="h-9 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 hover:bg-blue-100">🔄 Refresh</button>
+            <button id="dashboardRefreshBtn" type="button" class="fcc-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+              Sync
+            </button>
+          </div>
+        </header>
+
+        <!-- ══ ZONE 01 · SITUATION ══ -->
+        <div class="fcc-zone-h">
+          <span class="fcc-zone-no">01</span>
+          <span class="fcc-zone-t">Situation</span>
+          <span class="fcc-zone-sub">สถานการณ์โรงงานตอนนี้ — รู้ปัญหาใน 5 วินาที</span>
+          <span class="fcc-zone-line"></span>
+        </div>
+        <div class="fcc-row">
+          <div class="fcc-c4">
+            <div id="fccHealth" class="fcc-card fcc-health" style="min-height:220px">
+              <div class="fcc-card-h">
+                <div>
+                  <div class="fcc-card-t"><span class="ico">&#x1FA7A;</span>Factory Health Score</div>
+                  <div class="fcc-card-sub">คะแนนสุขภาพคลังอะไหล่ คำนวณจากข้อมูลจริง</div>
+                </div>
+              </div>
+              <div class="fcc-card-b" id="fccHealthBody">
+                <div class="fcc-skel" style="height:150px"></div>
+              </div>
+            </div>
+          </div>
+          <div class="fcc-c8">
+            <div id="fccKpis" class="fcc-kpis">
+              <div class="fcc-card fcc-skel" style="min-height:96px"></div>
+              <div class="fcc-card fcc-skel" style="min-height:96px"></div>
+              <div class="fcc-card fcc-skel" style="min-height:96px"></div>
+              <div class="fcc-card fcc-skel" style="min-height:96px"></div>
+              <div class="fcc-card fcc-skel" style="min-height:96px"></div>
+              <div class="fcc-card fcc-skel" style="min-height:96px"></div>
+              <div class="fcc-card fcc-skel" style="min-height:96px"></div>
+              <div class="fcc-card fcc-skel" style="min-height:96px"></div>
+            </div>
           </div>
         </div>
+        <div id="fccAlerts" class="fcc-alerts" style="margin-top:12px">
+          <div class="fcc-skel" style="height:44px;width:100%"></div>
+        </div>
+
+        <!-- ══ ZONE 02 · ANALYSIS ══ -->
+        <div class="fcc-zone-h">
+          <span class="fcc-zone-no">02</span>
+          <span class="fcc-zone-t">Analysis</span>
+          <span class="fcc-zone-sub">วิเคราะห์ความเสี่ยงและแนวโน้มทั้งโรงงาน</span>
+          <span class="fcc-zone-line"></span>
+        </div>
+        <div class="fcc-row">
+          <div class="fcc-c7">
+            <div class="fcc-card" id="fccMapCard">
+              <div class="fcc-card-h">
+                <div>
+                  <div class="fcc-card-t"><span class="ico">&#x1F3ED;</span>Factory Map — สถานะราย Line</div>
+                  <div class="fcc-card-sub">คลิกที่ Line เพื่อเจาะดูข้อมูลเฉพาะโซน</div>
+                </div>
+                <button type="button" class="fcc-link" data-fcc-act="line:all">ดูทั้งโรงงาน</button>
+              </div>
+              <div class="fcc-card-b">
+                <div id="fccMap" class="fcc-map">
+                  <div class="fcc-skel" style="height:120px"></div>
+                  <div class="fcc-skel" style="height:120px"></div>
+                  <div class="fcc-skel" style="height:120px"></div>
+                  <div class="fcc-skel" style="height:120px"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="fcc-c5">
+            <div class="fcc-card" style="height:100%">
+              <div class="fcc-card-h">
+                <div>
+                  <div class="fcc-card-t"><span class="ico">&#x1F4C8;</span>เบิก / รับเข้า 14 วัน</div>
+                  <div class="fcc-card-sub" id="fccTrendSub">แนวโน้มการเคลื่อนไหวของอะไหล่</div>
+                </div>
+              </div>
+              <div class="fcc-card-b fcc-chart" id="fccTrend">
+                <div class="fcc-skel" style="height:150px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcc-row" style="margin-top:12px">
+          <div class="fcc-c7">
+            <div class="fcc-card" style="height:100%">
+              <div class="fcc-card-h">
+                <div>
+                  <div class="fcc-card-t"><span class="ico">&#x1F525;</span>Risk Heatmap — หมวดอะไหล่ &times; Line</div>
+                  <div class="fcc-card-sub">จำนวนรายการที่ต่ำกว่า Min ในแต่ละจุดของโรงงาน</div>
+                </div>
+              </div>
+              <div class="fcc-card-b" id="fccHeatmap">
+                <div class="fcc-skel" style="height:190px"></div>
+              </div>
+            </div>
+          </div>
+          <div class="fcc-c5">
+            <div class="fcc-card" style="height:100%">
+              <div class="fcc-card-h">
+                <div class="fcc-card-t"><span class="ico">&#x1F3C6;</span>Top Intelligence</div>
+                <div class="fcc-tabs" id="fccTopsTabs">
+                  <button type="button" class="fcc-tab on" data-fcc-act="tab:usage">ใช้บ่อย</button>
+                  <button type="button" class="fcc-tab" data-fcc-act="tab:value">มูลค่าสูง</button>
+                  <button type="button" class="fcc-tab" data-fcc-act="tab:dead">Dead Stock</button>
+                </div>
+              </div>
+              <div class="fcc-card-b" id="fccTops">
+                <div class="fcc-skel" style="height:190px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ ZONE 03 · ACTION ══ -->
+        <div class="fcc-zone-h">
+          <span class="fcc-zone-no">03</span>
+          <span class="fcc-zone-t">Action</span>
+          <span class="fcc-zone-sub">ต้องทำอะไรก่อน — เรียงตามความเร่งด่วน</span>
+          <span class="fcc-zone-line"></span>
+        </div>
+        <div class="fcc-row">
+          <div class="fcc-c5">
+            <div class="fcc-card" style="height:100%">
+              <div class="fcc-card-h">
+                <div>
+                  <div class="fcc-card-t"><span class="ico">&#x2728;</span>Insight Engine</div>
+                  <div class="fcc-card-sub">วิเคราะห์อัตโนมัติจากพฤติกรรมการเบิกจริง</div>
+                </div>
+                <span class="fcc-ai-badge">&#x26A1; AUTO ANALYSIS</span>
+              </div>
+              <div class="fcc-card-b fcc-ins" id="fccInsights">
+                <div class="fcc-skel" style="height:64px"></div>
+                <div class="fcc-skel" style="height:64px"></div>
+                <div class="fcc-skel" style="height:64px"></div>
+              </div>
+            </div>
+          </div>
+          <div class="fcc-c7">
+            <div class="fcc-card" id="fccQueueCard">
+              <div class="fcc-card-h">
+                <div>
+                  <div class="fcc-card-t"><span class="ico">&#x1F6D2;</span>Action Queue — ต้องสั่งซื้อ</div>
+                  <div class="fcc-card-sub" id="fccQueueSub">จัดลำดับความสำคัญอัตโนมัติ</div>
+                </div>
+                <button type="button" class="fcc-link" data-fcc-act="csv">&#x2B73; Export CSV</button>
+              </div>
+              <div class="fcc-card-b" id="fccQueue">
+                <div class="fcc-skel" style="height:54px;margin-bottom:8px"></div>
+                <div class="fcc-skel" style="height:54px;margin-bottom:8px"></div>
+                <div class="fcc-skel" style="height:54px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcc-card" style="margin-top:12px">
+          <div class="fcc-card-h">
+            <div>
+              <div class="fcc-card-t"><span class="ico">&#x1F6A8;</span>Critical Spare Parts</div>
+              <div class="fcc-card-sub">รายการวิกฤตที่กระทบการผลิตมากที่สุด</div>
+            </div>
+            <button type="button" class="fcc-link" data-fcc-act="nav:stock">ดูคลังทั้งหมด &rarr;</button>
+          </div>
+          <div class="fcc-card-b">
+            <div id="fccRail" class="fcc-rail">
+              <div class="fcc-skel" style="height:210px;width:226px;flex:none"></div>
+              <div class="fcc-skel" style="height:210px;width:226px;flex:none"></div>
+              <div class="fcc-skel" style="height:210px;width:226px;flex:none"></div>
+              <div class="fcc-skel" style="height:210px;width:226px;flex:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ ZONE 04 · RESULT ══ -->
+        <div class="fcc-zone-h">
+          <span class="fcc-zone-no">04</span>
+          <span class="fcc-zone-t">Result</span>
+          <span class="fcc-zone-sub">ติดตามผลการดำเนินงานและภาพรวมผู้บริหาร</span>
+          <span class="fcc-zone-line"></span>
+        </div>
+        <div class="fcc-row">
+          <div class="fcc-c7">
+            <div class="fcc-card">
+              <div class="fcc-card-h">
+                <div>
+                  <div class="fcc-card-t"><span class="ico">&#x1F4CB;</span>Purchase Workflow</div>
+                  <div class="fcc-card-sub" id="fccPipeSub">สถานะคำขอซื้อทั้งหมดในระบบ</div>
+                </div>
+                <button type="button" class="fcc-link" data-fcc-act="nav:request">จัดการคำขอ &rarr;</button>
+              </div>
+              <div class="fcc-card-b" id="fccPipeline">
+                <div class="fcc-skel" style="height:170px"></div>
+              </div>
+            </div>
+          </div>
+          <div class="fcc-c5">
+            <div class="fcc-card" style="height:100%">
+              <div class="fcc-card-h">
+                <div>
+                  <div class="fcc-card-t"><span class="ico">&#x1F504;</span>Live Activity</div>
+                  <div class="fcc-card-sub">ความเคลื่อนไหวล่าสุดในระบบ</div>
+                </div>
+                <button type="button" class="fcc-link" data-fcc-act="nav:log">ดูทั้งหมด &rarr;</button>
+              </div>
+              <div class="fcc-card-b" id="fccActivity">
+                <div class="fcc-skel" style="height:170px"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="fccExec" class="fcc-exec" style="margin-top:12px">
+          <div class="fcc-card fcc-skel" style="min-height:92px"></div>
+          <div class="fcc-card fcc-skel" style="min-height:92px"></div>
+          <div class="fcc-card fcc-skel" style="min-height:92px"></div>
+          <div class="fcc-card fcc-skel" style="min-height:92px"></div>
+          <div class="fcc-card fcc-skel" style="min-height:92px"></div>
+        </div>
+
+        <footer class="fcc-foot">
+          <span>JR FACTORY COMMAND CENTER &middot; REAL-TIME SPARE PARTS OPERATIONS</span>
+          <span id="fccFootSync">&mdash;</span>
+        </footer>
       </div>
-      <!-- KPI Cards -->
-      <div id="dashboardSummary" class="grid grid-cols-2 gap-3 sm:grid-cols-4"></div>
-      <!-- Charts Row -->
-      <div id="dashAlerts" class="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
-          <h3 class="text-sm font-bold text-slate-700">📦 Stock by Line</h3>
-          <div id="dashboardLineBars" class="mt-3 space-y-2.5 text-xs"></div>
-        </div>
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm flex flex-col items-center">
-          <h3 class="text-sm font-bold text-slate-700 self-start">🩺 Stock Health</h3>
-          <div id="dashboardStockDonut" class="mt-3 h-36 w-36 rounded-full shadow-inner"></div>
-          <div id="dashboardStockDonutLegend" class="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs"></div>
-          <p id="dashboardStockDonutText" class="mt-1 text-center text-[11px] text-slate-400"></p>
-        </div>
-        <div class="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm">
-          <h3 class="text-sm font-bold text-slate-700">🛒 Need PO by Category</h3>
-          <div id="dashboardNeedPoBars" class="mt-3 space-y-2.5 text-xs"></div>
-        </div>
-      </div>
-      <!-- Critical Items -->
-      <div id="dashRisk" class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-          <div>
-            <h3 class="font-bold text-slate-800">🚨 รายการวิกฤต — ต้องดำเนินการ</h3>
-            <p class="text-xs text-slate-400">Stock หมดหรือต่ำกว่า Min — เรียงตาม Need PO มากสุดก่อน</p>
-          </div>
-          <span id="dashRiskCount" class="hidden rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700"></span>
-        </div>
-        <div id="dashboardLoading" class="px-4 py-8 text-center text-sm text-slate-400">⏳ กำลังโหลด...</div>
-        <div id="dashboardEmpty" class="hidden px-4 py-8 text-center text-sm font-semibold text-green-600">✅ ไม่มีรายการวิกฤต ทุกอย่างปกติดี</div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th class="px-3 py-2.5 text-left">Line</th>
-                <th class="px-3 py-2.5 text-left">Part Name</th>
-                <th class="px-3 py-2.5 text-left hidden sm:table-cell">Model</th>
-                <th class="px-3 py-2.5 text-center">Stock</th>
-                <th class="px-3 py-2.5 text-center">Min</th>
-                <th class="px-3 py-2.5 text-center">Need PO</th>
-                <th class="px-3 py-2.5 text-left">ระดับ</th>
-              </tr>
-            </thead>
-            <tbody id="dashboardRiskBody"></tbody>
-          </table>
-        </div>
-      </div>
-      <!-- Requests + Activity (2 cols) -->
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div id="dashRequestStatus" class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div class="border-b border-slate-100 px-4 py-3">
-            <h3 class="font-bold text-slate-800">📋 Purchase Requests</h3>
-            <div id="dashboardRequestSummary" class="mt-2 flex flex-wrap gap-1.5"></div>
-          </div>
-          <div id="dashboardRequestEmpty" class="hidden px-4 py-6 text-center text-sm text-slate-400">ยังไม่มีคำขอซื้อ</div>
-          <div class="max-h-72 overflow-y-auto overflow-x-auto">
-            <table class="min-w-full text-xs">
-              <thead class="text-slate-700 font-bold text-xs uppercase tracking-wide"><tr>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-left border-b-2 border-slate-300" style="background:#cbd5e1">Part Name</th>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-left border-b-2 border-slate-300 hidden sm:table-cell" style="background:#cbd5e1">Line</th>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-center border-b-2 border-slate-300" style="background:#cbd5e1">Qty</th>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-left border-b-2 border-slate-300" style="background:#cbd5e1">Status</th>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-left border-b-2 border-slate-300 hidden sm:table-cell" style="background:#cbd5e1">วันที่</th>
-              </tr></thead>
-              <tbody id="dashboardRequestTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div id="dashRecentActivities" class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-          <div class="border-b border-slate-100 px-4 py-3">
-            <h3 class="font-bold text-slate-800">🔄 Recent Activities</h3>
-            <div id="dashboardLogSummary" class="mt-2 flex flex-wrap gap-1.5"></div>
-          </div>
-          <div id="dashboardLogEmpty" class="hidden px-4 py-6 text-center text-sm text-slate-400">ยังไม่มีกิจกรรม</div>
-          <div class="max-h-72 overflow-y-auto overflow-x-auto">
-            <table class="min-w-full text-xs">
-              <thead class="text-slate-700 font-bold text-xs uppercase tracking-wide"><tr>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-left border-b-2 border-slate-300" style="background:#cbd5e1">Part Name</th>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-left border-b-2 border-slate-300 hidden sm:table-cell" style="background:#cbd5e1">ประเภท</th>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-center border-b-2 border-slate-300" style="background:#cbd5e1">Qty</th>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-left border-b-2 border-slate-300 hidden sm:table-cell" style="background:#cbd5e1">โดย</th>
-                <th class="sticky top-0 z-10 px-3 py-2.5 text-left border-b-2 border-slate-300" style="background:#cbd5e1">เวลา</th>
-              </tr></thead>
-              <tbody id="dashboardLatestIssueBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      <!-- Top Usage -->
-      <div id="dashTopUsage" class="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
-        <div class="border-b border-slate-100 px-4 py-3">
-          <h3 class="font-bold text-slate-800">📊 Top 10 อะไหล่ที่เบิกบ่อย</h3>
-          <p class="text-xs text-slate-400 mt-0.5">เรียงตามจำนวนครั้งที่เบิกออกในระบบ</p>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500"><tr>
-              <th class="px-3 py-2.5 w-8 text-center">#</th>
-              <th class="px-3 py-2.5 text-left">Part Name</th>
-              <th class="px-3 py-2.5 text-left hidden sm:table-cell">Model</th>
-              <th class="px-3 py-2.5 text-center">ครั้งที่เบิก</th>
-              <th class="px-3 py-2.5 text-center">Qty รวม</th>
-              <th class="px-3 py-2.5 text-left hidden sm:table-cell">เบิกล่าสุด</th>
-            </tr></thead>
-            <tbody id="dashboardTopPartsBody"></tbody>
-          </table>
-        </div>
-      </div>
-      <!-- Top Issuers (hidden — data stored in dashboardTopUsersBody for compat) -->
-      <tbody id="dashboardTopUsersBody" class="hidden"></tbody>
+
+      <!-- Floating quick actions -->
+      <div id="fccDock" class="fcc-dock"></div>
     </section>
 
     <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
@@ -6084,142 +6581,1012 @@ function inferRequestPriority(stock, min) {
       });
     }
 
-    function renderDashboardPhase1() {
-      function normalizeMainLine(lineRaw) {
-        var line = String(lineRaw || '').toLowerCase();
-        if (line.indexOf('h9') !== -1) return 'H9';
-        if (line.indexOf('arc') !== -1) return 'Arc Chute';
-        if (line.indexOf('coil') !== -1) return 'Coil Winding';
-        if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
-        return String(lineRaw || '-');
-      }
-      function num(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
-      var summaryEl = document.getElementById('dashboardSummary');
-      var loadingEl = document.getElementById('dashboardLoading');
-      var emptyEl = document.getElementById('dashboardEmpty');
-      var bodyEl = document.getElementById('dashboardRiskBody');
-      var riskCountEl = document.getElementById('dashRiskCount');
-      var lastUpdatedEl = document.getElementById('dashLastUpdated');
-      if (!summaryEl || !loadingEl || !emptyEl || !bodyEl) return;
-      loadingEl.classList.remove('hidden');
-      emptyEl.classList.add('hidden');
-      if (bodyEl) bodyEl.innerHTML = '';
-      var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
-      var sourceRows = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
-      var rows = sourceRows.filter(function(r) {
-        if (selectedLine === 'all') return true;
-        return normalizeMainLine(r.line) === selectedLine;
+    /* ═══════════════════════════════════════════════════════════════
+       FACTORY COMMAND CENTER — dashboard engine
+       ทุกตัวเลขบนหน้านี้คำนวณจากข้อมูลจริง 3 แหล่ง:
+       parts (สต็อก) · order requests (คำขอซื้อ) · logs (เบิก/รับเข้า)
+       ═══════════════════════════════════════════════════════════════ */
+    var fccInited = false;
+    var fccUid = 0;
+    var fccTopsMode = 'usage';
+    var fccQExp = {};
+    var fccLast = { P: null, PAll: null, L: null, R: null, queue: [] };
+    var fccAsyncCache = { requests: null, logs: null, at: 0, pending: null };
+    var fccClockTimer = null;
+    var fccRenderToken = 0;
+
+    function fccInvalidateAsyncCache() { fccAsyncCache.at = 0; }
+
+    /* ── utils ─────────────────────────────────────────────────── */
+    function fccEsc(v) {
+      return String(v === undefined || v === null ? '' : v)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+    function fccN(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
+    function fccPrice(v) {
+      var n = parseFloat(String(v === undefined || v === null ? '' : v).replace(/,/g, ''));
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+    function fccInt(n) { return Math.round(fccN(n)).toLocaleString('en-US'); }
+    function fccMoney(n) {
+      n = fccN(n);
+      if (n >= 1e6) return (n / 1e6).toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + 'M';
+      if (n >= 1e4) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+      return fccInt(n);
+    }
+    function fccLineOf(raw) {
+      var line = String(raw || '').toLowerCase();
+      if (line.indexOf('h9') !== -1) return 'H9';
+      if (line.indexOf('arc') !== -1 || line.indexOf('gv') !== -1) return 'Arc Chute';
+      if (line.indexOf('coil') !== -1) return 'Coil Winding';
+      if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
+      return String(raw || '-');
+    }
+    function fccPartKey(line, name, model) {
+      return [fccLineOf(line), String(name || '').trim().toLowerCase(), String(model || '').trim().toLowerCase()].join('||');
+    }
+    function fccRelTime(ts) {
+      var t = new Date(ts).getTime();
+      if (!t || isNaN(t)) return '-';
+      var s = (Date.now() - t) / 1000;
+      if (s < 0) s = 0;
+      if (s < 60) return 'เมื่อครู่';
+      if (s < 3600) return Math.floor(s / 60) + ' นาทีที่แล้ว';
+      if (s < 86400) return Math.floor(s / 3600) + ' ชม.ที่แล้ว';
+      if (s < 7 * 86400) return Math.floor(s / 86400) + ' วันที่แล้ว';
+      return formatThaiDateTime(ts).slice(0, 10);
+    }
+    function fccImgAttrs(item) {
+      var main = '';
+      try { main = toSafeImageUrl(item.image_main_url); } catch (e) { main = ''; }
+      if (!main) main = 'images/no-image.svg';
+      var fb = '';
+      try { fb = getSecondaryDriveImageUrl(item.image_main_url, 400) || ''; } catch (e2) { fb = ''; }
+      return 'src="' + fccEsc(main) + '"' + (fb && fb !== main ? ' data-fb="' + fccEsc(fb) + '"' : '') + ' loading="lazy" alt=""';
+    }
+    function fccPerm(key) {
+      try { return typeof hasPermission === 'function' ? !!hasPermission(key) : true; } catch (e) { return true; }
+    }
+
+    /* ── svg builders ──────────────────────────────────────────── */
+    function fccSpark(vals, color) {
+      if (!vals || vals.length < 2) return '';
+      var w = 120, h = 32;
+      var max = Math.max.apply(null, vals.concat([1]));
+      var step = w / (vals.length - 1);
+      var pts = vals.map(function(v, i) {
+        return (i * step).toFixed(1) + ',' + (h - 3 - (fccN(v) / max) * (h - 9)).toFixed(1);
       });
-      function kpiCard(icon, label, value, colorClass, subLabel) {
-        return '<div class="rounded-2xl border ' + colorClass + ' bg-white p-4 shadow-sm">' +
-          '<div class="flex items-start justify-between">' +
-          '<p class="text-xs font-semibold text-slate-500 leading-snug">' + label + '</p>' +
-          '<span class="text-xl leading-none">' + icon + '</span>' +
+      var uid = 'fccsg' + (fccUid++);
+      return '<svg class="fcc-spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" aria-hidden="true">' +
+        '<defs><linearGradient id="' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" stop-color="' + color + '" stop-opacity=".3"/>' +
+        '<stop offset="1" stop-color="' + color + '" stop-opacity="0"/></linearGradient></defs>' +
+        '<polygon points="' + pts.join(' ') + ' ' + w + ',' + h + ' 0,' + h + '" fill="url(#' + uid + ')"/>' +
+        '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + color + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</svg>';
+    }
+    function fccGaugeSvg(score, c1, c2) {
+      var R = 62, C = (2 * Math.PI * R).toFixed(1);
+      var off = (C * (1 - Math.max(0, Math.min(100, score)) / 100)).toFixed(1);
+      var uid = 'fccgg' + (fccUid++);
+      return '<svg class="fcc-gauge-svg" viewBox="0 0 160 160" aria-hidden="true">' +
+        '<defs><linearGradient id="' + uid + '" x1="0" y1="0" x2="1" y2="1">' +
+        '<stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/></linearGradient></defs>' +
+        '<circle class="fcc-gauge-track" cx="80" cy="80" r="' + R + '"/>' +
+        '<circle class="fcc-gauge-val" cx="80" cy="80" r="' + R + '" stroke="url(#' + uid + ')"' +
+        ' stroke-dasharray="' + C + '" stroke-dashoffset="' + C + '" data-dash="' + off + '"/>' +
+        '</svg>';
+    }
+
+    /* ── motion: count-up + bar/gauge play ─────────────────────── */
+    function fccFmtVal(v, fmt) {
+      if (fmt === 'baht') return '฿' + fccMoney(v);
+      if (fmt === 'pct') return Math.round(v) + '%';
+      return fccInt(v);
+    }
+    function fccDecorate(root) {
+      root = root || document.getElementById('dashboardPage');
+      if (!root) return;
+      var reduced = false;
+      try { reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+      var nums = root.querySelectorAll('[data-cnt]');
+      Array.prototype.forEach.call(nums, function(el) {
+        if (el.getAttribute('data-cnt-done')) return;
+        el.setAttribute('data-cnt-done', '1');
+        var target = parseFloat(el.getAttribute('data-cnt')) || 0;
+        var fmt = el.getAttribute('data-fmt') || 'int';
+        if (reduced || target === 0) { el.textContent = fccFmtVal(target, fmt); return; }
+        var t0 = null, dur = 900;
+        function tick(ts) {
+          if (!t0) t0 = ts;
+          var p = Math.min(1, (ts - t0) / dur);
+          var ease = 1 - Math.pow(1 - p, 3);
+          el.textContent = fccFmtVal(target * ease, fmt);
+          if (p < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
+      requestAnimationFrame(function() { requestAnimationFrame(function() {
+        var bars = root.querySelectorAll('[data-w]');
+        Array.prototype.forEach.call(bars, function(el) { el.style.width = el.getAttribute('data-w'); });
+        var dashes = root.querySelectorAll('[data-dash]');
+        Array.prototype.forEach.call(dashes, function(el) { el.style.strokeDashoffset = el.getAttribute('data-dash'); });
+      }); });
+    }
+
+    /* ── data crunchers ────────────────────────────────────────── */
+    function fccCrunchParts(rows) {
+      var P = {
+        rows: rows, total: rows.length, stockQty: 0,
+        out: 0, low: 0, value: 0, pricedCount: 0,
+        lines: {}, cats: {}, valued: []
+      };
+      rows.forEach(function(r) {
+        var stock = fccN(r.stock), min = fccN(r.min);
+        var price = fccPrice(r.unit_price);
+        var val = price * Math.max(0, stock);
+        var line = fccLineOf(r.line);
+        var cat = String(r.category || 'General');
+        P.stockQty += Math.max(0, stock);
+        if (stock <= 0) P.out++;
+        else if (stock < min) P.low++;
+        if (price > 0) { P.pricedCount++; P.value += val; P.valued.push({ item: r, value: val }); }
+        if (!P.lines[line]) P.lines[line] = { name: line, total: 0, out: 0, low: 0, value: 0, stockQty: 0 };
+        var L = P.lines[line];
+        L.total++; L.stockQty += Math.max(0, stock); L.value += val;
+        if (stock <= 0) L.out++; else if (stock < min) L.low++;
+        if (!P.cats[cat]) P.cats[cat] = { name: cat, risk: 0, byLine: {} };
+        if (stock <= 0 || stock < min) {
+          P.cats[cat].risk++;
+          P.cats[cat].byLine[line] = (P.cats[cat].byLine[line] || 0) + 1;
+        }
+      });
+      P.need = P.out + P.low;
+      return P;
+    }
+    function fccCrunchLogs(logs, selLine) {
+      var L = {
+        days: [], outToday: 0, inToday: 0, out7: 0, outPrev7: 0, in7: 0, inPrev7: 0,
+        out14: 0, in14: 0, out30Qty: 0, in30Qty: 0,
+        usage30: {}, usagePrev30: {}, lastUse: {}, recent: [], hasData: false
+      };
+      var now = new Date();
+      var todayKey = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
+      var dayIdx = {};
+      for (var i = 13; i >= 0; i--) {
+        var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        var k = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+        dayIdx[k] = 13 - i;
+        L.days.push({ label: (d.getDate() < 10 ? '0' : '') + d.getDate() + '/' + (d.getMonth() + 1 < 10 ? '0' : '') + (d.getMonth() + 1), out: 0, in: 0 });
+      }
+      var t30 = now.getTime() - 30 * 86400000;
+      var t60 = now.getTime() - 60 * 86400000;
+      (logs || []).forEach(function(r) {
+        var line = fccLineOf(r.process || r.line || '');
+        if (selLine !== 'all' && line !== selLine) return;
+        var t = String(r.type || r.txnType || '').toLowerCase();
+        var isOut = t.indexOf('output') !== -1 || t.indexOf('issue') !== -1;
+        var isIn = t.indexOf('input') !== -1 || t.indexOf('receive') !== -1;
+        if (!isOut && !isIn) return;
+        var dt = new Date(r.timestamp || r.date || r.created_at || 0);
+        var ms = dt.getTime();
+        if (!ms || isNaN(ms)) return;
+        var qty = Math.abs(fccN(r.qty || r.quantity));
+        var dk = dt.getFullYear() + '-' + dt.getMonth() + '-' + dt.getDate();
+        L.hasData = true;
+        if (dayIdx[dk] !== undefined) {
+          if (isOut) { L.days[dayIdx[dk]].out += qty; L.out14 += qty; }
+          else { L.days[dayIdx[dk]].in += qty; L.in14 += qty; }
+          if (dayIdx[dk] >= 7) { if (isOut) L.out7 += qty; else L.in7 += qty; }
+          else { if (isOut) L.outPrev7 += qty; else L.inPrev7 += qty; }
+        }
+        if (dk === todayKey) { if (isOut) L.outToday += qty; else L.inToday += qty; }
+        if (isOut) {
+          var key = fccPartKey(r.process || r.line, r.partName || r.name, r.model);
+          if (ms >= t30) {
+            if (!L.usage30[key]) L.usage30[key] = { qty: 0, count: 0 };
+            L.usage30[key].qty += qty; L.usage30[key].count++;
+            L.out30Qty += qty;
+          } else if (ms >= t60) {
+            if (!L.usagePrev30[key]) L.usagePrev30[key] = { qty: 0, count: 0 };
+            L.usagePrev30[key].qty += qty; L.usagePrev30[key].count++;
+          }
+          L.lastUse[key] = Math.max(L.lastUse[key] || 0, ms);
+        } else if (ms >= t30) {
+          L.in30Qty += qty;
+        }
+        L.recent.push({ isOut: isOut, name: r.partName || r.name || '-', model: r.model || '', by: r.by || r.requestedBy || '-', line: line, qty: qty, ms: ms });
+      });
+      L.recent.sort(function(a, b) { return b.ms - a.ms; });
+      L.recent = L.recent.slice(0, 14);
+      return L;
+    }
+    function fccCrunchRequests(reqs, selLine) {
+      var R = { rows: [], counts: { 'Pending': 0, 'Approved': 0, 'Purchased': 0, 'Received': 0, 'Closed': 0, 'Rejected': 0, 'On Hold': 0 }, total: 0, open: 0, oldestPendingDays: 0, over7: 0 };
+      (reqs || []).forEach(function(r) {
+        if (selLine !== 'all' && fccLineOf(r.line) !== selLine) return;
+        var s = String(r.status || 'Pending');
+        if (!Object.prototype.hasOwnProperty.call(R.counts, s)) s = 'Pending';
+        R.counts[s]++;
+        R.total++;
+        if (s === 'Pending' || s === 'Approved' || s === 'Purchased' || s === 'On Hold') R.open++;
+        if (s === 'Pending') {
+          var t = new Date(String(r.requested_date || r.updated_at || 0)).getTime();
+          if (t && !isNaN(t)) {
+            var days = Math.floor((Date.now() - t) / 86400000);
+            if (days > R.oldestPendingDays) R.oldestPendingDays = days;
+            if (days > 7) R.over7++;
+          }
+        }
+        R.rows.push(r);
+      });
+      R.rows.sort(function(a, b) {
+        return new Date(String(b.updated_at || b.requested_date || 0)).getTime() - new Date(String(a.updated_at || a.requested_date || 0)).getTime();
+      });
+      return R;
+    }
+    function fccHealth(P, R) {
+      var total = Math.max(1, P.total);
+      var outPct = P.out / total * 100;
+      var lowPct = P.low / total * 100;
+      var pending = R ? R.counts['Pending'] : 0;
+      var dOut = Math.min(45, outPct * 3.5);
+      var dLow = Math.min(25, lowPct * 1.2);
+      var dPr = Math.min(12, pending * 0.6);
+      var score = Math.round(Math.max(4, 100 - dOut - dLow - dPr));
+      var tone;
+      if (score >= 90) tone = { g: 'EXCELLENT', c1: '#34e3a1', c2: '#3be2ff', cls: 'fa-green' };
+      else if (score >= 75) tone = { g: 'GOOD', c1: '#3be2ff', c2: '#5c8dff', cls: 'fa-cyan' };
+      else if (score >= 60) tone = { g: 'WATCH', c1: '#ffc555', c2: '#ff9855', cls: 'fa-amber' };
+      else tone = { g: 'CRITICAL', c1: '#ff5f7e', c2: '#ffc555', cls: 'fa-rose' };
+      return { score: score, tone: tone, dOut: Math.round(dOut), dLow: Math.round(dLow), dPr: Math.round(dPr), pending: pending };
+    }
+
+    /* ── section renderers ─────────────────────────────────────── */
+    function fccRenderHeader(P, stamp) {
+      var el = document.getElementById('dashLastUpdated');
+      var foot = document.getElementById('fccFootSync');
+      var txt = 'ข้อมูล ' + fccInt(P.total) + ' รายการ · Sync ' + stamp;
+      if (el) el.textContent = txt;
+      if (foot) foot.textContent = 'LAST SYNC ' + stamp;
+    }
+    function fccKpiCard(opt) {
+      return '<div class="fcc-card fcc-kpi fcc-in ' + opt.accent + '" style="--d:' + opt.d + 'ms"' +
+        (opt.act ? ' data-fcc-act="' + opt.act + '" role="button" tabindex="0"' : '') + '>' +
+        '<div class="fcc-kpi-top"><span class="fcc-kpi-lb">' + opt.label + '</span><span class="fcc-kpi-ic">' + opt.icon + '</span></div>' +
+        '<div class="fcc-kpi-val"><span id="' + opt.id + '" data-cnt="' + opt.value + '" data-fmt="' + (opt.fmt || 'int') + '">0</span>' + (opt.unit ? '<span class="u">' + opt.unit + '</span>' : '') + '</div>' +
+        '<div class="fcc-kpi-sub" id="' + opt.id + 'Sub">' + (opt.sub || '') + '</div>' +
+        '<span id="' + opt.id + 'Spark"></span>' +
+        '</div>';
+    }
+    function fccRenderKpis(P) {
+      var el = document.getElementById('fccKpis');
+      if (!el) return;
+      el.innerHTML =
+        fccKpiCard({ id: 'fccKpiTotal', d: 0, accent: 'fa-blue', icon: '&#x1F4E6;', label: 'อะไหล่ทั้งหมด', value: P.total, unit: 'รายการ', sub: fccInt(P.stockQty) + ' ชิ้นในคลัง', act: 'nav:stock' }) +
+        fccKpiCard({ id: 'fccKpiValue', d: 50, accent: 'fa-green', icon: '&#x1F4B0;', label: 'มูลค่าคงคลัง', value: Math.round(P.value), fmt: 'baht', sub: 'จาก ' + fccInt(P.pricedCount) + ' รายการที่มีราคา', act: 'scroll:fccExec' }) +
+        fccKpiCard({ id: 'fccKpiOut', d: 100, accent: 'fa-rose', icon: '&#x1F6A8;', label: 'หมดสต็อก', value: P.out, unit: 'รายการ', sub: P.out > 0 ? 'ต้องจัดการทันที' : 'ไม่มีรายการหมด', act: 'scroll:fccQueueCard' }) +
+        fccKpiCard({ id: 'fccKpiLow', d: 150, accent: 'fa-amber', icon: '&#x26A0;&#xFE0F;', label: 'ต่ำกว่า Min', value: P.low, unit: 'รายการ', sub: P.low > 0 ? 'ควรเติมสต็อก' : 'ระดับสต็อกปกติ', act: 'scroll:fccQueueCard' }) +
+        fccKpiCard({ id: 'fccKpiNeed', d: 200, accent: 'fa-violet', icon: '&#x1F6D2;', label: 'Need PO', value: P.need, unit: 'รายการ', sub: 'รายการที่ต้องสั่งซื้อ', act: 'scroll:fccQueueCard' }) +
+        fccKpiCard({ id: 'fccKpiPr', d: 250, accent: 'fa-cyan', icon: '&#x1F4CB;', label: 'PR รอดำเนินการ', value: 0, unit: 'คำขอ', sub: '<span class="fcc-skel" style="width:70px;height:11px"></span>', act: 'nav:request' }) +
+        fccKpiCard({ id: 'fccKpiIssue', d: 300, accent: 'fa-blue', icon: '&#x2B06;&#xFE0F;', label: 'เบิกวันนี้', value: 0, unit: 'ชิ้น', sub: '<span class="fcc-skel" style="width:70px;height:11px"></span>', act: 'nav:log' }) +
+        fccKpiCard({ id: 'fccKpiRecv', d: 350, accent: 'fa-green', icon: '&#x2B07;&#xFE0F;', label: 'รับเข้าวันนี้', value: 0, unit: 'ชิ้น', sub: '<span class="fcc-skel" style="width:70px;height:11px"></span>', act: 'nav:log' });
+      fccDecorate(el);
+    }
+    function fccPatchKpi(id, value, fmt, subHtml, sparkHtml) {
+      var v = document.getElementById(id);
+      var s = document.getElementById(id + 'Sub');
+      var sp = document.getElementById(id + 'Spark');
+      if (v) { v.setAttribute('data-cnt', String(value)); v.removeAttribute('data-cnt-done'); if (fmt) v.setAttribute('data-fmt', fmt); }
+      if (s && subHtml !== undefined) s.innerHTML = subHtml;
+      if (sp && sparkHtml !== undefined) sp.innerHTML = sparkHtml;
+    }
+    function fccDeltaChip(cur, prev, goodWhenUp) {
+      if (!prev && !cur) return '';
+      if (!prev) return '<span class="fcc-delta fl">NEW</span>';
+      var pct = Math.round((cur - prev) / prev * 100);
+      if (pct === 0) return '<span class="fcc-delta fl">&plusmn;0%</span>';
+      var up = pct > 0;
+      var good = goodWhenUp ? up : !up;
+      return '<span class="fcc-delta ' + (good ? 'up' : 'dn') + '">' + (up ? '&#x25B2;' : '&#x25BC;') + ' ' + Math.abs(pct) + '%</span>';
+    }
+    function fccPatchKpisAsync(L, R) {
+      var pend = R.counts['Pending'];
+      fccPatchKpi('fccKpiPr', pend, 'int',
+        pend > 0 ? (R.over7 > 0 ? '<span style="color:var(--amber)">ค้างเกิน 7 วัน ' + R.over7 + ' คำขอ</span>' : 'รออนุมัติ') : 'ไม่มีคำขอค้าง');
+      var out7 = L.days.slice(7).map(function(d) { return d.out; });
+      var in7 = L.days.slice(7).map(function(d) { return d.in; });
+      fccPatchKpi('fccKpiIssue', L.outToday, 'int',
+        'สัปดาห์นี้ ' + fccInt(L.out7) + ' ชิ้น ' + fccDeltaChip(L.out7, L.outPrev7, false), fccSpark(out7, '#5c8dff'));
+      fccPatchKpi('fccKpiRecv', L.inToday, 'int',
+        'สัปดาห์นี้ ' + fccInt(L.in7) + ' ชิ้น ' + fccDeltaChip(L.in7, L.inPrev7, true), fccSpark(in7, '#34e3a1'));
+      fccDecorate(document.getElementById('fccKpis'));
+    }
+    function fccRenderHealth(P, R) {
+      var el = document.getElementById('fccHealthBody');
+      if (!el) return;
+      var H = fccHealth(P, R);
+      var whys = [];
+      if (H.dOut > 0) whys.push({ t: '&#x1F534; หมดสต็อก ' + fccInt(P.out) + ' รายการ', pts: H.dOut, c: 'var(--rose)', act: 'scroll:fccQueueCard' });
+      if (H.dLow > 0) whys.push({ t: '&#x1F7E1; ต่ำกว่า Min ' + fccInt(P.low) + ' รายการ', pts: H.dLow, c: 'var(--amber)', act: 'scroll:fccQueueCard' });
+      if (H.dPr > 0) whys.push({ t: '&#x1F4CB; PR ค้างอนุมัติ ' + fccInt(H.pending) + ' คำขอ', pts: H.dPr, c: 'var(--violet)', act: 'nav:request' });
+      if (!whys.length) whys.push({ t: '&#x2705; ไม่มีปัจจัยหักคะแนน — คลังสมบูรณ์', pts: 0, c: 'var(--green)', act: 'nav:stock' });
+      el.innerHTML =
+        '<div class="fcc-health-b fcc-in">' +
+          '<div class="fcc-gauge-wrap">' + fccGaugeSvg(H.score, H.tone.c1, H.tone.c2) +
+            '<div class="fcc-gauge-c">' +
+              '<span class="fcc-gauge-n" style="color:' + H.tone.c1 + '" data-cnt="' + H.score + '" data-fmt="pct">0%</span>' +
+              '<span class="fcc-gauge-g" style="color:' + H.tone.c1 + '">' + H.tone.g + '</span>' +
+            '</div>' +
           '</div>' +
-          '<p class="mt-2 text-3xl font-black text-slate-900 leading-none">' + value + '</p>' +
-          (subLabel ? '<p class="mt-1 text-[11px] text-slate-400">' + subLabel + '</p>' : '') +
+          '<div class="fcc-health-why">' +
+            whys.map(function(w, i) {
+              return '<div class="fcc-why-row fcc-in" style="--d:' + (150 + i * 90) + 'ms" data-fcc-act="' + w.act + '">' +
+                '<span>' + w.t + '</span>' +
+                '<span class="fcc-why-pts" style="color:' + w.c + '">' + (w.pts > 0 ? '&minus;' + w.pts : '&#x2713;') + '</span>' +
+                '</div>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      fccDecorate(el);
+    }
+    function fccRenderAlerts(P, R) {
+      var el = document.getElementById('fccAlerts');
+      if (!el) return;
+      var chips = [];
+      function chip(accent, n, t, s, act, crit) {
+        return '<div class="fcc-alert ' + accent + (crit ? ' crit' : '') + '" data-fcc-act="' + act + '">' +
+          '<span class="n">' + fccInt(n) + '</span><span><span class="t">' + t + '</span><br><span class="s">' + s + '</span></span></div>';
+      }
+      if (P.out > 0) chips.push(chip('fa-rose', P.out, 'หมดสต็อก', 'กระทบการผลิตทันที', 'scroll:fccQueueCard', true));
+      if (P.low > 0) chips.push(chip('fa-amber', P.low, 'ต่ำกว่า Min', 'เสี่ยงหมดเร็วๆ นี้', 'scroll:fccQueueCard', false));
+      if (P.need > 0) chips.push(chip('fa-violet', P.need, 'Need PO', 'ต้องออกใบขอซื้อ', 'scroll:fccQueueCard', false));
+      if (R) {
+        if (R.counts['Pending'] > 0) chips.push(chip('fa-cyan', R.counts['Pending'], 'PR รออนุมัติ', 'เก่าสุด ' + R.oldestPendingDays + ' วัน', 'nav:request', false));
+        if (R.over7 > 0) chips.push(chip('fa-blue', R.over7, 'PR ค้างเกิน 7 วัน', 'ควรตามเรื่องด่วน', 'nav:request', false));
+      } else {
+        chips.push('<div class="fcc-alert fa-slate"><span class="fcc-skel" style="width:110px;height:26px"></span></div>');
+      }
+      if (!chips.length) chips.push(chip('fa-green', 0, 'ระบบปกติ', 'ไม่มี Alert ที่ต้องจัดการ', 'nav:stock', false));
+      el.innerHTML = chips.join('');
+    }
+    function fccRenderMap(PAll, selLine) {
+      var el = document.getElementById('fccMap');
+      if (!el) return;
+      var order = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+      var keys = order.filter(function(k) { return PAll.lines[k]; });
+      Object.keys(PAll.lines).forEach(function(k) { if (order.indexOf(k) === -1) keys.push(k); });
+      if (!keys.length) { el.innerHTML = '<div class="fcc-empty" style="grid-column:1/-1">ยังไม่มีข้อมูล Line</div>'; return; }
+      el.innerHTML = keys.map(function(k, i) {
+        var Z = PAll.lines[k];
+        var lowPct = Z.total ? Z.low / Z.total * 100 : 0;
+        var accent = Z.out > 0 ? (Z.out >= 3 ? 'fa-rose' : 'fa-amber') : (lowPct > 12 ? 'fa-amber' : 'fa-green');
+        var status = accent === 'fa-rose' ? 'CRITICAL' : (accent === 'fa-amber' ? 'WARNING' : 'HEALTHY');
+        var okPct = Z.total ? Math.round((Z.total - Z.out - Z.low) / Z.total * 100) : 0;
+        return '<div class="fcc-zoneblk fcc-in ' + accent + (selLine === k ? ' sel' : '') + '" style="--d:' + (i * 70) + 'ms" data-fcc-act="line:' + fccEsc(k) + '" role="button" tabindex="0">' +
+          '<div class="zt"><span class="zn">' + fccEsc(k) + '</span><span class="zs"><span class="zdot"></span>' + status + '</span></div>' +
+          '<div class="zmeta">' +
+            '<span>อะไหล่ <b>' + fccInt(Z.total) + '</b></span>' +
+            '<span>มูลค่า <b>฿' + fccMoney(Z.value) + '</b></span>' +
+            '<span>หมด <b style="color:' + (Z.out > 0 ? 'var(--rose)' : 'var(--tx)') + '">' + fccInt(Z.out) + '</b></span>' +
+            '<span>ต่ำกว่า Min <b style="color:' + (Z.low > 0 ? 'var(--amber)' : 'var(--tx)') + '">' + fccInt(Z.low) + '</b></span>' +
+          '</div>' +
+          '<div class="zbar"><i data-w="' + okPct + '%"></i></div>' +
+          '<div style="margin-top:4px;font-size:9px;color:var(--dim);font-family:var(--fnum)">STOCK OK ' + okPct + '%</div>' +
+          '</div>';
+      }).join('');
+      fccDecorate(el);
+    }
+    function fccRenderHeatmap(PAll) {
+      var el = document.getElementById('fccHeatmap');
+      if (!el) return;
+      var lines = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+      var cats = Object.keys(PAll.cats).map(function(k) { return PAll.cats[k]; })
+        .filter(function(c) { return c.risk > 0; })
+        .sort(function(a, b) { return b.risk - a.risk; }).slice(0, 8);
+      if (!cats.length) {
+        el.innerHTML = '<div class="fcc-empty">&#x2705; ไม่มีหมวดอะไหล่ที่มีความเสี่ยง — ทุกจุดของโรงงานอยู่ในระดับปลอดภัย</div>';
+        return;
+      }
+      var max = 1;
+      cats.forEach(function(c) { lines.forEach(function(l) { max = Math.max(max, c.byLine[l] || 0); }); });
+      function cellStyle(v) {
+        if (!v) return 'background:rgba(122,152,205,.05);color:rgba(147,165,196,.35)';
+        var p = v / max;
+        if (p < .34) return 'background:rgba(255,197,85,.14);border-color:rgba(255,197,85,.3);color:#ffc555';
+        if (p < .67) return 'background:rgba(255,152,85,.18);border-color:rgba(255,152,85,.38);color:#ff9855';
+        return 'background:rgba(255,95,126,.22);border-color:rgba(255,95,126,.48);color:#ff5f7e';
+      }
+      var html = '<div class="fcc-hm">';
+      html += '<div class="fcc-hm-row"><div></div>' + lines.map(function(l) { return '<div class="fcc-hm-head">' + fccEsc(l) + '</div>'; }).join('') + '</div>';
+      cats.forEach(function(c, i) {
+        html += '<div class="fcc-hm-row fcc-in" style="--d:' + (i * 50) + 'ms">' +
+          '<div class="fcc-hm-lb" title="' + fccEsc(c.name) + '">' + fccEsc(c.name) + '</div>' +
+          lines.map(function(l) {
+            var v = c.byLine[l] || 0;
+            return '<div class="fcc-hm-cell" style="' + cellStyle(v) + '" title="' + fccEsc(c.name) + ' × ' + fccEsc(l) + ' — เสี่ยง ' + v + ' รายการ">' + (v || '·') + '</div>';
+          }).join('') + '</div>';
+      });
+      html += '</div>';
+      html += '<div class="fcc-hm-legend"><span>ระดับความเสี่ยง</span>' +
+        '<span class="fcc-hm-swatch" style="background:rgba(122,152,205,.12)"></span>ไม่มี' +
+        '<span class="fcc-hm-swatch" style="background:rgba(255,197,85,.45)"></span>ต่ำ' +
+        '<span class="fcc-hm-swatch" style="background:rgba(255,152,85,.55)"></span>กลาง' +
+        '<span class="fcc-hm-swatch" style="background:rgba(255,95,126,.65)"></span>สูง</div>';
+      el.innerHTML = html;
+      fccDecorate(el);
+    }
+    function fccRenderTrend(L) {
+      var el = document.getElementById('fccTrend');
+      var sub = document.getElementById('fccTrendSub');
+      if (!el) return;
+      if (!L || !L.hasData) { el.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลการเคลื่อนไหวใน 14 วันที่ผ่านมา</div>'; return; }
+      if (sub) sub.textContent = 'เบิก ' + fccInt(L.out14) + ' ชิ้น · รับเข้า ' + fccInt(L.in14) + ' ชิ้น ใน 14 วัน';
+      var W = 560, H = 168, padL = 8, padR = 8, padT = 14, padB = 24;
+      var iw = W - padL - padR, ih = H - padT - padB;
+      var n = L.days.length;
+      var max = 1;
+      L.days.forEach(function(d) { max = Math.max(max, d.out, d.in); });
+      var slot = iw / n, bw = Math.min(16, slot * 0.42);
+      var bars = '', line = '', dots = '', labels = '', grid = '';
+      for (var g = 1; g <= 3; g++) {
+        var gy = (padT + ih - ih * g / 3).toFixed(1);
+        grid += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" stroke="rgba(122,152,205,.12)" stroke-dasharray="3 4" stroke-width="1"/>';
+      }
+      var pts = [];
+      L.days.forEach(function(d, i) {
+        var cx = padL + slot * i + slot / 2;
+        var bh = (d.in / max) * ih;
+        bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + (padT + ih - bh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="2.5" fill="rgba(52,227,161,.4)"><title>รับเข้า ' + d.in + ' · ' + d.label + '</title></rect>';
+        var oy = padT + ih - (d.out / max) * ih;
+        pts.push(cx.toFixed(1) + ',' + oy.toFixed(1));
+        dots += '<circle cx="' + cx.toFixed(1) + '" cy="' + oy.toFixed(1) + '" r="2.6" fill="#0a1120" stroke="#3be2ff" stroke-width="1.6"><title>เบิก ' + d.out + ' · ' + d.label + '</title></circle>';
+        if (i % 2 === 1) labels += '<text x="' + cx.toFixed(1) + '" y="' + (H - 7) + '" text-anchor="middle" font-size="8.5" fill="#5d6f8e" font-family="Chakra Petch,Prompt,sans-serif">' + d.label + '</text>';
+      });
+      var uid = 'fcctr' + (fccUid++);
+      line = '<polygon points="' + pts.join(' ') + ' ' + (W - padR) + ',' + (padT + ih) + ' ' + padL + ',' + (padT + ih) + '" fill="url(#' + uid + ')"/>' +
+        '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#3be2ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      el.innerHTML =
+        '<svg viewBox="0 0 ' + W + ' ' + H + '" class="fcc-in">' +
+        '<defs><linearGradient id="' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" stop-color="#3be2ff" stop-opacity=".25"/><stop offset="1" stop-color="#3be2ff" stop-opacity="0"/></linearGradient></defs>' +
+        grid + bars + line + dots + labels + '</svg>' +
+        '<div class="fcc-chart-legend"><span><i style="background:#3be2ff"></i>เบิกออก (ชิ้น)</span><span><i style="background:rgba(52,227,161,.7)"></i>รับเข้า (ชิ้น)</span></div>';
+    }
+    function fccRenderTops(P, L) {
+      var el = document.getElementById('fccTops');
+      var tabsEl = document.getElementById('fccTopsTabs');
+      if (!el) return;
+      if (tabsEl) {
+        Array.prototype.forEach.call(tabsEl.querySelectorAll('.fcc-tab'), function(b) {
+          b.classList.toggle('on', b.getAttribute('data-fcc-act') === 'tab:' + fccTopsMode);
+        });
+      }
+      var rows = [];
+      if (fccTopsMode === 'usage') {
+        if (!L || !L.hasData) { el.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลการเบิกใน 30 วัน</div>'; return; }
+        var agg = {};
+        P.rows.forEach(function(r) {
+          var u = L.usage30[fccPartKey(r.line, r.name, r.model)];
+          if (!u) return;
+          var k = fccPartKey(r.line, r.name, r.model);
+          if (!agg[k]) { agg[k] = { name: r.name, meta: fccLineOf(r.line), v: u.qty, s: u.count + ' ครั้ง' }; rows.push(agg[k]); }
+        });
+        rows.sort(function(a, b) { return b.v - a.v; });
+        rows = rows.slice(0, 8).map(function(r) { return { name: r.name, meta: r.meta + ' · ' + r.s, v: r.v, txt: fccInt(r.v) + ' ชิ้น' }; });
+        if (!rows.length) { el.innerHTML = '<div class="fcc-empty">ไม่พบการเบิกที่ตรงกับอะไหล่ในคลัง (30 วัน)</div>'; return; }
+      } else if (fccTopsMode === 'value') {
+        rows = P.valued.slice().sort(function(a, b) { return b.value - a.value; }).slice(0, 8)
+          .map(function(x) { return { name: x.item.name, meta: fccLineOf(x.item.line) + ' · คงเหลือ ' + fccInt(x.item.stock), v: x.value, txt: '฿' + fccMoney(x.value) }; });
+        if (!rows.length) { el.innerHTML = '<div class="fcc-empty">ยังไม่มีรายการที่บันทึกราคาไว้</div>'; return; }
+      } else {
+        if (!L || !L.hasData) { el.innerHTML = '<div class="fcc-empty">ต้องมีข้อมูล log เพื่อวิเคราะห์ Dead Stock</div>'; return; }
+        var t90 = Date.now() - 90 * 86400000;
+        var dead = [];
+        P.rows.forEach(function(r) {
+          if (fccN(r.stock) <= 0) return;
+          var last = L.lastUse[fccPartKey(r.line, r.name, r.model)] || 0;
+          if (last >= t90) return;
+          var val = fccPrice(r.unit_price) * fccN(r.stock);
+          dead.push({ name: r.name, meta: fccLineOf(r.line) + (last ? ' · เบิกล่าสุด ' + fccRelTime(last) : ' · ไม่เคยมีการเบิก'), v: val || 0.0001, txt: val ? '฿' + fccMoney(val) : '฿—' });
+        });
+        dead.sort(function(a, b) { return b.v - a.v; });
+        rows = dead.slice(0, 8);
+        if (!rows.length) { el.innerHTML = '<div class="fcc-empty">&#x2705; ไม่มี Dead Stock — อะไหล่ทุกตัวมีการหมุนเวียนใน 90 วัน</div>'; return; }
+      }
+      var max = Math.max.apply(null, rows.map(function(r) { return r.v; }).concat([1]));
+      el.innerHTML = '<div class="fcc-blist">' + rows.map(function(r, i) {
+        return '<div class="fcc-brow fcc-in" style="--d:' + (i * 45) + 'ms">' +
+          '<div class="m"><b title="' + fccEsc(r.name) + '">' + fccEsc(r.name) + '</b><span>' + r.txt + '</span></div>' +
+          '<div class="fcc-bar"><i data-w="' + Math.max(3, r.v / max * 100).toFixed(1) + '%"></i></div>' +
+          '<div style="font-size:9px;color:var(--dim);margin-top:2px">' + fccEsc(r.meta) + '</div>' +
+          '</div>';
+      }).join('') + '</div>';
+      fccDecorate(el);
+    }
+    function fccBuildInsights(P, L, R) {
+      var out = [];
+      if (L && L.hasData) {
+        P.rows.forEach(function(r) {
+          var key = fccPartKey(r.line, r.name, r.model);
+          var u = L.usage30[key], up = L.usagePrev30[key];
+          var stock = fccN(r.stock), min = fccN(r.min);
+          var daily = u ? u.qty / 30 : 0;
+          var eta = daily > 0 && stock > 0 ? Math.round(stock / daily) : null;
+          if (u && up && u.qty >= 3 && u.qty >= up.qty * 1.35) {
+            var growth = Math.round((u.qty - up.qty) / up.qty * 100);
+            out.push({
+              w: 90 + growth / 10 + (stock < min ? 40 : 0), accent: 'fa-amber', icon: '&#x1F4C8;',
+              t: 'การใช้ "' + fccEsc(r.name) + '" เพิ่มขึ้น ' + growth + '%',
+              d: 'เบิก ' + fccInt(u.qty) + ' ชิ้นใน 30 วัน (ก่อนหน้า ' + fccInt(up.qty) + ' ชิ้น) — คงเหลือ ' + fccInt(stock) + ' ชิ้น' + (eta !== null ? ' คาดว่าจะหมดในราว ' + eta + ' วัน' : ''),
+              chips: ['+' + growth + '% ใน 30 วัน', 'คงเหลือ ' + fccInt(stock), fccLineOf(r.line)]
+            });
+          } else if (eta !== null && eta <= 14 && stock > 0) {
+            out.push({
+              w: 80 + (14 - eta) * 4, accent: 'fa-rose', icon: '&#x23F3;',
+              t: '"' + fccEsc(r.name) + '" จะหมดสต็อกในราว ' + eta + ' วัน',
+              d: 'อัตราใช้เฉลี่ย ' + (daily.toFixed(1)) + ' ชิ้น/วัน จากการเบิกจริง 30 วัน — คงเหลือ ' + fccInt(stock) + ' ชิ้น (Min ' + fccInt(min) + ')',
+              chips: ['ETA ' + eta + ' วัน', fccLineOf(r.line), r.supplier ? 'Supplier: ' + fccEsc(r.supplier) : '']
+            });
+          } else if (stock <= 0 && u && u.qty > 0) {
+            out.push({
+              w: 120 + u.qty, accent: 'fa-rose', icon: '&#x1F6A8;',
+              t: '"' + fccEsc(r.name) + '" หมดสต็อกแต่ยังมีการใช้ต่อเนื่อง',
+              d: 'มีการเบิก ' + fccInt(u.qty) + ' ชิ้นใน 30 วันที่ผ่านมา ควรออกใบขอซื้อทันที' + (r.supplier ? ' — Supplier: ' + fccEsc(r.supplier) : ''),
+              chips: ['หมดสต็อก', 'ใช้ ' + fccInt(u.qty) + ' ชิ้น/30 วัน', fccLineOf(r.line)]
+            });
+          }
+        });
+        var t90 = Date.now() - 90 * 86400000;
+        var deadCount = 0, deadVal = 0;
+        P.rows.forEach(function(r) {
+          if (fccN(r.stock) <= 0) return;
+          var last = L.lastUse[fccPartKey(r.line, r.name, r.model)] || 0;
+          if (last < t90) { deadCount++; deadVal += fccPrice(r.unit_price) * fccN(r.stock); }
+        });
+        if (deadCount >= 5 && deadVal > 0) {
+          out.push({
+            w: 30, accent: 'fa-violet', icon: '&#x1F4A4;',
+            t: 'เงินจมใน Dead Stock ประมาณ ฿' + fccMoney(deadVal),
+            d: 'อะไหล่ ' + fccInt(deadCount) + ' รายการไม่มีการเบิกเลยใน 90 วัน — ควรทบทวนค่า Min หรือพิจารณาหมุนเวียน',
+            chips: [fccInt(deadCount) + ' รายการ', 'ไม่เคลื่อนไหว 90 วัน']
+          });
+        }
+      }
+      if (R && R.over7 > 0) {
+        out.push({
+          w: 60 + R.over7 * 5, accent: 'fa-cyan', icon: '&#x1F4EC;',
+          t: 'คำขอซื้อ ' + fccInt(R.over7) + ' รายการค้างอนุมัติเกิน 7 วัน',
+          d: 'คำขอที่รอนานที่สุดค้างมาแล้ว ' + R.oldestPendingDays + ' วัน — ยิ่งช้า Lead Time ยิ่งยาว เสี่ยงกระทบสายการผลิต',
+          chips: ['เก่าสุด ' + R.oldestPendingDays + ' วัน', 'Pending ' + fccInt(R.counts['Pending'])]
+        });
+      }
+      out.sort(function(a, b) { return b.w - a.w; });
+      return out.slice(0, 4);
+    }
+    function fccRenderInsights(P, L, R) {
+      var el = document.getElementById('fccInsights');
+      if (!el) return;
+      var ins = fccBuildInsights(P, L, R);
+      if (!ins.length) {
+        el.innerHTML = '<div class="fcc-ins-card fa-green fcc-in"><span class="fcc-ins-ic">&#x2705;</span><div>' +
+          '<div class="fcc-ins-t">ไม่พบความผิดปกติจากพฤติกรรมการเบิก</div>' +
+          '<div class="fcc-ins-d">ระบบวิเคราะห์การใช้ 60 วันย้อนหลัง อัตราการหมด และคำขอค้าง — ทุกอย่างอยู่ในเกณฑ์ปกติ</div>' +
+          '</div></div>';
+        return;
+      }
+      el.innerHTML = ins.map(function(x, i) {
+        var chips = (x.chips || []).filter(Boolean).map(function(c, j) {
+          return '<span class="fcc-chip' + (j === 0 ? ' hot' : '') + '">' + c + '</span>';
+        }).join('');
+        return '<div class="fcc-ins-card fcc-in ' + x.accent + '" style="--d:' + (i * 90) + 'ms">' +
+          '<span class="fcc-ins-ic">' + x.icon + '</span>' +
+          '<div style="min-width:0"><div class="fcc-ins-t">' + x.t + '</div><div class="fcc-ins-d">' + x.d + '</div>' +
+          (chips ? '<div class="fcc-ins-meta">' + chips + '</div>' : '') + '</div></div>';
+      }).join('');
+    }
+    function fccRenderQueue(P) {
+      var el = document.getElementById('fccQueue');
+      var sub = document.getElementById('fccQueueSub');
+      if (!el) return;
+      var crit = [], high = [], med = [];
+      P.rows.forEach(function(r) {
+        var stock = fccN(r.stock), min = fccN(r.min);
+        if (min <= 0) return;
+        if (stock <= 0) crit.push(r);
+        else if (stock <= min * 0.5 && stock < min) high.push(r);
+        else if (stock < min) med.push(r);
+      });
+      function needOf(r) { return Math.max(1, fccN(r.min) - fccN(r.stock)); }
+      function bySeverity(a, b) { return needOf(b) - needOf(a); }
+      crit.sort(bySeverity); high.sort(bySeverity); med.sort(bySeverity);
+      fccLast.queue = crit.concat(high, med);
+      if (sub) sub.textContent = 'วิกฤต ' + crit.length + ' · เร่งด่วน ' + high.length + ' · ควรเติม ' + med.length + ' รายการ';
+      if (!fccLast.queue.length) {
+        el.innerHTML = '<div class="fcc-empty">&#x2705; ไม่มีรายการที่ต้องสั่งซื้อ — สต็อกทุกตัวอยู่เหนือระดับ Min</div>';
+        return;
+      }
+      var canPr = fccPerm('request_order_create');
+      function itemRow(r, i) {
+        var stock = fccN(r.stock), min = fccN(r.min);
+        var pct = min > 0 ? Math.min(100, Math.round(stock / min * 100)) : 0;
+        var barColor = stock <= 0 ? 'var(--rose)' : (pct <= 50 ? 'var(--amber)' : 'var(--cyan)');
+        var price = fccPrice(r.unit_price);
+        return '<div class="fcc-q-item fcc-in" style="--d:' + Math.min(i * 40, 400) + 'ms">' +
+          '<img class="fcc-q-img" ' + fccImgAttrs(r) + '>' +
+          '<div class="fcc-q-main">' +
+            '<div class="fcc-q-name" title="' + fccEsc(r.name) + '">' + fccEsc(r.name) + '</div>' +
+            '<div class="fcc-q-meta">' + fccEsc(fccLineOf(r.line)) +
+              (r.model && r.model !== '-' ? ' · ' + fccEsc(r.model) : '') +
+              (r.supplier ? ' · ' + fccEsc(r.supplier) : '') +
+              (price ? ' · ฿' + fccMoney(price) + '/หน่วย' : '') + '</div>' +
+          '</div>' +
+          '<div class="fcc-q-stock"><div class="t"><span style="color:' + barColor + '">' + fccInt(stock) + '</span><span style="color:var(--dim)">/' + fccInt(min) + '</span></div>' +
+            '<div class="fcc-bar" style="height:5px"><i data-w="' + Math.max(3, pct) + '%" style="background:' + barColor + '"></i></div></div>' +
+          '<div class="fcc-q-need"><b style="color:' + barColor + '">' + fccInt(needOf(r)) + '</b><span>NEED</span></div>' +
+          (canPr ? '<button type="button" class="fcc-q-btn" data-dashboard-request-id="' + fccEsc(r.no) + '">+ ขอซื้อ</button>' : '') +
           '</div>';
       }
-      var health = getStockHealthCounts(rows);
-      var outZero = health.outOfStockCount || 0;
-      var lowMin = health.belowMinCount || 0;
-      var needPoCount = health.needPOCount || 0;
-      var totalStock = 0;
-      rows.forEach(function(r) { totalStock += num(r.stock); });
-      var criticalItems = outZero;
-      var warningItems = Math.max(0, lowMin - outZero);
-      summaryEl.innerHTML =
-        kpiCard('🚨', 'Stock หมด (= 0)', outZero.toLocaleString('th-TH'), 'border-rose-200', criticalItems > 0 ? 'ต้องสั่งซื้อด่วน' : 'ปกติดี') +
-        kpiCard('⚠️', 'ต่ำกว่า Min', lowMin.toLocaleString('th-TH'), 'border-amber-200', warningItems > 0 ? 'ควรเติมสต็อก' : 'ปกติดี') +
-        kpiCard('🛒', 'Need PO', needPoCount.toLocaleString('th-TH'), 'border-blue-200', 'รายการที่ต้องสั่งซื้อ') +
-        kpiCard('📝', 'Pending Request', '...', 'border-violet-200', 'กำลังโหลด...');
-      var lineBars = document.getElementById('dashboardLineBars');
-      var donut = document.getElementById('dashboardStockDonut');
-      var donutLegend = document.getElementById('dashboardStockDonutLegend');
-      var donutText = document.getElementById('dashboardStockDonutText');
-      var poBars = document.getElementById('dashboardNeedPoBars');
-      var lineMap = {}, catMap = {}, normal = 0;
-      rows.forEach(function(r) {
-        var line = normalizeMainLine(r.line || 'N/A');
-        lineMap[line] = (lineMap[line] || 0) + num(r.stock);
-        var cat = String(r.category || 'ทั่วไป');
-        catMap[cat] = (catMap[cat] || 0) + Math.max(0, num(r.min) - num(r.stock));
-        if (num(r.stock) >= num(r.min) && num(r.stock) > 0) normal++;
+      function group(key, label, color, arr) {
+        if (!arr.length) return '';
+        var lim = 5;
+        var expanded = !!fccQExp[key];
+        var show = expanded ? arr : arr.slice(0, lim);
+        return '<div class="fcc-q-group">' +
+          '<div class="fcc-q-gh" style="color:' + color + '">' + label + ' — ' + arr.length + ' รายการ<span class="ln"></span></div>' +
+          show.map(itemRow).join('') +
+          (arr.length > lim ? '<button type="button" class="fcc-link" style="width:100%;text-align:center;padding:7px" data-fcc-act="expand:' + key + '">' +
+            (expanded ? '&#x25B4; ย่อรายการ' : '&#x25BE; ดูอีก ' + (arr.length - lim) + ' รายการ') + '</button>' : '') +
+          '</div>';
+      }
+      el.innerHTML =
+        group('crit', '&#x1F534; CRITICAL — หมดสต็อก', 'var(--rose)', crit) +
+        group('high', '&#x1F7E0; HIGH — เหลือไม่ถึงครึ่งของ Min', 'var(--amber)', high) +
+        group('med', '&#x1F7E1; MEDIUM — ต่ำกว่า Min', 'var(--cyan)', med);
+      fccDecorate(el);
+    }
+    function fccRenderRail(P, L) {
+      var el = document.getElementById('fccRail');
+      if (!el) return;
+      var picks = P.rows.filter(function(r) {
+        var stock = fccN(r.stock), min = fccN(r.min);
+        return stock <= 0 || (min > 0 && stock < min);
+      }).map(function(r) {
+        var u = L && L.usage30 ? L.usage30[fccPartKey(r.line, r.name, r.model)] : null;
+        return { r: r, crit: fccN(r.stock) <= 0, score: (fccN(r.stock) <= 0 ? 1000 : 0) + (u ? u.qty * 10 : 0) + fccPrice(r.unit_price) / 1000 };
       });
-      if (lineBars) {
-        var maxLine = Math.max.apply(null, Object.keys(lineMap).map(function(k){ return lineMap[k]; }).concat([1]));
-        lineBars.innerHTML = Object.keys(lineMap).slice(0, 7).map(function(k) {
-          var v = lineMap[k]; var pct = Math.max(4, (v / maxLine) * 100);
-          return '<div>' +
-            '<div class="mb-1 flex justify-between text-slate-600"><span class="font-medium">' + k + '</span><span class="font-bold">' + v.toLocaleString('th-TH') + '</span></div>' +
-            '<div class="h-2.5 rounded-full bg-slate-100"><div class="h-2.5 rounded-full bg-blue-500 transition-all" style="width:' + pct + '%"></div></div>' +
-            '</div>';
-        }).join('');
+      picks.sort(function(a, b) { return b.score - a.score; });
+      picks = picks.slice(0, 10);
+      if (!picks.length) {
+        el.innerHTML = '<div class="fcc-empty" style="width:100%">&#x2705; ไม่มีอะไหล่วิกฤต — สต็อกทุกตัวอยู่ในระดับปลอดภัย</div>';
+        return;
       }
-      if (poBars) {
-        var cats = Object.keys(catMap).sort(function(a,b){ return catMap[b]-catMap[a]; }).slice(0, 7);
-        var maxCat = Math.max.apply(null, cats.map(function(k){ return catMap[k]; }).concat([1]));
-        poBars.innerHTML = cats.length ? cats.map(function(k) {
-          var v = catMap[k]; if (!v) return ''; var pct = Math.max(4, (v / maxCat) * 100);
-          return '<div>' +
-            '<div class="mb-1 flex justify-between text-slate-600"><span class="font-medium">' + k + '</span><span class="font-bold text-amber-600">' + v + '</span></div>' +
-            '<div class="h-2.5 rounded-full bg-slate-100"><div class="h-2.5 rounded-full bg-amber-400 transition-all" style="width:' + pct + '%"></div></div>' +
-            '</div>';
-        }).join('') : '<p class="text-slate-400 text-xs">ไม่มีรายการ Need PO</p>';
-      }
-      if (donut) {
-        var total = Math.max(rows.length, 1);
-        var okPct = Math.round((normal / total) * 100);
-        var outPct = Math.round((outZero / total) * 100);
-        var lowPct = Math.max(0, 100 - okPct - outPct);
-        donut.style.background = 'conic-gradient(#22c55e 0 ' + okPct + '%, #ef4444 ' + okPct + '% ' + (okPct + outPct) + '%, #f59e0b ' + (okPct + outPct) + '% 100%)';
-        if (donutLegend) donutLegend.innerHTML =
-          '<span class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-green-500"></span>ปกติ ' + okPct + '%</span>' +
-          '<span class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-red-500"></span>หมด ' + outPct + '%</span>' +
-          '<span class="flex items-center gap-1"><span class="inline-block h-2.5 w-2.5 rounded-full bg-amber-400"></span>ต่ำกว่า Min ' + lowPct + '%</span>';
-        if (donutText) donutText.textContent = rows.length + ' รายการทั้งหมด';
-      }
-      // Critical items: stock=0 or below min only (not missing image/location)
-      var riskRows = [];
-      rows.forEach(function(item) {
-        var stock = num(item.stock), min = num(item.min), need = Math.max(0, min - stock);
-        var isCritical = stock <= 0;
-        var isWarning = !isCritical && stock < min;
-        if (isCritical || isWarning) riskRows.push({ item: item, need: need, critical: isCritical });
-      });
-      riskRows.sort(function(a, b) {
-        if (a.critical !== b.critical) return a.critical ? -1 : 1;
-        return b.need - a.need;
-      });
-      var displayRows = riskRows.slice(0, 20);
-      if (riskCountEl) {
-        riskCountEl.classList.toggle('hidden', riskRows.length === 0);
-        riskCountEl.textContent = riskRows.length + ' รายการ';
-      }
-      bodyEl.innerHTML = displayRows.map(function(row, idx) {
-        var r = row.item;
-        var levelBadge = row.critical
-          ? '<span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">🚨 หมดสต็อก</span>'
-          : '<span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">⚠️ ต่ำกว่า Min</span>';
-        var rowBg = row.critical ? 'bg-rose-50/40' : (idx % 2 ? 'bg-slate-50' : 'bg-white');
-        return '<tr class="border-b border-slate-100 ' + rowBg + ' hover:bg-blue-50/40 transition">' +
-          '<td class="px-3 py-2.5 text-xs font-semibold text-slate-600">' + normalizeMainLine(r.line || '-') + '</td>' +
-          '<td class="px-3 py-2.5 font-semibold text-slate-800">' + (r.name || '-') + '</td>' +
-          '<td class="px-3 py-2.5 hidden sm:table-cell text-slate-500 text-xs">' + (r.model !== '-' ? r.model : '') + '</td>' +
-          '<td class="px-3 py-2.5 text-center font-bold ' + (row.critical ? 'text-rose-600' : 'text-amber-600') + '">' + num(r.stock) + '</td>' +
-          '<td class="px-3 py-2.5 text-center text-slate-500">' + num(r.min) + '</td>' +
-          '<td class="px-3 py-2.5 text-center font-bold text-blue-600">' + row.need + '</td>' +
-          '<td class="px-3 py-2.5">' + levelBadge + '</td>' +
-        '</tr>';
+      var canPr = fccPerm('request_order_create');
+      el.innerHTML = picks.map(function(x, i) {
+        var r = x.r;
+        var price = fccPrice(r.unit_price);
+        var ribbon = x.crit
+          ? '<span class="fcc-spare-ribbon" style="background:rgba(255,95,126,.2);border:1px solid rgba(255,95,126,.5);color:#ff9db0">OUT OF STOCK</span>'
+          : '<span class="fcc-spare-ribbon" style="background:rgba(255,197,85,.18);border:1px solid rgba(255,197,85,.45);color:#ffd894">LOW STOCK</span>';
+        return '<div class="fcc-spare fcc-in' + (x.crit ? ' crit' : '') + '" style="--d:' + (i * 60) + 'ms">' + ribbon +
+          '<img class="fcc-spare-img" ' + fccImgAttrs(r) + '>' +
+          '<div class="fcc-spare-b">' +
+            '<div class="fcc-spare-n" title="' + fccEsc(r.name) + '">' + fccEsc(r.name) + '</div>' +
+            '<div class="fcc-spare-m">' + fccEsc(fccLineOf(r.line)) + (r.model && r.model !== '-' ? ' · ' + fccEsc(r.model) : '') + '</div>' +
+            '<div class="fcc-spare-grid">' +
+              '<span>คงเหลือ<br><b style="color:' + (x.crit ? 'var(--rose)' : 'var(--amber)') + '">' + fccInt(r.stock) + '</b></span>' +
+              '<span>Min<br><b>' + fccInt(r.min) + '</b></span>' +
+              '<span>Supplier<br><b style="font-size:10px">' + (r.supplier ? fccEsc(String(r.supplier).slice(0, 14)) : '—') + '</b></span>' +
+              '<span>ราคา/หน่วย<br><b style="font-size:10px">' + (price ? '฿' + fccMoney(price) : '—') + '</b></span>' +
+            '</div>' +
+            '<div class="fcc-spare-foot">' +
+              '<span class="fcc-chip">' + fccEsc(String(r.location || '-')) + '</span>' +
+              (canPr ? '<button type="button" class="fcc-q-btn" data-dashboard-request-id="' + fccEsc(r.no) + '">+ PR</button>' : '') +
+            '</div>' +
+          '</div></div>';
       }).join('');
-      loadingEl.classList.add('hidden');
-      emptyEl.classList.toggle('hidden', riskRows.length > 0);
-      if (lastUpdatedEl) {
-        var now = new Date();
-        lastUpdatedEl.textContent = 'อัพเดทล่าสุด: ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น. • ' + rows.length + ' รายการ';
+      fccDecorate(el);
+    }
+    function fccPill(status) {
+      var map = {
+        'Pending': ['#ffc555', 'rgba(255,197,85,.14)'], 'Approved': ['#5c8dff', 'rgba(92,141,255,.14)'],
+        'Purchased': ['#b192ff', 'rgba(177,146,255,.14)'], 'Received': ['#34e3a1', 'rgba(52,227,161,.14)'],
+        'Closed': ['#93a5c4', 'rgba(147,165,196,.12)'], 'Rejected': ['#ff5f7e', 'rgba(255,95,126,.14)'],
+        'On Hold': ['#ff9855', 'rgba(255,152,85,.14)']
+      };
+      var c = map[status] || map['Pending'];
+      return '<span class="fcc-pill" style="color:' + c[0] + ';background:' + c[1] + ';border:1px solid ' + c[0] + '33">' + fccEsc(status) + '</span>';
+    }
+    function fccRenderPipeline(R) {
+      var el = document.getElementById('fccPipeline');
+      var sub = document.getElementById('fccPipeSub');
+      if (!el) return;
+      if (!R || !R.total) {
+        el.innerHTML = '<div class="fcc-empty">ยังไม่มีคำขอซื้อในระบบ' + (fccPerm('request_order_create') ? ' — กด + ขอซื้อ จากรายการใน Action Queue ได้เลย' : '') + '</div>';
+        if (sub) sub.textContent = 'สถานะคำขอซื้อทั้งหมดในระบบ';
+        return;
       }
-      renderDashboardRequestSummary();
-      renderDashboardLogSummary();
+      if (sub) sub.textContent = R.total + ' คำขอทั้งหมด · เปิดอยู่ ' + R.open + (R.oldestPendingDays > 0 ? ' · ค้างนานสุด ' + R.oldestPendingDays + ' วัน' : '');
+      var stages = [
+        ['Pending', 'ขอซื้อ'], ['Approved', 'อนุมัติ'], ['Purchased', 'ออก PO'], ['Received', 'รับของ'], ['Closed', 'ปิดงาน']
+      ];
+      var pipe = '<div class="fcc-pipe fcc-in">' + stages.map(function(s, i) {
+        var n = R.counts[s[0]];
+        var reached = false;
+        for (var j = i; j < stages.length; j++) { if (R.counts[stages[j][0]] > 0) { reached = true; break; } }
+        return '<div class="fcc-pipe-step' + (n > 0 ? ' hot' : '') + (reached ? ' done' : '') + '">' +
+          '<div class="fcc-pipe-dot">' + fccInt(n) + '</div><div class="fcc-pipe-lb">' + s[1] + '</div></div>';
+      }).join('') + '</div>';
+      var side = '';
+      if (R.counts['Rejected'] > 0 || R.counts['On Hold'] > 0) {
+        side = '<div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px">' +
+          (R.counts['On Hold'] > 0 ? '<span class="fcc-chip">&#x23F8; On Hold ' + R.counts['On Hold'] + '</span>' : '') +
+          (R.counts['Rejected'] > 0 ? '<span class="fcc-chip" style="color:var(--rose);border-color:rgba(255,95,126,.35)">&#x2716; Rejected ' + R.counts['Rejected'] + '</span>' : '') +
+          '</div>';
+      }
+      var recent = R.rows.slice(0, 6).map(function(r, i) {
+        return '<div class="fcc-req-row fcc-in" style="--d:' + (i * 55) + 'ms" data-fcc-act="nav:request">' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fccEsc(r.item_name || '-') + '</div>' +
+          '<div style="font-size:9.5px;color:var(--dim)">' + fccEsc(fccLineOf(r.line)) + ' · ' + fccRelTime(r.updated_at || r.requested_date) + '</div></div>' +
+          '<span class="fcc-num" style="font-family:var(--fnum);font-weight:700;color:var(--mut)">&times;' + fccInt(r.request_qty) + '</span>' +
+          fccPill(String(r.status || 'Pending')) +
+          '</div>';
+      }).join('');
+      el.innerHTML = pipe + side +
+        '<div style="border-top:1px solid var(--line);margin:4px 0 6px"></div>' +
+        '<div style="font-size:10px;color:var(--dim);letter-spacing:.1em;font-family:var(--fnum);margin:2px 0 6px">RECENT REQUESTS</div>' +
+        recent;
+      fccDecorate(el);
+    }
+    function fccRenderActivity(L) {
+      var el = document.getElementById('fccActivity');
+      if (!el) return;
+      if (!L || !L.recent.length) { el.innerHTML = '<div class="fcc-empty">ยังไม่มีความเคลื่อนไหวในระบบ</div>'; return; }
+      el.innerHTML = '<div class="fcc-tl">' + L.recent.map(function(r, i) {
+        var icon = r.isOut ? '&#x2B06;&#xFE0F;' : '&#x2B07;&#xFE0F;';
+        var qtyHtml = r.isOut
+          ? '<span class="fcc-tl-q" style="color:var(--blue)">&minus;' + fccInt(r.qty) + '</span>'
+          : '<span class="fcc-tl-q" style="color:var(--green)">+' + fccInt(r.qty) + '</span>';
+        return '<div class="fcc-tl-item fcc-in" style="--d:' + Math.min(i * 45, 500) + 'ms">' +
+          '<span class="fcc-tl-ic" style="border-color:' + (r.isOut ? 'rgba(92,141,255,.5)' : 'rgba(52,227,161,.5)') + '">' + icon + '</span>' +
+          '<div class="fcc-tl-main"><div class="fcc-tl-t" title="' + fccEsc(r.name) + '">' + fccEsc(r.name) + '</div>' +
+          '<div class="fcc-tl-s">' + (r.isOut ? 'เบิกโดย ' : 'รับเข้าโดย ') + fccEsc(r.by) + ' · ' + fccEsc(r.line) + ' · ' + fccRelTime(r.ms) + '</div></div>' +
+          qtyHtml + '</div>';
+      }).join('') + '</div>';
+      fccDecorate(el);
+    }
+    function fccRenderExec(P, L) {
+      var el = document.getElementById('fccExec');
+      if (!el) return;
+      var valued = P.valued.slice().sort(function(a, b) { return b.value - a.value; });
+      var aCount = 0, bCount = 0, cCount = 0, aVal = 0, bVal = 0, cVal = 0, cum = 0;
+      valued.forEach(function(x) {
+        cum += x.value;
+        var p = P.value > 0 ? cum / P.value : 1;
+        if (p <= 0.8) { aCount++; aVal += x.value; }
+        else if (p <= 0.95) { bCount++; bVal += x.value; }
+        else { cCount++; cVal += x.value; }
+      });
+      var t90 = Date.now() - 90 * 86400000;
+      var deadCount = 0, deadVal = 0, fast = [];
+      if (L && L.hasData) {
+        P.rows.forEach(function(r) {
+          var key = fccPartKey(r.line, r.name, r.model);
+          var last = L.lastUse[key] || 0;
+          if (fccN(r.stock) > 0 && last < t90) { deadCount++; deadVal += fccPrice(r.unit_price) * fccN(r.stock); }
+          var u = L.usage30[key];
+          if (u) fast.push({ name: r.name, qty: u.qty });
+        });
+        fast.sort(function(a, b) { return b.qty - a.qty; });
+      }
+      function card(d, lb, vHtml, sHtml) {
+        return '<div class="fcc-card fcc-exec-card fcc-in" style="--d:' + d + 'ms">' +
+          '<div class="fcc-exec-lb">' + lb + '</div>' +
+          '<div class="fcc-exec-v">' + vHtml + '</div>' +
+          '<div class="fcc-exec-s">' + sHtml + '</div></div>';
+      }
+      var abcBar = '<div class="fcc-abc">' +
+        '<i data-w="' + (P.value > 0 ? (aVal / P.value * 100).toFixed(1) : 0) + '%" style="background:#3be2ff"></i>' +
+        '<i data-w="' + (P.value > 0 ? (bVal / P.value * 100).toFixed(1) : 0) + '%" style="background:#5c8dff"></i>' +
+        '<i data-w="' + (P.value > 0 ? (cVal / P.value * 100).toFixed(1) : 0) + '%" style="background:#b192ff"></i></div>';
+      el.innerHTML =
+        card(0, 'มูลค่าคงคลังรวม', '<span data-cnt="' + Math.round(P.value) + '" data-fmt="baht">0</span>',
+          'จาก ' + fccInt(P.pricedCount) + '/' + fccInt(P.total) + ' รายการที่บันทึกราคา') +
+        card(60, 'ABC Analysis (ตามมูลค่า)', 'A ' + fccInt(aCount) + ' · B ' + fccInt(bCount) + ' · C ' + fccInt(cCount),
+          'กลุ่ม A ถือมูลค่า ' + (P.value > 0 ? Math.round(aVal / P.value * 100) : 0) + '% ของคลัง' + abcBar) +
+        card(120, 'Dead Stock (90 วัน)',
+          (L && L.hasData ? '<span data-cnt="' + deadCount + '">0</span> รายการ' : '—'),
+          (L && L.hasData ? 'เงินจมประมาณ ฿' + fccMoney(deadVal) : 'ต้องมีข้อมูล log')) +
+        card(180, 'การหมุนเวียน 30 วัน',
+          (L && L.hasData ? '&uarr; ' + fccInt(L.out30Qty) + ' · &darr; ' + fccInt(L.in30Qty) : '—'),
+          'เบิกออก / รับเข้า (ชิ้น) จาก log จริง') +
+        card(240, 'Fast Movers',
+          (fast.length ? fccEsc(String(fast[0].name).slice(0, 18)) : '—'),
+          (fast.length ? fast.slice(0, 3).map(function(f) { return fccEsc(String(f.name).slice(0, 16)) + ' (' + fccInt(f.qty) + ')'; }).join('<br>') : 'ยังไม่มีข้อมูลการเบิก 30 วัน'));
+      fccDecorate(el);
+    }
+
+    /* ── floating dock / clock / init ──────────────────────────── */
+    function fccBuildDock() {
+      var dock = document.getElementById('fccDock');
+      if (!dock || dock.getAttribute('data-built')) return;
+      dock.setAttribute('data-built', '1');
+      var items = [];
+      if (fccPerm('receive_part')) items.push(['nav:txn', '&#x1F4E5;', 'รับเข้าอะไหล่']);
+      if (fccPerm('issue_part')) items.push(['nav:stock', '&#x1F4E4;', 'เบิกอะไหล่']);
+      if (fccPerm('request_order_create')) items.push(['nav:request', '&#x1F6D2;', 'สร้างคำขอซื้อ']);
+      if (fccPerm('view_logs')) items.push(['nav:log', '&#x1F558;', 'ประวัติการเคลื่อนไหว']);
+      items.push(['csv', '&#x1F4BE;', 'Export รายการต้องซื้อ']);
+      items.push(['top', '&#x2B06;&#xFE0F;', 'กลับขึ้นบนสุด']);
+      dock.innerHTML =
+        '<button type="button" class="fcc-dock-main" data-fcc-act="dock" aria-label="เมนูด่วน">' +
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>' +
+        '</button>' +
+        '<div class="fcc-dock-items">' + items.map(function(it, i) {
+          return '<button type="button" class="fcc-dock-it" style="--d:' + (i * 35) + 'ms" data-fcc-act="' + it[0] + '">' +
+            '<span class="lb">' + it[2] + '</span><span class="ic">' + it[1] + '</span></button>';
+        }).join('') + '</div>';
+    }
+    function fccStartClock() {
+      if (fccClockTimer) return;
+      var el = document.getElementById('fccClock');
+      if (!el) return;
+      function tick() {
+        try {
+          el.textContent = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date());
+        } catch (e) { el.textContent = new Date().toLocaleTimeString(); }
+      }
+      tick();
+      fccClockTimer = setInterval(tick, 1000);
+    }
+    function fccExportCsv() {
+      var rows = fccLast.queue || [];
+      if (!rows.length) { alert('ไม่มีรายการที่ต้องสั่งซื้อให้ Export'); return; }
+      var head = ['Priority', 'Line', 'Part Name', 'Model', 'Stock', 'Min', 'Need Qty', 'Supplier', 'Unit Price'];
+      var lines = [head.join(',')];
+      rows.forEach(function(r) {
+        var stock = fccN(r.stock), min = fccN(r.min);
+        var prio = stock <= 0 ? 'CRITICAL' : (stock <= min * 0.5 ? 'HIGH' : 'MEDIUM');
+        function cell(v) { return '"' + String(v === undefined || v === null ? '' : v).replace(/"/g, '""') + '"'; }
+        lines.push([prio, fccLineOf(r.line), r.name, r.model !== '-' ? r.model : '', stock, min, Math.max(1, min - stock), r.supplier || '', fccPrice(r.unit_price) || ''].map(cell).join(','));
+      });
+      var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'need-po-' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(a); a.click();
+      setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 400);
+    }
+    function fccHandleAct(act) {
+      var sep = act.indexOf(':');
+      var kind = sep === -1 ? act : act.slice(0, sep);
+      var arg = sep === -1 ? '' : act.slice(sep + 1);
+      if (kind === 'nav') {
+        var map = {
+          stock: typeof switchToStockPage === 'function' ? switchToStockPage : null,
+          txn: typeof switchToTxnPage === 'function' ? switchToTxnPage : null,
+          request: typeof switchToRequestOrderPage === 'function' ? switchToRequestOrderPage : null,
+          log: typeof switchToLogPage === 'function' ? switchToLogPage : null,
+          history: typeof switchToPurchaseHistoryPage === 'function' ? switchToPurchaseHistoryPage : null
+        };
+        if (map[arg]) map[arg]();
+      } else if (kind === 'scroll') {
+        var t = document.getElementById(arg);
+        if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (kind === 'line') {
+        if (dashboardLineFilter) { dashboardLineFilter.value = arg; renderDashboardPhase1(); }
+      } else if (kind === 'tab') {
+        fccTopsMode = arg;
+        if (fccLast.P) fccRenderTops(fccLast.P, fccLast.L);
+      } else if (kind === 'expand') {
+        fccQExp[arg] = !fccQExp[arg];
+        if (fccLast.P) fccRenderQueue(fccLast.P);
+      } else if (kind === 'csv') {
+        fccExportCsv();
+      } else if (kind === 'dock') {
+        var dock = document.getElementById('fccDock');
+        if (dock) dock.classList.toggle('open');
+      } else if (kind === 'top') {
+        var page = document.getElementById('dashboardPage');
+        if (page) page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+    function fccInit() {
+      if (fccInited) return;
+      var page = document.getElementById('dashboardPage');
+      if (!page) return;
+      fccInited = true;
+      fccBuildDock();
+      fccStartClock();
+      page.addEventListener('click', function(e) {
+        var el = e.target && e.target.closest ? e.target.closest('[data-fcc-act]') : null;
+        if (!el) return;
+        e.preventDefault();
+        fccHandleAct(el.getAttribute('data-fcc-act') || '');
+      });
+      page.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var el = e.target && e.target.closest ? e.target.closest('[data-fcc-act][role="button"]') : null;
+        if (!el) return;
+        e.preventDefault();
+        fccHandleAct(el.getAttribute('data-fcc-act') || '');
+      });
+      page.addEventListener('error', function(e) {
+        var img = e.target;
+        if (!img || String(img.tagName).toUpperCase() !== 'IMG') return;
+        var fb = img.getAttribute('data-fb');
+        if (fb) { img.removeAttribute('data-fb'); img.src = fb; }
+        else if (String(img.src).indexOf('no-image.svg') === -1) { img.src = 'images/no-image.svg'; }
+      }, true);
+      document.addEventListener('click', function(e) {
+        var dock = document.getElementById('fccDock');
+        if (!dock || !dock.classList.contains('open')) return;
+        if (!dock.contains(e.target)) dock.classList.remove('open');
+      });
+    }
+
+    /* ── async data (requests + logs) ──────────────────────────── */
+    function fccEnsureAsync() {
+      var FRESH_MS = 90000;
+      if (fccAsyncCache.at && (Date.now() - fccAsyncCache.at) < FRESH_MS) return Promise.resolve(fccAsyncCache);
+      if (fccAsyncCache.pending) return fccAsyncCache.pending;
+      var pReq = requestApi(withAuthPayload({ action: 'getOrderRequests' }))
+        .then(function(rows) {
+          if (rows && rows.status === 'error') throw new Error(rows.message || 'error');
+          return Array.isArray(rows) ? rows : [];
+        })
+        .catch(function() { return fccAsyncCache.requests || []; });
+      var pLog = loadJsonpWithFallback(function(base) { return base + appendAuthToQuery('?action=logs'); })
+        .then(function(rows) { return Array.isArray(rows) ? rows : []; })
+        .catch(function() { return fccAsyncCache.logs || []; });
+      fccAsyncCache.pending = Promise.all([pReq, pLog]).then(function(res) {
+        fccAsyncCache.requests = res[0];
+        fccAsyncCache.logs = res[1];
+        fccAsyncCache.at = Date.now();
+        fccAsyncCache.pending = null;
+        return fccAsyncCache;
+      });
+      return fccAsyncCache.pending;
+    }
+
+    /* ── orchestration ─────────────────────────────────────────── */
+    function renderDashboardPhase1() {
+      var page = document.getElementById('dashboardPage');
+      if (!page) return;
+      fccInit();
+      var all = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
+      var selLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
+      var rows = all.filter(function(r) { return selLine === 'all' ? true : fccLineOf(r.line) === selLine; });
+      var P = fccCrunchParts(rows);
+      var PAll = selLine === 'all' ? P : fccCrunchParts(all);
+      fccLast.P = P; fccLast.PAll = PAll;
+      var stamp = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      fccRenderHeader(P, stamp);
+      fccRenderKpis(P);
+      fccRenderAlerts(P, fccLast.R);
+      fccRenderMap(PAll, selLine);
+      fccRenderHeatmap(PAll);
+      fccRenderQueue(P);
+      fccRenderRail(P, fccLast.L);
+      var token = ++fccRenderToken;
+      fccEnsureAsync().then(function(A) {
+        if (token !== fccRenderToken) return;
+        var L = fccCrunchLogs(A.logs, selLine);
+        var R = fccCrunchRequests(A.requests, selLine);
+        fccLast.L = L; fccLast.R = R;
+        fccRenderHealth(P, R);
+        fccPatchKpisAsync(L, R);
+        fccRenderAlerts(P, R);
+        fccRenderTrend(L);
+        fccRenderTops(P, L);
+        fccRenderInsights(P, L, R);
+        fccRenderRail(P, L);
+        fccRenderPipeline(R);
+        fccRenderActivity(L);
+        fccRenderExec(P, L);
+      });
     }
 
     function loadDashboardAllPartsData() {
@@ -6239,156 +7606,6 @@ function inferRequestPriority(stock, min) {
         dashboardAllPartsData = merged.length ? merged : (partsData || []).slice();
         return dashboardAllPartsData;
       });
-    }
-
-    function renderDashboardRequestSummary() {
-      function normalizeMainLine(lineRaw) {
-        var line = String(lineRaw || '').toLowerCase();
-        if (line.indexOf('h9') !== -1) return 'H9';
-        if (line.indexOf('arc') !== -1) return 'Arc Chute';
-        if (line.indexOf('coil') !== -1) return 'Coil Winding';
-        if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
-        return String(lineRaw || '-');
-      }
-      function reqStatusBadge(status) {
-        var s = String(status || '');
-        var map = { 'Pending': 'bg-amber-100 text-amber-700', 'Approved': 'bg-blue-100 text-blue-700', 'Purchased': 'bg-violet-100 text-violet-700', 'Received': 'bg-green-100 text-green-700', 'Closed': 'bg-slate-100 text-slate-500', 'Rejected': 'bg-rose-100 text-rose-700', 'On Hold': 'bg-orange-100 text-orange-700' };
-        var cls = map[s] || 'bg-slate-100 text-slate-500';
-        return '<span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ' + cls + '">' + s + '</span>';
-      }
-      var summaryEl = document.getElementById('dashboardRequestSummary');
-      var emptyEl = document.getElementById('dashboardRequestEmpty');
-      var tableBody = document.getElementById('dashboardRequestTableBody');
-      if (!summaryEl || !emptyEl || !tableBody) return;
-      function chip(label, val, cls) {
-        return '<span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ' + cls + '">' + label + ' <span class="font-black">' + val + '</span></span>';
-      }
-      summaryEl.innerHTML = chip('Pending', '...', 'border-amber-200 bg-amber-50 text-amber-700');
-      tableBody.innerHTML = '';
-      emptyEl.classList.add('hidden');
-      requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
-        if (rows && rows.status === 'error') throw new Error(rows.message || 'โหลดคำขอไม่สำเร็จ');
-        rows = Array.isArray(rows) ? rows : [];
-        var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
-        rows = rows.filter(function(r){ return selectedLine === 'all' ? true : normalizeMainLine(r.line) === selectedLine; });
-        var counts = { 'Pending': 0, 'Approved': 0, 'Rejected': 0, 'On Hold': 0, 'Purchased': 0, 'Received': 0, 'Closed': 0 };
-        rows.forEach(function(r) { var s = String(r.status || 'Pending'); if (Object.prototype.hasOwnProperty.call(counts, s)) counts[s]++; });
-        summaryEl.innerHTML =
-          chip('Pending', counts['Pending'], 'border-amber-200 bg-amber-50 text-amber-700') +
-          chip('Approved', counts['Approved'], 'border-blue-200 bg-blue-50 text-blue-700') +
-          chip('Purchased', counts['Purchased'], 'border-violet-200 bg-violet-50 text-violet-700') +
-          chip('Received', counts['Received'], 'border-green-200 bg-green-50 text-green-700') +
-          chip('Closed', counts['Closed'], 'border-slate-200 bg-slate-50 text-slate-500') +
-          chip('ทั้งหมด', rows.length, 'border-slate-300 bg-white text-slate-700');
-        // update KPI card
-        var summaryMain = document.getElementById('dashboardSummary');
-        if (summaryMain) summaryMain.innerHTML = summaryMain.innerHTML
-          .replace(/>\.\.\.(<\/p>[\s\S]*?กำลังโหลด\.\.\.)/, '>' + counts['Pending'] + '$1')
-          .replace('กำลังโหลด...', counts['Pending'] > 0 ? counts['Pending'] + ' รายการรอดำเนินการ' : 'ไม่มีคำขอรอ');
-        if (!rows.length) { emptyEl.classList.remove('hidden'); return; }
-        rows.sort(function(a,b){ return new Date(String(b.updated_at || b.requested_date || 0)).getTime() - new Date(String(a.updated_at || a.requested_date || 0)).getTime(); });
-        tableBody.innerHTML = rows.slice(0, 25).map(function(r, idx) {
-          var rowBg = idx % 2 ? 'bg-slate-50/60' : 'bg-white';
-          return '<tr class="border-b border-slate-100 ' + rowBg + ' hover:bg-blue-50/40">' +
-            '<td class="px-3 py-2 font-medium text-slate-800">' + (r.item_name || '-') + '</td>' +
-            '<td class="px-3 py-2 hidden sm:table-cell text-slate-500">' + normalizeMainLine(r.line || '-') + '</td>' +
-            '<td class="px-3 py-2 text-center font-bold text-slate-700">' + (r.request_qty || 0) + '</td>' +
-            '<td class="px-3 py-2">' + reqStatusBadge(r.status) + '</td>' +
-            '<td class="px-3 py-2 hidden sm:table-cell text-slate-400 text-[11px]">' + formatThaiDateTime(r.requested_date) + '</td>' +
-          '</tr>';
-        }).join('');
-      }).catch(function() { emptyEl.classList.remove('hidden'); });
-    }
-
-    function renderDashboardLogSummary() {
-      function normalizeMainLine(lineRaw) {
-        var line = String(lineRaw || '').toLowerCase();
-        if (line.indexOf('h9') !== -1) return 'H9';
-        if (line.indexOf('arc') !== -1) return 'Arc Chute';
-        if (line.indexOf('coil') !== -1) return 'Coil Winding';
-        if (line.indexOf('lug') !== -1 || line.indexOf('screw') !== -1) return 'Lug&Screw';
-        return String(lineRaw || '-');
-      }
-      function chip(label, val, cls) {
-        return '<span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ' + cls + '">' + label + ' <span class="font-black">' + val + '</span></span>';
-      }
-      var summaryEl = document.getElementById('dashboardLogSummary');
-      var emptyEl = document.getElementById('dashboardLogEmpty');
-      var latestBody = document.getElementById('dashboardLatestIssueBody');
-      var topPartsBody = document.getElementById('dashboardTopPartsBody');
-      var topUsersBody = document.getElementById('dashboardTopUsersBody');
-      if (!summaryEl || !emptyEl || !latestBody || !topPartsBody) return;
-      summaryEl.innerHTML = chip('เบิกวันนี้', '...', 'border-blue-200 bg-blue-50 text-blue-700') + chip('รับเข้าวันนี้', '...', 'border-green-200 bg-green-50 text-green-700');
-      latestBody.innerHTML = ''; topPartsBody.innerHTML = '';
-      emptyEl.classList.add('hidden');
-      loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); }).then(function(rawData) {
-        var selectedLine = dashboardLineFilter ? String(dashboardLineFilter.value || 'all') : 'all';
-        var rows = Array.isArray(rawData) ? rawData : [];
-        if (selectedLine !== 'all') rows = rows.filter(function(r){ return normalizeMainLine(r.process || r.line || '') === selectedLine; });
-        if (!rows.length) { emptyEl.classList.remove('hidden'); return; }
-        var now = new Date();
-        var isSameDay = function(d){ return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate(); };
-        var isSameMonth = function(d){ return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth(); };
-        var outToday = 0, inToday = 0, outMonth = 0, inMonth = 0, issues = [], partMap = {}, userMap = {};
-        rows.forEach(function(r) {
-          var t = String(r.type || r.txnType || '').toLowerCase();
-          var dt = new Date(r.timestamp || r.date || r.created_at || 0);
-          var qty = Math.abs(Number(r.qty || r.quantity || 0) || 0);
-          var isOut = t.indexOf('output') !== -1 || t.indexOf('issue') !== -1;
-          var isIn = t.indexOf('input') !== -1 || t.indexOf('receive') !== -1;
-          if (isOut) {
-            issues.push(r);
-            if (isSameDay(dt)) outToday += qty;
-            if (isSameMonth(dt)) outMonth += qty;
-            var pKey = [r.partName || r.name || '-', r.model || '-'].join('||');
-            if (!partMap[pKey]) partMap[pKey] = { name: r.partName || r.name || '-', model: r.model || '-', count: 0, qty: 0, last: 0 };
-            partMap[pKey].count++; partMap[pKey].qty += qty; partMap[pKey].last = Math.max(partMap[pKey].last, dt.getTime() || 0);
-            var by = String(r.by || r.requestedBy || '-').trim() || '-';
-            if (!userMap[by]) userMap[by] = { by: by, count: 0, qty: 0, last: 0 };
-            userMap[by].count++; userMap[by].qty += qty; userMap[by].last = Math.max(userMap[by].last, dt.getTime() || 0);
-          }
-          if (isIn) { if (isSameDay(dt)) inToday += qty; if (isSameMonth(dt)) inMonth += qty; }
-        });
-        summaryEl.innerHTML =
-          chip('เบิกวันนี้', outToday, 'border-blue-200 bg-blue-50 text-blue-700') +
-          chip('รับเข้าวันนี้', inToday, 'border-green-200 bg-green-50 text-green-700') +
-          chip('เบิกเดือนนี้', outMonth, 'border-blue-100 bg-white text-blue-600') +
-          chip('รับเข้าเดือนนี้', inMonth, 'border-green-100 bg-white text-green-600');
-        issues.sort(function(a,b){ return new Date(b.timestamp||b.date||0) - new Date(a.timestamp||a.date||0); });
-        var typeLabel = function(t) {
-          var tl = String(t || '').toLowerCase();
-          if (tl.indexOf('issue') !== -1 || tl.indexOf('output') !== -1) return '<span class="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">เบิก</span>';
-          if (tl.indexOf('receive') !== -1 || tl.indexOf('input') !== -1) return '<span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">รับเข้า</span>';
-          return '<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">' + t + '</span>';
-        };
-        latestBody.innerHTML = issues.slice(0, 15).map(function(r, idx) {
-          var rowBg = idx % 2 ? 'bg-slate-50/60' : 'bg-white';
-          return '<tr class="border-b border-slate-100 ' + rowBg + '">' +
-            '<td class="px-3 py-2 font-medium text-slate-800">' + (r.partName || r.name || '-') + '</td>' +
-            '<td class="px-3 py-2 hidden sm:table-cell">' + typeLabel(r.type) + '</td>' +
-            '<td class="px-3 py-2 text-center font-bold text-slate-700">' + Math.abs(Number(r.qty || r.quantity || 0)) + '</td>' +
-            '<td class="px-3 py-2 hidden sm:table-cell text-slate-500">' + (r.by || '-') + '</td>' +
-            '<td class="px-3 py-2 text-slate-400 text-[11px]">' + formatThaiDateTime(r.timestamp || r.date) + '</td>' +
-          '</tr>';
-        }).join('') || '<tr><td colspan="5" class="px-3 py-4 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>';
-        var topParts = Object.keys(partMap).map(function(k){ return partMap[k]; }).sort(function(a,b){ return b.count-a.count || b.qty-a.qty; }).slice(0,10);
-        topPartsBody.innerHTML = topParts.map(function(p, idx) {
-          var rowBg = idx % 2 ? 'bg-slate-50/60' : 'bg-white';
-          var rankColor = idx === 0 ? 'text-amber-500 font-black' : idx === 1 ? 'text-slate-400 font-bold' : idx === 2 ? 'text-amber-700 font-bold' : 'text-slate-400';
-          return '<tr class="border-b border-slate-100 ' + rowBg + '">' +
-            '<td class="px-3 py-2.5 text-center ' + rankColor + '">' + (idx+1) + '</td>' +
-            '<td class="px-3 py-2.5 font-semibold text-slate-800">' + p.name + '</td>' +
-            '<td class="px-3 py-2.5 hidden sm:table-cell text-slate-500 text-xs">' + (p.model !== '-' ? p.model : '') + '</td>' +
-            '<td class="px-3 py-2.5 text-center font-bold text-blue-600">' + p.count + '</td>' +
-            '<td class="px-3 py-2.5 text-center font-semibold">' + p.qty + '</td>' +
-            '<td class="px-3 py-2.5 hidden sm:table-cell text-slate-400 text-[11px]">' + (p.last ? formatThaiDateTime(p.last) : '-') + '</td>' +
-          '</tr>';
-        }).join('') || '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>';
-        if (topUsersBody) {
-          var topUsers = Object.keys(userMap).map(function(k){ return userMap[k]; }).sort(function(a,b){ return b.count-a.count; }).slice(0,10);
-          topUsersBody.innerHTML = topUsers.map(function(u){ return '<tr class="border-b"><td class="px-2 py-2">' + u.by + '</td><td class="px-2 py-2">' + u.count + '</td><td class="px-2 py-2">' + u.qty + '</td><td class="px-2 py-2">' + (u.last ? formatThaiDateTime(u.last) : '-') + '</td></tr>'; }).join('');
-        }
-      }).catch(function() { emptyEl.classList.remove('hidden'); });
     }
 
     function switchToDashboardPage() {
@@ -10111,7 +11328,7 @@ function inferRequestPriority(stock, min) {
       });
     });
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
-    if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1); });
+    if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ dashboardRefreshBtn.classList.add('fcc-spin'); fccInvalidateAsyncCache(); loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1).then(function(){ dashboardRefreshBtn.classList.remove('fcc-spin'); }); });
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
     function initDashboardSidebarNav() {
       var wrap = document.getElementById('dashboardSidebarWrap');
