@@ -13155,12 +13155,12 @@ if (dashboardPage) {
         ? requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] }))
         : requestApi(withAuthPayload({ action: ({ approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' }[act] || act), request_id: id }));
       run.then(function(){
-        alert('บันทึกคำสั่งเรียบร้อย • Statusรอการอนุมัติ/อัปเดตเหมือนระบบ e-mail');
+        showQuickToast('✅ บันทึกคำสั่งเรียบร้อย', 'success');
         loadOrderRequests(); return refreshRequestOrderBadgeCount();
       }).then(function(){
         if (window.__roActiveGroupIdx !== undefined) openRequestDetailByRequester(window.__roActiveGroupIdx);
       }).catch(function(err) {
-        alert('อัปเดตStatusไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+        showQuickToast('อัปเดต Status ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
       }).finally(function() {
         actionBtn.disabled = false;
         actionBtn.textContent = originalText;
