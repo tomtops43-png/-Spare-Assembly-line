@@ -3121,7 +3121,8 @@
         { key: 'request_order_approve', label: 'อนุมัติ/พักคำขอ' },
         { key: 'request_order_reject', label: 'ปฏิเสธคำขอ' },
         { key: 'request_order_convert_pr', label: 'Convert เป็น PR' },
-        { key: 'request_order_close', label: 'ปิดคำขอ' }
+        { key: 'request_order_close', label: 'ปิดคำขอ' },
+        { key: 'request_order_edit', label: 'แก้ไขรายละเอียดคำขอ (Pending/On Hold)' }
       ]},
       { key: 'system', targetId: 'permGroupSystem', title: 'User / System', items: [
         { key: 'manage_users', label: 'จัดการผู้ใช้' },
@@ -6508,8 +6509,29 @@ function getIssueCartEntries() {
         var invalid = !String(r.item_name || '').trim() || Number(r.request_qty || 0) <= 0;
         var border = isPending ? 'border-amber-200' : s === 'Approved' ? 'border-blue-200' : s === 'Rejected' ? 'border-rose-200' : 'border-slate-200';
         var selectCtrl = canManage ? '<label class="mb-3 flex items-center gap-2 cursor-pointer"><input type="checkbox" data-ro-select="' + r.request_id + '" class="h-4 w-4 rounded" /><span class="text-xs font-semibold text-slate-600">เลือกรายการนี้ (bulk action)</span></label>' : '';
+        var canEditRequest = hasPermission('request_order_edit') && (s === 'Pending' || s === 'On Hold');
+        if (canEditRequest && window.__roEditingId === r.request_id) {
+          return '<div class="rounded-2xl border-2 border-blue-400 bg-blue-50/40 p-4 shadow-sm" data-ro-card>' +
+            '<p class="mb-3 font-bold text-blue-800">✏️ แก้ไขรายการที่ ' + (idx + 1) + ' — แก้ข้อมูลที่ผู้ขอกรอกผิด/ไม่ครบก่อนอนุมัติ</p>' +
+            '<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">' +
+              '<label class="block text-xs font-semibold text-slate-600">ชื่ออะไหล่ <span class="text-rose-500">*</span><input data-ro-field="item_name" type="text" value="' + escHtml(r.item_name || '') + '" class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm" /></label>' +
+              '<label class="block text-xs font-semibold text-slate-600">รุ่น / Model<input data-ro-field="model" type="text" value="' + escHtml(r.model || r.item_model || '') + '" class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm" /></label>' +
+              '<label class="block text-xs font-semibold text-slate-600">แบรนด์<input data-ro-field="brand" type="text" value="' + escHtml(r.brand || r.item_brand || '') + '" class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm" /></label>' +
+              '<label class="block text-xs font-semibold text-slate-600">Line<input data-ro-field="line" type="text" value="' + escHtml(r.line || '') + '" class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm" /></label>' +
+              '<label class="block text-xs font-semibold text-slate-600">จำนวน <span class="text-rose-500">*</span><input data-ro-field="request_qty" type="number" min="1" step="1" value="' + escHtml(r.request_qty || 1) + '" class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm" /></label>' +
+              '<label class="block text-xs font-semibold text-slate-600">หน่วย<input data-ro-field="unit" type="text" value="' + escHtml(r.unit || 'ชิ้น') + '" class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm" /></label>' +
+            '</div>' +
+            '<label class="mt-2 block text-xs font-semibold text-slate-600">เหตุผล<input data-ro-field="reason" type="text" value="' + escHtml(r.reason || '') + '" class="mt-1 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm" /></label>' +
+            '<label class="mt-2 block text-xs font-semibold text-slate-600">หมายเหตุ<textarea data-ro-field="remark" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">' + escHtml(r.remark || '') + '</textarea></label>' +
+            '<div class="mt-3 flex gap-2">' +
+              '<button data-id="' + r.request_id + '" data-act="editSave" class="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700">💾 บันทึก</button>' +
+              '<button data-id="' + r.request_id + '" data-act="editCancel" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">ยกเลิก</button>' +
+            '</div>' +
+          '</div>';
+        }
         // Action buttons with colors
         var acts = [];
+        if (canEditRequest) acts.push('<button data-id="'+r.request_id+'" data-act="editToggle" class="rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">✏️ แก้ไข</button>');
         if (hasPermission('request_order_approve') && isPending) {
           acts.push('<button data-id="'+r.request_id+'" data-act="approve" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">✅ อนุมัติ</button>');
           acts.push('<button data-id="'+r.request_id+'" data-act="hold" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100">⏸ พัก</button>');
@@ -6558,6 +6580,7 @@ function getIssueCartEntries() {
       if (roDetailModalEl) roDetailModalEl.classList.add('hidden');
       window.__roActiveGroupIdx = undefined;
       window.__roBulkSelected = {};
+      window.__roEditingId = undefined;
       updateRequestOrderBulkToolbar();
       document.body.classList.remove('overflow-hidden');
     }
@@ -12776,7 +12799,7 @@ if (dashboardPage) {
     if (roListEl) roListEl.addEventListener('click', function(e){
       var btn = e.target.closest('[data-group-idx]');
       var groupIdx = btn ? btn.getAttribute('data-group-idx') : '';
-      if (groupIdx !== '') return openRequestDetailByRequester(groupIdx);
+      if (groupIdx !== '') { window.__roEditingId = undefined; return openRequestDetailByRequester(groupIdx); }
     });
     var roDetailModal = document.getElementById('roDetailModal');
     var roDetailClose = document.getElementById('roDetailClose');
@@ -12825,6 +12848,37 @@ if (dashboardPage) {
         return;
       }
       var id = e.target.getAttribute('data-id'); var act = e.target.getAttribute('data-act'); if (!id || !act) return;
+      if (act === 'editToggle') { window.__roEditingId = id; if (window.__roActiveGroupIdx !== undefined) openRequestDetailByRequester(window.__roActiveGroupIdx); return; }
+      if (act === 'editCancel') { window.__roEditingId = undefined; if (window.__roActiveGroupIdx !== undefined) openRequestDetailByRequester(window.__roActiveGroupIdx); return; }
+      if (act === 'editSave') {
+        var card = e.target.closest('[data-ro-card]');
+        var getField = function(f) { var el = card.querySelector('[data-ro-field="' + f + '"]'); return el ? el.value.trim() : ''; };
+        var itemName = getField('item_name');
+        var qty = Number(getField('request_qty') || 0);
+        if (!itemName) { alert('กรุณาระบุชื่ออะไหล่'); return; }
+        if (!(qty > 0)) { alert('จำนวนต้องมากกว่า 0'); return; }
+        var editBtn = e.target;
+        var editOriginalText = editBtn.textContent;
+        editBtn.disabled = true;
+        editBtn.textContent = 'กำลังบันทึก...';
+        requestApi(withAuthPayload({
+          action: 'editOrderRequest', request_id: id,
+          item_name: itemName, model: getField('model'), brand: getField('brand'), line: getField('line'),
+          request_qty: qty, unit: getField('unit'), reason: getField('reason'), remark: getField('remark')
+        })).then(function() {
+          window.__roEditingId = undefined;
+          showQuickToast('✅ บันทึกการแก้ไขแล้ว', 'success');
+          loadOrderRequests(); return refreshRequestOrderBadgeCount();
+        }).then(function() {
+          if (window.__roActiveGroupIdx !== undefined) openRequestDetailByRequester(window.__roActiveGroupIdx);
+        }).catch(function(err) {
+          alert('บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+        }).finally(function() {
+          editBtn.disabled = false;
+          editBtn.textContent = editOriginalText;
+        });
+        return;
+      }
       var actionBtn = e.target;
       var originalText = actionBtn.textContent;
       actionBtn.disabled = true;
@@ -13026,6 +13080,7 @@ if (dashboardPage) {
           'view_logs', 'view_dashboard', 'export_data',
           'request_order_create', 'request_order_view_own', 'request_order_view_all',
           'request_order_approve', 'request_order_reject', 'request_order_convert_pr', 'request_order_close',
+          'request_order_edit',
           'view_purchase_history', 'manage_items',
           'manage_users', 'delete_users', 'assign_permissions', 'access_admin_panel', 'reset_password',
           'manage_h9', 'manage_arc_chute', 'manage_coil_winding', 'manage_lug_screw'
