@@ -872,7 +872,7 @@
                 <input id="roQty" type="number" min="1" placeholder="0" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" required />
               </label>
               <label class="block text-xs font-semibold text-slate-600">เหตุผล *
-                <select id="roReasonPreset" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                <select id="roReasonPreset" required class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
                   <option value="">เลือกเหตุผล</option>
                   <option value="อะไหล่หมด">🔴 อะไหล่หมด</option>
                   <option value="ต่ำกว่าขั้นต่ำ">🟡 ต่ำกว่า Min</option>
@@ -933,15 +933,15 @@
       <div id="roDetailModal" class="hidden">
         <div id="roDetailPanel">
             <div id="roDetailHeader" class="mb-0 flex items-center justify-between px-4 py-3">
-              <h3 id="roDetailTitle" class="text-lg font-bold">รายการของRequester</h3>
+              <h3 id="roDetailTitle" class="text-lg font-bold">รายการของ: -</h3>
               <button id="roDetailClose" type="button" class="rounded border px-3 py-1">ปิด</button>
             </div>
             <div id="roBulkToolbar" class="mx-4 mb-3 hidden rounded-xl border border-blue-200 bg-blue-50 p-3">
               <div class="flex flex-wrap items-center gap-2">
                 <span id="roBulkSelectedCount" class="mr-auto text-sm font-semibold text-blue-900">เลือกแล้ว 0 รายการ</span>
-                <button id="roBulkOrderedBtn" type="button" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700">Mark as Ordered</button>
-                <button id="roBulkReceivedBtn" type="button" class="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700">Mark as Received</button>
-                <button id="roBulkCancelBtn" type="button" class="rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700">Cancel Request</button>
+                <button id="roBulkOrderedBtn" type="button" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700">🛒 สั่งซื้อแล้ว</button>
+                <button id="roBulkReceivedBtn" type="button" class="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700">📥 รับเข้าแล้ว</button>
+                <button id="roBulkCancelBtn" type="button" class="rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700">❌ ปฏิเสธคำขอ</button>
               </div>
             </div>
             <div id="roDetailList" class="space-y-2"></div>
@@ -6468,7 +6468,7 @@ function getIssueCartEntries() {
     function runBulkRequestStatus(status) {
       var ids = getSelectedRequestOrderIds();
       if (!ids.length) return alert('กรุณาเลือกรายการอย่างน้อย 1 รายการ');
-      var labels = { Purchased: 'Mark as Ordered', Received: 'Mark as Received', Rejected: 'Cancel Request' };
+      var labels = { Purchased: '🛒 สั่งซื้อแล้ว', Received: '📥 รับเข้าแล้ว', Rejected: '❌ ปฏิเสธคำขอ' };
       showConfirmDialog({ title: (labels[status] || status), message: (labels[status] || status) + ' จำนวน ' + ids.length + ' รายการ?', okLabel: 'ยืนยัน' }).then(function(ok) {
         if (!ok) return;
         postJson(withAuthPayload({ action: 'bulkUpdateOrderRequestStatus', request_ids: ids, status: status })).then(parseApiResponse).then(function(result) {
@@ -12605,6 +12605,11 @@ if (dashboardPage) {
       var isNewMode = roRequestType && roRequestType.value === 'new';
       if (roNewItemFields) roNewItemFields.classList.toggle('hidden', !isNewMode);
       if (roExistingItemFields) roExistingItemFields.classList.toggle('hidden', isNewMode);
+      // required ต้องผูกกับโหมดที่ active เท่านั้น — ไม่งั้นตอนอยู่โหมด "อะไหล่ในระบบ"
+      // ช่อง roNewItemName ที่ถูกซ่อนไว้จะยังบังคับ required อยู่ ทำให้ browser
+      // บล็อกการ submit ทั้งที่เลือกอะไหล่จากระบบไว้ครบแล้ว
+      var roNewItemNameEl = document.getElementById('roNewItemName');
+      if (roNewItemNameEl) roNewItemNameEl.required = isNewMode;
       if (isNewMode) {
         roSelectedItem = null;
         renderRoSelectedCard(null);
@@ -12649,6 +12654,7 @@ if (dashboardPage) {
       e.preventDefault();
       var isNewItemMode = !!(roRequestType && roRequestType.value === 'new');
       if (!isNewItemMode && !roSelectedItem) { showQuickToast('กรุณาเลือกอะไหล่จากรายการก่อน', 'warn'); return; }
+      if (isNewItemMode && !String(document.getElementById('roNewItemName').value || '').trim()) { showQuickToast('กรุณากรอกชื่ออะไหล่', 'warn'); return; }
       var qty = Number(document.getElementById('roQty').value || 0);
       if (!qty || qty <= 0) { showQuickToast('จำนวนที่ต้องการต้องมากกว่า 0', 'warn'); return; }
       var reason = roReasonPreset && roReasonPreset.value === 'อื่นๆ' ? String((roReasonOther && roReasonOther.value) || '').trim() : (roReasonPreset ? roReasonPreset.value : '');
