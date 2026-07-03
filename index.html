@@ -2710,6 +2710,45 @@
       </form>
     </div>
   </div>
+  <div id="quickReceiveModal" class="fixed inset-0 z-[210] hidden bg-white">
+    <div id="quickReceiveBackdrop" class="absolute inset-0 bg-white"></div>
+    <div class="relative z-10 flex h-full w-full flex-col overflow-y-auto bg-white p-4">
+      <div class="mb-3 flex items-center justify-between border-b border-slate-200 pb-2">
+        <h3 class="text-lg font-bold text-slate-900">📥 รับเข้าอะไหล่</h3>
+        <button id="quickReceiveCloseBtn" type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-xl text-slate-700">×</button>
+      </div>
+      <div id="quickReceiveSelectedCard" class="rounded-2xl border border-slate-200 bg-white p-3">
+        <div class="flex items-center gap-3">
+          <div class="h-20 w-20 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+            <img id="quickReceiveImage" src="" alt="quick receive item" class="h-full w-full object-contain bg-slate-50 p-1.5" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <p id="quickReceiveName" class="text-lg font-semibold leading-tight truncate">-</p>
+            <p id="quickReceiveModel" class="mt-1 text-sm text-slate-600">รุ่น: -</p>
+            <p id="quickReceiveNo" class="text-sm text-slate-600">รหัส: -</p>
+            <div class="mt-2 flex items-center gap-2">
+              <span id="quickReceiveStatus" class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold">-</span>
+              <span id="quickReceiveStock" class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-700">Stock: 0 PCS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <form id="quickReceiveForm" class="mt-4 flex min-h-0 flex-1 flex-col">
+        <div class="space-y-3">
+        <input id="quickReceiveQty" type="number" min="1" step="1" inputmode="numeric" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" placeholder="จำนวนที่รับเข้า" required />
+        <input id="quickReceiveBy" type="text" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base bg-slate-100 text-slate-700" placeholder="ผู้รับเข้า" required readonly />
+        <div class="relative">
+          <input id="quickReceiveProcess" type="text" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 text-base font-semibold text-slate-700 cursor-not-allowed" placeholder="ไลน์/งาน (Auto)" readonly />
+          <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">🔒 Auto</span>
+        </div>
+        </div>
+        <div class="mt-auto pt-4">
+          <button id="quickReceiveSubmitBtn" type="submit" class="h-12 w-full rounded-xl bg-emerald-600 px-4 text-xl font-semibold text-white">บันทึกรับเข้า</button>
+          <p id="quickReceiveMessage" class="mt-2 text-sm text-slate-500"></p>
+        </div>
+      </form>
+    </div>
+  </div>
   <div id="uploadQueuePanel" class="fixed bottom-4 right-4 z-[260] hidden w-[290px] overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-2xl">
     <!-- Header gradient -->
     <div class="flex items-center justify-between gap-2 px-4 py-3" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);">
@@ -2848,6 +2887,23 @@
     var quickIssueReasonRemark = document.getElementById('quickIssueReasonRemark');
     var quickIssueSubmitBtn = document.getElementById('quickIssueSubmitBtn');
     var quickIssueMessage = document.getElementById('quickIssueMessage');
+    var quickReceiveModal = document.getElementById('quickReceiveModal');
+    var quickReceiveBackdrop = document.getElementById('quickReceiveBackdrop');
+    var quickReceiveCloseBtn = document.getElementById('quickReceiveCloseBtn');
+    var quickReceiveImage = document.getElementById('quickReceiveImage');
+    var quickReceiveName = document.getElementById('quickReceiveName');
+    var quickReceiveModel = document.getElementById('quickReceiveModel');
+    var quickReceiveNo = document.getElementById('quickReceiveNo');
+    var quickReceiveStatus = document.getElementById('quickReceiveStatus');
+    var quickReceiveStock = document.getElementById('quickReceiveStock');
+    var quickReceiveForm = document.getElementById('quickReceiveForm');
+    var quickReceiveQty = document.getElementById('quickReceiveQty');
+    var quickReceiveBy = document.getElementById('quickReceiveBy');
+    var quickReceiveProcess = document.getElementById('quickReceiveProcess');
+    var quickReceiveSubmitBtn = document.getElementById('quickReceiveSubmitBtn');
+    var quickReceiveMessage = document.getElementById('quickReceiveMessage');
+    var quickReceiveSubmitting = false;
+    var currentQuickReceiveSelectedPart = null;
     var prReportPage = document.getElementById('prReportPage');
     var tabPrReport = document.getElementById('tabPrReport');
     var purchaseHistoryPage = document.getElementById('purchaseHistoryPage');
@@ -9626,6 +9682,147 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    // ── Quick Receive (รับเข้าด่วนจากการ์ดในหน้า Stock) ──────────────
+    function setQuickReceiveSubmitState(isSubmitting) {
+      quickReceiveSubmitting = !!isSubmitting;
+      if (!quickReceiveSubmitBtn) return;
+      quickReceiveSubmitBtn.disabled = quickReceiveSubmitting;
+      quickReceiveSubmitBtn.classList.toggle('opacity-60', quickReceiveSubmitting);
+      quickReceiveSubmitBtn.classList.toggle('cursor-not-allowed', quickReceiveSubmitting);
+      quickReceiveSubmitBtn.textContent = quickReceiveSubmitting ? 'กำลังบันทึกรายการ...' : 'บันทึกรับเข้า';
+    }
+
+    function getCurrentQuickReceiveItem() {
+      if (!currentQuickReceiveSelectedPart) return null;
+      var byKey = findItemByIdentityKey(getItemIdentityKey(currentQuickReceiveSelectedPart));
+      if (byKey) return byKey;
+      return currentQuickReceiveSelectedPart.no !== undefined ? currentQuickReceiveSelectedPart : null;
+    }
+
+    function closeQuickReceiveModal() {
+      if (!quickReceiveModal || quickReceiveModal.classList.contains('hidden')) return;
+      quickReceiveModal.classList.add('hidden');
+      document.body.classList.remove('quick-issue-open');
+      unlockBodyScroll();
+      currentQuickReceiveSelectedPart = null;
+      if (quickReceiveForm) quickReceiveForm.reset();
+      if (quickReceiveMessage) {
+        quickReceiveMessage.className = 'text-sm text-slate-500';
+        quickReceiveMessage.textContent = '';
+      }
+      setQuickReceiveSubmitState(false);
+    }
+
+    function openQuickReceiveModal(no) {
+      if (!quickReceiveModal) return;
+      var arg = no;
+      var keyNo = '';
+      if (typeof arg === 'object' && arg) keyNo = String(arg.no || arg.id || arg.partId || arg.code || '');
+      else keyNo = String(arg || '');
+      var item = (typeof arg === 'object' && arg) ? arg : null;
+      if (!item) {
+        item = partMap[keyNo] || partsData.filter(function(p){
+          return String(p.no) === keyNo || String(p.id || p.partId || '') === keyNo || String(p.code || '') === keyNo;
+        })[0];
+      }
+      if (!item) return;
+      if (detailModal && !detailModal.classList.contains('hidden')) closeDetailModal();
+      if (issueCartModal && !issueCartModal.classList.contains('hidden')) closeIssueCart();
+      if (editModal && !editModal.classList.contains('hidden')) closeEditModal();
+      if (quickIssueModal && !quickIssueModal.classList.contains('hidden')) closeQuickIssueModal();
+      if (stockUtilityMenuMobile) { stockUtilityMenuMobile.classList.add('hidden'); stockUtilityMenuMobile.classList.remove('grid'); }
+      if (lineMenuBackdrop) lineMenuBackdrop.classList.add('hidden');
+      if (lineMenuPanel) lineMenuPanel.classList.add('-translate-x-full');
+      if (window.innerWidth < 768) {
+        isLineMenuVisible = false;
+        updateLineMenuVisibility();
+      }
+      currentQuickReceiveSelectedPart = item;
+      var status = getStockStatus(item);
+      var tone = getStatusTone(status);
+      var normalizedImage = toSafeImageUrl(item.image_main_url);
+      var secondaryFallback = getSecondaryDriveImageUrl(item.image_main_url);
+      quickReceiveImage.src = normalizedImage;
+      quickReceiveImage.setAttribute('data-fallback-src', secondaryFallback || '');
+      bindImageFallback(quickReceiveImage);
+      quickReceiveName.textContent = item.name || '-';
+      quickReceiveModel.textContent = 'รุ่น: ' + (item.model || '-');
+      quickReceiveNo.textContent = 'รหัส: ' + (item.no || '-');
+      quickReceiveStatus.textContent = status;
+      quickReceiveStatus.className = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + tone.badgeClass;
+      quickReceiveStock.textContent = 'Stock: ' + (item.stock || 0) + ' ' + (item.unit || 'PCS');
+      quickReceiveQty.value = '';
+      quickReceiveBy.value = (currentUser && (currentUser.name || currentUser.username)) || '';
+      quickReceiveProcess.value = item.line || currentLine || '';
+      quickReceiveMessage.className = 'text-sm text-slate-500';
+      quickReceiveMessage.textContent = '';
+      setQuickReceiveSubmitState(false);
+      document.body.classList.add('quick-issue-open');
+      lockBodyScroll();
+      quickReceiveModal.classList.remove('hidden');
+      setTimeout(function() { quickReceiveQty.focus(); }, 40);
+    }
+
+    function submitQuickReceive(event) {
+      event.preventDefault();
+      if (quickReceiveSubmitting) return;
+      var item = getCurrentQuickReceiveItem();
+      var qty = Number(quickReceiveQty.value || 0);
+      if (!currentUser || !currentUser.username) {
+        quickReceiveMessage.className = 'text-sm text-rose-600';
+        quickReceiveMessage.textContent = 'กรุณาเข้าสู่ระบบใหม่';
+        return;
+      }
+      var by = String(currentUser.username || '').trim();
+      var process = String(quickReceiveProcess.value || '').trim();
+      if (!item) {
+        quickReceiveMessage.className = 'text-sm text-rose-600';
+        quickReceiveMessage.textContent = 'ไม่พบรายการอะไหล่ที่เลือก';
+        return;
+      }
+      if (!qty || qty <= 0) {
+        quickReceiveMessage.className = 'text-sm text-rose-600';
+        quickReceiveMessage.textContent = 'จำนวนต้องมากกว่า 0';
+        return;
+      }
+      var payload = {
+        partNo: item.no,
+        type: 'Input',
+        process: process || item.line || currentLine || '-',
+        category: item.category || 'General',
+        partName: item.name,
+        model: item.model || '-',
+        brand: item.brand || '-',
+        qty: qty,
+        unit: item.unit || 'PCS',
+        by: by,
+        reason: 'N/A',
+        reasonRemark: '',
+        sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
+      };
+      setQuickReceiveSubmitState(true);
+      quickReceiveMessage.className = 'text-sm text-slate-500';
+      quickReceiveMessage.textContent = 'กำลังบันทึกรายการ...';
+      callTransactionViaJsonp(payload).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) ? res.message : 'บันทึกไม่สำเร็จ');
+        var updatedStock = Number(res.stockAfter);
+        var beforeStock = Number(res.stockBefore != null ? res.stockBefore : item.stock || 0);
+        item.stock = isNaN(updatedStock) ? beforeStock + qty : updatedStock;
+        applyFilters(false);
+        showQuickToast('✅ รับเข้าสำเร็จ: Stock ' + beforeStock + ' → ' + item.stock, 'success');
+        closeQuickReceiveModal();
+        refreshItemsFromServer([{ no: item.no, sheetName: payload.sheetName }]).then(function(updated) {
+          if (!updated) loadPartsData({ skipCache: true });
+        });
+        if (!logPage.classList.contains('hidden')) loadLogData();
+      }).catch(function(err) {
+        quickReceiveMessage.className = 'text-sm text-rose-600';
+        quickReceiveMessage.textContent = 'บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : 'Unknown error');
+      }).finally(function() {
+        setQuickReceiveSubmitState(false);
+      });
+    }
+
     function submitTransaction(event) {
       event.preventDefault();
 
@@ -10355,6 +10552,7 @@ function inferRequestPriority(stock, min) {
         var canDeleteItems = hasPermission('delete_items');
         var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
+        var canReceive = canReceivePart();
         var fallbackSrc = getSecondaryDriveImageUrl(item.image_main_url, 300);
         var imageSrc = fallbackSrc || toSafeImageUrl(item.image_main_url);
         var status = getStockStatus(item);
@@ -10405,7 +10603,8 @@ function inferRequestPriority(stock, min) {
               '</div>'
             : (canTransact ?
               '<div class="flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-semibold text-slate-400">หมดสต็อก — ไม่สามารถเบิกได้</div>'
-            : '<div class="flex items-center justify-center rounded-xl border border-slate-100 py-2 text-xs text-slate-400">ไม่มีสิทธิ์</div>')) +
+            : (canReceive ? '' : '<div class="flex items-center justify-center rounded-xl border border-slate-100 py-2 text-xs text-slate-400">ไม่มีสิทธิ์</div>'))) +
+            (canReceive ? '<button data-receive-no="' + item.no + '" class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-emerald-300 bg-emerald-50 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100 shadow-sm"><span>📥</span><span>รับเข้า</span></button>' : '') +
           '</div>' +
           (canManageItems || canDeleteItems ?
             '<div class="absolute right-2 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">' +
@@ -10419,6 +10618,7 @@ function inferRequestPriority(stock, min) {
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('article[data-row-key]')).forEach(function(row){ row.addEventListener('click', function(e){ if (e.target.closest('button')) return; var f=findItemByIdentityKey(row.getAttribute('data-row-key')); if(f) openDetailModal(f); }); });
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-view-key]')).forEach(function(btn){btn.addEventListener('click', function(){var f=findItemByIdentityKey(btn.getAttribute('data-view-key')); if(f) openDetailModal(f);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-issue-no]')).forEach(function(btn){btn.addEventListener('click', function(){var f=resolveCardItem(btn); if(f) openQuickIssueModal(f); else openQuickIssueModal(btn.getAttribute('data-issue-no'));});});
+      Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-receive-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation();var f=resolveCardItem(btn); if(f) openQuickReceiveModal(f); else openQuickReceiveModal(btn.getAttribute('data-receive-no'));});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-cart-add-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=resolveCardItem(btn); if(!f){var no=btn.getAttribute('data-cart-add-no'); var sheet=btn.getAttribute('data-cart-add-sheet')||''; f=partsData.filter(function(p){return String(p.no)===String(no)&&(!sheet||String(p.__sourceSheet||'')===sheet);})[0];} if(!f||safeNum(f.stock)<=0) return; addItemToIssueCart(f,1);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-edit-key]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=findItemByIdentityKey(btn.getAttribute('data-edit-key')); if(f) openEditModal(f);});});
       Array.prototype.slice.call(desktopCardGrid.querySelectorAll('[data-delete-no]')).forEach(function(btn){btn.addEventListener('click', function(e){e.preventDefault();e.stopPropagation(); var f=resolveCardItem(btn); if(f) deleteItemResolved(f); else deleteItemByNo(btn.getAttribute('data-delete-no'));});});
@@ -10462,6 +10662,7 @@ function inferRequestPriority(stock, min) {
         var canDeleteItems = hasPermission('delete_items');
         var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
+        var canReceive = canReceivePart();
         var mobileFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url, 300);
         var mobileImageSrc = mobileFallbackSrc || toSafeImageUrl(item.image_main_url);
         var status = getStockStatus(item);
@@ -10502,6 +10703,7 @@ function inferRequestPriority(stock, min) {
             : (canTransact ?
               '<span class="flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 py-2 text-[11px] text-slate-400 font-semibold">หมดสต็อก</span>'
             : '')) +
+            (canReceive ? '<button data-mobile-receive-no="' + item.no + '" class="mt-1.5 flex w-full items-center justify-center gap-1 rounded-lg border-2 border-emerald-300 bg-emerald-50 py-2 text-xs font-bold text-emerald-700" title="รับเข้า"><span>📥</span><span>รับเข้า</span></button>' : '') +
           '</div>' +
           (canManageItems || canDeleteItems ? '<div class="border-t border-slate-100 grid grid-cols-2 gap-1 p-2">' +
             (canManageItems ? '<button data-mobile-edit-key="' + itemKey + '" class="rounded-lg border border-slate-200 bg-white py-1.5 text-xs text-slate-400" title="Edit">✏️ แก้ไข</button>' : '<span></span>') +
@@ -10540,6 +10742,16 @@ function inferRequestPriority(stock, min) {
           var issueItem = resolveCardItem(issueBtn);
           if (issueItem) openQuickIssueModal(issueItem);
           else openQuickIssueModal(issueBtn.getAttribute('data-mobile-issue-no'));
+          return;
+        }
+
+        var receiveBtn = target.closest('[data-mobile-receive-no]');
+        if (receiveBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          var receiveItem = resolveCardItem(receiveBtn);
+          if (receiveItem) openQuickReceiveModal(receiveItem);
+          else openQuickReceiveModal(receiveBtn.getAttribute('data-mobile-receive-no'));
           return;
         }
 
@@ -10990,8 +11202,16 @@ function inferRequestPriority(stock, min) {
       });
     }
     if (quickIssueForm) quickIssueForm.addEventListener('submit', submitQuickIssue);
+    if (quickReceiveBackdrop) quickReceiveBackdrop.addEventListener('click', closeQuickReceiveModal);
+    if (quickReceiveCloseBtn) quickReceiveCloseBtn.addEventListener('click', closeQuickReceiveModal);
+    if (quickReceiveModal) {
+      quickReceiveModal.addEventListener('click', function(e) {
+        if (e.target === quickReceiveModal) closeQuickReceiveModal();
+      });
+    }
+    if (quickReceiveForm) quickReceiveForm.addEventListener('submit', submitQuickReceive);
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') closeQuickIssueModal();
+      if (e.key === 'Escape') { closeQuickIssueModal(); closeQuickReceiveModal(); }
     });
     function bindStockShortcut(btn, fn) {
       if (!btn) return;
