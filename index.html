@@ -8650,8 +8650,10 @@ function inferRequestPriority(stock, min) {
               reason: 'REQ', requestedBy: r.requested_by || '-', requestStatus: r.status || 'Pending',
               unitPrice: Number(r.unit_price || 0), currency: r.currency || 'THB', supplier: r.supplier || '',
               priceUpdatedAt: '', priceRemark: '', machineStation: '', purpose: r.purpose || r.remark || '',
-              // รูปที่แนบมากับคำขอซื้อเอง (เช่น รายการใหม่ที่ยังไม่มีในสต็อก) ต้องมาก่อนรูปของอะไหล่หลักในสต็อก
-              mainImage: r.attachment_url || (noKey && imageByNo[noKeyComposite]) || '', drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
+              // ถ้าอะไหล่มีอยู่ในสต็อกอยู่แล้ว (จับคู่ no+line เจอ) ต้องใช้รูปแคตตาล็อกของสต็อกเป็นหลัก
+              // เพราะเป็นรูปที่ยืนยันแล้วว่าตรงกับอะไหล่จริง — รูปแนบของคำขอ (attachment_url) มักเป็นรูป
+              // อ้างอิง/สภาพหน้างานที่อาจไม่ตรงกับอะไหล่เป๊ะ ใช้เป็น fallback เฉพาะรายการใหม่ที่ยังไม่มีในสต็อกเท่านั้น
+              mainImage: (noKey && imageByNo[noKeyComposite]) || r.attachment_url || '', drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
               drawingRevision: '', drawing_revision: '', drawingStatus: '', drawing_status: '',
               datasheetUrl: '', quotationUrl: ''
             };
