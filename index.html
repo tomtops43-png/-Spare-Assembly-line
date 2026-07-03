@@ -1731,8 +1731,15 @@
           <h2 class="text-xl font-bold text-slate-900">📋 สร้างใบขอซื้ออะไหล่ (PR Report)</h2>
           <p class="text-sm text-slate-500 mt-0.5">สร้างเอกสารขออนุมัติสั่งซื้ออะไหล่ สำหรับผู้จัดการอนุมัติ</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="relative flex items-center gap-2">
           <span id="prNumberDisplay" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700"></span>
+          <button id="prSavedSetsBtn" type="button" class="flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 transition">
+            📂 Set ที่บันทึกไว้<span id="prSavedSetsCount" class="hidden rounded-full bg-violet-600 px-1.5 py-0.5 text-[11px] text-white">0</span>
+          </button>
+          <div id="prSavedSetsPanel" class="hidden absolute right-0 top-full z-30 mt-2 w-80 max-h-96 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+            <p class="px-2 py-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">Set ที่บันทึกไว้ (เก็บในเครื่องนี้)</p>
+            <div id="prSavedSetsList" class="space-y-1.5 px-1 pb-1"></div>
+          </div>
         </div>
       </div>
 
@@ -1904,18 +1911,26 @@
             </button>
             <p class="text-[11px] text-slate-400 text-center">ไม่บันทึก Purchase History</p>
           </div>
-          <!-- Export PDF — บันทึก Purchase History ทันที -->
+          <!-- Export PDF — บันทึก Purchase History เฉพาะครั้งแรกของ PR เลขนี้ -->
           <div class="flex flex-col gap-1">
             <button id="prPrintBtn" type="button" class="flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               📄 Export PDF (ยืนยัน)
             </button>
-            <p class="text-[11px] text-blue-500 font-semibold text-center">✅ บันทึก Purchase History อัตโนมัติ</p>
+            <p id="prPrintBtnHint" class="text-[11px] text-blue-500 font-semibold text-center">✅ บันทึก Purchase History อัตโนมัติ (ครั้งแรกเท่านั้น)</p>
+            <button id="prForceResaveBtn" type="button" class="hidden text-[11px] font-semibold text-amber-600 underline decoration-dotted hover:text-amber-700 text-center">🔁 แก้ไขแล้ว? บันทึกซ้ำอีกครั้ง</button>
           </div>
           <div class="flex flex-col gap-1 mt-0.5">
             <button id="prExportCsvBtn" type="button" class="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
               📊 Export CSV
             </button>
+          </div>
+          <!-- จำ Set นี้ไว้ — บันทึกสถานะทั้งหมดลงเครื่องนี้ ยังไม่ export/บันทึก Purchase History -->
+          <div class="flex flex-col gap-1 mt-0.5">
+            <button id="prSaveSetBtn" type="button" class="flex items-center gap-2 rounded-2xl border-2 border-violet-300 bg-violet-50 px-5 py-3 text-sm font-bold text-violet-700 hover:bg-violet-100 transition">
+              💾 จำ Set นี้ไว้
+            </button>
+            <p class="text-[11px] text-slate-400 text-center">เก็บไว้ตัดสินใจทีหลัง ไม่กระทบ Purchase History</p>
           </div>
         </div>
       </div>
@@ -2935,6 +2950,9 @@
     var prLastFilteredCandidates = [];
     var prLineTabState = "all";
     var prLineCollapsedState = {"H9": true, "Arc Chute": true, "Coil Winding": true, "Lug&Screw": true};
+    var prRecordedNumbers = {}; // PR number ที่บันทึก Purchase History ไปแล้วในเซสชันนี้ — กันบันทึกซ้ำตอน Export ซ้ำ/ปริ้นซ้ำ
+    var PR_SAVED_SETS_KEY = 'pr_saved_sets_v1';
+    var PR_SAVED_SETS_MAX = 20;
     var dashboardAllPartsData = [];
     var uploadJobQueue = [];
     var activeUploadJob = null;
@@ -11612,6 +11630,7 @@ if (dashboardPage) {
       if (numDisplay) { numDisplay.textContent = '📋 ' + prNum; numDisplay.classList.remove('hidden'); }
       // store for PDF
       window._currentPrNumber = prNum;
+      resetPrRecordedHint();
       runPrCandidateSelection();
       // show steps
       var s3 = document.getElementById('prStep3'); if (s3) s3.classList.remove('hidden');
@@ -12221,6 +12240,170 @@ if (dashboardPage) {
       // ❌ ไม่บันทึก Purchase History ที่ Preview
     });
     if (prExportCsvBtn) prExportCsvBtn.addEventListener('click', function(){ var selected = getFilteredPrCandidates(true); if(!selected.length) return; var head=['No','Name','Line','Stock','Min','Qty','Unit Price','Total','Drawing Status','Drawing Revision','Drawing File Name','Drawing Link','Reason','Priority']; var rows=selected.map(function(c){ var total=Number(c.suggestedQty||0)*Number(c.unitPrice||0); var drawingUrl=String(c.drawingUrl||c.drawing_url||'').trim(); var drawingStatus=normalizeDrawingStatus(Object.assign({}, c, { drawing_url: drawingUrl, drawingUrl: drawingUrl })); if(!drawingUrl && drawingStatus!=='Not Required') drawingStatus='Missing'; var drawingLink=(drawingUrl && (drawingStatus==='Available'||drawingStatus==='Access Required')) ? drawingUrl : ''; return [c.no,c.name,c.line,c.stock,c.min,c.suggestedQty,c.unitPrice,total,drawingStatus,c.drawingRevision||c.drawing_revision||'',c.drawingFileName||c.drawing_file_name||'',drawingLink,c.reason,c.priority||'']; }); var csv=[head].concat(rows).map(function(r){ return r.map(function(v){ var t=String(v===null||v===undefined?'':v).replace(/"/g,'""'); return '"'+t+'"';}).join(',');}).join('\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pr-report-'+Date.now()+'.csv'; a.click(); URL.revokeObjectURL(a.href); });
+    // ── จำ Set นี้ไว้ — บันทึก config + รายการที่ Generate ไว้ลง localStorage (เครื่องนี้เท่านั้น) ─────
+    function getPrSavedSets() {
+      try { var raw = localStorage.getItem(PR_SAVED_SETS_KEY); var arr = raw ? JSON.parse(raw) : []; return Array.isArray(arr) ? arr : []; } catch (e) { return []; }
+    }
+    function setPrSavedSets(list) {
+      try { localStorage.setItem(PR_SAVED_SETS_KEY, JSON.stringify(list.slice(0, PR_SAVED_SETS_MAX))); } catch (e) {}
+    }
+    function updatePrSavedSetsBadge() {
+      var badge = document.getElementById('prSavedSetsCount');
+      if (!badge) return;
+      var n = getPrSavedSets().length;
+      badge.textContent = String(n);
+      badge.classList.toggle('hidden', n === 0);
+    }
+    function saveCurrentPrSet() {
+      if (!prCandidateState.length) { showQuickToast('ยังไม่มีรายการให้บันทึก กรุณา Generate PR List ก่อน', 'warn'); return; }
+      var defaultName = (window._currentPrNumber || 'PR') + ' — ' + new Date().toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+      var name = window.prompt('ตั้งชื่อ Set นี้ (เพื่อจำไว้หาในภายหลัง):', defaultName);
+      if (name === null) return;
+      name = name.trim() || defaultName;
+      var set = {
+        id: 'prset_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        name: name,
+        savedAt: new Date().toISOString(),
+        prNumber: window._currentPrNumber || '',
+        mode: prMode ? prMode.value : 'assembly_monthly',
+        period: (document.getElementById('prPeriod') || {}).value || '',
+        from: (document.getElementById('prFrom') || {}).value || '',
+        to: (document.getElementById('prTo') || {}).value || '',
+        preparedBy: (document.getElementById('prPreparedBy') || {}).value || '',
+        department: (document.getElementById('prDepartment') || {}).value || '',
+        lineFilter: prLineFilter ? prLineFilter.value : 'all',
+        includeOut: !!(document.getElementById('prIncludeOut') || {}).checked,
+        includeBelow: !!(document.getElementById('prIncludeBelow') || {}).checked,
+        includeUsage: !!(document.getElementById('prIncludeUsage') || {}).checked,
+        criticalOnly: !!(document.getElementById('prCriticalOnly') || {}).checked,
+        lineTabState: prLineTabState,
+        itemCount: prCandidateState.length,
+        selectedCount: prCandidateState.filter(function(c) { return c.selected; }).length,
+        candidates: prCandidateState.map(function(c) { return Object.assign({}, c); })
+      };
+      var list = getPrSavedSets();
+      list.unshift(set);
+      setPrSavedSets(list);
+      updatePrSavedSetsBadge();
+      showQuickToast('💾 บันทึก Set "' + name + '" ไว้ในเครื่องนี้แล้ว (ยังไม่บันทึก Purchase History)', 'success');
+    }
+    function loadPrSet(id) {
+      var set = getPrSavedSets().filter(function(s) { return s.id === id; })[0];
+      if (!set) { showQuickToast('ไม่พบ Set นี้แล้ว', 'error'); return; }
+      if (prMode) prMode.value = set.mode || 'assembly_monthly';
+      document.querySelectorAll('.pr-preset-btn').forEach(function(btn) { if (btn.getAttribute('data-pr-preset') === set.mode) btn.click(); });
+      var setVal = function(fid, v) { var el = document.getElementById(fid); if (el) el.value = v || ''; };
+      setVal('prPeriod', set.period); setVal('prFrom', set.from); setVal('prTo', set.to);
+      setVal('prPreparedBy', set.preparedBy); setVal('prDepartment', set.department);
+      if (prLineFilter) prLineFilter.value = set.lineFilter || 'all';
+      var setChk = function(fid, v) { var el = document.getElementById(fid); if (el) el.checked = !!v; };
+      setChk('prIncludeOut', set.includeOut); setChk('prIncludeBelow', set.includeBelow);
+      setChk('prIncludeUsage', set.includeUsage); setChk('prCriticalOnly', set.criticalOnly);
+      prLineTabState = set.lineTabState || 'all';
+      prCandidateState = (set.candidates || []).map(function(c) { return Object.assign({}, c); });
+      window._currentPrNumber = set.prNumber || generatePrNumber(set.mode, set.lineFilter);
+      var numDisplay = document.getElementById('prNumberDisplay');
+      if (numDisplay) { numDisplay.textContent = '📋 ' + window._currentPrNumber + ' (โหลดจาก Set ที่บันทึกไว้)'; numDisplay.classList.remove('hidden'); }
+      resetPrRecordedHint();
+      var s3 = document.getElementById('prStep3'); if (s3) s3.classList.remove('hidden');
+      var s4 = document.getElementById('prStep4'); if (s4) s4.classList.remove('hidden');
+      renderPrCandidates();
+      closePrSavedSetsPanel();
+      showQuickToast('📂 โหลด Set "' + set.name + '" แล้ว (' + set.itemCount + ' รายการ)', 'success');
+    }
+    function deletePrSet(id, evt) {
+      if (evt) evt.stopPropagation();
+      setPrSavedSets(getPrSavedSets().filter(function(s) { return s.id !== id; }));
+      updatePrSavedSetsBadge();
+      renderPrSavedSetsList();
+    }
+    function renderPrSavedSetsList() {
+      var wrap = document.getElementById('prSavedSetsList');
+      if (!wrap) return;
+      var list = getPrSavedSets();
+      if (!list.length) { wrap.innerHTML = '<p class="px-2 py-3 text-xs text-slate-400 text-center">ยังไม่มี Set ที่บันทึกไว้</p>'; return; }
+      wrap.innerHTML = list.map(function(s) {
+        var dt = new Date(s.savedAt);
+        var dtText = isNaN(dt.getTime()) ? '' : dt.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        var selCount = s.selectedCount != null ? s.selectedCount : s.itemCount;
+        return '<div class="group flex items-center gap-2 rounded-xl border border-slate-200 px-2.5 py-2 hover:border-violet-300 hover:bg-violet-50/50 cursor-pointer" data-pr-load-set="' + s.id + '">' +
+          '<div class="min-w-0 flex-1">' +
+            '<p class="text-xs font-bold text-slate-700 truncate">' + escHtml(s.name || 'Set') + '</p>' +
+            '<p class="text-[10px] text-slate-400">' + dtText + ' &middot; ' + selCount + '/' + s.itemCount + ' รายการ</p>' +
+          '</div>' +
+          '<button type="button" class="shrink-0 rounded-lg px-1.5 py-1 text-slate-300 hover:bg-rose-100 hover:text-rose-600" data-pr-delete-set="' + s.id + '" title="ลบ">🗑</button>' +
+        '</div>';
+      }).join('');
+    }
+    function openPrSavedSetsPanel() {
+      renderPrSavedSetsList();
+      var panel = document.getElementById('prSavedSetsPanel');
+      if (panel) panel.classList.remove('hidden');
+    }
+    function closePrSavedSetsPanel() {
+      var panel = document.getElementById('prSavedSetsPanel');
+      if (panel) panel.classList.add('hidden');
+    }
+    var prSaveSetBtn = document.getElementById('prSaveSetBtn');
+    if (prSaveSetBtn) prSaveSetBtn.addEventListener('click', saveCurrentPrSet);
+    var prSavedSetsBtn = document.getElementById('prSavedSetsBtn');
+    if (prSavedSetsBtn) prSavedSetsBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var panel = document.getElementById('prSavedSetsPanel');
+      if (panel && !panel.classList.contains('hidden')) closePrSavedSetsPanel(); else openPrSavedSetsPanel();
+    });
+    var prSavedSetsListEl = document.getElementById('prSavedSetsList');
+    if (prSavedSetsListEl) prSavedSetsListEl.addEventListener('click', function(e) {
+      var delId = e.target.getAttribute('data-pr-delete-set');
+      if (delId) { deletePrSet(delId, e); return; }
+      var loadTarget = e.target.closest ? e.target.closest('[data-pr-load-set]') : null;
+      if (loadTarget) loadPrSet(loadTarget.getAttribute('data-pr-load-set'));
+    });
+    document.addEventListener('click', function(e) {
+      var panel = document.getElementById('prSavedSetsPanel');
+      var btn = document.getElementById('prSavedSetsBtn');
+      if (!panel || panel.classList.contains('hidden')) return;
+      if (panel.contains(e.target) || (btn && btn.contains(e.target))) return;
+      closePrSavedSetsPanel();
+    });
+    updatePrSavedSetsBadge();
+
+    // ── กันบันทึก Purchase History ซ้ำตอน Export/ปริ้นซ้ำของ PR เลขเดิม ─────
+    var prPrintBtnDefaultHtml = prPrintBtn ? prPrintBtn.innerHTML : '';
+    var prForceResaveBtn = document.getElementById('prForceResaveBtn');
+    var prPrintBtnHint = document.getElementById('prPrintBtnHint');
+    function resetPrRecordedHint() {
+      if (prPrintBtnHint) prPrintBtnHint.textContent = '✅ บันทึก Purchase History อัตโนมัติ (ครั้งแรกเท่านั้น)';
+      if (prForceResaveBtn) prForceResaveBtn.classList.add('hidden');
+    }
+    function markPrNumberRecorded(prNumber) {
+      prRecordedNumbers[prNumber] = true;
+      if (prPrintBtnHint) prPrintBtnHint.textContent = '✅ บันทึกแล้ว (PR: ' + prNumber + ') — กด Export ซ้ำได้โดยไม่บันทึกซ้ำ';
+      if (prForceResaveBtn) prForceResaveBtn.classList.remove('hidden');
+    }
+    function doRecordPrPurchaseHistory(selected, prNumber, isForce) {
+      prPrintBtn.disabled = true; prPrintBtn.textContent = isForce ? '⏳ กำลังบันทึกซ้ำ...' : '⏳ กำลังบันทึก...';
+      if (prForceResaveBtn) prForceResaveBtn.disabled = true;
+      return recordAutoPrPurchaseHistory(selected).then(function() {
+        showQuickToast('✅ บันทึก Purchase History ' + selected.length + ' รายการแล้ว (PR: ' + prNumber + ')', 'success');
+        purchaseHistoryLoaded = false;
+        markPrNumberRecorded(prNumber);
+      }).catch(function(err) {
+        showQuickToast('⚠️ บันทึก Purchase History ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
+      }).finally(function() {
+        prPrintBtn.disabled = false; prPrintBtn.innerHTML = prPrintBtnDefaultHtml;
+        if (prForceResaveBtn) prForceResaveBtn.disabled = false;
+      });
+    }
+    if (prForceResaveBtn) prForceResaveBtn.addEventListener('click', function() {
+      var selected = getFilteredPrCandidates(true);
+      if (!selected.length) { showQuickToast('กรุณาเลือกรายการก่อน', 'warn'); return; }
+      var prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
+      showConfirmDialog({ title: 'บันทึกซ้ำ Purchase History', message: 'จำนวน/ราคาปัจจุบันของ PR: ' + prNumber + ' จะถูกบันทึกทับของเดิมใน Purchase History — ยืนยัน?', okLabel: 'บันทึกซ้ำ' }).then(function(ok) {
+        if (!ok) return;
+        doRecordPrPurchaseHistory(selected, prNumber, true);
+      });
+    });
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) { showQuickToast('กรุณาเลือกรายการก่อน Export', 'warn'); return; }
@@ -12229,16 +12412,12 @@ if (dashboardPage) {
       var opts = getPrReportOptions(allSelectedMode);
       opts.prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
       var docHtml = buildDocumentGradeReport(selected, opts);
-      // ✅ บันทึก Purchase History เมื่อ Export จริง
-      prPrintBtn.disabled = true; prPrintBtn.textContent = '⏳ กำลังบันทึก...';
-      recordAutoPrPurchaseHistory(selected).then(function() {
-        showQuickToast('✅ บันทึก Purchase History ' + selected.length + ' รายการแล้ว (PR: ' + opts.prNumber + ')', 'success');
-        purchaseHistoryLoaded = false;
-      }).catch(function(err) {
-        showQuickToast('⚠️ Export สำเร็จ แต่บันทึก History ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
-      }).finally(function() {
-        prPrintBtn.disabled = false; prPrintBtn.innerHTML = '📄 Export PDF (ยืนยัน)';
-      });
+      // ✅ บันทึก Purchase History เฉพาะครั้งแรกของ PR เลขนี้ — Export/ปริ้นซ้ำครั้งต่อไปจะไม่บันทึกซ้ำ (กัน Purchase History เพิ่มขึ้นเรื่อยๆ จากการปริ้นซ้ำ)
+      if (prRecordedNumbers[opts.prNumber]) {
+        showQuickToast('🖨 พิมพ์ซ้ำ — ไม่ได้บันทึก Purchase History ซ้ำ (บันทึกไปแล้วครั้งแรกของ PR นี้)', 'info');
+      } else {
+        doRecordPrPurchaseHistory(selected, opts.prNumber, false);
+      }
       var css = getPrDocCss();
       var win = window.open('', '_blank');
       if (!win) { showQuickToast('กรุณาอนุญาต popup เพื่อ Export PDF', 'warn'); return; }
