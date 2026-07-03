@@ -90,8 +90,19 @@
        60  : side panels / drawers
        9000: detail modals (roDetailModal)
        9500: image lightbox (roImageModal)
+       9600: issue cart modal (issueCartModal)
        10000: splash screen
+       10002: confirm dialog (confirmDialog) — ต้องอยู่บนสุดเสมอ
     ────────────────────────────────────────────────────── */
+    /* Tailwind v2 ไม่รองรับ arbitrary class เช่น z-[10002] / bg-slate-900/60
+       จึงต้องกำหนด z-index และพื้นหลังของ overlay เหล่านี้ด้วย CSS จริง
+       ไม่งั้น confirmDialog จะถูก modal ที่อยู่ท้าย DOM ทับจนมองไม่เห็น */
+    #issueCartModal { z-index: 9600; }
+    #issueCartBackdrop { background: rgba(15, 23, 42, 0.55); }
+    #confirmDialog {
+      position: fixed; inset: 0; z-index: 10002;
+      background: rgba(15, 23, 42, 0.6);
+    }
     #roDetailModal {
       position: fixed; inset: 0; z-index: 9000; background: rgba(15, 23, 42, 0.45);
       display: flex; align-items: center; justify-content: center; padding: 16px;
