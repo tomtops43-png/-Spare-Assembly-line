@@ -858,7 +858,7 @@
             <!-- New item fields -->
             <div id="roNewItemFields" class="hidden space-y-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
               <p class="text-xs font-bold text-violet-700">กรอกข้อมูลอะไหล่ใหม่</p>
-              <input id="roNewItemName" placeholder="ชื่ออะไหล่ *" class="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" required />
+              <input id="roNewItemName" placeholder="ชื่ออะไหล่ *" class="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
               <div class="grid grid-cols-2 gap-2">
                 <input id="roNewItemModel" placeholder="รุ่น / Model" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" />
                 <input id="roNewItemBrand" placeholder="แบรนด์" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" />
@@ -12605,6 +12605,11 @@ if (dashboardPage) {
       var isNewMode = roRequestType && roRequestType.value === 'new';
       if (roNewItemFields) roNewItemFields.classList.toggle('hidden', !isNewMode);
       if (roExistingItemFields) roExistingItemFields.classList.toggle('hidden', isNewMode);
+      // required ต้องผูกกับโหมดที่ active เท่านั้น — ไม่งั้นตอนอยู่โหมด "อะไหล่ในระบบ"
+      // ช่อง roNewItemName ที่ถูกซ่อนไว้จะยังบังคับ required อยู่ ทำให้ browser
+      // บล็อกการ submit ทั้งที่เลือกอะไหล่จากระบบไว้ครบแล้ว
+      var roNewItemNameEl = document.getElementById('roNewItemName');
+      if (roNewItemNameEl) roNewItemNameEl.required = isNewMode;
       if (isNewMode) {
         roSelectedItem = null;
         renderRoSelectedCard(null);
