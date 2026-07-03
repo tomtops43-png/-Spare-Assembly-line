@@ -1137,6 +1137,53 @@ function updateOrderRequestStatus(payload, nextStatus) {
   throw new Error('ไม่พบ request_id');
 }
 
+var ORDER_REQUEST_EDITABLE_FIELDS = ['item_name', 'model', 'brand', 'category', 'line', 'request_qty', 'unit', 'reason', 'remark'];
+var ORDER_REQUEST_EDITABLE_STATUSES = { Pending: true, 'On Hold': true };
+
+// แก้ไขรายละเอียดคำขอซื้อ (ชื่อ/รุ่น/แบรนด์/Line/จำนวน/หน่วย/เหตุผล/หมายเหตุ) —
+// ให้ Admin แก้ไขข้อมูลที่ผู้ขอกรอกผิด/ไม่ครบ ก่อนอนุมัติ แก้ได้เฉพาะรายการที่ยังไม่อนุมัติ (Pending/On Hold)
+function editOrderRequest(payload) {
+  requirePermission({ authToken: payload.authToken }, 'request_order_edit');
+  var session = getSessionUser({ authToken: payload.authToken });
+  var user = findUserByUsername(session.user.username);
+  var requestId = String(payload.request_id || '').trim();
+  if (!requestId) throw new Error('ไม่พบ request_id');
+  var sheet = getOrderRequestSheet();
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0];
+  var idx = {};
+  headers.forEach(function(h, i) { idx[h] = i; });
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][idx.request_id]) !== requestId) continue;
+    var row = values[i].slice();
+    var currentStatus = String(row[idx.status] || 'Pending');
+    if (!ORDER_REQUEST_EDITABLE_STATUSES[currentStatus]) {
+      throw new Error('แก้ไขได้เฉพาะรายการที่ยังไม่อนุมัติ (Pending / On Hold) เท่านั้น — สถานะปัจจุบัน: ' + currentStatus);
+    }
+    ORDER_REQUEST_EDITABLE_FIELDS.forEach(function(field) {
+      if (payload[field] === undefined) return;
+      var col = idx[field];
+      if (col === undefined) return;
+      row[col] = (field === 'request_qty') ? Number(payload[field] || 0) : String(payload[field]).trim();
+    });
+    if (!String(row[idx.item_name] || '').trim()) throw new Error('กรุณาระบุชื่ออะไหล่');
+    if (!(Number(row[idx.request_qty]) > 0)) throw new Error('จำนวนต้องมากกว่า 0');
+    row[idx.updated_at] = now;
+    var editNote = '✏️ แก้ไขโดย ' + (user.username || '') + ' เมื่อ ' + now;
+    var existingComment = String(row[idx.admin_comment] || '').trim();
+    row[idx.admin_comment] = existingComment ? (existingComment + ' | ' + editNote) : editNote;
+    sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
+    try {
+      syncPurchaseHistoryForRequest(toRequestObject(headers, row), currentStatus, user.username, row[idx.remark] || '', true);
+    } catch (historyErr) {
+      Logger.log('editOrderRequest PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
+    }
+    return { status: 'success', request_id: requestId };
+  }
+  throw new Error('ไม่พบ request_id');
+}
+
 function approveOrderRequest(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_approve'); return updateOrderRequestStatus(payload, 'Approved'); }
 function rejectOrderRequest(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_reject'); return updateOrderRequestStatus(payload, 'Rejected'); }
 function holdOrderRequest(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_approve'); return updateOrderRequestStatus(payload, 'On Hold'); }
@@ -1184,19 +1231,22 @@ function getRoleDefaultPermissions(role) {
     view: true, transact: true, manage_items: true, delete_items: true,
     manage_users: true, add_user: true, delete_user: true, manage_auth: true,
     request_order_create: true, request_order_view_own: true, request_order_view_all: true,
-    request_order_approve: true, request_order_reject: true, request_order_convert_pr: true, request_order_close: true
+    request_order_approve: true, request_order_reject: true, request_order_convert_pr: true, request_order_close: true,
+    request_order_edit: true
   };
   if (normalized === 'leader') return {
     view: true, transact: true, manage_items: true, delete_items: true,
     manage_users: false, add_user: false, delete_user: false, manage_auth: false,
     request_order_create: true, request_order_view_own: true, request_order_view_all: false,
-    request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false
+    request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false,
+    request_order_edit: false
   };
   return {
     view: true, transact: true, manage_items: false, delete_items: false,
     manage_users: false, add_user: false, delete_user: false, manage_auth: false,
     request_order_create: true, request_order_view_own: true, request_order_view_all: false,
-    request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false
+    request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false,
+    request_order_edit: false
   };
 }
 
@@ -2399,6 +2449,7 @@ function doGet(e) {
     if (action === 'closeOrderRequest') return respond(closeOrderRequest(e.parameter), e);
     if (action === 'markOrderRequestPurchased') return respond(markOrderRequestPurchased(e.parameter), e);
     if (action === 'markOrderRequestReceived') return respond(markOrderRequestReceived(e.parameter), e);
+    if (action === 'editOrderRequest') return respond(editOrderRequest(e.parameter), e);
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(e.parameter, e.parameter.status), e);
     if (action === 'saveStockCountResult') return respond(saveStockCountResult(e.parameter), e);
     if (action === 'getStockCountHistory') return respond(getStockCountHistory(e.parameter), e);
@@ -2644,6 +2695,7 @@ function doPost(e) {
     if (action === 'closeOrderRequest') return respond(closeOrderRequest(body), e);
     if (action === 'markOrderRequestPurchased') return respond(markOrderRequestPurchased(body), e);
     if (action === 'markOrderRequestReceived') return respond(markOrderRequestReceived(body), e);
+    if (action === 'editOrderRequest') return respond(editOrderRequest(body), e);
     if (action === 'convertOrderRequestsToPR') return respond(convertOrderRequestsToPR(body), e);
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(body, body.status), e);
     requirePermission(authPayload, 'view');
