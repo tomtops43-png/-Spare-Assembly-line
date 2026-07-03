@@ -6709,19 +6709,25 @@ function inferRequestPriority(stock, min) {
 
     function loadRequestOrderSearchPool() {
       if (roSearchPoolLoaded && roSearchPool.length) return Promise.resolve(roSearchPool);
-      var allSheets = [];
-      Object.keys(LINE_SHEET_OPTIONS || {}).forEach(function(lineKey) {
-        (LINE_SHEET_OPTIONS[lineKey] || []).forEach(function(sheetName) { allSheets.push(sheetName); });
-      });
-      allSheets = Array.from(new Set(allSheets));
-      if (!allSheets.length) {
+      // แต่ละไลน์ผูกกับ Apps Script/สเปรดชีตของตัวเอง (LINE_API_URL_MAP) — ต้องยิงไปที่
+      // endpoint ของแต่ละไลน์ตามชื่อชีตของไลน์นั้น ไม่ใช่ endpoint ของ currentLine อย่างเดียว
+      // (เดิมยิงชื่อชีตทุกไลน์ไปที่ endpoint เดียว ทำให้ชีตที่ไม่มีอยู่ในสเปรดชีตนั้นได้ผลลัพธ์ว่าง)
+      var targets = getAllPrSheetTargets();
+      if (!targets.length) {
         roSearchPoolLoaded = true;
         roSearchPool = (partsData || []).slice();
         return Promise.resolve(roSearchPool);
       }
-      var tasks = allSheets.map(function(sheetName) {
-        return loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName)); })
-          .then(function(rows) { return Array.isArray(rows) ? rows : []; })
+      var tasks = targets.map(function(t) {
+        var lineApi = LINE_API_URL_MAP[t.line] || API_URL;
+        return loadByFetch(lineApi + appendAuthToQuery('?sheet=' + encodeURIComponent(t.sheet)))
+          .then(function(rows) {
+            if (!Array.isArray(rows)) return [];
+            return rows.map(function(item) {
+              item.line = item.line || t.line;
+              return item;
+            });
+          })
           .catch(function() { return []; });
       });
       return Promise.all(tasks).then(function(resultSets) {
