@@ -8643,7 +8643,8 @@ function inferRequestPriority(stock, min) {
               reason: 'REQ', requestedBy: r.requested_by || '-', requestStatus: r.status || 'Pending',
               unitPrice: Number(r.unit_price || 0), currency: r.currency || 'THB', supplier: r.supplier || '',
               priceUpdatedAt: '', priceRemark: '', machineStation: '', purpose: r.purpose || r.remark || '',
-              mainImage: (noKey && imageByNo[noKey]) || '', drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
+              // รูปที่แนบมากับคำขอซื้อเอง (เช่น รายการใหม่ที่ยังไม่มีในสต็อก) ต้องมาก่อนรูปของอะไหล่หลักในสต็อก
+              mainImage: r.attachment_url || (noKey && imageByNo[noKey]) || '', drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
               drawingRevision: '', drawing_revision: '', drawingStatus: '', drawing_status: '',
               datasheetUrl: '', quotationUrl: ''
             };
