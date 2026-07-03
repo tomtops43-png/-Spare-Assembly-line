@@ -1232,21 +1232,21 @@ function getRoleDefaultPermissions(role) {
     manage_users: true, add_user: true, delete_user: true, manage_auth: true,
     request_order_create: true, request_order_view_own: true, request_order_view_all: true,
     request_order_approve: true, request_order_reject: true, request_order_convert_pr: true, request_order_close: true,
-    request_order_edit: true
+    request_order_edit: true, delete_logs: true
   };
   if (normalized === 'leader') return {
     view: true, transact: true, manage_items: true, delete_items: true,
     manage_users: false, add_user: false, delete_user: false, manage_auth: false,
     request_order_create: true, request_order_view_own: true, request_order_view_all: false,
     request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false,
-    request_order_edit: false
+    request_order_edit: false, delete_logs: false
   };
   return {
     view: true, transact: true, manage_items: false, delete_items: false,
     manage_users: false, add_user: false, delete_user: false, manage_auth: false,
     request_order_create: true, request_order_view_own: true, request_order_view_all: false,
     request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false,
-    request_order_edit: false
+    request_order_edit: false, delete_logs: false
   };
 }
 
@@ -1693,6 +1693,47 @@ function getLogRows() {
       stockAfter: pick(row, ['stockafter'], 0)
     };
   }).reverse();
+}
+
+// ลบรายการ Log (ประวัติเบิก/รับเข้า) — ใช้สำหรับล้างรายการที่บันทึกผิด/ซ้ำ
+// เป็นการลบ "ประวัติ" เท่านั้น ไม่กระทบ Stock ปัจจุบัน (Stock ถูกตัด/เติมไปแล้วตอน
+// ทำรายการจริง การลบ log ย้อนหลังจึงไม่ควรไปแก้ stock ซ้ำ)
+function deleteLogEntry(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    return deleteLogEntryUnlocked(payload);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteLogEntryUnlocked(payload) {
+  requirePermission({ authToken: payload.authToken }, 'delete_logs');
+  var no = Number(payload.no);
+  if (!no || no <= 0) throw new Error('ไม่พบรายการที่จะลบ');
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
+  ensureLogSheetHeaders(historySheet);
+  var rowIndex = no + 1; // แถว 1 คือ header, ข้อมูลแถวแรก (no=1) จึงอยู่แถวชีตที่ 2
+  if (rowIndex > historySheet.getLastRow()) throw new Error('ไม่พบรายการที่จะลบ (แถวอาจถูกลบไปแล้ว)');
+  var data = historySheet.getDataRange().getValues();
+  var headerMap = buildHeaderIndexMap(data[0] || []);
+  var row = data[rowIndex - 1] || [];
+  // เช็คซ้ำว่า timestamp/partName ที่ frontend ส่งมาตรงกับแถวจริงก่อนลบ กัน race
+  // condition กรณีมีรายการอื่นถูกเพิ่ม/ลบสลับแถวไปแล้วตั้งแต่ตอนโหลดหน้าเว็บ
+  var tsIdx = headerMap['timestamp'];
+  var nameIdx = headerMap['partname'];
+  var expectedTs = String(payload.timestamp || '').trim();
+  var expectedName = String(payload.partName || payload.partname || '').trim();
+  if (expectedTs && tsIdx !== undefined && String(row[tsIdx] || '').trim() !== expectedTs) {
+    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ กรุณารีเฟรชแล้วลองใหม่');
+  }
+  if (expectedName && nameIdx !== undefined && String(row[nameIdx] || '').trim() !== expectedName) {
+    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ กรุณารีเฟรชแล้วลองใหม่');
+  }
+  historySheet.deleteRow(rowIndex);
+  return { status: 'success', deleted_no: no };
 }
 
 function processTransaction(payload) {
@@ -2464,6 +2505,7 @@ function doGet(e) {
       return respond(processTransaction(txnPayload), e);
     }
     if (action === 'logs') return respond(getLogRows(), e);
+    if (action === 'deleteLogEntry') return respond(deleteLogEntry(e.parameter), e);
     if (action === 'nextNo') {
       requirePermission(authPayload, 'manage_items');
       return respond(getNextNoBySheet(e.parameter.sheet), e);
@@ -2696,6 +2738,7 @@ function doPost(e) {
     if (action === 'markOrderRequestPurchased') return respond(markOrderRequestPurchased(body), e);
     if (action === 'markOrderRequestReceived') return respond(markOrderRequestReceived(body), e);
     if (action === 'editOrderRequest') return respond(editOrderRequest(body), e);
+    if (action === 'deleteLogEntry') return respond(deleteLogEntry(body), e);
     if (action === 'convertOrderRequestsToPR') return respond(convertOrderRequestsToPR(body), e);
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(body, body.status), e);
     requirePermission(authPayload, 'view');
