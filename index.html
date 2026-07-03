@@ -4389,9 +4389,11 @@ function getIssueCartEntries() {
         var base = candidates[idx++];
         var targetUrl = queryBuilder(base);
         return loadViaJsonp(targetUrl).catch(function(err) {
-          // Only fallback to fetch when same-origin; cross-origin fetch will hit CORS.
-          if (shouldUseJsonpTransportForUrl(base)) throw err;
-          return loadByFetch(targetUrl);
+          // GAS web app ปกติรองรับ CORS สำหรับ GET อยู่แล้ว (loadPrSourceItems ใช้ fetch
+          // ข้าม origin สำเร็จอยู่ทุกวัน) — เดิมข้ามการ fallback ไป fetch ทุกครั้งที่เป็น
+          // cross-origin ทำให้พอ JSONP <script> โหลดไม่ผ่าน (เช่น ถูก ad-blocker บล็อก
+          // หรือเน็ตสะดุดชั่วคราว) ทั้ง request ก็ fail ทันทีทั้งที่ fetch ปกติน่าจะผ่าน
+          return loadByFetch(targetUrl).catch(function() { throw err; });
         }).then(function(res) {
           ACTIVE_API_URL = base;
           return res;
