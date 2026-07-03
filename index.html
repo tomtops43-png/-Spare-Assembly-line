@@ -8623,10 +8623,14 @@ function inferRequestPriority(stock, min) {
           rows = rows.filter(function(r) { return PR_FROM_REQUEST_OPEN_STATUSES[String(r.status || 'Pending')]; });
         }
         return loadPrSourceItems('assembly_monthly', 'all').catch(function() { return []; }).then(function(allItems) {
+          // เลขที่ (no) ไม่ unique ข้ามไลน์ — แต่ละไลน์มีเลขรันของตัวเอง (1,2,3...)
+          // เดิม key ด้วย no เฉยๆ ทำให้อะไหล่คนละไลน์ที่บังเอิญเลขตรงกันได้รูปสลับกัน
+          // ต้อง key ด้วยไลน์ + no เพื่อกันชนกัน
           var imageByNo = {};
           allItems.forEach(function(it) {
-            var key = String(it.no || '').trim();
-            if (!key) return;
+            var noPart = String(it.no || '').trim();
+            if (!noPart) return;
+            var key = canonicalLineName(it.line || it.__sourceLine || '') + '::' + noPart;
             var img = it.image_main_url || it.mainImage || it.imageUrlMain || it.imageMain || it.image || '';
             if (img && !imageByNo[key]) imageByNo[key] = img;
           });
@@ -8635,6 +8639,7 @@ function inferRequestPriority(stock, min) {
             var critical = priorityRaw === 'urgent' || priorityRaw === 'critical' ? 'Critical' : priorityRaw === 'high' ? 'High' : 'Medium';
             var qty = Number(r.request_qty || 0) || 1;
             var noKey = String(r.item_id || '').trim();
+            var noKeyComposite = canonicalLineName(r.line || currentLine) + '::' + noKey;
             return {
               id: 'REQ-' + (r.request_id || r.item_id || r.item_name),
               request_id: r.request_id || '',
@@ -8646,7 +8651,7 @@ function inferRequestPriority(stock, min) {
               unitPrice: Number(r.unit_price || 0), currency: r.currency || 'THB', supplier: r.supplier || '',
               priceUpdatedAt: '', priceRemark: '', machineStation: '', purpose: r.purpose || r.remark || '',
               // รูปที่แนบมากับคำขอซื้อเอง (เช่น รายการใหม่ที่ยังไม่มีในสต็อก) ต้องมาก่อนรูปของอะไหล่หลักในสต็อก
-              mainImage: r.attachment_url || (noKey && imageByNo[noKey]) || '', drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
+              mainImage: r.attachment_url || (noKey && imageByNo[noKeyComposite]) || '', drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
               drawingRevision: '', drawing_revision: '', drawingStatus: '', drawing_status: '',
               datasheetUrl: '', quotationUrl: ''
             };
