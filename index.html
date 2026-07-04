@@ -196,7 +196,8 @@
     .fcc-live-dot::after{ content:''; position:absolute; inset:-4px; border-radius:999px; border:1px solid #10b981; opacity:.7; animation:fccPing 1.8s cubic-bezier(0,0,.2,1) infinite; }
     @keyframes fccPing{ 0%{transform:scale(.5);opacity:.8} 80%,100%{transform:scale(1.9);opacity:0} }
     .fcc-controls{ display:flex; align-items:center; gap:8px; }
-    #dashboardPage.fcc select#dashboardLineFilter{
+    #dashboardPage.fcc select#dashboardLineFilter,
+    #dashboardPage.fcc select.fcc-select{
       appearance:none; -webkit-appearance:none; height:38px; padding:0 34px 0 14px; border-radius:12px; cursor:pointer;
       background:#fff; color:var(--tx);
       border:1px solid #cbd5e1; font-size:13px; font-weight:600; outline:none;
@@ -205,8 +206,13 @@
       transition:border-color .2s, box-shadow .2s;
     }
     #dashboardPage.fcc select#dashboardLineFilter:hover,
-    #dashboardPage.fcc select#dashboardLineFilter:focus{ border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.15); }
-    #dashboardPage.fcc select#dashboardLineFilter option{ background:#fff; color:#0f172a; }
+    #dashboardPage.fcc select#dashboardLineFilter:focus,
+    #dashboardPage.fcc select.fcc-select:hover,
+    #dashboardPage.fcc select.fcc-select:focus{ border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+    #dashboardPage.fcc select#dashboardLineFilter option,
+    #dashboardPage.fcc select.fcc-select option{ background:#fff; color:#0f172a; }
+    #dashboardPage.fcc .fcc-card-h .fcc-controls{ flex-wrap:wrap; justify-content:flex-end; }
+    #dashboardPage.fcc select.fcc-select.fcc-select-sm{ height:32px; font-size:12px; padding:0 30px 0 12px; }
     .fcc-btn{
       display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 15px; border-radius:12px; cursor:pointer;
       background:#fff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:13px; font-weight:600;
@@ -1203,6 +1209,34 @@
                 <div class="fcc-skel" style="height:170px"></div>
               </div>
             </div>
+          </div>
+        </div>
+        <div class="fcc-card" style="margin-top:12px">
+          <div class="fcc-card-h">
+            <div>
+              <div class="fcc-card-t"><span class="ico">&#x1F4B0;</span>Expense Control — รายจ่ายอะไหล่</div>
+              <div class="fcc-card-sub" id="fccExpenseSub">ควบคุมรายจ่ายอะไหล่รายเดือน แยกตาม Line</div>
+            </div>
+            <div class="fcc-controls">
+              <select id="fccExpLineFilter" class="fcc-select fcc-select-sm" aria-label="เลือก Line สำหรับกราฟรายจ่าย">
+                <option value="all">ทุก Line (รวม)</option>
+                <option value="H9">H9</option>
+                <option value="Arc Chute">Arc Chute</option>
+                <option value="Coil Winding">Coil Winding</option>
+                <option value="Lug&Screw">Lug&amp;Screw</option>
+              </select>
+              <select id="fccExpMonthFilter" class="fcc-select fcc-select-sm" aria-label="เลือกเดือน">
+                <option value="all">ทุกเดือน (แนวโน้ม)</option>
+              </select>
+              <div class="fcc-tabs" id="fccExpChartTypeTabs">
+                <button type="button" class="fcc-tab on" data-fcc-act="exptype:bar">แท่ง</button>
+                <button type="button" class="fcc-tab" data-fcc-act="exptype:line">เส้น</button>
+                <button type="button" class="fcc-tab" data-fcc-act="exptype:combo">2 ชั้น</button>
+              </div>
+            </div>
+          </div>
+          <div class="fcc-card-b fcc-chart" id="fccExpenseChart">
+            <div class="fcc-skel" style="height:220px"></div>
           </div>
         </div>
         <div id="fccExec" class="fcc-exec" style="margin-top:12px">
@@ -6756,11 +6790,14 @@ function inferRequestPriority(stock, min) {
     var fccInited = false;
     var fccUid = 0;
     var fccTopsMode = 'usage';
+    var fccExpChartType = 'bar';
     var fccQExp = {};
-    var fccLast = { P: null, PAll: null, L: null, R: null, queue: [] };
-    var fccAsyncCache = { requests: null, logs: null, at: 0, pending: null };
+    var fccLast = { P: null, PAll: null, L: null, R: null, Hist: null, queue: [] };
+    var fccAsyncCache = { requests: null, logs: null, hist: null, at: 0, pending: null };
     var fccClockTimer = null;
     var fccRenderToken = 0;
+    var FCC_LINE_COLORS = { 'H9': '#2563eb', 'Arc Chute': '#d97706', 'Coil Winding': '#059669', 'Lug&Screw': '#7c3aed' };
+    var FCC_TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
     function fccInvalidateAsyncCache() { fccAsyncCache.at = 0; }
 
@@ -7222,6 +7259,135 @@ function inferRequestPriority(stock, min) {
         grid + bars + line + dots + labels + '</svg>' +
         '<div class="fcc-chart-legend"><span><i style="background:#2563eb"></i>เบิกออก (ชิ้น)</span><span><i style="background:rgba(5,150,105,.7)"></i>รับเข้า (ชิ้น)</span></div>';
     }
+
+    /* ── Expense Control chart (Purchase History → spend by month/line) ──── */
+    function fccLineColor(line) { return FCC_LINE_COLORS[fccLineOf(line)] || '#2563eb'; }
+    function fccMonthLabel(m) {
+      var parts = String(m || '').split('-');
+      if (parts.length < 2) return m || '-';
+      var y = Number(parts[0]), mo = Number(parts[1]);
+      if (!y || !mo || mo < 1 || mo > 12) return m;
+      return FCC_TH_MONTHS[mo - 1] + ' ' + y;
+    }
+    function fccExpenseValidRows(hist) {
+      return (hist || []).map(function(h) {
+        var amt = fccPrice(h.total_amount);
+        if (!amt) amt = fccPrice(h.unit_price) * fccN(h.qty_ordered);
+        return { month: String(h.month || '').trim(), line: fccLineOf(h.line), amount: amt, status: String(h.status || '').trim() };
+      }).filter(function(r) { return r.month && r.status !== 'Cancelled'; });
+    }
+    function fccExpensePopulateMonths(rows) {
+      var sel = document.getElementById('fccExpMonthFilter');
+      if (!sel) return;
+      var months = Array.from(new Set(rows.map(function(r) { return r.month; }))).sort();
+      var sig = months.join(',');
+      if (sel.getAttribute('data-sig') === sig) return;
+      var prevVal = sel.value;
+      sel.setAttribute('data-sig', sig);
+      var opts = ['<option value="all">ทุกเดือน (แนวโน้ม)</option>'];
+      months.slice().reverse().forEach(function(m) {
+        opts.push('<option value="' + fccEsc(m) + '">' + fccEsc(fccMonthLabel(m)) + '</option>');
+      });
+      sel.innerHTML = opts.join('');
+      if (prevVal === 'all' || months.indexOf(prevVal) > -1) sel.value = prevVal;
+    }
+    // วาดกราฟแท่ง/เส้น/2 ชั้น (bar=จำนวนเงิน, line=จำนวนครั้งสั่งซื้อ) ใช้ร่วมกันทั้งมุมมองรายเดือนและมุมมองแยกไลน์
+    function fccDrawComboChart(cats, amounts, counts, chartType, colorFn) {
+      if (!cats.length) return '<div class="fcc-empty">ยังไม่มีข้อมูลรายจ่ายที่ตรงกับตัวกรองนี้</div>';
+      var W = 640, H = 220, padL = 10, padR = 10, padT = 16, padB = 30;
+      var iw = W - padL - padR, ih = H - padT - padB;
+      var n = cats.length;
+      var maxAmt = Math.max.apply(null, amounts.concat([1]));
+      var maxCnt = Math.max.apply(null, counts.concat([1]));
+      var slot = iw / n, bw = Math.min(46, slot * 0.5);
+      var grid = '';
+      for (var g = 1; g <= 3; g++) {
+        var gy = (padT + ih - ih * g / 3).toFixed(1);
+        grid += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" stroke="rgba(100,116,139,.18)" stroke-dasharray="3 4" stroke-width="1"/>';
+      }
+      var bars = '', labels = '', dots = '', pts = [];
+      cats.forEach(function(cat, i) {
+        var cx = padL + slot * i + slot / 2;
+        var col = colorFn ? colorFn(cat, i) : '#2563eb';
+        if (chartType !== 'line') {
+          var bh = maxAmt > 0 ? (amounts[i] / maxAmt) * ih : 0;
+          bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + (padT + ih - bh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" fill="' + col + '" fill-opacity="' + (chartType === 'combo' ? 0.55 : 0.85) + '"><title>' + fccEsc(cat) + ': ฿' + fccInt(amounts[i]) + '</title></rect>';
+        }
+        if (chartType === 'line' || chartType === 'combo') {
+          var frac = chartType === 'combo' ? (maxCnt > 0 ? counts[i] / maxCnt : 0) : (maxAmt > 0 ? amounts[i] / maxAmt : 0);
+          var cy = padT + ih - frac * ih;
+          pts.push(cx.toFixed(1) + ',' + cy.toFixed(1));
+          var tip = chartType === 'combo' ? (counts[i] + ' ครั้งสั่งซื้อ') : ('฿' + fccInt(amounts[i]));
+          dots += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3" fill="#fff" stroke="' + (chartType === 'combo' ? '#0f172a' : col) + '" stroke-width="1.8"><title>' + fccEsc(cat) + ': ' + tip + '</title></circle>';
+        }
+        labels += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">' + fccEsc(cat) + '</text>';
+      });
+      var line = '';
+      if (pts.length > 1 && (chartType === 'line' || chartType === 'combo')) {
+        line = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + (chartType === 'combo' ? '#0f172a' : '#2563eb') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      }
+      return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="fcc-in">' + grid + bars + line + dots + labels + '</svg>';
+    }
+    function fccRenderExpenseChart() {
+      var el = document.getElementById('fccExpenseChart');
+      var sub = document.getElementById('fccExpenseSub');
+      if (!el) return;
+      var hist = fccLast.Hist;
+      if (!Array.isArray(hist)) return; // ยังโหลดไม่เสร็จ — คง skeleton ไว้
+      var rows = fccExpenseValidRows(hist);
+      fccExpensePopulateMonths(rows);
+      var lineSelEl = document.getElementById('fccExpLineFilter');
+      var monthSelEl = document.getElementById('fccExpMonthFilter');
+      var lineVal = lineSelEl ? String(lineSelEl.value || 'all') : 'all';
+      var monthVal = monthSelEl ? String(monthSelEl.value || 'all') : 'all';
+      var filtered = rows.filter(function(r) { return lineVal === 'all' ? true : r.line === lineVal; });
+      if (!filtered.length) {
+        el.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลรายจ่ายที่ตรงกับตัวกรองนี้</div>';
+        if (sub) sub.textContent = 'ควบคุมรายจ่ายอะไหล่รายเดือน แยกตาม Line';
+        return;
+      }
+      var html = '', totalAmt = 0, totalCnt = 0;
+      if (monthVal === 'all') {
+        var byMonth = {};
+        filtered.forEach(function(r) {
+          if (!byMonth[r.month]) byMonth[r.month] = { amount: 0, count: 0 };
+          byMonth[r.month].amount += r.amount;
+          byMonth[r.month].count += 1;
+        });
+        var months = Object.keys(byMonth).sort().slice(-12);
+        var cats = months.map(fccMonthLabel);
+        var amounts = months.map(function(m) { return byMonth[m].amount; });
+        var counts = months.map(function(m) { return byMonth[m].count; });
+        amounts.forEach(function(a) { totalAmt += a; });
+        counts.forEach(function(c) { totalCnt += c; });
+        html = fccDrawComboChart(cats, amounts, counts, fccExpChartType, function() { return lineVal === 'all' ? '#2563eb' : fccLineColor(lineVal); });
+        html += '<div class="fcc-chart-legend"><span><i style="background:' + (lineVal === 'all' ? '#2563eb' : fccLineColor(lineVal)) + '"></i>รายจ่าย (บาท)</span>' + (fccExpChartType === 'combo' ? '<span><i style="background:#0f172a"></i>จำนวนครั้งสั่งซื้อ</span>' : '') + '</div>';
+        if (sub) sub.textContent = (lineVal === 'all' ? 'ทุก Line' : lineVal) + ' · รวม ฿' + fccInt(totalAmt) + ' (' + totalCnt + ' ครั้ง) ใน ' + months.length + ' เดือนล่าสุด';
+      } else {
+        var monthRows = filtered.filter(function(r) { return r.month === monthVal; });
+        var byLine = {};
+        monthRows.forEach(function(r) {
+          if (!byLine[r.line]) byLine[r.line] = { amount: 0, count: 0 };
+          byLine[r.line].amount += r.amount;
+          byLine[r.line].count += 1;
+        });
+        var lineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+        var linesPresent = (lineVal === 'all' ? lineOrder : [lineVal]).filter(function(l) { return byLine[l]; });
+        if (!linesPresent.length) {
+          el.innerHTML = '<div class="fcc-empty">ไม่มีรายจ่ายในเดือนนี้ตรงกับตัวกรอง</div>';
+          if (sub) sub.textContent = fccMonthLabel(monthVal) + ' · ไม่มีข้อมูล';
+          return;
+        }
+        var amounts2 = linesPresent.map(function(l) { return byLine[l].amount; });
+        var counts2 = linesPresent.map(function(l) { return byLine[l].count; });
+        amounts2.forEach(function(a) { totalAmt += a; });
+        counts2.forEach(function(c) { totalCnt += c; });
+        html = fccDrawComboChart(linesPresent, amounts2, counts2, fccExpChartType, function(cat) { return fccLineColor(cat); });
+        html += '<div class="fcc-chart-legend">' + linesPresent.map(function(l) { return '<span><i style="background:' + fccLineColor(l) + '"></i>' + fccEsc(l) + '</span>'; }).join('') + '</div>';
+        if (sub) sub.textContent = fccMonthLabel(monthVal) + ' · รวม ฿' + fccInt(totalAmt) + ' (' + totalCnt + ' ครั้ง)';
+      }
+      el.innerHTML = html;
+    }
     function fccRenderTops(P, L) {
       var el = document.getElementById('fccTops');
       var tabsEl = document.getElementById('fccTopsTabs');
@@ -7647,6 +7813,13 @@ function inferRequestPriority(stock, min) {
       } else if (kind === 'tab') {
         fccTopsMode = arg;
         if (fccLast.P) fccRenderTops(fccLast.P, fccLast.L);
+      } else if (kind === 'exptype') {
+        fccExpChartType = arg;
+        var expTabs = document.getElementById('fccExpChartTypeTabs');
+        if (expTabs) Array.prototype.forEach.call(expTabs.querySelectorAll('.fcc-tab'), function(b) {
+          b.classList.toggle('on', b.getAttribute('data-fcc-act') === 'exptype:' + arg);
+        });
+        fccRenderExpenseChart();
       } else if (kind === 'expand') {
         fccQExp[arg] = !fccQExp[arg];
         if (fccLast.P) fccRenderQueue(fccLast.P);
@@ -7708,9 +7881,16 @@ function inferRequestPriority(stock, min) {
       var pLog = loadJsonpWithFallback(function(base) { return base + appendAuthToQuery('?action=logs'); })
         .then(function(rows) { return Array.isArray(rows) ? rows : []; })
         .catch(function() { return fccAsyncCache.logs || []; });
-      fccAsyncCache.pending = Promise.all([pReq, pLog]).then(function(res) {
+      var pHist = requestApi(withAuthPayload({ action: 'getPurchaseHistory' }))
+        .then(function(rows) {
+          if (rows && rows.status === 'error') throw new Error(rows.message || 'error');
+          return Array.isArray(rows) ? rows : [];
+        })
+        .catch(function() { return fccAsyncCache.hist || []; });
+      fccAsyncCache.pending = Promise.all([pReq, pLog, pHist]).then(function(res) {
         fccAsyncCache.requests = res[0];
         fccAsyncCache.logs = res[1];
+        fccAsyncCache.hist = res[2];
         fccAsyncCache.at = Date.now();
         fccAsyncCache.pending = null;
         return fccAsyncCache;
@@ -7753,6 +7933,8 @@ function inferRequestPriority(stock, min) {
         fccRenderPipeline(R);
         fccRenderActivity(L);
         fccRenderExec(P, L);
+        fccLast.Hist = A.hist;
+        fccRenderExpenseChart();
       });
     }
 
@@ -11674,6 +11856,10 @@ function inferRequestPriority(stock, min) {
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
     if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ dashboardRefreshBtn.classList.add('fcc-spin'); fccInvalidateAsyncCache(); loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1).then(function(){ dashboardRefreshBtn.classList.remove('fcc-spin'); }); });
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
+    var fccExpLineFilterEl = document.getElementById('fccExpLineFilter');
+    if (fccExpLineFilterEl) fccExpLineFilterEl.addEventListener('change', fccRenderExpenseChart);
+    var fccExpMonthFilterEl = document.getElementById('fccExpMonthFilter');
+    if (fccExpMonthFilterEl) fccExpMonthFilterEl.addEventListener('change', fccRenderExpenseChart);
     function initDashboardSidebarNav() {
       var wrap = document.getElementById('dashboardSidebarWrap');
       var menu = document.getElementById('dashboardSidebarMenu');
