@@ -7294,24 +7294,35 @@ function inferRequestPriority(stock, min) {
     // วาดกราฟแท่ง/เส้น/2 ชั้น (bar=จำนวนเงิน, line=จำนวนครั้งสั่งซื้อ) ใช้ร่วมกันทั้งมุมมองรายเดือนและมุมมองแยกไลน์
     function fccDrawComboChart(cats, amounts, counts, chartType, colorFn) {
       if (!cats.length) return '<div class="fcc-empty">ยังไม่มีข้อมูลรายจ่ายที่ตรงกับตัวกรองนี้</div>';
-      var W = 640, H = 220, padL = 10, padR = 10, padT = 16, padB = 30;
+      var showRightAxis = chartType === 'combo';
+      var W = 640, H = 232, padL = 50, padR = showRightAxis ? 48 : 14, padT = 16, padB = 30;
       var iw = W - padL - padR, ih = H - padT - padB;
       var n = cats.length;
       var maxAmt = Math.max.apply(null, amounts.concat([1]));
       var maxCnt = Math.max.apply(null, counts.concat([1]));
       var slot = iw / n, bw = Math.min(46, slot * 0.5);
-      var grid = '';
-      for (var g = 1; g <= 3; g++) {
+      var grid = '', axisY = '';
+      for (var g = 0; g <= 3; g++) {
         var gy = (padT + ih - ih * g / 3).toFixed(1);
-        grid += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" stroke="rgba(100,116,139,.18)" stroke-dasharray="3 4" stroke-width="1"/>';
+        if (g > 0) grid += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" stroke="rgba(100,116,139,.18)" stroke-dasharray="3 4" stroke-width="1"/>';
+        var amtVal = maxAmt * g / 3;
+        axisY += '<text x="' + (padL - 8) + '" y="' + (Number(gy) + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">฿' + fccMoney(amtVal) + '</text>';
+        if (showRightAxis) {
+          var cntVal = Math.round(maxCnt * g / 3);
+          axisY += '<text x="' + (W - padR + 8) + '" y="' + (Number(gy) + 3).toFixed(1) + '" text-anchor="start" font-size="9" fill="#64748b" font-family="Chakra Petch,Prompt,sans-serif">' + cntVal + '</text>';
+        }
       }
-      var bars = '', labels = '', dots = '', pts = [];
+      axisY += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + ih) + '" stroke="rgba(100,116,139,.3)" stroke-width="1"/>';
+      var bars = '', labels = '', dataLabels = '', dots = '', pts = [];
+      var showDataLabels = n <= 8;
       cats.forEach(function(cat, i) {
         var cx = padL + slot * i + slot / 2;
         var col = colorFn ? colorFn(cat, i) : '#2563eb';
         if (chartType !== 'line') {
           var bh = maxAmt > 0 ? (amounts[i] / maxAmt) * ih : 0;
-          bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + (padT + ih - bh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" fill="' + col + '" fill-opacity="' + (chartType === 'combo' ? 0.55 : 0.85) + '"><title>' + fccEsc(cat) + ': ฿' + fccInt(amounts[i]) + '</title></rect>';
+          var by = padT + ih - bh;
+          bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" fill="' + col + '" fill-opacity="' + (chartType === 'combo' ? 0.55 : 0.85) + '"><title>' + fccEsc(cat) + ': ฿' + fccInt(amounts[i]) + ' (' + counts[i] + ' ครั้ง)</title></rect>';
+          if (showDataLabels) dataLabels += '<text x="' + cx.toFixed(1) + '" y="' + Math.max(padT + 9, by - 5).toFixed(1) + '" text-anchor="middle" font-size="8.5" font-weight="700" fill="#334155" font-family="Chakra Petch,Prompt,sans-serif">฿' + fccMoney(amounts[i]) + '</text>';
         }
         if (chartType === 'line' || chartType === 'combo') {
           var frac = chartType === 'combo' ? (maxCnt > 0 ? counts[i] / maxCnt : 0) : (maxAmt > 0 ? amounts[i] / maxAmt : 0);
@@ -7319,6 +7330,7 @@ function inferRequestPriority(stock, min) {
           pts.push(cx.toFixed(1) + ',' + cy.toFixed(1));
           var tip = chartType === 'combo' ? (counts[i] + ' ครั้งสั่งซื้อ') : ('฿' + fccInt(amounts[i]));
           dots += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3" fill="#fff" stroke="' + (chartType === 'combo' ? '#0f172a' : col) + '" stroke-width="1.8"><title>' + fccEsc(cat) + ': ' + tip + '</title></circle>';
+          if (showDataLabels && chartType === 'combo') dataLabels += '<text x="' + cx.toFixed(1) + '" y="' + (cy - 7).toFixed(1) + '" text-anchor="middle" font-size="8.5" font-weight="700" fill="#0f172a" font-family="Chakra Petch,Prompt,sans-serif">' + counts[i] + '</text>';
         }
         labels += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">' + fccEsc(cat) + '</text>';
       });
@@ -7326,7 +7338,8 @@ function inferRequestPriority(stock, min) {
       if (pts.length > 1 && (chartType === 'line' || chartType === 'combo')) {
         line = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + (chartType === 'combo' ? '#0f172a' : '#2563eb') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
       }
-      return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="fcc-in">' + grid + bars + line + dots + labels + '</svg>';
+      return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="fcc-in">' + grid + axisY + bars + line + dots + dataLabels + labels + '</svg>' +
+        '<div style="font-size:9.5px;color:#94a3b8;margin-top:2px">แกน X: เดือน/ไลน์ที่เลือก · แกน Y ซ้าย: รายจ่าย (บาท)' + (showRightAxis ? ' · แกน Y ขวา: จำนวนครั้งสั่งซื้อ' : '') + '</div>';
     }
     function fccRenderExpenseChart() {
       var el = document.getElementById('fccExpenseChart');
