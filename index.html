@@ -1214,36 +1214,8 @@
         <div class="fcc-card" style="margin-top:12px">
           <div class="fcc-card-h">
             <div>
-              <div class="fcc-card-t"><span class="ico">&#x1F4B0;</span>Expense Control — รายจ่ายอะไหล่</div>
-              <div class="fcc-card-sub" id="fccExpenseSub">ควบคุมรายจ่ายอะไหล่รายเดือน แยกตาม Line</div>
-            </div>
-            <div class="fcc-controls">
-              <select id="fccExpLineFilter" class="fcc-select fcc-select-sm" aria-label="เลือก Line สำหรับกราฟรายจ่าย">
-                <option value="all">ทุก Line (รวม)</option>
-                <option value="H9">H9</option>
-                <option value="Arc Chute">Arc Chute</option>
-                <option value="Coil Winding">Coil Winding</option>
-                <option value="Lug&Screw">Lug&amp;Screw</option>
-              </select>
-              <select id="fccExpMonthFilter" class="fcc-select fcc-select-sm" aria-label="เลือกเดือน">
-                <option value="all">ทุกเดือน (แนวโน้ม)</option>
-              </select>
-              <div class="fcc-tabs" id="fccExpChartTypeTabs">
-                <button type="button" class="fcc-tab on" data-fcc-act="exptype:bar">แท่ง</button>
-                <button type="button" class="fcc-tab" data-fcc-act="exptype:line">เส้น</button>
-                <button type="button" class="fcc-tab" data-fcc-act="exptype:combo">2 ชั้น</button>
-              </div>
-            </div>
-          </div>
-          <div class="fcc-card-b fcc-chart" id="fccExpenseChart">
-            <div class="fcc-skel" style="height:220px"></div>
-          </div>
-        </div>
-        <div class="fcc-card" style="margin-top:12px">
-          <div class="fcc-card-h">
-            <div>
-              <div class="fcc-card-t"><span class="ico">&#x1F3AF;</span>Cost Ratio — รายจ่ายต่อยอดผลิต</div>
-              <div class="fcc-card-sub" id="fccCostRatioSub">เทียบรายจ่ายอะไหล่กับมูลค่าผลิตแต่ละเดือน เพื่อควบคุม % ต้นทุน</div>
+              <div class="fcc-card-t"><span class="ico">&#x1F3AF;</span>Cost Ratio & Expense Control — รายจ่ายเทียบงบต้นทุน</div>
+              <div class="fcc-card-sub" id="fccCostRatioSub">เทียบรายจ่ายอะไหล่กับงบต้นทุนที่ตั้งจากมูลค่าผลิตแต่ละเดือน</div>
             </div>
             <div class="fcc-controls">
               <select id="fccCostRatioLineFilter" class="fcc-select fcc-select-sm" aria-label="เลือก Line สำหรับ Cost Ratio">
@@ -1265,7 +1237,10 @@
               <button id="fccCostRatioSaveConfigBtn" type="button" class="fcc-btn">บันทึกค่าตั้งต้น</button>
               <span id="fccCostRatioConfigMsg" style="font-size:11px; color:#64748b;"></span>
             </div>
-            <div id="fccCostRatioTable"><div class="fcc-skel" style="height:140px"></div></div>
+            <div class="fcc-chart" id="fccCostRatioChart">
+              <div class="fcc-skel" style="height:232px"></div>
+            </div>
+            <div id="fccCostRatioTable" style="margin-top:12px"><div class="fcc-skel" style="height:140px"></div></div>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0;">
               <label style="font-size:11px; color:#64748b; font-weight:600;">เดือน<br/>
                 <input id="fccCostRatioNewMonth" type="month" style="height:34px; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:13px;" />
@@ -6853,13 +6828,11 @@ function inferRequestPriority(stock, min) {
     var fccInited = false;
     var fccUid = 0;
     var fccTopsMode = 'usage';
-    var fccExpChartType = 'bar';
     var fccQExp = {};
     var fccLast = { P: null, PAll: null, L: null, R: null, Hist: null, ProdVolume: null, ProdConfig: null, queue: [] };
     var fccAsyncCache = { requests: null, logs: null, hist: null, prodVolume: null, prodConfig: null, at: 0, pending: null };
     var fccClockTimer = null;
     var fccRenderToken = 0;
-    var FCC_LINE_COLORS = { 'H9': '#2563eb', 'Arc Chute': '#d97706', 'Coil Winding': '#059669', 'Lug&Screw': '#7c3aed' };
     var FCC_TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
     function fccInvalidateAsyncCache() { fccAsyncCache.at = 0; }
@@ -7323,8 +7296,7 @@ function inferRequestPriority(stock, min) {
         '<div class="fcc-chart-legend"><span><i style="background:#2563eb"></i>เบิกออก (ชิ้น)</span><span><i style="background:rgba(5,150,105,.7)"></i>รับเข้า (ชิ้น)</span></div>';
     }
 
-    /* ── Expense Control chart (Purchase History → spend by month/line) ──── */
-    function fccLineColor(line) { return FCC_LINE_COLORS[fccLineOf(line)] || '#2563eb'; }
+    /* ── Cost Ratio & Expense Control chart (Purchase History → spend vs budget) ──── */
     // key เดือนแบบ canonical "yyyy-MM" เสมอ ไม่ว่าค่าดิบจะเป็น "yyyy-MM" อยู่แล้ว หรือเป็น
     // toString() เต็มของ Date (backend ยังไม่ deploy fix) — ต้องใช้ตัวนี้เป็น "key" สำหรับ group/
     // join ข้อมูลข้าม source เสมอ (ไม่ใช่ raw string ตรงๆ) ไม่งั้นเดือนเดียวกันจากคนละแหล่งข้อมูล
@@ -7359,139 +7331,60 @@ function inferRequestPriority(stock, min) {
         return { month: fccMonthKey(h.month), line: fccLineOf(h.line), amount: amt, status: String(h.status || '').trim() };
       }).filter(function(r) { return r.month && r.status !== 'Cancelled'; });
     }
-    function fccExpensePopulateMonths(rows) {
-      var sel = document.getElementById('fccExpMonthFilter');
-      if (!sel) return;
-      var months = Array.from(new Set(rows.map(function(r) { return r.month; }))).sort();
-      var sig = months.join(',');
-      if (sel.getAttribute('data-sig') === sig) return;
-      var prevVal = sel.value;
-      sel.setAttribute('data-sig', sig);
-      var opts = ['<option value="all">ทุกเดือน (แนวโน้ม)</option>'];
-      months.slice().reverse().forEach(function(m) {
-        opts.push('<option value="' + fccEsc(m) + '">' + fccEsc(fccMonthLabel(m)) + '</option>');
-      });
-      sel.innerHTML = opts.join('');
-      if (prevVal === 'all' || months.indexOf(prevVal) > -1) sel.value = prevVal;
-    }
-    // วาดกราฟแท่ง/เส้น/2 ชั้น (bar=จำนวนเงิน, line=จำนวนครั้งสั่งซื้อ) ใช้ร่วมกันทั้งมุมมองรายเดือนและมุมมองแยกไลน์
-    function fccDrawComboChart(cats, amounts, counts, chartType, colorFn) {
-      if (!cats.length) return '<div class="fcc-empty">ยังไม่มีข้อมูลรายจ่ายที่ตรงกับตัวกรองนี้</div>';
-      var showRightAxis = chartType === 'combo';
-      var W = 640, H = 232, padL = 50, padR = showRightAxis ? 48 : 14, padT = 16, padB = 30;
+    // วาดกราฟแท่ง (รายจ่ายจริง สีแดงถ้าเกินงบ/สีน้ำเงินถ้าอยู่ในงบ) + เส้นประ (งบต้นทุนเป้าหมาย)
+    // ใช้สเกลแกน Y เดียวกันทั้งสองชุดข้อมูล เพื่อให้เทียบแท่งกับเส้นได้ตรงๆ ด้วยตา
+    function fccDrawBudgetVsSpendChart(cats, spendArr, budgetArr) {
+      if (!cats.length) return '<div class="fcc-empty">ยังไม่มีข้อมูลรายจ่าย/งบต้นทุนที่ตรงกับตัวกรองนี้</div>';
+      var W = 640, H = 232, padL = 54, padR = 14, padT = 16, padB = 30;
       var iw = W - padL - padR, ih = H - padT - padB;
       var n = cats.length;
-      var maxAmt = Math.max.apply(null, amounts.concat([1]));
-      var maxCnt = Math.max.apply(null, counts.concat([1]));
+      var validBudgets = budgetArr.filter(function(v) { return v !== null && v !== undefined; });
+      var maxVal = Math.max.apply(null, spendArr.concat(validBudgets).concat([1]));
       var slot = iw / n, bw = Math.min(46, slot * 0.5);
       var grid = '', axisY = '';
       for (var g = 0; g <= 3; g++) {
         var gy = (padT + ih - ih * g / 3).toFixed(1);
         if (g > 0) grid += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" stroke="rgba(100,116,139,.18)" stroke-dasharray="3 4" stroke-width="1"/>';
-        var amtVal = maxAmt * g / 3;
-        axisY += '<text x="' + (padL - 8) + '" y="' + (Number(gy) + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">฿' + fccMoney(amtVal) + '</text>';
-        if (showRightAxis) {
-          var cntVal = Math.round(maxCnt * g / 3);
-          axisY += '<text x="' + (W - padR + 8) + '" y="' + (Number(gy) + 3).toFixed(1) + '" text-anchor="start" font-size="9" fill="#64748b" font-family="Chakra Petch,Prompt,sans-serif">' + cntVal + '</text>';
-        }
+        axisY += '<text x="' + (padL - 8) + '" y="' + (Number(gy) + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">฿' + fccMoney(maxVal * g / 3) + '</text>';
       }
       axisY += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + ih) + '" stroke="rgba(100,116,139,.3)" stroke-width="1"/>';
-      var bars = '', labels = '', dataLabels = '', dots = '', pts = [];
+      var bars = '', labels = '', dataLabels = '', pts = [];
       var showDataLabels = n <= 8;
-      // ประเมินความกว้างป้ายกำกับแกน X คร่าวๆ เพื่อเว้นบางป้ายไม่ให้ทับกัน (เช่นตอนชื่อยาวๆ
-      // หรือมีหลายหมวดหมู่) แทนที่จะบังคับโชว์ทุกป้ายจนอ่านไม่ออก
       var maxLabelLen = cats.reduce(function(m, c) { return Math.max(m, String(c).length); }, 1);
       var labelSkip = Math.max(1, Math.ceil((maxLabelLen * 5.6 + 6) / slot));
       cats.forEach(function(cat, i) {
         var cx = padL + slot * i + slot / 2;
-        var col = colorFn ? colorFn(cat, i) : '#2563eb';
-        if (chartType !== 'line') {
-          var bh = maxAmt > 0 ? (amounts[i] / maxAmt) * ih : 0;
-          var by = padT + ih - bh;
-          bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" fill="' + col + '" fill-opacity="' + (chartType === 'combo' ? 0.55 : 0.85) + '"><title>' + fccEsc(cat) + ': ฿' + fccInt(amounts[i]) + ' (' + counts[i] + ' ครั้ง)</title></rect>';
-          if (showDataLabels) dataLabels += '<text x="' + cx.toFixed(1) + '" y="' + Math.max(padT + 9, by - 5).toFixed(1) + '" text-anchor="middle" font-size="8.5" font-weight="700" fill="#334155" font-family="Chakra Petch,Prompt,sans-serif">฿' + fccMoney(amounts[i]) + '</text>';
-        }
-        if (chartType === 'line' || chartType === 'combo') {
-          var frac = chartType === 'combo' ? (maxCnt > 0 ? counts[i] / maxCnt : 0) : (maxAmt > 0 ? amounts[i] / maxAmt : 0);
-          var cy = padT + ih - frac * ih;
-          pts.push(cx.toFixed(1) + ',' + cy.toFixed(1));
-          var tip = chartType === 'combo' ? (counts[i] + ' ครั้งสั่งซื้อ') : ('฿' + fccInt(amounts[i]));
-          dots += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3" fill="#fff" stroke="' + (chartType === 'combo' ? '#0f172a' : col) + '" stroke-width="1.8"><title>' + fccEsc(cat) + ': ' + tip + '</title></circle>';
-          if (showDataLabels && chartType === 'combo') dataLabels += '<text x="' + cx.toFixed(1) + '" y="' + (cy - 7).toFixed(1) + '" text-anchor="middle" font-size="8.5" font-weight="700" fill="#0f172a" font-family="Chakra Petch,Prompt,sans-serif">' + counts[i] + '</text>';
+        var spend = spendArr[i] || 0;
+        var budget = (budgetArr[i] === null || budgetArr[i] === undefined) ? null : budgetArr[i];
+        var over = budget !== null && spend > budget;
+        var col = over ? '#dc2626' : '#2563eb';
+        var bh = maxVal > 0 ? (spend / maxVal) * ih : 0;
+        var by = padT + ih - bh;
+        var tip = fccEsc(cat) + ': รายจ่าย ฿' + fccInt(spend) + (budget !== null ? ' / งบ ฿' + fccInt(budget) : ' (ยังไม่ได้ตั้งงบ)');
+        bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" fill="' + col + '" fill-opacity="0.85"><title>' + tip + '</title></rect>';
+        if (showDataLabels) dataLabels += '<text x="' + cx.toFixed(1) + '" y="' + Math.max(padT + 9, by - 5).toFixed(1) + '" text-anchor="middle" font-size="8.5" font-weight="700" fill="' + (over ? '#dc2626' : '#334155') + '" font-family="Chakra Petch,Prompt,sans-serif">฿' + fccMoney(spend) + '</text>';
+        if (budget !== null) {
+          var ly = padT + ih - (maxVal > 0 ? (budget / maxVal) * ih : 0);
+          pts.push(cx.toFixed(1) + ',' + ly.toFixed(1));
         }
         if (i % labelSkip === 0) labels += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">' + fccEsc(cat) + '</text>';
       });
-      var line = '';
-      if (pts.length > 1 && (chartType === 'line' || chartType === 'combo')) {
-        line = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + (chartType === 'combo' ? '#0f172a' : '#2563eb') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      var line = '', dots = '';
+      if (pts.length > 1) {
+        line = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#0f172a" stroke-width="2" stroke-dasharray="5 3" stroke-linecap="round" stroke-linejoin="round"/>';
       }
+      dots = pts.map(function(p) {
+        var xy = p.split(',');
+        return '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="3" fill="#fff" stroke="#0f172a" stroke-width="1.8"/>';
+      }).join('');
       return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="fcc-in">' + grid + axisY + bars + line + dots + dataLabels + labels + '</svg>' +
-        '<div style="font-size:9.5px;color:#94a3b8;margin-top:2px">แกน X: เดือน/ไลน์ที่เลือก · แกน Y ซ้าย: รายจ่าย (บาท)' + (showRightAxis ? ' · แกน Y ขวา: จำนวนครั้งสั่งซื้อ' : '') + '</div>';
-    }
-    function fccRenderExpenseChart() {
-      var el = document.getElementById('fccExpenseChart');
-      var sub = document.getElementById('fccExpenseSub');
-      if (!el) return;
-      var hist = fccLast.Hist;
-      if (!Array.isArray(hist)) return; // ยังโหลดไม่เสร็จ — คง skeleton ไว้
-      var rows = fccExpenseValidRows(hist);
-      fccExpensePopulateMonths(rows);
-      var lineSelEl = document.getElementById('fccExpLineFilter');
-      var monthSelEl = document.getElementById('fccExpMonthFilter');
-      var lineVal = lineSelEl ? String(lineSelEl.value || 'all') : 'all';
-      var monthVal = monthSelEl ? String(monthSelEl.value || 'all') : 'all';
-      var filtered = rows.filter(function(r) { return lineVal === 'all' ? true : r.line === lineVal; });
-      if (!filtered.length) {
-        el.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลรายจ่ายที่ตรงกับตัวกรองนี้</div>';
-        if (sub) sub.textContent = 'ควบคุมรายจ่ายอะไหล่รายเดือน แยกตาม Line';
-        return;
-      }
-      var html = '', totalAmt = 0, totalCnt = 0;
-      if (monthVal === 'all') {
-        var byMonth = {};
-        filtered.forEach(function(r) {
-          if (!byMonth[r.month]) byMonth[r.month] = { amount: 0, count: 0 };
-          byMonth[r.month].amount += r.amount;
-          byMonth[r.month].count += 1;
-        });
-        var months = Object.keys(byMonth).sort().slice(-12);
-        var cats = months.map(fccMonthLabel);
-        var amounts = months.map(function(m) { return byMonth[m].amount; });
-        var counts = months.map(function(m) { return byMonth[m].count; });
-        amounts.forEach(function(a) { totalAmt += a; });
-        counts.forEach(function(c) { totalCnt += c; });
-        html = fccDrawComboChart(cats, amounts, counts, fccExpChartType, function() { return lineVal === 'all' ? '#2563eb' : fccLineColor(lineVal); });
-        html += '<div class="fcc-chart-legend"><span><i style="background:' + (lineVal === 'all' ? '#2563eb' : fccLineColor(lineVal)) + '"></i>รายจ่าย (บาท)</span>' + (fccExpChartType === 'combo' ? '<span><i style="background:#0f172a"></i>จำนวนครั้งสั่งซื้อ</span>' : '') + '</div>';
-        if (sub) sub.textContent = (lineVal === 'all' ? 'ทุก Line' : lineVal) + ' · รวม ฿' + fccInt(totalAmt) + ' (' + totalCnt + ' ครั้ง) ใน ' + months.length + ' เดือนล่าสุด';
-      } else {
-        var monthRows = filtered.filter(function(r) { return r.month === monthVal; });
-        var byLine = {};
-        monthRows.forEach(function(r) {
-          if (!byLine[r.line]) byLine[r.line] = { amount: 0, count: 0 };
-          byLine[r.line].amount += r.amount;
-          byLine[r.line].count += 1;
-        });
-        var lineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
-        var linesPresent = (lineVal === 'all' ? lineOrder : [lineVal]).filter(function(l) { return byLine[l]; });
-        if (!linesPresent.length) {
-          el.innerHTML = '<div class="fcc-empty">ไม่มีรายจ่ายในเดือนนี้ตรงกับตัวกรอง</div>';
-          if (sub) sub.textContent = fccMonthLabel(monthVal) + ' · ไม่มีข้อมูล';
-          return;
-        }
-        var amounts2 = linesPresent.map(function(l) { return byLine[l].amount; });
-        var counts2 = linesPresent.map(function(l) { return byLine[l].count; });
-        amounts2.forEach(function(a) { totalAmt += a; });
-        counts2.forEach(function(c) { totalCnt += c; });
-        html = fccDrawComboChart(linesPresent, amounts2, counts2, fccExpChartType, function(cat) { return fccLineColor(cat); });
-        html += '<div class="fcc-chart-legend">' + linesPresent.map(function(l) { return '<span><i style="background:' + fccLineColor(l) + '"></i>' + fccEsc(l) + '</span>'; }).join('') + '</div>';
-        if (sub) sub.textContent = fccMonthLabel(monthVal) + ' · รวม ฿' + fccInt(totalAmt) + ' (' + totalCnt + ' ครั้ง)';
-      }
-      el.innerHTML = html;
+        '<div class="fcc-chart-legend"><span><i style="background:#2563eb"></i>รายจ่ายอยู่ในงบ</span><span><i style="background:#dc2626"></i>รายจ่ายเกินงบ</span><span><i style="background:#0f172a"></i>เส้นงบต้นทุน (เป้าหมาย)</span></div>';
     }
 
     /* ── Cost Ratio (รายจ่ายอะไหล่ / มูลค่าผลิต) ──────────────────────── */
     function fccRenderCostRatio() {
       var tableEl = document.getElementById('fccCostRatioTable');
+      var chartEl = document.getElementById('fccCostRatioChart');
       var sub = document.getElementById('fccCostRatioSub');
       if (!tableEl) return;
       var hist = fccLast.Hist, prodVolume = fccLast.ProdVolume, prodConfig = fccLast.ProdConfig;
@@ -7522,9 +7415,20 @@ function inferRequestPriority(stock, min) {
       var months = Array.from(new Set(Object.keys(spendByMonth).concat(Object.keys(qtyByMonth)))).sort().reverse();
       if (!months.length) {
         tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลยอดผลิต/รายจ่ายของ Line นี้ — เพิ่มยอดผลิตด้านล่างเพื่อเริ่มคำนวณ</div>';
+        if (chartEl) chartEl.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลยอดผลิต/รายจ่ายของ Line นี้</div>';
         if (sub) sub.textContent = 'เทียบรายจ่ายอะไหล่กับมูลค่าผลิตแต่ละเดือน เพื่อควบคุม % ต้นทุน';
         return;
       }
+      // กราฟอ่านง่ายกว่าถ้าเรียงจากเก่าไปใหม่ (ซ้าย→ขวา) ต่างจากตารางที่เรียงเดือนล่าสุดไว้บนสุด
+      var chartMonths = months.slice().reverse().slice(-12);
+      var chartCats = chartMonths.map(fccMonthLabel);
+      var chartSpend = chartMonths.map(function(m) { return spendByMonth[m] || 0; });
+      var chartBudget = chartMonths.map(function(m) {
+        var qty = qtyByMonth[m] || 0;
+        var value = qty * unitPrice;
+        return (targetPct > 0 && value > 0) ? value * targetPct / 100 : null;
+      });
+      if (chartEl) chartEl.innerHTML = fccDrawBudgetVsSpendChart(chartCats, chartSpend, chartBudget);
       var rowsHtml = months.map(function(m) {
         var qty = qtyByMonth[m] || 0;
         var spend = spendByMonth[m] || 0;
@@ -7984,13 +7888,6 @@ function inferRequestPriority(stock, min) {
       } else if (kind === 'tab') {
         fccTopsMode = arg;
         if (fccLast.P) fccRenderTops(fccLast.P, fccLast.L);
-      } else if (kind === 'exptype') {
-        fccExpChartType = arg;
-        var expTabs = document.getElementById('fccExpChartTypeTabs');
-        if (expTabs) Array.prototype.forEach.call(expTabs.querySelectorAll('.fcc-tab'), function(b) {
-          b.classList.toggle('on', b.getAttribute('data-fcc-act') === 'exptype:' + arg);
-        });
-        fccRenderExpenseChart();
       } else if (kind === 'expand') {
         fccQExp[arg] = !fccQExp[arg];
         if (fccLast.P) fccRenderQueue(fccLast.P);
@@ -8119,7 +8016,6 @@ function inferRequestPriority(stock, min) {
         fccRenderActivity(L);
         fccRenderExec(P, L);
         fccLast.Hist = A.hist;
-        fccRenderExpenseChart();
         fccLast.ProdVolume = A.prodVolume;
         fccLast.ProdConfig = A.prodConfig;
         fccRenderCostRatio();
@@ -12062,10 +11958,6 @@ function inferRequestPriority(stock, min) {
     var dashboardRefreshBtn = document.getElementById('dashboardRefreshBtn');
     if (dashboardRefreshBtn) dashboardRefreshBtn.addEventListener('click', function(){ dashboardRefreshBtn.classList.add('fcc-spin'); fccInvalidateAsyncCache(); loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1).then(function(){ dashboardRefreshBtn.classList.remove('fcc-spin'); }); });
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
-    var fccExpLineFilterEl = document.getElementById('fccExpLineFilter');
-    if (fccExpLineFilterEl) fccExpLineFilterEl.addEventListener('change', fccRenderExpenseChart);
-    var fccExpMonthFilterEl = document.getElementById('fccExpMonthFilter');
-    if (fccExpMonthFilterEl) fccExpMonthFilterEl.addEventListener('change', fccRenderExpenseChart);
     var fccCostRatioLineFilterEl = document.getElementById('fccCostRatioLineFilter');
     if (fccCostRatioLineFilterEl) fccCostRatioLineFilterEl.addEventListener('change', fccRenderCostRatio);
     var fccCostRatioSaveConfigBtn = document.getElementById('fccCostRatioSaveConfigBtn');
