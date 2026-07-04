@@ -9304,7 +9304,8 @@ function inferRequestPriority(stock, min) {
                 + '<div><label class="block text-[10px] font-medium text-slate-400">รวม (THB)</label><p data-pr-row-total="'+idx+'" class="mt-0.5 flex h-8 items-center rounded-lg bg-slate-50 px-2 text-xs font-bold text-slate-700">'+total.toLocaleString()+'</p></div>'
               + '</div>'
               + '<details class="mt-2"><summary class="cursor-pointer text-xs font-semibold text-blue-700">⚙️ แก้ไขเพิ่มเติม</summary>'
-                + '<div class="mt-1.5 grid grid-cols-1 sm:grid-cols-3 gap-2">'
+                + '<div class="mt-1.5 grid grid-cols-1 sm:grid-cols-4 gap-2">'
+                  + '<div><label class="block text-[10px] font-medium text-slate-400">Line</label><select data-pr-line="'+idx+'" class="mt-0.5 h-8 w-full rounded-lg border border-slate-300 px-2 text-xs">'+['H9','Arc Chute','Coil Winding','Lug&Screw'].map(function(l){ return '<option value="'+l+'" '+(String(c.line||'')===l?'selected':'')+'>'+l+'</option>'; }).join('')+'</select></div>'
                   + '<input data-pr-machine="'+idx+'" value="'+(c.machineStation||'')+'" class="h-8 rounded-lg border border-slate-300 px-2 text-xs" placeholder="Machine/Station" />'
                   + '<input data-pr-purpose="'+idx+'" value="'+(c.purpose||'')+'" class="h-8 rounded-lg border border-slate-300 px-2 text-xs" placeholder="Reason/Purpose" />'
                   + '<input data-pr-priority="'+idx+'" value="'+(c.priority||'Medium')+'" class="h-8 rounded-lg border border-slate-300 px-2 text-xs" placeholder="Priority" />'
@@ -12418,7 +12419,7 @@ if (dashboardPage) {
       renderPrCandidates();
     });
     if (prCandidateList) prCandidateList.addEventListener('input', function(e) {
-      var idx = Number((e.target.dataset.prQty || e.target.dataset.prCritical || e.target.dataset.prPrice || e.target.dataset.prMachine || e.target.dataset.prPurpose || e.target.dataset.prSelect || -1));
+      var idx = Number((e.target.dataset.prQty || e.target.dataset.prCritical || e.target.dataset.prPrice || e.target.dataset.prMachine || e.target.dataset.prPurpose || e.target.dataset.prPriority || e.target.dataset.prLine || e.target.dataset.prSelect || -1));
       if (idx < 0 || !prCandidateState[idx]) return;
       var c = prCandidateState[idx];
       if (e.target.dataset.prSelect !== undefined) c.selected = !!e.target.checked;
@@ -12428,6 +12429,14 @@ if (dashboardPage) {
       if (e.target.dataset.prMachine !== undefined) c.machineStation = e.target.value;
       if (e.target.dataset.prPurpose !== undefined) c.purpose = e.target.value;
       if (e.target.dataset.prPriority !== undefined) c.priority = e.target.value;
+      if (e.target.dataset.prLine !== undefined) {
+        // เปลี่ยน Line ต้อง re-render ใหม่ทั้งหมด เพราะรายการถูกจัดกลุ่มแสดงผลตาม Line
+        // (ไม่ใช่แค่ patch ค่าในการ์ดเดิม เหมือนฟิลด์อื่นๆ)
+        c.line = e.target.value;
+        c.subLine = e.target.value;
+        renderPrCandidates();
+        return;
+      }
       if (e.target.dataset.prQty !== undefined || e.target.dataset.prPrice !== undefined || e.target.dataset.prSelect !== undefined) livePatchPrTotals(idx);
     });
     function getPrReportOptions(allSelectedMode) {
