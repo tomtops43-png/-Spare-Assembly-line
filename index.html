@@ -7301,29 +7301,38 @@ function inferRequestPriority(stock, min) {
 
     /* ── Expense Control chart (Purchase History → spend by month/line) ──── */
     function fccLineColor(line) { return FCC_LINE_COLORS[fccLineOf(line)] || '#2563eb'; }
-    function fccMonthLabel(m) {
-      var raw = String(m || '').trim();
+    // key เดือนแบบ canonical "yyyy-MM" เสมอ ไม่ว่าค่าดิบจะเป็น "yyyy-MM" อยู่แล้ว หรือเป็น
+    // toString() เต็มของ Date (backend ยังไม่ deploy fix) — ต้องใช้ตัวนี้เป็น "key" สำหรับ group/
+    // join ข้อมูลข้าม source เสมอ (ไม่ใช่ raw string ตรงๆ) ไม่งั้นเดือนเดียวกันจากคนละแหล่งข้อมูล
+    // (เช่น Purchase History กับ ProductionVolume) จะกลายเป็นคนละ key แล้วไม่ merge กัน
+    function fccMonthKey(raw) {
+      raw = String(raw || '').trim();
       var parts = raw.split('-');
+      if (parts.length >= 2) {
+        var y = Number(parts[0]), mo = Number(parts[1]);
+        if (y && mo >= 1 && mo <= 12) return y + '-' + String(mo).padStart(2, '0');
+      }
+      var d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        var bkk = new Date(d.getTime() + 7 * 3600000);
+        return bkk.getUTCFullYear() + '-' + String(bkk.getUTCMonth() + 1).padStart(2, '0');
+      }
+      return raw;
+    }
+    function fccMonthLabel(m) {
+      var key = fccMonthKey(m);
+      var parts = key.split('-');
       if (parts.length >= 2) {
         var y = Number(parts[0]), mo = Number(parts[1]);
         if (y && mo >= 1 && mo <= 12) return FCC_TH_MONTHS[mo - 1] + ' ' + y;
       }
-      // เผื่อ backend ยังไม่ได้ deploy แก้ field month ให้เป็น "yyyy-MM" (อาจยังส่งมาเป็น
-      // toString() ของ Date เต็มรูปแบบ เช่น "Wed Jul 01 2026 00:00:00 GMT+0700 ...") — ลอง
-      // parse เป็นวันที่โดยตรงแทนที่จะปล่อยสตริงยาวๆ ไปโชว์บนแกน X จนอ่านไม่ออก
-      var d = new Date(raw);
-      if (!isNaN(d.getTime())) {
-        // ใช้ UTC getter บนเวลาที่เลื่อนมาแล้ว +7 ชม. กันผลลัพธ์เพี้ยนตาม timezone ของเบราว์เซอร์ผู้ใช้
-        var bkk = new Date(d.getTime() + 7 * 3600000);
-        return FCC_TH_MONTHS[bkk.getUTCMonth()] + ' ' + bkk.getUTCFullYear();
-      }
-      return raw || '-';
+      return key || '-';
     }
     function fccExpenseValidRows(hist) {
       return (hist || []).map(function(h) {
         var amt = fccPrice(h.total_amount);
         if (!amt) amt = fccPrice(h.unit_price) * fccN(h.qty_ordered);
-        return { month: String(h.month || '').trim(), line: fccLineOf(h.line), amount: amt, status: String(h.status || '').trim() };
+        return { month: fccMonthKey(h.month), line: fccLineOf(h.line), amount: amt, status: String(h.status || '').trim() };
       }).filter(function(r) { return r.month && r.status !== 'Cancelled'; });
     }
     function fccExpensePopulateMonths(rows) {
@@ -7480,7 +7489,8 @@ function inferRequestPriority(stock, min) {
       });
       var qtyByMonth = {};
       prodVolume.filter(function(v) { return fccLineOf(v.line) === line; }).forEach(function(v) {
-        qtyByMonth[v.month] = (qtyByMonth[v.month] || 0) + fccN(v.actual_qty);
+        var key = fccMonthKey(v.month);
+        qtyByMonth[key] = (qtyByMonth[key] || 0) + fccN(v.actual_qty);
       });
       var months = Array.from(new Set(Object.keys(spendByMonth).concat(Object.keys(qtyByMonth)))).sort().reverse();
       if (!months.length) {
@@ -7509,7 +7519,10 @@ function inferRequestPriority(stock, min) {
         '<thead><tr style="border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;">' +
         '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต</th><th style="padding:6px 10px;text-align:right;">รายจ่ายอะไหล่</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>';
-      if (sub) sub.textContent = line + (unitPrice > 0 ? ' · ราคา/หน่วย ฿' + fccInt(unitPrice) : ' · ยังไม่ได้ตั้งราคา/หน่วย') + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      // ราคา/หน่วยมักเป็นเลขทศนิยมน้อยกว่า 1 บาท (เช่น 0.1 บาท/ชิ้น) — ห้ามใช้ fccInt() ที่ปัดเศษ
+      // เป็นจำนวนเต็ม เพราะจะกลายเป็น "฿0" ทำให้เข้าใจผิดว่ายังไม่ได้ตั้งราคา
+      var unitPriceDisplay = unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+      if (sub) sub.textContent = line + (unitPrice > 0 ? ' · ราคา/หน่วย ฿' + unitPriceDisplay : ' · ยังไม่ได้ตั้งราคา/หน่วย') + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
     }
     function fccRenderTops(P, L) {
       var el = document.getElementById('fccTops');
@@ -12046,9 +12059,11 @@ function inferRequestPriority(stock, min) {
       var qtyEl = document.getElementById('fccCostRatioNewQty');
       var msgEl = document.getElementById('fccCostRatioQtyMsg');
       var month = monthEl ? String(monthEl.value || '') : '';
-      var qty = Number(qtyEl ? qtyEl.value : NaN);
+      var qtyRaw = qtyEl ? String(qtyEl.value || '').trim() : '';
+      var qty = Number(qtyRaw);
       if (!month) { if (msgEl) msgEl.textContent = 'กรุณาเลือกเดือน'; return; }
-      if (!(qty >= 0)) { if (msgEl) msgEl.textContent = 'กรุณาระบุยอดผลิตเป็นตัวเลขไม่ติดลบ'; return; }
+      // qtyRaw ว่าง (ผู้ใช้ไม่ได้พิมพ์อะไรเลย) ต้องไม่ผ่านเงียบๆ เป็น 0 — บังคับให้พิมพ์ตัวเลขจริง
+      if (!qtyRaw || !Number.isFinite(qty) || qty < 0) { if (msgEl) msgEl.textContent = 'กรุณาระบุยอดผลิตเป็นตัวเลขไม่ติดลบ'; return; }
       if (msgEl) msgEl.textContent = 'กำลังบันทึก...';
       fccCostRatioSaveQtyBtn.disabled = true;
       requestApi(withAuthPayload({ action: 'upsertProductionVolume', month: month, line: line, actual_qty: qty })).then(function(res) {
