@@ -9,6 +9,8 @@ SPARE_APP_CONFIG.requestSheetName = SPARE_APP_CONFIG.requestSheetName || 'OrderR
 SPARE_APP_CONFIG.purchaseHistorySheetName = SPARE_APP_CONFIG.purchaseHistorySheetName || 'PurchaseHistory';
 SPARE_APP_CONFIG.purchaseHistoryAuditSheetName = SPARE_APP_CONFIG.purchaseHistoryAuditSheetName || 'PurchaseHistoryLog';
 SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName || 'PurchaseHistoryImportLog';
+SPARE_APP_CONFIG.productionVolumeSheetName = SPARE_APP_CONFIG.productionVolumeSheetName || 'ProductionVolume';
+SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCostConfigSheetName || 'ProductionCostConfig';
 SPARE_APP_CONFIG.sessionDurationMs = SPARE_APP_CONFIG.sessionDurationMs || (7 * 24 * 60 * 60 * 1000);
 SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThresholdMs || (24 * 60 * 60 * 1000);
 var SESSION_PROPERTY_PREFIX = 'spare_session::';
@@ -21,6 +23,11 @@ var PURCHASE_HISTORY_AUDIT_HEADERS = ['Date Time', 'User', 'History ID', 'Action
 var PURCHASE_HISTORY_IMPORT_LOG_HEADERS = ['Import Batch ID', 'File Name', 'Imported By', 'Imported At', 'Total Rows Detected', 'Imported Rows', 'Skipped Duplicate Rows', 'Review Required Rows'];
 var PURCHASE_HISTORY_STATUSES = ['Requested', 'PR Created', 'Ordered', 'Partial Received', 'Received', 'Cancelled'];
 var PURCHASE_HISTORY_SOURCES = ['Purchase Request', 'PR Report', 'Manual', 'Auto PR'];
+// ยอดผลิตรายเดือนต่อไลน์ (รวมทุกเครื่อง) — ใช้คู่กับ ProductionCostConfig เพื่อคำนวณ
+// "รายจ่ายอะไหล่ / มูลค่าผลิต" เป็น % สำหรับควบคุมต้นทุนการสั่งซื้อรายเดือน
+var PRODUCTION_VOLUME_HEADERS = ['Month', 'Line', 'Actual Qty', 'Updated By', 'Updated At'];
+// ราคาต่อหน่วย (บาท/ชิ้น) และเป้าหมาย % ที่ต้องการควบคุมรายจ่ายอะไหล่ให้อยู่ในกรอบ ต่อไลน์
+var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updated By', 'Updated At'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
 var DRIVE_ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
 var DRAWING_STATUS_OPTIONS = ['Available', 'Missing', 'Not Required', 'Access Required'];
@@ -621,6 +628,91 @@ function deletePurchaseHistory(payload) {
     return { status: 'success', history_id: historyId };
   }
   throw new Error('ไม่พบ Purchase History');
+}
+
+// ── Production Volume & Cost Ratio ─────────────────────────────
+// ยอดผลิตรายเดือนต่อไลน์ (นำเข้า/กรอกมือจากชีต ProductionLog ภายนอก) x ราคา/หน่วย
+// = มูลค่าผลิต ใช้เทียบกับรายจ่ายอะไหล่ (Purchase History) เป็น % สำหรับควบคุมต้นทุน
+function getProductionVolumeSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.productionVolumeSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(PRODUCTION_VOLUME_HEADERS);
+  return sheet;
+}
+
+function getProductionCostConfigSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.productionCostConfigSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(PRODUCTION_COST_CONFIG_HEADERS);
+  return sheet;
+}
+
+function requireProductionCostEditor(payload) {
+  var session = getSessionUser(payload);
+  var user = findUserByUsername(session.user.username);
+  var role = normalizeRole(user && user.role);
+  if (role !== 'admin' && role !== 'leader') throw new Error('เฉพาะ Admin / Engineer เท่านั้นที่แก้ไขข้อมูลยอดผลิต/ราคาต่อหน่วยได้');
+  return user;
+}
+
+function getProductionVolume(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var values = getProductionVolumeSheet().getDataRange().getValues();
+  if (values.length <= 1) return [];
+  return values.slice(1).filter(function(r) { return String(r[0] || '').trim(); }).map(function(r) {
+    return { month: String(r[0] || ''), line: String(r[1] || ''), actual_qty: Number(r[2] || 0), updated_by: String(r[3] || ''), updated_at: String(r[4] || '') };
+  });
+}
+
+function upsertProductionVolume(payload) {
+  var user = requireProductionCostEditor({ authToken: payload.authToken });
+  var month = String(payload.month || '').trim();
+  var line = String(payload.line || '').trim();
+  var qty = Number(payload.actual_qty);
+  if (!/^\d{4}-\d{2}$/.test(month)) throw new Error('รูปแบบเดือนไม่ถูกต้อง (yyyy-MM)');
+  if (!line) throw new Error('กรุณาระบุ Line');
+  if (!isFinite(qty) || qty < 0) throw new Error('ยอดผลิตต้องเป็นตัวเลขไม่ติดลบ');
+  var sheet = getProductionVolumeSheet();
+  var values = sheet.getDataRange().getValues();
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '') === month && String(values[i][1] || '') === line) {
+      sheet.getRange(i + 1, 1, 1, PRODUCTION_VOLUME_HEADERS.length).setValues([[month, line, qty, user.username, now]]);
+      return { status: 'success', mode: 'update' };
+    }
+  }
+  sheet.appendRow([month, line, qty, user.username, now]);
+  return { status: 'success', mode: 'insert' };
+}
+
+function getProductionCostConfig(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var values = getProductionCostConfigSheet().getDataRange().getValues();
+  if (values.length <= 1) return [];
+  return values.slice(1).filter(function(r) { return String(r[0] || '').trim(); }).map(function(r) {
+    return { line: String(r[0] || ''), unit_price: Number(r[1] || 0), target_pct: Number(r[2] || 0), updated_by: String(r[3] || ''), updated_at: String(r[4] || '') };
+  });
+}
+
+function upsertProductionCostConfig(payload) {
+  var user = requireProductionCostEditor({ authToken: payload.authToken });
+  var line = String(payload.line || '').trim();
+  var unitPrice = Number(payload.unit_price);
+  var targetPct = Number(payload.target_pct);
+  if (!line) throw new Error('กรุณาระบุ Line');
+  if (!isFinite(unitPrice) || unitPrice < 0) throw new Error('ราคา/หน่วยต้องเป็นตัวเลขไม่ติดลบ');
+  if (!isFinite(targetPct) || targetPct < 0) throw new Error('เป้าหมาย % ต้องเป็นตัวเลขไม่ติดลบ');
+  var sheet = getProductionCostConfigSheet();
+  var values = sheet.getDataRange().getValues();
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '') === line) {
+      sheet.getRange(i + 1, 1, 1, PRODUCTION_COST_CONFIG_HEADERS.length).setValues([[line, unitPrice, targetPct, user.username, now]]);
+      return { status: 'success', mode: 'update' };
+    }
+  }
+  sheet.appendRow([line, unitPrice, targetPct, user.username, now]);
+  return { status: 'success', mode: 'insert' };
 }
 
 function getPurchaseHistoryImportLogSheet() {
@@ -2492,6 +2584,10 @@ function doGet(e) {
     if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(e.parameter), e);
     if (action === 'editPurchaseHistory') return respond(editPurchaseHistory(e.parameter), e);
     if (action === 'deletePurchaseHistory') return respond(deletePurchaseHistory(e.parameter), e);
+    if (action === 'getProductionVolume') return respond(getProductionVolume(e.parameter), e);
+    if (action === 'upsertProductionVolume') return respond(upsertProductionVolume(e.parameter), e);
+    if (action === 'getProductionCostConfig') return respond(getProductionCostConfig(e.parameter), e);
+    if (action === 'upsertProductionCostConfig') return respond(upsertProductionCostConfig(e.parameter), e);
     if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(e.parameter), e);
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(e.parameter), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(e.parameter), e);
@@ -2736,6 +2832,10 @@ function doPost(e) {
     if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(body), e);
     if (action === 'editPurchaseHistory') return respond(editPurchaseHistory(body), e);
     if (action === 'deletePurchaseHistory') return respond(deletePurchaseHistory(body), e);
+    if (action === 'getProductionVolume') return respond(getProductionVolume(body), e);
+    if (action === 'upsertProductionVolume') return respond(upsertProductionVolume(body), e);
+    if (action === 'getProductionCostConfig') return respond(getProductionCostConfig(body), e);
+    if (action === 'upsertProductionCostConfig') return respond(upsertProductionCostConfig(body), e);
     if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(body), e);
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(body), e);
     if (action === 'importPurchaseHistoryPdfBatch') return respond(importPurchaseHistoryPdfBatch(body), e);

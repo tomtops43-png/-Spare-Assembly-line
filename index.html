@@ -1239,6 +1239,45 @@
             <div class="fcc-skel" style="height:220px"></div>
           </div>
         </div>
+        <div class="fcc-card" style="margin-top:12px">
+          <div class="fcc-card-h">
+            <div>
+              <div class="fcc-card-t"><span class="ico">&#x1F3AF;</span>Cost Ratio — รายจ่ายต่อยอดผลิต</div>
+              <div class="fcc-card-sub" id="fccCostRatioSub">เทียบรายจ่ายอะไหล่กับมูลค่าผลิตแต่ละเดือน เพื่อควบคุม % ต้นทุน</div>
+            </div>
+            <div class="fcc-controls">
+              <select id="fccCostRatioLineFilter" class="fcc-select fcc-select-sm" aria-label="เลือก Line สำหรับ Cost Ratio">
+                <option value="Lug&Screw">Lug&amp;Screw</option>
+                <option value="H9">H9</option>
+                <option value="Arc Chute">Arc Chute</option>
+                <option value="Coil Winding">Coil Winding</option>
+              </select>
+            </div>
+          </div>
+          <div class="fcc-card-b">
+            <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
+              <label style="font-size:11px; color:#64748b; font-weight:600;">ราคา/หน่วย (บาท/ชิ้น)<br/>
+                <input id="fccCostRatioUnitPrice" type="number" min="0" step="0.01" placeholder="0.00" style="height:34px; width:130px; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:13px;" />
+              </label>
+              <label style="font-size:11px; color:#64748b; font-weight:600;">เป้าหมายควบคุม (%)<br/>
+                <input id="fccCostRatioTargetPct" type="number" min="0" step="0.1" placeholder="0.0" style="height:34px; width:110px; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:13px;" />
+              </label>
+              <button id="fccCostRatioSaveConfigBtn" type="button" class="fcc-btn">บันทึกค่าตั้งต้น</button>
+              <span id="fccCostRatioConfigMsg" style="font-size:11px; color:#64748b;"></span>
+            </div>
+            <div id="fccCostRatioTable"><div class="fcc-skel" style="height:140px"></div></div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0;">
+              <label style="font-size:11px; color:#64748b; font-weight:600;">เดือน<br/>
+                <input id="fccCostRatioNewMonth" type="month" style="height:34px; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:13px;" />
+              </label>
+              <label style="font-size:11px; color:#64748b; font-weight:600;">ยอดผลิต (ชิ้น)<br/>
+                <input id="fccCostRatioNewQty" type="number" min="0" placeholder="0" style="height:34px; width:130px; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:13px;" />
+              </label>
+              <button id="fccCostRatioSaveQtyBtn" type="button" class="fcc-btn">+ บันทึกยอดผลิตเดือนนี้</button>
+              <span id="fccCostRatioQtyMsg" style="font-size:11px; color:#64748b;"></span>
+            </div>
+          </div>
+        </div>
         <div id="fccExec" class="fcc-exec" style="margin-top:12px">
           <div class="fcc-card fcc-skel" style="min-height:92px"></div>
           <div class="fcc-card fcc-skel" style="min-height:92px"></div>
@@ -6792,8 +6831,8 @@ function inferRequestPriority(stock, min) {
     var fccTopsMode = 'usage';
     var fccExpChartType = 'bar';
     var fccQExp = {};
-    var fccLast = { P: null, PAll: null, L: null, R: null, Hist: null, queue: [] };
-    var fccAsyncCache = { requests: null, logs: null, hist: null, at: 0, pending: null };
+    var fccLast = { P: null, PAll: null, L: null, R: null, Hist: null, ProdVolume: null, ProdConfig: null, queue: [] };
+    var fccAsyncCache = { requests: null, logs: null, hist: null, prodVolume: null, prodConfig: null, at: 0, pending: null };
     var fccClockTimer = null;
     var fccRenderToken = 0;
     var FCC_LINE_COLORS = { 'H9': '#2563eb', 'Arc Chute': '#d97706', 'Coil Winding': '#059669', 'Lug&Screw': '#7c3aed' };
@@ -7416,6 +7455,62 @@ function inferRequestPriority(stock, min) {
       }
       el.innerHTML = html;
     }
+
+    /* ── Cost Ratio (รายจ่ายอะไหล่ / มูลค่าผลิต) ──────────────────────── */
+    function fccRenderCostRatio() {
+      var tableEl = document.getElementById('fccCostRatioTable');
+      var sub = document.getElementById('fccCostRatioSub');
+      if (!tableEl) return;
+      var hist = fccLast.Hist, prodVolume = fccLast.ProdVolume, prodConfig = fccLast.ProdConfig;
+      if (!Array.isArray(hist) || !Array.isArray(prodVolume) || !Array.isArray(prodConfig)) return; // ยังโหลดไม่เสร็จ — คง skeleton ไว้
+      var lineSelEl = document.getElementById('fccCostRatioLineFilter');
+      var unitPriceEl = document.getElementById('fccCostRatioUnitPrice');
+      var targetPctEl = document.getElementById('fccCostRatioTargetPct');
+      var line = lineSelEl ? String(lineSelEl.value || 'Lug&Screw') : 'Lug&Screw';
+      var cfg = prodConfig.filter(function(c) { return fccLineOf(c.line) === line; })[0] || null;
+      var unitPrice = cfg ? Number(cfg.unit_price || 0) : 0;
+      var targetPct = cfg ? Number(cfg.target_pct || 0) : 0;
+      // sync ค่าตั้งต้นเข้าช่อง input เสมอ ยกเว้นตอนผู้ใช้กำลังโฟกัส/พิมพ์อยู่ กันค่าที่กำลังพิมพ์หาย
+      if (unitPriceEl && document.activeElement !== unitPriceEl) unitPriceEl.value = unitPrice || '';
+      if (targetPctEl && document.activeElement !== targetPctEl) targetPctEl.value = targetPct || '';
+
+      var spendByMonth = {};
+      fccExpenseValidRows(hist).filter(function(r) { return r.line === line; }).forEach(function(r) {
+        spendByMonth[r.month] = (spendByMonth[r.month] || 0) + r.amount;
+      });
+      var qtyByMonth = {};
+      prodVolume.filter(function(v) { return fccLineOf(v.line) === line; }).forEach(function(v) {
+        qtyByMonth[v.month] = (qtyByMonth[v.month] || 0) + fccN(v.actual_qty);
+      });
+      var months = Array.from(new Set(Object.keys(spendByMonth).concat(Object.keys(qtyByMonth)))).sort().reverse();
+      if (!months.length) {
+        tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลยอดผลิต/รายจ่ายของ Line นี้ — เพิ่มยอดผลิตด้านล่างเพื่อเริ่มคำนวณ</div>';
+        if (sub) sub.textContent = 'เทียบรายจ่ายอะไหล่กับมูลค่าผลิตแต่ละเดือน เพื่อควบคุม % ต้นทุน';
+        return;
+      }
+      var rowsHtml = months.map(function(m) {
+        var qty = qtyByMonth[m] || 0;
+        var spend = spendByMonth[m] || 0;
+        var value = qty * unitPrice;
+        var pct = value > 0 ? (spend / value * 100) : null;
+        var statusHtml;
+        if (pct === null) statusHtml = '<span style="color:#94a3b8;">— ต้องตั้งราคา/หน่วยก่อน</span>';
+        else if (targetPct > 0 && pct > targetPct) statusHtml = '<span style="color:#dc2626;font-weight:700;">⚠️ เกินเป้า ' + pct.toFixed(1) + '%</span>';
+        else statusHtml = '<span style="color:#16a34a;font-weight:700;">✅ ' + pct.toFixed(1) + '%</span>';
+        return '<tr style="border-bottom:1px solid #f1f5f9;">' +
+          '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccMonthLabel(m)) + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;">' + fccInt(qty) + ' ชิ้น</td>' +
+          '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(value) + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(spend) + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;">' + statusHtml + '</td>' +
+          '</tr>';
+      }).join('');
+      tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
+        '<thead><tr style="border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;">' +
+        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต</th><th style="padding:6px 10px;text-align:right;">รายจ่ายอะไหล่</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
+        '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>';
+      if (sub) sub.textContent = line + (unitPrice > 0 ? ' · ราคา/หน่วย ฿' + fccInt(unitPrice) : ' · ยังไม่ได้ตั้งราคา/หน่วย') + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+    }
     function fccRenderTops(P, L) {
       var el = document.getElementById('fccTops');
       var tabsEl = document.getElementById('fccTopsTabs');
@@ -7915,10 +8010,24 @@ function inferRequestPriority(stock, min) {
           return Array.isArray(rows) ? rows : [];
         })
         .catch(function() { return fccAsyncCache.hist || []; });
-      fccAsyncCache.pending = Promise.all([pReq, pLog, pHist]).then(function(res) {
+      var pProdVolume = requestApi(withAuthPayload({ action: 'getProductionVolume' }))
+        .then(function(rows) {
+          if (rows && rows.status === 'error') throw new Error(rows.message || 'error');
+          return Array.isArray(rows) ? rows : [];
+        })
+        .catch(function() { return fccAsyncCache.prodVolume || []; });
+      var pProdConfig = requestApi(withAuthPayload({ action: 'getProductionCostConfig' }))
+        .then(function(rows) {
+          if (rows && rows.status === 'error') throw new Error(rows.message || 'error');
+          return Array.isArray(rows) ? rows : [];
+        })
+        .catch(function() { return fccAsyncCache.prodConfig || []; });
+      fccAsyncCache.pending = Promise.all([pReq, pLog, pHist, pProdVolume, pProdConfig]).then(function(res) {
         fccAsyncCache.requests = res[0];
         fccAsyncCache.logs = res[1];
         fccAsyncCache.hist = res[2];
+        fccAsyncCache.prodVolume = res[3];
+        fccAsyncCache.prodConfig = res[4];
         fccAsyncCache.at = Date.now();
         fccAsyncCache.pending = null;
         return fccAsyncCache;
@@ -7963,6 +8072,9 @@ function inferRequestPriority(stock, min) {
         fccRenderExec(P, L);
         fccLast.Hist = A.hist;
         fccRenderExpenseChart();
+        fccLast.ProdVolume = A.prodVolume;
+        fccLast.ProdConfig = A.prodConfig;
+        fccRenderCostRatio();
       });
     }
 
@@ -11905,6 +12017,50 @@ function inferRequestPriority(stock, min) {
     if (fccExpLineFilterEl) fccExpLineFilterEl.addEventListener('change', fccRenderExpenseChart);
     var fccExpMonthFilterEl = document.getElementById('fccExpMonthFilter');
     if (fccExpMonthFilterEl) fccExpMonthFilterEl.addEventListener('change', fccRenderExpenseChart);
+    var fccCostRatioLineFilterEl = document.getElementById('fccCostRatioLineFilter');
+    if (fccCostRatioLineFilterEl) fccCostRatioLineFilterEl.addEventListener('change', fccRenderCostRatio);
+    var fccCostRatioSaveConfigBtn = document.getElementById('fccCostRatioSaveConfigBtn');
+    if (fccCostRatioSaveConfigBtn) fccCostRatioSaveConfigBtn.addEventListener('click', function() {
+      var line = fccCostRatioLineFilterEl ? String(fccCostRatioLineFilterEl.value || 'Lug&Screw') : 'Lug&Screw';
+      var unitPriceEl = document.getElementById('fccCostRatioUnitPrice');
+      var targetPctEl = document.getElementById('fccCostRatioTargetPct');
+      var msgEl = document.getElementById('fccCostRatioConfigMsg');
+      var unitPrice = Number(unitPriceEl ? unitPriceEl.value : 0) || 0;
+      var targetPct = Number(targetPctEl ? targetPctEl.value : 0) || 0;
+      if (unitPrice < 0 || targetPct < 0) { if (msgEl) msgEl.textContent = 'ค่าต้องไม่ติดลบ'; return; }
+      if (msgEl) msgEl.textContent = 'กำลังบันทึก...';
+      fccCostRatioSaveConfigBtn.disabled = true;
+      requestApi(withAuthPayload({ action: 'upsertProductionCostConfig', line: line, unit_price: unitPrice, target_pct: targetPct })).then(function(res) {
+        if (res && res.status === 'error') throw new Error(res.message || 'บันทึกไม่สำเร็จ');
+        fccLast.ProdConfig = (fccLast.ProdConfig || []).filter(function(c) { return fccLineOf(c.line) !== line; }).concat([{ line: line, unit_price: unitPrice, target_pct: targetPct }]);
+        if (msgEl) msgEl.textContent = 'บันทึกแล้ว';
+        fccRenderCostRatio();
+      }).catch(function(err) {
+        if (msgEl) msgEl.textContent = 'ผิดพลาด: ' + (err && err.message ? err.message : err);
+      }).finally(function() { fccCostRatioSaveConfigBtn.disabled = false; });
+    });
+    var fccCostRatioSaveQtyBtn = document.getElementById('fccCostRatioSaveQtyBtn');
+    if (fccCostRatioSaveQtyBtn) fccCostRatioSaveQtyBtn.addEventListener('click', function() {
+      var line = fccCostRatioLineFilterEl ? String(fccCostRatioLineFilterEl.value || 'Lug&Screw') : 'Lug&Screw';
+      var monthEl = document.getElementById('fccCostRatioNewMonth');
+      var qtyEl = document.getElementById('fccCostRatioNewQty');
+      var msgEl = document.getElementById('fccCostRatioQtyMsg');
+      var month = monthEl ? String(monthEl.value || '') : '';
+      var qty = Number(qtyEl ? qtyEl.value : NaN);
+      if (!month) { if (msgEl) msgEl.textContent = 'กรุณาเลือกเดือน'; return; }
+      if (!(qty >= 0)) { if (msgEl) msgEl.textContent = 'กรุณาระบุยอดผลิตเป็นตัวเลขไม่ติดลบ'; return; }
+      if (msgEl) msgEl.textContent = 'กำลังบันทึก...';
+      fccCostRatioSaveQtyBtn.disabled = true;
+      requestApi(withAuthPayload({ action: 'upsertProductionVolume', month: month, line: line, actual_qty: qty })).then(function(res) {
+        if (res && res.status === 'error') throw new Error(res.message || 'บันทึกไม่สำเร็จ');
+        fccLast.ProdVolume = (fccLast.ProdVolume || []).filter(function(v) { return !(v.month === month && fccLineOf(v.line) === line); }).concat([{ month: month, line: line, actual_qty: qty }]);
+        if (msgEl) msgEl.textContent = 'บันทึกยอดผลิตเดือน ' + fccMonthLabel(month) + ' แล้ว';
+        if (qtyEl) qtyEl.value = '';
+        fccRenderCostRatio();
+      }).catch(function(err) {
+        if (msgEl) msgEl.textContent = 'ผิดพลาด: ' + (err && err.message ? err.message : err);
+      }).finally(function() { fccCostRatioSaveQtyBtn.disabled = false; });
+    });
     function initDashboardSidebarNav() {
       var wrap = document.getElementById('dashboardSidebarWrap');
       var menu = document.getElementById('dashboardSidebarMenu');
