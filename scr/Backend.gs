@@ -20,7 +20,8 @@ SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCost
 // รายรุ่นไว้คำนวณมูลค่าผลิตแบบต่อรุ่นภายหลัง
 SPARE_APP_CONFIG.productionLogSources = SPARE_APP_CONFIG.productionLogSources || {
   'Lug&Screw': { id: '1Xx2XEGtT-KbnvVP_9gzkW9kuyFUBpj1H-oIsT3zUx1U', sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty' },
-  'H9': { id: '1PYcAatoJ4QX28uQ_LF8dDC6oTiMWbfPs5TZDfGJVa4U', sheet: 'Plan', dateCol: 'Actual complete date', qtyCol: 'Actual', modelCol: 'Order model' }
+  'H9': { id: '1PYcAatoJ4QX28uQ_LF8dDC6oTiMWbfPs5TZDfGJVa4U', sheet: 'Plan', dateCol: 'Actual complete date', qtyCol: 'Actual', modelCol: 'Order model' },
+  'Coil Winding': { id: '11NGAEXnTZIXMseO_0vfA-yRWxBXEiWpNkCIdIQq2ftQ', sheet: 'Production_Data', dateCol: 'Date', qtyCol: 'FG', modelCol: 'Product' }
 };
 SPARE_APP_CONFIG.sessionDurationMs = SPARE_APP_CONFIG.sessionDurationMs || (7 * 24 * 60 * 60 * 1000);
 SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThresholdMs || (24 * 60 * 60 * 1000);
