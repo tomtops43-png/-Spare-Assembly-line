@@ -7503,21 +7503,26 @@ function inferRequestPriority(stock, min) {
         var spend = spendByMonth[m] || 0;
         var value = qty * unitPrice;
         var pct = value > 0 ? (spend / value * 100) : null;
+        // งบต้นทุนที่ควบคุมได้จริง (บาท) = มูลค่าผลิต (ยอดขายทั้งหมด) x เป้าหมาย % — แปลง %
+        // เป็นตัวเลขงบประมาณที่ใช้เทียบกับรายจ่ายจริงได้ตรงๆ ไม่ต้องตีความจาก % เอง
+        var budgetCap = (targetPct > 0 && value > 0) ? value * targetPct / 100 : null;
+        var remain = budgetCap !== null ? budgetCap - spend : null;
         var statusHtml;
         if (pct === null) statusHtml = '<span style="color:#94a3b8;">— ต้องตั้งราคา/หน่วยก่อน</span>';
-        else if (targetPct > 0 && pct > targetPct) statusHtml = '<span style="color:#dc2626;font-weight:700;">⚠️ เกินเป้า ' + pct.toFixed(1) + '%</span>';
-        else statusHtml = '<span style="color:#16a34a;font-weight:700;">✅ ' + pct.toFixed(1) + '%</span>';
+        else if (targetPct > 0 && pct > targetPct) statusHtml = '<span style="color:#dc2626;font-weight:700;">⚠️ เกินเป้า ' + pct.toFixed(1) + '%' + (remain !== null ? ' (เกินงบ ฿' + fccInt(Math.abs(remain)) + ')' : '') + '</span>';
+        else statusHtml = '<span style="color:#16a34a;font-weight:700;">✅ ' + pct.toFixed(1) + '%' + (remain !== null ? ' (เหลืองบ ฿' + fccInt(remain) + ')' : '') + '</span>';
         return '<tr style="border-bottom:1px solid #f1f5f9;">' +
           '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccMonthLabel(m)) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + fccInt(qty) + ' ชิ้น</td>' +
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(value) + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;">' + (budgetCap !== null ? '฿' + fccInt(budgetCap) : '<span style="color:#94a3b8;">—</span>') + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(spend) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + statusHtml + '</td>' +
           '</tr>';
       }).join('');
       tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
         '<thead><tr style="border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;">' +
-        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต</th><th style="padding:6px 10px;text-align:right;">รายจ่ายอะไหล่</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
+        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต (ยอดขาย)</th><th style="padding:6px 10px;text-align:right;">งบต้นทุน (เป้าหมาย)</th><th style="padding:6px 10px;text-align:right;">รายจ่ายอะไหล่จริง</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>';
       // ราคา/หน่วยมักเป็นเลขทศนิยมน้อยกว่า 1 บาท (เช่น 0.1 บาท/ชิ้น) — ห้ามใช้ fccInt() ที่ปัดเศษ
       // เป็นจำนวนเต็ม เพราะจะกลายเป็น "฿0" ทำให้เข้าใจผิดว่ายังไม่ได้ตั้งราคา
@@ -12052,6 +12057,28 @@ function inferRequestPriority(stock, min) {
         if (msgEl) msgEl.textContent = 'ผิดพลาด: ' + (err && err.message ? err.message : err);
       }).finally(function() { fccCostRatioSaveConfigBtn.disabled = false; });
     });
+    var fccCostRatioNewMonthEl = document.getElementById('fccCostRatioNewMonth');
+    // เลือกเดือนแล้วดึงยอดผลิตที่เคยบันทึกไว้ของเดือนนั้น (ไลน์เดียวกัน) มาเติมในช่องให้เลย
+    // แทนที่จะปล่อยว่าง จะได้เห็น/แก้ไขค่าที่มีอยู่แล้วแทนการพิมพ์ทับแบบไม่รู้ค่าก่อนหน้า
+    function fccCostRatioAutofillQty() {
+      var qtyEl = document.getElementById('fccCostRatioNewQty');
+      var msgEl = document.getElementById('fccCostRatioQtyMsg');
+      if (!fccCostRatioNewMonthEl || !qtyEl) return;
+      var month = String(fccCostRatioNewMonthEl.value || '');
+      var line = fccCostRatioLineFilterEl ? String(fccCostRatioLineFilterEl.value || 'Lug&Screw') : 'Lug&Screw';
+      if (!month) return;
+      var key = fccMonthKey(month);
+      var existing = (fccLast.ProdVolume || []).filter(function(v) { return fccMonthKey(v.month) === key && fccLineOf(v.line) === line; })[0];
+      if (existing) {
+        qtyEl.value = existing.actual_qty;
+        if (msgEl) msgEl.textContent = 'มีข้อมูลเดือนนี้อยู่แล้ว (' + fccInt(existing.actual_qty) + ' ชิ้น) — แก้ไขแล้วกดบันทึกเพื่ออัปเดต';
+      } else {
+        qtyEl.value = '';
+        if (msgEl) msgEl.textContent = '';
+      }
+    }
+    if (fccCostRatioNewMonthEl) fccCostRatioNewMonthEl.addEventListener('change', fccCostRatioAutofillQty);
+    if (fccCostRatioLineFilterEl) fccCostRatioLineFilterEl.addEventListener('change', fccCostRatioAutofillQty);
     var fccCostRatioSaveQtyBtn = document.getElementById('fccCostRatioSaveQtyBtn');
     if (fccCostRatioSaveQtyBtn) fccCostRatioSaveQtyBtn.addEventListener('click', function() {
       var line = fccCostRatioLineFilterEl ? String(fccCostRatioLineFilterEl.value || 'Lug&Screw') : 'Lug&Screw';
