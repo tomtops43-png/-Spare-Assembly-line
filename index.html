@@ -12133,7 +12133,9 @@ if (dashboardPage) {
       var tbc = normalized.filter(function(c){ return c.unitPrice === null; });
       var totalAmount = confirmed.reduce(function(sum, c){ return sum + c.amount; }, 0);
       var outCount = normalized.filter(function(c){ return c.stock <= 0; }).length;
-      var highCriticalCount = normalized.filter(function(c){ var lv=String(c.critical||'').toLowerCase(); return lv.indexOf('high')>-1 || lv.indexOf('critical')>-1; }).length;
+      // ต้องนับตาม label "Below Min — Reorder Required" จริงๆ คือของเหลือน้อยกว่า min แต่ยังไม่หมด (0 < stock < min)
+      // ไม่ใช่นับจาก priority level (เดิมนับ High/Critical priority ซึ่งเป็นคนละความหมายกับ label ทำให้ตัวเลขดูขัดแย้งกับ Out of Stock)
+      var highCriticalCount = normalized.filter(function(c){ return c.stock > 0 && c.min > 0 && c.stock < c.min; }).length;
 
       var urgentItems = normalized.slice().sort(function(a,b){
         function score(x){
@@ -12170,8 +12172,9 @@ if (dashboardPage) {
           '<col style="width:6%"><col style="width:10%"><col style="width:31%"><col style="width:6%"><col style="width:10%"><col style="width:9%"><col style="width:10%"><col style="width:8%"><col style="width:10%">' +
         '</colgroup>';
       }
-      function annexRows(items, includeLine) {
-        if (!items.length) return '<tr><td colspan="8" class="empty">No critical reference pictures</td></tr>';
+      function annexRows(items, includeLine, counter) {
+        if (!items.length) return '<tr><td colspan="9" class="empty">No critical reference pictures</td></tr>';
+        counter = counter || { n: 0 };
         return items.map(function(c){
           var remark = [];
           var lv = String(c.critical || '').toLowerCase();
@@ -12187,12 +12190,14 @@ if (dashboardPage) {
           if (c.unitPrice === null) remark.push('TBC item needs visual identification');
           if (needsVisual) remark.push('Need picture for purchasing identification');
           var imgHtml = c.image ? '<img loading="lazy" src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.outerHTML=\"No image available\";" />' : 'No image available';
-          var cols = ['<td>' + imgHtml + '</td>','<td>'+esc(c.name)+'</td>','<td>'+esc(c.line)+'</td>','<td>'+esc(c.brand)+'</td>','<td>'+esc(c.model || c.no)+'</td>','<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.unit || 'PCS')+'</td>','<td>'+esc(remark.join(', ') || 'Reference')+'</td>'];
+          counter.n += 1;
+          var cols = ['<td class="num">'+counter.n+'</td>','<td>' + imgHtml + '</td>','<td>'+esc(c.name)+'</td>','<td>'+esc(c.line)+'</td>','<td>'+esc(c.brand)+'</td>','<td>'+esc(c.model || c.no)+'</td>','<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.unit || 'PCS')+'</td>','<td>'+esc(remark.join(', ') || 'Reference')+'</td>'];
           return '<tr>' + cols.join('') + '</tr>';
         }).join('');
       }
-      function annexRowsByModelGroup(items, includeLine) {
-        if (!items.length) return '<tr><td colspan="8" class="empty">No critical reference pictures</td></tr>';
+      function annexRowsByModelGroup(items, includeLine, counter) {
+        if (!items.length) return '<tr><td colspan="9" class="empty">No critical reference pictures</td></tr>';
+        counter = counter || { n: 0 };
         var groupOrder = [];
         var grouped = {};
         items.forEach(function(it){
@@ -12213,10 +12218,10 @@ if (dashboardPage) {
         groupOrder.forEach(function(g){
           var arr = grouped[g] || [];
           if (!arr.length) return;
-          html += '<tr><td colspan="8" style="background:#f8fafc;font-weight:700">Stock Page: '+esc(g)+' ('+arr.length+' items)</td></tr>';
-          html += annexRows(arr, includeLine);
+          html += '<tr><td colspan="9" style="background:#f8fafc;font-weight:700">Stock Page: '+esc(g)+' ('+arr.length+' items)</td></tr>';
+          html += annexRows(arr, includeLine, counter);
         });
-        return html || annexRows(items, includeLine);
+        return html || annexRows(items, includeLine, counter);
       }
 
       var includeLineColumn = !isLineSpecific;
@@ -12373,15 +12378,16 @@ if (dashboardPage) {
           return a.localeCompare(b);
         });
         var html = '';
+        var counter = { n: 0 };
         orderedKeys.forEach(function(ln){
           var arr = grouped[ln] || [];
           if (!arr.length) return;
-          html += '<tr><td colspan="8" style="background:#e2e8f0;font-weight:800">Line: '+esc(ln)+' ('+arr.length+' items)</td></tr>';
-          html += ln === 'Coil Winding' ? annexRowsByModelGroup(arr, true) : annexRows(arr, true);
+          html += '<tr><td colspan="9" style="background:#e2e8f0;font-weight:800">Line: '+esc(ln)+' ('+arr.length+' items)</td></tr>';
+          html += ln === 'Coil Winding' ? annexRowsByModelGroup(arr, true, counter) : annexRows(arr, true, counter);
         });
         return html || annexRows(items, true);
       }
-      var annexCHtml = includeAnnexC ? ('<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table"><thead><tr><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (isLineSpecific ? annexRows(annexItems, true) : annexRowsByLine(annexItems)) + '</tbody></table>') : '';
+      var annexCHtml = includeAnnexC ? ('<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table annex-table-pics"><thead><tr><th>No.</th><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (isLineSpecific ? annexRows(annexItems, true) : annexRowsByLine(annexItems)) + '</tbody></table>') : '';
       var annexDNumber = (isLineSpecific ? (includeAnnexC ? '10' : '9') : (includeAnnexC ? '9' : '8'));
       var annexDHtml = includeAnnexD ? ('<h2 class="section-table">' + annexDNumber + '. Annex D: Drawing Reference List</h2><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Drawing Status</th><th>Drawing Revision</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + annexDrawingRows(normalized) + '</tbody></table>') : '';
       var separateDrawingHtml = attachDrawingsSeparately ? ('<h2 class="section-table">Drawing Files to Attach Separately</h2><p class="sub">Use these source links to attach drawing files outside the main PR PDF package.</p><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + drawingAttachmentRows(normalized) + '</tbody></table>') : '';
@@ -12499,8 +12505,9 @@ if (dashboardPage) {
         '.pr-doc .pr-items td:nth-child(5),.pr-doc .pr-items td:nth-child(6){text-align:center;}' +
         '.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right;}' +
         '.pr-doc img{width:90px;height:65px;object-fit:contain;}' +
-        '.pr-doc .annex-table td:first-child{text-align:center;padding:4px;width:100px;}' +
-        '.pr-doc .annex-table td:first-child img{display:block;margin:0 auto;width:72px;height:52px;object-fit:contain;border-radius:2px;}' +
+        '.pr-doc .annex-table td:first-child{text-align:center;padding:4px;width:34px;}' +
+        '.pr-doc .annex-table-pics td:nth-child(2){text-align:center;padding:4px;width:100px;}' +
+        '.pr-doc .annex-table-pics td:nth-child(2) img{display:block;margin:0 auto;width:72px;height:52px;object-fit:contain;border-radius:2px;}' +
         '.pr-doc .empty{text-align:center;color:#94a3b8;font-style:italic;}' +
         '.pr-doc .drawing-page{page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px;}' +
         '.pr-doc .drawing-full-image{display:block;width:100%;height:auto;max-height:900px;object-fit:contain;}' +
