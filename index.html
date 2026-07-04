@@ -7487,11 +7487,14 @@ function inferRequestPriority(stock, min) {
       fccExpenseValidRows(hist).filter(function(r) { return r.line === line; }).forEach(function(r) {
         spendByMonth[r.month] = (spendByMonth[r.month] || 0) + r.amount;
       });
-      var qtyByMonth = {};
+      var qtyByMonth = {}, sourceByMonth = {};
       prodVolume.filter(function(v) { return fccLineOf(v.line) === line; }).forEach(function(v) {
         var key = fccMonthKey(v.month);
         qtyByMonth[key] = (qtyByMonth[key] || 0) + fccN(v.actual_qty);
+        if (v.source === 'auto') sourceByMonth[key] = 'auto';
+        else if (!sourceByMonth[key]) sourceByMonth[key] = v.source || 'manual';
       });
+      var hasAutoSync = Object.keys(sourceByMonth).some(function(k) { return sourceByMonth[k] === 'auto'; });
       var months = Array.from(new Set(Object.keys(spendByMonth).concat(Object.keys(qtyByMonth)))).sort().reverse();
       if (!months.length) {
         tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลยอดผลิต/รายจ่ายของ Line นี้ — เพิ่มยอดผลิตด้านล่างเพื่อเริ่มคำนวณ</div>';
@@ -7511,8 +7514,11 @@ function inferRequestPriority(stock, min) {
         if (pct === null) statusHtml = '<span style="color:#94a3b8;">— ต้องตั้งราคา/หน่วยก่อน</span>';
         else if (targetPct > 0 && pct > targetPct) statusHtml = '<span style="color:#dc2626;font-weight:700;">⚠️ เกินเป้า ' + pct.toFixed(1) + '%' + (remain !== null ? ' (เกินงบ ฿' + fccInt(Math.abs(remain)) + ')' : '') + '</span>';
         else statusHtml = '<span style="color:#16a34a;font-weight:700;">✅ ' + pct.toFixed(1) + '%' + (remain !== null ? ' (เหลืองบ ฿' + fccInt(remain) + ')' : '') + '</span>';
+        var srcBadge = sourceByMonth[m] === 'auto'
+          ? '<span title="ดึงยอดผลิตอัตโนมัติจาก ProductionLog" style="margin-left:5px;font-size:9px;color:#2563eb;">🔄 auto</span>'
+          : (sourceByMonth[m] === 'manual' ? '<span title="กรอกมือ" style="margin-left:5px;font-size:9px;color:#94a3b8;">✏️ manual</span>' : '');
         return '<tr style="border-bottom:1px solid #f1f5f9;">' +
-          '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccMonthLabel(m)) + '</td>' +
+          '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccMonthLabel(m)) + srcBadge + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + fccInt(qty) + ' ชิ้น</td>' +
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(value) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + (budgetCap !== null ? '฿' + fccInt(budgetCap) : '<span style="color:#94a3b8;">—</span>') + '</td>' +
@@ -7527,7 +7533,7 @@ function inferRequestPriority(stock, min) {
       // ราคา/หน่วยมักเป็นเลขทศนิยมน้อยกว่า 1 บาท (เช่น 0.1 บาท/ชิ้น) — ห้ามใช้ fccInt() ที่ปัดเศษ
       // เป็นจำนวนเต็ม เพราะจะกลายเป็น "฿0" ทำให้เข้าใจผิดว่ายังไม่ได้ตั้งราคา
       var unitPriceDisplay = unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-      if (sub) sub.textContent = line + (unitPrice > 0 ? ' · ราคา/หน่วย ฿' + unitPriceDisplay : ' · ยังไม่ได้ตั้งราคา/หน่วย') + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      if (sub) sub.textContent = (hasAutoSync ? '🔄 ดึงยอดผลิตอัตโนมัติจาก ProductionLog · ' : '') + line + (unitPrice > 0 ? ' · ราคา/หน่วย ฿' + unitPriceDisplay : ' · ยังไม่ได้ตั้งราคา/หน่วย') + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
     }
     function fccRenderTops(P, L) {
       var el = document.getElementById('fccTops');
@@ -12071,7 +12077,11 @@ function inferRequestPriority(stock, min) {
       var existing = (fccLast.ProdVolume || []).filter(function(v) { return fccMonthKey(v.month) === key && fccLineOf(v.line) === line; })[0];
       if (existing) {
         qtyEl.value = existing.actual_qty;
-        if (msgEl) msgEl.textContent = 'มีข้อมูลเดือนนี้อยู่แล้ว (' + fccInt(existing.actual_qty) + ' ชิ้น) — แก้ไขแล้วกดบันทึกเพื่ออัปเดต';
+        if (msgEl) {
+          msgEl.textContent = existing.source === 'auto'
+            ? '🔄 เดือนนี้ดึงยอดผลิตอัตโนมัติจาก ProductionLog อยู่แล้ว (' + fccInt(existing.actual_qty) + ' ชิ้น) — ถ้ากรอกมือจะถูกดึงอัตโนมัติทับอีกครั้งในรอบถัดไป'
+            : 'มีข้อมูลเดือนนี้อยู่แล้ว (' + fccInt(existing.actual_qty) + ' ชิ้น) — แก้ไขแล้วกดบันทึกเพื่ออัปเดต';
+        }
       } else {
         qtyEl.value = '';
         if (msgEl) msgEl.textContent = '';
