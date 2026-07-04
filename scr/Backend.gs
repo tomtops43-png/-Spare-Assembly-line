@@ -11,12 +11,16 @@ SPARE_APP_CONFIG.purchaseHistoryAuditSheetName = SPARE_APP_CONFIG.purchaseHistor
 SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName || 'PurchaseHistoryImportLog';
 SPARE_APP_CONFIG.productionVolumeSheetName = SPARE_APP_CONFIG.productionVolumeSheetName || 'ProductionVolume';
 SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCostConfigSheetName || 'ProductionCostConfig';
-// ชีต "ProductionLog" ของแต่ละไลน์ที่มีระบบติดตามยอดผลิตแยกต่างหาก (Google Sheet คนละไฟล์กับ
-// สเปรดชีตอะไหล่) — ถ้าตั้งค่าไว้ ระบบจะดึงยอดผลิตจริงมาคำนวณอัตโนมัติแทนการกรอกมือ
-// ต้องให้บัญชีที่รัน Apps Script นี้มีสิทธิ์ View/Edit ไฟล์ปลายทางด้วย ไม่งั้นจะ fallback ไปใช้
-// ค่าที่กรอกมือแทนเงียบๆ
+// ชีตติดตามยอดผลิตของแต่ละไลน์ (Google Sheet คนละไฟล์กับสเปรดชีตอะไหล่) — ถ้าตั้งค่าไว้ ระบบจะดึง
+// ยอดผลิตจริงมาคำนวณอัตโนมัติแทนการกรอกมือ ต้องให้บัญชีที่รัน Apps Script นี้มีสิทธิ์ View ไฟล์
+// ปลายทางด้วย ไม่งั้นจะ fallback ไปใช้ค่าที่กรอกมือแทนเงียบๆ
+// รูปแบบค่า: string = spreadsheet id (ใช้ค่า default sheet/คอลัมน์แบบ Lug&Screw) หรือ object
+// { id, sheet, dateCol, qtyCol, [modelCol] } เพื่อระบุชื่อชีต/คอลัมน์เอง (แต่ละไลน์โครงสร้างต่างกัน)
+// modelCol (ถ้ามี) = คอลัมน์รุ่นสินค้า สำหรับไลน์ที่ราคาต่างกันตาม Model เช่น H9 — เก็บ breakdown
+// รายรุ่นไว้คำนวณมูลค่าผลิตแบบต่อรุ่นภายหลัง
 SPARE_APP_CONFIG.productionLogSources = SPARE_APP_CONFIG.productionLogSources || {
-  'Lug&Screw': '1Xx2XEGtT-KbnvVP_9gzkW9kuyFUBpj1H-oIsT3zUx1U'
+  'Lug&Screw': { id: '1Xx2XEGtT-KbnvVP_9gzkW9kuyFUBpj1H-oIsT3zUx1U', sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty' },
+  'H9': { id: '1PYcAatoJ4QX28uQ_LF8dDC6oTiMWbfPs5TZDfGJVa4U', sheet: 'Plan', dateCol: 'Actual complete date', qtyCol: 'Actual', modelCol: 'Order model' }
 };
 SPARE_APP_CONFIG.sessionDurationMs = SPARE_APP_CONFIG.sessionDurationMs || (7 * 24 * 60 * 60 * 1000);
 SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThresholdMs || (24 * 60 * 60 * 1000);
@@ -665,9 +669,22 @@ function requireProductionCostEditor(payload) {
 // อ่านชีต "ProductionLog" ของสเปรดชีตภายนอก (คนละไฟล์กับสเปรดชีตอะไหล่) แล้วรวมยอด ActualQty
 // เป็นรายเดือน (รวมทุกเครื่อง) — cache ไว้ 30 นาทีเพราะชีตต้นทางมีเป็นพันแถว อ่านทุกครั้งจะช้า
 // คืนค่า null ถ้าไม่มีสิทธิ์เข้าถึง/ไม่พบชีต เพื่อให้ผู้เรียกใช้ fallback ไปใช้ค่าที่กรอกมือแทน
+// แปลง config เป็น object มาตรฐานเสมอ (รองรับทั้งแบบเก่าที่เป็น string id และแบบใหม่ที่เป็น object)
+function normalizeProductionSourceConfig(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'string') return { id: raw, sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty', modelCol: '' };
+  return {
+    id: raw.id || '',
+    sheet: raw.sheet || 'ProductionLog',
+    dateCol: raw.dateCol || 'Date',
+    qtyCol: raw.qtyCol || 'ActualQty',
+    modelCol: raw.modelCol || ''
+  };
+}
+
 function getExternalProductionVolumeForLine(line) {
-  var sourceId = (SPARE_APP_CONFIG.productionLogSources || {})[line];
-  if (!sourceId) return null;
+  var cfg = normalizeProductionSourceConfig((SPARE_APP_CONFIG.productionLogSources || {})[line]);
+  if (!cfg || !cfg.id) return null;
   var cacheKey = 'prod_volume_external::' + line;
   try {
     var cached = CacheService.getScriptCache().get(cacheKey);
@@ -676,29 +693,49 @@ function getExternalProductionVolumeForLine(line) {
     Logger.log('getExternalProductionVolumeForLine cache read warning: ' + (cacheReadErr && cacheReadErr.message ? cacheReadErr.message : cacheReadErr));
   }
   try {
-    var sourceSheet = SpreadsheetApp.openById(sourceId).getSheetByName('ProductionLog');
+    var sourceSheet = SpreadsheetApp.openById(cfg.id).getSheetByName(cfg.sheet);
     if (!sourceSheet) return null;
     var values = sourceSheet.getDataRange().getValues();
     if (values.length <= 1) return [];
     var headers = values[0];
-    var dateCol = -1, qtyCol = -1;
+    // จับคู่คอลัมน์แบบตรงตัว (lowercased+trim) ไม่ใช่ substring — กัน "Actual" ไปชน "Actual Scan"/
+    // "Actual complete date" และ "Actual complete date" ไปชน "Actual complete date 0"
+    var wantDate = String(cfg.dateCol).trim().toLowerCase();
+    var wantQty = String(cfg.qtyCol).trim().toLowerCase();
+    var wantModel = cfg.modelCol ? String(cfg.modelCol).trim().toLowerCase() : '';
+    var dateCol = -1, qtyCol = -1, modelCol = -1;
     for (var i = 0; i < headers.length; i += 1) {
       var h = String(headers[i] || '').trim().toLowerCase();
-      if (h === 'date') dateCol = i;
-      if (h === 'actualqty') qtyCol = i;
+      if (h === wantDate && dateCol === -1) dateCol = i;
+      if (h === wantQty && qtyCol === -1) qtyCol = i;
+      if (wantModel && h === wantModel && modelCol === -1) modelCol = i;
     }
     if (dateCol === -1 || qtyCol === -1) return null;
-    var byMonth = {};
+    var byMonth = {}, byMonthModel = {};
     for (var r = 1; r < values.length; r += 1) {
       var dateVal = values[r][dateCol];
       var qty = Number(values[r][qtyCol] || 0);
-      if (!dateVal || !isFinite(qty)) continue;
+      if (!dateVal || !isFinite(qty) || qty <= 0) continue;
       var d = dateVal instanceof Date ? dateVal : new Date(dateVal);
       if (isNaN(d.getTime())) continue;
+      // ข้ามงานที่ยังไม่ได้บันทึกวันเสร็จ (Actual complete date ว่าง/เป็น 0 → Excel epoch ปี 1899)
+      if (d.getFullYear() < 2000) continue;
       var monthKey = Utilities.formatDate(d, 'Asia/Bangkok', 'yyyy-MM');
       byMonth[monthKey] = (byMonth[monthKey] || 0) + qty;
+      if (modelCol !== -1) {
+        var model = String(values[r][modelCol] || '').trim();
+        if (model) {
+          if (!byMonthModel[monthKey]) byMonthModel[monthKey] = {};
+          byMonthModel[monthKey][model] = (byMonthModel[monthKey][model] || 0) + qty;
+        }
+      }
     }
-    var result = Object.keys(byMonth).map(function(m) { return { month: m, actual_qty: byMonth[m] }; });
+    var result = Object.keys(byMonth).map(function(m) {
+      var row = { month: m, actual_qty: byMonth[m] };
+      // แนบ breakdown รายรุ่น (สำหรับไลน์ที่ราคาต่างกันตาม Model เช่น H9) ไว้คำนวณมูลค่าผลิตต่อรุ่น
+      if (byMonthModel[m]) row.by_model = byMonthModel[m];
+      return row;
+    });
     try {
       CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 1800);
     } catch (cacheWriteErr) {
@@ -728,6 +765,7 @@ function getProductionVolume(payload) {
         if (manual[i].line === line && manual[i].month === row.month) { idx = i; break; }
       }
       var entry = { month: row.month, line: line, actual_qty: row.actual_qty, updated_by: 'ProductionLog (auto)', updated_at: '', source: 'auto' };
+      if (row.by_model) entry.by_model = row.by_model; // breakdown รายรุ่น (ไลน์ที่ราคาต่างตาม Model เช่น H9)
       if (idx === -1) manual.push(entry); else manual[idx] = entry;
     });
   });
