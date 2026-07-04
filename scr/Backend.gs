@@ -11,6 +11,10 @@ SPARE_APP_CONFIG.purchaseHistoryAuditSheetName = SPARE_APP_CONFIG.purchaseHistor
 SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName || 'PurchaseHistoryImportLog';
 SPARE_APP_CONFIG.productionVolumeSheetName = SPARE_APP_CONFIG.productionVolumeSheetName || 'ProductionVolume';
 SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCostConfigSheetName || 'ProductionCostConfig';
+// Purchase Request (PR) — ระบบอนุมัติก่อนปริ้น (Header/Lines/Audit แยกชีท)
+SPARE_APP_CONFIG.prHeaderSheetName = SPARE_APP_CONFIG.prHeaderSheetName || 'PRHeaders';
+SPARE_APP_CONFIG.prLinesSheetName = SPARE_APP_CONFIG.prLinesSheetName || 'PRLines';
+SPARE_APP_CONFIG.prAuditSheetName = SPARE_APP_CONFIG.prAuditSheetName || 'PRAudit';
 // ชีตติดตามยอดผลิตของแต่ละไลน์ (Google Sheet คนละไฟล์กับสเปรดชีตอะไหล่) — ถ้าตั้งค่าไว้ ระบบจะดึง
 // ยอดผลิตจริงมาคำนวณอัตโนมัติแทนการกรอกมือ ต้องให้บัญชีที่รัน Apps Script นี้มีสิทธิ์ View ไฟล์
 // ปลายทางด้วย ไม่งั้นจะ fallback ไปใช้ค่าที่กรอกมือแทนเงียบๆ
@@ -40,6 +44,11 @@ var PURCHASE_HISTORY_SOURCES = ['Purchase Request', 'PR Report', 'Manual', 'Auto
 var PRODUCTION_VOLUME_HEADERS = ['Month', 'Line', 'Actual Qty', 'Updated By', 'Updated At'];
 // ราคาต่อหน่วย (บาท/ชิ้น) และเป้าหมาย % ที่ต้องการควบคุมรายจ่ายอะไหล่ให้อยู่ในกรอบ ต่อไลน์
 var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updated By', 'Updated At'];
+// Purchase Request (PR) schema — เก็บ qty_requested (ล็อก) แยกจาก qty_approved (หัวหน้าแก้ได้)
+var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at'];
+var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark'];
+var PR_AUDIT_HEADERS = ['timestamp', 'pr_id', 'action', 'actor', 'line', 'old_qty', 'new_qty', 'detail'];
+var PR_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
 var DRIVE_ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
 var DRAWING_STATUS_OPTIONS = ['Available', 'Missing', 'Not Required', 'Access Required'];
@@ -341,7 +350,20 @@ function getUsersSheet() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var usersSheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.usersSheetName);
   ensureUsersSheetHeaders(usersSheet);
+  ensureUsersLineColumn(usersSheet);
   return usersSheet;
+}
+
+// เพิ่มคอลัมน์ 'line' ต่อท้าย Users แบบไม่ทำลายข้อมูลเดิม (ใช้ระบุไลน์ของหัวหน้า)
+// คืนค่า index แบบ 0-based ของคอลัมน์ line
+function ensureUsersLineColumn(sheet) {
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return -1;
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var idx = headers.indexOf('line');
+  if (idx !== -1) return idx;
+  sheet.getRange(1, lastCol + 1).setValue('line');
+  return lastCol;
 }
 
 function getPurchaseHistoryHeaderMap(headers) {
@@ -1432,6 +1454,380 @@ function convertOrderRequestsToPR(payload) {
   return { status: 'success', converted_pr_id: convertedPrId, count: ids.length };
 }
 
+// =============================
+// PURCHASE REQUEST (PR) — ประตูอนุมัติก่อนปริ้น + audit
+// เก็บ 3 ชีทแยก: PRHeaders / PRLines / PRAudit
+// กติกา: qty_requested ล็อก ห้ามเขียนทับ, qty_approved เท่านั้นที่หัวหน้าแก้ได้
+// สถานะ: DRAFT -> PENDING -> APPROVED / REJECTED (ปริ้นได้เฉพาะ APPROVED)
+// =============================
+function prStr(v) { return v === undefined || v === null ? '' : String(v); }
+
+function getPrSheetWithHeaders(sheetName, headers) {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, sheetName);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+  } else {
+    // เพิ่มคอลัมน์ที่ขาดแบบ additive (ไม่ทำลายของเดิม) เหมือน getOrderRequestSheet
+    var currentHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), headers.length)).getValues()[0];
+    headers.forEach(function(header) {
+      if (currentHeaders.indexOf(header) !== -1) return;
+      var nextColumn = sheet.getLastColumn() + 1;
+      sheet.getRange(1, nextColumn).setValue(header);
+      currentHeaders.push(header);
+    });
+  }
+  return sheet;
+}
+function getPrHeaderSheet() { return getPrSheetWithHeaders(SPARE_APP_CONFIG.prHeaderSheetName, PR_HEADER_HEADERS); }
+function getPrLinesSheet() { return getPrSheetWithHeaders(SPARE_APP_CONFIG.prLinesSheetName, PR_LINE_HEADERS); }
+function getPrAuditSheet() { return getPrSheetWithHeaders(SPARE_APP_CONFIG.prAuditSheetName, PR_AUDIT_HEADERS); }
+
+function prIndexMap(headerRow) {
+  var idx = {};
+  (headerRow || []).forEach(function(h, i) { idx[String(h)] = i; });
+  return idx;
+}
+
+function appendPrAudit(prId, action, actor, line, oldQty, newQty, detail) {
+  try {
+    getPrAuditSheet().appendRow([
+      Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
+      prStr(prId), prStr(action), prStr(actor), prStr(line),
+      (oldQty === undefined || oldQty === null ? '' : oldQty),
+      (newQty === undefined || newQty === null ? '' : newQty),
+      prStr(detail)
+    ]);
+  } catch (auditErr) {
+    Logger.log('appendPrAudit warning [' + prId + '/' + action + ']: ' + (auditErr && auditErr.message ? auditErr.message : auditErr));
+  }
+}
+
+function parsePrLinesInput(raw) {
+  if (!raw) return [];
+  var parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch (err) { throw new Error('รูปแบบ lines_json ไม่ถูกต้อง'); }
+  }
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+// หัวหน้า (leader/supervisor) เห็น+อนุมัติได้เฉพาะไลน์ตัวเอง; admin/manager (pr_view_all) ข้ามไลน์ได้
+// หัวหน้าที่ยังไม่ถูกกำหนดไลน์ (user.line ว่าง) จะไม่ถูกจำกัด เพื่อไม่ให้ระบบล็อกตัวเอง
+function prUserCanAccessLine(user, prLine) {
+  if (user.permissions && user.permissions.pr_view_all) return true;
+  var myLine = String(user.line || '').trim();
+  if (!myLine) return true;
+  return String(prLine || '').trim() === myLine;
+}
+
+function prHeaderRowToCard(hIdx, row) {
+  return {
+    pr_id: prStr(row[hIdx.pr_id]),
+    status: prStr(row[hIdx.status]),
+    created_by: prStr(row[hIdx.created_by]),
+    created_at: prStr(row[hIdx.created_at]),
+    line: prStr(row[hIdx.line]),
+    dept: prStr(row[hIdx.dept]),
+    item_count: Number(row[hIdx.item_count] || 0),
+    total_amount: Number(row[hIdx.total_amount] || 0),
+    approved_by: prStr(row[hIdx.approved_by]),
+    approved_at: prStr(row[hIdx.approved_at]),
+    reject_reason: prStr(row[hIdx.reject_reason]),
+    updated_at: prStr(row[hIdx.updated_at])
+  };
+}
+
+// อ่านการ์ด PR ตามสถานะที่ต้องการ (filter ตาม role/line ของผู้ใช้)
+function listPrCardsForUser(user, statuses) {
+  var wanted = {};
+  (statuses || []).forEach(function(s) { wanted[s] = true; });
+  var sheet = getPrHeaderSheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var hIdx = prIndexMap(data[0]);
+  var cards = [];
+  for (var i = 1; i < data.length; i += 1) {
+    var row = data[i];
+    var status = prStr(row[hIdx.status]);
+    if (!wanted[status]) continue;
+    if (!prUserCanAccessLine(user, prStr(row[hIdx.line]))) continue;
+    cards.push(prHeaderRowToCard(hIdx, row));
+  }
+  cards.sort(function(a, b) {
+    return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+  });
+  return cards;
+}
+
+function findPrHeaderRow(data, hIdx, prId) {
+  for (var i = 1; i < data.length; i += 1) {
+    if (String(data[i][hIdx.pr_id]) === String(prId)) return i;
+  }
+  return -1;
+}
+
+// สร้าง PR ใหม่ -> สถานะ PENDING (ปริ้นไม่ได้จนกว่าจะอนุมัติ) แบบ atomic
+function createPR(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return createPRUnlocked(payload); } finally { lock.releaseLock(); }
+}
+function createPRUnlocked(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'pr_create');
+  var lines = parsePrLinesInput(payload.lines_json || payload.lines);
+  if (!lines.length) throw new Error('ต้องมีรายการอย่างน้อย 1 บรรทัดใน PR');
+
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var prId = String(payload.pr_id || '').trim() ||
+    ('PR-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + Math.floor(Math.random() * 900 + 100));
+  var headerLine = String(payload.line || user.line || '').trim();
+  var dept = String(payload.dept || '').trim();
+
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  if (findPrHeaderRow(hData, hIdx, prId) !== -1) throw new Error('pr_id ซ้ำในระบบ: ' + prId);
+
+  var linesSheet = getPrLinesSheet();
+  var lHeaderRow = linesSheet.getRange(1, 1, 1, linesSheet.getLastColumn()).getValues()[0];
+  var lIdx = prIndexMap(lHeaderRow);
+  var totalAmount = 0;
+  var lineRows = lines.map(function(ln, i) {
+    var qtyReq = Number(ln.qty_requested !== undefined ? ln.qty_requested : ln.qty) || 0;
+    if (qtyReq <= 0) throw new Error('qty_requested ต้องมากกว่า 0 (บรรทัด ' + (i + 1) + ')');
+    var price = Number(ln.unit_price || 0) || 0;
+    totalAmount += qtyReq * price;
+    var rowArr = new Array(lHeaderRow.length).fill('');
+    rowArr[lIdx.pr_id] = prId;
+    rowArr[lIdx.line_no] = i + 1;
+    rowArr[lIdx.part_no] = prStr(ln.part_no || ln.no);
+    rowArr[lIdx.part_name] = prStr(ln.part_name || ln.name);
+    rowArr[lIdx.model] = prStr(ln.model);
+    rowArr[lIdx.brand] = prStr(ln.brand);
+    rowArr[lIdx.category] = prStr(ln.category);
+    rowArr[lIdx.unit] = prStr(ln.unit || 'PCS');
+    rowArr[lIdx.qty_requested] = qtyReq;       // ล็อก — ห้ามแก้หลังจากนี้
+    rowArr[lIdx.qty_approved] = qtyReq;          // เริ่มต้นเท่ากับที่ขอ ให้หัวหน้าปรับลดได้
+    rowArr[lIdx.unit_price] = price;
+    rowArr[lIdx.remark] = prStr(ln.remark);
+    return rowArr;
+  });
+  linesSheet.getRange(linesSheet.getLastRow() + 1, 1, lineRows.length, lHeaderRow.length).setValues(lineRows);
+
+  var headerRowArr = new Array(hData[0].length).fill('');
+  headerRowArr[hIdx.pr_id] = prId;
+  headerRowArr[hIdx.status] = 'PENDING';
+  headerRowArr[hIdx.created_by] = user.username;
+  headerRowArr[hIdx.created_at] = now;
+  headerRowArr[hIdx.line] = headerLine;
+  headerRowArr[hIdx.dept] = dept;
+  headerRowArr[hIdx.item_count] = lines.length;
+  headerRowArr[hIdx.total_amount] = totalAmount;
+  headerRowArr[hIdx.updated_at] = now;
+  headerSheet.appendRow(headerRowArr);
+
+  appendPrAudit(prId, 'CREATE', user.username, headerLine, '', '', lines.length + ' รายการ');
+  return { status: 'success', pr_id: prId, pr_status: 'PENDING', item_count: lines.length, total_amount: totalAmount };
+}
+
+// ดึง PR ใบเดียว (header + lines) สำหรับหน้าตรวจ+แก้ยอด
+function getPRForApproval(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'view');
+  var prId = String(payload.pr_id || '').trim();
+  if (!prId) throw new Error('ต้องระบุ pr_id');
+
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, prId);
+  if (hRow === -1) throw new Error('ไม่พบ PR: ' + prId);
+  var header = prHeaderRowToCard(hIdx, hData[hRow]);
+  if (!prUserCanAccessLine(user, header.line)) throw new Error('ไม่มีสิทธิ์ดู PR ของไลน์นี้');
+
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var lines = [];
+  for (var i = 1; i < lData.length; i += 1) {
+    if (String(lData[i][lIdx.pr_id]) !== prId) continue;
+    var r = lData[i];
+    lines.push({
+      line_no: Number(r[lIdx.line_no] || 0),
+      part_no: prStr(r[lIdx.part_no]),
+      part_name: prStr(r[lIdx.part_name]),
+      model: prStr(r[lIdx.model]),
+      brand: prStr(r[lIdx.brand]),
+      category: prStr(r[lIdx.category]),
+      unit: prStr(r[lIdx.unit]),
+      qty_requested: Number(r[lIdx.qty_requested] || 0),
+      qty_approved: Number(r[lIdx.qty_approved] || 0),
+      unit_price: Number(r[lIdx.unit_price] || 0),
+      remark: prStr(r[lIdx.remark])
+    });
+  }
+  lines.sort(function(a, b) { return a.line_no - b.line_no; });
+  return { status: 'success', header: header, lines: lines };
+}
+
+// อนุมัติ PR — เขียน status + qty_approved ทุกบรรทัด + audit เป็น operation เดียว (atomic)
+function approvePR(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return approvePRUnlocked(payload); } finally { lock.releaseLock(); }
+}
+function approvePRUnlocked(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'pr_approve');
+  var prId = String(payload.pr_id || '').trim();
+  if (!prId) throw new Error('ต้องระบุ pr_id');
+
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, prId);
+  if (hRow === -1) throw new Error('ไม่พบ PR: ' + prId);
+  var prLine = prStr(hData[hRow][hIdx.line]);
+  if (!prUserCanAccessLine(user, prLine)) throw new Error('ไม่มีสิทธิ์อนุมัติ PR ของไลน์นี้');
+
+  // กันกดอนุมัติซ้ำ / กันสถานะไม่ใช่ PENDING
+  var curStatus = prStr(hData[hRow][hIdx.status]);
+  if (curStatus !== 'PENDING') {
+    throw new Error('PR นี้ไม่อยู่สถานะรออนุมัติ (สถานะปัจจุบัน: ' + curStatus + ') — อาจถูกดำเนินการไปแล้ว');
+  }
+
+  // map ยอดที่หัวหน้าปรับ: { line_no: qty_approved }
+  var edits = {};
+  parsePrLinesInput(payload.lines_json || payload.lines).forEach(function(ln) {
+    if (ln && ln.line_no !== undefined) edits[String(ln.line_no)] = ln.qty_approved;
+  });
+
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var totalAmount = 0;
+  var itemCount = 0;
+  for (var i = 1; i < lData.length; i += 1) {
+    if (String(lData[i][lIdx.pr_id]) !== prId) continue;
+    itemCount += 1;
+    var lineNo = String(lData[i][lIdx.line_no]);
+    var oldApproved = Number(lData[i][lIdx.qty_approved] || 0);
+    var newApproved = oldApproved;
+    if (edits.hasOwnProperty(lineNo)) {
+      newApproved = Number(edits[lineNo]);
+      if (!isFinite(newApproved) || newApproved < 0) throw new Error('qty_approved ต้องเป็นตัวเลข >= 0 (บรรทัด ' + lineNo + ')');
+    }
+    // เขียนเฉพาะ qty_approved — ไม่แตะ qty_requested เด็ดขาด
+    linesSheet.getRange(i + 1, lIdx.qty_approved + 1).setValue(newApproved);
+    if (newApproved !== oldApproved) {
+      appendPrAudit(prId, 'EDIT_QTY', user.username, prLine, oldApproved, newApproved, 'line ' + lineNo);
+    }
+    var price = Number(lData[i][lIdx.unit_price] || 0) || 0;
+    totalAmount += newApproved * price;
+
+    // บันทึก Purchase History ด้วยยอด qty_approved (ย้ายจากตอนปริ้นมาที่ตอนอนุมัติ)
+    if (newApproved > 0) {
+      try {
+        upsertPurchaseHistoryRecord({
+          request_id: prId + '-L' + lineNo, history_id: 'PH-' + prId + '-L' + lineNo, source: 'PR Report',
+          date: new Date(), line: prLine, part_id: prStr(lData[i][lIdx.part_no]), part_name: prStr(lData[i][lIdx.part_name]),
+          brand: prStr(lData[i][lIdx.brand]), model: prStr(lData[i][lIdx.model]), qty_ordered: newApproved,
+          unit: prStr(lData[i][lIdx.unit]), unit_price: price, currency: 'THB', status: 'PR Created',
+          requested_by: prStr(hData[hRow][hIdx.created_by]), updated_by: user.username, remark: prStr(lData[i][lIdx.remark])
+        });
+      } catch (historyErr) {
+        Logger.log('approvePR PurchaseHistory warning [' + prId + '/L' + lineNo + ']: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
+      }
+    }
+  }
+
+  headerSheet.getRange(hRow + 1, hIdx.status + 1).setValue('APPROVED');
+  headerSheet.getRange(hRow + 1, hIdx.approved_by + 1).setValue(user.username);
+  headerSheet.getRange(hRow + 1, hIdx.approved_at + 1).setValue(now);
+  headerSheet.getRange(hRow + 1, hIdx.item_count + 1).setValue(itemCount);
+  headerSheet.getRange(hRow + 1, hIdx.total_amount + 1).setValue(totalAmount);
+  headerSheet.getRange(hRow + 1, hIdx.updated_at + 1).setValue(now);
+  appendPrAudit(prId, 'APPROVE', user.username, prLine, '', '', itemCount + ' รายการ');
+
+  return { status: 'success', pr_id: prId, pr_status: 'APPROVED', item_count: itemCount, total_amount: totalAmount };
+}
+
+// ตีกลับ PR พร้อมเหตุผล -> REJECTED (คนสั่งไปแก้เอง)
+function rejectPR(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return rejectPRUnlocked(payload); } finally { lock.releaseLock(); }
+}
+function rejectPRUnlocked(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'pr_approve');
+  var prId = String(payload.pr_id || '').trim();
+  if (!prId) throw new Error('ต้องระบุ pr_id');
+  var reason = String(payload.reject_reason || payload.reason || '').trim();
+  if (!reason) throw new Error('กรุณากรอกเหตุผลการตีกลับ');
+
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, prId);
+  if (hRow === -1) throw new Error('ไม่พบ PR: ' + prId);
+  var prLine = prStr(hData[hRow][hIdx.line]);
+  if (!prUserCanAccessLine(user, prLine)) throw new Error('ไม่มีสิทธิ์ตีกลับ PR ของไลน์นี้');
+  var curStatus = prStr(hData[hRow][hIdx.status]);
+  if (curStatus !== 'PENDING') {
+    throw new Error('PR นี้ไม่อยู่สถานะรออนุมัติ (สถานะปัจจุบัน: ' + curStatus + ')');
+  }
+
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  headerSheet.getRange(hRow + 1, hIdx.status + 1).setValue('REJECTED');
+  headerSheet.getRange(hRow + 1, hIdx.reject_reason + 1).setValue(reason);
+  headerSheet.getRange(hRow + 1, hIdx.updated_at + 1).setValue(now);
+  appendPrAudit(prId, 'REJECT', user.username, prLine, '', '', reason);
+  return { status: 'success', pr_id: prId, pr_status: 'REJECTED' };
+}
+
+// endpoint เบา ให้ปุ่มปริ้นเช็คสถานะสดก่อนเปิดหน้าปริ้น (กันเคสสถานะถูกแก้กลับ)
+function getPRStatus(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var prId = String(payload.pr_id || '').trim();
+  if (!prId) throw new Error('ต้องระบุ pr_id');
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, prId);
+  if (hRow === -1) return { status: 'success', found: false, pr_id: prId, pr_status: '' };
+  return { status: 'success', found: true, pr_id: prId, pr_status: prStr(hData[hRow][hIdx.status]) };
+}
+
+// Inbox rollup — คืน count ต่อ tab + การ์ด PR (filter ตาม role/line)
+// tab อื่นเป็น placeholder (count 0) ค่อยเติมทีหลังตามขอบเขตงาน
+function getInbox(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'view');
+  var canViewPr = !!(user.permissions && (user.permissions.pr_view_all || user.permissions.pr_view_own || user.permissions.pr_approve));
+  var prPending = canViewPr ? listPrCardsForUser(user, ['PENDING']) : [];
+  var prApproved = canViewPr ? listPrCardsForUser(user, ['APPROVED']) : [];
+  var prRejected = canViewPr ? listPrCardsForUser(user, ['REJECTED']) : [];
+  var tabs = {
+    pr_pending: prPending.length,
+    transfer_pending: 0,
+    borrow_overdue: 0,
+    stock_below_min: 0,
+    part_check: 0,
+    qc_incoming: 0
+  };
+  var total = Object.keys(tabs).reduce(function(sum, key) { return sum + Number(tabs[key] || 0); }, 0);
+  return {
+    status: 'success',
+    role: user.role,
+    line: String(user.line || ''),
+    can_approve: !!(user.permissions && user.permissions.pr_approve),
+    total: total,
+    tabs: tabs,
+    pr_pending: prPending,
+    pr_approved: prApproved,
+    pr_rejected: prRejected
+  };
+}
+
 function normalizeRole(role) {
   var val = String(role || 'user').toLowerCase().trim();
   if (val === 'admin' || val === 'leader' || val === 'user') return val;
@@ -1445,21 +1841,24 @@ function getRoleDefaultPermissions(role) {
     manage_users: true, add_user: true, delete_user: true, manage_auth: true,
     request_order_create: true, request_order_view_own: true, request_order_view_all: true,
     request_order_approve: true, request_order_reject: true, request_order_convert_pr: true, request_order_close: true,
-    request_order_edit: true, delete_logs: true
+    request_order_edit: true, delete_logs: true,
+    pr_create: true, pr_view_own: true, pr_view_all: true, pr_approve: true
   };
   if (normalized === 'leader') return {
     view: true, transact: true, manage_items: true, delete_items: true,
     manage_users: false, add_user: false, delete_user: false, manage_auth: false,
     request_order_create: true, request_order_view_own: true, request_order_view_all: false,
     request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false,
-    request_order_edit: false, delete_logs: false
+    request_order_edit: false, delete_logs: false,
+    pr_create: true, pr_view_own: true, pr_view_all: false, pr_approve: true
   };
   return {
     view: true, transact: true, manage_items: false, delete_items: false,
     manage_users: false, add_user: false, delete_user: false, manage_auth: false,
     request_order_create: true, request_order_view_own: true, request_order_view_all: false,
     request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false,
-    request_order_edit: false, delete_logs: false
+    request_order_edit: false, delete_logs: false,
+    pr_create: true, pr_view_own: false, pr_view_all: false, pr_approve: false
   };
 }
 
@@ -1524,6 +1923,7 @@ function getAllUsers() {
   var usersSheet = getUsersSheet();
   var data = usersSheet.getDataRange().getValues();
   if (data.length <= 1) return [];
+  var lineCol = (data[0] || []).indexOf('line');
   return data.slice(1).map(function(row, idx) {
     var role = normalizeRole(row[2]);
     var custom = parsePermissions(row[4]);
@@ -1536,6 +1936,7 @@ function getAllUsers() {
       permissionsJson: JSON.stringify(custom),
       token: String(row[5] || ''),
       tokenExpiry: String(row[6] || ''),
+      line: lineCol !== -1 ? String(row[lineCol] || '').trim() : '',
       permissions: mergePermissions(getRoleDefaultPermissions(role), custom)
     };
   }).filter(function(u) { return !!u.username; });
@@ -1653,6 +2054,7 @@ function sanitizeUserForClient(user) {
     username: user.username,
     role: user.role,
     isActive: user.isActive,
+    line: String(user.line || ''),
     permissions: user.permissions,
     permissionsJson: user.permissionsJson
   };
@@ -1763,8 +2165,11 @@ function upsertUser(payload) {
   var password = String(payload.password || '').trim();
   var permissionsObj = parsePermissions(payload.permissionsJson || payload.permissions || '');
   var permissionsJson = JSON.stringify(permissionsObj);
+  var line = String(payload.line || '').trim();
+  var lineProvided = payload.line !== undefined && payload.line !== null;
 
   var usersSheet = getUsersSheet();
+  var lineCol = ensureUsersLineColumn(usersSheet); // 0-based
   var existing = findUserByUsername(username);
   if (existing) {
     if (String(payload.password || '') !== '') {
@@ -1774,6 +2179,7 @@ function upsertUser(payload) {
     usersSheet.getRange(existing.rowIndex, 3).setValue(role);
     usersSheet.getRange(existing.rowIndex, 4).setValue(String(isActive));
     usersSheet.getRange(existing.rowIndex, 5).setValue(permissionsJson);
+    if (lineProvided && lineCol !== -1) usersSheet.getRange(existing.rowIndex, lineCol + 1).setValue(line);
     if (String(payload.password || '') !== '' || !isActive) revokeUserSessions(username);
     return { status: 'success', mode: 'update', username: username };
   }
@@ -1782,6 +2188,7 @@ function upsertUser(payload) {
   if (!password) throw new Error('ต้องระบุ password สำหรับผู้ใช้ใหม่');
   if (password.length < 4) throw new Error('password ต้องมีอย่างน้อย 4 ตัวอักษร');
   usersSheet.appendRow([username, hashPassword(password), role, String(isActive), permissionsJson, '', '']);
+  if (lineCol !== -1) usersSheet.getRange(usersSheet.getLastRow(), lineCol + 1).setValue(line);
   return { status: 'success', mode: 'create', username: username };
 }
 
@@ -2748,6 +3155,7 @@ function doGet(e) {
       password: e.parameter.password,
       role: e.parameter.role,
       isActive: e.parameter.isActive,
+      line: e.parameter.line,
       permissionsJson: e.parameter.permissionsJson
     }), e);
     if (action === 'deleteUser') return respond(deleteUser({ authToken: authToken, username: e.parameter.username }), e);
@@ -2773,6 +3181,12 @@ function doGet(e) {
     if (action === 'markOrderRequestReceived') return respond(markOrderRequestReceived(e.parameter), e);
     if (action === 'editOrderRequest') return respond(editOrderRequest(e.parameter), e);
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(e.parameter, e.parameter.status), e);
+    if (action === 'getInbox') return respond(getInbox(e.parameter), e);
+    if (action === 'createPR') return respond(createPR(e.parameter), e);
+    if (action === 'getPRForApproval') return respond(getPRForApproval(e.parameter), e);
+    if (action === 'approvePR') return respond(approvePR(e.parameter), e);
+    if (action === 'rejectPR') return respond(rejectPR(e.parameter), e);
+    if (action === 'getPRStatus') return respond(getPRStatus(e.parameter), e);
     if (action === 'saveStockCountResult') return respond(saveStockCountResult(e.parameter), e);
     if (action === 'getStockCountHistory') return respond(getStockCountHistory(e.parameter), e);
     if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(e.parameter), e);
@@ -2994,6 +3408,7 @@ function doPost(e) {
         password: body.password,
         role: body.role,
         isActive: body.isActive,
+        line: body.line,
         permissionsJson: body.permissionsJson
       }), e);
     }
@@ -3029,6 +3444,12 @@ function doPost(e) {
     if (action === 'deleteLogEntry') return respond(deleteLogEntry(body), e);
     if (action === 'convertOrderRequestsToPR') return respond(convertOrderRequestsToPR(body), e);
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(body, body.status), e);
+    if (action === 'getInbox') return respond(getInbox(body), e);
+    if (action === 'createPR') return respond(createPR(body), e);
+    if (action === 'getPRForApproval') return respond(getPRForApproval(body), e);
+    if (action === 'approvePR') return respond(approvePR(body), e);
+    if (action === 'rejectPR') return respond(rejectPR(body), e);
+    if (action === 'getPRStatus') return respond(getPRStatus(body), e);
     requirePermission(authPayload, 'view');
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
