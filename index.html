@@ -8052,13 +8052,30 @@ function inferRequestPriority(stock, min) {
       return '<span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold ' + (styles[normalized] || styles.Requested) + '">' + escapePurchaseHistoryText(normalized) + '</span>';
     }
 
+    // เทียบเดือนเป็นตัวเลข yyyymm สำหรับเรียงลำดับ — ค่า month ดิบจากชีตบางครั้งเป็น
+    // toString() เต็มรูปแบบของ Date (เช่น backend ยังไม่ได้ deploy fix ล่าสุด) ซึ่งเรียง
+    // ตามตัวอักษรตรงๆ จะผิดลำดับเดือน (เทียบ "Fri"/"Mon"/"Wed" ไม่ใช่เทียบเดือนจริง)
+    function purchaseHistoryMonthSortKey(raw) {
+      var parts = String(raw || '').split('-');
+      if (parts.length >= 2) {
+        var y = Number(parts[0]), mo = Number(parts[1]);
+        if (y && mo >= 1 && mo <= 12) return y * 100 + mo;
+      }
+      var d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        var bkk = new Date(d.getTime() + 7 * 3600000);
+        return bkk.getUTCFullYear() * 100 + (bkk.getUTCMonth() + 1);
+      }
+      return 0;
+    }
     function populatePurchaseHistoryFilters() {
       if (!purchaseHistoryMonthFilter || !purchaseHistoryLineFilter) return;
       var selectedMonth = purchaseHistoryMonthFilter.value || 'all';
       var selectedLine = purchaseHistoryLineFilter.value || 'all';
-      var months = Array.from(new Set(purchaseHistoryCache.map(function(item) { return String(item.month || ''); }).filter(Boolean))).sort().reverse();
+      var months = Array.from(new Set(purchaseHistoryCache.map(function(item) { return String(item.month || ''); }).filter(Boolean)))
+        .sort(function(a, b) { return purchaseHistoryMonthSortKey(b) - purchaseHistoryMonthSortKey(a); });
       var lines = Array.from(new Set(purchaseHistoryCache.map(function(item) { return String(item.line || ''); }).filter(Boolean))).sort();
-      purchaseHistoryMonthFilter.innerHTML = '<option value="all">ทุกเดือน</option>' + months.map(function(month) { return '<option value="' + escapePurchaseHistoryText(month) + '">' + escapePurchaseHistoryText(month) + '</option>'; }).join('');
+      purchaseHistoryMonthFilter.innerHTML = '<option value="all">ทุกเดือน</option>' + months.map(function(month) { return '<option value="' + escapePurchaseHistoryText(month) + '">' + escapePurchaseHistoryText(fccMonthLabel(month)) + '</option>'; }).join('');
       purchaseHistoryLineFilter.innerHTML = '<option value="all">ทุก Line</option>' + lines.map(function(line) { return '<option value="' + escapePurchaseHistoryText(line) + '">' + escapePurchaseHistoryText(line) + '</option>'; }).join('');
       if (months.indexOf(selectedMonth) > -1) purchaseHistoryMonthFilter.value = selectedMonth;
       if (lines.indexOf(selectedLine) > -1) purchaseHistoryLineFilter.value = selectedLine;
