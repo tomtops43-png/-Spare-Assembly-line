@@ -627,6 +627,10 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             <span class="hidden sm:inline">ขอซื้อ</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span>
           </button>
+          <button id="tabInbox" class="eng-tab shrink-0 relative flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <span class="hidden sm:inline">Inbox</span><span id="inboxNavBadge" class="hidden ml-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white">0</span>
+          </button>
           <!-- divider -->
           <div class="mx-1 hidden h-6 w-px bg-slate-200 sm:block shrink-0"></div>
           <button id="tabManage" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-amber-400 bg-amber-50 px-2.5 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 md:px-4">
@@ -1962,11 +1966,11 @@
           </div>
           <!-- Export PDF — บันทึก Purchase History เฉพาะครั้งแรกของ PR เลขนี้ -->
           <div class="flex flex-col gap-1">
-            <button id="prPrintBtn" type="button" class="flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-              📄 Export PDF (ยืนยัน)
+            <button id="prPrintBtn" type="button" class="flex items-center gap-2 rounded-2xl bg-violet-600 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-violet-700 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8l7.89 5.26a2 2 0 002.22 0L21 8M3 19h18a1 1 0 001-1V7a2 2 0 00-2-2H4a2 2 0 00-2 2v11a1 1 0 001 1z"/></svg>
+              📤 ส่งอนุมัติ (สร้าง PR)
             </button>
-            <p id="prPrintBtnHint" class="text-[11px] text-blue-500 font-semibold text-center">✅ บันทึก Purchase History อัตโนมัติ (ครั้งแรกเท่านั้น)</p>
+            <p id="prPrintBtnHint" class="text-[11px] text-violet-500 font-semibold text-center">🔒 ต้องให้หัวหน้าอนุมัติใน Inbox ก่อน จึงจะปริ้นได้</p>
             <button id="prForceResaveBtn" type="button" class="hidden text-[11px] font-semibold text-amber-600 underline decoration-dotted hover:text-amber-700 text-center">🔁 แก้ไขแล้ว? บันทึกซ้ำอีกครั้ง</button>
           </div>
           <div class="flex flex-col gap-1 mt-0.5">
@@ -2283,6 +2287,8 @@
                 <input id="uUsername" type="text" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Username" required />
                 <input id="uDisplayName" type="text" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Display name (optional)" />
                 <input id="uPassword" type="password" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Password (ว่างได้ตอนแก้ไข)" autocomplete="new-password" />
+                <input id="uLine" type="text" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" placeholder="ไลน์/แผนก (สำหรับหัวหน้า — เห็น PR เฉพาะไลน์นี้)" list="uLineOptions" />
+                <datalist id="uLineOptions"><option value="H9"></option><option value="Arc Chute"></option><option value="Coil Winding"></option><option value="Lug&Screw"></option></datalist>
               </div>
             </section>
             <section class="rounded-xl border border-slate-200 p-3">
@@ -2856,6 +2862,77 @@
     </div>
   </div>
 
+  <!-- ============ INBOX (สไตล์ CWM System) ============ -->
+  <div id="inboxOverlay" class="hidden fixed inset-0 z-[95] bg-slate-900/40 p-0 md:p-6 overflow-y-auto">
+    <div class="mx-auto max-w-6xl overflow-hidden rounded-none md:rounded-3xl bg-slate-50 shadow-2xl">
+      <!-- Header ม่วง -->
+      <div class="flex items-center justify-between gap-3 bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-4 text-white">
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span class="text-lg font-bold">Inbox</span>
+          <span id="inboxTotalBadge" class="ml-1 inline-flex min-w-[24px] items-center justify-center rounded-full bg-white/25 px-2 py-0.5 text-sm font-bold">0</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="inboxRefreshBtn" type="button" class="flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-sm font-semibold hover:bg-white/30 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            รีเฟรช
+          </button>
+          <button id="inboxCloseBtn" type="button" class="rounded-lg bg-white/20 p-1.5 hover:bg-white/30 transition" aria-label="ปิด">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <!-- Body: sidebar + list -->
+      <div class="flex flex-col md:flex-row min-h-[70vh]">
+        <!-- Sidebar -->
+        <div id="inboxSidebar" class="shrink-0 border-b md:border-b-0 md:border-r border-slate-200 bg-white p-3 md:w-64 flex md:block gap-2 overflow-x-auto"></div>
+        <!-- Card list -->
+        <div class="flex-1 p-3 md:p-4">
+          <div id="inboxListTitle" class="mb-3 text-sm font-bold text-slate-500"></div>
+          <div id="inboxList" class="space-y-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ หน้าตรวจ+แก้ยอด PR (approval editor) ============ -->
+  <div id="prApprovalModal" class="hidden fixed inset-0 z-[100] bg-slate-900/50 p-0 md:p-6 overflow-y-auto">
+    <div class="mx-auto max-w-3xl overflow-hidden rounded-none md:rounded-2xl bg-white shadow-2xl">
+      <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3">
+        <div>
+          <div class="text-base font-bold text-slate-800">ตรวจ + แก้ยอด PR</div>
+          <div id="prApprovalMeta" class="text-xs text-slate-500"></div>
+        </div>
+        <button id="prApprovalCloseBtn" type="button" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200" aria-label="ปิด">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="max-h-[60vh] overflow-y-auto p-4">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left text-xs text-slate-500">
+                <th class="py-2 pr-2">#</th>
+                <th class="py-2 pr-2">Part</th>
+                <th class="py-2 pr-2 text-right">ยอดที่ขอ<br><span class="font-normal">(ล็อก)</span></th>
+                <th class="py-2 pr-2 text-right">ยอดอนุมัติ</th>
+                <th class="py-2 pr-2">หน่วย</th>
+              </tr>
+            </thead>
+            <tbody id="prApprovalLines"></tbody>
+          </table>
+        </div>
+        <div class="mt-4">
+          <label class="mb-1 block text-xs font-semibold text-slate-500">เหตุผล (กรอกเมื่อ "ตีกลับ")</label>
+          <textarea id="prRejectReason" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="เช่น ยอดเกินความจำเป็น / รอเช็คสต็อกก่อน..."></textarea>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+        <button id="prRejectBtn" type="button" class="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50">↩ ตีกลับ</button>
+        <button id="prApproveBtn" type="button" class="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700">✅ อนุมัติ</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -4717,6 +4794,7 @@ function getIssueCartEntries() {
       renderAuthUserBox();
       refreshRequestOrderBadgeCount();
       updateRequestOrderBadgeUI(requestOrderBadgeCount);
+      if (typeof loadInboxBadge === 'function') loadInboxBadge();
       applyIssueCartAuthorizationUi();
       applyReceivePermissionUi();
       normalizeMobileHeaderCartUi();
@@ -5021,6 +5099,8 @@ function getIssueCartEntries() {
       document.getElementById('uIsActive').checked = user ? !!user.isActive : true;
       document.getElementById('uPassword').value = '';
       document.getElementById('uDisplayName').value = user ? (user.displayName || '') : '';
+      var uLineEl = document.getElementById('uLine');
+      if (uLineEl) uLineEl.value = user ? (user.line || '') : '';
       var parsedPermissions = parsePermissionsJsonSafe(user ? user.permissionsJson : '');
       setPermissionUIFromAllowList(parsedPermissions.allow);
       setLineAccessUIFromAllowList(parsedPermissions.allow);
@@ -5817,6 +5897,8 @@ function getIssueCartEntries() {
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       if (tabStockCount) tabStockCount.classList.toggle('hidden', !hasPermission('view_logs'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
+      var tabInboxEl = document.getElementById('tabInbox');
+      if (tabInboxEl) tabInboxEl.classList.toggle('hidden', !(hasPermission('pr_approve') || hasPermission('pr_view_all') || hasPermission('pr_view_own')));
       tabTxn.classList.toggle('hidden', !canReceivePart() || window.innerWidth < 768);
       if (tabDashboard) tabDashboard.classList.toggle('hidden', !hasPermission('view_dashboard'));
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
@@ -11610,6 +11692,309 @@ function inferRequestPriority(stock, min) {
     if (tabRequestOrder) tabRequestOrder.addEventListener('click', switchToRequestOrderPage);
     tabManage.addEventListener('click', switchToManagePage);
     tabAdmin.addEventListener('click', switchToAdminPage);
+
+    // ============ INBOX (PR รออนุมัติ) ============
+    var INBOX_TABS = [
+      { key: 'all', label: 'ทั้งหมด', icon: '📥' },
+      { key: 'pr_pending', label: 'PR รออนุมัติ', icon: '📝' },
+      { key: 'transfer_pending', label: 'ยืม/โอน รออนุมัติ', icon: '🔁', placeholder: true },
+      { key: 'borrow_overdue', label: 'ยืมค้าง/เกินกำหนดคืน', icon: '⏰', placeholder: true },
+      { key: 'stock_below_min', label: 'สต็อกต่ำกว่า Min', icon: '📉', placeholder: true },
+      { key: 'part_check', label: 'อะไหล่รอเช็ค', icon: '🔍', placeholder: true },
+      { key: 'qc_incoming', label: 'ของเข้ารอตรวจรับ (QC)', icon: '📦', placeholder: true }
+    ];
+    var inboxData = null;
+    var inboxActiveTab = 'pr_pending';
+    var prApprovalState = null;
+
+    function inboxDaysWaiting(createdAt) {
+      var raw = String(createdAt || '').trim();
+      if (!raw) return 0;
+      var norm = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw) ? raw.replace(' ', 'T') + '+07:00' : raw;
+      var d = new Date(norm);
+      if (isNaN(d.getTime())) return 0;
+      return Math.floor((Date.now() - d.getTime()) / 86400000);
+    }
+    function inboxUrgency(days) {
+      if (days >= 3) return { bar: 'border-l-4 border-rose-500', chip: 'bg-rose-100 text-rose-700' };
+      if (days >= 1) return { bar: 'border-l-4 border-amber-400', chip: 'bg-amber-100 text-amber-700' };
+      return { bar: 'border-l-4 border-emerald-500', chip: 'bg-emerald-100 text-emerald-700' };
+    }
+    function inboxMoney(v) { return Number(v || 0).toLocaleString('th-TH'); }
+
+    function updateInboxBadgeUI() {
+      var total = inboxData ? Number(inboxData.total || 0) : 0;
+      var navBadge = document.getElementById('inboxNavBadge');
+      if (navBadge) { navBadge.textContent = String(total); navBadge.classList.toggle('hidden', total <= 0); }
+      var totalBadge = document.getElementById('inboxTotalBadge');
+      if (totalBadge) totalBadge.textContent = String(total);
+    }
+
+    // โหลด badge เบาๆ (ตอน login / หลังสร้าง PR) โดยไม่เปิดหน้า Inbox
+    function loadInboxBadge() {
+      if (!hasPermission('pr_approve') && !hasPermission('pr_view_all') && !hasPermission('pr_view_own')) return Promise.resolve();
+      return requestApi(withAuthPayload({ action: 'getInbox' })).then(function(res) {
+        if (res && res.status === 'success') { inboxData = res; updateInboxBadgeUI(); }
+      }).catch(function() {});
+    }
+
+    function loadInbox() {
+      var listEl = document.getElementById('inboxList');
+      if (listEl) listEl.innerHTML = '<div class="p-6 text-center text-slate-400">กำลังโหลด...</div>';
+      return requestApi(withAuthPayload({ action: 'getInbox' })).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'โหลด Inbox ไม่สำเร็จ');
+        inboxData = res;
+        updateInboxBadgeUI();
+        renderInboxSidebar();
+        renderInboxList();
+      }).catch(function(err) {
+        if (listEl) listEl.innerHTML = '<div class="p-6 text-center text-rose-500">⚠️ ' + escHtml(err && err.message ? err.message : String(err)) + '</div>';
+      });
+    }
+
+    function inboxTabCount(key) {
+      if (!inboxData) return 0;
+      if (key === 'all') return Number(inboxData.total || 0);
+      return Number((inboxData.tabs || {})[key] || 0);
+    }
+
+    function renderInboxSidebar() {
+      var el = document.getElementById('inboxSidebar');
+      if (!el) return;
+      el.innerHTML = INBOX_TABS.map(function(tab) {
+        var count = inboxTabCount(tab.key);
+        var active = inboxActiveTab === tab.key;
+        var badge = count > 0
+          ? '<span class="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full ' + (active ? 'bg-white/25 text-white' : 'bg-rose-100 text-rose-700') + ' px-1.5 text-xs font-bold">' + count + '</span>'
+          : '';
+        return '<button data-inbox-tab="' + tab.key + '" class="mb-1 flex w-full items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition ' +
+          (active ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100') + '">' +
+          '<span>' + tab.icon + '</span><span>' + escHtml(tab.label) + '</span>' + badge + '</button>';
+      }).join('');
+    }
+
+    function renderInboxList() {
+      var listEl = document.getElementById('inboxList');
+      var titleEl = document.getElementById('inboxListTitle');
+      if (!listEl) return;
+      var tabDef = INBOX_TABS.filter(function(t) { return t.key === inboxActiveTab; })[0] || INBOX_TABS[0];
+      if (titleEl) titleEl.textContent = tabDef.label;
+
+      if (inboxActiveTab === 'pr_pending' || inboxActiveTab === 'all') {
+        var pending = (inboxData && inboxData.pr_pending) || [];
+        var approved = (inboxData && inboxData.pr_approved) || [];
+        var html = '';
+        if (pending.length) html += pending.map(function(c) { return inboxPrCardHtml(c, false); }).join('');
+        if (approved.length) {
+          html += '<div class="mt-4 mb-2 text-xs font-bold text-slate-400">✅ อนุมัติแล้ว (พร้อมปริ้น)</div>';
+          html += approved.map(function(c) { return inboxPrCardHtml(c, true); }).join('');
+        }
+        if (!html) html = '<div class="p-6 text-center text-slate-400">ไม่มี PR รออนุมัติ 🎉</div>';
+        listEl.innerHTML = html;
+        return;
+      }
+      // tab อื่น = placeholder
+      listEl.innerHTML = '<div class="rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-400">' +
+        '<div class="text-3xl mb-2">' + tabDef.icon + '</div>' +
+        '<div class="font-semibold">' + escHtml(tabDef.label) + '</div>' +
+        '<div class="text-xs mt-1">ส่วนนี้ยังไม่เปิดใช้งาน — จะเพิ่มในเฟสถัดไป</div></div>';
+    }
+
+    function inboxPrCardHtml(c, isApproved) {
+      var days = inboxDaysWaiting(c.created_at);
+      var urg = isApproved ? { bar: 'border-l-4 border-emerald-500', chip: 'bg-emerald-100 text-emerald-700' } : inboxUrgency(days);
+      var statusChip = isApproved
+        ? '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">APPROVED</span>'
+        : '<span class="rounded-full ' + urg.chip + ' px-2 py-0.5 text-xs font-bold">รอ ' + days + ' วัน</span>';
+      var actionBtn = isApproved
+        ? '<button data-inbox-print="' + escHtml(c.pr_id) + '" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">🖨 ปริ้น</button>'
+        : (inboxData && inboxData.can_approve
+            ? '<button data-inbox-review="' + escHtml(c.pr_id) + '" class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white hover:bg-amber-600">🔎 ตรวจ+แก้ยอด</button>'
+            : '<span class="text-xs text-slate-400">รอหัวหน้าอนุมัติ</span>');
+      return '<div class="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm ' + urg.bar + '">' +
+        '<div class="min-w-0">' +
+          '<div class="flex items-center gap-2"><span class="font-bold text-slate-800">' + escHtml(c.pr_id) + '</span>' + statusChip +
+            (c.line ? '<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">' + escHtml(c.line) + '</span>' : '') + '</div>' +
+          '<div class="mt-1 text-xs text-slate-500">โดย ' + escHtml(c.created_by || '-') + ' · ' + escHtml(c.created_at || '-') + '</div>' +
+          '<div class="mt-0.5 text-xs text-slate-500">' + Number(c.item_count || 0) + ' รายการ · รวม ' + inboxMoney(c.total_amount) + ' ฿' +
+            (isApproved && c.approved_by ? ' · อนุมัติโดย ' + escHtml(c.approved_by) : '') + '</div>' +
+        '</div>' +
+        '<div class="shrink-0">' + actionBtn + '</div>' +
+      '</div>';
+    }
+
+    function openInbox() {
+      var overlay = document.getElementById('inboxOverlay');
+      if (!overlay) return;
+      inboxActiveTab = 'pr_pending';
+      overlay.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      loadInbox();
+    }
+    function closeInbox() {
+      var overlay = document.getElementById('inboxOverlay');
+      if (overlay) overlay.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    // ---- หน้าตรวจ+แก้ยอด ----
+    function openPrApproval(prId) {
+      var modal = document.getElementById('prApprovalModal');
+      var meta = document.getElementById('prApprovalMeta');
+      var body = document.getElementById('prApprovalLines');
+      if (!modal) return;
+      if (body) body.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">กำลังโหลด...</td></tr>';
+      if (meta) meta.textContent = prId;
+      var reasonEl = document.getElementById('prRejectReason'); if (reasonEl) reasonEl.value = '';
+      modal.classList.remove('hidden');
+      requestApi(withAuthPayload({ action: 'getPRForApproval', pr_id: prId })).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'โหลด PR ไม่สำเร็จ');
+        prApprovalState = res;
+        if (meta) meta.textContent = res.header.pr_id + ' · โดย ' + (res.header.created_by || '-') + ' · ไลน์ ' + (res.header.line || '-') + ' · ' + res.lines.length + ' รายการ';
+        if (body) body.innerHTML = res.lines.map(function(ln) {
+          return '<tr class="border-b border-slate-100">' +
+            '<td class="py-2 pr-2 text-slate-400">' + ln.line_no + '</td>' +
+            '<td class="py-2 pr-2"><div class="font-semibold text-slate-700">' + escHtml(ln.part_name || '-') + '</div>' +
+              '<div class="text-xs text-slate-400">' + escHtml(ln.model || '') + (ln.part_no ? ' · ' + escHtml(ln.part_no) : '') + '</div></td>' +
+            '<td class="py-2 pr-2 text-right font-mono text-slate-500">' + Number(ln.qty_requested || 0) + '</td>' +
+            '<td class="py-2 pr-2 text-right"><input data-appr-line="' + ln.line_no + '" type="number" min="0" value="' + Number(ln.qty_approved || 0) + '" class="h-9 w-20 rounded-lg border border-slate-300 px-2 text-right text-sm focus:ring-2 focus:ring-emerald-400" /></td>' +
+            '<td class="py-2 pr-2 text-slate-500">' + escHtml(ln.unit || '') + '</td>' +
+          '</tr>';
+        }).join('');
+      }).catch(function(err) {
+        if (body) body.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-500">⚠️ ' + escHtml(err && err.message ? err.message : String(err)) + '</td></tr>';
+      });
+    }
+    function closePrApproval() {
+      var modal = document.getElementById('prApprovalModal');
+      if (modal) modal.classList.add('hidden');
+      prApprovalState = null;
+    }
+    function collectApprovalEdits() {
+      var inputs = document.querySelectorAll('#prApprovalLines input[data-appr-line]');
+      var out = [];
+      inputs.forEach(function(inp) {
+        out.push({ line_no: Number(inp.getAttribute('data-appr-line')), qty_approved: Number(inp.value || 0) });
+      });
+      return out;
+    }
+    function submitApprove() {
+      if (!prApprovalState) return;
+      var prId = prApprovalState.header.pr_id;
+      var edits = collectApprovalEdits();
+      var btn = document.getElementById('prApproveBtn');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+      postJson(withAuthPayload({ action: 'approvePR', pr_id: prId, lines_json: JSON.stringify(edits) }))
+        .then(parseApiResponse).then(function(res) {
+          showQuickToast('✅ อนุมัติ ' + prId + ' แล้ว (' + (res.item_count || edits.length) + ' รายการ)', 'success');
+          closePrApproval();
+          loadInbox();
+        }).catch(function(err) {
+          showQuickToast('⚠️ อนุมัติไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
+        }).finally(function() {
+          if (btn) { btn.disabled = false; btn.innerHTML = '✅ อนุมัติ'; }
+        });
+    }
+    function submitReject() {
+      if (!prApprovalState) return;
+      var prId = prApprovalState.header.pr_id;
+      var reason = (document.getElementById('prRejectReason') || {}).value || '';
+      if (!String(reason).trim()) { showQuickToast('กรุณากรอกเหตุผลการตีกลับ', 'warn'); return; }
+      var btn = document.getElementById('prRejectBtn');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+      postJson(withAuthPayload({ action: 'rejectPR', pr_id: prId, reject_reason: reason }))
+        .then(parseApiResponse).then(function() {
+          showQuickToast('↩ ตีกลับ ' + prId + ' แล้ว', 'success');
+          closePrApproval();
+          loadInbox();
+        }).catch(function(err) {
+          showQuickToast('⚠️ ตีกลับไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
+        }).finally(function() {
+          if (btn) { btn.disabled = false; btn.innerHTML = '↩ ตีกลับ'; }
+        });
+    }
+
+    // ---- ปริ้นใบ PR ที่อนุมัติแล้ว — เช็คสถานะสดก่อนเสมอ ปริ้นได้เฉพาะ APPROVED และใช้ qty_approved ----
+    function inboxPrintApprovedPr(prId) {
+      showQuickToast('⏳ ตรวจสอบสถานะ PR ก่อนปริ้น...', 'info');
+      requestApi(withAuthPayload({ action: 'getPRStatus', pr_id: prId })).then(function(st) {
+        if (!st || st.status !== 'success') throw new Error((st && st.message) || 'เช็คสถานะไม่สำเร็จ');
+        if (!st.found || st.pr_status !== 'APPROVED') {
+          showQuickToast('🔒 ปริ้นไม่ได้ — สถานะปัจจุบันคือ ' + (st.pr_status || 'ไม่พบ') + ' (ต้องเป็น APPROVED)', 'warn');
+          loadInbox();
+          return;
+        }
+        return requestApi(withAuthPayload({ action: 'getPRForApproval', pr_id: prId })).then(function(res) {
+          if (!res || res.status !== 'success') throw new Error((res && res.message) || 'โหลด PR ไม่สำเร็จ');
+          openApprovedPrPrintWindow(res.header, res.lines);
+        });
+      }).catch(function(err) {
+        showQuickToast('⚠️ ' + (err && err.message ? err.message : err), 'warn');
+      });
+    }
+    function openApprovedPrPrintWindow(header, lines) {
+      var win = window.open('', '_blank');
+      if (!win) { showQuickToast('กรุณาอนุญาต popup เพื่อปริ้น', 'warn'); return; }
+      var grand = 0;
+      var rows = lines.map(function(ln, i) {
+        var amt = Number(ln.qty_approved || 0) * Number(ln.unit_price || 0);
+        grand += amt;
+        return '<tr><td style="text-align:center">' + (i + 1) + '</td>' +
+          '<td>' + escHtml(ln.part_name || '-') + '<br><small style="color:#64748b">' + escHtml(ln.model || '') + (ln.part_no ? ' · ' + escHtml(ln.part_no) : '') + '</small></td>' +
+          '<td style="text-align:center">' + escHtml(ln.unit || '') + '</td>' +
+          '<td style="text-align:right">' + Number(ln.qty_approved || 0) + '</td>' +
+          '<td style="text-align:right">' + Number(ln.unit_price || 0).toLocaleString('th-TH') + '</td>' +
+          '<td style="text-align:right">' + amt.toLocaleString('th-TH') + '</td></tr>';
+      }).join('');
+      var css = 'body{font-family:"Noto Sans Thai",Arial,sans-serif;color:#1e293b;padding:24px;font-size:13px}' +
+        'h1{font-size:20px;color:#1e3a5f;margin:0 0 4px}.meta{color:#475569;font-size:12px;margin-bottom:12px}' +
+        'table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #cbd5e1;padding:6px 8px}' +
+        'th{background:#1e3a5f;color:#fff;font-size:12px}tfoot td{font-weight:700;background:#f1f5f9}' +
+        '.approved{display:inline-block;border:2px solid #059669;color:#059669;border-radius:8px;padding:2px 10px;font-weight:700;transform:rotate(-3deg)}';
+      var html = '<div><h1>ใบขอซื้อ (Purchase Request)</h1>' +
+        '<div class="meta">เลขที่: <b>' + escHtml(header.pr_id) + '</b> &nbsp; ไลน์/แผนก: ' + escHtml(header.line || '-') + (header.dept ? ' / ' + escHtml(header.dept) : '') + '<br>' +
+        'ผู้ขอ: ' + escHtml(header.created_by || '-') + ' (' + escHtml(header.created_at || '-') + ') &nbsp; ' +
+        '<span class="approved">✔ APPROVED โดย ' + escHtml(header.approved_by || '-') + ' · ' + escHtml(header.approved_at || '-') + '</span></div>' +
+        '<table><thead><tr><th>#</th><th>รายการ</th><th>หน่วย</th><th>จำนวนอนุมัติ</th><th>ราคา/หน่วย</th><th>รวม (฿)</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+        '<tfoot><tr><td colspan="5" style="text-align:right">รวมทั้งสิ้น</td><td style="text-align:right">' + grand.toLocaleString('th-TH') + '</td></tr></tfoot></table></div>';
+      win.document.write('<html lang="th"><head><meta charset="utf-8"/><title>PR ' + escHtml(header.pr_id) + '</title>' +
+        '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet"><style>' + css + '</style></head><body>' + html + '</body></html>');
+      win.document.close();
+      setTimeout(function() { win.print(); }, 500);
+    }
+
+    // ---- bindings ----
+    var tabInboxEl2 = document.getElementById('tabInbox');
+    if (tabInboxEl2) tabInboxEl2.addEventListener('click', openInbox);
+    var inboxCloseBtn = document.getElementById('inboxCloseBtn');
+    if (inboxCloseBtn) inboxCloseBtn.addEventListener('click', closeInbox);
+    var inboxRefreshBtn = document.getElementById('inboxRefreshBtn');
+    if (inboxRefreshBtn) inboxRefreshBtn.addEventListener('click', loadInbox);
+    var inboxOverlayEl = document.getElementById('inboxOverlay');
+    if (inboxOverlayEl) inboxOverlayEl.addEventListener('click', function(e) { if (e.target === inboxOverlayEl) closeInbox(); });
+    var inboxSidebarEl = document.getElementById('inboxSidebar');
+    if (inboxSidebarEl) inboxSidebarEl.addEventListener('click', function(e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-inbox-tab]') : null;
+      if (!btn) return;
+      inboxActiveTab = btn.getAttribute('data-inbox-tab');
+      renderInboxSidebar();
+      renderInboxList();
+    });
+    var inboxListEl = document.getElementById('inboxList');
+    if (inboxListEl) inboxListEl.addEventListener('click', function(e) {
+      var review = e.target && e.target.closest ? e.target.closest('[data-inbox-review]') : null;
+      if (review) { openPrApproval(review.getAttribute('data-inbox-review')); return; }
+      var print = e.target && e.target.closest ? e.target.closest('[data-inbox-print]') : null;
+      if (print) { inboxPrintApprovedPr(print.getAttribute('data-inbox-print')); return; }
+    });
+    var prApprovalCloseBtn = document.getElementById('prApprovalCloseBtn');
+    if (prApprovalCloseBtn) prApprovalCloseBtn.addEventListener('click', closePrApproval);
+    var prApproveBtn = document.getElementById('prApproveBtn');
+    if (prApproveBtn) prApproveBtn.addEventListener('click', submitApprove);
+    var prRejectBtn = document.getElementById('prRejectBtn');
+    if (prRejectBtn) prRejectBtn.addEventListener('click', submitReject);
+    window.loadInboxBadge = loadInboxBadge;
     if (purchaseHistoryRefreshBtn) purchaseHistoryRefreshBtn.addEventListener('click', function() { purchaseHistoryCurrentPage = 1; loadPurchaseHistory(true).catch(function() {}); });
     var purchaseHistoryReconcileBtn = document.getElementById('purchaseHistoryReconcileBtn');
     var purchaseHistoryReconcileOverlay = document.getElementById('purchaseHistoryReconcileOverlay');
@@ -13070,20 +13455,46 @@ if (dashboardPage) {
         doRecordPrPurchaseHistory(selected, prNumber, true);
       });
     });
+    // ✅ ปุ่ม builder ไม่ปริ้นตรงอีกต่อไป — ส่ง "สร้าง PR (PENDING)" ให้หัวหน้าอนุมัติใน Inbox ก่อน
+    // ยอด qty_requested จะถูกล็อก, หัวหน้าปรับได้เฉพาะ qty_approved, ปริ้นได้เฉพาะเมื่อ APPROVED
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
       var selected = getFilteredPrCandidates(true);
-      if (!selected.length) { showQuickToast('กรุณาเลือกรายการก่อน Export', 'warn'); return; }
-      var totalFiltered = getFilteredPrCandidates(false).length;
-      var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
-      var opts = getPrReportOptions(allSelectedMode);
-      opts.prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
+      if (!selected.length) { showQuickToast('กรุณาเลือกรายการก่อนส่งอนุมัติ', 'warn'); return; }
+      var prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
+      var headerLine = (prLineFilter && prLineFilter.value && prLineFilter.value !== 'all') ? prLineFilter.value : (selected[0] && selected[0].line) || '';
+      var lines = selected.map(function(item) {
+        return {
+          part_no: item.no || '',
+          part_name: item.name || '',
+          model: item.model || '',
+          brand: item.brand || '',
+          category: item.category || '',
+          unit: item.unit || 'PCS',
+          qty_requested: Number(item.suggestedQty || 0),
+          unit_price: Number(item.unitPrice || 0) > 0 ? Number(item.unitPrice) : 0,
+          remark: item.purpose || item.reason || ''
+        };
+      }).filter(function(ln) { return ln.qty_requested > 0; });
+      if (!lines.length) { showQuickToast('ทุกบรรทัดมียอด 0 — กรุณาระบุจำนวนที่ขอ', 'warn'); return; }
+      showConfirmDialog({ title: 'ส่ง PR ให้หัวหน้าอนุมัติ', message: 'สร้าง ' + prNumber + ' จำนวน ' + lines.length + ' รายการ เป็นสถานะ "รออนุมัติ" — หัวหน้าจะตรวจ/แก้ยอดใน Inbox ก่อนปริ้น ยืนยัน?', okLabel: 'ส่งอนุมัติ' }).then(function(ok) {
+        if (!ok) return;
+        prPrintBtn.disabled = true;
+        var oldHtml = prPrintBtn.innerHTML; prPrintBtn.textContent = '⏳ กำลังส่ง...';
+        postJson(withAuthPayload({ action: 'createPR', pr_id: prNumber, line: headerLine, lines_json: JSON.stringify(lines) }))
+          .then(parseApiResponse).then(function(res) {
+            showQuickToast('✅ ส่ง PR ' + (res.pr_id || prNumber) + ' รออนุมัติแล้ว (' + (res.item_count || lines.length) + ' รายการ)', 'success');
+            if (typeof loadInboxBadge === 'function') loadInboxBadge();
+          }).catch(function(err) {
+            showQuickToast('⚠️ สร้าง PR ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
+          }).finally(function() {
+            prPrintBtn.disabled = false; prPrintBtn.innerHTML = oldHtml;
+          });
+      });
+    });
+
+    // เก็บฟังก์ชันปริ้นเดิมไว้ (ยังใช้เป็น engine ปริ้นใบ PR ที่อนุมัติแล้วจาก Inbox)
+    function legacyOpenPrPrintWindow(selected, opts){
       var docHtml = buildDocumentGradeReport(selected, opts);
-      // ✅ บันทึก Purchase History เฉพาะครั้งแรกของ PR เลขนี้ — Export/ปริ้นซ้ำครั้งต่อไปจะไม่บันทึกซ้ำ (กัน Purchase History เพิ่มขึ้นเรื่อยๆ จากการปริ้นซ้ำ)
-      if (prRecordedNumbers[opts.prNumber]) {
-        showQuickToast('🖨 พิมพ์ซ้ำ — ไม่ได้บันทึก Purchase History ซ้ำ (บันทึกไปแล้วครั้งแรกของ PR นี้)', 'info');
-      } else {
-        doRecordPrPurchaseHistory(selected, opts.prNumber, false);
-      }
       var css = getPrDocCss();
       var win = window.open('', '_blank');
       if (!win) { showQuickToast('กรุณาอนุญาต popup เพื่อ Export PDF', 'warn'); return; }
@@ -13137,7 +13548,8 @@ if (dashboardPage) {
       waitForReportImages(12000).finally(function(){
         setTimeout(function(){ win.print(); }, 350);
       });
-    });
+    }
+    window.legacyOpenPrPrintWindow = legacyOpenPrPrintWindow;
     bindFilePreview('eImageMainFile', 'eImageMainPreview');
     // sheetSelector ยังคงไว้เพื่อ backward-compat แต่ซ่อนจาก UI แล้ว
     // การเปลี่ยน sheet ทำผ่าน subSheetFilter แทน
@@ -13609,6 +14021,7 @@ if (dashboardPage) {
         password: document.getElementById('uPassword').value,
         role: document.getElementById('uRole').value,
         isActive: document.getElementById('uIsActive').checked,
+        line: (document.getElementById('uLine') || {}).value || '',
         permissionsJson: document.getElementById('uPermissionsJson').value || '{"allow":[],"deny":[]}'
       });
       // ใช้ postJson แทน requestApi เพื่อส่ง permissionsJson ที่ยาวได้ (ไม่ติด URL limit)
