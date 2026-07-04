@@ -346,6 +346,18 @@ function formatPurchaseHistoryDate(value, includeTime) {
   return Utilities.formatDate(date, 'Asia/Bangkok', includeTime ? 'yyyy-MM-dd HH:mm:ss' : 'yyyy-MM-dd');
 }
 
+// Google Sheets บางครั้ง auto-convert ค่า "yyyy-MM" ในคอลัมน์ Month ให้กลายเป็น Date object
+// จริง (ตีความเป็นวันที่ 1 ของเดือนนั้น) ทำให้ String(row[4]) คืนค่าเป็น toString() แบบเต็ม
+// ("Wed Jul 01 2026 00:00:00 GMT+0700 ...") แทนที่จะเป็น "2026-07" ต้อง format ให้ถูก timezone เสมอ
+function formatPurchaseHistoryMonth(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return '';
+    return Utilities.formatDate(value, 'Asia/Bangkok', 'yyyy-MM');
+  }
+  return String(value).trim();
+}
+
 function calculatePurchaseHistoryTotal(qty, unitPrice) {
   var priceText = String(unitPrice === undefined || unitPrice === null ? '' : unitPrice).trim();
   if (!priceText) return '';
@@ -534,7 +546,7 @@ function upsertPurchaseHistoryRecordUnlocked(payload) {
 
 function purchaseHistoryRowToObject(row) {
   return {
-    history_id: String(row[0] || ''), request_id: String(row[1] || ''), source: String(row[2] || ''), date: formatPurchaseHistoryDate(row[3], true), month: String(row[4] || ''),
+    history_id: String(row[0] || ''), request_id: String(row[1] || ''), source: String(row[2] || ''), date: formatPurchaseHistoryDate(row[3], true), month: formatPurchaseHistoryMonth(row[4]),
     line: String(row[5] || ''), part_id: String(row[6] || ''), part_name: String(row[7] || ''), brand: String(row[8] || ''), model: String(row[9] || ''),
     qty_ordered: Number(row[10] || 0), unit: String(row[11] || ''), unit_price: String(row[12] === undefined ? '' : row[12]), currency: String(row[13] || ''),
     total_amount: String(row[14] === undefined ? '' : row[14]), requested_by: String(row[15] || ''), status: String(row[16] || ''),
