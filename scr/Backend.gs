@@ -11,6 +11,13 @@ SPARE_APP_CONFIG.purchaseHistoryAuditSheetName = SPARE_APP_CONFIG.purchaseHistor
 SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName || 'PurchaseHistoryImportLog';
 SPARE_APP_CONFIG.productionVolumeSheetName = SPARE_APP_CONFIG.productionVolumeSheetName || 'ProductionVolume';
 SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCostConfigSheetName || 'ProductionCostConfig';
+// ชีต "ProductionLog" ของแต่ละไลน์ที่มีระบบติดตามยอดผลิตแยกต่างหาก (Google Sheet คนละไฟล์กับ
+// สเปรดชีตอะไหล่) — ถ้าตั้งค่าไว้ ระบบจะดึงยอดผลิตจริงมาคำนวณอัตโนมัติแทนการกรอกมือ
+// ต้องให้บัญชีที่รัน Apps Script นี้มีสิทธิ์ View/Edit ไฟล์ปลายทางด้วย ไม่งั้นจะ fallback ไปใช้
+// ค่าที่กรอกมือแทนเงียบๆ
+SPARE_APP_CONFIG.productionLogSources = SPARE_APP_CONFIG.productionLogSources || {
+  'Lug&Screw': '1Xx2XEGtT-KbnvVP_9gzkW9kuyFUBpj1H-oIsT3zUx1U'
+};
 SPARE_APP_CONFIG.sessionDurationMs = SPARE_APP_CONFIG.sessionDurationMs || (7 * 24 * 60 * 60 * 1000);
 SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThresholdMs || (24 * 60 * 60 * 1000);
 var SESSION_PROPERTY_PREFIX = 'spare_session::';
@@ -655,13 +662,76 @@ function requireProductionCostEditor(payload) {
   return user;
 }
 
+// อ่านชีต "ProductionLog" ของสเปรดชีตภายนอก (คนละไฟล์กับสเปรดชีตอะไหล่) แล้วรวมยอด ActualQty
+// เป็นรายเดือน (รวมทุกเครื่อง) — cache ไว้ 30 นาทีเพราะชีตต้นทางมีเป็นพันแถว อ่านทุกครั้งจะช้า
+// คืนค่า null ถ้าไม่มีสิทธิ์เข้าถึง/ไม่พบชีต เพื่อให้ผู้เรียกใช้ fallback ไปใช้ค่าที่กรอกมือแทน
+function getExternalProductionVolumeForLine(line) {
+  var sourceId = (SPARE_APP_CONFIG.productionLogSources || {})[line];
+  if (!sourceId) return null;
+  var cacheKey = 'prod_volume_external::' + line;
+  try {
+    var cached = CacheService.getScriptCache().get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (cacheReadErr) {
+    Logger.log('getExternalProductionVolumeForLine cache read warning: ' + (cacheReadErr && cacheReadErr.message ? cacheReadErr.message : cacheReadErr));
+  }
+  try {
+    var sourceSheet = SpreadsheetApp.openById(sourceId).getSheetByName('ProductionLog');
+    if (!sourceSheet) return null;
+    var values = sourceSheet.getDataRange().getValues();
+    if (values.length <= 1) return [];
+    var headers = values[0];
+    var dateCol = -1, qtyCol = -1;
+    for (var i = 0; i < headers.length; i += 1) {
+      var h = String(headers[i] || '').trim().toLowerCase();
+      if (h === 'date') dateCol = i;
+      if (h === 'actualqty') qtyCol = i;
+    }
+    if (dateCol === -1 || qtyCol === -1) return null;
+    var byMonth = {};
+    for (var r = 1; r < values.length; r += 1) {
+      var dateVal = values[r][dateCol];
+      var qty = Number(values[r][qtyCol] || 0);
+      if (!dateVal || !isFinite(qty)) continue;
+      var d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+      if (isNaN(d.getTime())) continue;
+      var monthKey = Utilities.formatDate(d, 'Asia/Bangkok', 'yyyy-MM');
+      byMonth[monthKey] = (byMonth[monthKey] || 0) + qty;
+    }
+    var result = Object.keys(byMonth).map(function(m) { return { month: m, actual_qty: byMonth[m] }; });
+    try {
+      CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 1800);
+    } catch (cacheWriteErr) {
+      Logger.log('getExternalProductionVolumeForLine cache write warning: ' + (cacheWriteErr && cacheWriteErr.message ? cacheWriteErr.message : cacheWriteErr));
+    }
+    return result;
+  } catch (err) {
+    Logger.log('getExternalProductionVolumeForLine error [' + line + ']: ' + (err && err.message ? err.message : err));
+    return null;
+  }
+}
+
 function getProductionVolume(payload) {
   requirePermission({ authToken: payload.authToken }, 'view');
   var values = getProductionVolumeSheet().getDataRange().getValues();
-  if (values.length <= 1) return [];
-  return values.slice(1).filter(function(r) { return String(r[0] || '').trim(); }).map(function(r) {
-    return { month: String(r[0] || ''), line: String(r[1] || ''), actual_qty: Number(r[2] || 0), updated_by: String(r[3] || ''), updated_at: String(r[4] || '') };
+  var manual = values.length <= 1 ? [] : values.slice(1).filter(function(r) { return String(r[0] || '').trim(); }).map(function(r) {
+    return { month: String(r[0] || ''), line: String(r[1] || ''), actual_qty: Number(r[2] || 0), updated_by: String(r[3] || ''), updated_at: String(r[4] || ''), source: 'manual' };
   });
+  // ไลน์ที่ตั้งค่า productionLogSources ไว้ ให้ยอดจาก ProductionLog จริงทับค่าที่กรอกมือเสมอ
+  // (ค่ากรอกมือยังอยู่เป็น fallback เผื่อดึงข้อมูลจริงไม่สำเร็จ)
+  Object.keys(SPARE_APP_CONFIG.productionLogSources || {}).forEach(function(line) {
+    var external = getExternalProductionVolumeForLine(line);
+    if (!external) return;
+    external.forEach(function(row) {
+      var idx = -1;
+      for (var i = 0; i < manual.length; i += 1) {
+        if (manual[i].line === line && manual[i].month === row.month) { idx = i; break; }
+      }
+      var entry = { month: row.month, line: line, actual_qty: row.actual_qty, updated_by: 'ProductionLog (auto)', updated_at: '', source: 'auto' };
+      if (idx === -1) manual.push(entry); else manual[idx] = entry;
+    });
+  });
+  return manual;
 }
 
 function upsertProductionVolume(payload) {
