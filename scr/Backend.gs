@@ -2080,19 +2080,21 @@ function getOrCreateChildFolder(parent, name) {
   return folders.hasNext() ? folders.next() : parent.createFolder(name);
 }
 
-function getUploadTargetFolder(line, itemId, imageType) {
+// โครงสร้างโฟลเดอร์ใน Drive: ไลน์ > Model > ชื่อไฟล์รูป (ไม่มีโฟลเดอร์ item-N / main/install
+// ซ้อนอีกแล้วเหมือนเดิม) — ถ้าไม่มี model (รายการเก่าที่ยังไม่กรอก) fallback เป็น "item-{itemId}"
+// กันชื่อโฟลเดอร์ว่าง/ชนกัน
+function getUploadTargetFolder(line, itemId, imageType, model) {
   var root = DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID);
   var safeLine = String(line || '').trim() || 'UnknownLine';
   var safeItemId = String(itemId || '').trim() || 'UNKNOWN';
-  var typeName = imageType === 'install' ? 'install' : 'main';
+  var safeModel = sanitizeDrivePathSegment(model, 'item-' + safeItemId);
 
   var lineFolder = getOrCreateChildFolder(root, safeLine);
-  var itemFolder = getOrCreateChildFolder(lineFolder, 'item-' + safeItemId);
-  var typeFolder = getOrCreateChildFolder(itemFolder, typeName);
+  var modelFolder = getOrCreateChildFolder(lineFolder, safeModel);
 
   return {
-    folder: typeFolder,
-    drivePath: safeLine + '/item-' + safeItemId + '/' + typeName + '/'
+    folder: modelFolder,
+    drivePath: safeLine + '/' + safeModel + '/'
   };
 }
 
@@ -2109,6 +2111,7 @@ function uploadImageToDrive(payload) {
 
   var itemId = String(payload.itemId || payload.no || '').trim();
   var line = String(payload.line || payload.mainLine || '').trim();
+  var model = String(payload.model || payload.partNo || payload.part_no || '').trim();
   var kind = String(payload.kind || payload.imageType || 'main').toLowerCase();
   var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
   if (!itemId) throw new Error('ต้องมี itemId');
@@ -2123,20 +2126,25 @@ function uploadImageToDrive(payload) {
   var base64Content = dataUrl.split(',')[1] || '';
   var bytes = Utilities.base64Decode(base64Content);
   var ext = mimeType === 'image/png' ? 'png' : (mimeType === 'image/webp' ? 'webp' : 'jpg');
-  var fileName = (kind === 'main' ? 'main-' : 'install-') + Date.now() + '.' + ext;
+  // ใส่ itemId ไว้ในชื่อไฟล์เสมอ เพราะตอนนี้หลายรายการที่ Model เดียวกันจะแชร์โฟลเดอร์เดียวกัน
+  // (โครงสร้างใหม่ ไลน์ > Model > ไฟล์ ไม่มีโฟลเดอร์แยกราย item แล้ว) ต้องกันชื่อไฟล์ชนกัน/
+  // archive ผิดรายการ
+  var namePrefix = kind + '-' + sanitizeDrivePathSegment(itemId, 'UNKNOWN') + '-';
+  var fileName = namePrefix + Date.now() + '.' + ext;
   var blob = Utilities.newBlob(bytes, mimeType, fileName);
 
-  var target = getUploadTargetFolder(line, itemId, kind);
+  var target = getUploadTargetFolder(line, itemId, kind, model);
   var folder = target.folder;
 
-  // ย้ายรูปเก่าไป _archive แทนที่จะ Trash (ป้องกันรูปหายถาวร)
+  // ย้ายรูปเก่าไป _archive แทนที่จะ Trash (ป้องกันรูปหายถาวร) — กรองด้วย namePrefix เท่านั้น
+  // เพราะโฟลเดอร์นี้อาจมีรูปของรายการอื่น (Model เดียวกัน) หรือรูปอีก kind ปนอยู่ด้วย
   var archiveFolderName = '_archive';
   var existing = folder.getFiles();
   var hasOldFiles = false;
   var oldFiles = [];
   while (existing.hasNext()) {
     var f = existing.next();
-    if (!f.isTrashed()) { oldFiles.push(f); hasOldFiles = true; }
+    if (!f.isTrashed() && f.getName().indexOf(namePrefix) === 0) { oldFiles.push(f); hasOldFiles = true; }
   }
   if (hasOldFiles) {
     try {

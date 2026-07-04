@@ -4282,7 +4282,7 @@ function getIssueCartEntries() {
       return message;
     }
 
-    function uploadImageFile(file, itemId, kind, itemName) {
+    function uploadImageFile(file, itemId, kind, itemName, model) {
       if (!file) return Promise.resolve(null);
       validateImageFile(file);
       return readFileAsDataUrl(file).then(function(dataUrl) {
@@ -4292,6 +4292,7 @@ function getIssueCartEntries() {
         payload.append('line', currentLine);
         payload.append('imageType', kind);
         payload.append('itemName', itemName || '');
+        payload.append('model', model || '');
         payload.append('dataUrl', dataUrl);
         if (authToken) payload.append('authToken', authToken);
         return fetch(getWriteApiUrl(), {
@@ -10434,7 +10435,7 @@ function inferRequestPriority(stock, min) {
         label: 'Edit #' + itemNo,
         run: function(setProgress) {
           setProgress(10);
-          return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim()).then(function(mainRes){
+          return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('eName').value.trim(), document.getElementById('eModel').value.trim()).then(function(mainRes){
             setProgress(40);
             if (mainRes) {
               var normalizedMainUrl = pickMainImageUrl(mainRes);
@@ -10683,7 +10684,7 @@ function inferRequestPriority(stock, min) {
         label: 'Save #' + itemNo,
         run: function(setProgress) {
           setProgress(10);
-          return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('mName').value.trim()).then(function(mainRes) {
+          return uploadImageFile(mainFile, itemNo, 'main', document.getElementById('mName').value.trim(), document.getElementById('mModel').value.trim()).then(function(mainRes) {
             setProgress(55);
             if (mainRes) {
               var normalizedMainUrl = pickMainImageUrl(mainRes);
