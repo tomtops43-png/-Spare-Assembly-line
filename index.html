@@ -7263,11 +7263,22 @@ function inferRequestPriority(stock, min) {
     /* ── Expense Control chart (Purchase History → spend by month/line) ──── */
     function fccLineColor(line) { return FCC_LINE_COLORS[fccLineOf(line)] || '#2563eb'; }
     function fccMonthLabel(m) {
-      var parts = String(m || '').split('-');
-      if (parts.length < 2) return m || '-';
-      var y = Number(parts[0]), mo = Number(parts[1]);
-      if (!y || !mo || mo < 1 || mo > 12) return m;
-      return FCC_TH_MONTHS[mo - 1] + ' ' + y;
+      var raw = String(m || '').trim();
+      var parts = raw.split('-');
+      if (parts.length >= 2) {
+        var y = Number(parts[0]), mo = Number(parts[1]);
+        if (y && mo >= 1 && mo <= 12) return FCC_TH_MONTHS[mo - 1] + ' ' + y;
+      }
+      // เผื่อ backend ยังไม่ได้ deploy แก้ field month ให้เป็น "yyyy-MM" (อาจยังส่งมาเป็น
+      // toString() ของ Date เต็มรูปแบบ เช่น "Wed Jul 01 2026 00:00:00 GMT+0700 ...") — ลอง
+      // parse เป็นวันที่โดยตรงแทนที่จะปล่อยสตริงยาวๆ ไปโชว์บนแกน X จนอ่านไม่ออก
+      var d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        // ใช้ UTC getter บนเวลาที่เลื่อนมาแล้ว +7 ชม. กันผลลัพธ์เพี้ยนตาม timezone ของเบราว์เซอร์ผู้ใช้
+        var bkk = new Date(d.getTime() + 7 * 3600000);
+        return FCC_TH_MONTHS[bkk.getUTCMonth()] + ' ' + bkk.getUTCFullYear();
+      }
+      return raw || '-';
     }
     function fccExpenseValidRows(hist) {
       return (hist || []).map(function(h) {
@@ -7315,6 +7326,10 @@ function inferRequestPriority(stock, min) {
       axisY += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + ih) + '" stroke="rgba(100,116,139,.3)" stroke-width="1"/>';
       var bars = '', labels = '', dataLabels = '', dots = '', pts = [];
       var showDataLabels = n <= 8;
+      // ประเมินความกว้างป้ายกำกับแกน X คร่าวๆ เพื่อเว้นบางป้ายไม่ให้ทับกัน (เช่นตอนชื่อยาวๆ
+      // หรือมีหลายหมวดหมู่) แทนที่จะบังคับโชว์ทุกป้ายจนอ่านไม่ออก
+      var maxLabelLen = cats.reduce(function(m, c) { return Math.max(m, String(c).length); }, 1);
+      var labelSkip = Math.max(1, Math.ceil((maxLabelLen * 5.6 + 6) / slot));
       cats.forEach(function(cat, i) {
         var cx = padL + slot * i + slot / 2;
         var col = colorFn ? colorFn(cat, i) : '#2563eb';
@@ -7332,7 +7347,7 @@ function inferRequestPriority(stock, min) {
           dots += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3" fill="#fff" stroke="' + (chartType === 'combo' ? '#0f172a' : col) + '" stroke-width="1.8"><title>' + fccEsc(cat) + ': ' + tip + '</title></circle>';
           if (showDataLabels && chartType === 'combo') dataLabels += '<text x="' + cx.toFixed(1) + '" y="' + (cy - 7).toFixed(1) + '" text-anchor="middle" font-size="8.5" font-weight="700" fill="#0f172a" font-family="Chakra Petch,Prompt,sans-serif">' + counts[i] + '</text>';
         }
-        labels += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">' + fccEsc(cat) + '</text>';
+        if (i % labelSkip === 0) labels += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">' + fccEsc(cat) + '</text>';
       });
       var line = '';
       if (pts.length > 1 && (chartType === 'line' || chartType === 'combo')) {
