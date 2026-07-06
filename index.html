@@ -1341,11 +1341,12 @@
         <div class="fcc-card" style="margin-top:12px">
           <div class="fcc-card-h">
             <div>
-              <div class="fcc-card-t"><span class="ico">&#x1F3AF;</span>Cost Ratio & Expense Control — รายจ่ายเทียบงบต้นทุน</div>
-              <div class="fcc-card-sub" id="fccCostRatioSub">เทียบรายจ่ายอะไหล่กับงบต้นทุนที่ตั้งจากมูลค่าผลิตแต่ละเดือน</div>
+              <div class="fcc-card-t"><span class="ico">&#x1F3AF;</span>Cost Ratio & Expense Control — ยอดขาย vs ค่าใช้จ่าย Spare Part</div>
+              <div class="fcc-card-sub" id="fccCostRatioSub">เทียบยอดขายกับค่าใช้จ่าย Spare Part และงบ Spare part ที่สั่งได้แต่ละเดือน</div>
             </div>
             <div class="fcc-controls">
               <select id="fccCostRatioLineFilter" class="fcc-select fcc-select-sm" aria-label="เลือก Line สำหรับ Cost Ratio">
+                <option value="__all__">ทุกไลน์ (รวม)</option>
                 <option value="Lug&Screw">Lug&amp;Screw</option>
                 <option value="H9">H9</option>
                 <option value="Arc Chute">Arc Chute</option>
@@ -1362,8 +1363,8 @@
               <span style="font-size:10.5px; color:#94a3b8;">💡 ราคาต่อชิ้นดึงจากชีต Unit Price Latest อัตโนมัติ (จับคู่ตาม Model) ไม่ต้องกรอกเอง</span>
               <span id="fccCostRatioConfigMsg" style="font-size:11px; color:#64748b;"></span>
             </div>
-            <div class="fcc-chart" id="fccCostRatioChart">
-              <div class="fcc-skel" style="height:232px"></div>
+            <div id="fccCostRatioChart" style="position:relative; height:300px;">
+              <canvas id="fccCostRatioCanvas"></canvas>
             </div>
             <div id="fccCostRatioTable" style="margin-top:12px"><div class="fcc-skel" style="height:140px"></div></div>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0;">
@@ -3061,6 +3062,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Chart.js — ใช้เฉพาะกราฟ Combo ของ Cost Ratio (Sales/Spare Expense/Cost Ratio/Target) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script>
     (function installLegacyRuntimeGuard() {
       window.addEventListener('error', function(ev) {
@@ -7038,6 +7041,7 @@ function inferRequestPriority(stock, min) {
     var fccTopsMode = 'usage';
     var fccQExp = {};
     var fccLast = { P: null, PAll: null, L: null, R: null, Hist: null, ProdVolume: null, ProdConfig: null, queue: [] };
+    var fccCostRatioChart = null; // Chart.js instance ของกราฟ Cost Ratio (combo) — ต้อง destroy ก่อน render ใหม่
     var fccAsyncCache = { requests: null, logs: null, hist: null, prodVolume: null, prodConfig: null, at: 0, pending: null };
     var fccClockTimer = null;
     var fccRenderToken = 0;
@@ -7541,78 +7545,108 @@ function inferRequestPriority(stock, min) {
     }
     // วาดกราฟแท่ง (รายจ่ายจริง สีแดงถ้าเกินงบ/สีน้ำเงินถ้าอยู่ในงบ) + เส้นประ (งบต้นทุนเป้าหมาย)
     // ใช้สเกลแกน Y เดียวกันทั้งสองชุดข้อมูล เพื่อให้เทียบแท่งกับเส้นได้ตรงๆ ด้วยตา
-    function fccDrawBudgetVsSpendChart(cats, spendArr, budgetArr) {
-      if (!cats.length) return '<div class="fcc-empty">ยังไม่มีข้อมูลรายจ่าย/งบต้นทุนที่ตรงกับตัวกรองนี้</div>';
-      var W = 640, H = 232, padL = 54, padR = 14, padT = 16, padB = 30;
-      var iw = W - padL - padR, ih = H - padT - padB;
-      var n = cats.length;
-      var validBudgets = budgetArr.filter(function(v) { return v !== null && v !== undefined; });
-      var maxVal = Math.max.apply(null, spendArr.concat(validBudgets).concat([1]));
-      var slot = iw / n, bw = Math.min(46, slot * 0.5);
-      var grid = '', axisY = '';
-      for (var g = 0; g <= 3; g++) {
-        var gy = (padT + ih - ih * g / 3).toFixed(1);
-        if (g > 0) grid += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" stroke="rgba(100,116,139,.18)" stroke-dasharray="3 4" stroke-width="1"/>';
-        axisY += '<text x="' + (padL - 8) + '" y="' + (Number(gy) + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">฿' + fccMoney(maxVal * g / 3) + '</text>';
+    // Combo chart (Chart.js): แท่งน้ำเงิน=Sales, แท่งแดง=Spare Expense (แกนซ้าย บาท) +
+    // เส้นดำ=Cost Ratio %, เส้นเขียวประ=Target % (แกนขวา %) — ผู้บริหารอ่านจบใน 5 วินาที
+    // perMonth = [{ label, sales, expense, ratio(|null), budget(|null) }] เรียงเก่า→ใหม่
+    function fccCostRatioTooltipEl() {
+      var el = document.getElementById('fccCostRatioTooltip');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'fccCostRatioTooltip';
+        el.style.cssText = 'position:absolute;pointer-events:none;z-index:10050;opacity:0;transition:opacity .12s ease;transform:translate(-50%,calc(-100% - 12px));background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:10px 12px;font-family:\'Prompt\',\'Chakra Petch\',sans-serif;font-size:12px;line-height:1.5;color:#334155;min-width:170px;';
+        document.body.appendChild(el);
       }
-      axisY += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + ih) + '" stroke="rgba(100,116,139,.3)" stroke-width="1"/>';
-      var bars = '', labels = '', dataLabels = '', pts = [];
-      var showDataLabels = n <= 8;
-      var maxLabelLen = cats.reduce(function(m, c) { return Math.max(m, String(c).length); }, 1);
-      var labelSkip = Math.max(1, Math.ceil((maxLabelLen * 5.6 + 6) / slot));
-      cats.forEach(function(cat, i) {
-        var cx = padL + slot * i + slot / 2;
-        var spend = spendArr[i] || 0;
-        var budget = (budgetArr[i] === null || budgetArr[i] === undefined) ? null : budgetArr[i];
-        var over = budget !== null && spend > budget;
-        var col = over ? '#dc2626' : '#2563eb';
-        var bh = maxVal > 0 ? (spend / maxVal) * ih : 0;
-        var by = padT + ih - bh;
-        var tip = fccEsc(cat) + ': รายจ่าย ฿' + fccInt(spend) + (budget !== null ? ' / งบ ฿' + fccInt(budget) : ' (ยังไม่ได้ตั้งงบ)');
-        bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" fill="' + col + '" fill-opacity="0.85"><title>' + tip + '</title></rect>';
-        if (showDataLabels) dataLabels += '<text x="' + cx.toFixed(1) + '" y="' + Math.max(padT + 9, by - 5).toFixed(1) + '" text-anchor="middle" font-size="8.5" font-weight="700" fill="' + (over ? '#dc2626' : '#334155') + '" font-family="Chakra Petch,Prompt,sans-serif">฿' + fccMoney(spend) + '</text>';
-        if (budget !== null) {
-          var ly = padT + ih - (maxVal > 0 ? (budget / maxVal) * ih : 0);
-          pts.push(cx.toFixed(1) + ',' + ly.toFixed(1));
+      return el;
+    }
+    function fccRenderCostRatioCombo(perMonth, targetPct) {
+      var canvas = document.getElementById('fccCostRatioCanvas');
+      if (!canvas) return;
+      if (typeof Chart === 'undefined') { // library ยังโหลดไม่เสร็จ — ลองใหม่อีกครั้ง
+        setTimeout(function() { if (typeof Chart !== 'undefined') fccRenderCostRatioCombo(perMonth, targetPct); }, 400);
+        return;
+      }
+      if (fccCostRatioChart) { fccCostRatioChart.destroy(); fccCostRatioChart = null; }
+      var FONT = "'Prompt','Chakra Petch',sans-serif";
+      var tgt = targetPct > 0 ? targetPct : null;
+      fccCostRatioChart = new Chart(canvas.getContext('2d'), {
+        data: {
+          labels: perMonth.map(function(d) { return d.label; }),
+          datasets: [
+            { type: 'bar', label: 'Sales', data: perMonth.map(function(d) { return d.sales; }), backgroundColor: '#3B82F6', yAxisID: 'yBaht', borderRadius: 8, order: 3, categoryPercentage: 0.62, barPercentage: 0.9 },
+            { type: 'bar', label: 'Spare Expense', data: perMonth.map(function(d) { return d.expense; }), backgroundColor: '#EF4444', yAxisID: 'yBaht', borderRadius: 8, order: 3, categoryPercentage: 0.62, barPercentage: 0.9 },
+            { type: 'line', label: 'Cost Ratio', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#111827', backgroundColor: '#111827', yAxisID: 'yPct', tension: 0.35, borderWidth: 2.4, order: 1, spanGaps: true, pointRadius: 4, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
+              pointBackgroundColor: function(c) { var v = c.raw; return (v != null && tgt != null && v > tgt) ? '#EF4444' : '#22C55E'; } },
+            { type: 'line', label: 'Target', data: perMonth.map(function() { return tgt; }), borderColor: '#22C55E', yAxisID: 'yPct', borderDash: [6, 4], borderWidth: 2, order: 2, pointRadius: 0, spanGaps: true, fill: false }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          animation: { duration: 500 },
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { family: FONT, size: 11 }, color: '#64748b' } },
+            yBaht: { position: 'left', beginAtZero: true, title: { display: true, text: 'บาท (THB)', font: { family: FONT, size: 11 }, color: '#94a3b8' }, grid: { color: 'rgba(100,116,139,.12)' }, ticks: { font: { family: FONT, size: 10 }, color: '#94a3b8', callback: function(v) { return '฿' + fccMoney(v); } } },
+            yPct: { position: 'right', beginAtZero: true, title: { display: true, text: '%', font: { family: FONT, size: 11 }, color: '#94a3b8' }, grid: { drawOnChartArea: false }, ticks: { font: { family: FONT, size: 10 }, color: '#94a3b8', callback: function(v) { return v + '%'; } } }
+          },
+          plugins: {
+            legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, font: { family: FONT, size: 11 }, color: '#475569' } },
+            tooltip: {
+              enabled: false,
+              external: function(ctx) {
+                var el = fccCostRatioTooltipEl();
+                var tt = ctx.tooltip;
+                if (!tt || tt.opacity === 0 || !tt.dataPoints || !tt.dataPoints.length) { el.style.opacity = 0; return; }
+                var d = perMonth[tt.dataPoints[0].dataIndex];
+                if (!d) { el.style.opacity = 0; return; }
+                function row(lbl, val, color) { return '<div style="display:flex;justify-content:space-between;gap:16px;"><span style="color:#94a3b8;">' + lbl + '</span><b style="color:' + color + ';">' + val + '</b></div>'; }
+                var html = '<div style="font-weight:700;color:#0f172a;margin-bottom:6px;border-bottom:1px solid #f1f5f9;padding-bottom:5px;">' + fccEsc(d.label) + '</div>';
+                html += row('Sales', '฿' + fccInt(d.sales), '#3B82F6');
+                html += row('Spare Expense', '฿' + fccInt(d.expense), '#EF4444');
+                if (d.budget != null) html += row('Budget', '฿' + fccInt(d.budget), '#334155');
+                if (d.ratio != null) html += row('Cost Ratio', d.ratio.toFixed(1) + '%', '#111827');
+                if (tgt != null) html += row('Target', tgt + '%', '#22C55E');
+                if (d.ratio != null && tgt != null) {
+                  var diff = d.ratio - tgt;
+                  var over = diff > 0;
+                  html += '<div style="margin-top:5px;padding-top:5px;border-top:1px solid #f1f5f9;text-align:center;font-weight:700;color:' + (over ? '#EF4444' : '#22C55E') + ';">' + (over ? 'Over Target (+' + diff.toFixed(1) + '%)' : 'Under Target (' + diff.toFixed(1) + '%)') + '</div>';
+                }
+                el.innerHTML = html;
+                var rect = ctx.chart.canvas.getBoundingClientRect();
+                el.style.left = (rect.left + window.pageXOffset + tt.caretX) + 'px';
+                el.style.top = (rect.top + window.pageYOffset + tt.caretY) + 'px';
+                el.style.opacity = 1;
+              }
+            }
+          }
         }
-        if (i % labelSkip === 0) labels += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Chakra Petch,Prompt,sans-serif">' + fccEsc(cat) + '</text>';
       });
-      var line = '', dots = '';
-      if (pts.length > 1) {
-        line = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#0f172a" stroke-width="2" stroke-dasharray="5 3" stroke-linecap="round" stroke-linejoin="round"/>';
-      }
-      dots = pts.map(function(p) {
-        var xy = p.split(',');
-        return '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="3" fill="#fff" stroke="#0f172a" stroke-width="1.8"/>';
-      }).join('');
-      return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="fcc-in">' + grid + axisY + bars + line + dots + dataLabels + labels + '</svg>' +
-        '<div class="fcc-chart-legend"><span><i style="background:#2563eb"></i>รายจ่ายอยู่ในงบ</span><span><i style="background:#dc2626"></i>รายจ่ายเกินงบ</span><span><i style="background:#0f172a"></i>เส้นงบต้นทุน (เป้าหมาย)</span></div>';
     }
 
     /* ── Cost Ratio (รายจ่ายอะไหล่ / มูลค่าผลิต) ──────────────────────── */
     function fccRenderCostRatio() {
       var tableEl = document.getElementById('fccCostRatioTable');
-      var chartEl = document.getElementById('fccCostRatioChart');
       var sub = document.getElementById('fccCostRatioSub');
       if (!tableEl) return;
       var hist = fccLast.Hist, prodVolume = fccLast.ProdVolume, prodConfig = fccLast.ProdConfig;
       if (!Array.isArray(hist) || !Array.isArray(prodVolume) || !Array.isArray(prodConfig)) return; // ยังโหลดไม่เสร็จ — คง skeleton ไว้
       var lineSelEl = document.getElementById('fccCostRatioLineFilter');
       var targetPctEl = document.getElementById('fccCostRatioTargetPct');
-      var line = lineSelEl ? String(lineSelEl.value || 'Lug&Screw') : 'Lug&Screw';
-      var cfg = prodConfig.filter(function(c) { return fccLineOf(c.line) === line; })[0] || null;
+      var line = lineSelEl ? String(lineSelEl.value || '__all__') : '__all__';
+      var isAll = (line === '__all__'); // "ทุกไลน์ (รวม)" — รวมทุกไลน์ต่อเดือน (แต่ละไลน์ใช้ข้อมูล/ราคาของตัวเอง)
+      // เป้าหมาย % ของมุมมองรวมเก็บแยกใต้ key 'ALL'
+      var cfg = prodConfig.filter(function(c) { return isAll ? c.line === 'ALL' : fccLineOf(c.line) === line; })[0] || null;
       var targetPct = cfg ? Number(cfg.target_pct || 0) : 0;
       // sync ค่าตั้งต้นเข้าช่อง input เสมอ ยกเว้นตอนผู้ใช้กำลังโฟกัส/พิมพ์อยู่ กันค่าที่กำลังพิมพ์หาย
       if (targetPctEl && document.activeElement !== targetPctEl) targetPctEl.value = targetPct || '';
 
       var spendByMonth = {};
-      fccExpenseValidRows(hist).filter(function(r) { return r.line === line; }).forEach(function(r) {
+      fccExpenseValidRows(hist).filter(function(r) { return isAll ? true : r.line === line; }).forEach(function(r) {
         spendByMonth[r.month] = (spendByMonth[r.month] || 0) + r.amount;
       });
       // มูลค่าผลิต (production_value) คำนวณจาก backend แล้ว = ผลรวม (ยอดแต่ละรุ่น × ราคาที่จับคู่ได้)
       // ไม่ต้องคูณราคาต่อหน่วยเองอีก
       var qtyByMonth = {}, valueByMonth = {}, sourceByMonth = {}, unpricedQtyByMonth = {}, unpricedModels = {};
-      prodVolume.filter(function(v) { return fccLineOf(v.line) === line; }).forEach(function(v) {
+      prodVolume.filter(function(v) { return isAll ? true : fccLineOf(v.line) === line; }).forEach(function(v) {
         var key = fccMonthKey(v.month);
         qtyByMonth[key] = (qtyByMonth[key] || 0) + fccN(v.actual_qty);
         if (v.production_value !== undefined) valueByMonth[key] = (valueByMonth[key] || 0) + fccN(v.production_value);
@@ -7626,19 +7660,20 @@ function inferRequestPriority(stock, min) {
       var months = Array.from(new Set(Object.keys(spendByMonth).concat(Object.keys(qtyByMonth)))).sort().reverse();
       if (!months.length) {
         tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลยอดผลิต/รายจ่ายของ Line นี้ — เพิ่มยอดผลิตด้านล่างเพื่อเริ่มคำนวณ</div>';
-        if (chartEl) chartEl.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลยอดผลิต/รายจ่ายของ Line นี้</div>';
+        if (fccCostRatioChart) { fccCostRatioChart.destroy(); fccCostRatioChart = null; } // ล้างกราฟ แต่คง <canvas> ไว้ให้ render รอบถัดไป
         if (sub) sub.textContent = 'เทียบรายจ่ายอะไหล่กับมูลค่าผลิตแต่ละเดือน เพื่อควบคุม % ต้นทุน';
         return;
       }
       // กราฟอ่านง่ายกว่าถ้าเรียงจากเก่าไปใหม่ (ซ้าย→ขวา) ต่างจากตารางที่เรียงเดือนล่าสุดไว้บนสุด
       var chartMonths = months.slice().reverse().slice(-12);
-      var chartCats = chartMonths.map(fccMonthLabel);
-      var chartSpend = chartMonths.map(function(m) { return spendByMonth[m] || 0; });
-      var chartBudget = chartMonths.map(function(m) {
-        var value = valueByMonth[m] || 0;
-        return (targetPct > 0 && value > 0) ? value * targetPct / 100 : null;
+      var perMonth = chartMonths.map(function(m) {
+        var sales = valueByMonth[m] || 0;   // ยอดขาย = มูลค่าผลิต
+        var expense = spendByMonth[m] || 0;  // ค่าใช้จ่าย Spare Part จริง
+        var ratio = sales > 0 ? (expense / sales * 100) : null; // Cost Ratio %
+        var budget = (targetPct > 0 && sales > 0) ? sales * targetPct / 100 : null; // งบ Spare part
+        return { label: fccMonthLabel(m), sales: sales, expense: expense, ratio: ratio, budget: budget };
       });
-      if (chartEl) chartEl.innerHTML = fccDrawBudgetVsSpendChart(chartCats, chartSpend, chartBudget);
+      fccRenderCostRatioCombo(perMonth, targetPct);
       var rowsHtml = months.map(function(m) {
         var qty = qtyByMonth[m] || 0;
         var spend = spendByMonth[m] || 0;
@@ -7666,14 +7701,14 @@ function inferRequestPriority(stock, min) {
       }).join('');
       tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
         '<thead><tr style="border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;">' +
-        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต (ยอดขาย)</th><th style="padding:6px 10px;text-align:right;">งบต้นทุน (เป้าหมาย)</th><th style="padding:6px 10px;text-align:right;">รายจ่ายอะไหล่จริง</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
+        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต (ยอดขาย)</th><th style="padding:6px 10px;text-align:right;">งบ Spare part</th><th style="padding:6px 10px;text-align:right;">รายจ่ายอะไหล่จริง</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>';
       // แจ้งรุ่นที่ยังจับคู่ราคาไม่ได้ (ถ้ามี) เพื่อให้ผู้ใช้ไปแก้ชื่อรุ่น/เพิ่มราคาในชีต
       var unpKeys = Object.keys(unpricedModels).sort(function(a, b) { return unpricedModels[b] - unpricedModels[a]; });
       if (unpKeys.length) {
         tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:11px;color:#92400e;">⚠︎ ' + unpKeys.length + ' รุ่นยังจับคู่ราคาไม่ได้ (ไม่รวมในมูลค่าผลิต): ' + unpKeys.slice(0, 12).map(function(m) { return fccEsc(m) + ' (' + fccInt(unpricedModels[m]) + ')'; }).join(', ') + (unpKeys.length > 12 ? ' …' : '') + '</div>';
       }
-      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + (hasPrice ? '💰 ราคาจับคู่จากชีตอัตโนมัติ · ' : '⏳ รอสิทธิ์เข้าถึงชีตราคา · ') + line + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + (hasPrice ? '💰 ราคาจับคู่จากชีตอัตโนมัติ · ' : '⏳ รอสิทธิ์เข้าถึงชีตราคา · ') + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
     }
     function fccRenderTops(P, L) {
       var el = document.getElementById('fccTops');
@@ -12515,7 +12550,8 @@ function inferRequestPriority(stock, min) {
     if (fccCostRatioLineFilterEl) fccCostRatioLineFilterEl.addEventListener('change', fccRenderCostRatio);
     var fccCostRatioSaveConfigBtn = document.getElementById('fccCostRatioSaveConfigBtn');
     if (fccCostRatioSaveConfigBtn) fccCostRatioSaveConfigBtn.addEventListener('click', function() {
-      var line = fccCostRatioLineFilterEl ? String(fccCostRatioLineFilterEl.value || 'Lug&Screw') : 'Lug&Screw';
+      var sel = fccCostRatioLineFilterEl ? String(fccCostRatioLineFilterEl.value || '__all__') : '__all__';
+      var line = (sel === '__all__') ? 'ALL' : sel; // มุมมองรวมเก็บเป้าหมายใต้ key 'ALL'
       var targetPctEl = document.getElementById('fccCostRatioTargetPct');
       var msgEl = document.getElementById('fccCostRatioConfigMsg');
       var targetPct = Number(targetPctEl ? targetPctEl.value : 0) || 0;
@@ -12525,7 +12561,7 @@ function inferRequestPriority(stock, min) {
       // ราคาต่อหน่วยดึงจากชีตราคาอัตโนมัติ — บันทึกแค่เป้าหมาย % (ส่ง unit_price=0 ไว้ backward-compat)
       requestApi(withAuthPayload({ action: 'upsertProductionCostConfig', line: line, unit_price: 0, target_pct: targetPct })).then(function(res) {
         if (res && res.status === 'error') throw new Error(res.message || 'บันทึกไม่สำเร็จ');
-        fccLast.ProdConfig = (fccLast.ProdConfig || []).filter(function(c) { return fccLineOf(c.line) !== line; }).concat([{ line: line, unit_price: 0, target_pct: targetPct }]);
+        fccLast.ProdConfig = (fccLast.ProdConfig || []).filter(function(c) { return line === 'ALL' ? c.line !== 'ALL' : fccLineOf(c.line) !== line; }).concat([{ line: line, unit_price: 0, target_pct: targetPct }]);
         if (msgEl) msgEl.textContent = 'บันทึกแล้ว';
         fccRenderCostRatio();
       }).catch(function(err) {
@@ -12567,6 +12603,7 @@ function inferRequestPriority(stock, min) {
       var month = monthEl ? String(monthEl.value || '') : '';
       var qtyRaw = qtyEl ? String(qtyEl.value || '').trim() : '';
       var qty = Number(qtyRaw);
+      if (line === '__all__') { if (msgEl) msgEl.textContent = 'เลือกไลน์ที่ต้องการก่อน (กรอกยอดผลิตแยกรายไลน์)'; return; }
       if (!month) { if (msgEl) msgEl.textContent = 'กรุณาเลือกเดือน'; return; }
       // qtyRaw ว่าง (ผู้ใช้ไม่ได้พิมพ์อะไรเลย) ต้องไม่ผ่านเงียบๆ เป็น 0 — บังคับให้พิมพ์ตัวเลขจริง
       if (!qtyRaw || !Number.isFinite(qty) || qty < 0) { if (msgEl) msgEl.textContent = 'กรุณาระบุยอดผลิตเป็นตัวเลขไม่ติดลบ'; return; }
