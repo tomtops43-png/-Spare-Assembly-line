@@ -39,7 +39,7 @@ SPARE_APP_CONFIG.unitPriceSource = SPARE_APP_CONFIG.unitPriceSource || {
 SPARE_APP_CONFIG.sessionDurationMs = SPARE_APP_CONFIG.sessionDurationMs || (7 * 24 * 60 * 60 * 1000);
 SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThresholdMs || (24 * 60 * 60 * 1000);
 var SESSION_PROPERTY_PREFIX = 'spare_session::';
-var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After', 'Reason', 'Reason Remark'];
+var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After', 'Reason', 'Reason Remark', 'Machine'];
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
 var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at', 'unit', 'unit_price', 'currency'];
 var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
@@ -1900,8 +1900,15 @@ function getInbox(payload) {
   var prPending = canViewPr ? listPrCardsForUser(user, ['PENDING']) : [];
   var prApproved = canViewPr ? listPrCardsForUser(user, ['APPROVED']) : [];
   var prRejected = canViewPr ? listPrCardsForUser(user, ['REJECTED']) : [];
+  var anomalies = [];
+  try {
+    anomalies = getIssueAnomalies({ authToken: payload.authToken }).anomalies || [];
+  } catch (anomalyErr) {
+    Logger.log('getInbox anomaly warning: ' + (anomalyErr && anomalyErr.message ? anomalyErr.message : anomalyErr));
+  }
   var tabs = {
     pr_pending: prPending.length,
+    issue_anomaly: anomalies.length,
     transfer_pending: 0,
     borrow_overdue: 0,
     stock_below_min: 0,
@@ -1918,7 +1925,8 @@ function getInbox(payload) {
     tabs: tabs,
     pr_pending: prPending,
     pr_approved: prApproved,
-    pr_rejected: prRejected
+    pr_rejected: prRejected,
+    anomalies: anomalies
   };
 }
 
@@ -2365,6 +2373,7 @@ function parseTransactionPayloadFromGet(e) {
     by: e.parameter.by,
     reason: e.parameter.reason,
     reasonRemark: e.parameter.reasonRemark,
+    machine: e.parameter.machine,
     sheetName: e.parameter.sheet,
     authToken: e.parameter.authToken || e.parameter.token || ''
   };
@@ -2402,6 +2411,7 @@ function getLogRows() {
       by: pick(row, ['by'], ''),
       reason: pick(row, ['reason'], ''),
       reasonRemark: pick(row, ['reasonremark'], ''),
+      machine: pick(row, ['machine'], ''),
       partNo: pick(row, ['partno'], ''),
       stockBefore: pick(row, ['stockbefore'], 0),
       stockAfter: pick(row, ['stockafter'], 0)
@@ -2544,7 +2554,8 @@ function processTransactionUnlocked(payload) {
     stockBefore,
     stockAfter,
     payload.reason || '',
-    payload.reasonRemark || ''
+    payload.reasonRemark || '',
+    payload.machine || ''
   ]);
 
   var purchaseHistorySync = null;
@@ -3350,6 +3361,12 @@ function doGet(e) {
     if (action === 'listUsers') return respond(listUsers(authPayload), e);
     if (action === 'repairImageSharingPermissions') return respond(repairImageSharingPermissions(e.parameter), e);
     if (action === 'auditItemImages') return respond(auditItemImages(e.parameter), e);
+    if (action === 'runAutoPrNow') return respond(runAutoPrNow(e.parameter), e);
+    if (action === 'getIssueAnomalies') return respond(getIssueAnomalies(e.parameter), e);
+    if (action === 'acknowledgeIssueAnomaly') return respond(acknowledgeIssueAnomaly(e.parameter), e);
+    if (action === 'machineSpareReport') return respond(machineSpareReport(e.parameter), e);
+    if (action === 'checkCrossLineStock') return respond(checkCrossLineStock(e.parameter), e);
+    if (action === 'aiAskData') return respond(aiAskData(e.parameter), e);
     if (action === 'upsertUser') return respond(upsertUser({
       authToken: authToken,
       username: e.parameter.username,
@@ -3605,6 +3622,27 @@ function doPost(e) {
     if (action === 'auditItemImages') {
       return respond(auditItemImages(body), e);
     }
+    if (action === 'runAutoPrNow') {
+      return respond(runAutoPrNow(body), e);
+    }
+    if (action === 'getIssueAnomalies') {
+      return respond(getIssueAnomalies(body), e);
+    }
+    if (action === 'acknowledgeIssueAnomaly') {
+      return respond(acknowledgeIssueAnomaly(body), e);
+    }
+    if (action === 'machineSpareReport') {
+      return respond(machineSpareReport(body), e);
+    }
+    if (action === 'checkCrossLineStock') {
+      return respond(checkCrossLineStock(body), e);
+    }
+    if (action === 'aiReadNameplate') {
+      return respond(aiReadNameplate(body), e);
+    }
+    if (action === 'aiAskData') {
+      return respond(aiAskData(body), e);
+    }
     if (action === 'upsertUser') {
       return respond(upsertUser({
         authToken: authPayload.authToken,
@@ -3815,6 +3853,559 @@ function adjustStockFromCount(payload) {
     }
   });
   return { status: 'success', adjusted: results.filter(function(r){ return r.status==='adjusted'; }).length, results: results };
+}
+
+// =============================
+// SMART AUTOMATION + AI FEATURES
+// =============================
+// อ่านรายการอะไหล่แบบเบา (เฉพาะฟิลด์ที่งานอัตโนมัติใช้) จากทุกชีตสต็อก — dedupe ด้วยชื่อชีตจริง
+// เพราะรายชื่อ candidate มีชื่อซ้ำ/ชื่อเก่าปนอยู่ (getSheetByFlexibleName จับคู่หลายแบบ)
+function readAllStockItemsLean() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var candidates = Array.from(new Set([SPARE_APP_CONFIG.readSheetName].concat(STOCK_LOCATION_SHEETS)));
+  var seenSheetIds = {};
+  var items = [];
+  candidates.forEach(function(sheetName) {
+    var sheet = getSheetByFlexibleName(spreadsheet, sheetName);
+    if (!sheet || seenSheetIds[sheet.getSheetId()]) return;
+    seenSheetIds[sheet.getSheetId()] = true;
+    var lastRow = sheet.getLastRow(), lastCol = sheet.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return;
+    var data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+    var headerRowIndex = findHeaderRowIndex(data);
+    var map = buildHeaderIndexMap(data[headerRowIndex]);
+    data.slice(headerRowIndex + 1).forEach(function(row) {
+      var name = String(pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '')).trim();
+      if (!name || name === '-') return;
+      items.push({
+        sheet: sheet.getName(),
+        no: String(pickRowValue(row, map, ['no'], '')).trim(),
+        name: name,
+        model: String(pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '')).trim(),
+        brand: String(pickRowValue(row, map, ['brand'], '')).trim(),
+        category: String(pickRowValue(row, map, ['category'], 'General')).trim(),
+        line: String(pickRowValue(row, map, ['mainline', 'line', 'process', 'ไลน์'], '')).trim(),
+        unit: String(pickRowValue(row, map, ['unit'], 'PCS')).trim(),
+        stock: Number(pickRowValue(row, map, ['stockqty', 'qtystock', 'qoh', 'stock'], 0)) || 0,
+        min: Number(pickRowValue(row, map, ['min', 'qtymin'], 0)) || 0,
+        max: Number(pickRowValue(row, map, ['max', 'qtymax'], 0)) || 0,
+        unit_price: Number(pickRowValue(row, map, ['unitprice', 'unit_price'], 0)) || 0,
+        supplier: String(pickRowValue(row, map, ['supplier'], '')).trim()
+      });
+    });
+  });
+  return items;
+}
+
+function normalizePartKeyText(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function partKeyOf(name, model) {
+  return normalizePartKeyText(name) + '||' + normalizePartKeyText(model === '-' ? '' : model);
+}
+
+// ── F6: เช็คสต็อกข้ามไลน์ ─────────────────────────────────────────
+// หา "ของตัวเดียวกัน" ในชีตอื่นที่ยังมีเหลือเกิน Min — จับคู่ด้วย model ก่อน (แม่นสุด)
+// ถ้าไม่มี model ใช้ชื่อเทียบแบบ normalize
+function findCrossLineStockMatches(allItems, name, model, excludeSheet) {
+  var modelKey = normalizePartKeyText(model === '-' ? '' : model);
+  var nameKey = normalizePartKeyText(name);
+  return allItems.filter(function(it) {
+    if (String(it.sheet) === String(excludeSheet)) return false;
+    var surplus = it.stock - it.min;
+    if (surplus <= 0) return false;
+    var itModel = normalizePartKeyText(it.model === '-' ? '' : it.model);
+    // ถ้าฝั่งที่ขาดมี model ให้จับคู่ด้วย model เท่านั้น — ชื่อเดียวกันแต่คนละรุ่นห้ามนับว่าโอนแทนกันได้
+    if (modelKey) return itModel === modelKey;
+    return normalizePartKeyText(it.name) === nameKey;
+  }).map(function(it) {
+    return { sheet: it.sheet, line: it.line || it.sheet, stock: it.stock, min: it.min, surplus: it.stock - it.min, no: it.no };
+  });
+}
+
+function checkCrossLineStock(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var allItems = readAllStockItemsLean();
+  var matches = findCrossLineStockMatches(allItems, payload.name, payload.model, String(payload.sheet || ''));
+  return { status: 'success', matches: matches };
+}
+
+// ── อัตราการใช้จาก Log (ใช้ทั้ง Auto-PR และตรวจจับเบิกผิดปกติ) ────────
+function computeIssueUsageStats(logRows, nowMs) {
+  var now = nowMs || Date.now();
+  var d30 = now - 30 * 86400000, d7 = now - 7 * 86400000, d63 = now - 63 * 86400000;
+  var stats = {}; // key -> { qty30, qty7, qtyBase56, users7: {user: qty}, lastTs }
+  (logRows || []).forEach(function(r) {
+    if (String(r.type || '').toLowerCase() !== 'output') return;
+    var ts = new Date(String(r.timestamp || '').replace(' ', 'T') + '+07:00').getTime();
+    if (isNaN(ts) || ts < d63) return;
+    var key = partKeyOf(r.partName, r.model);
+    if (!stats[key]) stats[key] = { name: r.partName, model: r.model, qty30: 0, qty7: 0, qtyBase56: 0, users7: {}, lastTs: 0 };
+    var s = stats[key];
+    var qty = Math.abs(Number(r.qty) || 0);
+    if (ts >= d30) s.qty30 += qty;
+    if (ts >= d7) {
+      s.qty7 += qty;
+      var user = String(r.by || 'Unknown');
+      s.users7[user] = (s.users7[user] || 0) + qty;
+    } else {
+      s.qtyBase56 += qty; // 8 สัปดาห์ก่อนหน้า (ไม่รวม 7 วันล่าสุด)
+    }
+    if (ts > s.lastTs) s.lastTs = ts;
+  });
+  return stats;
+}
+
+// ── F1: Auto-PR ทุกเช้า ───────────────────────────────────────────
+// จำนวนแนะนำ: เติมให้พอใช้ 45 วันตามอัตราเบิกจริง 30 วันล่าสุด หรือเติมถึง Max — เอาค่ามากกว่า
+// (ถ้าไม่มีข้อมูลการใช้เลย ใช้ min-stock+ให้ถึง max ตามเดิม)
+function computeSuggestedOrderQty(item, usage30) {
+  var dailyUse = (usage30 || 0) / 30;
+  var coverTarget = Math.ceil(dailyUse * 45);
+  var refillToMax = item.max > 0 ? item.max - item.stock : 0;
+  var refillToMin = Math.max(item.min - item.stock, 0) + Math.max(Math.ceil(item.min * 0.5), 1);
+  var suggested = Math.max(coverTarget - item.stock, refillToMax, refillToMin);
+  return Math.max(suggested, 1);
+}
+
+function listPendingPrPartKeys() {
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  if (hData.length <= 1) return {};
+  var hIdx = prIndexMap(hData[0]);
+  var pendingIds = {};
+  for (var i = 1; i < hData.length; i += 1) {
+    if (String(hData[i][hIdx.status]) === 'PENDING') pendingIds[String(hData[i][hIdx.pr_id])] = true;
+  }
+  var keys = {};
+  if (!Object.keys(pendingIds).length) return keys;
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  if (lData.length <= 1) return keys;
+  var lIdx = prIndexMap(lData[0]);
+  for (var j = 1; j < lData.length; j += 1) {
+    if (pendingIds[String(lData[j][lIdx.pr_id])]) {
+      keys[partKeyOf(lData[j][lIdx.part_name], lData[j][lIdx.model])] = true;
+    }
+  }
+  return keys;
+}
+
+function runAutoPrJob() {
+  var allItems = readAllStockItemsLean();
+  var usageStats = computeIssueUsageStats(getLogRows());
+  var pendingKeys = listPendingPrPartKeys();
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+
+  var candidates = allItems.filter(function(it) {
+    return it.min > 0 && it.stock < it.min && !pendingKeys[partKeyOf(it.name, it.model)];
+  });
+  if (!candidates.length) return { status: 'success', created: [], itemCount: 0, message: 'ไม่มีรายการต่ำกว่า Min ที่ยังไม่อยู่ใน PR ค้างอนุมัติ' };
+
+  // จัดกลุ่มตามชีต (= ไลน์) → PR ใบละไลน์ อ่านง่ายตอนอนุมัติ
+  var bySheet = {};
+  candidates.forEach(function(it) {
+    if (!bySheet[it.sheet]) bySheet[it.sheet] = [];
+    bySheet[it.sheet].push(it);
+  });
+
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var linesSheet = getPrLinesSheet();
+  var lHeaderRow = linesSheet.getRange(1, 1, 1, linesSheet.getLastColumn()).getValues()[0];
+  var lIdx = prIndexMap(lHeaderRow);
+
+  var createdPrs = [];
+  var totalItems = 0;
+  Object.keys(bySheet).forEach(function(sheetName) {
+    var items = bySheet[sheetName];
+    var prId = 'PR-AUTO-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd') + '-' + sanitizeDrivePathSegment(sheetName, 'LINE').slice(0, 12);
+    if (findPrHeaderRow(headerSheet.getDataRange().getValues(), hIdx, prId) !== -1) return; // วันนี้สร้างของไลน์นี้ไปแล้ว
+    var totalAmount = 0;
+    var lineRows = items.map(function(it, i) {
+      var usage = usageStats[partKeyOf(it.name, it.model)];
+      var qty = computeSuggestedOrderQty(it, usage ? usage.qty30 : 0);
+      var price = it.unit_price || 0;
+      totalAmount += qty * price;
+      var remarkParts = ['🤖 Auto: คงเหลือ ' + it.stock + '/Min ' + it.min];
+      if (usage && usage.qty30 > 0) remarkParts.push('ใช้ ' + usage.qty30 + ' ชิ้น/30วัน');
+      if (it.supplier) remarkParts.push('เจ้าเดิม: ' + it.supplier);
+      var crossMatches = findCrossLineStockMatches(allItems, it.name, it.model, it.sheet);
+      if (crossMatches.length) {
+        var cm = crossMatches[0];
+        remarkParts.push('♻️ ' + cm.sheet + ' มีเหลือ ' + cm.surplus + ' ชิ้น — พิจารณาโอนก่อนสั่ง');
+      }
+      var rowArr = new Array(lHeaderRow.length).fill('');
+      rowArr[lIdx.pr_id] = prId;
+      rowArr[lIdx.line_no] = i + 1;
+      rowArr[lIdx.part_no] = it.no;
+      rowArr[lIdx.part_name] = it.name;
+      rowArr[lIdx.model] = it.model;
+      rowArr[lIdx.brand] = it.brand;
+      rowArr[lIdx.category] = it.category;
+      rowArr[lIdx.unit] = it.unit;
+      rowArr[lIdx.qty_requested] = qty;
+      rowArr[lIdx.qty_approved] = qty;
+      rowArr[lIdx.unit_price] = price;
+      rowArr[lIdx.remark] = remarkParts.join(' | ');
+      return rowArr;
+    });
+    linesSheet.getRange(linesSheet.getLastRow() + 1, 1, lineRows.length, lHeaderRow.length).setValues(lineRows);
+
+    var headerRowArr = new Array(hData[0].length).fill('');
+    headerRowArr[hIdx.pr_id] = prId;
+    headerRowArr[hIdx.status] = 'PENDING';
+    headerRowArr[hIdx.created_by] = 'AUTO-BOT';
+    headerRowArr[hIdx.created_at] = now;
+    headerRowArr[hIdx.line] = String(items[0].line || sheetName);
+    headerRowArr[hIdx.dept] = 'Auto Reorder';
+    headerRowArr[hIdx.item_count] = items.length;
+    headerRowArr[hIdx.total_amount] = totalAmount;
+    headerRowArr[hIdx.updated_at] = now;
+    headerSheet.appendRow(headerRowArr);
+    appendPrAudit(prId, 'CREATE', 'AUTO-BOT', sheetName, '', '', items.length + ' รายการ (สร้างอัตโนมัติจากรายการต่ำกว่า Min)');
+    createdPrs.push(prId);
+    totalItems += items.length;
+  });
+
+  return { status: 'success', created: createdPrs, itemCount: totalItems };
+}
+
+function runAutoPrNow(payload) {
+  requirePermission({ authToken: payload.authToken }, 'pr_approve');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return runAutoPrJob(); } finally { lock.releaseLock(); }
+}
+
+// ── F4: ตรวจจับการเบิกผิดปกติ ─────────────────────────────────────
+var ANOMALY_SHEET_NAME = 'AnomalyAlerts';
+var ANOMALY_HEADERS = ['detected_at', 'part_name', 'model', 'qty_7d', 'weekly_avg', 'ratio', 'top_user', 'top_user_qty', 'detail', 'status'];
+
+function getAnomalySheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(ANOMALY_SHEET_NAME);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(ANOMALY_SHEET_NAME);
+    sheet.appendRow(ANOMALY_HEADERS);
+  }
+  return sheet;
+}
+
+function runIssueAnomalyScan() {
+  var stats = computeIssueUsageStats(getLogRows());
+  var sheet = getAnomalySheet();
+  var data = sheet.getDataRange().getValues();
+  var idx = prIndexMap(data[0] || ANOMALY_HEADERS);
+  var recentFlagged = {}; // กันแจ้งซ้ำ: part เดียวกันที่ยังสถานะ NEW ใน 7 วันล่าสุด
+  var now = Date.now();
+  for (var i = 1; i < data.length; i += 1) {
+    var ts = new Date(String(data[i][idx.detected_at] || '').replace(' ', 'T') + '+07:00').getTime();
+    if (String(data[i][idx.status]) === 'NEW' && !isNaN(ts) && now - ts < 7 * 86400000) {
+      recentFlagged[partKeyOf(data[i][idx.part_name], data[i][idx.model])] = true;
+    }
+  }
+
+  var flagged = [];
+  Object.keys(stats).forEach(function(key) {
+    var s = stats[key];
+    if (recentFlagged[key]) return;
+    var weeklyAvg = s.qtyBase56 / 8;
+    // เกณฑ์: 7 วันล่าสุดเบิก >= 5 ชิ้น และมากกว่า 3 เท่าของค่าเฉลี่ยรายสัปดาห์ 8 สัปดาห์ก่อนหน้า
+    // (ถ้าไม่เคยเบิกเลยในอดีต ใช้เกณฑ์ >= 10 ชิ้นใน 7 วัน กันของใหม่เข้าระบบโดน flag มั่ว)
+    var isSpike = s.qty7 >= 5 && weeklyAvg > 0 && s.qty7 > weeklyAvg * 3;
+    var isNewHeavy = s.qty7 >= 10 && weeklyAvg === 0;
+    if (!isSpike && !isNewHeavy) return;
+    var topUser = '', topUserQty = 0;
+    Object.keys(s.users7).forEach(function(u) {
+      if (s.users7[u] > topUserQty) { topUser = u; topUserQty = s.users7[u]; }
+    });
+    var ratio = weeklyAvg > 0 ? (s.qty7 / weeklyAvg) : 0;
+    var detail = 'เบิก ' + s.qty7 + ' ชิ้นใน 7 วัน' +
+      (weeklyAvg > 0 ? ' (ปกติ ~' + weeklyAvg.toFixed(1) + ' ชิ้น/สัปดาห์ = ' + ratio.toFixed(1) + ' เท่า)' : ' (ไม่เคยมีการเบิกใน 8 สัปดาห์ก่อนหน้า)') +
+      (topUser && topUserQty >= s.qty7 * 0.7 ? ' — ผู้เบิกหลัก: ' + topUser + ' (' + topUserQty + ' ชิ้น)' : '');
+    flagged.push([
+      Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
+      s.name, s.model || '', s.qty7, Number(weeklyAvg.toFixed(2)), Number(ratio.toFixed(2)),
+      topUser, topUserQty, detail, 'NEW'
+    ]);
+  });
+
+  if (flagged.length) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, flagged.length, ANOMALY_HEADERS.length).setValues(flagged);
+  }
+  return { status: 'success', flagged: flagged.length };
+}
+
+function getIssueAnomalies(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var sheet = getAnomalySheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { status: 'success', anomalies: [] };
+  var idx = prIndexMap(data[0]);
+  var now = Date.now();
+  var out = [];
+  for (var i = 1; i < data.length; i += 1) {
+    var row = data[i];
+    if (String(row[idx.status]) !== 'NEW') continue;
+    var ts = new Date(String(row[idx.detected_at] || '').replace(' ', 'T') + '+07:00').getTime();
+    if (isNaN(ts) || now - ts > 14 * 86400000) continue;
+    out.push({
+      rowNumber: i + 1,
+      detected_at: String(row[idx.detected_at] || ''),
+      part_name: String(row[idx.part_name] || ''),
+      model: String(row[idx.model] || ''),
+      qty_7d: Number(row[idx.qty_7d] || 0),
+      weekly_avg: Number(row[idx.weekly_avg] || 0),
+      ratio: Number(row[idx.ratio] || 0),
+      top_user: String(row[idx.top_user] || ''),
+      detail: String(row[idx.detail] || '')
+    });
+  }
+  out.sort(function(a, b) { return b.ratio - a.ratio; });
+  return { status: 'success', anomalies: out };
+}
+
+function acknowledgeIssueAnomaly(payload) {
+  requirePermission({ authToken: payload.authToken }, 'pr_approve');
+  var rowNumber = Number(payload.rowNumber || 0);
+  if (!rowNumber || rowNumber < 2) throw new Error('ไม่พบรายการแจ้งเตือน');
+  var sheet = getAnomalySheet();
+  var idx = prIndexMap(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]);
+  sheet.getRange(rowNumber, idx.status + 1).setValue('ACKNOWLEDGED');
+  return { status: 'success' };
+}
+
+// ── ตัวติดตั้ง trigger รายวัน — รันครั้งเดียวจาก Apps Script editor ──
+function setupAutomation() {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'runDailyAutoJobs') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('runDailyAutoJobs').timeBased().everyDays(1).atHour(7).create();
+  Logger.log('ติดตั้ง trigger รายวัน 07:00 สำเร็จ — ระบบจะสร้าง Auto-PR และสแกนการเบิกผิดปกติทุกเช้า');
+  return 'OK';
+}
+
+function runDailyAutoJobs() {
+  var results = {};
+  try { results.autoPr = runAutoPrJob(); } catch (e1) { results.autoPr = { error: String(e1 && e1.message || e1) }; }
+  try { results.anomaly = runIssueAnomalyScan(); } catch (e2) { results.anomaly = { error: String(e2 && e2.message || e2) }; }
+  Logger.log(JSON.stringify(results));
+  return results;
+}
+
+// ── F5: รายงานอะไหล่ต่อเครื่องจักร ─────────────────────────────────
+function machineSpareReport(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var logRows = getLogRows();
+  var allItems = readAllStockItemsLean();
+  var priceByKey = {};
+  allItems.forEach(function(it) {
+    var key = partKeyOf(it.name, it.model);
+    if (!priceByKey[key]) priceByKey[key] = it.unit_price || 0;
+  });
+  var byMachine = {};
+  logRows.forEach(function(r) {
+    if (String(r.type || '').toLowerCase() !== 'output') return;
+    var machine = String(r.machine || '').trim();
+    if (!machine) return;
+    if (!byMachine[machine]) byMachine[machine] = { machine: machine, issueCount: 0, totalQty: 0, estCost: 0, byReason: {}, parts: {}, lastIssue: '' };
+    var m = byMachine[machine];
+    var qty = Math.abs(Number(r.qty) || 0);
+    m.issueCount += 1;
+    m.totalQty += qty;
+    m.estCost += qty * (priceByKey[partKeyOf(r.partName, r.model)] || 0);
+    var reason = String(r.reason || 'ไม่ระบุ');
+    m.byReason[reason] = (m.byReason[reason] || 0) + qty;
+    var pk = String(r.partName || '') + (r.model && r.model !== '-' ? ' (' + r.model + ')' : '');
+    m.parts[pk] = (m.parts[pk] || 0) + qty;
+    if (String(r.timestamp) > m.lastIssue) m.lastIssue = String(r.timestamp);
+  });
+  var report = Object.keys(byMachine).map(function(k) {
+    var m = byMachine[k];
+    var topParts = Object.keys(m.parts).map(function(p) { return { part: p, qty: m.parts[p] }; })
+      .sort(function(a, b) { return b.qty - a.qty; }).slice(0, 5);
+    return {
+      machine: m.machine, issueCount: m.issueCount, totalQty: m.totalQty,
+      estCost: Math.round(m.estCost), byReason: m.byReason, topParts: topParts, lastIssue: m.lastIssue
+    };
+  }).sort(function(a, b) { return b.estCost - a.estCost; });
+  return { status: 'success', machines: report };
+}
+
+// ── AI helpers (F2 + F3) — Claude API ผ่าน UrlFetchApp ─────────────
+// ตั้งค่า: Apps Script > Project Settings > Script Properties เพิ่ม ANTHROPIC_API_KEY
+// (เลือกรุ่นได้ด้วย property AI_MODEL — default claude-sonnet-5, ประหยัดกว่าใช้ claude-haiku-4-5)
+function getAnthropicApiKey() {
+  var key = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+  if (!key) throw new Error('AI_KEY_MISSING: ยังไม่ได้ตั้งค่า ANTHROPIC_API_KEY ใน Script Properties (Apps Script > Project Settings)');
+  return key;
+}
+
+function callClaudeApi(systemPrompt, userContent, maxTokens) {
+  var model = PropertiesService.getScriptProperties().getProperty('AI_MODEL') || 'claude-sonnet-5';
+  var response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'x-api-key': getAnthropicApiKey(), 'anthropic-version': '2023-06-01' },
+    payload: JSON.stringify({
+      model: model,
+      max_tokens: maxTokens || 1024,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userContent }]
+    }),
+    muteHttpExceptions: true
+  });
+  var code = response.getResponseCode();
+  var body = JSON.parse(response.getContentText() || '{}');
+  if (code !== 200) {
+    throw new Error('AI_API_ERROR: ' + (body && body.error && body.error.message ? body.error.message : ('HTTP ' + code)));
+  }
+  var parts = (body.content || []).filter(function(b) { return b.type === 'text'; });
+  return parts.map(function(b) { return b.text; }).join('\n');
+}
+
+function parseAiJson(text) {
+  var cleaned = String(text || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+  var start = cleaned.indexOf('{');
+  var end = cleaned.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('AI ตอบกลับมาไม่ใช่รูปแบบ JSON');
+  return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+// ── F2: อ่านป้ายอะไหล่จากรูป ──────────────────────────────────────
+function aiReadNameplate(payload) {
+  requirePermission({ authToken: payload.authToken }, 'manage_items');
+  var dataUrl = String(payload.dataUrl || '');
+  var mimeType = getDataUrlMimeType(dataUrl);
+  var allowed = { 'image/jpeg': true, 'image/png': true, 'image/webp': true };
+  if (!allowed[mimeType]) throw new Error('รองรับเฉพาะรูป jpg, png, webp');
+  var base64Content = dataUrl.split(',')[1] || '';
+  if (!base64Content) throw new Error('ไม่พบข้อมูลรูป');
+
+  var text = callClaudeApi(
+    'คุณเป็นผู้เชี่ยวชาญอ่านป้ายอะไหล่/nameplate ของชิ้นส่วนอุตสาหกรรม ตอบเป็น JSON เท่านั้น',
+    [
+      { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64Content } },
+      { type: 'text', text: 'อ่านข้อมูลจากป้าย/ฉลาก/ตัวพิมพ์บนอะไหล่ในรูปนี้ แล้วตอบ JSON: {"name": "ชื่อประเภทอะไหล่ภาษาไทยหรืออังกฤษสั้นๆ เช่น Solenoid Valve, Bearing", "model": "รหัสรุ่นที่พิมพ์บนป้าย", "brand": "ยี่ห้อ", "category": "หมวดหมู่ เช่น Electrical, Mechanical, Pneumatic", "specs": "สเปคสำคัญที่อ่านได้ เช่น แรงดัน กระแส ขนาด"} — ช่องไหนอ่านไม่ได้ให้ใส่ค่าว่าง ห้ามเดา' }
+    ],
+    500
+  );
+  var parsed = parseAiJson(text);
+  return {
+    status: 'success',
+    name: String(parsed.name || ''),
+    model: String(parsed.model || ''),
+    brand: String(parsed.brand || ''),
+    category: String(parsed.category || ''),
+    specs: String(parsed.specs || '')
+  };
+}
+
+// ── F3: ถาม-ตอบข้อมูลสต็อกภาษาไทย ─────────────────────────────────
+function buildAiDataDigest(question) {
+  var q = normalizePartKeyText(question);
+  var keywords = q.split(/[\s,\/]+/).filter(function(w) { return w.length >= 3; });
+  function matchesKeyword(text) {
+    var t = normalizePartKeyText(text);
+    return keywords.some(function(w) { return t.indexOf(w) > -1; });
+  }
+
+  var allItems = readAllStockItemsLean();
+  var lines = [];
+
+  // สรุปภาพรวมต่อชีต
+  var bySheet = {};
+  allItems.forEach(function(it) {
+    if (!bySheet[it.sheet]) bySheet[it.sheet] = { total: 0, out: 0, low: 0, value: 0 };
+    var s = bySheet[it.sheet];
+    s.total += 1;
+    if (it.stock <= 0) s.out += 1;
+    else if (it.stock < it.min) s.low += 1;
+    s.value += it.stock * (it.unit_price || 0);
+  });
+  lines.push('## สรุปภาพรวมสต็อกต่อไลน์/ชีต');
+  Object.keys(bySheet).forEach(function(k) {
+    var s = bySheet[k];
+    lines.push(k + ': ' + s.total + ' รายการ, หมดสต็อก ' + s.out + ', ต่ำกว่า Min ' + s.low + ', มูลค่าคงคลัง ~' + Math.round(s.value).toLocaleString() + ' บาท');
+  });
+
+  // รายการที่ตรงคำถาม + รายการวิกฤต
+  var matched = allItems.filter(function(it) { return matchesKeyword(it.name + ' ' + it.model + ' ' + it.brand + ' ' + it.supplier); }).slice(0, 40);
+  var critical = allItems.filter(function(it) { return it.stock < it.min; }).slice(0, 40);
+  function itemLine(it) {
+    return it.sheet + ' | ' + it.name + (it.model && it.model !== '-' ? ' (' + it.model + ')' : '') + ' | คงเหลือ ' + it.stock + '/Min ' + it.min +
+      (it.unit_price ? ' | ราคา ' + it.unit_price + ' บาท' : '') + (it.supplier ? ' | ' + it.supplier : '');
+  }
+  if (matched.length) {
+    lines.push('## รายการที่เกี่ยวกับคำถาม');
+    matched.forEach(function(it) { lines.push(itemLine(it)); });
+  }
+  lines.push('## รายการต่ำกว่า Min / หมดสต็อก (สูงสุด 40)');
+  critical.forEach(function(it) { lines.push(itemLine(it)); });
+
+  // การเบิกใช้ 63 วันล่าสุด (top + ที่ตรงคำถาม)
+  var logRows = getLogRows();
+  var stats = computeIssueUsageStats(logRows);
+  var usageArr = Object.keys(stats).map(function(k) { return stats[k]; });
+  usageArr.sort(function(a, b) { return (b.qty30 || 0) - (a.qty30 || 0); });
+  lines.push('## การเบิกใช้ 30 วันล่าสุด (top 25)');
+  usageArr.slice(0, 25).forEach(function(s) {
+    if (s.qty30 > 0) lines.push(s.name + (s.model && s.model !== '-' ? ' (' + s.model + ')' : '') + ': ' + s.qty30 + ' ชิ้น');
+  });
+
+  // ประวัติซื้อ: ยอดต่อเดือนต่อไลน์ 6 เดือน + แถวที่ตรงคำถาม
+  try {
+    var phSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.purchaseHistorySheetName);
+    if (phSheet && phSheet.getLastRow() > 1) {
+      var phData = phSheet.getDataRange().getValues();
+      var phIdx = buildHeaderIndexMap(phData[0]);
+      var monthCol = phIdx[normalizeHeaderName('Month')], lineCol = phIdx[normalizeHeaderName('Line')];
+      var nameCol = phIdx[normalizeHeaderName('Part Name')], totalCol = phIdx[normalizeHeaderName('Total Amount')];
+      var statusCol = phIdx[normalizeHeaderName('Status')], priceCol = phIdx[normalizeHeaderName('Unit Price')];
+      var qtyCol = phIdx[normalizeHeaderName('Qty Ordered')], supCol = phIdx[normalizeHeaderName('Remark')];
+      var spendByMonthLine = {};
+      var phMatched = [];
+      for (var r = 1; r < phData.length; r += 1) {
+        var row = phData[r];
+        if (String(row[statusCol] || '') === 'Cancelled') continue;
+        var mKey = String(row[monthCol] || '').slice(0, 7) + ' | ' + String(row[lineCol] || '');
+        spendByMonthLine[mKey] = (spendByMonthLine[mKey] || 0) + (Number(row[totalCol]) || 0);
+        if (phMatched.length < 15 && matchesKeyword(String(row[nameCol] || ''))) {
+          phMatched.push(String(row[monthCol] || '').slice(0, 10) + ' | ' + row[nameCol] + ' | ' + (Number(row[qtyCol]) || 0) + ' ชิ้น @ ' + (Number(row[priceCol]) || 0) + ' บาท');
+        }
+      }
+      lines.push('## ยอดซื้ออะไหล่ต่อเดือนต่อไลน์');
+      Object.keys(spendByMonthLine).sort().slice(-18).forEach(function(k) {
+        lines.push(k + ': ' + Math.round(spendByMonthLine[k]).toLocaleString() + ' บาท');
+      });
+      if (phMatched.length) {
+        lines.push('## ประวัติซื้อที่เกี่ยวกับคำถาม');
+        phMatched.forEach(function(l) { lines.push(l); });
+      }
+    }
+  } catch (phErr) {
+    Logger.log('aiAskData purchase history warning: ' + (phErr && phErr.message ? phErr.message : phErr));
+  }
+
+  return lines.join('\n');
+}
+
+function aiAskData(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var question = String(payload.question || '').trim();
+  if (!question) throw new Error('กรุณาพิมพ์คำถาม');
+  if (question.length > 500) throw new Error('คำถามยาวเกินไป (สูงสุด 500 ตัวอักษร)');
+  var digest = buildAiDataDigest(question);
+  var answer = callClaudeApi(
+    'คุณเป็นผู้ช่วยวิเคราะห์คลังอะไหล่โรงงาน ตอบภาษาไทย กระชับ ตรงประเด็น อ้างอิงตัวเลขจากข้อมูลที่ให้มาเท่านั้น ' +
+    'ห้ามเดาตัวเลขที่ไม่มีในข้อมูล ถ้าข้อมูลไม่พอให้บอกตรงๆ ว่าไม่มีข้อมูล จัดรูปแบบให้อ่านง่าย ใช้ bullet เมื่อเหมาะสม',
+    'ข้อมูลคลังอะไหล่ล่าสุด:\n\n' + digest + '\n\n---\nคำถาม: ' + question,
+    1200
+  );
+  return { status: 'success', answer: answer };
 }
 
 // =============================

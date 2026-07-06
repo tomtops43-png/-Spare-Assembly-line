@@ -1550,7 +1550,12 @@
         </div>
         <!-- Section 3: รูปภาพ -->
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 class="mb-3 text-sm font-bold text-slate-700 flex items-center gap-2"><span class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">3</span> รูปภาพ</h3>
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2"><span class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">3</span> รูปภาพ</h3>
+            <button id="mScanNameplateBtn" type="button" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 transition">✨ สแกนป้ายอะไหล่ด้วย AI</button>
+            <input id="mScanNameplateFile" type="file" accept="image/*" capture="environment" class="hidden" />
+          </div>
+          <p id="mScanNameplateMsg" class="mb-2 hidden text-xs"></p>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="block text-xs font-semibold text-slate-600">รูปหลัก
               <input id="mImageMainFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm" />
@@ -1666,10 +1671,15 @@
           <h2 class="text-xl font-bold text-slate-900">ประวัติการเบิก / คืน</h2>
           <p class="text-sm text-slate-500 mt-0.5">บันทึกการเบิก-คืนอะไหล่ทั้งหมดในระบบ</p>
         </div>
-        <button id="logRefreshBtn" type="button" class="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-          รีเฟรชข้อมูล
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="machineReportBtn" type="button" class="flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100 transition">
+            🏭 รายงานเครื่องจักร
+          </button>
+          <button id="logRefreshBtn" type="button" class="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            รีเฟรชข้อมูล
+          </button>
+        </div>
       </div>
       <!-- Stats Cards -->
       <div id="logStatCards" class="grid grid-cols-2 gap-3 sm:grid-cols-4"></div>
@@ -2839,12 +2849,47 @@
           <option value="Other">📝 อื่นๆ (Other)</option>
         </select>
         <input id="issueCartReasonRemark" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="📝 ระบุเหตุผลอื่นๆ (บังคับกรอก)" />
+        <input id="issueCartMachine" type="text" list="issueCartMachineOptions" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="🏭 ใช้กับเครื่องไหน (optional เช่น MC-01)" />
+        <datalist id="issueCartMachineOptions"></datalist>
         <input id="issueCartNote" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="หมายเหตุ (optional)" />
         <button id="issueCartSubmitBtn" type="button" style="background-color:#2563eb;border-color:#1d4ed8;color:#ffffff;" class="h-11 w-full rounded-lg border px-4 text-sm font-semibold shadow-sm">บันทึกรายการ</button>
         <p id="issueCartMessage" class="text-xs text-slate-500"></p>
       </div>
       <p id="issueCartHint" class="mt-3 text-xs text-slate-500">* ขั้นตอนนี้เป็นการเลือกชั่วคราว ยังไม่ตัด stock จริง</p>
     </aside>
+  </div>
+
+  <!-- 🏭 รายงานอะไหล่ต่อเครื่องจักร -->
+  <div id="machineReportModal" class="fixed inset-0 z-[220] hidden overflow-y-auto bg-slate-900/50 p-4">
+    <div class="mx-auto mt-8 max-w-3xl rounded-2xl bg-white p-5 shadow-2xl">
+      <div class="mb-4 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">🏭 รายงานอะไหล่ต่อเครื่องจักร</h3>
+          <p class="text-xs text-slate-500">เครื่องไหนกินอะไหล่มากสุด — จากข้อมูลการเบิกที่ระบุเครื่อง</p>
+        </div>
+        <button id="machineReportCloseBtn" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-lg text-slate-600 hover:bg-slate-50">×</button>
+      </div>
+      <div id="machineReportBody" class="max-h-[70vh] overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <!-- 💬 AI ผู้ช่วยถาม-ตอบข้อมูลคลัง -->
+  <button id="aiChatFab" type="button" class="fixed bottom-5 right-5 z-[230] h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-xl hover:bg-violet-700 transition" style="display:none;" title="ถาม AI เกี่ยวกับข้อมูลคลังอะไหล่">💬</button>
+  <div id="aiChatPanel" class="fixed bottom-5 right-5 z-[240] w-[min(400px,calc(100vw-2rem))] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl" style="height:min(560px,calc(100vh-6rem));display:none;">
+    <div class="flex items-center justify-between rounded-t-2xl bg-violet-600 px-4 py-3 text-white">
+      <div>
+        <p class="text-sm font-bold">💬 ผู้ช่วย AI คลังอะไหล่</p>
+        <p class="text-[11px] opacity-80">ถามอะไรก็ได้เกี่ยวกับสต็อก/การเบิก/การซื้อ</p>
+      </div>
+      <button id="aiChatCloseBtn" type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-lg hover:bg-white/30">×</button>
+    </div>
+    <div id="aiChatMessages" class="flex-1 space-y-3 overflow-y-auto p-4">
+      <div class="rounded-2xl rounded-tl-sm bg-slate-100 p-3 text-sm text-slate-700">สวัสดีครับ 👋 ถามข้อมูลคลังอะไหล่ได้เลย เช่น<br/>• "เดือนนี้ใช้เงินค่าอะไหล่ไปเท่าไหร่"<br/>• "bearing เหลือเท่าไหร่ ไลน์ไหนบ้าง"<br/>• "อะไรใกล้หมดบ้าง"</div>
+    </div>
+    <div class="flex items-center gap-2 border-t border-slate-200 p-3">
+      <input id="aiChatInput" type="text" maxlength="500" class="h-10 flex-1 rounded-xl border border-slate-300 px-3 text-sm" placeholder="พิมพ์คำถาม..." />
+      <button id="aiChatSendBtn" type="button" class="h-10 rounded-xl bg-violet-600 px-4 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50">ส่ง</button>
+    </div>
   </div>
 
   <div id="quickIssueModal" class="fixed inset-0 z-[210] hidden bg-white">
@@ -4888,6 +4933,12 @@ function getIssueCartEntries() {
       loginModal.classList.toggle('hidden', isAuthenticated);
       document.body.classList.toggle('overflow-hidden', !isAuthenticated);
       lineMenuDockToggle.classList.toggle('hidden', !isAuthenticated);
+      var aiFab = document.getElementById('aiChatFab');
+      if (aiFab) aiFab.style.display = isAuthenticated ? 'inline-flex' : 'none';
+      if (!isAuthenticated) {
+        var aiPanel = document.getElementById('aiChatPanel');
+        if (aiPanel) aiPanel.style.display = 'none';
+      }
       if (isAuthenticated) normalizeMobileHeaderCartUi();
       if (!isAuthenticated) {
         document.body.classList.remove('line-menu-mobile-open');
@@ -5723,7 +5774,8 @@ function getIssueCartEntries() {
         unit: payload.unit || '',
         by: payload.by || '',
         reason: payload.reason || '',
-        reasonRemark: payload.reasonRemark || ''
+        reasonRemark: payload.reasonRemark || '',
+        machine: payload.machine || ''
       };
       var query = [
         'action=transact',
@@ -5740,6 +5792,7 @@ function getIssueCartEntries() {
         'by=' + encodeURIComponent(requestPayload.by),
         'reason=' + encodeURIComponent(requestPayload.reason),
         'reasonRemark=' + encodeURIComponent(requestPayload.reasonRemark),
+        'machine=' + encodeURIComponent(requestPayload.machine),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
 
@@ -5920,6 +5973,7 @@ function getIssueCartEntries() {
           var fs = document.getElementById('logFilterSearch'); if (fs) fs.value = '';
           renderLogStats(logCache);
           renderLogTable(logCache);
+          updateMachineDatalist(logCache);
         })
         .catch(function(err) {
           if (isAuthSessionError(err)) logout();
@@ -9930,7 +9984,7 @@ function inferRequestPriority(stock, min) {
       });
     }
 
-    function createOutputTransactionPayload(item, qty, byValue, processValue, noteValue, reasonValue, reasonRemarkValue) {
+    function createOutputTransactionPayload(item, qty, byValue, processValue, noteValue, reasonValue, reasonRemarkValue, machineValue) {
       var processText = processValue || item.line || '-';
       if (noteValue) processText = processText + ' | note: ' + noteValue;
       return {
@@ -9946,6 +10000,7 @@ function inferRequestPriority(stock, min) {
         by: byValue || 'Unknown',
         reason: reasonValue || '',
         reasonRemark: reasonRemarkValue || '',
+        machine: machineValue || '',
         sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
     }
@@ -9964,6 +10019,8 @@ function inferRequestPriority(stock, min) {
       var noteValue = String((issueCartNote && issueCartNote.value) || '').trim();
       var reasonValue = String((issueCartReason && issueCartReason.value) || '').trim();
       var reasonRemarkValue = String((issueCartReasonRemark && issueCartReasonRemark.value) || '').trim();
+      var machineEl = document.getElementById('issueCartMachine');
+      var machineValue = String((machineEl && machineEl.value) || '').trim();
       showConfirmDialog({ title: 'ยืนยันการเบิก', message: 'ยืนยันการเบิก ' + entries.length + ' รายการ ?', okLabel: 'เบิกสินค้า' }).then(function(ok) {
         if (!ok) return;
 
@@ -9989,7 +10046,7 @@ function inferRequestPriority(stock, min) {
           failures.push((latestItem.name || entry.no) + ': stock ไม่พอสำหรับเบิก');
           return runNext();
         }
-        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, processValue, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '');
+        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, processValue, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '', machineValue);
         var beforeStock = Number(latestItem.stock || 0);
         latestItem.stock = Math.max(0, beforeStock - latestQty);
         applyFilters(false);
@@ -10032,6 +10089,7 @@ function inferRequestPriority(stock, min) {
           if (issueCartNote) issueCartNote.value = '';
           if (issueCartReason) issueCartReason.value = '';
           if (issueCartReasonRemark) { issueCartReasonRemark.value = ''; issueCartReasonRemark.classList.add('hidden'); }
+          if (machineEl) machineEl.value = '';
         } else if (successKeys.length) {
           setIssueCartMessage('สำเร็จ ' + successKeys.length + ' รายการ, ไม่สำเร็จ ' + failures.length + ' รายการ: ' + failures.join(' | '), 'error');
         } else {
@@ -11928,6 +11986,7 @@ function inferRequestPriority(stock, min) {
     var INBOX_TABS = [
       { key: 'all', label: 'ทั้งหมด', icon: '📥' },
       { key: 'pr_pending', label: 'PR รออนุมัติ', icon: '📝' },
+      { key: 'issue_anomaly', label: 'เบิกผิดปกติ', icon: '🕵️' },
       { key: 'transfer_pending', label: 'ยืม/โอน รออนุมัติ', icon: '🔁', placeholder: true },
       { key: 'borrow_overdue', label: 'ยืมค้าง/เกินกำหนดคืน', icon: '⏰', placeholder: true },
       { key: 'stock_below_min', label: 'สต็อกต่ำกว่า Min', icon: '📉', placeholder: true },
@@ -12015,13 +12074,32 @@ function inferRequestPriority(stock, min) {
         var pending = (inboxData && inboxData.pr_pending) || [];
         var approved = (inboxData && inboxData.pr_approved) || [];
         var html = '';
+        if (inboxData && inboxData.can_approve) {
+          html += '<div class="mb-3 flex justify-end"><button id="runAutoPrNowBtn" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100">🤖 สร้าง Auto-PR จากรายการต่ำกว่า Min เดี๋ยวนี้</button></div>';
+        }
         if (pending.length) html += pending.map(function(c) { return inboxPrCardHtml(c, false); }).join('');
         if (approved.length) {
           html += '<div class="mt-4 mb-2 text-xs font-bold text-slate-400">✅ อนุมัติแล้ว (พร้อมปริ้น)</div>';
           html += approved.map(function(c) { return inboxPrCardHtml(c, true); }).join('');
         }
-        if (!html) html = '<div class="p-6 text-center text-slate-400">ไม่มี PR รออนุมัติ 🎉</div>';
+        if (inboxActiveTab === 'all') {
+          var allAnomalies = (inboxData && inboxData.anomalies) || [];
+          if (allAnomalies.length) {
+            html += '<div class="mt-4 mb-2 text-xs font-bold text-slate-400">🕵️ การเบิกผิดปกติ</div>';
+            html += allAnomalies.map(inboxAnomalyCardHtml).join('');
+          }
+        }
+        if (!html || (!pending.length && !approved.length && inboxActiveTab === 'pr_pending')) {
+          html += '<div class="p-6 text-center text-slate-400">ไม่มี PR รออนุมัติ 🎉</div>';
+        }
         listEl.innerHTML = html;
+        return;
+      }
+      if (inboxActiveTab === 'issue_anomaly') {
+        var anomalies = (inboxData && inboxData.anomalies) || [];
+        listEl.innerHTML = anomalies.length
+          ? anomalies.map(inboxAnomalyCardHtml).join('')
+          : '<div class="p-6 text-center text-slate-400">✅ ไม่พบการเบิกผิดปกติใน 14 วันล่าสุด</div>';
         return;
       }
       // tab อื่น = placeholder
@@ -12029,6 +12107,22 @@ function inferRequestPriority(stock, min) {
         '<div class="text-3xl mb-2">' + tabDef.icon + '</div>' +
         '<div class="font-semibold">' + escHtml(tabDef.label) + '</div>' +
         '<div class="text-xs mt-1">ส่วนนี้ยังไม่เปิดใช้งาน — จะเพิ่มในเฟสถัดไป</div></div>';
+    }
+
+    function inboxAnomalyCardHtml(a) {
+      var ratioTxt = a.ratio > 0 ? (a.ratio.toFixed(1) + ' เท่าของปกติ') : 'ไม่เคยเบิกมาก่อน';
+      var ackBtn = (inboxData && inboxData.can_approve)
+        ? '<button data-anomaly-ack="' + a.rowNumber + '" class="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">✓ ตรวจสอบแล้ว</button>'
+        : '';
+      return '<div class="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm border-l-4 border-orange-400">' +
+        '<div class="min-w-0">' +
+          '<div class="flex flex-wrap items-center gap-2"><span class="font-bold text-slate-800">' + escHtml(a.part_name) + (a.model && a.model !== '-' ? ' (' + escHtml(a.model) + ')' : '') + '</span>' +
+            '<span class="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700">' + escHtml(ratioTxt) + '</span></div>' +
+          '<div class="mt-1 text-xs text-slate-600">' + escHtml(a.detail) + '</div>' +
+          '<div class="mt-0.5 text-xs text-slate-400">ตรวจพบเมื่อ ' + escHtml(a.detected_at) + '</div>' +
+        '</div>' +
+        '<div class="shrink-0">' + ackBtn + '</div>' +
+      '</div>';
     }
 
     function inboxPrCardHtml(c, isApproved) {
@@ -12045,6 +12139,7 @@ function inferRequestPriority(stock, min) {
       return '<div class="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm ' + urg.bar + '">' +
         '<div class="min-w-0">' +
           '<div class="flex items-center gap-2"><span class="font-bold text-slate-800">' + escHtml(c.pr_id) + '</span>' + statusChip +
+            (String(c.created_by || '') === 'AUTO-BOT' ? '<span class="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-700" title="สร้างอัตโนมัติจากรายการต่ำกว่า Min">🤖 Auto</span>' : '') +
             (c.line ? '<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-500">' + escHtml(c.line) + '</span>' : '') + '</div>' +
           '<div class="mt-1 text-xs text-slate-500">โดย ' + escHtml(c.created_by || '-') + ' · ' + escHtml(c.created_at || '-') + '</div>' +
           '<div class="mt-0.5 text-xs text-slate-500">' + Number(c.item_count || 0) + ' รายการ · รวม ' + inboxMoney(c.total_amount) + ' ฿' +
@@ -12086,7 +12181,8 @@ function inferRequestPriority(stock, min) {
           return '<tr class="border-b border-slate-100">' +
             '<td class="py-2 pr-2 text-slate-400">' + ln.line_no + '</td>' +
             '<td class="py-2 pr-2"><div class="font-semibold text-slate-700">' + escHtml(ln.part_name || '-') + '</div>' +
-              '<div class="text-xs text-slate-400">' + escHtml(ln.model || '') + (ln.part_no ? ' · ' + escHtml(ln.part_no) : '') + '</div></td>' +
+              '<div class="text-xs text-slate-400">' + escHtml(ln.model || '') + (ln.part_no ? ' · ' + escHtml(ln.part_no) : '') + '</div>' +
+              (ln.remark ? '<div class="mt-0.5 text-[11px] text-violet-600">' + escHtml(ln.remark) + '</div>' : '') + '</td>' +
             '<td class="py-2 pr-2 text-right font-mono text-slate-500">' + Number(ln.qty_requested || 0) + '</td>' +
             '<td class="py-2 pr-2 text-right"><input data-appr-line="' + ln.line_no + '" type="number" min="0" value="' + Number(ln.qty_approved || 0) + '" class="h-9 w-20 rounded-lg border border-slate-300 px-2 text-right text-sm focus:ring-2 focus:ring-emerald-400" /></td>' +
             '<td class="py-2 pr-2 text-slate-500">' + escHtml(ln.unit || '') + '</td>' +
@@ -12218,6 +12314,34 @@ function inferRequestPriority(stock, min) {
       if (review) { openPrApproval(review.getAttribute('data-inbox-review')); return; }
       var print = e.target && e.target.closest ? e.target.closest('[data-inbox-print]') : null;
       if (print) { inboxPrintApprovedPr(print.getAttribute('data-inbox-print')); return; }
+      var ack = e.target && e.target.closest ? e.target.closest('[data-anomaly-ack]') : null;
+      if (ack) {
+        ack.disabled = true;
+        ack.textContent = 'กำลังบันทึก...';
+        requestApi(withAuthPayload({ action: 'acknowledgeIssueAnomaly', rowNumber: ack.getAttribute('data-anomaly-ack') }))
+          .then(parseApiResponse)
+          .then(function() { loadInbox(); })
+          .catch(function(err) { showQuickToast('⚠️ ' + (err && err.message ? err.message : 'บันทึกไม่สำเร็จ'), 'warn'); ack.disabled = false; ack.textContent = '✓ ตรวจสอบแล้ว'; });
+        return;
+      }
+      var autoPrBtn = e.target && e.target.closest ? e.target.closest('#runAutoPrNowBtn') : null;
+      if (autoPrBtn) {
+        autoPrBtn.disabled = true;
+        autoPrBtn.textContent = '🤖 กำลังสแกนรายการต่ำกว่า Min...';
+        requestApi(withAuthPayload({ action: 'runAutoPrNow' }))
+          .then(parseApiResponse)
+          .then(function(res) {
+            var created = (res.created || []).length;
+            showQuickToast(created ? ('🤖 สร้าง Auto-PR แล้ว ' + created + ' ใบ (' + res.itemCount + ' รายการ)') : ('ℹ️ ' + (res.message || 'ไม่มีรายการที่ต้องสั่งเพิ่ม')), created ? 'success' : 'info');
+            loadInbox();
+          })
+          .catch(function(err) {
+            showQuickToast('⚠️ ' + (err && err.message ? err.message : 'สร้าง Auto-PR ไม่สำเร็จ'), 'warn');
+            autoPrBtn.disabled = false;
+            autoPrBtn.textContent = '🤖 สร้าง Auto-PR จากรายการต่ำกว่า Min เดี๋ยวนี้';
+          });
+        return;
+      }
     });
     var prApprovalCloseBtn = document.getElementById('prApprovalCloseBtn');
     if (prApprovalCloseBtn) prApprovalCloseBtn.addEventListener('click', closePrApproval);
@@ -12226,6 +12350,174 @@ function inferRequestPriority(stock, min) {
     var prRejectBtn = document.getElementById('prRejectBtn');
     if (prRejectBtn) prRejectBtn.addEventListener('click', submitReject);
     window.loadInboxBadge = loadInboxBadge;
+
+    // ============ 🏭 เครื่องจักร: datalist จาก log + รายงานต่อเครื่อง ============
+    function updateMachineDatalist(logs) {
+      var dl = document.getElementById('issueCartMachineOptions');
+      if (!dl) return;
+      var seen = {};
+      (logs || []).forEach(function(r) {
+        var m = String(r.machine || '').trim();
+        if (m) seen[m] = true;
+      });
+      dl.innerHTML = Object.keys(seen).sort().map(function(m) {
+        return '<option value="' + escHtml(m) + '"></option>';
+      }).join('');
+    }
+
+    (function initMachineReport() {
+      var btn = document.getElementById('machineReportBtn');
+      var modal = document.getElementById('machineReportModal');
+      var body = document.getElementById('machineReportBody');
+      var closeBtn = document.getElementById('machineReportCloseBtn');
+      if (!btn || !modal || !body) return;
+      function close() { modal.classList.add('hidden'); }
+      if (closeBtn) closeBtn.addEventListener('click', close);
+      modal.addEventListener('click', function(e) { if (e.target === modal) close(); });
+      btn.addEventListener('click', function() {
+        modal.classList.remove('hidden');
+        body.innerHTML = '<div class="p-8 text-center text-slate-400">⏳ กำลังรวบรวมข้อมูล...</div>';
+        requestApi(withAuthPayload({ action: 'machineSpareReport' })).then(parseApiResponse).then(function(res) {
+          var machines = res.machines || [];
+          if (!machines.length) {
+            body.innerHTML = '<div class="rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-400">' +
+              'ยังไม่มีข้อมูลการเบิกที่ระบุเครื่องจักร<br/><span class="text-xs">เริ่มกรอกช่อง "🏭 ใช้กับเครื่องไหน" ตอนเบิกอะไหล่ แล้วรายงานนี้จะเริ่มมีข้อมูลสะสม</span></div>';
+            return;
+          }
+          var maxCost = Math.max.apply(null, machines.map(function(m) { return m.estCost; }).concat([1]));
+          body.innerHTML = machines.map(function(m) {
+            var reasons = Object.keys(m.byReason || {}).map(function(r) { return r + ' ' + m.byReason[r]; }).join(' · ');
+            var topParts = (m.topParts || []).map(function(p) { return escHtml(p.part) + ' ×' + p.qty; }).join(', ');
+            var barW = Math.max(3, m.estCost / maxCost * 100).toFixed(1);
+            return '<div class="mb-3 rounded-2xl border border-slate-200 p-4">' +
+              '<div class="flex items-center justify-between gap-2">' +
+                '<span class="font-bold text-slate-800">🏭 ' + escHtml(m.machine) + '</span>' +
+                '<span class="text-sm font-bold text-slate-700">฿' + Number(m.estCost).toLocaleString('th-TH') + '</span>' +
+              '</div>' +
+              '<div class="mt-2 h-2 w-full rounded-full bg-slate-100"><div class="h-2 rounded-full bg-violet-500" style="width:' + barW + '%"></div></div>' +
+              '<div class="mt-2 text-xs text-slate-500">เบิก ' + m.issueCount + ' ครั้ง · ' + Number(m.totalQty).toLocaleString('th-TH') + ' ชิ้น' + (m.lastIssue ? ' · ล่าสุด ' + escHtml(String(m.lastIssue).slice(0, 10)) : '') + '</div>' +
+              (reasons ? '<div class="mt-1 text-xs text-slate-500">เหตุผล: ' + escHtml(reasons) + '</div>' : '') +
+              (topParts ? '<div class="mt-1 text-xs text-slate-400">อะไหล่หลัก: ' + topParts + '</div>' : '') +
+            '</div>';
+          }).join('');
+        }).catch(function(err) {
+          body.innerHTML = '<div class="p-6 text-center text-rose-500">⚠️ ' + escHtml(err && err.message ? err.message : String(err)) + '</div>';
+        });
+      });
+    })();
+
+    // ============ ✨ สแกนป้ายอะไหล่ด้วย AI ============
+    function resizeImageForAi(file, maxDim) {
+      return readFileAsDataUrl(file).then(function(dataUrl) {
+        return new Promise(function(resolve, reject) {
+          var img = new Image();
+          img.onload = function() {
+            var scale = Math.min(1, (maxDim || 1024) / Math.max(img.width, img.height));
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          };
+          img.onerror = function() { reject(new Error('อ่านไฟล์รูปไม่สำเร็จ')); };
+          img.src = dataUrl;
+        });
+      });
+    }
+
+    (function initNameplateScan() {
+      var btn = document.getElementById('mScanNameplateBtn');
+      var fileInput = document.getElementById('mScanNameplateFile');
+      var msg = document.getElementById('mScanNameplateMsg');
+      if (!btn || !fileInput) return;
+      function setMsg(text, tone) {
+        if (!msg) return;
+        msg.textContent = text;
+        msg.className = 'mb-2 text-xs ' + (tone === 'error' ? 'text-rose-600' : tone === 'success' ? 'text-emerald-600' : 'text-slate-500');
+        msg.classList.toggle('hidden', !text);
+      }
+      btn.addEventListener('click', function() { fileInput.click(); });
+      fileInput.addEventListener('change', function() {
+        var file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        btn.disabled = true;
+        btn.textContent = '✨ AI กำลังอ่านป้าย...';
+        setMsg('กำลังส่งรูปให้ AI อ่าน (ราว 5-15 วินาที)...', 'muted');
+        resizeImageForAi(file, 1024).then(function(dataUrl) {
+          return postJson(withAuthPayload({ action: 'aiReadNameplate', dataUrl: dataUrl }));
+        }).then(parseApiResponse).then(function(res) {
+          var filled = [];
+          function fill(id, value, label) {
+            var el = document.getElementById(id);
+            if (el && value && !String(el.value || '').trim()) { el.value = value; filled.push(label); }
+          }
+          fill('mName', res.name, 'ชื่อ');
+          fill('mModel', res.model, 'รุ่น');
+          fill('mBrand', res.brand, 'แบรนด์');
+          fill('mCategory', res.category, 'หมวดหมู่');
+          var specsNote = res.specs ? ' | สเปคที่อ่านได้: ' + res.specs : '';
+          setMsg(filled.length ? ('✅ AI เติมให้แล้ว: ' + filled.join(', ') + specsNote + ' — ตรวจความถูกต้องก่อนบันทึก') : ('AI อ่านป้ายไม่ออก ลองถ่ายใหม่ให้ชัด/ใกล้ขึ้น' + specsNote), filled.length ? 'success' : 'error');
+        }).catch(function(err) {
+          var m = String(err && err.message ? err.message : err || '');
+          if (m.indexOf('AI_KEY_MISSING') > -1) m = 'ยังไม่ได้ตั้งค่า API key — เข้า Apps Script > Project Settings > Script Properties เพิ่ม ANTHROPIC_API_KEY';
+          setMsg('⚠️ ' + m, 'error');
+        }).finally(function() {
+          btn.disabled = false;
+          btn.textContent = '✨ สแกนป้ายอะไหล่ด้วย AI';
+          fileInput.value = '';
+        });
+      });
+    })();
+
+    // ============ 💬 AI ผู้ช่วยถาม-ตอบข้อมูลคลัง ============
+    (function initAiChat() {
+      var fab = document.getElementById('aiChatFab');
+      var panel = document.getElementById('aiChatPanel');
+      var messagesEl = document.getElementById('aiChatMessages');
+      var input = document.getElementById('aiChatInput');
+      var sendBtn = document.getElementById('aiChatSendBtn');
+      var closeBtn = document.getElementById('aiChatCloseBtn');
+      if (!fab || !panel || !messagesEl || !input || !sendBtn) return;
+      var busy = false;
+      function openPanel() { panel.style.display = 'flex'; fab.style.display = 'none'; setTimeout(function() { input.focus(); }, 50); }
+      function closePanel() { panel.style.display = 'none'; if (authToken) fab.style.display = 'inline-flex'; }
+      fab.addEventListener('click', openPanel);
+      if (closeBtn) closeBtn.addEventListener('click', closePanel);
+      function addBubble(text, isUser) {
+        var div = document.createElement('div');
+        div.className = isUser
+          ? 'ml-8 rounded-2xl rounded-tr-sm bg-violet-600 p-3 text-sm text-white'
+          : 'mr-4 rounded-2xl rounded-tl-sm bg-slate-100 p-3 text-sm text-slate-700 whitespace-pre-wrap';
+        div.textContent = text;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return div;
+      }
+      function send() {
+        var q = String(input.value || '').trim();
+        if (!q || busy) return;
+        busy = true;
+        input.value = '';
+        sendBtn.disabled = true;
+        addBubble(q, true);
+        var thinking = addBubble('🤔 กำลังวิเคราะห์ข้อมูล...', false);
+        postJson(withAuthPayload({ action: 'aiAskData', question: q }))
+          .then(parseApiResponse)
+          .then(function(res) { thinking.textContent = res.answer || 'ไม่มีคำตอบ'; })
+          .catch(function(err) {
+            var m = String(err && err.message ? err.message : err || '');
+            if (m.indexOf('AI_KEY_MISSING') > -1) m = 'ยังไม่ได้ตั้งค่า API key — เข้า Apps Script > Project Settings > Script Properties เพิ่ม ANTHROPIC_API_KEY แล้วลองใหม่';
+            thinking.textContent = '⚠️ ' + m;
+          })
+          .finally(function() {
+            busy = false;
+            sendBtn.disabled = false;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          });
+      }
+      sendBtn.addEventListener('click', send);
+      input.addEventListener('keydown', function(e) { if (e.key === 'Enter') send(); });
+    })();
 
     // ============ แท็บเมนูจัดกลุ่มเป็น dropdown ============
     var NAV_GROUP_OF_ACTIVE = {
