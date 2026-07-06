@@ -4139,7 +4139,7 @@
       issueCartList.innerHTML = entries.map(function(entry, entryIdx) {
         var item = entry.item;
         var qty = Math.min(entry.qty, safeNum(item.stock));
-        var img = toSafeImageUrl(item.image_main_url);
+        var img = toSafeImageUrl(item.image_main_url, 200);
         var fallback = getSecondaryDriveImageUrl(item.image_main_url);
         return '<article class="rounded-xl border border-slate-200 bg-white p-2.5">' +
           '<div class="flex gap-2.5">' +
@@ -4250,10 +4250,6 @@ function getIssueCartEntries() {
       return '';
     }
 
-    function isDriveViewUrl(url) {
-      return /^https:\/\/drive\.google\.com\/uc\?export=view&id=[A-Za-z0-9_-]+$/i.test(String(url || '').trim());
-    }
-
     function extractDriveFileId(input) {
       var value = String(input || '').trim();
       if (!value) return '';
@@ -4265,22 +4261,29 @@ function getIssueCartEntries() {
       return '';
     }
 
-    function normalizeDriveImageUrl(value) {
-      var raw = String(value || '').trim();
-      if (isDriveViewUrl(raw)) return raw;
-      var fileId = extractDriveFileId(raw);
-      return fileId ? buildDriveViewUrl(fileId) : '';
+    // URL หลักของรูปต้องเป็น thumbnail endpoint เสมอ — ตัว uc?export=view จะ redirect ไป
+    // lh3.googleusercontent.com ที่ต้องการ cookie ล็อกอิน Google แล้วค้าง pending ไม่จบ
+    // (ทำให้ tab ขึ้นสถานะโหลดตลอดกาล + รูปไม่ขึ้นสำหรับผู้ใช้ที่ไม่ได้ล็อกอิน Google)
+    // จึงใช้ thumbnail เป็นหลักทุกจุด และเก็บ uc?export=view ไว้เป็น fallback เท่านั้น
+    function normalizeDriveImageUrl(value, size) {
+      var fileId = extractDriveFileId(String(value || '').trim());
+      return fileId ? buildDriveThumbnailUrl(fileId, size) : '';
     }
 
-    function toSafeImageUrl(url) {
-      var normalized = normalizeDriveImageUrl(url);
+    function toSafeImageUrl(url, size) {
+      var normalized = normalizeDriveImageUrl(url, size);
       return normalized || FALLBACK_IMAGE;
     }
 
-    function getSecondaryDriveImageUrl(value, size) {
+    function getSecondaryDriveImageUrl(value) {
       var fileId = extractDriveFileId(value);
-      if (!fileId) return '';
-      return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w' + (size || 1200);
+      return fileId ? buildDriveViewUrl(fileId) : '';
+    }
+
+    function buildDriveThumbnailUrl(fileId, size) {
+      var id = String(fileId || '').trim();
+      if (!id) return '';
+      return 'https://drive.google.com/thumbnail?id=' + id + '&sz=w' + (size || 1200);
     }
 
     function buildDriveViewUrl(fileId) {
@@ -4935,6 +4938,7 @@ function getIssueCartEntries() {
     function createApiError(message, errorCode) {
       var err = new Error(message || 'เกิดข้อผิดพลาด');
       err.code = errorCode || '';
+      err.isApiError = true; // backend ตอบกลับมาเองว่า error (เช่น รหัสผ่านผิด) — ไม่ใช่ปัญหา network
       return err;
     }
 
@@ -4951,48 +4955,39 @@ function getIssueCartEntries() {
     }
 
     function login(username, password) {
+      // ห้ามส่งรหัสผ่านผ่าน query string (GET/JSONP) เด็ดขาด — มันติดอยู่ใน browser history,
+      // server log และแชร์ลิงก์ต่อได้ ใช้ POST body เท่านั้น (doPost ฝั่ง Apps Script รองรับ
+      // action=login อยู่แล้ว) ถ้า POST ไม่ผ่านให้ลองซ้ำที่ default endpoint แล้วแจ้ง error ตรงๆ
+      // ไม่ fallback กลับไป GET
       var payload = { action: 'login', username: username, password: password };
-      var authPromise = shouldUseJsonpTransport()
-        ? loadJsonpWithFallback(function(base) {
-            return base + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password);
-          })
-        : requestApi(payload);
-      return authPromise
+      function applyLoginResult(data) {
+        authToken = data.token;
+        currentUser = data.user;
+        localStorage.setItem('spare_auth_token', authToken);
+        setAuthScreen(true);
+        applyAuthorizationUi();
+        if (hasPermission('view_dashboard') && isAdminUser()) switchToDashboardPage();
+        else switchToStockPage();
+        return data;
+      }
+      return postJson(payload)
         .then(parseApiResponse)
-        .then(function(data) {
-          authToken = data.token;
-          currentUser = data.user;
-          localStorage.setItem('spare_auth_token', authToken);
-          setAuthScreen(true);
-          applyAuthorizationUi();
-          if (hasPermission('view_dashboard') && isAdminUser()) switchToDashboardPage();
-          else switchToStockPage();
-          return data;
-        })
+        .then(applyLoginResult)
         .catch(function(err) {
-          var msg = String(err && err.message ? err.message : err || '');
-          if (msg.indexOf('JSONP') > -1 || msg.indexOf('โหลดข้อมูล API ไม่สำเร็จ') > -1) {
-            // retry once using hard-coded default endpoint in case localStorage API URL is stale
-            localStorage.removeItem('spare_api_url');
-            API_URL = DEFAULT_API_URL;
-            ACTIVE_API_URL = DEFAULT_API_URL;
-            LINE_API_URL_MAP.H9 = DEFAULT_API_URL;
-            return loadJsonpWithFallback(function(base) {
-              return normalizeApiUrl(DEFAULT_API_URL) + '?action=login&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password);
-            }).then(parseApiResponse).then(function(data) {
-              authToken = data.token;
-              currentUser = data.user;
-              localStorage.setItem('spare_auth_token', authToken);
-              setAuthScreen(true);
-              applyAuthorizationUi();
-              if (hasPermission('view_dashboard') && isAdminUser()) switchToDashboardPage();
-              else switchToStockPage();
-              return data;
-            }).catch(function() {
-              throw new Error('ไม่สามารถเชื่อม Apps Script ได้ (JSONP). ตรวจสอบ Deploy URL: ' + DEFAULT_API_URL);
+          // รหัสผ่านผิด/บัญชีถูกปิด = backend ตอบกลับมาแล้ว ไม่ต้อง retry ที่ endpoint อื่น
+          if (err && err.isApiError) throw err;
+          // network/HTTP error — ลองซ้ำที่ default endpoint เผื่อ URL ใน localStorage ค้างของเก่า
+          localStorage.removeItem('spare_api_url');
+          API_URL = DEFAULT_API_URL;
+          ACTIVE_API_URL = DEFAULT_API_URL;
+          LINE_API_URL_MAP.H9 = DEFAULT_API_URL;
+          return postJson(Object.assign({ __url: normalizeApiUrl(DEFAULT_API_URL) }, payload))
+            .then(parseApiResponse)
+            .then(applyLoginResult)
+            .catch(function(retryErr) {
+              if (retryErr && retryErr.isApiError) throw retryErr;
+              throw new Error('ไม่สามารถเชื่อม Apps Script ได้ ตรวจสอบ Deploy URL: ' + DEFAULT_API_URL);
             });
-          }
-          throw err;
         });
     }
 
@@ -7091,10 +7086,10 @@ function inferRequestPriority(stock, min) {
     }
     function fccImgAttrs(item) {
       var main = '';
-      try { main = toSafeImageUrl(item.image_main_url); } catch (e) { main = ''; }
+      try { main = toSafeImageUrl(item.image_main_url, 400); } catch (e) { main = ''; }
       if (!main) main = 'images/no-image.svg';
       var fb = '';
-      try { fb = getSecondaryDriveImageUrl(item.image_main_url, 400) || ''; } catch (e2) { fb = ''; }
+      try { fb = getSecondaryDriveImageUrl(item.image_main_url) || ''; } catch (e2) { fb = ''; }
       return 'src="' + fccEsc(main) + '"' + (fb && fb !== main ? ' data-fb="' + fccEsc(fb) + '"' : '') + ' loading="lazy" alt=""';
     }
     function fccPerm(key) {
@@ -9495,8 +9490,8 @@ function inferRequestPriority(stock, min) {
         var critKey = String(c.critical||'').toLowerCase();
         var critBadgeClass = PR_CRITICAL_BADGE[critKey] || 'bg-slate-100 text-slate-600';
         var pendingHtml = c.pendingOrder ? '<div class="mb-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800"><span class="text-base leading-none">⚠️</span><span>มีคำสั่งซื้อค้างอยู่ <b>'+Number(c.pendingOrder.qty||0).toLocaleString('th-TH')+'</b> ชิ้น (สถานะ: '+escHtml(c.pendingOrder.status||'-')+(c.pendingOrder.date ? ' • สั่งเมื่อ '+escHtml(String(c.pendingOrder.date).slice(0,10)) : '')+') — ตรวจสอบก่อนสั่งซ้ำ</span></div>' : '';
-        var thumbSrc = getSecondaryDriveImageUrl(c.mainImage, 200) || toSafeImageUrl(c.mainImage);
-        var thumbFallback = getSecondaryDriveImageUrl(c.mainImage, 200) ? toSafeImageUrl(c.mainImage) : '';
+        var thumbSrc = toSafeImageUrl(c.mainImage, 200);
+        var thumbFallback = getSecondaryDriveImageUrl(c.mainImage);
         var thumbHtml = '<img loading="lazy" src="'+thumbSrc+'" data-fallback-src="'+(thumbFallback||'')+'" alt="'+escHtml(c.name||'')+'" class="h-14 w-14 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1 cursor-zoom-in" data-pr-zoom="'+idx+'" onerror="if(this.dataset.fallbackSrc){var n=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=n;}else{this.src=\''+FALLBACK_IMAGE+'\';}" />';
         return '<div class="rounded-xl border '+(c.pendingOrder?'border-amber-300 bg-amber-50/20':'border-slate-200 bg-white')+' p-3 text-sm shadow-sm">'
           + pendingHtml
@@ -9911,7 +9906,7 @@ function inferRequestPriority(stock, min) {
         var cardBorder = active ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200';
         return '<button type="button" data-txn-key="' + txnKey + '" class="text-left rounded-2xl border ' + cardBorder + ' bg-white p-3 shadow-sm hover:shadow transition">' +
           '<div class="flex gap-3">' +
-          '<img loading="lazy" src="' + (getSecondaryDriveImageUrl(item.image_main_url, 300) || toSafeImageUrl(item.image_main_url)) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + (getSecondaryDriveImageUrl(item.image_main_url, 300) || '') + '" />' +
+          '<img loading="lazy" src="' + toSafeImageUrl(item.image_main_url, 300) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + (getSecondaryDriveImageUrl(item.image_main_url) || '') + '" />' +
           '<div class="min-w-0 flex-1">' +
           '<p class="text-sm font-semibold text-slate-900 truncate">' + (item.name || '-') + '</p>' +
           '<p class="text-xs text-slate-500 truncate mt-1">รุ่น: ' + (item.model || '-') + ' • #' + (item.no || '-') + '</p>' +
@@ -10576,10 +10571,10 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eBrand').value = item.brand || '';
       document.getElementById('eImageMainFile').value = '';
       var ePreview = document.getElementById('eImageMainPreview');
-      var eThumb = getSecondaryDriveImageUrl(item.image_main_url, 800);
-      var eFallback = toSafeImageUrl(item.image_main_url);
-      ePreview.src = eThumb || eFallback;
-      ePreview.setAttribute('data-fallback-src', eThumb ? eFallback : '');
+      var eThumb = toSafeImageUrl(item.image_main_url, 800);
+      var eFallback = getSecondaryDriveImageUrl(item.image_main_url);
+      ePreview.src = eThumb;
+      ePreview.setAttribute('data-fallback-src', eFallback || '');
       document.getElementById('eMax').value = item.max != null ? item.max : '';
       document.getElementById('eMin').value = item.min != null ? item.min : '';
       document.getElementById('eUnit').value = item.unit || '';
@@ -11094,7 +11089,7 @@ function inferRequestPriority(stock, min) {
       var needPO = health.needPOCount;
       stockTodayAlert.classList.toggle('hidden', !(needPO > 0 || outCount > 0 || lowCount > 0));
       if (needPO > 0 || outCount > 0 || lowCount > 0) {
-        stockTodayAlert.innerHTML = '🚨 <b>Today Alert</b> • ต้องสั่งซื้อ <b>' + needPO + '</b> • อะไหล่Out of Stock <b>' + outCount + '</b> • Below Min <b>' + lowCount + '</b>';
+        stockTodayAlert.innerHTML = '🚨 <b>Today Alert</b> • ต้องสั่งซื้อ <b>' + needPO + '</b> • อะไหล่ Out of Stock <b>' + outCount + '</b> • Below Min <b>' + lowCount + '</b>';
       }
 
       function makeStatCard(status, icon, label, value, grad, textColor, badgeClass, urgent) {
@@ -11171,8 +11166,8 @@ function inferRequestPriority(stock, min) {
         var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
         var canReceive = canReceivePart();
-        var fallbackSrc = getSecondaryDriveImageUrl(item.image_main_url, 300);
-        var imageSrc = fallbackSrc || toSafeImageUrl(item.image_main_url);
+        var imageSrc = toSafeImageUrl(item.image_main_url, 300);
+        var fallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
         var status = getStockStatus(item);
         var tone = getStatusTone(status);
         var stockClass = tone.textClass;
@@ -11281,8 +11276,8 @@ function inferRequestPriority(stock, min) {
         var canTransact = canIssuePart();
         var canIssue = canTransact && getStockStatus(item) !== 'OUT';
         var canReceive = canReceivePart();
-        var mobileFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url, 300);
-        var mobileImageSrc = mobileFallbackSrc || toSafeImageUrl(item.image_main_url);
+        var mobileImageSrc = toSafeImageUrl(item.image_main_url, 300);
+        var mobileFallbackSrc = getSecondaryDriveImageUrl(item.image_main_url);
         var status = getStockStatus(item);
         var tone = getStatusTone(status);
         var stockClass = tone.textClass;

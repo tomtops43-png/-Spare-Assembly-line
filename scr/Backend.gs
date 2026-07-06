@@ -2620,21 +2620,24 @@ function getOrCreateChildFolder(parent, name) {
   return folders.hasNext() ? folders.next() : parent.createFolder(name);
 }
 
-// โครงสร้างโฟลเดอร์ใน Drive: ไลน์ > Model > ชื่อไฟล์รูป (ไม่มีโฟลเดอร์ item-N / main/install
-// ซ้อนอีกแล้วเหมือนเดิม) — ถ้าไม่มี model (รายการเก่าที่ยังไม่กรอก) fallback เป็น "item-{itemId}"
-// กันชื่อโฟลเดอร์ว่าง/ชนกัน
-function getUploadTargetFolder(line, itemId, imageType, model) {
+// โครงสร้างโฟลเดอร์ใน Drive: ไลน์ > "ชื่อรายการ (Model)" > ชื่อไฟล์รูป
+// ตั้งชื่อโฟลเดอร์จากชื่อรายการเป็นหลักเพื่อให้ค้นหาใน Drive ได้ตรงๆ (ห้ามใช้ item-1/2/3
+// ที่ไล่หาไม่ได้ว่าเป็นของชิ้นไหน) — ถ้าไม่มีชื่อ fallback เป็น Model แล้วค่อยเป็น item-{itemId}
+function getUploadTargetFolder(line, itemId, imageType, model, itemName) {
   var root = DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID);
   var safeLine = String(line || '').trim() || 'UnknownLine';
   var safeItemId = String(itemId || '').trim() || 'UNKNOWN';
-  var safeModel = sanitizeDrivePathSegment(model, 'item-' + safeItemId);
+  var name = String(itemName || '').trim();
+  var modelTxt = String(model || '').trim();
+  var segmentRaw = name ? (modelTxt ? name + ' (' + modelTxt + ')' : name) : modelTxt;
+  var safeSegment = sanitizeDrivePathSegment(segmentRaw, 'item-' + safeItemId);
 
   var lineFolder = getOrCreateChildFolder(root, safeLine);
-  var modelFolder = getOrCreateChildFolder(lineFolder, safeModel);
+  var itemFolder = getOrCreateChildFolder(lineFolder, safeSegment);
 
   return {
-    folder: modelFolder,
-    drivePath: safeLine + '/' + safeModel + '/'
+    folder: itemFolder,
+    drivePath: safeLine + '/' + safeSegment + '/'
   };
 }
 
@@ -2652,6 +2655,7 @@ function uploadImageToDrive(payload) {
   var itemId = String(payload.itemId || payload.no || '').trim();
   var line = String(payload.line || payload.mainLine || '').trim();
   var model = String(payload.model || payload.partNo || payload.part_no || '').trim();
+  var itemName = String(payload.itemName || payload.name || '').trim();
   var kind = String(payload.kind || payload.imageType || 'main').toLowerCase();
   var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
   if (!itemId) throw new Error('ต้องมี itemId');
@@ -2673,7 +2677,7 @@ function uploadImageToDrive(payload) {
   var fileName = namePrefix + Date.now() + '.' + ext;
   var blob = Utilities.newBlob(bytes, mimeType, fileName);
 
-  var target = getUploadTargetFolder(line, itemId, kind, model);
+  var target = getUploadTargetFolder(line, itemId, kind, model, itemName);
   var folder = target.folder;
 
   // ย้ายรูปเก่าไป _archive แทนที่จะ Trash (ป้องกันรูปหายถาวร) — กรองด้วย namePrefix เท่านั้น
@@ -2728,7 +2732,9 @@ function uploadImageToDrive(payload) {
     itemId: itemId,
     kind: kind,
     fileId: file.getId(),
-    imageUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
+    // thumbnail endpoint เป็น URL หลัก — uc?export=view จะ redirect ไป lh3.googleusercontent
+    // ที่ต้องล็อกอิน Google ทำให้รูปไม่ขึ้นบนเว็บสาธารณะ/ค้าง pending
+    imageUrl: 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w1200',
     viewUrl: 'https://drive.google.com/file/d/' + file.getId() + '/view',
     directUrl: 'https://drive.google.com/uc?export=view&id=' + file.getId(),
     drivePath: target.drivePath,
@@ -3233,6 +3239,106 @@ function repairImageSharingPermissions(payload) {
   };
 }
 
+function extractDriveFileIdBackend(input) {
+  var value = String(input || '').trim();
+  if (!value) return '';
+  var directMatch = value.match(/[?&]id=([A-Za-z0-9_-]+)/i);
+  if (directMatch && directMatch[1]) return directMatch[1];
+  var viewMatch = value.match(/\/file\/d\/([A-Za-z0-9_-]+)/i);
+  if (viewMatch && viewMatch[1]) return viewMatch[1];
+  if (/^[A-Za-z0-9_-]{20,}$/.test(value)) return value;
+  return '';
+}
+
+// ตรวจสุขภาพรูปทุกรายการในทุกชีตสต็อก — ตอบว่ารายการไหน "ไม่มีรูปในชีต" (NO_URL),
+// "มี URL แต่ไฟล์หายจาก Drive" (FILE_MISSING) หรือ "ไฟล์อยู่ในถังขยะ" (FILE_TRASHED)
+// ใช้ไล่เก็บกวาดเคสรูปหาย/อัปโหลดไม่ติดให้ครบทุกรายการ — รันจากเว็บ (admin) หรือจาก
+// Apps Script editor โดยตรงก็ได้ (เรียก auditItemImagesFromEditor)
+function auditItemImages(payload) {
+  var session = getSessionUser({ authToken: payload.authToken });
+  var user = findUserByUsername(session.user.username);
+  var role = normalizeRole(user && user.role);
+  if (role !== 'admin') throw new Error('เฉพาะ Admin เท่านั้นที่รันตรวจสอบรูปภาพได้');
+  return runItemImageAudit();
+}
+
+function auditItemImagesFromEditor() {
+  var result = runItemImageAudit();
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
+}
+
+function runItemImageAudit() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetNames = Array.from(new Set([SPARE_APP_CONFIG.readSheetName].concat(STOCK_LOCATION_SHEETS)));
+  var summary = { totalItems: 0, ok: 0, noUrl: 0, fileMissing: 0, fileTrashed: 0 };
+  var problems = [];
+  var fileStateCache = {}; // fileId -> 'ok' | 'missing' | 'trashed' (รายการซ้ำใช้ไฟล์เดียวกันไม่ต้องเช็คซ้ำ)
+
+  function checkFileState(fileId) {
+    if (fileStateCache[fileId]) return fileStateCache[fileId];
+    var state;
+    try {
+      state = DriveApp.getFileById(fileId).isTrashed() ? 'trashed' : 'ok';
+    } catch (err) {
+      state = 'missing';
+    }
+    fileStateCache[fileId] = state;
+    return state;
+  }
+
+  sheetNames.forEach(function(sheetName) {
+    var sheet = getSheetByFlexibleName(spreadsheet, sheetName);
+    if (!sheet) return;
+    var lastRow = sheet.getLastRow(), lastCol = sheet.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return;
+    var data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+    var headerRowIndex = findHeaderRowIndex(data);
+    var map = buildHeaderIndexMap(data[headerRowIndex]);
+    var noCol = getFirstColumnIndexByAliases(map, ['no', 'itemno', 'item_no', 'id']);
+    var nameCol = getFirstColumnIndexByAliases(map, ['name', 'itemname', 'item_name', 'partname']);
+    var modelCol = getFirstColumnIndexByAliases(map, ['model', 'partno', 'part_no']);
+    var urlCol = getFirstColumnIndexByAliases(map, ['image_main_url', 'imagemainurl', 'image_main', 'imagemain', 'mainimage', 'main_image']);
+    var fileIdCol = getFirstColumnIndexByAliases(map, ['image_main_file_id', 'imagemainfileid']);
+    if (nameCol === undefined && urlCol === undefined) return; // ไม่ใช่ชีตสต็อก
+
+    data.slice(headerRowIndex + 1).forEach(function(row, i) {
+      var name = nameCol !== undefined ? String(row[nameCol] || '').trim() : '';
+      if (!name) return; // แถวว่าง
+      summary.totalItems += 1;
+      var entry = {
+        sheet: sheetName,
+        rowNumber: headerRowIndex + 2 + i,
+        no: noCol !== undefined ? String(row[noCol] || '').trim() : '',
+        name: name,
+        model: modelCol !== undefined ? String(row[modelCol] || '').trim() : ''
+      };
+      var fileId = '';
+      if (fileIdCol !== undefined) fileId = String(row[fileIdCol] || '').trim();
+      if (!fileId && urlCol !== undefined) fileId = extractDriveFileIdBackend(row[urlCol]);
+      if (!fileId) {
+        summary.noUrl += 1;
+        entry.problem = 'NO_URL';
+        problems.push(entry);
+        return;
+      }
+      var state = checkFileState(fileId);
+      if (state === 'ok') { summary.ok += 1; return; }
+      entry.fileId = fileId;
+      if (state === 'trashed') {
+        summary.fileTrashed += 1;
+        entry.problem = 'FILE_TRASHED'; // กู้ได้จากถังขยะ Drive ภายใน 30 วัน
+      } else {
+        summary.fileMissing += 1;
+        entry.problem = 'FILE_MISSING'; // ไฟล์ถูกลบถาวรแล้ว ต้องอัปโหลดใหม่
+      }
+      problems.push(entry);
+    });
+  });
+
+  return { status: 'success', summary: summary, problems: problems };
+}
+
 function doGet(e) {
   try {
     var action = e && e.parameter ? e.parameter.action : '';
@@ -3243,6 +3349,7 @@ function doGet(e) {
     if (action === 'session') return respond(getSessionUser(authPayload), e);
     if (action === 'listUsers') return respond(listUsers(authPayload), e);
     if (action === 'repairImageSharingPermissions') return respond(repairImageSharingPermissions(e.parameter), e);
+    if (action === 'auditItemImages') return respond(auditItemImages(e.parameter), e);
     if (action === 'upsertUser') return respond(upsertUser({
       authToken: authToken,
       username: e.parameter.username,
@@ -3494,6 +3601,9 @@ function doPost(e) {
     }
     if (action === 'repairImageSharingPermissions') {
       return respond(repairImageSharingPermissions(body), e);
+    }
+    if (action === 'auditItemImages') {
+      return respond(auditItemImages(body), e);
     }
     if (action === 'upsertUser') {
       return respond(upsertUser({
