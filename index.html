@@ -99,15 +99,72 @@
        ไม่งั้น confirmDialog จะถูก modal ที่อยู่ท้าย DOM ทับจนมองไม่เห็น */
     #issueCartModal { z-index: 9600; }
     #issueCartBackdrop { background: rgba(15, 23, 42, 0.55); }
-    /* Inbox + PR approval modal (z-[9999]/z-[10000]/bg-white/20/bg-slate-900/50 เป็น arbitrary
-       class ที่ Tailwind v2.2.19 build นี้ไม่รองรับ — ทำให้ z-index หลุดเป็น auto จนทับกับ
-       ของเดิมแบบโปร่งใส เหมือนปัญหาเดิมของ confirmDialog ด้านบน จึงกำหนดด้วย CSS จริงแทน */
-    #inboxOverlay { z-index: 9999; }
+    /* ─────────────────────────────────────────────────────────────
+       Inbox / PR approval — Tailwind v2.2.19 dist build นี้ "ไม่มี" extended
+       palette (slate/violet/rose/emerald/amber) และไม่รองรับ arbitrary class
+       (z-[9999], bg-white/20). ที่ผ่านมาแอปดู "ปกติ" เพราะ slate เป็นสีอ่อน
+       เกือบขาว พอ class ไม่ทำงานเลยโปร่งใสทับบนพื้นขาว — มองแทบไม่ออก. แต่
+       overlay เต็มจอที่ต้องบังแอปข้างหลัง ความโปร่งใสกลายเป็นปัญหา จึงนิยาม
+       z-index + สีที่ Inbox ใช้ด้วย CSS จริง โดย scope ไว้เฉพาะ 2 กล่องนี้
+       (ไม่กระทบสีส่วนอื่นของแอป)
+    ───────────────────────────────────────────────────────────── */
+    #inboxOverlay { z-index: 9999; background: #f1f5f9; } /* bg-slate-100 */
     #prApprovalModal { z-index: 10000; background: rgba(15, 23, 42, 0.5); }
     .inbox-btn-ghost { background: rgba(255, 255, 255, 0.2); }
     .inbox-btn-ghost:hover { background: rgba(255, 255, 255, 0.32); }
     .inbox-badge-ghost { background: rgba(255, 255, 255, 0.28); }
     .inbox-tab-badge { min-width: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9999px; padding: 0 6px; font-size: 12px; font-weight: 700; }
+    /* header ม่วง (จาก from-violet-600 to-purple-600 ที่ from-violet ไม่มีจริง) */
+    #inboxOverlay .bg-gradient-to-r { background-image: linear-gradient(to right, #7c3aed, #9333ea); }
+    /* backgrounds */
+    #inboxOverlay .bg-white, #prApprovalModal .bg-white { background-color: #fff; }
+    #inboxOverlay .bg-slate-50, #prApprovalModal .bg-slate-50 { background-color: #f8fafc; }
+    #inboxOverlay .bg-slate-100, #prApprovalModal .bg-slate-100 { background-color: #f1f5f9; }
+    #inboxOverlay .bg-slate-200 { background-color: #e2e8f0; }
+    #inboxOverlay .bg-rose-50, #prApprovalModal .bg-rose-50 { background-color: #fff1f2; }
+    #inboxOverlay .bg-rose-100 { background-color: #ffe4e6; }
+    #inboxOverlay .bg-rose-500 { background-color: #f43f5e; }
+    #inboxOverlay .bg-emerald-100 { background-color: #d1fae5; }
+    #inboxOverlay .bg-emerald-600 { background-color: #059669; }
+    #inboxOverlay .bg-amber-100 { background-color: #fef3c7; }
+    #inboxOverlay .bg-amber-500 { background-color: #f59e0b; }
+    #inboxOverlay .bg-violet-600 { background-color: #7c3aed; }
+    /* hover backgrounds */
+    #inboxOverlay .hover\:bg-slate-100:hover { background-color: #f1f5f9; }
+    #inboxOverlay .hover\:bg-slate-200:hover { background-color: #e2e8f0; }
+    #inboxOverlay .hover\:bg-rose-50:hover, #prApprovalModal .hover\:bg-rose-50:hover { background-color: #fff1f2; }
+    #inboxOverlay .hover\:bg-emerald-700:hover { background-color: #047857; }
+    #inboxOverlay .hover\:bg-amber-600:hover { background-color: #d97706; }
+    #inboxOverlay .hover\:bg-violet-700:hover { background-color: #6d28d9; }
+    /* text colors */
+    #inboxOverlay .text-slate-400, #prApprovalModal .text-slate-400 { color: #94a3b8; }
+    #inboxOverlay .text-slate-500, #prApprovalModal .text-slate-500 { color: #64748b; }
+    #inboxOverlay .text-slate-600 { color: #475569; }
+    #inboxOverlay .text-slate-700, #prApprovalModal .text-slate-700 { color: #334155; }
+    #inboxOverlay .text-slate-800, #prApprovalModal .text-slate-800 { color: #1e293b; }
+    #inboxOverlay .text-rose-500 { color: #f43f5e; }
+    #inboxOverlay .text-rose-600, #prApprovalModal .text-rose-600 { color: #e11d48; }
+    #inboxOverlay .text-rose-700 { color: #be123c; }
+    #inboxOverlay .text-emerald-700 { color: #047857; }
+    #inboxOverlay .text-amber-700 { color: #b45309; }
+    /* borders */
+    #inboxOverlay .border-slate-100 { border-color: #f1f5f9; }
+    #inboxOverlay .border-slate-200, #prApprovalModal .border-slate-200 { border-color: #e2e8f0; }
+    #inboxOverlay .border-slate-300, #prApprovalModal .border-slate-300 { border-color: #cbd5e1; }
+    #inboxOverlay .border-emerald-500 { border-color: #10b981; }
+    #inboxOverlay .border-rose-300, #prApprovalModal .border-rose-300 { border-color: #fda4af; }
+    #inboxOverlay .border-rose-500 { border-color: #f43f5e; }
+    #inboxOverlay .border-amber-400 { border-color: #fbbf24; }
+    /* misc */
+    #inboxOverlay .bg-emerald-600.hover\:bg-emerald-700, #prApprovalModal .bg-emerald-600 { background-color: #059669; }
+    #prApprovalModal .bg-emerald-600 { background-color: #059669; }
+    #prApprovalModal .hover\:bg-emerald-700:hover { background-color: #047857; }
+    /* nav tab + badge (อยู่นอก overlay) */
+    #inboxNavBadge { background-color: #f43f5e; }
+    /* ปุ่ม builder "ส่งอนุมัติ (สร้าง PR)" — bg-violet-600 ไม่มีจริง ต้องกันข้อความขาวหายบนพื้นขาว */
+    #prPrintBtn { background-color: #7c3aed; }
+    #prPrintBtn:hover { background-color: #6d28d9; }
+    #prPrintBtnHint { color: #8b5cf6; }
     #confirmDialog {
       position: fixed; inset: 0; z-index: 10002;
       background: rgba(15, 23, 42, 0.6);
