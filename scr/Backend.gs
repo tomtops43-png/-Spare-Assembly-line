@@ -23,9 +23,18 @@ SPARE_APP_CONFIG.prAuditSheetName = SPARE_APP_CONFIG.prAuditSheetName || 'PRAudi
 // modelCol (ถ้ามี) = คอลัมน์รุ่นสินค้า สำหรับไลน์ที่ราคาต่างกันตาม Model เช่น H9 — เก็บ breakdown
 // รายรุ่นไว้คำนวณมูลค่าผลิตแบบต่อรุ่นภายหลัง
 SPARE_APP_CONFIG.productionLogSources = SPARE_APP_CONFIG.productionLogSources || {
-  'Lug&Screw': { id: '1Xx2XEGtT-KbnvVP_9gzkW9kuyFUBpj1H-oIsT3zUx1U', sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty' },
+  'Lug&Screw': { id: '1Xx2XEGtT-KbnvVP_9gzkW9kuyFUBpj1H-oIsT3zUx1U', sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty', modelCol: 'ProductCode' },
   'H9': { id: '1PYcAatoJ4QX28uQ_LF8dDC6oTiMWbfPs5TZDfGJVa4U', sheet: 'Plan', dateCol: 'Actual complete date', qtyCol: 'Actual', modelCol: 'Order model' },
   'Coil Winding': { id: '11NGAEXnTZIXMseO_0vfA-yRWxBXEiWpNkCIdIQq2ftQ', sheet: 'Production_Data', dateCol: 'Date', qtyCol: 'FG', modelCol: 'Product' }
+};
+// ชีตราคาต่อชิ้นล่าสุด (ทุกไลน์รวมกัน) — ใช้จับคู่กับ Model ของแต่ละไลน์เพื่อคำนวณมูลค่าผลิต
+// อัตโนมัติ ไม่ต้องกรอกราคาเอง ชื่อรหัสรุ่นในชีตนี้อาจไม่ตรงกับชีตผลิตเป๊ะ (เช่น H9 ในชีตผลิต
+// ไม่มี "-S" ต่อท้าย, Coil มี " (10A)" ต่อท้าย) — matchModelPrice() จัดการความต่างเหล่านี้
+SPARE_APP_CONFIG.unitPriceSource = SPARE_APP_CONFIG.unitPriceSource || {
+  id: '1yFmVV3qJmCyKGzlRUZ99vlfhps-WGZ9ehSM87dMDFlE',
+  sheet: 'Unit Price Latest',
+  specCol: 'Specification (รหัสรุ่น)',
+  priceCol: 'Unit Price (Latest)'
 };
 SPARE_APP_CONFIG.sessionDurationMs = SPARE_APP_CONFIG.sessionDurationMs || (7 * 24 * 60 * 60 * 1000);
 SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThresholdMs || (24 * 60 * 60 * 1000);
@@ -771,12 +780,85 @@ function getExternalProductionVolumeForLine(line) {
   }
 }
 
+// อ่านชีตราคาต่อชิ้น → { specUpper: { spec, price } } (cache 30 นาที) — ชื่อ spec เก็บ uppercase
+// ไว้ทำ case-insensitive lookup แต่คง spec เดิมไว้แสดงผล
+function getUnitPriceMap() {
+  var cfg = SPARE_APP_CONFIG.unitPriceSource;
+  if (!cfg || !cfg.id) return null;
+  var cacheKey = 'unit_price_map::' + cfg.id;
+  try {
+    var cached = CacheService.getScriptCache().get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (e) { Logger.log('getUnitPriceMap cache read warning: ' + (e && e.message ? e.message : e)); }
+  try {
+    var sheet = SpreadsheetApp.openById(cfg.id).getSheetByName(cfg.sheet);
+    if (!sheet) return null;
+    var values = sheet.getDataRange().getValues();
+    if (values.length <= 1) return {};
+    var headers = values[0];
+    var wantSpec = String(cfg.specCol).trim().toLowerCase();
+    var wantPrice = String(cfg.priceCol).trim().toLowerCase();
+    var specCol = -1, priceCol = -1;
+    for (var i = 0; i < headers.length; i += 1) {
+      var h = String(headers[i] || '').trim().toLowerCase();
+      if (h === wantSpec && specCol === -1) specCol = i;
+      if (h === wantPrice && priceCol === -1) priceCol = i;
+    }
+    if (specCol === -1 || priceCol === -1) return null;
+    var map = {};
+    for (var r = 1; r < values.length; r += 1) {
+      var spec = String(values[r][specCol] || '').trim();
+      var price = Number(values[r][priceCol] || 0);
+      if (!spec) continue;
+      map[spec.toUpperCase()] = { spec: spec, price: price };
+    }
+    try { CacheService.getScriptCache().put(cacheKey, JSON.stringify(map), 1800); }
+    catch (e2) { Logger.log('getUnitPriceMap cache write warning: ' + (e2 && e2.message ? e2.message : e2)); }
+    return map;
+  } catch (err) {
+    Logger.log('getUnitPriceMap error: ' + (err && err.message ? err.message : err));
+    return null;
+  }
+}
+
+// จับคู่ Model จากชีตผลิตกับ spec ในชีตราคา — ทดสอบ transform แบบ deterministic ตามลำดับ
+// (verify แล้วกับข้อมูลจริง: Lug 2/2, Coil 4/4, H9 130/135 โดยไม่มีการเดามั่ว):
+//   exact → ตัด " (ขนาด)" ท้าย (Coil) → เติม "-S"/"-T-S"/"T-S"/"-T" (H9) → ตัด "-S" → สลับ 0↔O → ตัด "*"
+// คืน { price, matched } หรือ null ถ้าไม่เจอ (ไม่เดา เพื่อไม่ให้ราคาผิด)
+function matchModelPrice(model, priceUpper) {
+  var s0 = String(model || '').trim();
+  if (!s0 || !priceUpper) return null;
+  var stripStar = s0.replace(/\*+$/, '').trim();
+  var bases = [s0];
+  if (stripStar !== s0) bases.push(stripStar);
+  bases.slice().forEach(function (b) {
+    if (/0/.test(b)) bases.push(b.replace(/0/g, 'O'));
+    if (/O/.test(b)) bases.push(b.replace(/O/g, '0'));
+  });
+  var cand = [];
+  bases.forEach(function (b) {
+    var noSize = b.replace(/\s+\([^)]*\)\s*$/, '').trim();
+    [b, noSize].forEach(function (x) {
+      cand.push(x); cand.push(x + '-S'); cand.push(x + '-T-S'); cand.push(x + 'T-S'); cand.push(x + '-T');
+      if (/-S$/i.test(x)) cand.push(x.replace(/-S$/i, ''));
+    });
+  });
+  var seen = {};
+  for (var i = 0; i < cand.length; i += 1) {
+    var key = cand[i]; if (!key || seen[key]) continue; seen[key] = 1;
+    var hit = priceUpper[key.toUpperCase()];
+    if (hit) return { price: hit.price, matched: hit.spec };
+  }
+  return null;
+}
+
 function getProductionVolume(payload) {
   requirePermission({ authToken: payload.authToken }, 'view');
   var values = getProductionVolumeSheet().getDataRange().getValues();
   var manual = values.length <= 1 ? [] : values.slice(1).filter(function(r) { return String(r[0] || '').trim(); }).map(function(r) {
     return { month: String(r[0] || ''), line: String(r[1] || ''), actual_qty: Number(r[2] || 0), updated_by: String(r[3] || ''), updated_at: String(r[4] || ''), source: 'manual' };
   });
+  var priceUpper = getUnitPriceMap(); // อาจเป็น null ถ้าเข้าถึงชีตราคาไม่ได้
   // ไลน์ที่ตั้งค่า productionLogSources ไว้ ให้ยอดจาก ProductionLog จริงทับค่าที่กรอกมือเสมอ
   // (ค่ากรอกมือยังอยู่เป็น fallback เผื่อดึงข้อมูลจริงไม่สำเร็จ)
   Object.keys(SPARE_APP_CONFIG.productionLogSources || {}).forEach(function(line) {
@@ -788,7 +870,19 @@ function getProductionVolume(payload) {
         if (manual[i].line === line && manual[i].month === row.month) { idx = i; break; }
       }
       var entry = { month: row.month, line: line, actual_qty: row.actual_qty, updated_by: 'ProductionLog (auto)', updated_at: '', source: 'auto' };
-      if (row.by_model) entry.by_model = row.by_model; // breakdown รายรุ่น (ไลน์ที่ราคาต่างตาม Model เช่น H9)
+      // คำนวณมูลค่าผลิต = ผลรวม (ยอดแต่ละรุ่น × ราคาที่จับคู่ได้) จาก breakdown รายรุ่น
+      if (row.by_model && priceUpper) {
+        var value = 0, unpricedQty = 0, unpriced = {};
+        Object.keys(row.by_model).forEach(function(model) {
+          var q = Number(row.by_model[model] || 0);
+          var hit = matchModelPrice(model, priceUpper);
+          if (hit) value += q * hit.price;
+          else { unpricedQty += q; unpriced[model] = q; }
+        });
+        entry.production_value = value;
+        entry.unpriced_qty = unpricedQty;
+        if (Object.keys(unpriced).length) entry.unpriced_models = unpriced;
+      }
       if (idx === -1) manual.push(entry); else manual[idx] = entry;
     });
   });
