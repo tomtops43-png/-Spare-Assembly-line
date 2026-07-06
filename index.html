@@ -165,6 +165,28 @@
     #prPrintBtn { background-color: #7c3aed; }
     #prPrintBtn:hover { background-color: #6d28d9; }
     #prPrintBtnHint { color: #8b5cf6; }
+    /* ─── แท็บเมนูจัดกลุ่มเป็น dropdown (แก้ปัญหาแท็บล้นแนวนอน) ─── */
+    #topNavTabs { overflow: visible; }
+    .nav-group { position: relative; }
+    .nav-group-trigger.nav-group-active { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe !important; }
+    .nav-dropdown-panel {
+      position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+      min-width: 200px; background:#fff; border:1px solid #e2e8f0; border-radius:14px;
+      box-shadow: 0 12px 30px rgba(15,23,42,0.16); padding:6px;
+    }
+    .nav-dropdown-panel.nav-dropdown-right { left:auto; right:0; }
+    .nav-dropdown-panel.hidden { display:none; }
+    /* ทำให้ปุ่มเดิม (ที่ setTabStyles ยังคุม className อยู่) กลายเป็นแถวเต็มความกว้างในเมนู
+       โดยไม่ต้องแตะ setTabStyles — ใช้ descendant selector ล้วนๆ */
+    .nav-dropdown-panel .eng-tab {
+      width:100% !important; justify-content:flex-start !important;
+      border-radius:9px !important; margin-bottom:2px; white-space:nowrap;
+    }
+    .nav-dropdown-panel .eng-tab:last-child { margin-bottom:0; }
+    .nav-dropdown-panel .eng-tab:hover { background-color:#f1f5f9; }
+    /* บังคับโชว์ label ในเมนูเสมอ (label span ไม่มี id, badge span มี id) */
+    .nav-dropdown-panel .eng-tab span:not([id]) { display:inline !important; }
+    .nav-group-trigger:hover { background-color:#f1f5f9; }
     #confirmDialog {
       position: fixed; inset: 0; z-index: 10002;
       background: rgba(15, 23, 42, 0.6);
@@ -660,53 +682,88 @@
 
     <div class="grid grid-cols-1 gap-4 items-start">
       <div id="mainContentPanel" class="min-w-0">
-        <div id="topNavTabs" class="mb-4 flex flex-nowrap items-center gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm md:gap-1.5" style="scrollbar-width:none;-webkit-overflow-scrolling:touch;">
+        <div id="topNavTabs" class="mb-4 flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm md:gap-1.5" style="scrollbar-width:none;-webkit-overflow-scrolling:touch;">
+          <!-- Standalone: Stock -->
           <button id="tabStock" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl bg-blue-600 px-2.5 py-2 text-sm font-semibold text-white shadow-sm md:px-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/></svg>
             <span class="hidden sm:inline">Stock</span>
           </button>
+          <!-- Standalone: Dashboard -->
           <button id="tabDashboard" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             <span class="hidden sm:inline">Dashboard</span>
           </button>
-          <button id="tabTxn" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 17l-4 4m0 0l-4-4m4 4V3"/></svg>
-            <span class="hidden sm:inline">รับเข้า</span>
-          </button>
-          <button id="tabLog" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            <span class="hidden sm:inline">Log</span>
-          </button>
-          <button id="tabPrReport" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            <span class="hidden sm:inline">PR Report</span>
-          </button>
-          <button id="tabStockCount" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-            <span class="hidden sm:inline">เช็คสต็อก</span>
-          </button>
-          <button id="tabPurchaseHistory" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-            <span class="hidden md:inline">Purchase History</span><span class="hidden sm:inline md:hidden">History</span>
-          </button>
-          <button id="requestOrderNavBtn" class="eng-tab shrink-0 request-order-nav-btn flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-            <span class="hidden sm:inline">ขอซื้อ</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span>
-          </button>
+
+          <!-- Group: คลังอะไหล่ -->
+          <div class="nav-group shrink-0" data-nav-group="warehouse">
+            <button type="button" data-nav-toggle="warehouse" class="nav-group-trigger eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/></svg>
+              <span>คลัง</span>
+              <svg class="h-3 w-3 shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="nav-dropdown-panel hidden" data-nav-panel="warehouse">
+              <button id="tabTxn" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 17l-4 4m0 0l-4-4m4 4V3"/></svg>
+                <span class="hidden sm:inline">รับเข้า</span>
+              </button>
+              <button id="tabStockCount" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                <span class="hidden sm:inline">เช็คสต็อก</span>
+              </button>
+              <button id="tabLog" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <span class="hidden sm:inline">Log</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Group: จัดซื้อ -->
+          <div class="nav-group shrink-0" data-nav-group="procure">
+            <button type="button" data-nav-toggle="procure" class="nav-group-trigger eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              <span>จัดซื้อ</span>
+              <svg class="h-3 w-3 shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="nav-dropdown-panel hidden" data-nav-panel="procure">
+              <button id="requestOrderNavBtn" class="eng-tab shrink-0 request-order-nav-btn flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                <span class="hidden sm:inline">ขอซื้อ</span><span id="requestOrderNavBadge" class="request-order-nav-badge hidden">0</span>
+              </button>
+              <button id="tabPrReport" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span class="hidden sm:inline">PR Report</span>
+              </button>
+              <button id="tabPurchaseHistory" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                <span>Purchase History</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Standalone: Inbox (มี badge) -->
           <button id="tabInbox" class="eng-tab shrink-0 relative flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
             <span class="hidden sm:inline">Inbox</span><span id="inboxNavBadge" class="hidden ml-1 inline-flex items-center justify-center rounded-full bg-rose-500 px-1.5 text-xs font-bold text-white" style="min-width:18px">0</span>
           </button>
-          <!-- divider -->
-          <div class="mx-1 hidden h-6 w-px bg-slate-200 sm:block shrink-0"></div>
-          <button id="tabManage" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-amber-400 bg-amber-50 px-2.5 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 md:px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            <span class="hidden sm:inline">เพิ่มรายการ</span>
-          </button>
-          <button id="tabAdmin" class="eng-tab shrink-0 hidden items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 md:px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            <span class="hidden sm:inline">Admin</span>
-          </button>
+
+          <!-- Group: จัดการ -->
+          <div class="nav-group shrink-0" data-nav-group="manage">
+            <button type="button" data-nav-toggle="manage" class="nav-group-trigger eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              <span>จัดการ</span>
+              <svg class="h-3 w-3 shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div class="nav-dropdown-panel nav-dropdown-right hidden" data-nav-panel="manage">
+              <button id="tabManage" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-amber-400 bg-amber-50 px-2.5 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                <span class="hidden sm:inline">เพิ่มรายการ</span>
+              </button>
+              <button id="tabAdmin" class="eng-tab shrink-0 hidden items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span class="hidden sm:inline">Admin</span>
+              </button>
+            </div>
+          </div>
         </div>
         <!-- /#topNavTabs -->
 
@@ -5974,6 +6031,7 @@ function getIssueCartEntries() {
       sheetSelectorWrap.classList.toggle('hidden', active !== 'stock');
       if (stockCountPage) stockCountPage.classList.toggle('hidden', active !== 'stock-count');
       updateRequestOrderBadgeUI(requestOrderBadgeCount);
+      if (typeof updateNavGroups === 'function') updateNavGroups(active);
     }
 
     function switchToStockPage() {
@@ -12065,6 +12123,44 @@ function inferRequestPriority(stock, min) {
     var prRejectBtn = document.getElementById('prRejectBtn');
     if (prRejectBtn) prRejectBtn.addEventListener('click', submitReject);
     window.loadInboxBadge = loadInboxBadge;
+
+    // ============ แท็บเมนูจัดกลุ่มเป็น dropdown ============
+    var NAV_GROUP_OF_ACTIVE = {
+      'txn': 'warehouse', 'stock-count': 'warehouse', 'log': 'warehouse',
+      'request-order': 'procure', 'pr': 'procure', 'purchase-history': 'procure',
+      'manage': 'manage', 'admin': 'manage'
+    };
+    function closeAllNavGroups() {
+      document.querySelectorAll('.nav-dropdown-panel').forEach(function(p) { p.classList.add('hidden'); });
+    }
+    function toggleNavGroup(key) {
+      var panel = document.querySelector('.nav-dropdown-panel[data-nav-panel="' + key + '"]');
+      if (!panel) return;
+      var willOpen = panel.classList.contains('hidden');
+      closeAllNavGroups();
+      if (willOpen) panel.classList.remove('hidden');
+    }
+    // highlight กลุ่มที่มีหน้า active อยู่ + ซ่อนกลุ่มที่ลูกถูกซ่อนหมด (ตาม permission)
+    function updateNavGroups(active) {
+      document.querySelectorAll('.nav-group').forEach(function(group) {
+        var key = group.getAttribute('data-nav-group');
+        var trigger = group.querySelector('.nav-group-trigger');
+        var panel = group.querySelector('.nav-dropdown-panel');
+        var anyVisible = false;
+        if (panel) panel.querySelectorAll('.eng-tab').forEach(function(it) {
+          if (!it.classList.contains('hidden')) anyVisible = true;
+        });
+        group.classList.toggle('hidden', !anyVisible);
+        if (trigger) trigger.classList.toggle('nav-group-active', NAV_GROUP_OF_ACTIVE[active] === key);
+      });
+    }
+    window.updateNavGroups = updateNavGroups;
+    // คลิก trigger = toggle เมนู; คลิกที่อื่น (เลือกหน้า/นอกเมนู) = ปิดทุกเมนู
+    document.addEventListener('click', function(e) {
+      var trig = e.target && e.target.closest ? e.target.closest('[data-nav-toggle]') : null;
+      if (trig) { toggleNavGroup(trig.getAttribute('data-nav-toggle')); return; }
+      closeAllNavGroups();
+    });
     if (purchaseHistoryRefreshBtn) purchaseHistoryRefreshBtn.addEventListener('click', function() { purchaseHistoryCurrentPage = 1; loadPurchaseHistory(true).catch(function() {}); });
     var purchaseHistoryReconcileBtn = document.getElementById('purchaseHistoryReconcileBtn');
     var purchaseHistoryReconcileOverlay = document.getElementById('purchaseHistoryReconcileOverlay');
