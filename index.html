@@ -7553,10 +7553,30 @@ function inferRequestPriority(stock, min) {
       if (!el) {
         el = document.createElement('div');
         el.id = 'fccCostRatioTooltip';
-        el.style.cssText = 'position:absolute;pointer-events:none;z-index:10050;opacity:0;transition:opacity .12s ease;transform:translate(-50%,calc(-100% - 12px));background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:10px 12px;font-family:\'Prompt\',\'Chakra Petch\',sans-serif;font-size:12px;line-height:1.5;color:#334155;min-width:170px;';
+        el.style.cssText = 'position:absolute;pointer-events:none;z-index:10050;opacity:0;transition:opacity .12s ease;transform:translate(-50%,calc(-100% - 12px));background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.18);padding:12px 14px;font-family:\'Prompt\',\'Chakra Petch\',sans-serif;font-size:12.5px;line-height:1.6;color:#334155;min-width:190px;';
         document.body.appendChild(el);
       }
       return el;
+    }
+    // ป้าย "เป้าหมาย X%" ลอยชิดขวาของกราฟ ตรงระดับเส้นประ — ให้เส้น Target ทำหน้าที่เป็นเส้นอ้างอิงเฉยๆ
+    // ไม่ต้องแย่ง legend หรือ hover ก็อ่านค่าออกทันที
+    function fccCostRatioTargetLabelEl() {
+      var el = document.getElementById('fccCostRatioTargetLabel');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'fccCostRatioTargetLabel';
+        el.style.cssText = 'position:absolute;pointer-events:none;z-index:10040;opacity:0;transition:opacity .15s ease;transform:translate(-100%,-50%);font-family:\'Prompt\',\'Chakra Petch\',sans-serif;font-size:10.5px;font-weight:700;color:#16A34A;background:rgba(240,253,244,.95);border:1px solid rgba(34,197,94,.4);border-radius:6px;padding:2px 7px;white-space:nowrap;';
+        document.body.appendChild(el);
+      }
+      return el;
+    }
+    function fccCostRatioSalesGradient(ctx) {
+      var area = ctx.chart.chartArea;
+      if (!area) return '#3B82F6';
+      var g = ctx.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+      g.addColorStop(0, '#60A5FA');
+      g.addColorStop(1, '#2563EB');
+      return g;
     }
     function fccRenderCostRatioCombo(perMonth, targetPct) {
       var canvas = document.getElementById('fccCostRatioCanvas');
@@ -7568,28 +7588,59 @@ function inferRequestPriority(stock, min) {
       if (fccCostRatioChart) { fccCostRatioChart.destroy(); fccCostRatioChart = null; }
       var FONT = "'Prompt','Chakra Petch',sans-serif";
       var tgt = targetPct > 0 ? targetPct : null;
+      var targetLabelEl = fccCostRatioTargetLabelEl();
+      // plugin เฉพาะ chart นี้ (ไม่ต้อง Chart.register ทั้ง global) — วางป้าย "เป้าหมาย X%" ชิดขวา
+      // ตรงระดับเส้นประ ให้เห็นค่าทันทีโดยไม่ต้อง hover หรือไล่อ่าน legend
+      var fccTargetLabelPlugin = {
+        id: 'fccCostRatioTargetLabelPos',
+        afterRender: function(chart) {
+          if (tgt == null) { targetLabelEl.style.opacity = 0; return; }
+          var scale = chart.scales.yPct, area = chart.chartArea;
+          if (!scale || !area) { targetLabelEl.style.opacity = 0; return; }
+          var y = scale.getPixelForValue(tgt);
+          if (y < area.top - 4 || y > area.bottom + 4) { targetLabelEl.style.opacity = 0; return; }
+          var rect = chart.canvas.getBoundingClientRect();
+          targetLabelEl.textContent = 'เป้าหมาย ' + tgt + '%';
+          targetLabelEl.style.left = (rect.left + window.pageXOffset + rect.width - 6) + 'px';
+          targetLabelEl.style.top = (rect.top + window.pageYOffset + y) + 'px';
+          targetLabelEl.style.opacity = 1;
+        }
+      };
       fccCostRatioChart = new Chart(canvas.getContext('2d'), {
+        plugins: [fccTargetLabelPlugin],
         data: {
           labels: perMonth.map(function(d) { return d.label; }),
           datasets: [
-            { type: 'bar', label: 'ยอดขาย', data: perMonth.map(function(d) { return d.sales; }), backgroundColor: '#3B82F6', yAxisID: 'yBaht', borderRadius: 8, order: 3, categoryPercentage: 0.62, barPercentage: 0.9 },
-            { type: 'bar', label: 'ค่าใช้จ่ายอะไหล่', data: perMonth.map(function(d) { return d.expense; }), backgroundColor: '#EF4444', yAxisID: 'yBaht', borderRadius: 8, order: 3, categoryPercentage: 0.62, barPercentage: 0.9 },
-            { type: 'line', label: 'อัตราต้นทุน (%)', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#111827', backgroundColor: '#111827', yAxisID: 'yPct', tension: 0.35, borderWidth: 2.4, order: 1, spanGaps: true, pointRadius: 4, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
+            { type: 'bar', label: 'ยอดขาย', data: perMonth.map(function(d) { return d.sales; }), backgroundColor: fccCostRatioSalesGradient, hoverBackgroundColor: '#1D4ED8', yAxisID: 'yBaht', borderRadius: 6, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
+            { type: 'bar', label: 'ค่าใช้จ่ายอะไหล่', data: perMonth.map(function(d) { return d.expense; }),
+              backgroundColor: function(c) { var d = perMonth[c.dataIndex]; return (d && d.budget != null && d.expense > d.budget) ? '#EF4444' : '#F59E0B'; },
+              hoverBackgroundColor: function(c) { var d = perMonth[c.dataIndex]; return (d && d.budget != null && d.expense > d.budget) ? '#DC2626' : '#D97706'; },
+              yAxisID: 'yBaht', borderRadius: 6, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
+            { type: 'line', label: 'อัตราต้นทุน (%)', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#111827', backgroundColor: '#111827', yAxisID: 'yPct', cubicInterpolationMode: 'monotone', borderWidth: 2.2, order: 1, spanGaps: true,
+              pointRadius: function(c) { return c.raw != null ? 3 : 0; }, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
               pointBackgroundColor: function(c) { var v = c.raw; return (v != null && tgt != null && v > tgt) ? '#EF4444' : '#22C55E'; } },
-            { type: 'line', label: 'เป้าหมาย (%)', data: perMonth.map(function() { return tgt; }), borderColor: '#22C55E', yAxisID: 'yPct', borderDash: [6, 4], borderWidth: 2, order: 2, pointRadius: 0, spanGaps: true, fill: false }
+            { type: 'line', label: 'เป้าหมาย (%)', data: perMonth.map(function() { return tgt; }), borderColor: 'rgba(34,197,94,.6)', yAxisID: 'yPct', borderDash: [6, 4], borderWidth: 2, order: 2, pointRadius: 0, pointHoverRadius: 0, spanGaps: true, fill: false }
           ]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          animation: { duration: 500 },
+          layout: { padding: { top: 12, right: 8, bottom: 4, left: 4 } },
+          animation: { duration: 700, easing: 'easeOutQuart' },
           interaction: { mode: 'index', intersect: false },
           scales: {
-            x: { grid: { display: false }, ticks: { font: { family: FONT, size: 11 }, color: '#64748b' } },
-            yBaht: { position: 'left', beginAtZero: true, title: { display: true, text: 'บาท (THB)', font: { family: FONT, size: 11 }, color: '#94a3b8' }, grid: { color: 'rgba(100,116,139,.12)' }, ticks: { font: { family: FONT, size: 10 }, color: '#94a3b8', callback: function(v) { return '฿' + fccMoney(v); } } },
-            yPct: { position: 'right', beginAtZero: true, title: { display: true, text: '%', font: { family: FONT, size: 11 }, color: '#94a3b8' }, grid: { drawOnChartArea: false }, ticks: { font: { family: FONT, size: 10 }, color: '#94a3b8', callback: function(v) { return v + '%'; } } }
+            x: { grid: { display: false }, ticks: { font: { family: FONT, size: 11 }, color: '#64748b', padding: 10 } },
+            yBaht: { position: 'left', beginAtZero: true, title: { display: true, text: 'บาท (THB)', font: { family: FONT, size: 11 }, color: '#475569' }, grid: { color: '#E5E7EB' }, ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return '฿' + fccMoney(v); } } },
+            yPct: { position: 'right', beginAtZero: true, title: { display: true, text: '%', font: { family: FONT, size: 11 }, color: '#111827' }, grid: { drawOnChartArea: false }, ticks: { font: { family: FONT, size: 10 }, color: '#111827', callback: function(v) { return v + '%'; } } }
           },
           plugins: {
-            legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, font: { family: FONT, size: 11 }, color: '#475569' } },
+            legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 16, font: { family: FONT, size: 11 }, color: '#475569',
+              // dataset.order คุมทั้ง z-stack (ให้เส้นวาดทับแท่ง) และลำดับ legend ของ Chart.js ไปพร้อมกัน
+              // แต่เราอยากให้ legend อ่านตามความสำคัญ (ยอดขาย → ค่าใช้จ่าย → อัตราต้นทุน → เป้าหมาย) โดยไม่กระทบ z-stack
+              // เลยเรียง legend items เองตาม datasetIndex (ลำดับที่ประกาศ dataset) แทนลำดับ order เริ่มต้น
+              generateLabels: function(chart) {
+                var items = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                return items.slice().sort(function(a, b) { return a.datasetIndex - b.datasetIndex; });
+              } } },
             tooltip: {
               enabled: false,
               external: function(ctx) {
@@ -7598,17 +7649,15 @@ function inferRequestPriority(stock, min) {
                 if (!tt || tt.opacity === 0 || !tt.dataPoints || !tt.dataPoints.length) { el.style.opacity = 0; return; }
                 var d = perMonth[tt.dataPoints[0].dataIndex];
                 if (!d) { el.style.opacity = 0; return; }
-                function row(lbl, val, color) { return '<div style="display:flex;justify-content:space-between;gap:16px;"><span style="color:#94a3b8;">' + lbl + '</span><b style="color:' + color + ';">' + val + '</b></div>'; }
-                var html = '<div style="font-weight:700;color:#0f172a;margin-bottom:6px;border-bottom:1px solid #f1f5f9;padding-bottom:5px;">' + fccEsc(d.label) + '</div>';
+                function row(lbl, val, color) { return '<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0;"><span style="color:#94a3b8;">' + lbl + '</span><b style="color:' + color + ';">' + val + '</b></div>'; }
+                var html = '<div style="font-weight:700;color:#0f172a;margin-bottom:7px;border-bottom:1px solid #f1f5f9;padding-bottom:6px;">' + fccEsc(d.label) + '</div>';
                 html += row('ยอดขาย', '฿' + fccInt(d.sales), '#3B82F6');
-                html += row('ค่าใช้จ่ายอะไหล่', '฿' + fccInt(d.expense), '#EF4444');
-                if (d.budget != null) html += row('งบ Spare part', '฿' + fccInt(d.budget), '#334155');
+                if (d.budget != null) html += row('งบ Spare part', '฿' + fccInt(d.budget), '#64748b');
+                html += row('ค่าใช้จ่ายอะไหล่', '฿' + fccInt(d.expense), (d.budget != null && d.expense > d.budget) ? '#EF4444' : '#F59E0B');
                 if (d.ratio != null) html += row('อัตราต้นทุน', d.ratio.toFixed(1) + '%', '#111827');
-                if (tgt != null) html += row('เป้าหมาย', tgt + '%', '#22C55E');
                 if (d.ratio != null && tgt != null) {
-                  var diff = d.ratio - tgt;
-                  var over = diff > 0;
-                  html += '<div style="margin-top:5px;padding-top:5px;border-top:1px solid #f1f5f9;text-align:center;font-weight:700;color:' + (over ? '#EF4444' : '#22C55E') + ';">' + (over ? 'เกินเป้า (+' + diff.toFixed(1) + '%)' : 'ต่ำกว่าเป้า (' + diff.toFixed(1) + '%)') + '</div>';
+                  var over = d.ratio > tgt;
+                  html += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:16px;align-items:center;"><span style="color:#94a3b8;">สถานะ</span><b style="color:' + (over ? '#EF4444' : '#16A34A') + ';">' + (over ? '🔴 เกินเป้า' : '🟢 อยู่ในเป้า') + '</b></div>';
                 }
                 el.innerHTML = html;
                 var rect = ctx.chart.canvas.getBoundingClientRect();
@@ -7677,6 +7726,8 @@ function inferRequestPriority(stock, min) {
       if (!months.length) {
         tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลยอดผลิต/รายจ่ายของ Line นี้ — เพิ่มยอดผลิตด้านล่างเพื่อเริ่มคำนวณ</div>';
         if (fccCostRatioChart) { fccCostRatioChart.destroy(); fccCostRatioChart = null; } // ล้างกราฟ แต่คง <canvas> ไว้ให้ render รอบถัดไป
+        var targetLabelElEmpty = document.getElementById('fccCostRatioTargetLabel');
+        if (targetLabelElEmpty) targetLabelElEmpty.style.opacity = 0;
         if (sub) sub.textContent = 'เทียบรายจ่ายอะไหล่กับมูลค่าผลิตแต่ละเดือน เพื่อควบคุม % ต้นทุน';
         return;
       }
