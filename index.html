@@ -7572,11 +7572,11 @@ function inferRequestPriority(stock, min) {
         data: {
           labels: perMonth.map(function(d) { return d.label; }),
           datasets: [
-            { type: 'bar', label: 'Sales', data: perMonth.map(function(d) { return d.sales; }), backgroundColor: '#3B82F6', yAxisID: 'yBaht', borderRadius: 8, order: 3, categoryPercentage: 0.62, barPercentage: 0.9 },
-            { type: 'bar', label: 'Spare Expense', data: perMonth.map(function(d) { return d.expense; }), backgroundColor: '#EF4444', yAxisID: 'yBaht', borderRadius: 8, order: 3, categoryPercentage: 0.62, barPercentage: 0.9 },
-            { type: 'line', label: 'Cost Ratio', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#111827', backgroundColor: '#111827', yAxisID: 'yPct', tension: 0.35, borderWidth: 2.4, order: 1, spanGaps: true, pointRadius: 4, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
+            { type: 'bar', label: 'ยอดขาย', data: perMonth.map(function(d) { return d.sales; }), backgroundColor: '#3B82F6', yAxisID: 'yBaht', borderRadius: 8, order: 3, categoryPercentage: 0.62, barPercentage: 0.9 },
+            { type: 'bar', label: 'ค่าใช้จ่ายอะไหล่', data: perMonth.map(function(d) { return d.expense; }), backgroundColor: '#EF4444', yAxisID: 'yBaht', borderRadius: 8, order: 3, categoryPercentage: 0.62, barPercentage: 0.9 },
+            { type: 'line', label: 'อัตราต้นทุน (%)', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#111827', backgroundColor: '#111827', yAxisID: 'yPct', tension: 0.35, borderWidth: 2.4, order: 1, spanGaps: true, pointRadius: 4, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
               pointBackgroundColor: function(c) { var v = c.raw; return (v != null && tgt != null && v > tgt) ? '#EF4444' : '#22C55E'; } },
-            { type: 'line', label: 'Target', data: perMonth.map(function() { return tgt; }), borderColor: '#22C55E', yAxisID: 'yPct', borderDash: [6, 4], borderWidth: 2, order: 2, pointRadius: 0, spanGaps: true, fill: false }
+            { type: 'line', label: 'เป้าหมาย (%)', data: perMonth.map(function() { return tgt; }), borderColor: '#22C55E', yAxisID: 'yPct', borderDash: [6, 4], borderWidth: 2, order: 2, pointRadius: 0, spanGaps: true, fill: false }
           ]
         },
         options: {
@@ -7600,15 +7600,15 @@ function inferRequestPriority(stock, min) {
                 if (!d) { el.style.opacity = 0; return; }
                 function row(lbl, val, color) { return '<div style="display:flex;justify-content:space-between;gap:16px;"><span style="color:#94a3b8;">' + lbl + '</span><b style="color:' + color + ';">' + val + '</b></div>'; }
                 var html = '<div style="font-weight:700;color:#0f172a;margin-bottom:6px;border-bottom:1px solid #f1f5f9;padding-bottom:5px;">' + fccEsc(d.label) + '</div>';
-                html += row('Sales', '฿' + fccInt(d.sales), '#3B82F6');
-                html += row('Spare Expense', '฿' + fccInt(d.expense), '#EF4444');
-                if (d.budget != null) html += row('Budget', '฿' + fccInt(d.budget), '#334155');
-                if (d.ratio != null) html += row('Cost Ratio', d.ratio.toFixed(1) + '%', '#111827');
-                if (tgt != null) html += row('Target', tgt + '%', '#22C55E');
+                html += row('ยอดขาย', '฿' + fccInt(d.sales), '#3B82F6');
+                html += row('ค่าใช้จ่ายอะไหล่', '฿' + fccInt(d.expense), '#EF4444');
+                if (d.budget != null) html += row('งบ Spare part', '฿' + fccInt(d.budget), '#334155');
+                if (d.ratio != null) html += row('อัตราต้นทุน', d.ratio.toFixed(1) + '%', '#111827');
+                if (tgt != null) html += row('เป้าหมาย', tgt + '%', '#22C55E');
                 if (d.ratio != null && tgt != null) {
                   var diff = d.ratio - tgt;
                   var over = diff > 0;
-                  html += '<div style="margin-top:5px;padding-top:5px;border-top:1px solid #f1f5f9;text-align:center;font-weight:700;color:' + (over ? '#EF4444' : '#22C55E') + ';">' + (over ? 'Over Target (+' + diff.toFixed(1) + '%)' : 'Under Target (' + diff.toFixed(1) + '%)') + '</div>';
+                  html += '<div style="margin-top:5px;padding-top:5px;border-top:1px solid #f1f5f9;text-align:center;font-weight:700;color:' + (over ? '#EF4444' : '#22C55E') + ';">' + (over ? 'เกินเป้า (+' + diff.toFixed(1) + '%)' : 'ต่ำกว่าเป้า (' + diff.toFixed(1) + '%)') + '</div>';
                 }
                 el.innerHTML = html;
                 var rect = ctx.chart.canvas.getBoundingClientRect();
@@ -7645,11 +7645,27 @@ function inferRequestPriority(stock, min) {
       });
       // มูลค่าผลิต (production_value) คำนวณจาก backend แล้ว = ผลรวม (ยอดแต่ละรุ่น × ราคาที่จับคู่ได้)
       // ไม่ต้องคูณราคาต่อหน่วยเองอีก
-      var qtyByMonth = {}, valueByMonth = {}, sourceByMonth = {}, unpricedQtyByMonth = {}, unpricedModels = {};
+      // เป้าหมาย % ของแต่ละไลน์ (ใช้ตอนมุมมอง "รวม" เพื่อรวมงบ Spare part ของแต่ละไลน์ตามเป้าหมายของไลน์นั้นๆ เอง
+      // แทนที่จะรอเป้าหมายรวมที่แยกต่างหากใต้ line 'ALL' ซึ่งปกติไม่มีใครตั้งไว้)
+      var lineTargetPct = {};
+      prodConfig.forEach(function(c) { if (c.line !== 'ALL') lineTargetPct[fccLineOf(c.line)] = Number(c.target_pct || 0); });
+      var qtyByMonth = {}, valueByMonth = {}, sourceByMonth = {}, unpricedQtyByMonth = {}, unpricedModels = {}, budgetByMonth = {}, budgetDetailByMonth = {};
       prodVolume.filter(function(v) { return isAll ? true : fccLineOf(v.line) === line; }).forEach(function(v) {
         var key = fccMonthKey(v.month);
+        var vLine = fccLineOf(v.line);
         qtyByMonth[key] = (qtyByMonth[key] || 0) + fccN(v.actual_qty);
-        if (v.production_value !== undefined) valueByMonth[key] = (valueByMonth[key] || 0) + fccN(v.production_value);
+        if (v.production_value !== undefined) {
+          var pv = fccN(v.production_value);
+          valueByMonth[key] = (valueByMonth[key] || 0) + pv;
+          if (isAll) {
+            var lineTp = lineTargetPct[vLine] || 0;
+            if (lineTp > 0) {
+              budgetByMonth[key] = (budgetByMonth[key] || 0) + pv * lineTp / 100;
+              if (!budgetDetailByMonth[key]) budgetDetailByMonth[key] = {};
+              budgetDetailByMonth[key][vLine] = (budgetDetailByMonth[key][vLine] || 0) + pv * lineTp / 100;
+            }
+          }
+        }
         if (v.unpriced_qty) unpricedQtyByMonth[key] = (unpricedQtyByMonth[key] || 0) + fccN(v.unpriced_qty);
         if (v.unpriced_models) Object.keys(v.unpriced_models).forEach(function(m) { unpricedModels[m] = (unpricedModels[m] || 0) + fccN(v.unpriced_models[m]); });
         if (v.source === 'auto') sourceByMonth[key] = 'auto';
@@ -7670,7 +7686,8 @@ function inferRequestPriority(stock, min) {
         var sales = valueByMonth[m] || 0;   // ยอดขาย = มูลค่าผลิต
         var expense = spendByMonth[m] || 0;  // ค่าใช้จ่าย Spare Part จริง
         var ratio = sales > 0 ? (expense / sales * 100) : null; // Cost Ratio %
-        var budget = (targetPct > 0 && sales > 0) ? sales * targetPct / 100 : null; // งบ Spare part
+        // งบ Spare part: มุมมอง "รวม" ใช้ผลรวมงบของแต่ละไลน์ (ตามเป้าหมาย % ของไลน์นั้นๆ) ส่วนมุมมองไลน์เดียวคูณตรงจากเป้าหมายที่ตั้งไว้
+        var budget = isAll ? (budgetByMonth[m] !== undefined ? budgetByMonth[m] : null) : ((targetPct > 0 && sales > 0) ? sales * targetPct / 100 : null);
         return { label: fccMonthLabel(m), sales: sales, expense: expense, ratio: ratio, budget: budget };
       });
       fccRenderCostRatioCombo(perMonth, targetPct);
@@ -7680,7 +7697,8 @@ function inferRequestPriority(stock, min) {
         var value = valueByMonth[m] || 0;
         var pct = value > 0 ? (spend / value * 100) : null;
         // งบต้นทุนที่ควบคุมได้จริง (บาท) = มูลค่าผลิต (ยอดขายทั้งหมด) x เป้าหมาย %
-        var budgetCap = (targetPct > 0 && value > 0) ? value * targetPct / 100 : null;
+        // มุมมอง "รวม" = ผลรวมงบของแต่ละไลน์ตามเป้าหมาย % ของไลน์นั้นๆ เอง
+        var budgetCap = isAll ? (budgetByMonth[m] !== undefined ? budgetByMonth[m] : null) : ((targetPct > 0 && value > 0) ? value * targetPct / 100 : null);
         var remain = budgetCap !== null ? budgetCap - spend : null;
         var statusHtml;
         if (pct === null) statusHtml = '<span style="color:#94a3b8;">— ' + (hasPrice ? 'ยังไม่มีมูลค่าผลิต' : 'ยังจับคู่ราคาไม่ได้') + '</span>';
@@ -7690,11 +7708,13 @@ function inferRequestPriority(stock, min) {
           ? '<span title="ดึงยอดผลิตอัตโนมัติจาก ProductionLog" style="margin-left:5px;font-size:9px;color:#2563eb;">🔄 auto</span>'
           : (sourceByMonth[m] === 'manual' ? '<span title="กรอกมือ" style="margin-left:5px;font-size:9px;color:#94a3b8;">✏️ manual</span>' : '');
         var unpTip = unpricedQtyByMonth[m] ? '<span title="ยอดผลิตที่ยังจับคู่ราคาไม่ได้ ไม่รวมในมูลค่าผลิต" style="margin-left:4px;font-size:9px;color:#d97706;">⚠︎ ' + fccInt(unpricedQtyByMonth[m]) + ' ชิ้นไม่มีราคา</span>' : '';
+        var budgetDetail = isAll && budgetDetailByMonth[m] ? Object.keys(budgetDetailByMonth[m]).map(function(ln) { return ln + ': ฿' + fccInt(budgetDetailByMonth[m][ln]); }).join(' | ') : '';
+        var budgetTitle = budgetDetail ? ' title="แยกตามไลน์: ' + fccEsc(budgetDetail) + '"' : '';
         return '<tr style="border-bottom:1px solid #f1f5f9;">' +
           '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccMonthLabel(m)) + srcBadge + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + fccInt(qty) + ' ชิ้น' + unpTip + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(value) + '</td>' +
-          '<td style="padding:8px 10px;text-align:right;">' + (budgetCap !== null ? '฿' + fccInt(budgetCap) : '<span style="color:#94a3b8;">—</span>') + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;"' + budgetTitle + '>' + (budgetCap !== null ? '฿' + fccInt(budgetCap) : '<span style="color:#94a3b8;">—</span>') + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(spend) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + statusHtml + '</td>' +
           '</tr>';
