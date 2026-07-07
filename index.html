@@ -820,10 +820,14 @@
           <!-- Outer wrapper: always hidden on mobile — JS never touches this -->
           <div class="hidden md:flex items-center gap-2 shrink-0">
             <div id="sheetSelectorWrap" class="flex items-center gap-2">
-              <select id="sheetSelector" class="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700">
+              <!-- sheetSelector ถูกซ่อนจาก UI — ซ้ำกับ filter "ทุกชีตย่อย" ด้านล่าง แต่คง element ไว้
+                   เพราะ getCurrentSheetName() ใช้ค่าจากตัวนี้เป็น fallback ในหลายจุด (เบิก/รับ/แก้ไข) -->
+              <select id="sheetSelector" class="hidden h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700">
                 <option value="Main List Stock">General</option>
                 <option value="Stock for MC">Stock for MC</option>
               </select>
+              <!-- กรองเร็ว: เฉพาะรายการที่ยังไม่มีราคา — หนุนเป้าหมายให้ทุกรายการมีราคาครบ -->
+              <button id="noPriceFilterBtn" type="button" class="h-10 rounded-xl border border-yellow-300 bg-yellow-50 px-3 text-xs font-bold text-yellow-700 hover:bg-yellow-100 transition whitespace-nowrap">❓ ยังไม่มีราคา</button>
               <button id="refreshStockDataBtn" type="button" class="h-10 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 flex items-center gap-1.5 hover:bg-blue-100 transition-all">
                 <svg id="refreshStockSpinner" class="hidden h-3.5 w-3.5 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a10 10 0 100 10z"/></svg>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -12194,8 +12198,10 @@ function inferRequestPriority(stock, min) {
           || (selectedStatus === 'ok' && status === 'OK');
         var hitBrand = selectedBrand === 'all' || item.brand === selectedBrand;
         var hitCoil = selectedCoilSize === 'all' || String(item.coil_size || '-').trim() === selectedCoilSize;
-        return hitSearch && hitCategory && hitLine && hitStatus && hitBrand && hitCoil;
+        var hitPrice = !noPriceOnlyState || getItemUnitPrice(item) === null;
+        return hitSearch && hitCategory && hitLine && hitStatus && hitBrand && hitCoil && hitPrice;
       });
+      updateNoPriceFilterBtn();
 
       var selectedSort = (window.innerWidth >= 1024 ? sortFilter.value : sortFilterMobile.value) || 'default';
       if (selectedSort === 'needpo_desc') filtered.sort(function(a,b){ return getNeedToOrder(b) - getNeedToOrder(a); });
@@ -12218,6 +12224,26 @@ function inferRequestPriority(stock, min) {
         coilSizeFilterMobile.value = coilSizeFilter.value || 'all';
       }
     }
+    // ปุ่มกรอง "ยังไม่มีราคา" (แทน sheet selector เดิมที่ซ้ำกับ filter ทุกชีตย่อย)
+    // นับจากทุกรายการของไลน์ปัจจุบัน กดสลับเปิด/ปิดการกรอง
+    var noPriceOnlyState = false;
+    function updateNoPriceFilterBtn() {
+      var btn = document.getElementById('noPriceFilterBtn');
+      if (!btn) return;
+      var count = (partsData || []).filter(function(p) { return getItemUnitPrice(p) === null; }).length;
+      btn.textContent = (noPriceOnlyState ? '✕ ' : '❓ ') + 'ยังไม่มีราคา (' + count + ')';
+      btn.classList.toggle('bg-yellow-400', noPriceOnlyState);
+      btn.classList.toggle('text-white', noPriceOnlyState);
+      btn.classList.toggle('bg-yellow-50', !noPriceOnlyState);
+      btn.classList.toggle('text-yellow-700', !noPriceOnlyState);
+    }
+    (function() {
+      var btn = document.getElementById('noPriceFilterBtn');
+      if (btn) btn.addEventListener('click', function() {
+        noPriceOnlyState = !noPriceOnlyState;
+        applyFilters();
+      });
+    })();
     var debouncedApplyFilters = debounce(function(){ applyFilters(); }, 300);
     categoryFilter.addEventListener('change', applyFilters);
     statusFilter.addEventListener('change', function(){ tableStatusMode = 'all'; applyFilters(); });
@@ -12399,11 +12425,10 @@ function inferRequestPriority(stock, min) {
       { key: 'pr_pending', label: 'PR รออนุมัติ', icon: '📝' },
       { key: 'issue_anomaly', label: 'เบิกผิดปกติ', icon: '🕵️' },
       { key: 'budget_bypass', label: 'เปิด PR เกินงบ (Bypass)', icon: '🚧', highRoleOnly: true },
-      { key: 'transfer_pending', label: 'ยืม/โอน รออนุมัติ', icon: '🔁', placeholder: true },
-      { key: 'borrow_overdue', label: 'ยืมค้าง/เกินกำหนดคืน', icon: '⏰', placeholder: true },
+      // แท็บยืม/โอน, ยืมค้าง, อะไหล่รอเช็ค ถูกถอดออก — ไม่มีฟีเจอร์รองรับ แท็บเปล่าสร้างความสับสน
+      // (ค่อยเพิ่มกลับเมื่อสร้างฟีเจอร์จริง)
       { key: 'stock_below_min', label: 'สต็อกต่ำกว่า Min', icon: '📉', placeholder: true },
-      { key: 'part_check', label: 'อะไหล่รอเช็ค', icon: '🔍', placeholder: true },
-      { key: 'qc_incoming', label: 'ของเข้ารอตรวจรับ (QC)', icon: '📦', placeholder: true }
+      { key: 'qc_incoming', label: 'ของเข้ารอตรวจรับ', icon: '📦', placeholder: true }
     ];
     var inboxData = null;
     var inboxActiveTab = 'pr_pending';
@@ -12502,6 +12527,12 @@ function inferRequestPriority(stock, min) {
           if (allAnomalies.length) {
             html += '<div class="mt-4 mb-2 text-xs font-bold text-slate-400">🕵️ การเบิกผิดปกติ</div>';
             html += allAnomalies.map(inboxAnomalyCardHtml).join('');
+          }
+          // Bypass ต้องโชว์ในแท็บรวมด้วย — ตัวเลข badge นับรวมไว้แล้ว ไม่งั้นเห็นเลขแต่หารายการไม่เจอ
+          var allBypasses = (inboxData && inboxData.can_see_bypass && inboxData.budget_bypasses) || [];
+          if (allBypasses.length) {
+            html += '<div class="mt-4 mb-2 text-xs font-bold text-slate-400">🚧 เปิด PR เกินงบ (Bypass)</div>';
+            html += allBypasses.map(inboxBypassCardHtml).join('');
           }
         }
         if (!html || (!pending.length && !approved.length && inboxActiveTab === 'pr_pending')) {
