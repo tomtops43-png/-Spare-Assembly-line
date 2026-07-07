@@ -3836,13 +3836,23 @@
     }
     function loadLineCache(lineKey, sheetName) {
       var memoryKey = getLineCacheKey(lineKey, sheetName);
-      if (stockSheetMemoryCache[memoryKey] && Array.isArray(stockSheetMemoryCache[memoryKey].items)) return stockSheetMemoryCache[memoryKey];
+      var mem = stockSheetMemoryCache[memoryKey];
+      if (mem && Array.isArray(mem.items)) {
+        mem.stale = Date.now() - Number(mem.updatedAt || 0) > MASTER_CACHE_TTL_MS;
+        return mem;
+      }
       try {
         var raw = localStorage.getItem(memoryKey);
         if (raw) {
           var parsed = JSON.parse(raw);
           if (parsed && Array.isArray(parsed.items) && parsed.version === LINE_CACHE_VERSION) {
-            if (Date.now() - Number(parsed.updatedAt || 0) > MASTER_CACHE_TTL_MS) return null;
+            // stale-while-revalidate: cache หมดอายุ (8 นาที) ไม่ทิ้งแล้ว — คืนไปโชว์ก่อนทันที
+            // (ติด flag stale ให้) เพราะ loadPartsData รีเฟรชเบื้องหลังทุกครั้งที่ cache hit อยู่แล้ว
+            // ผู้ใช้จะได้ไม่ต้องนั่งรอ skeleton ทุกครั้งที่สลับไลน์หลังเว็บเปิดค้างไว้นาน
+            // ยกเว้นเก่าเกิน 1 วันถือว่าไม่น่าเชื่อถือพอจะโชว์แม้ชั่วคราว
+            var age = Date.now() - Number(parsed.updatedAt || 0);
+            if (age > 24 * 60 * 60 * 1000) return null;
+            parsed.stale = age > MASTER_CACHE_TTL_MS;
             stockSheetMemoryCache[memoryKey] = parsed;
             return parsed;
           }
@@ -9998,29 +10008,31 @@ function inferRequestPriority(stock, min) {
       });
     }
 
-    function prefetchLineSheetsInBackground(lineKey, selectedSheet) {
-      var sheets = getSheetOptionsForLine(lineKey).filter(function(sheetName) {
-        return sheetName !== selectedSheet && !loadLineCache(lineKey, sheetName);
+    // โหลดไลน์อื่นๆ รอไว้ล่วงหน้าหลังไลน์ปัจจุบันพร้อมแล้ว — สลับไลน์จะได้ขึ้นทันทีไม่ต้องรอ skeleton
+    // (แทนที่ prefetchLineSheetsInBackground เดิมซึ่งไม่มีใครเรียกหลัง refactor เป็นโหลดรวมทุกชีท
+    // แถมเซฟลง cache key รายชีท คนละตัวกับ key แบบ '<line>::ALL' ที่ loadPartsData อ่านจริง)
+    function prefetchOtherLinesInBackground() {
+      if (backgroundSheetPrefetching.allLines) return;
+      var lines = Object.keys(LINE_SHEET_OPTIONS).filter(function(lineKey) {
+        if (lineKey === currentLine) return false;
+        var cached = loadLineCache(lineKey, lineKey + '::ALL');
+        return !cached || cached.stale;
       });
-      if (!sheets.length) return;
-      var prefetchKey = String(lineKey || '') + '::' + sheets.join('|');
-      if (backgroundSheetPrefetching[prefetchKey]) return;
-      backgroundSheetPrefetching[prefetchKey] = true;
-      setTimeout(function() {
-        var chain = Promise.resolve();
-        sheets.forEach(function(sheetName) {
-          chain = chain.then(function() {
-            return fetchSheetRows(sheetName, { lite: true }).then(function(rows) {
-              return normalizeRecordsInBatches(rows);
-            }).then(function(normalized) {
-              saveLineCache(lineKey, normalized, sheetName);
-            }).catch(function(err) {
-              console.warn('prefetch sheet failed', sheetName, err);
-            });
-          });
+      if (!lines.length) return;
+      backgroundSheetPrefetching.allLines = true;
+      // โหลดทีละไลน์ ไม่ยิงพร้อมกันทั้งหมด กันแย่ง bandwidth/quota กับงานที่ผู้ใช้กำลังทำอยู่
+      var chain = Promise.resolve();
+      lines.forEach(function(lineKey) {
+        chain = chain.then(function() {
+          if (lineKey === currentLine) return; // ผู้ใช้สลับมาไลน์นี้เองแล้ว loadPartsData จัดการอยู่
+          var sheets = getSheetOptionsForLine(lineKey);
+          return Promise.all(sheets.map(function(sn) { return fetchSheetRows(sn, { lite: true }); }))
+            .then(function(chunks) { return normalizeRecordsInBatches([].concat.apply([], chunks)); })
+            .then(function(normalized) { saveLineCache(lineKey, normalized, lineKey + '::ALL'); })
+            .catch(function(err) { console.warn('prefetch line failed', lineKey, err); });
         });
-        chain.finally(function() { delete backgroundSheetPrefetching[prefetchKey]; });
-      }, 250);
+      });
+      chain.finally(function() { delete backgroundSheetPrefetching.allLines; });
     }
 
     function loadPartsData(options) {
@@ -10052,6 +10064,8 @@ function inferRequestPriority(stock, min) {
             }).catch(function(err){ console.warn('background refresh failed', err); });
         }, 80);
         populateSubSheetFilter(cachePayload.items);
+        // ไลน์นี้พร้อมแล้ว — โหลดไลน์ที่เหลือรอไว้เบื้องหลัง (หน่วงให้ background refresh ข้างบนไปก่อน)
+        setTimeout(prefetchOtherLinesInBackground, 1500);
         return;
       }
       renderStockSkeleton('Loading spare parts lite data...');
@@ -10075,6 +10089,8 @@ function inferRequestPriority(stock, min) {
           loadedStockSheetKey = cacheKey;
           saveLineCache(currentLine, normalizedData, cacheKey);
           populateSubSheetFilter(normalizedData);
+          // ไลน์นี้พร้อมแล้ว — โหลดไลน์ที่เหลือรอไว้เบื้องหลัง สลับไลน์ครั้งถัดไปจะได้ไม่ต้องรอ
+          setTimeout(prefetchOtherLinesInBackground, 1500);
         })
         .catch(function(err) {
           if (requestSeq !== partsLoadRequestSeq) return;
