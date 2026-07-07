@@ -1722,6 +1722,15 @@ function createPRUnlocked(payload) {
   headerSheet.appendRow(headerRowArr);
 
   appendPrAudit(prId, 'CREATE', user.username, headerLine, '', '', lines.length + ' รายการ');
+  // บันทึกร่องรอยการ Bypass งบ Spare part (ถ้าผู้ใช้ยืนยันเปิด PR ทั้งที่เกินงบ) — เก็บว่าใคร/
+  // เกินไลน์ไหนเท่าไหร่/เหตุผล เพื่อให้หัวหน้าเห็นตอนอนุมัติและตรวจสอบย้อนหลังได้
+  if (toBoolean(payload.budget_bypass, false)) {
+    var bypassReason = String(payload.bypass_reason || '').trim() || '(ไม่ระบุเหตุผล)';
+    var bypassDetail = '⚠️ เปิด PR ทั้งที่เกินงบ Spare part — เหตุผล: ' + bypassReason;
+    var overInfo = String(payload.budget_over_detail || '').trim();
+    if (overInfo) bypassDetail += ' | ' + overInfo;
+    appendPrAudit(prId, 'BUDGET_BYPASS', user.username, headerLine, '', '', bypassDetail);
+  }
   return { status: 'success', pr_id: prId, pr_status: 'PENDING', item_count: lines.length, total_amount: totalAmount };
 }
 
