@@ -2013,6 +2013,18 @@
         </button>
       </div>
 
+      <!-- 📌 แผงงบ Spare part แบบ Dashboard — sticky ค้างบนจอเวลาเลื่อน ให้เห็น simulation ตลอด -->
+      <div id="prBudgetSticky" class="hidden sticky top-2 z-30">
+        <!-- งบ Spare part control (ดึงจาก Cost Ratio: มูลค่าผลิต × เป้าหมาย % − รายจ่ายที่บันทึกแล้ว) -->
+        <div id="prBudgetPanel"></div>
+        <!-- จำลอง: เลือกอัตโนมัติให้พอดีงบ -->
+        <div class="mt-1.5 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
+          <button id="prSimulateFitBtn" type="button" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 transition">🎯 จำลอง: เลือกให้พอดีงบ</button>
+          <button id="prSelectAllBtn" type="button" class="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">เลือกทั้งหมด</button>
+          <span class="text-[10px] text-slate-400">เลือกอัตโนมัติเรียงตามความเร่งด่วน (Critical/ของหมดก่อน) ให้อยู่ในงบแต่ละไลน์ — ปรับต่อเองได้</span>
+        </div>
+      </div>
+
       <!-- Step 3: Items -->
       <div id="prStep3" class="hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div class="border-b border-slate-100 p-4">
@@ -2020,14 +2032,6 @@
           <!-- Summary chips -->
           <div id="prSummaryCards" class="flex flex-wrap gap-2 mb-3"></div>
           <div id="prCostSummary" class="text-xs text-slate-500"></div>
-          <!-- งบ Spare part control (ดึงจาก Cost Ratio: มูลค่าผลิต × เป้าหมาย % − รายจ่ายที่บันทึกแล้ว) -->
-          <div id="prBudgetPanel" class="mt-3"></div>
-          <!-- จำลอง: เลือกอัตโนมัติให้พอดีงบ -->
-          <div class="mt-2 flex flex-wrap items-center gap-2">
-            <button id="prSimulateFitBtn" type="button" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 transition">🎯 จำลอง: เลือกให้พอดีงบ</button>
-            <button id="prSelectAllBtn" type="button" class="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">เลือกทั้งหมด</button>
-            <span class="text-[10px] text-slate-400">เลือกอัตโนมัติเรียงตามความเร่งด่วน (Critical/ของหมดก่อน) ให้อยู่ในงบแต่ละไลน์ — ปรับต่อเองได้</span>
-          </div>
           <!-- Line tabs -->
           <div id="prLineTabs" class="mt-2 flex flex-wrap gap-1.5"></div>
         </div>
@@ -2113,6 +2117,13 @@
             <p id="prPrintBtnHint" class="text-xs text-violet-500 font-semibold text-center">🔒 ต้องให้หัวหน้าอนุมัติใน Inbox ก่อน จึงจะปริ้นได้</p>
             <button id="prForceResaveBtn" type="button" class="hidden text-xs font-semibold text-amber-600 underline decoration-dotted hover:text-amber-700 text-center">🔁 แก้ไขแล้ว? บันทึกซ้ำอีกครั้ง</button>
           </div>
+          <!-- Bypass — โผล่เฉพาะตอนเกินงบ ให้เปิด PR ทั้งที่เกินได้แบบเจตนา (ต้องระบุเหตุผล) -->
+          <div class="flex flex-col gap-1">
+            <button id="prBudgetBypassBtn" type="button" class="hidden flex items-center gap-2 rounded-2xl bg-rose-600 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-rose-700 transition">
+              🚧 Bypass เปิดทั้งที่เกินงบ
+            </button>
+            <p class="text-[11px] text-rose-400 text-center hidden" id="prBypassHint">ใช้เฉพาะกรณีจำเป็นจริง · บันทึกเหตุผล</p>
+          </div>
           <div class="flex flex-col gap-1 mt-0.5">
             <button id="prExportCsvBtn" type="button" class="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
               📊 Export CSV
@@ -2120,7 +2131,7 @@
           </div>
           <!-- จำ Set นี้ไว้ — บันทึกสถานะทั้งหมดลงเครื่องนี้ ยังไม่ export/บันทึก Purchase History -->
           <div class="flex flex-col gap-1 mt-0.5">
-            <button id="prSaveSetBtn" type="button" class="flex items-center gap-2 rounded-2xl border-2 border-violet-300 bg-violet-50 px-5 py-3 text-sm font-bold text-violet-700 hover:bg-violet-100 transition">
+            <button id="prSaveSetBtn" type="button" class="flex items-center gap-2 rounded-2xl border-2 border-violet-500 bg-white px-5 py-3 text-sm font-bold text-violet-700 shadow-sm hover:bg-violet-50 transition">
               💾 จำ Set นี้ไว้
             </button>
             <p class="text-[11px] text-slate-400 text-center">เก็บไว้ตัดสินใจทีหลัง ไม่กระทบ Purchase History</p>
@@ -9638,6 +9649,7 @@ function inferRequestPriority(stock, min) {
     // แคช PR ที่รออนุมัติ (pending) ต่อไลน์ต่อเดือน — บวกเข้า "ใช้ไปแล้ว" กันเปิดหลายใบเล็กๆ ที่รวมกันเกิน
     var prPendingUsageCache = { at: 0, pending: null, data: null };
     var prCarryOverState = false; // เปิด/ปิด ยกงบเหลือข้ามเดือน
+    var prBudgetOverState = false; // มีไลน์เกินงบอยู่หรือไม่ (ใช้ล็อกปุ่มส่งอนุมัติ)
     function prCarryOverEnabled() { return prCarryOverState; }
     function prInvalidatePendingUsage() { prPendingUsageCache.at = 0; prPendingUsageCache.data = null; }
     function prEnsurePendingUsage() {
@@ -9731,83 +9743,117 @@ function inferRequestPriority(stock, min) {
         return { line: ln, budget: b.budget, base: b.base, carryIn: b.carryIn, spent: b.spent, pending: b.pending, used: b.used, remaining: remaining, prAmount: pr, afterPr: afterPr, hasBudget: hasBudget, over: (hasBudget && afterPr < 0) ? -afterPr : 0 };
       });
     }
+    // แถบความคืบหน้างบ 1 ไลน์ (dashboard-style) — เขียว<80% ส้ม80-100% แดง=เกิน
+    function prBudgetBarHtml(r, money) {
+      if (!r.hasBudget) {
+        return '<div class="mt-1 h-2.5 w-full rounded-full bg-slate-100 overflow-hidden"><div class="h-2.5 rounded-full bg-slate-300" style="width:' + (r.prAmount > 0 ? 100 : 0) + '%"></div></div>';
+      }
+      var usedPlusPr = r.used + r.prAmount;
+      var pct = r.budget > 0 ? (usedPlusPr / r.budget * 100) : 0;
+      var fill = Math.max(0, Math.min(100, pct));
+      var color = r.over > 0 ? '#ef4444' : (pct >= 80 ? '#f59e0b' : '#22c55e');
+      // แยกส่วน "ใช้แล้ว(จ่าย+รอ)" กับ "PR ใบนี้" ด้วยเฉดสีอ่อน-เข้ม เพื่อให้เห็นว่าอะไรกินงบ
+      var usedFill = r.budget > 0 ? Math.max(0, Math.min(100, r.used / r.budget * 100)) : 0;
+      var prFill = Math.max(0, Math.min(100 - usedFill, fill - usedFill));
+      return '<div class="mt-1 h-2.5 w-full rounded-full bg-slate-100 overflow-hidden flex">' +
+        '<div class="h-2.5" style="width:' + usedFill + '%;background:' + color + ';opacity:.55"></div>' +
+        '<div class="h-2.5" style="width:' + prFill + '%;background:' + color + '"></div>' +
+      '</div>';
+    }
     function renderPrBudgetPanel() {
       var el = document.getElementById('prBudgetPanel');
       if (!el) return;
       var monthKey = prBudgetMonthKey();
       var carry = prCarryOverEnabled();
-      var toggleHtml = '<label class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 cursor-pointer"><input type="checkbox" id="prBudgetCarryOver" class="h-3.5 w-3.5" ' + (carry ? 'checked' : '') + ' /> 🔄 ยกงบเหลือข้ามเดือน</label>';
+      var toggleHtml = '<label class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 cursor-pointer whitespace-nowrap"><input type="checkbox" id="prBudgetCarryOver" class="h-3.5 w-3.5" ' + (carry ? 'checked' : '') + ' /> 🔄 ยกงบเหลือข้ามเดือน</label>';
       function bindToggle() {
         var cb = document.getElementById('prBudgetCarryOver');
         if (cb) cb.addEventListener('change', function() { prCarryOverState = cb.checked; renderPrBudgetPanel(); });
       }
-      el.innerHTML = '<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-400">⏳ กำลังคำนวณงบ Spare part เดือน ' + escHtml(monthKey) + '...</div>';
+      el.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-400 shadow-sm">⏳ กำลังคำนวณงบ Spare part เดือน ' + escHtml(monthKey) + '...</div>';
       prComputeBudget(monthKey).then(function(B) {
         var prByLine = prSelectedAmountByLine();
         var rows = prBudgetRows(B, prByLine).filter(function(r) { return r.hasBudget || r.prAmount > 0; });
         if (!rows.length) {
-          el.innerHTML = '<div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 flex flex-wrap items-center justify-between gap-2"><span>⚠️ ยังไม่มีงบ Spare part ของเดือน ' + escHtml(monthKey) + ' (ต้องมีมูลค่าผลิต + ตั้งเป้าหมาย % ในการ์ด Cost Ratio) — จะไม่บล็อกการเปิด PR</span>' + toggleHtml + '</div>';
+          prBudgetOverState = false; prUpdateSubmitLock();
+          el.innerHTML = '<div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 shadow-sm flex flex-wrap items-center justify-between gap-2"><span>⚠️ ยังไม่มีงบ Spare part ของเดือน ' + escHtml(monthKey) + ' — จะไม่บล็อกการเปิด PR</span>' + toggleHtml + '</div>';
           bindToggle();
           return;
         }
         var money = function(n) { return '฿' + Math.round(n).toLocaleString('th-TH'); };
-        var totBudget = 0, totBase = 0, totCarry = 0, totSpent = 0, totPending = 0, totPr = 0, anyOver = false, anyPending = false, anyCarry = false;
+        var totBudget = 0, totSpent = 0, totPending = 0, totPr = 0, anyOver = false, anyPending = false, anyCarry = false;
         var body = rows.map(function(r) {
-          totBudget += r.budget; totBase += r.base; totCarry += r.carryIn; totSpent += r.spent; totPending += r.pending; totPr += r.prAmount;
+          totBudget += r.budget; totSpent += r.spent; totPending += r.pending; totPr += r.prAmount;
           if (r.over > 0) anyOver = true;
           if (r.pending > 0) anyPending = true;
           if (r.carryIn > 0) anyCarry = true;
-          var statusHtml;
-          if (!r.hasBudget) statusHtml = '<span class="text-slate-400">— ยังไม่ได้ตั้งงบ</span>';
-          else if (r.over > 0) statusHtml = '<span class="font-bold text-rose-600">⚠️ เกินงบ ' + money(r.over) + '</span>';
-          else {
-            var pctUsed = r.budget > 0 ? Math.round((r.used + r.prAmount) / r.budget * 100) : 0;
-            var warn = pctUsed >= 80;
-            statusHtml = '<span class="font-bold ' + (warn ? 'text-amber-600' : 'text-emerald-600') + '">' + (warn ? '🟠' : '✅') + ' เหลือ ' + money(r.afterPr) + ' (' + pctUsed + '%)</span>';
-          }
-          var budgetSub = (carry && r.carryIn > 0) ? '<div class="text-[9px] text-slate-400">ฐาน ' + money(r.base) + ' + ยกมา ' + money(r.carryIn) + '</div>' : '';
-          var usedSub = (r.pending > 0) ? '<div class="text-[9px] text-slate-400">จ่าย ' + money(r.spent) + ' + รออนุมัติ ' + money(r.pending) + '</div>' : '';
-          return '<tr class="border-b border-slate-100">' +
-            '<td class="py-1.5 pr-2 font-semibold text-slate-700 align-top">' + escHtml(r.line) + '</td>' +
-            '<td class="py-1.5 px-2 text-right text-slate-500 align-top">' + (r.hasBudget ? money(r.budget) : '—') + budgetSub + '</td>' +
-            '<td class="py-1.5 px-2 text-right text-slate-500 align-top">' + money(r.used) + usedSub + '</td>' +
-            '<td class="py-1.5 px-2 text-right font-semibold text-blue-600 align-top">' + money(r.prAmount) + '</td>' +
-            '<td class="py-1.5 pl-2 text-right align-top">' + statusHtml + '</td>' +
-          '</tr>';
+          var pctUsed = r.budget > 0 ? Math.round((r.used + r.prAmount) / r.budget * 100) : 0;
+          var statusHtml, statusColor;
+          if (!r.hasBudget) { statusHtml = 'ยังไม่ได้ตั้งงบ'; statusColor = 'text-slate-400'; }
+          else if (r.over > 0) { statusHtml = '⚠️ เกินงบ ' + money(r.over); statusColor = 'text-rose-600'; }
+          else { statusHtml = (pctUsed >= 80 ? '🟠' : '✅') + ' เหลือ ' + money(r.afterPr) + ' (' + pctUsed + '%)'; statusColor = pctUsed >= 80 ? 'text-amber-600' : 'text-emerald-600'; }
+          var subBits = [];
+          if (r.hasBudget) subBits.push('งบ ' + money(r.budget) + (carry && r.carryIn > 0 ? ' (ฐาน ' + money(r.base) + '+ยกมา ' + money(r.carryIn) + ')' : ''));
+          subBits.push('ใช้ ' + money(r.used) + (r.pending > 0 ? ' (จ่าย ' + money(r.spent) + '+รอ ' + money(r.pending) + ')' : ''));
+          subBits.push('PR ' + money(r.prAmount));
+          return '<div class="py-1.5 border-b border-slate-100 last:border-0">' +
+            '<div class="flex items-center justify-between gap-2">' +
+              '<span class="text-xs font-bold text-slate-700">' + escHtml(r.line) + '</span>' +
+              '<span class="text-xs font-bold ' + statusColor + '">' + statusHtml + '</span>' +
+            '</div>' +
+            prBudgetBarHtml(r, money) +
+            '<div class="mt-0.5 text-[9px] text-slate-400">' + subBits.join(' · ') + '</div>' +
+          '</div>';
         }).join('');
         var totUsed = totSpent + totPending;
         var totRemainAfter = totBudget - totUsed - totPr;
+        var totPct = totBudget > 0 ? Math.round((totUsed + totPr) / totBudget * 100) : 0;
+        var totColor = anyOver ? '#ef4444' : (totPct >= 80 ? '#f59e0b' : '#22c55e');
+        var totFill = Math.max(0, Math.min(100, totPct));
         var totStatus = anyOver
-          ? '<span class="font-bold text-rose-600">⚠️ มีไลน์เกินงบ</span>'
-          : (totBudget > 0 ? '<span class="font-bold text-emerald-600">✅ รวมเหลือ ' + money(totRemainAfter) + '</span>' : '<span class="text-slate-400">—</span>');
+          ? '<span class="font-bold text-rose-600">⚠️ มีไลน์เกินงบ · ห้ามส่ง PR</span>'
+          : (totBudget > 0 ? '<span class="font-bold text-emerald-600">✅ รวมเหลือ ' + money(totRemainAfter) + ' (' + totPct + '%)</span>' : '<span class="text-slate-400">—</span>');
         var noteBits = ['งบ = มูลค่าผลิต × เป้าหมาย %'];
-        if (anyPending) noteBits.push('รวม PR รออนุมัติแล้ว');
+        if (anyPending) noteBits.push('รวม PR รออนุมัติ');
         if (carry && anyCarry) noteBits.push('ยกงบเหลือข้ามเดือน');
         el.innerHTML =
-          '<div class="rounded-xl border ' + (anyOver ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-white') + ' p-3">' +
+          '<div class="rounded-xl border-2 ' + (anyOver ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-white') + ' p-3 shadow-md">' +
             '<div class="mb-2 flex flex-wrap items-center justify-between gap-2">' +
-              '<p class="text-xs font-bold text-slate-600">💰 งบ Spare part — เดือน ' + escHtml(monthKey) + '</p>' +
+              '<p class="text-xs font-bold text-slate-700">💰 งบ Spare part — เดือน ' + escHtml(monthKey) + '</p>' +
               toggleHtml +
             '</div>' +
-            '<div class="overflow-x-auto"><table class="w-full text-xs">' +
-              '<thead><tr class="text-[10px] uppercase tracking-wide text-slate-400">' +
-                '<th class="py-1 pr-2 text-left">Line</th><th class="py-1 px-2 text-right">งบใช้ได้</th><th class="py-1 px-2 text-right">ใช้ไปแล้ว</th><th class="py-1 px-2 text-right">PR ใบนี้</th><th class="py-1 pl-2 text-right">สถานะ</th>' +
-              '</tr></thead>' +
-              '<tbody>' + body + '</tbody>' +
-              '<tfoot><tr class="border-t-2 border-slate-200 font-semibold">' +
-                '<td class="py-1.5 pr-2 text-slate-700">รวมทุกไลน์</td>' +
-                '<td class="py-1.5 px-2 text-right text-slate-600">' + money(totBudget) + '</td>' +
-                '<td class="py-1.5 px-2 text-right text-slate-600">' + money(totUsed) + '</td>' +
-                '<td class="py-1.5 px-2 text-right text-blue-700">' + money(totPr) + '</td>' +
-                '<td class="py-1.5 pl-2 text-right">' + totStatus + '</td>' +
-              '</tr></tfoot>' +
-            '</table></div>' +
+            body +
+            '<div class="mt-2 pt-2 border-t-2 border-slate-200">' +
+              '<div class="flex items-center justify-between gap-2">' +
+                '<span class="text-xs font-bold text-slate-800">รวมทุกไลน์</span>' + totStatus +
+              '</div>' +
+              '<div class="mt-1 h-2.5 w-full rounded-full bg-slate-100 overflow-hidden"><div class="h-2.5 rounded-full" style="width:' + totFill + '%;background:' + totColor + '"></div></div>' +
+              '<div class="mt-0.5 text-[9px] text-slate-400">งบรวม ' + money(totBudget) + ' · ใช้ไปแล้ว ' + money(totUsed) + ' · PR ใบนี้ ' + money(totPr) + '</div>' +
+            '</div>' +
             '<p class="mt-1.5 text-[10px] text-slate-400">' + noteBits.join(' · ') + '</p>' +
           '</div>';
         bindToggle();
+        prBudgetOverState = anyOver;
+        prUpdateSubmitLock();
       }).catch(function() {
-        el.innerHTML = '<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-400">ดึงข้อมูลงบ Spare part ไม่สำเร็จ — จะไม่บล็อกการเปิด PR</div>';
+        prBudgetOverState = false; prUpdateSubmitLock();
+        el.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-400 shadow-sm">ดึงข้อมูลงบ Spare part ไม่สำเร็จ — จะไม่บล็อกการเปิด PR</div>';
       });
+    }
+    // ล็อกปุ่มส่งอนุมัติเมื่อเกินงบ + โชว์ปุ่ม Bypass แยกต่างหาก (เจตนาชัดว่าจะเปิดทั้งที่เกิน)
+    function prUpdateSubmitLock() {
+      var btn = document.getElementById('prPrintBtn');
+      var hint = document.getElementById('prPrintBtnHint');
+      var bypassBtn = document.getElementById('prBudgetBypassBtn');
+      if (btn) {
+        btn.disabled = prBudgetOverState;
+        btn.classList.toggle('opacity-40', prBudgetOverState);
+        btn.classList.toggle('cursor-not-allowed', prBudgetOverState);
+      }
+      if (hint && prBudgetOverState) hint.innerHTML = '🔒 เกินงบ Spare part — ลดรายการให้อยู่ในงบก่อน (หรือกด Bypass ด้านขวาถ้าจำเป็นจริง)';
+      if (bypassBtn) bypassBtn.classList.toggle('hidden', !prBudgetOverState);
+      var bypassHint = document.getElementById('prBypassHint');
+      if (bypassHint) bypassHint.classList.toggle('hidden', !prBudgetOverState);
     }
     // ── จำลอง: เลือกอัตโนมัติให้พอดีงบ (greedy เรียงตามความเร่งด่วน) ──
     function prPriorityRank(c) {
@@ -13494,6 +13540,7 @@ if (dashboardPage) {
       // show steps
       var s3 = document.getElementById('prStep3'); if (s3) s3.classList.remove('hidden');
       var s4 = document.getElementById('prStep4'); if (s4) s4.classList.remove('hidden');
+      var sticky = document.getElementById('prBudgetSticky'); if (sticky) sticky.classList.remove('hidden');
     });
     ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
     var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; if(line !== 'all') prLineCollapsedState[line] = false; renderPrCandidates(); });
@@ -14186,6 +14233,7 @@ if (dashboardPage) {
       resetPrRecordedHint();
       var s3 = document.getElementById('prStep3'); if (s3) s3.classList.remove('hidden');
       var s4 = document.getElementById('prStep4'); if (s4) s4.classList.remove('hidden');
+      var sticky = document.getElementById('prBudgetSticky'); if (sticky) sticky.classList.remove('hidden');
       renderPrCandidates();
       closePrSavedSetsPanel();
       showQuickToast('📂 โหลด Set "' + set.name + '" แล้ว (' + set.itemCount + ' รายการ)', 'success');
@@ -14285,7 +14333,9 @@ if (dashboardPage) {
     });
     // ✅ ปุ่ม builder ไม่ปริ้นตรงอีกต่อไป — ส่ง "สร้าง PR (PENDING)" ให้หัวหน้าอนุมัติใน Inbox ก่อน
     // ยอด qty_requested จะถูกล็อก, หัวหน้าปรับได้เฉพาะ qty_approved, ปริ้นได้เฉพาะเมื่อ APPROVED
-    if (prPrintBtn) prPrintBtn.addEventListener('click', function(){
+    // ปุ่มปกติ (prPrintBtn) ถูกล็อกเมื่อเกินงบ ; ปุ่ม Bypass (prBudgetBypassBtn) เรียกฟังก์ชันเดียวกัน
+    // แต่จะไปเจอ modal ให้ระบุเหตุผลก่อน (เพราะเกินงบ)
+    function prSubmitCreatePr(){
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) { showQuickToast('กรุณาเลือกรายการก่อนส่งอนุมัติ', 'warn'); return; }
       var prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
@@ -14328,11 +14378,14 @@ if (dashboardPage) {
             }).catch(function(err) {
               showQuickToast('⚠️ สร้าง PR ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
             }).finally(function() {
-              prPrintBtn.disabled = false; prPrintBtn.innerHTML = oldHtml;
+              prPrintBtn.innerHTML = oldHtml; prUpdateSubmitLock();
             });
         });
       }).catch(function() { /* ผู้ใช้กดยกเลิกที่ด่านงบ — ไม่เปิด PR */ });
-    });
+    }
+    if (prPrintBtn) prPrintBtn.addEventListener('click', function(){ if (prPrintBtn.disabled) return; prSubmitCreatePr(); });
+    var prBudgetBypassBtn = document.getElementById('prBudgetBypassBtn');
+    if (prBudgetBypassBtn) prBudgetBypassBtn.addEventListener('click', prSubmitCreatePr);
 
     // เก็บฟังก์ชันปริ้นเดิมไว้ (ยังใช้เป็น engine ปริ้นใบ PR ที่อนุมัติแล้วจาก Inbox)
     function legacyOpenPrPrintWindow(selected, opts){
