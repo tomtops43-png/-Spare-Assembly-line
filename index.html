@@ -11035,6 +11035,35 @@ function inferRequestPriority(stock, min) {
         var nameInput = document.getElementById('eName');
         if (nameInput) nameInput.focus();
       }, 50);
+      // รายการจากหน้ารายการโหลดแบบ lite ซึ่ง backend ตัดฟิลด์ราคา/เอกสารทิ้ง (unit_price, supplier,
+      // drawing url ฯลฯ) ถ้าเติมฟอร์มจาก lite ตรงๆ ช่องพวกนี้จะว่างทั้งที่ในชีทมีค่า และตอนกดบันทึก
+      // ค่าจริงจะถูกล้างทิ้ง — จึงดึงข้อมูลเต็มมาเติมซ้ำ เฉพาะช่องที่ยังว่างอยู่ (กันทับสิ่งที่ผู้ใช้เพิ่งพิมพ์)
+      if (item.__isLite) {
+        var editingNo = String(item.no || '');
+        loadFullPartDetail(item).then(function(fullItem) {
+          if (!fullItem || fullItem === item) return;
+          Object.assign(item, fullItem, { __isLite: false });
+          if (editModal.classList.contains('hidden')) return;
+          if (String(document.getElementById('eNo').value || '') !== editingNo) return;
+          [
+            ['eUnitPrice', item.unit_price],
+            ['eSupplier', item.supplier],
+            ['ePriceUpdatedAt', item.price_updated_at],
+            ['ePriceRemark', item.price_remark],
+            ['eDrawingUrl', item.drawing_url],
+            ['eDrawingFileName', item.drawing_file_name],
+            ['eDrawingRevision', item.drawing_revision],
+            ['eDatasheetUrl', item.datasheet_url],
+            ['eQuotationUrl', item.quotation_url]
+          ].forEach(function(pair) {
+            var el = document.getElementById(pair[0]);
+            if (el && String(el.value || '').trim() === '' && pair[1] != null && pair[1] !== '') el.value = pair[1];
+          });
+          setAttachmentLink('eDrawingView', document.getElementById('eDrawingUrl').value || '');
+        }).catch(function(err) {
+          console.warn('load full detail for edit failed', err);
+        });
+      }
     }
 
     function closeEditModal() {
