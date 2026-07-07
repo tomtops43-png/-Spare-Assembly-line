@@ -2013,12 +2013,13 @@
         </button>
       </div>
 
-      <!-- 📌 แผงงบ Spare part แบบ Dashboard — sticky ค้างบนจอเวลาเลื่อน ให้เห็น simulation ตลอด -->
-      <div id="prBudgetSticky" class="hidden sticky top-2 z-30">
+      <!-- 📌 แผงงบ Spare part แบบ Dashboard — sticky ค้างบนจอเวลาเลื่อน ให้เห็น simulation ตลอด
+           ต้องทึบสนิททั้งกล่อง (ไม่มีช่องโปร่งใส) ไม่งั้นเนื้อหาที่เลื่อนผ่านด้านล่างจะทะลุมาซ้อนทับให้อ่านไม่รู้เรื่อง -->
+      <div id="prBudgetSticky" class="hidden sticky top-2 z-40 rounded-2xl bg-slate-50 p-2 shadow-lg ring-1 ring-slate-200">
         <!-- งบ Spare part control (ดึงจาก Cost Ratio: มูลค่าผลิต × เป้าหมาย % − รายจ่ายที่บันทึกแล้ว) -->
         <div id="prBudgetPanel"></div>
         <!-- จำลอง: เลือกอัตโนมัติให้พอดีงบ -->
-        <div class="mt-1.5 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
+        <div class="mt-1.5 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
           <button id="prSimulateFitBtn" type="button" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 transition">🎯 จำลอง: เลือกให้พอดีงบ</button>
           <button id="prSelectAllBtn" type="button" class="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">เลือกทั้งหมด</button>
           <span class="text-[10px] text-slate-400">เลือกอัตโนมัติเรียงตามความเร่งด่วน (Critical/ของหมดก่อน) ให้อยู่ในงบแต่ละไลน์ — ปรับต่อเองได้</span>
