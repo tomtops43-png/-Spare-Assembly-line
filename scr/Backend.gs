@@ -1915,9 +1915,19 @@ function getInbox(payload) {
   } catch (anomalyErr) {
     Logger.log('getInbox anomaly warning: ' + (anomalyErr && anomalyErr.message ? anomalyErr.message : anomalyErr));
   }
+  // แจ้งเตือนการ Bypass งบ Spare part — เห็นเฉพาะ role ระดับสูง (ดู PR ได้ทุกไลน์)
+  // เป็นข้อมูล informational ให้ผู้บริหารรู้ว่ามี PR ที่เปิดทั้งที่เกินงบ
+  var canSeeBypass = !!(user.permissions && (user.permissions.pr_view_all || user.permissions.manage_users));
+  var budgetBypasses = [];
+  if (canSeeBypass) {
+    try { budgetBypasses = listBudgetBypasses(30); } catch (bpErr) {
+      Logger.log('getInbox bypass warning: ' + (bpErr && bpErr.message ? bpErr.message : bpErr));
+    }
+  }
   var tabs = {
     pr_pending: prPending.length,
     issue_anomaly: anomalies.length,
+    budget_bypass: budgetBypasses.length,
     transfer_pending: 0,
     borrow_overdue: 0,
     stock_below_min: 0,
@@ -1932,11 +1942,63 @@ function getInbox(payload) {
     can_approve: !!(user.permissions && user.permissions.pr_approve),
     total: total,
     tabs: tabs,
+    can_see_bypass: canSeeBypass,
     pr_pending: prPending,
     pr_approved: prApproved,
     pr_rejected: prRejected,
-    anomalies: anomalies
+    anomalies: anomalies,
+    budget_bypasses: budgetBypasses
   };
+}
+
+// อ่านรายการ Bypass งบจาก PRAudit (action = BUDGET_BYPASS) ย้อนหลัง N วัน ใหม่สุดก่อน
+function listBudgetBypasses(days) {
+  var sheet = getPrAuditSheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var idx = prIndexMap(data[0]);
+  var cutoff = Date.now() - (days || 30) * 86400000;
+  var out = [];
+  for (var i = 1; i < data.length; i += 1) {
+    var row = data[i];
+    if (String(row[idx.action]) !== 'BUDGET_BYPASS') continue;
+    var tsRaw = String(row[idx.timestamp] || '');
+    var ts = new Date(tsRaw.replace(' ', 'T') + '+07:00').getTime();
+    if (!isNaN(ts) && ts < cutoff) continue;
+    out.push({
+      timestamp: tsRaw,
+      pr_id: prStr(row[idx.pr_id]),
+      actor: prStr(row[idx.actor]),
+      line: prStr(row[idx.line]),
+      detail: prStr(row[idx.detail])
+    });
+  }
+  out.sort(function(a, b) { return String(b.timestamp).localeCompare(String(a.timestamp)); });
+  return out;
+}
+
+// ยอด PR ที่ยัง "รออนุมัติ" (PENDING) ต่อไลน์ต่อเดือน (เดือนจาก created_at) —
+// ใช้บวกเข้า "ใช้ไปแล้ว" ในการคุมงบ กันเปิด PR เล็กๆ หลายใบที่รวมกันเกินงบ
+function getPendingPrUsage(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var sheet = getPrHeaderSheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { status: 'success', pending: [] };
+  var hIdx = prIndexMap(data[0]);
+  var out = [];
+  for (var i = 1; i < data.length; i += 1) {
+    var row = data[i];
+    if (String(row[hIdx.status]) !== 'PENDING') continue;
+    var createdAt = String(row[hIdx.created_at] || '');
+    var month = createdAt.slice(0, 7); // yyyy-MM
+    out.push({
+      pr_id: prStr(row[hIdx.pr_id]),
+      line: prStr(row[hIdx.line]),
+      month: month,
+      amount: Number(row[hIdx.total_amount] || 0)
+    });
+  }
+  return { status: 'success', pending: out };
 }
 
 function normalizeRole(role) {
@@ -3375,6 +3437,7 @@ function doGet(e) {
     if (action === 'acknowledgeIssueAnomaly') return respond(acknowledgeIssueAnomaly(e.parameter), e);
     if (action === 'machineSpareReport') return respond(machineSpareReport(e.parameter), e);
     if (action === 'checkCrossLineStock') return respond(checkCrossLineStock(e.parameter), e);
+    if (action === 'getPendingPrUsage') return respond(getPendingPrUsage(e.parameter), e);
     if (action === 'upsertUser') return respond(upsertUser({
       authToken: authToken,
       username: e.parameter.username,
@@ -3644,6 +3707,9 @@ function doPost(e) {
     }
     if (action === 'checkCrossLineStock') {
       return respond(checkCrossLineStock(body), e);
+    }
+    if (action === 'getPendingPrUsage') {
+      return respond(getPendingPrUsage(body), e);
     }
     if (action === 'aiReadNameplate') {
       return respond(aiReadNameplate(body), e);

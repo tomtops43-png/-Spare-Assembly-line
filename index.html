@@ -2022,6 +2022,12 @@
           <div id="prCostSummary" class="text-xs text-slate-500"></div>
           <!-- งบ Spare part control (ดึงจาก Cost Ratio: มูลค่าผลิต × เป้าหมาย % − รายจ่ายที่บันทึกแล้ว) -->
           <div id="prBudgetPanel" class="mt-3"></div>
+          <!-- จำลอง: เลือกอัตโนมัติให้พอดีงบ -->
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <button id="prSimulateFitBtn" type="button" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 transition">🎯 จำลอง: เลือกให้พอดีงบ</button>
+            <button id="prSelectAllBtn" type="button" class="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">เลือกทั้งหมด</button>
+            <span class="text-[10px] text-slate-400">เลือกอัตโนมัติเรียงตามความเร่งด่วน (Critical/ของหมดก่อน) ให้อยู่ในงบแต่ละไลน์ — ปรับต่อเองได้</span>
+          </div>
           <!-- Line tabs -->
           <div id="prLineTabs" class="mt-2 flex flex-wrap gap-1.5"></div>
         </div>
@@ -9629,27 +9635,72 @@ function inferRequestPriority(stock, min) {
       var now = new Date();
       return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     }
+    // แคช PR ที่รออนุมัติ (pending) ต่อไลน์ต่อเดือน — บวกเข้า "ใช้ไปแล้ว" กันเปิดหลายใบเล็กๆ ที่รวมกันเกิน
+    var prPendingUsageCache = { at: 0, pending: null, data: null };
+    var prCarryOverState = false; // เปิด/ปิด ยกงบเหลือข้ามเดือน
+    function prCarryOverEnabled() { return prCarryOverState; }
+    function prInvalidatePendingUsage() { prPendingUsageCache.at = 0; prPendingUsageCache.data = null; }
+    function prEnsurePendingUsage() {
+      var FRESH = 90000;
+      if (prPendingUsageCache.at && (Date.now() - prPendingUsageCache.at) < FRESH) return Promise.resolve(prPendingUsageCache.data);
+      if (prPendingUsageCache.pending) return prPendingUsageCache.pending;
+      prPendingUsageCache.pending = requestApi(withAuthPayload({ action: 'getPendingPrUsage' }))
+        .then(function(res) {
+          var list = (res && res.status === 'success' && Array.isArray(res.pending)) ? res.pending : [];
+          var map = {}; // {yyyy-MM: {line: amount}}
+          list.forEach(function(p) {
+            var m = String(p.month || '');
+            if (!/^\d{4}-\d{2}$/.test(m)) return;
+            var ln = fccLineOf(p.line);
+            (map[m] = map[m] || {});
+            map[m][ln] = (map[m][ln] || 0) + fccN(p.amount);
+          });
+          prPendingUsageCache.data = map; prPendingUsageCache.at = Date.now(); prPendingUsageCache.pending = null;
+          return map;
+        })
+        .catch(function() { prPendingUsageCache.pending = null; return prPendingUsageCache.data || {}; });
+      return prPendingUsageCache.pending;
+    }
+    // งบต่อไลน์ของเดือนเป้าหมาย — รองรับ carry-over (ยกงบเหลือจากเดือนก่อนๆ มาสะสม)
+    // และรวม PR ที่ยังรออนุมัติเข้าใน used ; budget = งบใช้ได้จริง (ฐาน + ยกมา), used = จ่ายจริง + รออนุมัติ
     function prComputeBudget(monthKey) {
-      return fccEnsureAsync().then(function(A) {
-        var byLine = {};
-        function ensure(line) { if (!byLine[line]) byLine[line] = { sales: 0, targetPct: 0, budget: 0, spent: 0 }; return byLine[line]; }
-        (A.prodConfig || []).forEach(function(c) {
-          if (String(c.line) === 'ALL') return;
-          ensure(fccLineOf(c.line)).targetPct = fccN(c.target_pct);
-        });
+      return Promise.all([fccEnsureAsync(), prEnsurePendingUsage()]).then(function(arr) {
+        var A = arr[0], pendingMap = arr[1] || {};
+        var carry = prCarryOverEnabled();
+        var targetByLine = {};
+        (A.prodConfig || []).forEach(function(c) { if (String(c.line) === 'ALL') return; targetByLine[fccLineOf(c.line)] = fccN(c.target_pct); });
+        var salesBML = {}, spentBML = {};
         (A.prodVolume || []).forEach(function(v) {
-          if (fccMonthKey(v.month) !== monthKey) return;
           if (v.production_value === undefined) return;
-          ensure(fccLineOf(v.line)).sales += fccN(v.production_value);
+          var m = fccMonthKey(v.month), ln = fccLineOf(v.line);
+          (salesBML[m] = salesBML[m] || {}); salesBML[m][ln] = (salesBML[m][ln] || 0) + fccN(v.production_value);
         });
-        fccExpenseValidRows(A.hist).filter(function(r) { return r.month === monthKey; }).forEach(function(r) {
-          ensure(r.line).spent += r.amount;
+        fccExpenseValidRows(A.hist).forEach(function(r) {
+          (spentBML[r.month] = spentBML[r.month] || {}); spentBML[r.month][r.line] = (spentBML[r.month][r.line] || 0) + r.amount;
         });
-        Object.keys(byLine).forEach(function(ln) {
-          var b = byLine[ln];
-          b.budget = (b.targetPct > 0 && b.sales > 0) ? b.sales * b.targetPct / 100 : 0;
+        var monthSet = {}; monthSet[monthKey] = true;
+        [salesBML, spentBML, pendingMap].forEach(function(src) { Object.keys(src).forEach(function(m) { monthSet[m] = true; }); });
+        var months = Object.keys(monthSet).filter(function(m) { return /^\d{4}-\d{2}$/.test(m) && m <= monthKey; }).sort();
+        var lineSet = {};
+        Object.keys(targetByLine).forEach(function(l) { lineSet[l] = true; });
+        months.forEach(function(m) { [salesBML[m], spentBML[m], pendingMap[m]].forEach(function(o) { if (o) Object.keys(o).forEach(function(l) { lineSet[l] = true; }); }); });
+        var byLine = {};
+        Object.keys(lineSet).forEach(function(ln) {
+          var target = targetByLine[ln] || 0, prevLeftover = 0, rec = null;
+          months.forEach(function(m) {
+            var sales = (salesBML[m] || {})[ln] || 0;
+            var base = (target > 0 && sales > 0) ? sales * target / 100 : 0;
+            var carryIn = carry ? prevLeftover : 0;
+            var effective = base + carryIn;
+            var spent = (spentBML[m] || {})[ln] || 0;
+            var pending = (pendingMap[m] || {})[ln] || 0;
+            var used = spent + pending;
+            prevLeftover = Math.max(0, effective - used);
+            if (m === monthKey) rec = { sales: sales, targetPct: target, base: base, carryIn: carryIn, budget: effective, spent: spent, pending: pending, used: used };
+          });
+          byLine[ln] = rec || { sales: 0, targetPct: target, base: 0, carryIn: 0, budget: 0, spent: 0, pending: 0, used: 0 };
         });
-        return { month: monthKey, byLine: byLine };
+        return { month: monthKey, carry: carry, byLine: byLine };
       });
     }
     function prSelectedAmountByLine() {
@@ -9661,7 +9712,7 @@ function inferRequestPriority(stock, min) {
       });
       return byLine;
     }
-    // รวมงบ/รายจ่าย/PR ต่อไลน์ + แถวรวมทุกไลน์ — คืน array พร้อม flag over
+    // รวมงบ/ใช้ไปแล้ว/PR ต่อไลน์ + แถวรวมทุกไลน์ — budget=งบใช้ได้จริง, used=จ่ายจริง+รออนุมัติ
     function prBudgetRows(B, prByLine) {
       var lineSet = {};
       Object.keys(B.byLine).forEach(function(l) { lineSet[l] = true; });
@@ -9671,77 +9722,132 @@ function inferRequestPriority(stock, min) {
         var ia = order.indexOf(a), ib = order.indexOf(b);
         return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
       });
-      var rows = lines.map(function(ln) {
-        var b = B.byLine[ln] || { budget: 0, spent: 0, targetPct: 0, sales: 0 };
+      return lines.map(function(ln) {
+        var b = B.byLine[ln] || { budget: 0, base: 0, carryIn: 0, spent: 0, pending: 0, used: 0 };
         var pr = prByLine[ln] || 0;
-        var remaining = b.budget - b.spent;
+        var remaining = b.budget - b.used;
         var afterPr = remaining - pr;
         var hasBudget = b.budget > 0;
-        return { line: ln, budget: b.budget, spent: b.spent, remaining: remaining, prAmount: pr, afterPr: afterPr, hasBudget: hasBudget, over: (hasBudget && afterPr < 0) ? -afterPr : 0 };
+        return { line: ln, budget: b.budget, base: b.base, carryIn: b.carryIn, spent: b.spent, pending: b.pending, used: b.used, remaining: remaining, prAmount: pr, afterPr: afterPr, hasBudget: hasBudget, over: (hasBudget && afterPr < 0) ? -afterPr : 0 };
       });
-      return rows;
     }
     function renderPrBudgetPanel() {
       var el = document.getElementById('prBudgetPanel');
       if (!el) return;
       var monthKey = prBudgetMonthKey();
+      var carry = prCarryOverEnabled();
+      var toggleHtml = '<label class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 cursor-pointer"><input type="checkbox" id="prBudgetCarryOver" class="h-3.5 w-3.5" ' + (carry ? 'checked' : '') + ' /> 🔄 ยกงบเหลือข้ามเดือน</label>';
+      function bindToggle() {
+        var cb = document.getElementById('prBudgetCarryOver');
+        if (cb) cb.addEventListener('change', function() { prCarryOverState = cb.checked; renderPrBudgetPanel(); });
+      }
       el.innerHTML = '<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-400">⏳ กำลังคำนวณงบ Spare part เดือน ' + escHtml(monthKey) + '...</div>';
       prComputeBudget(monthKey).then(function(B) {
         var prByLine = prSelectedAmountByLine();
         var rows = prBudgetRows(B, prByLine).filter(function(r) { return r.hasBudget || r.prAmount > 0; });
         if (!rows.length) {
-          el.innerHTML = '<div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">⚠️ ยังไม่มีงบ Spare part ของเดือน ' + escHtml(monthKey) + ' (ต้องมีมูลค่าผลิต + ตั้งเป้าหมาย % ในการ์ด Cost Ratio) — จะไม่บล็อกการเปิด PR</div>';
+          el.innerHTML = '<div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 flex flex-wrap items-center justify-between gap-2"><span>⚠️ ยังไม่มีงบ Spare part ของเดือน ' + escHtml(monthKey) + ' (ต้องมีมูลค่าผลิต + ตั้งเป้าหมาย % ในการ์ด Cost Ratio) — จะไม่บล็อกการเปิด PR</span>' + toggleHtml + '</div>';
+          bindToggle();
           return;
         }
         var money = function(n) { return '฿' + Math.round(n).toLocaleString('th-TH'); };
-        var totBudget = 0, totSpent = 0, totPr = 0, anyOver = false;
+        var totBudget = 0, totBase = 0, totCarry = 0, totSpent = 0, totPending = 0, totPr = 0, anyOver = false, anyPending = false, anyCarry = false;
         var body = rows.map(function(r) {
-          totBudget += r.budget; totSpent += r.spent; totPr += r.prAmount;
+          totBudget += r.budget; totBase += r.base; totCarry += r.carryIn; totSpent += r.spent; totPending += r.pending; totPr += r.prAmount;
           if (r.over > 0) anyOver = true;
+          if (r.pending > 0) anyPending = true;
+          if (r.carryIn > 0) anyCarry = true;
           var statusHtml;
           if (!r.hasBudget) statusHtml = '<span class="text-slate-400">— ยังไม่ได้ตั้งงบ</span>';
           else if (r.over > 0) statusHtml = '<span class="font-bold text-rose-600">⚠️ เกินงบ ' + money(r.over) + '</span>';
           else {
-            var pctUsed = r.budget > 0 ? Math.round((r.spent + r.prAmount) / r.budget * 100) : 0;
+            var pctUsed = r.budget > 0 ? Math.round((r.used + r.prAmount) / r.budget * 100) : 0;
             var warn = pctUsed >= 80;
             statusHtml = '<span class="font-bold ' + (warn ? 'text-amber-600' : 'text-emerald-600') + '">' + (warn ? '🟠' : '✅') + ' เหลือ ' + money(r.afterPr) + ' (' + pctUsed + '%)</span>';
           }
+          var budgetSub = (carry && r.carryIn > 0) ? '<div class="text-[9px] text-slate-400">ฐาน ' + money(r.base) + ' + ยกมา ' + money(r.carryIn) + '</div>' : '';
+          var usedSub = (r.pending > 0) ? '<div class="text-[9px] text-slate-400">จ่าย ' + money(r.spent) + ' + รออนุมัติ ' + money(r.pending) + '</div>' : '';
           return '<tr class="border-b border-slate-100">' +
-            '<td class="py-1.5 pr-2 font-semibold text-slate-700">' + escHtml(r.line) + '</td>' +
-            '<td class="py-1.5 px-2 text-right text-slate-500">' + (r.hasBudget ? money(r.budget) : '—') + '</td>' +
-            '<td class="py-1.5 px-2 text-right text-slate-500">' + money(r.spent) + '</td>' +
-            '<td class="py-1.5 px-2 text-right font-semibold text-blue-600">' + money(r.prAmount) + '</td>' +
-            '<td class="py-1.5 pl-2 text-right">' + statusHtml + '</td>' +
+            '<td class="py-1.5 pr-2 font-semibold text-slate-700 align-top">' + escHtml(r.line) + '</td>' +
+            '<td class="py-1.5 px-2 text-right text-slate-500 align-top">' + (r.hasBudget ? money(r.budget) : '—') + budgetSub + '</td>' +
+            '<td class="py-1.5 px-2 text-right text-slate-500 align-top">' + money(r.used) + usedSub + '</td>' +
+            '<td class="py-1.5 px-2 text-right font-semibold text-blue-600 align-top">' + money(r.prAmount) + '</td>' +
+            '<td class="py-1.5 pl-2 text-right align-top">' + statusHtml + '</td>' +
           '</tr>';
         }).join('');
-        var totRemainAfter = totBudget - totSpent - totPr;
+        var totUsed = totSpent + totPending;
+        var totRemainAfter = totBudget - totUsed - totPr;
         var totStatus = anyOver
           ? '<span class="font-bold text-rose-600">⚠️ มีไลน์เกินงบ</span>'
           : (totBudget > 0 ? '<span class="font-bold text-emerald-600">✅ รวมเหลือ ' + money(totRemainAfter) + '</span>' : '<span class="text-slate-400">—</span>');
+        var noteBits = ['งบ = มูลค่าผลิต × เป้าหมาย %'];
+        if (anyPending) noteBits.push('รวม PR รออนุมัติแล้ว');
+        if (carry && anyCarry) noteBits.push('ยกงบเหลือข้ามเดือน');
         el.innerHTML =
           '<div class="rounded-xl border ' + (anyOver ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-white') + ' p-3">' +
-            '<div class="mb-2 flex items-center justify-between">' +
+            '<div class="mb-2 flex flex-wrap items-center justify-between gap-2">' +
               '<p class="text-xs font-bold text-slate-600">💰 งบ Spare part — เดือน ' + escHtml(monthKey) + '</p>' +
-              '<span class="text-[10px] text-slate-400">งบ = มูลค่าผลิต × เป้าหมาย % · หักรายจ่ายที่บันทึกแล้ว</span>' +
+              toggleHtml +
             '</div>' +
             '<div class="overflow-x-auto"><table class="w-full text-xs">' +
               '<thead><tr class="text-[10px] uppercase tracking-wide text-slate-400">' +
-                '<th class="py-1 pr-2 text-left">Line</th><th class="py-1 px-2 text-right">งบเดือนนี้</th><th class="py-1 px-2 text-right">ใช้ไปแล้ว</th><th class="py-1 px-2 text-right">PR ใบนี้</th><th class="py-1 pl-2 text-right">สถานะ</th>' +
+                '<th class="py-1 pr-2 text-left">Line</th><th class="py-1 px-2 text-right">งบใช้ได้</th><th class="py-1 px-2 text-right">ใช้ไปแล้ว</th><th class="py-1 px-2 text-right">PR ใบนี้</th><th class="py-1 pl-2 text-right">สถานะ</th>' +
               '</tr></thead>' +
               '<tbody>' + body + '</tbody>' +
               '<tfoot><tr class="border-t-2 border-slate-200 font-semibold">' +
                 '<td class="py-1.5 pr-2 text-slate-700">รวมทุกไลน์</td>' +
                 '<td class="py-1.5 px-2 text-right text-slate-600">' + money(totBudget) + '</td>' +
-                '<td class="py-1.5 px-2 text-right text-slate-600">' + money(totSpent) + '</td>' +
+                '<td class="py-1.5 px-2 text-right text-slate-600">' + money(totUsed) + '</td>' +
                 '<td class="py-1.5 px-2 text-right text-blue-700">' + money(totPr) + '</td>' +
                 '<td class="py-1.5 pl-2 text-right">' + totStatus + '</td>' +
               '</tr></tfoot>' +
             '</table></div>' +
+            '<p class="mt-1.5 text-[10px] text-slate-400">' + noteBits.join(' · ') + '</p>' +
           '</div>';
+        bindToggle();
       }).catch(function() {
         el.innerHTML = '<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-400">ดึงข้อมูลงบ Spare part ไม่สำเร็จ — จะไม่บล็อกการเปิด PR</div>';
       });
     }
+    // ── จำลอง: เลือกอัตโนมัติให้พอดีงบ (greedy เรียงตามความเร่งด่วน) ──
+    function prPriorityRank(c) {
+      var order = { critical: 0, high: 1, medium: 2, low: 3 };
+      var crit = String(c.critical || '').toLowerCase();
+      var base = order[crit] !== undefined ? order[crit] : 4;
+      var reason = String(c.reason || '').toUpperCase();
+      var reasonBump = reason.indexOf('OOS') > -1 ? 0 : (reason.indexOf('BMIN') > -1 ? 0.3 : 0.6);
+      return base + reasonBump;
+    }
+    function prSimulateFitBudget() {
+      var monthKey = prBudgetMonthKey();
+      prComputeBudget(monthKey).then(function(B) {
+        var byLine = {};
+        (prCandidateState || []).forEach(function(c) { var ln = fccLineOf(c.line); (byLine[ln] = byLine[ln] || []).push(c); });
+        var picked = 0, skipped = 0, overLines = [];
+        Object.keys(byLine).forEach(function(ln) {
+          var b = B.byLine[ln];
+          var remain = (b && b.budget > 0) ? (b.budget - b.used) : Infinity; // ไม่ตั้งงบ = ไม่จำกัด
+          var items = byLine[ln].slice().sort(function(a, z) { return prPriorityRank(a) - prPriorityRank(z); });
+          var used = 0, lineSkipped = 0;
+          items.forEach(function(c) {
+            var cost = fccN(c.suggestedQty) * fccN(c.unitPrice);
+            if (remain === Infinity || cost === 0 || used + cost <= remain) { c.selected = true; used += cost; picked++; }
+            else { c.selected = false; skipped++; lineSkipped++; }
+          });
+          if (lineSkipped > 0) overLines.push(ln);
+        });
+        if (typeof renderPrCandidates === 'function') renderPrCandidates();
+        var msg = '🎯 จำลองแล้ว: เลือก ' + picked + ' รายการที่พอดีงบ';
+        if (skipped) msg += ' · ข้าม ' + skipped + ' รายการที่จะทำให้เกินงบ (' + overLines.join(', ') + ')';
+        showQuickToast(msg, skipped ? 'warn' : 'success');
+      }).catch(function() { showQuickToast('ดึงข้อมูลงบไม่สำเร็จ ลองใหม่อีกครั้ง', 'warn'); });
+    }
+    function prSelectAllCandidates() {
+      (prCandidateState || []).forEach(function(c) { c.selected = true; });
+      if (typeof renderPrCandidates === 'function') renderPrCandidates();
+      showQuickToast('เลือกทุกรายการแล้ว', 'success');
+    }
+
     // เช็คงบก่อนสร้าง PR — คืน Promise<{ bypass, reason, overDetail }>
     // ไม่เกินงบ ⇒ resolve ทันที (bypass=false) ; เกินงบ ⇒ เปิด modal ให้ระบุเหตุผล
     // ถ้าดึงงบไม่ได้ ⇒ ปล่อยผ่าน (ไม่บล็อก) กัน false-block ตอนข้อมูลงบมีปัญหา
@@ -12165,6 +12271,7 @@ function inferRequestPriority(stock, min) {
       { key: 'all', label: 'ทั้งหมด', icon: '📥' },
       { key: 'pr_pending', label: 'PR รออนุมัติ', icon: '📝' },
       { key: 'issue_anomaly', label: 'เบิกผิดปกติ', icon: '🕵️' },
+      { key: 'budget_bypass', label: 'เปิด PR เกินงบ (Bypass)', icon: '🚧', highRoleOnly: true },
       { key: 'transfer_pending', label: 'ยืม/โอน รออนุมัติ', icon: '🔁', placeholder: true },
       { key: 'borrow_overdue', label: 'ยืมค้าง/เกินกำหนดคืน', icon: '⏰', placeholder: true },
       { key: 'stock_below_min', label: 'สต็อกต่ำกว่า Min', icon: '📉', placeholder: true },
@@ -12229,11 +12336,14 @@ function inferRequestPriority(stock, min) {
     function renderInboxSidebar() {
       var el = document.getElementById('inboxSidebar');
       if (!el) return;
-      el.innerHTML = INBOX_TABS.map(function(tab) {
+      var canSeeBypass = !!(inboxData && inboxData.can_see_bypass);
+      el.innerHTML = INBOX_TABS.filter(function(tab) {
+        return !(tab.highRoleOnly && !canSeeBypass);
+      }).map(function(tab) {
         var count = inboxTabCount(tab.key);
         var active = inboxActiveTab === tab.key;
         var badge = count > 0
-          ? '<span class="inbox-tab-badge ml-auto ' + (active ? 'inbox-badge-ghost text-white' : 'bg-rose-100 text-rose-700') + '">' + count + '</span>'
+          ? '<span class="inbox-tab-badge ml-auto ' + (active ? 'inbox-badge-ghost text-white' : (tab.key === 'budget_bypass' ? 'bg-rose-200 text-rose-800' : 'bg-rose-100 text-rose-700')) + '">' + count + '</span>'
           : '';
         return '<button data-inbox-tab="' + tab.key + '" class="mb-1 flex w-full items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition ' +
           (active ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100') + '">' +
@@ -12280,6 +12390,13 @@ function inferRequestPriority(stock, min) {
           : '<div class="p-6 text-center text-slate-400">✅ ไม่พบการเบิกผิดปกติใน 14 วันล่าสุด</div>';
         return;
       }
+      if (inboxActiveTab === 'budget_bypass') {
+        var bypasses = (inboxData && inboxData.budget_bypasses) || [];
+        listEl.innerHTML = bypasses.length
+          ? '<div class="mb-3 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">🚧 รายการ PR ที่ถูกเปิดทั้งที่เกินงบ Spare part (Bypass) ใน 30 วันล่าสุด — ตรวจสอบความจำเป็นก่อนอนุมัติ</div>' + bypasses.map(inboxBypassCardHtml).join('')
+          : '<div class="p-6 text-center text-slate-400">✅ ไม่มีการเปิด PR เกินงบใน 30 วันล่าสุด</div>';
+        return;
+      }
       // tab อื่น = placeholder
       listEl.innerHTML = '<div class="rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-400">' +
         '<div class="text-3xl mb-2">' + tabDef.icon + '</div>' +
@@ -12300,6 +12417,22 @@ function inferRequestPriority(stock, min) {
           '<div class="mt-0.5 text-xs text-slate-400">ตรวจพบเมื่อ ' + escHtml(a.detected_at) + '</div>' +
         '</div>' +
         '<div class="shrink-0">' + ackBtn + '</div>' +
+      '</div>';
+    }
+
+    function inboxBypassCardHtml(b) {
+      var reviewBtn = (inboxData && inboxData.can_approve)
+        ? '<button data-inbox-review="' + escHtml(b.pr_id) + '" class="rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600">🔎 ตรวจ PR</button>'
+        : '';
+      return '<div class="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm border-l-4 border-rose-500">' +
+        '<div class="min-w-0">' +
+          '<div class="flex flex-wrap items-center gap-2"><span class="font-bold text-slate-800">' + escHtml(b.pr_id) + '</span>' +
+            (b.line ? '<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-500">' + escHtml(b.line) + '</span>' : '') +
+            '<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">Bypass งบ</span></div>' +
+          '<div class="mt-1 text-xs text-slate-600">' + escHtml(b.detail) + '</div>' +
+          '<div class="mt-0.5 text-xs text-slate-400">โดย ' + escHtml(b.actor || '-') + ' · ' + escHtml(b.timestamp || '-') + '</div>' +
+        '</div>' +
+        '<div class="shrink-0">' + reviewBtn + '</div>' +
       '</div>';
     }
 
@@ -13956,6 +14089,11 @@ if (dashboardPage) {
         '.pr-doc h2,.pr-doc h3{page-break-after:avoid;}tr,td,th{page-break-inside:avoid;}}';
     }
 
+    var prSimulateFitBtn = document.getElementById('prSimulateFitBtn');
+    if (prSimulateFitBtn) prSimulateFitBtn.addEventListener('click', prSimulateFitBudget);
+    var prSelectAllBtn = document.getElementById('prSelectAllBtn');
+    if (prSelectAllBtn) prSelectAllBtn.addEventListener('click', prSelectAllCandidates);
+
     if (prBuildReportBtn) prBuildReportBtn.addEventListener('click', function() {
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) { showQuickToast('กรุณาเลือกรายการอย่างน้อย 1 รายการก่อนดูตัวอย่าง', 'warn'); return; }
@@ -14185,6 +14323,7 @@ if (dashboardPage) {
           postJson(withAuthPayload(payload))
             .then(parseApiResponse).then(function(res) {
               showQuickToast('✅ ส่ง PR ' + (res.pr_id || prNumber) + ' รออนุมัติแล้ว (' + (res.item_count || lines.length) + ' รายการ)' + (gate.bypass ? ' · บันทึก Bypass งบแล้ว' : ''), 'success');
+              if (typeof prInvalidatePendingUsage === 'function') prInvalidatePendingUsage();
               if (typeof loadInboxBadge === 'function') loadInboxBadge();
             }).catch(function(err) {
               showQuickToast('⚠️ สร้าง PR ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
