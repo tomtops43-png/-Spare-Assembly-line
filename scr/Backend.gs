@@ -54,7 +54,7 @@ var PRODUCTION_VOLUME_HEADERS = ['Month', 'Line', 'Actual Qty', 'Updated By', 'U
 // ราคาต่อหน่วย (บาท/ชิ้น) และเป้าหมาย % ที่ต้องการควบคุมรายจ่ายอะไหล่ให้อยู่ในกรอบ ต่อไลน์
 var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updated By', 'Updated At'];
 // Purchase Request (PR) schema — เก็บ qty_requested (ล็อก) แยกจาก qty_approved (หัวหน้าแก้ได้)
-var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at'];
+var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to'];
 var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark'];
 var PR_AUDIT_HEADERS = ['timestamp', 'pr_id', 'action', 'actor', 'line', 'old_qty', 'new_qty', 'detail'];
 var PR_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'];
@@ -1628,7 +1628,8 @@ function prHeaderRowToCard(hIdx, row) {
     approved_by: prStr(row[hIdx.approved_by]),
     approved_at: prStr(row[hIdx.approved_at]),
     reject_reason: prStr(row[hIdx.reject_reason]),
-    updated_at: prStr(row[hIdx.updated_at])
+    updated_at: prStr(row[hIdx.updated_at]),
+    assigned_to: hIdx.assigned_to !== undefined ? prStr(row[hIdx.assigned_to]) : ''
   };
 }
 
@@ -1646,6 +1647,9 @@ function listPrCardsForUser(user, statuses) {
     var status = prStr(row[hIdx.status]);
     if (!wanted[status]) continue;
     if (!prUserCanAccessLine(user, prStr(row[hIdx.line]))) continue;
+    // PR ที่ระบุผู้อนุมัติไว้ — โชว์เฉพาะผู้ถูกมอบหมาย / คนเห็นทุกไลน์ / คนสร้างเอง (ติดตามใบตัวเอง)
+    var assignedTo = hIdx.assigned_to !== undefined ? prStr(row[hIdx.assigned_to]).trim() : '';
+    if (assignedTo && assignedTo !== user.username && prStr(row[hIdx.created_by]) !== user.username && !(user.permissions && user.permissions.pr_view_all)) continue;
     cards.push(prHeaderRowToCard(hIdx, row));
   }
   cards.sort(function(a, b) {
@@ -1709,6 +1713,17 @@ function createPRUnlocked(payload) {
   });
   linesSheet.getRange(linesSheet.getLastRow() + 1, 1, lineRows.length, lHeaderRow.length).setValues(lineRows);
 
+  // ผู้อนุมัติที่ถูกระบุ (optional) — ถ้าระบุมา ต้องเป็น user ที่มีสิทธิ์อนุมัติไลน์นี้จริง
+  // PR ที่ระบุคนไว้จะโชว์ใน Inbox เฉพาะคนนั้น (+ คนเห็นทุกไลน์ + คนสร้างเอง) — เป็นการ routing
+  // ไม่ใช่ lock: คนที่มีสิทธิ์คนอื่นยังอนุมัติแทนได้ถ้าเปิด PR ตรงๆ (กันใบค้างตอนคนถูกระบุไม่อยู่)
+  var assignedTo = String(payload.assign_to || '').trim();
+  if (assignedTo) {
+    var assignee = findUserByUsername(assignedTo);
+    if (!assignee || !assignee.isActive || !assignee.permissions || !assignee.permissions.pr_approve || !prUserCanAccessLine(assignee, headerLine)) {
+      throw new Error('ผู้อนุมัติที่ระบุ (' + assignedTo + ') ไม่มีสิทธิ์อนุมัติ PR ของไลน์นี้');
+    }
+  }
+
   var headerRowArr = new Array(hData[0].length).fill('');
   headerRowArr[hIdx.pr_id] = prId;
   headerRowArr[hIdx.status] = 'PENDING';
@@ -1719,9 +1734,10 @@ function createPRUnlocked(payload) {
   headerRowArr[hIdx.item_count] = lines.length;
   headerRowArr[hIdx.total_amount] = totalAmount;
   headerRowArr[hIdx.updated_at] = now;
+  if (hIdx.assigned_to !== undefined) headerRowArr[hIdx.assigned_to] = assignedTo;
   headerSheet.appendRow(headerRowArr);
 
-  appendPrAudit(prId, 'CREATE', user.username, headerLine, '', '', lines.length + ' รายการ');
+  appendPrAudit(prId, 'CREATE', user.username, headerLine, '', '', lines.length + ' รายการ' + (assignedTo ? ' · มอบหมายให้ ' + assignedTo : ''));
   // บันทึกร่องรอยการ Bypass งบ Spare part (ถ้าผู้ใช้ยืนยันเปิด PR ทั้งที่เกินงบ) — เก็บว่าใคร/
   // เกินไลน์ไหนเท่าไหร่/เหตุผล เพื่อให้หัวหน้าเห็นตอนอนุมัติและตรวจสอบย้อนหลังได้
   if (toBoolean(payload.budget_bypass, false)) {
