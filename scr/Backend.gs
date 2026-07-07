@@ -3367,6 +3367,7 @@ function doGet(e) {
     if (action === 'machineSpareReport') return respond(machineSpareReport(e.parameter), e);
     if (action === 'checkCrossLineStock') return respond(checkCrossLineStock(e.parameter), e);
     if (action === 'aiAskData') return respond(aiAskData(e.parameter), e);
+    if (action === 'askDataFree') return respond(answerDataQuestionFree(e.parameter), e);
     if (action === 'upsertUser') return respond(upsertUser({
       authToken: authToken,
       username: e.parameter.username,
@@ -3642,6 +3643,9 @@ function doPost(e) {
     }
     if (action === 'aiAskData') {
       return respond(aiAskData(body), e);
+    }
+    if (action === 'askDataFree') {
+      return respond(answerDataQuestionFree(body), e);
     }
     if (action === 'upsertUser') {
       return respond(upsertUser({
@@ -4406,6 +4410,123 @@ function aiAskData(payload) {
     1200
   );
   return { status: 'success', answer: answer };
+}
+
+// ── ผู้ช่วยถาม-ตอบ "แบบฟรี" (F3 lite) ────────────────────────────
+// ไม่เรียก AI API เลย — จับ pattern คำถามที่พบบ่อยแล้วตอบจากข้อมูลจริงในชีต
+// (ยอดซื้อรายเดือน / ของหมดสต็อก / ต่ำกว่า Min / เบิกเยอะสุด / ค้นหาอะไหล่ตามชื่อ-รุ่น)
+// ถ้าไม่เข้า pattern ไหนเลย ตอบด้วยรายการตัวอย่างคำถามที่รองรับ แทนการเดา
+function getMonthKeyBkk(offsetMonths) {
+  var todayStr = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd');
+  var parts = todayStr.split('-');
+  var y = Number(parts[0]), m = Number(parts[1]) + (offsetMonths || 0);
+  while (m < 1) { m += 12; y -= 1; }
+  while (m > 12) { m -= 12; y += 1; }
+  return y + '-' + String(m).padStart(2, '0');
+}
+
+function getMonthlySpendBreakdown(monthKey) {
+  var result = { total: 0, byLine: {} };
+  var phSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPARE_APP_CONFIG.purchaseHistorySheetName);
+  if (!phSheet || phSheet.getLastRow() <= 1) return result;
+  var phData = phSheet.getDataRange().getValues();
+  var phIdx = buildHeaderIndexMap(phData[0]);
+  var monthCol = phIdx[normalizeHeaderName('Month')];
+  var lineCol = phIdx[normalizeHeaderName('Line')];
+  var totalCol = phIdx[normalizeHeaderName('Total Amount')];
+  var statusCol = phIdx[normalizeHeaderName('Status')];
+  for (var r = 1; r < phData.length; r += 1) {
+    var row = phData[r];
+    if (String(row[statusCol] || '') === 'Cancelled') continue;
+    if (String(row[monthCol] || '').slice(0, 7) !== monthKey) continue;
+    var amt = Number(row[totalCol]) || 0;
+    result.total += amt;
+    var line = String(row[lineCol] || '') || 'ไม่ระบุ';
+    result.byLine[line] = (result.byLine[line] || 0) + amt;
+  }
+  return result;
+}
+
+// stopword กรองคำถามทั่วไปออก เหลือแต่คำที่น่าจะเป็นชื่อ/รุ่นอะไหล่ — จำเป็นเฉพาะโหมดฟรีนี้
+// เพราะไม่มี AI ช่วยตีความ ถ้าปล่อยคำถามทั้งดุ้นไปค้นจะเจอ false positive ง่าย
+var AI_FREE_STOPWORDS = {
+  'เท่าไหร่': 1, 'เหลือ': 1, 'ราคา': 1, 'ที่ไหน': 1, 'ไหนบ้าง': 1, 'ไลน์ไหน': 1, 'บ้าง': 1,
+  'ครับ': 1, 'คะ': 1, 'ค่ะ': 1, 'เดือนนี้': 1, 'เดือนที่แล้ว': 1, 'เดือนก่อน': 1, 'การใช้': 1,
+  'ใช้ไป': 1, 'ใช้เงิน': 1, 'ค่าใช้จ่าย': 1, 'หมดสต็อก': 1, 'ใกล้หมด': 1, 'ต่ำกว่า': 1,
+  'ทั้งหมด': 1, 'สต็อก': 1, 'อยู่': 1, 'มีกี่': 1, 'จำนวน': 1
+};
+function extractSearchKeywords(question) {
+  var q = normalizePartKeyText(question);
+  return q.split(/[\s,\/()]+/).filter(function(w) { return w.length >= 3 && !AI_FREE_STOPWORDS[w]; });
+}
+
+function answerDataQuestionFree(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var question = String(payload.question || '').trim();
+  if (!question) throw new Error('กรุณาพิมพ์คำถาม');
+  if (question.length > 300) throw new Error('คำถามยาวเกินไป (สูงสุด 300 ตัวอักษร)');
+  var q = normalizePartKeyText(question);
+  var allItems = readAllStockItemsLean();
+  function moneyStr(n) { return Math.round(n).toLocaleString('th-TH'); }
+
+  if (/ใช้เงิน|ค่าใช้จ่าย|ยอดซื้อ|งบ.*เดือน|เดือน.*งบ/.test(q)) {
+    var offset = /เดือนที่แล้ว|เดือนก่อน|เดือนที่ผ่านมา/.test(q) ? -1 : 0;
+    var monthKey = getMonthKeyBkk(offset);
+    var spend = getMonthlySpendBreakdown(monthKey);
+    if (spend.total <= 0) return { status: 'success', answer: 'ไม่พบข้อมูลการซื้อในเดือน ' + monthKey + ' (หรือยังไม่มีประวัติ Purchase History)' };
+    var lines = Object.keys(spend.byLine).sort(function(a, b) { return spend.byLine[b] - spend.byLine[a]; })
+      .map(function(l) { return '- ' + l + ': ฿' + moneyStr(spend.byLine[l]); });
+    return { status: 'success', answer: '💰 ยอดซื้ออะไหล่เดือน ' + monthKey + ' รวม ฿' + moneyStr(spend.total) + '\n' + lines.join('\n') };
+  }
+
+  if (/หมดสต็อก|out\s*of\s*stock|ของหมด/.test(q)) {
+    var oos = allItems.filter(function(it) { return it.stock <= 0; });
+    if (!oos.length) return { status: 'success', answer: '✅ ไม่มีรายการที่หมดสต็อกตอนนี้' };
+    var oosLines = oos.slice(0, 20).map(function(it) { return '- ' + it.sheet + ' | ' + it.name + (it.model && it.model !== '-' ? ' (' + it.model + ')' : ''); });
+    return { status: 'success', answer: '🔴 หมดสต็อกทั้งหมด ' + oos.length + ' รายการ (แสดง 20 แรก):\n' + oosLines.join('\n') };
+  }
+
+  if (/ใกล้หมด|ต่ำกว่า\s*min|below\s*min|ใกล้จะหมด/.test(q)) {
+    var low = allItems.filter(function(it) { return it.min > 0 && it.stock > 0 && it.stock < it.min; });
+    if (!low.length) return { status: 'success', answer: '✅ ไม่มีรายการต่ำกว่า Min ตอนนี้' };
+    var lowLines = low.slice(0, 20).map(function(it) { return '- ' + it.sheet + ' | ' + it.name + ': เหลือ ' + it.stock + '/Min ' + it.min; });
+    return { status: 'success', answer: '📉 ต่ำกว่า Min ทั้งหมด ' + low.length + ' รายการ (แสดง 20 แรก):\n' + lowLines.join('\n') };
+  }
+
+  if (/เบิกเยอะ|ใช้เยอะ|เบิกมากที่สุด|ใช้มากที่สุด|เยอะสุด|มากที่สุด|top.*(ใช้|เบิก)/.test(q)) {
+    var stats = computeIssueUsageStats(getLogRows());
+    var arr = Object.keys(stats).map(function(k) { return stats[k]; }).filter(function(s) { return s.qty30 > 0; });
+    arr.sort(function(a, b) { return b.qty30 - a.qty30; });
+    if (!arr.length) return { status: 'success', answer: 'ยังไม่มีข้อมูลการเบิกใน 30 วันล่าสุด' };
+    var topUsage = arr.slice(0, 10).map(function(s) { return '- ' + s.name + (s.model && s.model !== '-' ? ' (' + s.model + ')' : '') + ': ' + s.qty30 + ' ชิ้น/30วัน'; });
+    return { status: 'success', answer: '📊 เบิกใช้เยอะสุด 30 วันล่าสุด:\n' + topUsage.join('\n') };
+  }
+
+  var keywords = extractSearchKeywords(question);
+  if (keywords.length) {
+    var matched = allItems.filter(function(it) {
+      var text = normalizePartKeyText(it.name + ' ' + it.model + ' ' + it.brand);
+      return keywords.some(function(w) { return text.indexOf(w) > -1; });
+    });
+    if (matched.length) {
+      var itemLines = matched.slice(0, 15).map(function(it) {
+        var priceTxt = it.unit_price ? (' | ราคา ฿' + moneyStr(it.unit_price)) : '';
+        var supTxt = it.supplier ? (' | ' + it.supplier) : '';
+        return '- ' + it.sheet + ' | ' + it.name + (it.model && it.model !== '-' ? ' (' + it.model + ')' : '') + ': เหลือ ' + it.stock + ' ' + it.unit + priceTxt + supTxt;
+      });
+      return { status: 'success', answer: '🔍 พบ ' + matched.length + ' รายการที่ตรงกับคำถาม:\n' + itemLines.join('\n') };
+    }
+  }
+
+  return {
+    status: 'success',
+    answer: '🤖 ระบบฟรีนี้ตอบได้เฉพาะรูปแบบคำถามที่กำหนดไว้ ลองถามแบบนี้:\n' +
+      '• "เดือนนี้ใช้เงินค่าอะไหล่ไปเท่าไหร่"\n' +
+      '• "อะไรหมดสต็อกบ้าง"\n' +
+      '• "อะไรใกล้หมดบ้าง" (ต่ำกว่า Min)\n' +
+      '• "เบิกอะไรเยอะสุด"\n' +
+      '• หรือพิมพ์ชื่อ/รุ่นอะไหล่ตรงๆ เช่น "bearing 6202"'
+  };
 }
 
 // =============================

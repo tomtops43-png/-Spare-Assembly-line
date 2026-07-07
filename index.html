@@ -2873,21 +2873,21 @@
     </div>
   </div>
 
-  <!-- 💬 AI ผู้ช่วยถาม-ตอบข้อมูลคลัง -->
-  <button id="aiChatFab" type="button" class="fixed bottom-5 right-5 z-[230] h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-xl hover:bg-violet-700 transition" style="display:none;" title="ถาม AI เกี่ยวกับข้อมูลคลังอะไหล่">💬</button>
+  <!-- 💬 ผู้ช่วยถาม-ตอบข้อมูลคลัง (ฟรี ไม่ใช้ AI API) -->
+  <button id="aiChatFab" type="button" class="fixed bottom-5 right-5 z-[230] h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-xl hover:bg-violet-700 transition" style="display:none;" title="ถามข้อมูลคลังอะไหล่ (ฟรี)">💬</button>
   <div id="aiChatPanel" class="fixed bottom-5 right-5 z-[240] w-[min(400px,calc(100vw-2rem))] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl" style="height:min(560px,calc(100vh-6rem));display:none;">
     <div class="flex items-center justify-between rounded-t-2xl bg-violet-600 px-4 py-3 text-white">
       <div>
-        <p class="text-sm font-bold">💬 ผู้ช่วย AI คลังอะไหล่</p>
-        <p class="text-[11px] opacity-80">ถามอะไรก็ได้เกี่ยวกับสต็อก/การเบิก/การซื้อ</p>
+        <p class="text-sm font-bold">💬 ผู้ช่วยถาม-ตอบ (ฟรี)</p>
+        <p class="text-[11px] opacity-80">ตอบจากรูปแบบคำถามที่กำหนดไว้ ไม่ใช้ AI API</p>
       </div>
       <button id="aiChatCloseBtn" type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-lg hover:bg-white/30">×</button>
     </div>
     <div id="aiChatMessages" class="flex-1 space-y-3 overflow-y-auto p-4">
-      <div class="rounded-2xl rounded-tl-sm bg-slate-100 p-3 text-sm text-slate-700">สวัสดีครับ 👋 ถามข้อมูลคลังอะไหล่ได้เลย เช่น<br/>• "เดือนนี้ใช้เงินค่าอะไหล่ไปเท่าไหร่"<br/>• "bearing เหลือเท่าไหร่ ไลน์ไหนบ้าง"<br/>• "อะไรใกล้หมดบ้าง"</div>
+      <div class="rounded-2xl rounded-tl-sm bg-slate-100 p-3 text-sm text-slate-700">สวัสดีครับ 👋 ถามได้ในรูปแบบนี้ (ฟรี ไม่มีค่าใช้จ่าย):<br/>• "เดือนนี้ใช้เงินค่าอะไหล่ไปเท่าไหร่"<br/>• "อะไรหมดสต็อกบ้าง" / "อะไรใกล้หมดบ้าง"<br/>• "เบิกอะไรเยอะสุด"<br/>• หรือพิมพ์ชื่อ/รุ่นอะไหล่ตรงๆ เช่น "bearing 6202"</div>
     </div>
     <div class="flex items-center gap-2 border-t border-slate-200 p-3">
-      <input id="aiChatInput" type="text" maxlength="500" class="h-10 flex-1 rounded-xl border border-slate-300 px-3 text-sm" placeholder="พิมพ์คำถาม..." />
+      <input id="aiChatInput" type="text" maxlength="300" class="h-10 flex-1 rounded-xl border border-slate-300 px-3 text-sm" placeholder="พิมพ์คำถาม..." />
       <button id="aiChatSendBtn" type="button" class="h-10 rounded-xl bg-violet-600 px-4 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50">ส่ง</button>
     </div>
   </div>
@@ -12500,14 +12500,12 @@ function inferRequestPriority(stock, min) {
         input.value = '';
         sendBtn.disabled = true;
         addBubble(q, true);
-        var thinking = addBubble('🤔 กำลังวิเคราะห์ข้อมูล...', false);
-        postJson(withAuthPayload({ action: 'aiAskData', question: q }))
+        var thinking = addBubble('🔎 กำลังค้นข้อมูล...', false);
+        requestApi(withAuthPayload({ action: 'askDataFree', question: q }))
           .then(parseApiResponse)
           .then(function(res) { thinking.textContent = res.answer || 'ไม่มีคำตอบ'; })
           .catch(function(err) {
-            var m = String(err && err.message ? err.message : err || '');
-            if (m.indexOf('AI_KEY_MISSING') > -1) m = 'ยังไม่ได้ตั้งค่า API key — เข้า Apps Script > Project Settings > Script Properties เพิ่ม ANTHROPIC_API_KEY แล้วลองใหม่';
-            thinking.textContent = '⚠️ ' + m;
+            thinking.textContent = '⚠️ ' + (err && err.message ? err.message : 'เกิดข้อผิดพลาด');
           })
           .finally(function() {
             busy = false;
