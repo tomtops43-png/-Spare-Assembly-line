@@ -2115,6 +2115,8 @@
               📤 ส่งอนุมัติ (สร้าง PR)
             </button>
             <p id="prPrintBtnHint" class="text-xs text-violet-500 font-semibold text-center">🔒 ต้องให้หัวหน้าอนุมัติใน Inbox ก่อน จึงจะปริ้นได้</p>
+            <!-- รายชื่อคนที่ PR ใบนี้จะเข้า Inbox — ให้คนส่งรู้ว่าต้องตามใคร (ไม่มี notification ช่องทางอื่น) -->
+            <p id="prApproverHint" class="hidden text-[11px] text-gray-500 text-center"></p>
             <button id="prForceResaveBtn" type="button" class="hidden text-xs font-semibold text-amber-600 underline decoration-dotted hover:text-amber-700 text-center">🔁 แก้ไขแล้ว? บันทึกซ้ำอีกครั้ง</button>
           </div>
           <!-- Bypass — โผล่เฉพาะตอนเกินงบ ให้เปิด PR ทั้งที่เกินได้แบบเจตนา (ต้องระบุเหตุผล) -->
@@ -12786,6 +12788,22 @@ function inferRequestPriority(stock, min) {
     var prRejectBtn = document.getElementById('prRejectBtn');
     if (prRejectBtn) prRejectBtn.addEventListener('click', submitReject);
     window.loadInboxBadge = loadInboxBadge;
+    // รีเฟรช Inbox badge เองเป็นระยะ — หัวหน้าที่เปิดเว็บค้างไว้จะเห็นตัวเลข PR รออนุมัติเด้งเอง
+    // โดยไม่ต้องรีเฟรชหน้า (ระบบไม่มี notification ช่องทางอื่น) ข้ามตอนแท็บถูกซ่อนกันยิง API ฟรีๆ
+    // แล้วรีเฟรชทันทีตอนสลับกลับมาที่แท็บถ้าห่างจากรอบล่าสุดพอสมควร
+    var INBOX_BADGE_POLL_MS = 150000; // 2.5 นาที
+    var inboxBadgeLastPollAt = Date.now();
+    setInterval(function() {
+      if (!currentUser || document.visibilityState === 'hidden') return;
+      inboxBadgeLastPollAt = Date.now();
+      loadInboxBadge();
+    }, INBOX_BADGE_POLL_MS);
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState !== 'visible' || !currentUser) return;
+      if (Date.now() - inboxBadgeLastPollAt < INBOX_BADGE_POLL_MS) return;
+      inboxBadgeLastPollAt = Date.now();
+      loadInboxBadge();
+    });
 
     // ============ 🏭 เครื่องจักร: datalist จาก log + รายงานต่อเครื่อง ============
     function updateMachineDatalist(logs) {
@@ -13606,6 +13624,41 @@ if (dashboardPage) {
       return 'PR-' + yy + mm + '-' + modeCode + '-' + seq;
     }
 
+    // โชว์ใต้ปุ่มส่งอนุมัติว่า PR ใบนี้จะเข้า Inbox ของใครบ้าง — คนส่งจะได้รู้ว่าต้องตามใคร
+    // (ระบบไม่มี notification ช่องทางอื่น หัวหน้าต้องเปิดเว็บมาเห็นเอง) cache ต่อไลน์กันยิง API ซ้ำ
+    var prApproverHintCache = {};
+    var prApproverHintLoading = {};
+    function loadPrApproverHint() {
+      var el = document.getElementById('prApproverHint');
+      if (!el || !currentUser) return;
+      var line = (prLineFilter && prLineFilter.value && prLineFilter.value !== 'all') ? String(prLineFilter.value) : '';
+      var cacheKey = line || '::all';
+      function render(list) {
+        var nowLine = (prLineFilter && prLineFilter.value && prLineFilter.value !== 'all') ? String(prLineFilter.value) : '';
+        if (nowLine !== line) return; // ผู้ใช้เปลี่ยนไลน์ไปแล้วระหว่างรอ
+        el.classList.remove('hidden');
+        if (!list || !list.length) {
+          el.innerHTML = '⚠️ ยังไม่มีผู้มีสิทธิ์อนุมัติ' + (line ? 'ไลน์ ' + escHtml(line) : '') + ' — แจ้ง Admin เพิ่มสิทธิ์ pr_approve ก่อนส่ง';
+          return;
+        }
+        var names = list.map(function(a) {
+          return escHtml(a.username) + (a.line ? ' (' + escHtml(a.line) + ')' : ' (ทุกไลน์)');
+        }).join(', ');
+        el.innerHTML = '📥 จะเข้า Inbox ของ: <b>' + names + '</b>';
+      }
+      if (prApproverHintCache[cacheKey]) { render(prApproverHintCache[cacheKey]); return; }
+      if (prApproverHintLoading[cacheKey]) return;
+      prApproverHintLoading[cacheKey] = true;
+      requestApi(withAuthPayload({ action: 'getPrApprovers', line: line })).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'error');
+        prApproverHintCache[cacheKey] = res.approvers || [];
+        render(prApproverHintCache[cacheKey]);
+      }).catch(function(err) {
+        console.warn('load PR approvers failed', err);
+      }).finally(function() {
+        delete prApproverHintLoading[cacheKey];
+      });
+    }
     if (prRunBtn) prRunBtn.addEventListener('click', function() {
       var mode = prMode ? prMode.value : 'assembly_monthly';
       var line = prLineFilter ? prLineFilter.value : 'all';
@@ -13620,6 +13673,7 @@ if (dashboardPage) {
       var s3 = document.getElementById('prStep3'); if (s3) s3.classList.remove('hidden');
       var s4 = document.getElementById('prStep4'); if (s4) s4.classList.remove('hidden');
       var sticky = document.getElementById('prBudgetSticky'); if (sticky) sticky.classList.remove('hidden');
+      loadPrApproverHint();
     });
     ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
     var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; if(line !== 'all') prLineCollapsedState[line] = false; renderPrCandidates(); });
@@ -13643,6 +13697,7 @@ if (dashboardPage) {
       var mode = String((prMode && prMode.value) || 'assembly_monthly');
       prLineTabState = (mode === 'line_specific') ? String(prLineFilter.value || 'all') : 'all';
       renderPrCandidates();
+      loadPrApproverHint();
     });
     if (prCandidateList) prCandidateList.addEventListener('input', function(e) {
       var idx = Number((e.target.dataset.prQty || e.target.dataset.prCritical || e.target.dataset.prPrice || e.target.dataset.prMachine || e.target.dataset.prPurpose || e.target.dataset.prPriority || e.target.dataset.prLine || e.target.dataset.prSelect || -1));
