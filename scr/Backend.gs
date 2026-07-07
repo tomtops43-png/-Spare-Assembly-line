@@ -1942,17 +1942,55 @@ function getInbox(payload) {
       Logger.log('getInbox bypass warning: ' + (bpErr && bpErr.message ? bpErr.message : bpErr));
     }
   }
+  // สต็อกต่ำกว่า Min — scan ชุดเดียวกับ Auto-PR พร้อมธงว่ารายการอยู่ใน PR ค้างอนุมัติแล้วหรือยัง
+  // เรียงตามความหนัก (สัดส่วน stock/min น้อยสุดก่อน — ของหมดขึ้นบนสุด)
+  var belowMin = [];
+  try {
+    var pendingPartKeys = listPendingPrPartKeys();
+    belowMin = readAllStockItemsLean().filter(function(it) {
+      return it.min > 0 && it.stock < it.min;
+    }).map(function(it) {
+      return {
+        sheet: it.sheet, no: it.no, name: it.name, model: it.model, unit: it.unit,
+        stock: it.stock, min: it.min,
+        in_pending_pr: !!pendingPartKeys[partKeyOf(it.name, it.model)]
+      };
+    }).sort(function(a, b) { return (a.stock / a.min) - (b.stock / b.min); }).slice(0, 200);
+  } catch (bmErr) {
+    Logger.log('getInbox belowMin warning: ' + (bmErr && bmErr.message ? bmErr.message : bmErr));
+  }
+
+  // ของเข้ารอตรวจรับ — Purchase History ที่สั่งแล้วแต่ยังรับไม่ครบ (Ordered / Partial Received)
+  var qcIncoming = [];
+  try {
+    var phValues = getPurchaseHistorySheet().getDataRange().getValues();
+    for (var qi = 1; qi < phValues.length; qi += 1) {
+      var ph = purchaseHistoryRowToObject(phValues[qi]);
+      if (!ph.history_id || ph.deleted || ph.qty_ordered <= 0) continue;
+      if (['Ordered', 'Partial Received'].indexOf(ph.status) === -1) continue;
+      qcIncoming.push({
+        history_id: ph.history_id, request_id: ph.request_id, line: ph.line,
+        part_name: ph.part_name, brand: ph.brand, model: ph.model,
+        qty_ordered: ph.qty_ordered, received_qty: ph.received_qty, unit: ph.unit,
+        status: ph.status, ordered_date: ph.ordered_date, requested_date: ph.date
+      });
+    }
+    qcIncoming.sort(function(a, b) { return String(b.ordered_date || b.requested_date || '').localeCompare(String(a.ordered_date || a.requested_date || '')); });
+    qcIncoming = qcIncoming.slice(0, 200);
+  } catch (qcErr) {
+    Logger.log('getInbox qcIncoming warning: ' + (qcErr && qcErr.message ? qcErr.message : qcErr));
+  }
+
   var tabs = {
     pr_pending: prPending.length,
     issue_anomaly: anomalies.length,
     budget_bypass: budgetBypasses.length,
-    transfer_pending: 0,
-    borrow_overdue: 0,
-    stock_below_min: 0,
-    part_check: 0,
-    qc_incoming: 0
+    stock_below_min: belowMin.length,
+    qc_incoming: qcIncoming.length
   };
-  var total = Object.keys(tabs).reduce(function(sum, key) { return sum + Number(tabs[key] || 0); }, 0);
+  // badge นับเฉพาะงานที่ต้องจัดการ (PR รอ/เบิกผิดปกติ/Bypass) — สองแท็บหลังเป็นสถานะคงค้าง
+  // ถ้านับรวมตัวเลขจะค้างสูงตลอดจนคนเลิกสนใจ badge
+  var total = tabs.pr_pending + tabs.issue_anomaly + tabs.budget_bypass;
   return {
     status: 'success',
     role: user.role,
@@ -1965,7 +2003,9 @@ function getInbox(payload) {
     pr_approved: prApproved,
     pr_rejected: prRejected,
     anomalies: anomalies,
-    budget_bypasses: budgetBypasses
+    budget_bypasses: budgetBypasses,
+    below_min: belowMin,
+    qc_incoming: qcIncoming
   };
 }
 

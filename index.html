@@ -12427,8 +12427,8 @@ function inferRequestPriority(stock, min) {
       { key: 'budget_bypass', label: 'เปิด PR เกินงบ (Bypass)', icon: '🚧', highRoleOnly: true },
       // แท็บยืม/โอน, ยืมค้าง, อะไหล่รอเช็ค ถูกถอดออก — ไม่มีฟีเจอร์รองรับ แท็บเปล่าสร้างความสับสน
       // (ค่อยเพิ่มกลับเมื่อสร้างฟีเจอร์จริง)
-      { key: 'stock_below_min', label: 'สต็อกต่ำกว่า Min', icon: '📉', placeholder: true },
-      { key: 'qc_incoming', label: 'ของเข้ารอตรวจรับ', icon: '📦', placeholder: true }
+      { key: 'stock_below_min', label: 'สต็อกต่ำกว่า Min', icon: '📉' },
+      { key: 'qc_incoming', label: 'ของเข้ารอตรวจรับ', icon: '📦' }
     ];
     var inboxData = null;
     var inboxActiveTab = 'pr_pending';
@@ -12555,11 +12555,66 @@ function inferRequestPriority(stock, min) {
           : '<div class="p-6 text-center text-slate-400">✅ ไม่มีการเปิด PR เกินงบใน 30 วันล่าสุด</div>';
         return;
       }
+      if (inboxActiveTab === 'stock_below_min') {
+        var belowMin = (inboxData && inboxData.below_min) || [];
+        var bmHtml = '';
+        if (inboxData && inboxData.can_approve && belowMin.some(function(x) { return !x.in_pending_pr; })) {
+          bmHtml += '<div class="mb-3 flex justify-end"><button id="runAutoPrNowBtn" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100">🤖 สร้าง Auto-PR จากรายการต่ำกว่า Min เดี๋ยวนี้</button></div>';
+        }
+        listEl.innerHTML = belowMin.length
+          ? bmHtml + belowMin.map(inboxBelowMinCardHtml).join('')
+          : '<div class="p-6 text-center text-slate-400">✅ ไม่มีรายการต่ำกว่า Min 🎉</div>';
+        return;
+      }
+      if (inboxActiveTab === 'qc_incoming') {
+        var incoming = (inboxData && inboxData.qc_incoming) || [];
+        listEl.innerHTML = incoming.length
+          ? '<div class="mb-3 rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-500">📦 รายการที่สั่งซื้อแล้วรอของเข้า/รอตรวจรับ — รับของแล้วไปอัปเดตสถานะที่หน้า Purchase History</div>' + incoming.map(inboxQcIncomingCardHtml).join('')
+          : '<div class="p-6 text-center text-slate-400">✅ ไม่มีของค้างรอตรวจรับ</div>';
+        return;
+      }
       // tab อื่น = placeholder
       listEl.innerHTML = '<div class="rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center text-slate-400">' +
         '<div class="text-3xl mb-2">' + tabDef.icon + '</div>' +
         '<div class="font-semibold">' + escHtml(tabDef.label) + '</div>' +
         '<div class="text-xs mt-1">ส่วนนี้ยังไม่เปิดใช้งาน — จะเพิ่มในเฟสถัดไป</div></div>';
+    }
+
+    // การ์ดสต็อกต่ำกว่า Min — ของหมด (stock 0) โทนแดง, ต่ำกว่า Min โทนเหลือง
+    function inboxBelowMinCardHtml(m) {
+      var isOut = Number(m.stock) <= 0;
+      var chip = isOut
+        ? '<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">หมดสต็อก</span>'
+        : '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">ต่ำกว่า Min</span>';
+      var prChip = m.in_pending_pr
+        ? '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700" title="มี PR ค้างอนุมัติครอบคลุมรายการนี้แล้ว">📝 อยู่ใน PR แล้ว</span>'
+        : '<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">ยังไม่มี PR</span>';
+      return '<div class="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm border-l-4 ' + (isOut ? 'border-rose-500' : 'border-amber-400') + '">' +
+        '<div class="min-w-0">' +
+          '<div class="flex flex-wrap items-center gap-2"><span class="font-bold text-slate-800">' + escHtml(m.name) + (m.model && m.model !== '-' ? ' (' + escHtml(m.model) + ')' : '') + '</span>' + chip + prChip + '</div>' +
+          '<div class="mt-1 text-xs text-slate-600">คงเหลือ <b>' + Number(m.stock) + '</b> / Min ' + Number(m.min) + ' ' + escHtml(m.unit || 'PCS') + '</div>' +
+          '<div class="mt-0.5 text-xs text-slate-400">ชีท: ' + escHtml(m.sheet || '-') + (m.no ? ' · NO ' + escHtml(m.no) : '') + '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    // การ์ดของเข้ารอตรวจรับ — จาก Purchase History สถานะ Ordered / Partial Received
+    function inboxQcIncomingCardHtml(q) {
+      var isPartial = q.status === 'Partial Received';
+      var chip = isPartial
+        ? '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">รับแล้วบางส่วน</span>'
+        : '<span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">สั่งแล้ว รอของเข้า</span>';
+      var qtyTxt = isPartial
+        ? 'รับแล้ว <b>' + Number(q.received_qty) + '</b> / สั่ง ' + Number(q.qty_ordered)
+        : 'สั่ง <b>' + Number(q.qty_ordered) + '</b>';
+      return '<div class="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm border-l-4 ' + (isPartial ? 'border-amber-400' : 'border-blue-400') + '">' +
+        '<div class="min-w-0">' +
+          '<div class="flex flex-wrap items-center gap-2"><span class="font-bold text-slate-800">' + escHtml(q.part_name) + (q.model && q.model !== '-' ? ' (' + escHtml(q.model) + ')' : '') + '</span>' + chip +
+            (q.line ? '<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-500">' + escHtml(q.line) + '</span>' : '') + '</div>' +
+          '<div class="mt-1 text-xs text-slate-600">' + qtyTxt + ' ' + escHtml(q.unit || 'PCS') + (q.request_id ? ' · ใบขอ ' + escHtml(q.request_id) : '') + '</div>' +
+          '<div class="mt-0.5 text-xs text-slate-400">' + (q.ordered_date ? 'สั่งเมื่อ ' + escHtml(q.ordered_date) : (q.requested_date ? 'ขอเมื่อ ' + escHtml(q.requested_date) : '')) + '</div>' +
+        '</div>' +
+      '</div>';
     }
 
     function inboxAnomalyCardHtml(a) {
