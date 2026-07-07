@@ -3190,11 +3190,26 @@ function upsertMainItem(payload) {
       image_install_url: true,
       image_install_file_id: true
     };
+    // ฟิลด์ราคา/เอกสารที่โหมด lite ตัดทิ้ง — ฟอร์มแก้ไขที่เปิดจากรายการ lite จะส่งค่าว่างกลับมา
+    // ถ้าเขียนทับตามนั้นราคา/Supplier/Drawing ที่ลงไว้จะถูกลบเงียบๆ ทุกครั้งที่มีคนกดแก้ไข
+    // จึงถือว่า "ค่าว่าง = ไม่เปลี่ยนแปลง" เหมือนรูปภาพ (จะล้างค่าจริงให้แก้ในชีทโดยตรง)
+    var detailValueKeys = {
+      unit_price: true,
+      supplier: true,
+      price_updated_at: true,
+      price_remark: true,
+      drawing_url: true,
+      drawing_file_name: true,
+      drawing_revision: true,
+      datasheet_url: true,
+      quotation_url: true
+    };
     for (var key in fieldCols) {
       if (fieldCols[key] !== undefined) {
         var nextValue = values[key];
         if (key === 'coil_size' && String(nextValue || '').trim() === '') continue;
         if (imageValueKeys[key] && String(nextValue || '').trim() === '') continue;
+        if (detailValueKeys[key] && String(nextValue || '').trim() === '') continue;
         ctx.sheet.getRange(sheetRow, fieldCols[key] + 1).setValue(nextValue);
       }
     }
@@ -3605,7 +3620,9 @@ function doGet(e) {
         drawing_status: normalizeDrawingStatusValue(pickRowValue(row, map, ['drawingstatus', 'drawing_status'], '')),
         datasheet_url: isLiteRead ? '' : pickRowValue(row, map, ['datasheeturl', 'datasheet_url'], ''),
         quotation_url: isLiteRead ? '' : pickRowValue(row, map, ['quotationurl', 'quotation_url'], ''),
-        unit_price: isLiteRead ? '' : pickRowValue(row, map, ['unitprice', 'unit_price'], ''),
+        // unit_price ต้องมาในโหมด lite ด้วย — การ์ดหน้ารายการใช้เช็คว่า "ยังไม่มีราคา" จริงหรือไม่
+        // (เดิมตัดทิ้งทำให้การ์ดฟ้องไม่มีราคาทั้งที่ลงไว้แล้ว) เป็นตัวเลขสั้นๆ ไม่ทำ payload บวมแบบพวก URL
+        unit_price: pickRowValue(row, map, ['unitprice', 'unit_price'], ''),
         currency: pickRowValue(row, map, ['currency'], 'THB'),
         supplier: isLiteRead ? '' : pickRowValue(row, map, ['supplier'], ''),
         price_updated_at: isLiteRead ? '' : pickRowValue(row, map, ['priceupdatedat', 'price_updated_at'], ''),
