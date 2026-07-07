@@ -2873,25 +2873,6 @@
     </div>
   </div>
 
-  <!-- 💬 ผู้ช่วยถาม-ตอบข้อมูลคลัง (ฟรี ไม่ใช้ AI API) -->
-  <button id="aiChatFab" type="button" class="fixed bottom-5 right-5 z-[230] h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-2xl text-white shadow-xl hover:bg-violet-700 transition" style="display:none;" title="ถามข้อมูลคลังอะไหล่ (ฟรี)">💬</button>
-  <div id="aiChatPanel" class="fixed bottom-5 right-5 z-[240] w-[min(400px,calc(100vw-2rem))] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl" style="height:min(560px,calc(100vh-6rem));display:none;">
-    <div class="flex items-center justify-between rounded-t-2xl bg-violet-600 px-4 py-3 text-white">
-      <div>
-        <p class="text-sm font-bold">💬 ผู้ช่วยถาม-ตอบ (ฟรี)</p>
-        <p class="text-[11px] opacity-80">ตอบจากรูปแบบคำถามที่กำหนดไว้ ไม่ใช้ AI API</p>
-      </div>
-      <button id="aiChatCloseBtn" type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-lg hover:bg-white/30">×</button>
-    </div>
-    <div id="aiChatMessages" class="flex-1 space-y-3 overflow-y-auto p-4">
-      <div class="rounded-2xl rounded-tl-sm bg-slate-100 p-3 text-sm text-slate-700">สวัสดีครับ 👋 ถามได้ในรูปแบบนี้ (ฟรี ไม่มีค่าใช้จ่าย):<br/>• "เดือนนี้ใช้เงินค่าอะไหล่ไปเท่าไหร่"<br/>• "อะไรหมดสต็อกบ้าง" / "อะไรใกล้หมดบ้าง"<br/>• "เบิกอะไรเยอะสุด"<br/>• หรือพิมพ์ชื่อ/รุ่นอะไหล่ตรงๆ เช่น "bearing 6202"</div>
-    </div>
-    <div class="flex items-center gap-2 border-t border-slate-200 p-3">
-      <input id="aiChatInput" type="text" maxlength="300" class="h-10 flex-1 rounded-xl border border-slate-300 px-3 text-sm" placeholder="พิมพ์คำถาม..." />
-      <button id="aiChatSendBtn" type="button" class="h-10 rounded-xl bg-violet-600 px-4 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50">ส่ง</button>
-    </div>
-  </div>
-
   <div id="quickIssueModal" class="fixed inset-0 z-[210] hidden bg-white">
     <div id="quickIssueBackdrop" class="absolute inset-0 bg-white"></div>
     <div class="relative z-10 flex h-full w-full flex-col overflow-y-auto bg-white p-4">
@@ -4933,12 +4914,6 @@ function getIssueCartEntries() {
       loginModal.classList.toggle('hidden', isAuthenticated);
       document.body.classList.toggle('overflow-hidden', !isAuthenticated);
       lineMenuDockToggle.classList.toggle('hidden', !isAuthenticated);
-      var aiFab = document.getElementById('aiChatFab');
-      if (aiFab) aiFab.style.display = isAuthenticated ? 'inline-flex' : 'none';
-      if (!isAuthenticated) {
-        var aiPanel = document.getElementById('aiChatPanel');
-        if (aiPanel) aiPanel.style.display = 'none';
-      }
       if (isAuthenticated) normalizeMobileHeaderCartUi();
       if (!isAuthenticated) {
         document.body.classList.remove('line-menu-mobile-open');
@@ -12467,54 +12442,6 @@ function inferRequestPriority(stock, min) {
           fileInput.value = '';
         });
       });
-    })();
-
-    // ============ 💬 AI ผู้ช่วยถาม-ตอบข้อมูลคลัง ============
-    (function initAiChat() {
-      var fab = document.getElementById('aiChatFab');
-      var panel = document.getElementById('aiChatPanel');
-      var messagesEl = document.getElementById('aiChatMessages');
-      var input = document.getElementById('aiChatInput');
-      var sendBtn = document.getElementById('aiChatSendBtn');
-      var closeBtn = document.getElementById('aiChatCloseBtn');
-      if (!fab || !panel || !messagesEl || !input || !sendBtn) return;
-      var busy = false;
-      function openPanel() { panel.style.display = 'flex'; fab.style.display = 'none'; setTimeout(function() { input.focus(); }, 50); }
-      function closePanel() { panel.style.display = 'none'; if (authToken) fab.style.display = 'inline-flex'; }
-      fab.addEventListener('click', openPanel);
-      if (closeBtn) closeBtn.addEventListener('click', closePanel);
-      function addBubble(text, isUser) {
-        var div = document.createElement('div');
-        div.className = isUser
-          ? 'ml-8 rounded-2xl rounded-tr-sm bg-violet-600 p-3 text-sm text-white'
-          : 'mr-4 rounded-2xl rounded-tl-sm bg-slate-100 p-3 text-sm text-slate-700 whitespace-pre-wrap';
-        div.textContent = text;
-        messagesEl.appendChild(div);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-        return div;
-      }
-      function send() {
-        var q = String(input.value || '').trim();
-        if (!q || busy) return;
-        busy = true;
-        input.value = '';
-        sendBtn.disabled = true;
-        addBubble(q, true);
-        var thinking = addBubble('🔎 กำลังค้นข้อมูล...', false);
-        requestApi(withAuthPayload({ action: 'askDataFree', question: q }))
-          .then(parseApiResponse)
-          .then(function(res) { thinking.textContent = res.answer || 'ไม่มีคำตอบ'; })
-          .catch(function(err) {
-            thinking.textContent = '⚠️ ' + (err && err.message ? err.message : 'เกิดข้อผิดพลาด');
-          })
-          .finally(function() {
-            busy = false;
-            sendBtn.disabled = false;
-            messagesEl.scrollTop = messagesEl.scrollHeight;
-          });
-      }
-      sendBtn.addEventListener('click', send);
-      input.addEventListener('keydown', function(e) { if (e.key === 'Enter') send(); });
     })();
 
     // ============ แท็บเมนูจัดกลุ่มเป็น dropdown ============
