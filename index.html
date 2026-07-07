@@ -9651,6 +9651,7 @@ function inferRequestPriority(stock, min) {
     var prPendingUsageCache = { at: 0, pending: null, data: null };
     var prCarryOverState = false; // เปิด/ปิด ยกงบเหลือข้ามเดือน
     var prBudgetOverState = false; // มีไลน์เกินงบอยู่หรือไม่ (ใช้ล็อกปุ่มส่งอนุมัติ)
+    var prBudgetLoadingState = false; // กำลังคำนวณงบอยู่หรือไม่ — ล็อกปุ่มไว้ก่อนจนกว่าจะรู้ผลว่าเกินงบหรือไม่
     function prCarryOverEnabled() { return prCarryOverState; }
     function prInvalidatePendingUsage() { prPendingUsageCache.at = 0; prPendingUsageCache.data = null; }
     function prEnsurePendingUsage() {
@@ -9771,12 +9772,14 @@ function inferRequestPriority(stock, min) {
         var cb = document.getElementById('prBudgetCarryOver');
         if (cb) cb.addEventListener('change', function() { prCarryOverState = cb.checked; renderPrBudgetPanel(); });
       }
+      // ล็อกปุ่มส่งอนุมัติทันทีระหว่างรอผลคำนวณ — ห้ามให้กดได้ก่อนรู้ว่าเกินงบหรือไม่
+      prBudgetLoadingState = true; prUpdateSubmitLock();
       el.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-400 shadow-sm">⏳ กำลังคำนวณงบ Spare part เดือน ' + escHtml(monthKey) + '...</div>';
       prComputeBudget(monthKey).then(function(B) {
         var prByLine = prSelectedAmountByLine();
         var rows = prBudgetRows(B, prByLine).filter(function(r) { return r.hasBudget || r.prAmount > 0; });
         if (!rows.length) {
-          prBudgetOverState = false; prUpdateSubmitLock();
+          prBudgetLoadingState = false; prBudgetOverState = false; prUpdateSubmitLock();
           el.innerHTML = '<div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 shadow-sm flex flex-wrap items-center justify-between gap-2"><span>⚠️ ยังไม่มีงบ Spare part ของเดือน ' + escHtml(monthKey) + ' — จะไม่บล็อกการเปิด PR</span>' + toggleHtml + '</div>';
           bindToggle();
           return;
@@ -9834,27 +9837,36 @@ function inferRequestPriority(stock, min) {
             '<p class="mt-1.5 text-[10px] text-slate-400">' + noteBits.join(' · ') + '</p>' +
           '</div>';
         bindToggle();
+        prBudgetLoadingState = false;
         prBudgetOverState = anyOver;
         prUpdateSubmitLock();
       }).catch(function() {
-        prBudgetOverState = false; prUpdateSubmitLock();
+        prBudgetLoadingState = false; prBudgetOverState = false; prUpdateSubmitLock();
         el.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-400 shadow-sm">ดึงข้อมูลงบ Spare part ไม่สำเร็จ — จะไม่บล็อกการเปิด PR</div>';
       });
     }
-    // ล็อกปุ่มส่งอนุมัติเมื่อเกินงบ + โชว์ปุ่ม Bypass แยกต่างหาก (เจตนาชัดว่าจะเปิดทั้งที่เกิน)
+    // เก็บ hint เริ่มต้นของปุ่มส่งอนุมัติไว้ครั้งเดียวตอนโหลดหน้า เพื่อคืนค่าตอนปลดล็อก
+    var prPrintBtnHintDefaultHtml = (function() { var h = document.getElementById('prPrintBtnHint'); return h ? h.innerHTML : ''; })();
+    // ล็อกปุ่มส่งอนุมัติระหว่างกำลังคำนวณงบ หรือเมื่อเกินงบ + โชว์ปุ่ม Bypass แยกต่างหาก (เจตนาชัดว่าจะเปิดทั้งที่เกิน)
     function prUpdateSubmitLock() {
       var btn = document.getElementById('prPrintBtn');
       var hint = document.getElementById('prPrintBtnHint');
       var bypassBtn = document.getElementById('prBudgetBypassBtn');
+      var locked = prBudgetLoadingState || prBudgetOverState;
       if (btn) {
-        btn.disabled = prBudgetOverState;
-        btn.classList.toggle('opacity-40', prBudgetOverState);
-        btn.classList.toggle('cursor-not-allowed', prBudgetOverState);
+        btn.disabled = locked;
+        btn.classList.toggle('opacity-40', locked);
+        btn.classList.toggle('cursor-not-allowed', locked);
       }
-      if (hint && prBudgetOverState) hint.innerHTML = '🔒 เกินงบ Spare part — ลดรายการให้อยู่ในงบก่อน (หรือกด Bypass ด้านขวาถ้าจำเป็นจริง)';
-      if (bypassBtn) bypassBtn.classList.toggle('hidden', !prBudgetOverState);
+      if (hint) {
+        if (prBudgetLoadingState) hint.innerHTML = '⏳ กำลังตรวจสอบงบ Spare part... กรุณารอสักครู่';
+        else if (prBudgetOverState) hint.innerHTML = '🔒 เกินงบ Spare part — ลดรายการให้อยู่ในงบก่อน (หรือกด Bypass ด้านขวาถ้าจำเป็นจริง)';
+        else hint.innerHTML = prPrintBtnHintDefaultHtml;
+      }
+      // ปุ่ม Bypass โผล่เฉพาะตอนรู้ผลแน่ชัดแล้วว่าเกินงบ (ไม่โผล่ระหว่างโหลด กันกดข้ามขั้นตอนเช็ค)
+      if (bypassBtn) bypassBtn.classList.toggle('hidden', !(prBudgetOverState && !prBudgetLoadingState));
       var bypassHint = document.getElementById('prBypassHint');
-      if (bypassHint) bypassHint.classList.toggle('hidden', !prBudgetOverState);
+      if (bypassHint) bypassHint.classList.toggle('hidden', !(prBudgetOverState && !prBudgetLoadingState));
     }
     // ── จำลอง: เลือกอัตโนมัติให้พอดีงบ (greedy เรียงตามความเร่งด่วน) ──
     function prPriorityRank(c) {
