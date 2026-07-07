@@ -1773,6 +1773,24 @@ function getPRForApproval(payload) {
   return { status: 'success', header: header, lines: lines };
 }
 
+// รายชื่อผู้มีสิทธิ์อนุมัติ PR ของไลน์ที่ระบุ — โชว์ใต้ปุ่มส่งอนุมัติในหน้า PR builder
+// ให้คนส่งรู้ว่าใบนี้จะเข้า Inbox ของใครบ้าง จะได้ตามถูกคน (ระบบไม่มี notification ช่องทางอื่น)
+function getPrApprovers(payload) {
+  requirePermission({ authToken: payload.authToken }, 'pr_create');
+  var line = String(payload.line || '').trim();
+  var approvers = getAllUsers().filter(function(u) {
+    return u.isActive && u.permissions && u.permissions.pr_approve && prUserCanAccessLine(u, line);
+  }).map(function(u) {
+    return {
+      username: u.username,
+      role: u.role,
+      // ไลน์ว่าง หรือมี pr_view_all = เห็นทุกไลน์
+      line: (u.permissions.pr_view_all || !u.line) ? '' : u.line
+    };
+  });
+  return { status: 'success', line: line, approvers: approvers };
+}
+
 // อนุมัติ PR — เขียน status + qty_approved ทุกบรรทัด + audit เป็น operation เดียว (atomic)
 function approvePR(payload) {
   var lock = LockService.getScriptLock();
@@ -3491,6 +3509,7 @@ function doGet(e) {
     if (action === 'approvePR') return respond(approvePR(e.parameter), e);
     if (action === 'rejectPR') return respond(rejectPR(e.parameter), e);
     if (action === 'getPRStatus') return respond(getPRStatus(e.parameter), e);
+    if (action === 'getPrApprovers') return respond(getPrApprovers(e.parameter), e);
     if (action === 'saveStockCountResult') return respond(saveStockCountResult(e.parameter), e);
     if (action === 'getStockCountHistory') return respond(getStockCountHistory(e.parameter), e);
     if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(e.parameter), e);
@@ -3780,6 +3799,7 @@ function doPost(e) {
     if (action === 'approvePR') return respond(approvePR(body), e);
     if (action === 'rejectPR') return respond(rejectPR(body), e);
     if (action === 'getPRStatus') return respond(getPRStatus(body), e);
+    if (action === 'getPrApprovers') return respond(getPrApprovers(body), e);
     requirePermission(authPayload, 'view');
     if (action === 'upsertItem') {
       requirePermission(authPayload, 'manage_items');
