@@ -2013,9 +2013,8 @@
         </button>
       </div>
 
-      <!-- 📌 แผงงบ Spare part แบบ Dashboard — sticky ค้างบนจอเวลาเลื่อน ให้เห็น simulation ตลอด
-           ต้องทึบสนิททั้งกล่อง (ไม่มีช่องโปร่งใส) ไม่งั้นเนื้อหาที่เลื่อนผ่านด้านล่างจะทะลุมาซ้อนทับให้อ่านไม่รู้เรื่อง -->
-      <div id="prBudgetSticky" class="hidden sticky top-2 z-40 rounded-2xl bg-gray-50 p-2 shadow-lg ring-1 ring-gray-200">
+      <!-- 📌 แผงงบ Spare part แบบ Dashboard — อยู่นิ่งตามลำดับเนื้อหาปกติ (ไม่ sticky ตามการเลื่อนจอแล้ว) -->
+      <div id="prBudgetSticky" class="hidden rounded-2xl bg-gray-50 p-2 shadow-lg ring-1 ring-gray-200">
         <!-- งบ Spare part control (ดึงจาก Cost Ratio: มูลค่าผลิต × เป้าหมาย % − รายจ่ายที่บันทึกแล้ว) -->
         <div id="prBudgetPanel"></div>
         <!-- จำลอง: เลือกอัตโนมัติให้พอดีงบ -->
@@ -9652,7 +9651,6 @@ function inferRequestPriority(stock, min) {
     var prCarryOverState = false; // เปิด/ปิด ยกงบเหลือข้ามเดือน
     var prBudgetOverState = false; // มีไลน์เกินงบอยู่หรือไม่ (ใช้ล็อกปุ่มส่งอนุมัติ)
     var prBudgetLoadingState = false; // กำลังคำนวณงบอยู่หรือไม่ — ล็อกปุ่มไว้ก่อนจนกว่าจะรู้ผลว่าเกินงบหรือไม่
-    var prBudgetCollapsed = true; // ย่อรายไลน์ไว้เป็นค่าเริ่มต้น — โชว์แค่สรุปรวม กันแผง sticky สูงจนบังรายการด้านล่าง
     function prCarryOverEnabled() { return prCarryOverState; }
     function prInvalidatePendingUsage() { prPendingUsageCache.at = 0; prPendingUsageCache.data = null; }
     function prEnsurePendingUsage() {
@@ -9821,17 +9819,12 @@ function inferRequestPriority(stock, min) {
         var noteBits = ['งบ = มูลค่าผลิต × เป้าหมาย %'];
         if (anyPending) noteBits.push('รวม PR รออนุมัติ');
         if (carry && anyCarry) noteBits.push('ยกงบเหลือข้ามเดือน');
-        var collapseLabel = prBudgetCollapsed ? ('▾ ดูรายไลน์ (' + rows.length + ')') : '▴ ซ่อนรายไลน์';
         el.innerHTML =
           '<div class="rounded-xl border-2 ' + (anyOver ? 'border-rose-300 bg-rose-50' : 'border-gray-200 bg-white') + ' p-3 shadow-md">' +
             '<div class="mb-2 flex flex-wrap items-center justify-between gap-2">' +
               '<p class="text-xs font-bold text-gray-700">💰 งบ Spare part — เดือน ' + escHtml(monthKey) + '</p>' +
-              '<div class="flex flex-wrap items-center gap-2">' +
-                toggleHtml +
-                '<button id="prBudgetCollapseBtn" type="button" class="rounded-lg border border-gray-300 bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 transition whitespace-nowrap">' + collapseLabel + '</button>' +
-              '</div>' +
+              toggleHtml +
             '</div>' +
-            // สรุปรวม — โชว์เสมอแม้ย่อรายไลน์ไว้ ให้เห็นสถานะเกินงบตลอดเวลาโดยไม่ต้องกางรายไลน์
             '<div>' +
               '<div class="flex items-center justify-between gap-2">' +
                 '<span class="text-xs font-bold text-gray-800">รวมทุกไลน์</span>' + totStatus +
@@ -9839,19 +9832,10 @@ function inferRequestPriority(stock, min) {
               '<div class="mt-1 h-2.5 w-full rounded-full bg-gray-100 overflow-hidden"><div class="h-2.5 rounded-full" style="width:' + totFill + '%;background:' + totColor + '"></div></div>' +
               '<div class="mt-0.5 text-[9px] text-gray-400">งบรวม ' + money(totBudget) + ' · ใช้ไปแล้ว ' + money(totUsed) + ' · PR ใบนี้ ' + money(totPr) + '</div>' +
             '</div>' +
-            '<div id="prBudgetLinesWrap" class="mt-2 pt-2 border-t border-gray-200' + (prBudgetCollapsed ? ' hidden' : '') + '">' + body + '</div>' +
+            '<div class="mt-2 pt-2 border-t border-gray-200">' + body + '</div>' +
             '<p class="mt-1.5 text-[10px] text-gray-400">' + noteBits.join(' · ') + '</p>' +
           '</div>';
         bindToggle();
-        (function() {
-          var btn = document.getElementById('prBudgetCollapseBtn');
-          var wrap = document.getElementById('prBudgetLinesWrap');
-          if (btn && wrap) btn.addEventListener('click', function() {
-            prBudgetCollapsed = !prBudgetCollapsed;
-            wrap.classList.toggle('hidden', prBudgetCollapsed);
-            btn.textContent = prBudgetCollapsed ? ('▾ ดูรายไลน์ (' + rows.length + ')') : '▴ ซ่อนรายไลน์';
-          });
-        })();
         prBudgetLoadingState = false;
         prBudgetOverState = anyOver;
         prUpdateSubmitLock();
