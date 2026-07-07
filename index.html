@@ -4183,6 +4183,13 @@
       renderIssueCart();
     }
 
+    // ราคา/หน่วยของรายการใน cart จาก master — เกณฑ์เดียวกับระบบ PR: ต้องเป็นตัวเลข > 0 ถึงนับว่ามีราคา
+    // จุดประสงค์หลักคือให้เห็นว่ารายการไหน "ยังไม่มีราคา" จะได้ตามไปเติมข้อมูลให้ครบ
+    function issueCartUnitPrice(item) {
+      var n = item.unit_price === '' || item.unit_price === null || item.unit_price === undefined ? NaN : Number(item.unit_price);
+      return (Number.isFinite(n) && n > 0) ? n : null;
+    }
+
     function renderIssueCart() {
       var entries = Object.keys(issueCartState).map(function(key) {
         var found = findItemByIdentityKey(key);
@@ -4191,7 +4198,8 @@
       }).filter(Boolean);
       issueCartRenderEntries = entries;
 
-      issueCartSummary.textContent = entries.length + ' รายการ';
+      var noPriceCount = entries.filter(function(e) { return issueCartUnitPrice(e.item) === null; }).length;
+      issueCartSummary.textContent = entries.length + ' รายการ' + (noPriceCount ? ' · ❓ ยังไม่มีราคา ' + noPriceCount + ' รายการ' : '');
       if (issueCartSubmitBtn && !issueCartSubmitting) {
         var shouldDisable = !entries.length || !canIssuePart();
         issueCartSubmitBtn.disabled = shouldDisable;
@@ -4208,6 +4216,11 @@
         var qty = Math.min(entry.qty, safeNum(item.stock));
         var img = toSafeImageUrl(item.image_main_url, 200);
         var fallback = getSecondaryDriveImageUrl(item.image_main_url);
+        // แสดงราคาแบบไม่เด่น — ใช้สี gray/yellow เพราะ Tailwind v2.2.19 build นี้ไม่มี slate/amber
+        var priceNum = issueCartUnitPrice(item);
+        var priceHtml = priceNum !== null
+          ? '<p class="text-xs text-gray-400">฿' + priceNum.toLocaleString('th-TH') + ' / ' + (item.unit || 'PCS') + '</p>'
+          : '<p class="text-xs font-semibold text-yellow-700">❓ ยังไม่มีราคา</p>';
         return '<article class="rounded-xl border border-slate-200 bg-white p-2.5">' +
           '<div class="flex gap-2.5">' +
             '<img src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
@@ -4215,6 +4228,7 @@
               '<p class="truncate text-sm font-semibold text-slate-900">' + item.name + '</p>' +
               '<p class="truncate text-xs text-slate-500">' + (item.model || '-') + '</p>' +
               '<p class="text-xs text-slate-500">Stock: ' + item.stock + '</p>' +
+              priceHtml +
             '</div>' +
           '</div>' +
           '<div class="mt-2 flex items-center justify-between gap-2">' +
