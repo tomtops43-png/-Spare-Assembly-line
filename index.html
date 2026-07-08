@@ -12779,29 +12779,35 @@ function inferRequestPriority(stock, min) {
       });
     }
     function openApprovedPrPrintWindow(header, lines) {
-      var grand = 0;
-      var rows = lines.map(function(ln, i) {
-        var amt = Number(ln.qty_approved || 0) * Number(ln.unit_price || 0);
-        grand += amt;
-        return '<tr><td style="text-align:center">' + (i + 1) + '</td>' +
-          '<td>' + escHtml(ln.part_name || '-') + '<br><small style="color:#64748b">' + escHtml(ln.model || '') + (ln.part_no ? ' · ' + escHtml(ln.part_no) : '') + '</small></td>' +
-          '<td style="text-align:center">' + escHtml(ln.unit || '') + '</td>' +
-          '<td style="text-align:right">' + Number(ln.qty_approved || 0) + '</td>' +
-          '<td style="text-align:right">' + Number(ln.unit_price || 0).toLocaleString('th-TH') + '</td>' +
-          '<td style="text-align:right">' + amt.toLocaleString('th-TH') + '</td></tr>';
-      }).join('');
-      var css = 'body{font-family:"Noto Sans Thai",Arial,sans-serif;color:#1e293b;padding:24px;font-size:13px}' +
-        'h1{font-size:20px;color:#1e3a5f;margin:0 0 4px}.meta{color:#475569;font-size:12px;margin-bottom:12px}' +
-        'table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #cbd5e1;padding:6px 8px}' +
-        'th{background:#1e3a5f;color:#fff;font-size:12px}tfoot td{font-weight:700;background:#f1f5f9}' +
-        '.approved{display:inline-block;border:2px solid #059669;color:#059669;border-radius:8px;padding:2px 10px;font-weight:700;transform:rotate(-3deg)}';
-      var html = '<div><h1>ใบขอซื้อ (Purchase Request)</h1>' +
-        '<div class="meta">เลขที่: <b>' + escHtml(header.pr_id) + '</b> &nbsp; ไลน์/แผนก: ' + escHtml(header.line || '-') + (header.dept ? ' / ' + escHtml(header.dept) : '') + '<br>' +
-        'ผู้ขอ: ' + escHtml(header.created_by || '-') + ' (' + escHtml(header.created_at || '-') + ') &nbsp; ' +
-        '<span class="approved">✔ APPROVED โดย ' + escHtml(header.approved_by || '-') + ' · ' + escHtml(header.approved_at || '-') + '</span></div>' +
-        '<table><thead><tr><th>#</th><th>รายการ</th><th>หน่วย</th><th>จำนวนอนุมัติ</th><th>ราคา/หน่วย</th><th>รวม (฿)</th></tr></thead>' +
-        '<tbody>' + rows + '</tbody>' +
-        '<tfoot><tr><td colspan="5" style="text-align:right">รวมทั้งสิ้น</td><td style="text-align:right">' + grand.toLocaleString('th-TH') + '</td></tr></tfoot></table></div>';
+      // ใช้รายงานฉบับเต็มตัวเดียวกับที่ builder ใช้ (buildDocumentGradeReport) แทนตารางสั้นๆ เดิม
+      // — map บรรทัด PR จาก server → รูปแบบ candidate ที่ report ต้องการ, ใช้ qty_approved เป็นจำนวนจริง
+      // ส่วนรูป/stock/min/drawing report จะดึงเสริมจาก master (partsData) ให้เองตาม no/model/line
+      var items = (lines || []).map(function(ln) {
+        return {
+          no: ln.part_no || '', name: ln.part_name || '-', model: ln.model || '', brand: ln.brand || '',
+          category: ln.category || '', unit: ln.unit || 'PCS', line: header.line || '-',
+          suggestedQty: Number(ln.qty_approved || 0), unit_price: ln.unit_price,
+          reason: ln.remark || '', purpose: ln.remark || ''
+        };
+      });
+      var createdAt = String(header.created_at || '');
+      var opts = {
+        prNumber: header.pr_id,
+        preparedByOverride: header.created_by || '-',
+        departmentOverride: header.dept || '',
+        periodOverride: createdAt.slice(0, 7) || '',
+        submissionDateOverride: createdAt.slice(0, 10) || '',
+        statusOverride: 'APPROVED',
+        approvedByOverride: header.approved_by || '',
+        approvedAtOverride: header.approved_at || '',
+        // ปริ้นจาก Inbox = จัดกลุ่มตามไลน์จริงของรายการ ไม่ยึด prLineFilter ในฟอร์ม
+        isLineSpecificOverride: false,
+        selectedLineOverride: 'all',
+        includeAnnexC: true, includeAnnexD: true, annexMode: 'all', annexLimit: 0,
+        printFullDrawings: false, attachDrawingsSeparately: false
+      };
+      var html = buildDocumentGradeReport(items, opts);
+      var css = getPrDocCss();
       // ปริ้นผ่าน iframe ซ่อนแทน window.open — ปุ่มปริ้นต้องเช็คสถานะสดจาก server ก่อนเสมอ
       // (async) ทำให้ window.open หลุด call stack ของ click แล้วโดน popup blocker บล็อก
       // iframe ไม่ต้องขออนุญาต popup เลย
@@ -13904,15 +13910,23 @@ if (dashboardPage) {
       var attachDrawingsSeparately = options.attachDrawingsSeparately === true;
       var annexLimit = Number(options.annexLimit === undefined ? 0 : options.annexLimit);
       if (!Number.isFinite(annexLimit) || annexLimit < 0) annexLimit = 24;
-      var period = document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
-      var preparedBy = String((document.getElementById('prPreparedBy')||{}).value || '').trim() || '-';
-      var department = document.getElementById('prDepartment').value || 'Assembly Line';
+      // override ได้จาก options — ตอนปริ้นใบอนุมัติแล้วจาก Inbox ต้องใช้ข้อมูลของใบ PR จริง
+      // ไม่ใช่ค่าที่ค้างอยู่ในฟอร์ม builder (ซึ่งอาจเป็นของ PR คนละใบ)
+      var period = (options && options.periodOverride) || document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
+      var preparedBy = (options && options.preparedByOverride) || String((document.getElementById('prPreparedBy')||{}).value || '').trim() || '-';
+      var department = (options && options.departmentOverride) || (document.getElementById('prDepartment')||{}).value || 'Assembly Line';
       var nowTs = new Date();
-      var submissionDate = nowTs.toISOString().slice(0,10);
+      var submissionDate = (options && options.submissionDateOverride) || nowTs.toISOString().slice(0,10);
       var generatedAt = nowTs.toLocaleString('en-GB', { hour12: false });
+      // สถานะ+ผู้อนุมัติ override ตอนปริ้นใบที่อนุมัติแล้วจาก Inbox — ใบจริงต้องขึ้น APPROVED ไม่ใช่ Pending
+      var statusLabel = (options && options.statusOverride) || 'Pending Approval';
+      var statusColor = (options && options.statusOverride) ? '#059669' : '#dc2626';
+      var approvedByName = (options && options.approvedByOverride) || '';
+      var approvedAtLabel = (options && options.approvedAtOverride) || '';
       var modeNow = String((document.getElementById('prMode')||{}).value || 'assembly_monthly');
-      var selectedLineNow = String((document.getElementById('prLineFilter')||{}).value || 'all');
-      var isLineSpecific = modeNow === 'line_specific' && selectedLineNow !== 'all';
+      // ตอนปริ้นจาก Inbox บังคับ line จาก options — ไม่ให้ยึด prLineFilter ในฟอร์ม (อาจเป็นคนละใบ)
+      var selectedLineNow = (options && options.selectedLineOverride !== undefined) ? String(options.selectedLineOverride) : String((document.getElementById('prLineFilter')||{}).value || 'all');
+      var isLineSpecific = (options && options.isLineSpecificOverride !== undefined) ? !!options.isLineSpecificOverride : (modeNow === 'line_specific' && selectedLineNow !== 'all');
       function strictPartKey(value) {
         var key = String(value || '').trim().toLowerCase();
         if (!key || key === '-' || key === 'n/a' || key === 'na' || key === 'unknown') return '';
@@ -13967,8 +13981,9 @@ if (dashboardPage) {
           amount: price === null ? null : qty * price,
           reasonCodes: c.reason || '-',
           purpose: c.purpose || '',
-          stock: asNum(c.stock),
-          min: asNum(c.min),
+          // stock/min: ถ้า candidate ไม่มี (เช่นปริ้นจาก Inbox ที่ line มาจาก PR ไม่ใช่ partsData) เติมจาก master
+          stock: asNum(firstDefined([c.stock, master && master.stock], 0)),
+          min: asNum(firstDefined([c.min, master && master.min], 0)),
           image: normalizedImage,
           hasImage: !!normalizedImage,
           drawingUrl: drawingUrl,
@@ -13986,7 +14001,9 @@ if (dashboardPage) {
       var confirmed = normalized.filter(function(c){ return c.unitPrice !== null; });
       var tbc = normalized.filter(function(c){ return c.unitPrice === null; });
       var totalAmount = confirmed.reduce(function(sum, c){ return sum + c.amount; }, 0);
-      var outCount = normalized.filter(function(c){ return c.stock <= 0; }).length;
+      // นับ Out of Stock เฉพาะรายการที่รู้ข้อมูล stock จริง (มี min ตั้งไว้) — กันเคสปริ้นข้ามไลน์ที่
+      // master ไม่ถูกโหลด แล้ว stock=0 ปลอมทำให้ทุกรายการโชว์ว่าหมดสต็อก
+      var outCount = normalized.filter(function(c){ return c.min > 0 && c.stock <= 0; }).length;
       // ต้องนับตาม label "Below Min — Reorder Required" จริงๆ คือของเหลือน้อยกว่า min แต่ยังไม่หมด (0 < stock < min)
       // ไม่ใช่นับจาก priority level (เดิมนับ High/Critical priority ซึ่งเป็นคนละความหมายกับ label ทำให้ตัวเลขดูขัดแย้งกับ Out of Stock)
       var highCriticalCount = normalized.filter(function(c){ return c.stock > 0 && c.min > 0 && c.stock < c.min; }).length;
@@ -14264,7 +14281,7 @@ if (dashboardPage) {
         '<tr><td><b>Document No.</b></td><td style="color:#1f4e78;font-weight:bold;">' + esc(prNumber) + '</td><td>Line / Area</td><td>' + esc(lineLabel) + '</td></tr>' +
         '<tr><td>Request Period</td><td>' + esc(period) + '</td><td>Department</td><td>' + esc(department) + '</td></tr>' +
         '<tr><td>Prepared by</td><td>' + esc(preparedBy) + '</td><td>Date</td><td>' + esc(submissionDate) + '</td></tr>' +
-        '<tr><td>Generated at</td><td>' + esc(generatedAt) + '</td><td>Status</td><td style="color:#dc2626;font-weight:bold;">Pending Approval</td></tr>' +
+        '<tr><td>Generated at</td><td>' + esc(generatedAt) + '</td><td>Status</td><td style="color:' + statusColor + ';font-weight:bold;">' + esc(statusLabel) + '</td></tr>' +
         '</tbody></table>' +
         '<h2 class="section-table" style="color:#991b1b;page-break-before:avoid;">1. Executive Summary</h2>' +
         '<div style="border:2px solid #fca5a5;border-radius:8px;padding:12px;background:#fff7f7;margin-bottom:12px;">' +
@@ -14295,7 +14312,8 @@ if (dashboardPage) {
         '<table><thead><tr><th style="width:20%">Role</th><th style="width:22%">Name</th><th style="width:20%">Position</th><th style="width:18%">Date</th><th style="width:20%">Signature</th></tr></thead><tbody>' +
         '<tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>___________________</td></tr>' +
         '<tr><td>Checked by</td><td>___________________</td><td>___________________</td><td>___________________</td><td>___________________</td></tr>' +
-        '<tr><td>Approved by</td><td>___________________</td><td>Manager</td><td>___________________</td><td>___________________</td></tr>' +
+        // ใบที่อนุมัติแล้วจาก Inbox เติมชื่อผู้อนุมัติ+วันที่จริง แทนช่องว่างให้เซ็น
+        '<tr><td>Approved by</td><td>'+(approvedByName ? esc(approvedByName) : '___________________')+'</td><td>Manager</td><td>'+(approvedAtLabel ? esc(approvedAtLabel) : '___________________')+'</td><td>'+(approvedByName ? '✔ APPROVED' : '___________________')+'</td></tr>' +
         '</tbody></table>' +
         (urgentItems.length ? '<h2 class="section-table">3. Top Urgent Items — Immediate Action Required</h2><p style="color:#dc2626;font-size:12px;margin-bottom:6px;">Items below have Stock = 0 or Critical level — production may be affected if not approved promptly.</p><table class="pr-items">'+detailColgroup(includeLineColumn)+'<thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' : '') +
         (isLineSpecific
