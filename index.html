@@ -12738,11 +12738,22 @@ function inferRequestPriority(stock, min) {
         prApprovalState = res;
         if (meta) meta.textContent = res.header.pr_id + ' · โดย ' + (res.header.created_by || '-') + ' · ไลน์ ' + (res.header.line || '-') + ' · ' + res.lines.length + ' รายการ';
         if (body) body.innerHTML = res.lines.map(function(ln) {
+          // สแนปช็อตรูปตอนสร้าง PR (image_url) — ให้ผู้อนุมัติเห็นรูปประกอบจริง ไม่ใช่แค่ชื่อ/รุ่น
+          // เป็นตัวหนังสือ กันอนุมัติผิดตัวเวลาชื่อ/รุ่นคล้ายกัน (เช่น "Unknown Brand" หลายรายการ)
+          var imgSrc = toSafeImageUrl(ln.image_url, 200);
+          var hasImg = imgSrc !== FALLBACK_IMAGE;
           return '<tr class="border-b border-slate-100">' +
             '<td class="py-2 pr-2 text-slate-400">' + ln.line_no + '</td>' +
-            '<td class="py-2 pr-2"><div class="font-semibold text-slate-700">' + escHtml(ln.part_name || '-') + '</div>' +
-              '<div class="text-xs text-slate-400">' + escHtml(ln.model || '') + (ln.part_no ? ' · ' + escHtml(ln.part_no) : '') + '</div>' +
-              (ln.remark ? '<div class="mt-0.5 text-[11px] text-violet-600">' + escHtml(ln.remark) + '</div>' : '') + '</td>' +
+            '<td class="py-2 pr-2">' +
+              '<div class="flex items-start gap-2">' +
+                '<img src="' + imgSrc + '" alt="" class="h-11 w-11 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-0.5' + (hasImg ? ' cursor-zoom-in' : '') + '" data-appr-zoom="' + (hasImg ? escHtml(imgSrc) : '') + '" onerror="this.src=\'' + FALLBACK_IMAGE + '\';this.removeAttribute(\'data-appr-zoom\');" />' +
+                '<div class="min-w-0">' +
+                  '<div class="font-semibold text-slate-700">' + escHtml(ln.part_name || '-') + '</div>' +
+                  '<div class="text-xs text-slate-400">' + escHtml(ln.model || '') + (ln.part_no ? ' · ' + escHtml(ln.part_no) : '') + '</div>' +
+                  (ln.remark ? '<div class="mt-0.5 text-[11px] text-violet-600">' + escHtml(ln.remark) + '</div>' : '') +
+                '</div>' +
+              '</div>' +
+            '</td>' +
             '<td class="py-2 pr-2 text-right font-mono text-slate-500">' + Number(ln.qty_requested || 0) + '</td>' +
             '<td class="py-2 pr-2 text-right"><input data-appr-line="' + ln.line_no + '" type="number" min="0" value="' + Number(ln.qty_approved || 0) + '" class="h-9 w-20 rounded-lg border border-slate-300 px-2 text-right text-sm focus:ring-2 focus:ring-emerald-400" /></td>' +
             '<td class="py-2 pr-2 text-slate-500">' + escHtml(ln.unit || '') + '</td>' +
@@ -12926,6 +12937,12 @@ function inferRequestPriority(stock, min) {
     if (prApproveBtn) prApproveBtn.addEventListener('click', submitApprove);
     var prRejectBtn = document.getElementById('prRejectBtn');
     if (prRejectBtn) prRejectBtn.addEventListener('click', submitReject);
+    // คลิกรูปในตารางตรวจ+แก้ยอด PR เพื่อดูรูปขยาย (เผื่อรูปเล็กมองไม่ชัดว่าใช่ตัวที่ขอจริงไหม)
+    var prApprovalLinesEl = document.getElementById('prApprovalLines');
+    if (prApprovalLinesEl) prApprovalLinesEl.addEventListener('click', function(e) {
+      var img = e.target && e.target.closest ? e.target.closest('[data-appr-zoom]') : null;
+      if (img && img.getAttribute('data-appr-zoom')) openImageViewer(img.getAttribute('data-appr-zoom'));
+    });
     window.loadInboxBadge = loadInboxBadge;
     // รีเฟรช Inbox badge เองเป็นระยะ — หัวหน้าที่เปิดเว็บค้างไว้จะเห็นตัวเลข PR รออนุมัติเด้งเอง
     // โดยไม่ต้องรีเฟรชหน้า (ระบบไม่มี notification ช่องทางอื่น) ข้ามตอนแท็บถูกซ่อนกันยิง API ฟรีๆ
@@ -14644,7 +14661,9 @@ if (dashboardPage) {
           unit: item.unit || 'PCS',
           qty_requested: Number(item.suggestedQty || 0),
           unit_price: Number(item.unitPrice || 0) > 0 ? Number(item.unitPrice) : 0,
-          remark: item.purpose || item.reason || ''
+          remark: item.purpose || item.reason || '',
+          // สแนปช็อตรูปไว้ตอนสร้าง PR — ให้ผู้อนุมัติเห็นรูปประกอบตอนตรวจ+แก้ยอด (แทนที่จะเห็นแค่ตัวอักษร)
+          image_url: item.mainImage || ''
         };
       }).filter(function(ln) { return ln.qty_requested > 0; });
       if (!lines.length) { showQuickToast('ทุกบรรทัดมียอด 0 — กรุณาระบุจำนวนที่ขอ', 'warn'); return; }
