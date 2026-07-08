@@ -1674,6 +1674,9 @@
         <div>
           <h2 class="text-xl font-bold text-slate-900">ประวัติการเบิก / คืน</h2>
           <p class="text-sm text-slate-500 mt-0.5">บันทึกการเบิก-คืนอะไหล่ทั้งหมดในระบบ</p>
+          <!-- อัปเดตอัตโนมัติทุก ~90 วิระหว่างเปิดหน้านี้ค้างไว้ — กันเข้าใจผิดว่าข้อมูลค้าง
+               เวลาคนอื่นทำรายการจากเครื่องอื่นในช่วงเดียวกัน -->
+          <p id="logLastUpdatedText" class="text-xs text-slate-400 mt-0.5"></p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <button id="machineReportBtn" type="button" class="flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100 transition">
@@ -5998,27 +6001,41 @@ function getIssueCartEntries() {
       if (logNextBtn) logNextBtn.disabled = logCurrentPage >= totalPages;
     }
 
-    function loadLogData() {
-      if (logTable) logTable.innerHTML = '<tr><td colspan="' + (hasPermission('delete_logs') ? 13 : 12) + '" class="py-8 text-center text-slate-400">⏳ กำลังโหลด...</td></tr>';
+    var logDataLoading = false;
+    function updateLogLastUpdatedText() {
+      var el = document.getElementById('logLastUpdatedText');
+      if (el) el.textContent = 'อัปเดตล่าสุด ' + new Date().toLocaleTimeString('th-TH');
+    }
+    // silent = true: ใช้ตอน auto-refresh เบื้องหลัง — ไม่ล้าง filter/หน้าที่กำลังดูอยู่ และไม่ขึ้น
+    // "กำลังโหลด..." ทับตาราง (กันกระพริบระหว่างผู้ใช้อ่านข้อมูลอยู่)
+    function loadLogData(options) {
+      var silent = !!(options && options.silent);
+      if (logDataLoading) return;
+      logDataLoading = true;
+      if (!silent && logTable) logTable.innerHTML = '<tr><td colspan="' + (hasPermission('delete_logs') ? 13 : 12) + '" class="py-8 text-center text-slate-400">⏳ กำลังโหลด...</td></tr>';
       loadJsonpWithFallback(function(base){ return base + appendAuthToQuery('?action=logs'); })
         .then(function(rawData) {
           if (rawData && rawData.status === 'error') throw new Error(rawData.message || 'โหลด log ไม่สำเร็จ');
           if (!Array.isArray(rawData)) throw new Error('รูปแบบข้อมูล Log ไม่ถูกต้อง');
           logCache = rawData.slice();
-          logCurrentPage = 1;
-          logFilterLineVal = 'all'; logFilterTypeVal = 'all'; logFilterMonthVal = 'all'; logFilterSearchVal = '';
-          var fl = document.getElementById('logFilterLine');   if (fl) fl.value = 'all';
-          var ft = document.getElementById('logFilterType');   if (ft) ft.value = 'all';
-          var fm = document.getElementById('logFilterMonth');  if (fm) fm.value = 'all';
-          var fs = document.getElementById('logFilterSearch'); if (fs) fs.value = '';
+          if (!silent) {
+            logCurrentPage = 1;
+            logFilterLineVal = 'all'; logFilterTypeVal = 'all'; logFilterMonthVal = 'all'; logFilterSearchVal = '';
+            var fl = document.getElementById('logFilterLine');   if (fl) fl.value = 'all';
+            var ft = document.getElementById('logFilterType');   if (ft) ft.value = 'all';
+            var fm = document.getElementById('logFilterMonth');  if (fm) fm.value = 'all';
+            var fs = document.getElementById('logFilterSearch'); if (fs) fs.value = '';
+          }
           renderLogStats(logCache);
           renderLogTable(logCache);
           updateMachineDatalist(logCache);
+          updateLogLastUpdatedText();
         })
         .catch(function(err) {
           if (isAuthSessionError(err)) logout();
-          if (logTable) logTable.innerHTML = '<tr><td colspan="' + (hasPermission('delete_logs') ? 13 : 12) + '" class="py-6 text-center text-rose-500">' + escHtml(err.message) + '</td></tr>';
-        });
+          if (!silent && logTable) logTable.innerHTML = '<tr><td colspan="' + (hasPermission('delete_logs') ? 13 : 12) + '" class="py-6 text-center text-rose-500">' + escHtml(err.message) + '</td></tr>';
+        })
+        .finally(function() { logDataLoading = false; });
     }
 
     // Log filter event bindings (run after DOM ready)
@@ -6062,6 +6079,17 @@ function getIssueCartEntries() {
         });
       });
     })();
+
+    // รีเฟรชหน้า Log เองเป็นระยะระหว่างเปิดค้างไว้ — ผู้ใช้แจ้งว่าตัวเลขสถิติเหมือนค้าง
+    // ไม่ขยับ สาเหตุคือเดิมหน้านี้ดึงข้อมูลใหม่เฉพาะตอนสลับมาหน้านี้ หรือทำรายการเองจากเซสชัน
+    // เดียวกัน ถ้าเพื่อนร่วมงานเบิก/รับที่เครื่องอื่นระหว่างที่เปิดหน้านี้ค้างไว้ ตัวเลขจะไม่ขยับ
+    // จนกว่าจะสลับหน้าไปมาหรือกดรีเฟรชเอง — ใช้ silent refresh กันตัด filter/หน้าที่เปิดอยู่ทิ้ง
+    var LOG_PAGE_POLL_MS = 90000; // 1.5 นาที
+    setInterval(function() {
+      if (!currentUser || document.visibilityState === 'hidden') return;
+      if (!logPage || logPage.classList.contains('hidden')) return;
+      loadLogData({ silent: true });
+    }, LOG_PAGE_POLL_MS);
 
     if (logPrevBtn) {
       logPrevBtn.addEventListener('click', function() {
