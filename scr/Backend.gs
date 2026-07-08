@@ -55,7 +55,7 @@ var PRODUCTION_VOLUME_HEADERS = ['Month', 'Line', 'Actual Qty', 'Updated By', 'U
 var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updated By', 'Updated At'];
 // Purchase Request (PR) schema — เก็บ qty_requested (ล็อก) แยกจาก qty_approved (หัวหน้าแก้ได้)
 var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to'];
-var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark'];
+var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark', 'image_url'];
 var PR_AUDIT_HEADERS = ['timestamp', 'pr_id', 'action', 'actor', 'line', 'old_qty', 'new_qty', 'detail'];
 var PR_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
@@ -1709,6 +1709,9 @@ function createPRUnlocked(payload) {
     rowArr[lIdx.qty_approved] = qtyReq;          // เริ่มต้นเท่ากับที่ขอ ให้หัวหน้าปรับลดได้
     rowArr[lIdx.unit_price] = price;
     rowArr[lIdx.remark] = prStr(ln.remark);
+    // สแนปช็อตรูปไว้ตอนสร้าง PR — ผู้อนุมัติจะได้เห็นรูปประกอบตอนตรวจ/แก้ยอด โดยไม่ต้องพึ่ง
+    // cache ฝั่ง client ของไลน์นั้น (ซึ่งอาจไม่มีถ้าไม่เคยเปิดไลน์นี้มาก่อน) หรือ master ที่อาจถูกแก้ทีหลัง
+    if (lIdx.image_url !== undefined) rowArr[lIdx.image_url] = prStr(ln.image_url || ln.image || '');
     return rowArr;
   });
   linesSheet.getRange(linesSheet.getLastRow() + 1, 1, lineRows.length, lHeaderRow.length).setValues(lineRows);
@@ -1782,7 +1785,8 @@ function getPRForApproval(payload) {
       qty_requested: Number(r[lIdx.qty_requested] || 0),
       qty_approved: Number(r[lIdx.qty_approved] || 0),
       unit_price: Number(r[lIdx.unit_price] || 0),
-      remark: prStr(r[lIdx.remark])
+      remark: prStr(r[lIdx.remark]),
+      image_url: lIdx.image_url !== undefined ? prStr(r[lIdx.image_url]) : ''
     });
   }
   lines.sort(function(a, b) { return a.line_no - b.line_no; });
@@ -4054,7 +4058,9 @@ function readAllStockItemsLean() {
         min: Number(pickRowValue(row, map, ['min', 'qtymin'], 0)) || 0,
         max: Number(pickRowValue(row, map, ['max', 'qtymax'], 0)) || 0,
         unit_price: Number(pickRowValue(row, map, ['unitprice', 'unit_price'], 0)) || 0,
-        supplier: String(pickRowValue(row, map, ['supplier'], '')).trim()
+        supplier: String(pickRowValue(row, map, ['supplier'], '')).trim(),
+        // ให้ runAutoPrJob สแนปช็อตรูปแนบ PR ได้เหมือน PR ที่สร้างจากหน้าเว็บ (alias เดียวกับ lite/detail reader)
+        image_main_url: String(pickRowValue(row, map, ['image_main_url', 'imagemainurl', 'image_main', 'imagemain', 'mainimage', 'main_image', 'sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], '') || buildDriveViewUrlFromFileId(pickRowValue(row, map, ['image_main_file_id', 'imagemainfileid'], ''))).trim()
       });
     });
   });
@@ -4214,6 +4220,7 @@ function runAutoPrJob() {
       rowArr[lIdx.qty_approved] = qty;
       rowArr[lIdx.unit_price] = price;
       rowArr[lIdx.remark] = remarkParts.join(' | ');
+      if (lIdx.image_url !== undefined) rowArr[lIdx.image_url] = it.image_main_url || '';
       return rowArr;
     });
     linesSheet.getRange(linesSheet.getLastRow() + 1, 1, lineRows.length, lHeaderRow.length).setValues(lineRows);
