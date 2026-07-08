@@ -91,7 +91,9 @@
        9000: detail modals (roDetailModal)
        9500: image lightbox (roImageModal)
        9600: issue cart modal (issueCartModal)
-       10000: splash screen
+       10000: splash screen, prApprovalModal
+       10001: imageViewer (lightbox ดูรูปเต็ม) — ต้องอยู่เหนือทุก modal ที่อาจเรียกมันมาเปิด
+              (เช่น prApprovalModal) ไม่งั้นรูปจะเปิดขึ้นแต่ถูกบังจนมองไม่เห็น
        10002: confirm dialog (confirmDialog) — ต้องอยู่บนสุดเสมอ
     ────────────────────────────────────────────────────── */
     /* Tailwind v2 ไม่รองรับ arbitrary class เช่น z-[10002] / bg-slate-900/60
@@ -110,6 +112,11 @@
     ───────────────────────────────────────────────────────────── */
     #inboxOverlay { z-index: 9999; background: #f1f5f9; } /* bg-slate-100 */
     #prApprovalModal { z-index: 10000; background: rgba(15, 23, 42, 0.5); }
+    /* imageViewer เดิมใช้ class z-[60] (เหมาะกับตอนเปิดจากหน้า Stock ปกติ) แต่ตอนนี้ถูกเรียกใช้จาก
+       ในโมดัลตรวจ+แก้ยอด PR (z-index 10000) ด้วย — ถ้า z-index ต่ำกว่า modal ที่เรียกมันขึ้นมา
+       รูปจะเปิดแต่ถูกบังจนมองไม่เห็นเลย (คลิกแล้วเหมือนไม่มีอะไรเกิดขึ้น) ต้องกำหนดด้วย CSS จริง
+       เพราะ ID selector (#imageViewer) specificity สูงกว่า class z-[60] อยู่แล้ว ทับได้ชัวร์ */
+    #imageViewer { z-index: 10001; }
     .inbox-btn-ghost { background: rgba(255, 255, 255, 0.2); }
     .inbox-btn-ghost:hover { background: rgba(255, 255, 255, 0.32); }
     .inbox-badge-ghost { background: rgba(255, 255, 255, 0.28); }
