@@ -5892,7 +5892,12 @@ function getIssueCartEntries() {
       var statDetail = document.getElementById('logStatDetail');
       if (!statCards) return;
       var outCount = 0, outQty = 0, inCount = 0, inQty = 0;
-      var lineMap = {}, partMap = {}, userMap = {}, monthSet = {};
+      // lineSeenSet/monthSet เก็บทุกไลน์/เดือนที่เจอไม่ว่าประเภทไหน — ใช้แค่เติม dropdown filter
+      // ให้ครบ ส่วน lineOutMap/partOutMap นับเฉพาะ Output (เบิกออกจริง) สำหรับจัดอันดับ
+      // "เบิกมากสุด"/"ใช้มากสุด" — เดิมนับรวม Input ด้วย ทำให้การรับของเข้าครั้งใหญ่ครั้งเดียว
+      // (เช่น +144 ครั้งเดียว ไม่เคยถูกเบิกเลย) โผล่ขึ้นเป็น "ใช้มากสุด" ซึ่งขัดกับความหมายของป้ายชื่อ
+      var lineSeenSet = {}, monthSet = {};
+      var lineOutMap = {}, partOutMap = {}, userMap = {};
       allRows.forEach(function(r) {
         var isOut = String(r.type || '').toLowerCase() === 'output';
         var qty = Math.abs(Number(r.qty || 0));
@@ -5901,10 +5906,14 @@ function getIssueCartEntries() {
         var user = String(r.by || '-');
         var ts   = String(r.timestamp || '');
         var month = ts.length >= 7 ? ts.substring(0, 7) : '';
-        if (isOut) { outCount++; outQty += qty; }
-        else       { inCount++;  inQty  += qty; }
-        lineMap[line] = (lineMap[line] || 0) + 1;
-        partMap[part] = (partMap[part] || 0) + qty;
+        lineSeenSet[line] = true;
+        if (isOut) {
+          outCount++; outQty += qty;
+          lineOutMap[line] = (lineOutMap[line] || 0) + 1;
+          partOutMap[part] = (partOutMap[part] || 0) + qty;
+        } else {
+          inCount++; inQty += qty;
+        }
         userMap[user] = (userMap[user] || 0) + 1;
         if (month) monthSet[month] = true;
       });
@@ -5919,22 +5928,22 @@ function getIssueCartEntries() {
         statCard('🔻', 'เบิกออก (ครั้ง)',       outCount.toLocaleString('th-TH'),       '#be123c') +
         statCard('🔺', 'รับเข้า (ครั้ง)',       inCount.toLocaleString('th-TH'),        '#15803d') +
         statCard('📦', 'Qty เบิกออกรวม',        outQty.toLocaleString('th-TH'),         '#b45309');
-      // top line/part/user
-      var topLine = Object.keys(lineMap).sort(function(a,b){return lineMap[b]-lineMap[a];})[0] || '-';
-      var topPart = Object.keys(partMap).sort(function(a,b){return partMap[b]-partMap[a];})[0] || '-';
+      // top line/part (เฉพาะที่มีการเบิกออกจริง) / user (ทุกประเภท เพราะป้ายไม่ได้ระบุว่าเบิก/รับ)
+      var topLine = Object.keys(lineOutMap).sort(function(a,b){return lineOutMap[b]-lineOutMap[a];})[0] || '';
+      var topPart = Object.keys(partOutMap).sort(function(a,b){return partOutMap[b]-partOutMap[a];})[0] || '';
       var topUser = Object.keys(userMap).sort(function(a,b){return userMap[b]-userMap[a];})[0] || '-';
       var months  = Object.keys(monthSet).length;
       if (statDetail) {
         statDetail.innerHTML =
-          statCard('🏭', 'Line ที่เบิกมากสุด',    topLine + ' · ' + (lineMap[topLine]||0) + ' ครั้ง', '#7c3aed') +
-          statCard('⚡', 'Part ที่ใช้มากสุด',     topPart,  '#0369a1') +
+          statCard('🏭', 'Line ที่เบิกมากสุด',    topLine ? (topLine + ' · ' + lineOutMap[topLine] + ' ครั้ง') : 'ไม่มีการเบิกออก', '#7c3aed') +
+          statCard('⚡', 'Part ที่ใช้มากสุด',     topPart ? (topPart + ' · ' + partOutMap[topPart].toLocaleString('th-TH') + ' หน่วย') : 'ไม่มีการเบิกออก', '#0369a1') +
           statCard('👤', 'ผู้ทำรายการมากสุด',     topUser + ' · ' + (userMap[topUser]||0) + ' ครั้ง', '#0891b2') +
           statCard('📅', 'จำนวนเดือนที่มีข้อมูล', months + ' เดือน', '#059669');
       }
-      // populate line filter
+      // populate line filter — ใช้ lineSeenSet (ทุกประเภท) กันไลน์ที่มีแต่ Input ตกหล่นจาก dropdown
       var logFilterLineEl = document.getElementById('logFilterLine');
       if (logFilterLineEl && logFilterLineEl.options.length <= 1) {
-        var lines = Object.keys(lineMap).sort();
+        var lines = Object.keys(lineSeenSet).sort();
         lines.forEach(function(l) {
           var opt = document.createElement('option'); opt.value = l; opt.textContent = l;
           logFilterLineEl.appendChild(opt);
@@ -6026,7 +6035,9 @@ function getIssueCartEntries() {
             var fm = document.getElementById('logFilterMonth');  if (fm) fm.value = 'all';
             var fs = document.getElementById('logFilterSearch'); if (fs) fs.value = '';
           }
-          renderLogStats(logCache);
+          // สถิติสะท้อน filter ที่กำลังใช้อยู่ (ไม่ใช่ทั้ง log เสมอ) — filter ว่าง/all ตอนโหลดใหม่
+          // จึง = ทั้งหมดพอดี ไม่กระทบพฤติกรรมเดิมตอนยังไม่กรองอะไร
+          renderLogStats(getLogFilteredRows());
           renderLogTable(logCache);
           updateMachineDatalist(logCache);
           updateLogLastUpdatedText();
@@ -6040,11 +6051,13 @@ function getIssueCartEntries() {
 
     // Log filter event bindings (run after DOM ready)
     (function() {
+      // ผู้ใช้แจ้งว่าตั้ง filter แล้วการ์ดสถิติด้านบนไม่ขยับตาม — เดิม renderLogStats ถูกเรียกแค่ตอน
+      // โหลดข้อมูลใหม่ ไม่ได้ผูกกับการเปลี่ยน filter เลย จึงเพิ่ม renderLogStats ในทุก handler ด้วย
       function bindLogFilter(id, setter) {
         var el = document.getElementById(id);
         if (!el) return;
-        el.addEventListener('change', function() { setter(el.value); logCurrentPage = 1; renderLogTable(logCache); });
-        if (id === 'logFilterSearch') el.addEventListener('input', function() { setter(el.value); logCurrentPage = 1; renderLogTable(logCache); });
+        el.addEventListener('change', function() { setter(el.value); logCurrentPage = 1; renderLogStats(getLogFilteredRows()); renderLogTable(logCache); });
+        if (id === 'logFilterSearch') el.addEventListener('input', function() { setter(el.value); logCurrentPage = 1; renderLogStats(getLogFilteredRows()); renderLogTable(logCache); });
       }
       bindLogFilter('logFilterLine',   function(v){ logFilterLineVal   = v; });
       bindLogFilter('logFilterType',   function(v){ logFilterTypeVal   = v; });
@@ -6068,7 +6081,7 @@ function getIssueCartEntries() {
           btn.textContent = '...';
           requestApi(withAuthPayload({ action: 'deleteLogEntry', no: no, timestamp: timestamp, partName: partName })).then(function() {
             logCache = logCache.filter(function(item) { return String(item.no) !== String(no); });
-            renderLogStats(logCache);
+            renderLogStats(getLogFilteredRows());
             renderLogTable(logCache);
             showQuickToast('🗑 ลบรายการ Log แล้ว', 'success');
           }).catch(function(err) {
