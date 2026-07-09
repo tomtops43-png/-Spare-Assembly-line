@@ -7862,6 +7862,7 @@ function inferRequestPriority(stock, min) {
           spendByMonth[r.month] = (spendByMonth[r.month] || 0) + r.amount;
         } else {
           unpricedWithdrawQtyByMonth[r.month] = (unpricedWithdrawQtyByMonth[r.month] || 0) + r.qty;
+          // Safe cast to string before trim to prevent TypeErrors
           var mKey = String(r.model || '').trim() || String(r.partName || '').trim() || 'Unknown';
           unpricedWithdrawModels[mKey] = (unpricedWithdrawModels[mKey] || 0) + r.qty;
         }
