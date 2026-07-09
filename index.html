@@ -7776,11 +7776,16 @@ function inferRequestPriority(stock, min) {
         data: {
           labels: perMonth.map(function(d) { return d.label; }),
           datasets: [
-            { type: 'bar', label: 'ยอดขาย', data: perMonth.map(function(d) { return d.sales; }), backgroundColor: fccCostRatioSalesGradient, hoverBackgroundColor: '#1D4ED8', yAxisID: 'yBaht', borderRadius: 6, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
+            { type: 'line', label: 'ยอดขาย', data: perMonth.map(function(d) { return d.sales; }),
+              borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true,
+              yAxisID: 'yBahtSales', borderWidth: 2, pointRadius: 1.5, pointHoverRadius: 4, order: 2 },
+            { type: 'bar', label: 'งบ Spare part', data: perMonth.map(function(d) { return d.budget; }),
+              backgroundColor: '#CBD5E1', hoverBackgroundColor: '#94A3B8',
+              yAxisID: 'yBahtSpend', borderRadius: 4, order: 4, categoryPercentage: 0.64, barPercentage: 0.94 },
             { type: 'bar', label: 'ค่าใช้จ่ายอะไหล่', data: perMonth.map(function(d) { return d.expense; }),
               backgroundColor: function(c) { var d = perMonth[c.dataIndex]; return (d && d.budget != null && d.expense > d.budget) ? '#EF4444' : '#F59E0B'; },
               hoverBackgroundColor: function(c) { var d = perMonth[c.dataIndex]; return (d && d.budget != null && d.expense > d.budget) ? '#DC2626' : '#D97706'; },
-              yAxisID: 'yBaht', borderRadius: 6, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
+              yAxisID: 'yBahtSpend', borderRadius: 4, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
             { type: 'line', label: 'อัตราต้นทุน (%)', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#111827', backgroundColor: '#111827', yAxisID: 'yPct', cubicInterpolationMode: 'monotone', borderWidth: 2.2, order: 1, spanGaps: true,
               pointRadius: function(c) { return c.raw != null ? 3 : 0; }, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
               pointBackgroundColor: function(c) { var v = c.raw; return (v != null && tgt != null && v > tgt) ? '#EF4444' : '#22C55E'; } },
@@ -7794,8 +7799,9 @@ function inferRequestPriority(stock, min) {
           interaction: { mode: 'index', intersect: false },
           scales: {
             x: { grid: { display: false }, ticks: { font: { family: FONT, size: 11 }, color: '#64748b', padding: 10 } },
-            yBaht: { position: 'left', beginAtZero: true, title: { display: true, text: 'บาท (THB)', font: { family: FONT, size: 11 }, color: '#475569' }, grid: { color: '#E5E7EB' }, ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return '฿' + fccMoney(v); } } },
-            yPct: { position: 'right', beginAtZero: true, title: { display: true, text: '%', font: { family: FONT, size: 11 }, color: '#111827' }, grid: { drawOnChartArea: false }, ticks: { font: { family: FONT, size: 10 }, color: '#111827', callback: function(v) { return v + '%'; } } }
+            yBahtSpend: { position: 'left', beginAtZero: true, title: { display: true, text: 'รายจ่าย / งบประมาณ (บาท)', font: { family: FONT, size: 11 }, color: '#475569' }, grid: { color: '#E5E7EB' }, ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return '฿' + fccMoney(v); } } },
+            yBahtSales: { position: 'right', beginAtZero: true, display: false, grid: { drawOnChartArea: false } },
+            yPct: { position: 'right', beginAtZero: true, title: { display: true, text: 'สัดส่วนต้นทุน (%)', font: { family: FONT, size: 11 }, color: '#111827' }, grid: { drawOnChartArea: false }, ticks: { font: { family: FONT, size: 10 }, color: '#111827', callback: function(v) { return v + '%'; } } }
           },
           plugins: {
             legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 16, font: { family: FONT, size: 11 }, color: '#475569',
