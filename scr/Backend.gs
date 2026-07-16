@@ -11,6 +11,7 @@ SPARE_APP_CONFIG.purchaseHistoryAuditSheetName = SPARE_APP_CONFIG.purchaseHistor
 SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName || 'PurchaseHistoryImportLog';
 SPARE_APP_CONFIG.productionVolumeSheetName = SPARE_APP_CONFIG.productionVolumeSheetName || 'ProductionVolume';
 SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCostConfigSheetName || 'ProductionCostConfig';
+SPARE_APP_CONFIG.machinesSheetName = SPARE_APP_CONFIG.machinesSheetName || 'Machines';
 // Purchase Request (PR) — ระบบอนุมัติก่อนปริ้น (Header/Lines/Audit แยกชีท)
 SPARE_APP_CONFIG.prHeaderSheetName = SPARE_APP_CONFIG.prHeaderSheetName || 'PRHeaders';
 SPARE_APP_CONFIG.prLinesSheetName = SPARE_APP_CONFIG.prLinesSheetName || 'PRLines';
@@ -53,6 +54,9 @@ var PURCHASE_HISTORY_SOURCES = ['Purchase Request', 'PR Report', 'Manual', 'Auto
 var PRODUCTION_VOLUME_HEADERS = ['Month', 'Line', 'Actual Qty', 'Updated By', 'Updated At'];
 // ราคาต่อหน่วย (บาท/ชิ้น) และเป้าหมาย % ที่ต้องการควบคุมรายจ่ายอะไหล่ให้อยู่ในกรอบ ต่อไลน์
 var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updated By', 'Updated At'];
+// เครื่องจักรของแต่ละไลน์ (master list ให้ Admin กรอกเอง) — อะไหล่แต่ละชิ้นผูกได้หลายเครื่องจักร
+// โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
+var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
 // Purchase Request (PR) schema — เก็บ qty_requested (ล็อก) แยกจาก qty_approved (หัวหน้าแก้ได้)
 var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to'];
 var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark', 'image_url'];
@@ -938,6 +942,97 @@ function upsertProductionCostConfig(payload) {
   }
   sheet.appendRow([line, unitPrice, targetPct, user.username, now]);
   return { status: 'success', mode: 'insert' };
+}
+
+// =============================
+// MACHINES (master list ต่อไลน์ + ผูกกับอะไหล่แบบหลายเครื่อง)
+// =============================
+function getMachinesSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.machinesSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(MACHINE_HEADERS);
+  return sheet;
+}
+
+function rowToMachine(r) {
+  return {
+    machine_id: String(r[0] || ''),
+    line: String(r[1] || ''),
+    machine_name: String(r[2] || ''),
+    active: String(r[3]).toUpperCase() !== 'FALSE',
+    created_by: String(r[4] || ''),
+    created_at: String(r[5] || ''),
+    updated_by: String(r[6] || ''),
+    updated_at: String(r[7] || '')
+  };
+}
+
+function getMachines(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var values = getMachinesSheet().getDataRange().getValues();
+  var list = values.length <= 1 ? [] : values.slice(1)
+    .filter(function(r) { return String(r[0] || '').trim(); })
+    .map(rowToMachine);
+  var line = String(payload.line || '').trim();
+  if (line) list = list.filter(function(m) { return m.line === line; });
+  if (String(payload.includeInactive || '') !== '1') list = list.filter(function(m) { return m.active; });
+  return list;
+}
+
+function addMachine(payload) {
+  var user = requireAdminUser({ authToken: payload.authToken });
+  var line = String(payload.line || '').trim();
+  var name = String(payload.machine_name || '').trim();
+  if (!line) throw new Error('กรุณาระบุ Line');
+  if (!name) throw new Error('กรุณาระบุชื่อเครื่องจักร');
+  var sheet = getMachinesSheet();
+  var values = sheet.getDataRange().getValues();
+  var dup = values.slice(1).some(function(r) {
+    return String(r[1] || '').trim() === line && String(r[2] || '').trim().toLowerCase() === name.toLowerCase();
+  });
+  if (dup) throw new Error('มีชื่อเครื่องจักรนี้อยู่แล้วในไลน์นี้');
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var machineId = 'MC-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + Utilities.getUuid().slice(0, 8);
+  sheet.appendRow([machineId, line, name, true, user.username, now, user.username, now]);
+  return { status: 'success', machine_id: machineId };
+}
+
+function updateMachine(payload) {
+  var user = requireAdminUser({ authToken: payload.authToken });
+  var machineId = String(payload.machine_id || '').trim();
+  if (!machineId) throw new Error('ไม่พบรหัสเครื่องจักร');
+  var sheet = getMachinesSheet();
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '') === machineId) {
+      var name = payload.machine_name !== undefined ? String(payload.machine_name).trim() : String(values[i][2] || '');
+      if (!name) throw new Error('กรุณาระบุชื่อเครื่องจักร');
+      var active = payload.active !== undefined
+        ? (String(payload.active) === '1' || String(payload.active).toLowerCase() === 'true')
+        : (String(values[i][3]).toUpperCase() !== 'FALSE');
+      var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+      sheet.getRange(i + 1, 3).setValue(name);
+      sheet.getRange(i + 1, 4).setValue(active);
+      sheet.getRange(i + 1, 7, 1, 2).setValues([[user.username, now]]);
+      return { status: 'success' };
+    }
+  }
+  throw new Error('ไม่พบเครื่องจักรนี้');
+}
+
+function deleteMachine(payload) {
+  requireAdminUser({ authToken: payload.authToken });
+  var machineId = String(payload.machine_id || '').trim();
+  if (!machineId) throw new Error('ไม่พบรหัสเครื่องจักร');
+  var sheet = getMachinesSheet();
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '') === machineId) {
+      sheet.deleteRow(i + 1);
+      return { status: 'success' };
+    }
+  }
+  throw new Error('ไม่พบเครื่องจักรนี้');
 }
 
 function getPurchaseHistoryImportLogSheet() {
@@ -3139,7 +3234,8 @@ function upsertMainItem(payload) {
     supplier: findCol(['supplier']),
     price_updated_at: findCol(['priceupdatedat', 'price_updated_at']),
     price_remark: findCol(['priceremark', 'price_remark']),
-    coil_size: findCol(['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size'])
+    coil_size: findCol(['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size']),
+    machines: findCol(['machines', 'machinelist', 'machine_list', 'machinenames'])
   };
 
   if (fieldCols.brand === undefined) {
@@ -3207,6 +3303,9 @@ function upsertMainItem(payload) {
   if (fieldCols.coil_size === undefined) {
     fieldCols.coil_size = ensureColumnInContext(ctx, 'Coil Size', ['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size']);
   }
+  if (fieldCols.machines === undefined) {
+    fieldCols.machines = ensureColumnInContext(ctx, 'Machines', ['machines', 'machinelist', 'machine_list', 'machinenames']);
+  }
 
   if (fieldCols.image_install_file_id === undefined) {
     fieldCols.image_install_file_id = ensureColumnInContext(ctx, 'image_install_file_id', ['image_install_file_id', 'imageinstallfileid']);
@@ -3252,7 +3351,8 @@ function upsertMainItem(payload) {
     supplier: payload.supplier || '',
     price_updated_at: payload.price_updated_at || '',
     price_remark: payload.price_remark || '',
-    coil_size: payload.coil_size !== undefined ? payload.coil_size : (payload.machine_model !== undefined ? payload.machine_model : '')
+    coil_size: payload.coil_size !== undefined ? payload.coil_size : (payload.machine_model !== undefined ? payload.machine_model : ''),
+    machines: payload.machines !== undefined ? payload.machines : ''
   };
   Logger.log('[upsertMainItem] sheet=%s no=%s location=%s', sheetName, noValue, values.location);
   setLocationOverride(sheetName, noValue, values.location);
@@ -3531,6 +3631,10 @@ function doGet(e) {
     if (action === 'machineSpareReport') return respond(machineSpareReport(e.parameter), e);
     if (action === 'checkCrossLineStock') return respond(checkCrossLineStock(e.parameter), e);
     if (action === 'getPendingPrUsage') return respond(getPendingPrUsage(e.parameter), e);
+    if (action === 'getMachines') return respond(getMachines(e.parameter), e);
+    if (action === 'addMachine') return respond(addMachine(e.parameter), e);
+    if (action === 'updateMachine') return respond(updateMachine(e.parameter), e);
+    if (action === 'deleteMachine') return respond(deleteMachine(e.parameter), e);
     if (action === 'upsertUser') return respond(upsertUser({
       authToken: authToken,
       username: e.parameter.username,
@@ -3627,7 +3731,8 @@ function doGet(e) {
       drawing_revision: e.parameter.drawing_revision,
       drawing_status: e.parameter.drawing_status,
       datasheet_url: e.parameter.datasheet_url,
-      quotation_url: e.parameter.quotation_url
+      quotation_url: e.parameter.quotation_url,
+      machines: e.parameter.machines
     }), e);
     }
     if (action === 'deleteItem') {
@@ -3706,7 +3811,9 @@ function doGet(e) {
         supplier: isLiteRead ? '' : pickRowValue(row, map, ['supplier'], ''),
         price_updated_at: isLiteRead ? '' : pickRowValue(row, map, ['priceupdatedat', 'price_updated_at'], ''),
         price_remark: isLiteRead ? '' : pickRowValue(row, map, ['priceremark', 'price_remark'], ''),
-        coil_size: pickRowValue(row, map, ['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size'], '-')
+        coil_size: pickRowValue(row, map, ['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size'], '-'),
+        // รายชื่อเครื่องจักรที่ใช้อะไหล่นี้ได้ (comma-separated) — มาจาก master list ในชีต Machines
+        machines: pickRowValue(row, map, ['machines', 'machinelist', 'machine_list', 'machinenames'], '')
       };
     }).filter(function (item) {
       return item.name && item.name !== '-';
@@ -3807,6 +3914,10 @@ function doPost(e) {
     if (action === 'getPendingPrUsage') {
       return respond(getPendingPrUsage(body), e);
     }
+    if (action === 'getMachines') return respond(getMachines(body), e);
+    if (action === 'addMachine') return respond(addMachine(body), e);
+    if (action === 'updateMachine') return respond(updateMachine(body), e);
+    if (action === 'deleteMachine') return respond(deleteMachine(body), e);
     if (action === 'aiReadNameplate') {
       return respond(aiReadNameplate(body), e);
     }
@@ -3894,7 +4005,8 @@ function doPost(e) {
         drawing_revision: body.drawing_revision,
         drawing_status: body.drawing_status,
         datasheet_url: body.datasheet_url,
-        quotation_url: body.quotation_url
+        quotation_url: body.quotation_url,
+        machines: body.machines
       }), e);
     }
     if (action === 'uploadDrawing' || action === 'uploadAttachment') {

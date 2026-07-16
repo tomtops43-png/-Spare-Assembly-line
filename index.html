@@ -2409,6 +2409,27 @@
         <div id="repairImageSharingResult" class="mt-3 text-sm"></div>
       </section>
 
+      <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">🏭 จัดการเครื่องจักรต่อไลน์</h3>
+            <p class="text-xs text-slate-500 mt-0.5">รายชื่อเครื่องจักรของแต่ละไลน์ ใช้ผูกกับอะไหล่ในฟอร์มแก้ไขรายการ (แสดงใน Detail)</p>
+          </div>
+          <select id="machineManageLineSelect" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm">
+            <option value="H9">H9</option>
+            <option value="Arc Chute">Arc Chute</option>
+            <option value="Coil Winding">Coil Winding</option>
+            <option value="Lug&Screw">Lug&Screw</option>
+          </select>
+        </div>
+        <div class="flex flex-wrap gap-2 mb-2">
+          <input id="machineManageNameInput" type="text" class="h-10 flex-1 min-w-[160px] rounded-xl border border-slate-300 px-3 text-sm" placeholder="ชื่อเครื่องจักรใหม่ เช่น Winding Machine 1" />
+          <button id="machineManageAddBtn" type="button" class="h-10 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 transition">+ เพิ่มเครื่องจักร</button>
+        </div>
+        <p id="machineManageMessage" class="text-xs mb-2"></p>
+        <div id="machineManageList" class="space-y-1.5"></div>
+      </section>
+
       <div class="grid gap-4 lg:grid-cols-[1fr_420px]">
         <!-- User List -->
         <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -2697,6 +2718,13 @@
         </section>
 
         <section class="rounded-2xl border border-slate-200 bg-white p-4">
+          <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">🏭 ใช้กับเครื่องจักร (เลือกได้หลายเครื่อง)</p>
+          <div id="eMachinesList" class="flex flex-wrap gap-2">
+            <span class="text-sm text-slate-400">ระบุ Line ก่อนเพื่อแสดงรายชื่อเครื่องจักร</span>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-4">
           <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">🖼️ รูปหลัก</p>
           <div class="flex flex-col sm:flex-row gap-4">
             <img id="eImageMainPreview" src="images/no-image.svg" alt="edit main preview" class="h-32 w-32 shrink-0 rounded-xl border border-slate-200 object-contain bg-slate-50 p-1 mx-auto sm:mx-0" onerror="var fb=this.getAttribute('data-fallback-src');if(fb){this.setAttribute('data-fallback-src','');this.src=fb;}else{this.src='images/no-image.svg';}" />
@@ -2809,6 +2837,10 @@
                 <div id="detailFieldUnit" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Unit</p><p id="detailUnit" class="font-semibold text-base text-slate-800">-</p></div>
                 <div id="detailFieldSubLine" class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2"><p class="text-xs text-slate-500">Sub-line / Sheet</p><p id="detailSubLine" class="font-semibold text-base text-slate-800">-</p></div>
               </div>
+            </section>
+            <section class="rounded-2xl border border-slate-200 bg-white p-4">
+              <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">🏭 ใช้กับเครื่องจักร</p>
+              <div id="detailMachinesList" class="flex flex-wrap gap-2"></div>
             </section>
             <section class="rounded-2xl border border-slate-200 bg-white p-4">
               <p class="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">💰 ข้อมูลราคา</p>
@@ -4854,6 +4886,24 @@ function getIssueCartEntries() {
       return body;
     }
 
+    var machinesCacheByLine = {};
+    function fetchMachinesForLine(line, includeInactive) {
+      var key = String(line || '').trim();
+      if (!key) return Promise.resolve([]);
+      var cacheKey = key + '::' + (includeInactive ? '1' : '0');
+      if (machinesCacheByLine[cacheKey]) return machinesCacheByLine[cacheKey];
+      var p = requestApi(withAuthPayload({ action: 'getMachines', line: key, includeInactive: includeInactive ? '1' : '' })).then(function(list) {
+        return Array.isArray(list) ? list : [];
+      }).catch(function(err) {
+        console.warn('fetchMachinesForLine failed', err);
+        delete machinesCacheByLine[cacheKey];
+        return [];
+      });
+      machinesCacheByLine[cacheKey] = p;
+      return p;
+    }
+    function invalidateMachinesCache() { machinesCacheByLine = {}; }
+
     function appendAuthToQuery(query) {
       if (!authToken) return query;
       return query + '&authToken=' + encodeURIComponent(authToken);
@@ -5734,7 +5784,8 @@ function getIssueCartEntries() {
         drawing_revision: payload.drawing_revision || '',
         drawing_status: payload.drawing_status || '',
         datasheet_url: payload.datasheet_url || '',
-        quotation_url: payload.quotation_url || ''
+        quotation_url: payload.quotation_url || '',
+        machines: payload.machines || ''
       };
       requestPayload.qty = Number(payload.qty !== undefined ? payload.qty : requestPayload.stock || 0);
       if (!Number.isFinite(requestPayload.qty)) requestPayload.qty = 0;
@@ -5771,6 +5822,7 @@ function getIssueCartEntries() {
         'drawing_status=' + encodeURIComponent(requestPayload.drawing_status),
         'datasheet_url=' + encodeURIComponent(requestPayload.datasheet_url),
         'quotation_url=' + encodeURIComponent(requestPayload.quotation_url),
+        'machines=' + encodeURIComponent(requestPayload.machines),
         'qty=' + encodeURIComponent(String(requestPayload.qty)),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
@@ -9312,6 +9364,38 @@ function inferRequestPriority(stock, min) {
       loadPurchaseHistory(false).catch(function() {});
     }
 
+    function renderMachineManageList(list) {
+      var container = document.getElementById('machineManageList');
+      if (!container) return;
+      if (!list.length) {
+        container.innerHTML = '<p class="text-sm text-slate-400">ยังไม่มีเครื่องจักรของไลน์นี้</p>';
+        return;
+      }
+      container.innerHTML = list.map(function(m) {
+        return '<div class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">' +
+          '<div class="flex items-center gap-2 min-w-0">' +
+            '<label class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold ' + (m.active ? 'text-emerald-700' : 'text-slate-400') + '">' +
+              '<input type="checkbox" data-machine-active="' + escHtml(m.machine_id) + '" class="h-3.5 w-3.5" ' + (m.active ? 'checked' : '') + ' /> Active' +
+            '</label>' +
+            '<span class="truncate text-sm font-medium text-slate-800">' + escHtml(m.machine_name) + '</span>' +
+          '</div>' +
+          '<button type="button" data-machine-delete="' + escHtml(m.machine_id) + '" class="shrink-0 rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">ลบ</button>' +
+        '</div>';
+      }).join('');
+    }
+
+    function loadMachineManageList() {
+      var select = document.getElementById('machineManageLineSelect');
+      var line = select ? select.value : 'H9';
+      var container = document.getElementById('machineManageList');
+      if (!container) return Promise.resolve();
+      container.innerHTML = '<p class="text-sm text-slate-400">กำลังโหลด...</p>';
+      invalidateMachinesCache();
+      return fetchMachinesForLine(line, true).then(function(list) {
+        renderMachineManageList(list);
+      });
+    }
+
     function switchToAdminPage() {
       if (!(isAdminUser() && hasPermission('manage_users'))) return switchToStockPage();
       stockPage.classList.add('hidden');
@@ -9328,6 +9412,7 @@ function inferRequestPriority(stock, min) {
         userManageMessage.className = 'text-sm mb-2 text-rose-600';
         userManageMessage.textContent = err && err.message ? err.message : 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ';
       });
+      loadMachineManageList();
     }
 
     function switchToPrReportPage() {
@@ -11076,6 +11161,36 @@ function inferRequestPriority(stock, min) {
 
 
 
+    function renderEditMachinesCheckboxes(line, selectedNames) {
+      var container = document.getElementById('eMachinesList');
+      if (!container) return;
+      var lineKey = String(line || '').trim();
+      if (!lineKey) {
+        container.innerHTML = '<span class="text-sm text-slate-400">ระบุ Line ก่อนเพื่อแสดงรายชื่อเครื่องจักร</span>';
+        return;
+      }
+      container.innerHTML = '<span class="text-sm text-slate-400">กำลังโหลด...</span>';
+      fetchMachinesForLine(lineKey).then(function(list) {
+        var eLineEl = document.getElementById('eLine');
+        if (eLineEl && String(eLineEl.value || '').trim() !== lineKey) return;
+        if (!list.length) {
+          container.innerHTML = '<span class="text-sm text-slate-400">ยังไม่มีเครื่องจักรของไลน์นี้ — เพิ่มได้ที่ Admin &gt; จัดการเครื่องจักร</span>';
+          return;
+        }
+        var selected = (selectedNames || []).map(function(s) { return String(s || '').trim(); });
+        container.innerHTML = list.map(function(m) {
+          var checked = selected.indexOf(m.machine_name) > -1 ? 'checked' : '';
+          return '<label class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm cursor-pointer hover:bg-slate-50">' +
+            '<input type="checkbox" class="e-machine-checkbox h-4 w-4" value="' + escHtml(m.machine_name) + '" ' + checked + ' /> ' + escHtml(m.machine_name) +
+          '</label>';
+        }).join('');
+      });
+    }
+
+    function getSelectedEditMachines() {
+      return Array.prototype.slice.call(document.querySelectorAll('#eMachinesList .e-machine-checkbox:checked')).map(function(cb) { return cb.value; });
+    }
+
     function openEditModal(item) {
       if (!item) return;
       if (!issueCartModal.classList.contains('hidden')) closeIssueCart();
@@ -11099,6 +11214,7 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eLocation').value = item.location || '';
       document.getElementById('eCategory').value = item.category || '';
       document.getElementById('eBrand').value = item.brand || '';
+      renderEditMachinesCheckboxes(item.line || '', String(item.machines || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean));
       document.getElementById('eImageMainFile').value = '';
       var ePreview = document.getElementById('eImageMainPreview');
       var eThumb = toSafeImageUrl(item.image_main_url, 800);
@@ -11217,7 +11333,8 @@ function inferRequestPriority(stock, min) {
         drawing_status: document.getElementById('eDrawingStatus').value.trim(),
         datasheet_url: document.getElementById('eDatasheetUrl').value.trim(),
         quotation_url: document.getElementById('eQuotationUrl').value.trim(),
-        coil_size: (document.getElementById('eCoilSize') ? document.getElementById('eCoilSize').value.trim() : '')
+        coil_size: (document.getElementById('eCoilSize') ? document.getElementById('eCoilSize').value.trim() : ''),
+        machines: getSelectedEditMachines().join(', ')
       };
       console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       editMessage.className = 'mt-3 text-sm text-emerald-600';
@@ -12116,6 +12233,13 @@ function inferRequestPriority(stock, min) {
       setAttachmentLink('detailViewDatasheet', item.datasheet_url || '');
       setAttachmentLink('detailViewQuotation', item.quotation_url || '');
       document.getElementById('detailRemark').textContent = item.remark || '-';
+      var detailMachinesListEl = document.getElementById('detailMachinesList');
+      if (detailMachinesListEl) {
+        var detailMachinesArr = String(item.machines || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        detailMachinesListEl.innerHTML = detailMachinesArr.length
+          ? detailMachinesArr.map(function(m) { return '<span class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">🏭 ' + escHtml(m) + '</span>'; }).join('')
+          : '<span class="text-sm text-slate-400">ยังไม่ได้ระบุเครื่องจักร</span>';
+      }
       var needToOrder = getNeedToOrder(item);
       var detailMetaParts = [item.brand, item.category, item.line, (item.subLine || item.__sourceSheet || '')].filter(function(v){ return v && String(v).trim() && String(v).trim() !== '-'; });
       var metaText = detailMetaParts.join(' • ');
@@ -13678,6 +13802,59 @@ if (dashboardPage) {
         var fileEl = document.getElementById('eDrawingFile'); if (fileEl) fileEl.value = '';
         var statusEl = document.getElementById('eDrawingStatus'); if (statusEl) statusEl.value = 'Missing';
         setAttachmentLink('eDrawingView', '');
+      });
+    });
+    var eLineInputForMachines = document.getElementById('eLine');
+    if (eLineInputForMachines) eLineInputForMachines.addEventListener('change', function() {
+      renderEditMachinesCheckboxes(eLineInputForMachines.value.trim(), getSelectedEditMachines());
+    });
+    var machineManageLineSelect = document.getElementById('machineManageLineSelect');
+    if (machineManageLineSelect) machineManageLineSelect.addEventListener('change', function() { loadMachineManageList(); });
+    var machineManageAddBtn = document.getElementById('machineManageAddBtn');
+    if (machineManageAddBtn) machineManageAddBtn.addEventListener('click', function() {
+      var input = document.getElementById('machineManageNameInput');
+      var msg = document.getElementById('machineManageMessage');
+      var name = input ? input.value.trim() : '';
+      var line = machineManageLineSelect ? machineManageLineSelect.value : '';
+      if (!name) {
+        if (msg) { msg.className = 'text-xs mb-2 text-rose-600'; msg.textContent = 'กรุณากรอกชื่อเครื่องจักร'; }
+        return;
+      }
+      machineManageAddBtn.disabled = true;
+      requestApi(withAuthPayload({ action: 'addMachine', line: line, machine_name: name })).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'เพิ่มไม่สำเร็จ');
+        if (input) input.value = '';
+        if (msg) { msg.className = 'text-xs mb-2 text-emerald-600'; msg.textContent = 'เพิ่มเครื่องจักรแล้ว'; }
+        return loadMachineManageList();
+      }).catch(function(err) {
+        if (msg) { msg.className = 'text-xs mb-2 text-rose-600'; msg.textContent = (err && err.message) || 'เพิ่มไม่สำเร็จ'; }
+      }).then(function() { machineManageAddBtn.disabled = false; });
+    });
+    var machineManageListEl = document.getElementById('machineManageList');
+    if (machineManageListEl) machineManageListEl.addEventListener('change', function(e) {
+      var machineId = e.target && e.target.getAttribute && e.target.getAttribute('data-machine-active');
+      if (!machineId) return;
+      var msg = document.getElementById('machineManageMessage');
+      requestApi(withAuthPayload({ action: 'updateMachine', machine_id: machineId, active: e.target.checked ? '1' : '0' })).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'อัปเดตไม่สำเร็จ');
+        loadMachineManageList();
+      }).catch(function(err) {
+        if (msg) { msg.className = 'text-xs mb-2 text-rose-600'; msg.textContent = (err && err.message) || 'อัปเดตไม่สำเร็จ'; }
+        loadMachineManageList();
+      });
+    });
+    if (machineManageListEl) machineManageListEl.addEventListener('click', function(e) {
+      var machineId = e.target && e.target.getAttribute && e.target.getAttribute('data-machine-delete');
+      if (!machineId) return;
+      showConfirmDialog({ title: 'ลบเครื่องจักร', message: 'ยืนยันการลบเครื่องจักรนี้? (อะไหล่ที่เคยผูกไว้จะยังคงมีชื่อเครื่องเดิมค้างอยู่ ต้องไปแก้ไขเอง)', okLabel: 'ลบ' }).then(function(ok) {
+        if (!ok) return;
+        requestApi(withAuthPayload({ action: 'deleteMachine', machine_id: machineId })).then(function(res) {
+          if (!res || res.status !== 'success') throw new Error((res && res.message) || 'ลบไม่สำเร็จ');
+          loadMachineManageList();
+        }).catch(function(err) {
+          var msg = document.getElementById('machineManageMessage');
+          if (msg) { msg.className = 'text-xs mb-2 text-rose-600'; msg.textContent = (err && err.message) || 'ลบไม่สำเร็จ'; }
+        });
       });
     });
     var refreshStockDataBtnMobile = document.getElementById('refreshStockDataBtnMobile');
