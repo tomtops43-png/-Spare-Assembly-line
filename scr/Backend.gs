@@ -283,6 +283,18 @@ function buildDriveViewUrlFromFileId(fileId) {
   return id ? ('https://drive.google.com/uc?export=view&id=' + id) : '';
 }
 
+// รายการ getSparePartsLite cache ไว้ 300 วิ (ดู doGet) — ต้องล้าง cache ของชีตนั้นทุกครั้งที่มีการ
+// แก้ไข/ลบ/ทำรายการเบิก-รับ ไม่งั้นค่าที่เพิ่งบันทึกจะไม่ขึ้นในหน้ารายการ/Detail จนกว่า cache จะหมดอายุเอง
+function invalidateSparePartsLiteCache(sheetName) {
+  var name = String(sheetName || '').trim();
+  if (!name) return;
+  try {
+    CacheService.getScriptCache().remove('spare_parts_lite::' + name);
+  } catch (err) {
+    Logger.log('invalidateSparePartsLiteCache warning [' + name + ']: ' + (err && err.message ? err.message : err));
+  }
+}
+
 function findHeaderRowIndex(data) {
   var requiredHints = ['no', 'name', 'description', 'category', 'brand', 'stock', 'qoh', 'model'];
   var maxScan = Math.min(data.length, 8);
@@ -2812,6 +2824,8 @@ function processTransactionUnlocked(payload) {
     }
   }
 
+  invalidateSparePartsLiteCache(resolvedSheetName);
+
   return {
     status: 'success',
     stockBefore: stockBefore,
@@ -3391,6 +3405,7 @@ function upsertMainItem(payload) {
         ctx.sheet.getRange(sheetRow, fieldCols[key] + 1).setValue(nextValue);
       }
     }
+    invalidateSparePartsLiteCache(sheetName);
     return { status: 'success', mode: 'update', no: noValue, sheet: sheetName, location: values.location };
   }
 
@@ -3400,6 +3415,7 @@ function upsertMainItem(payload) {
     if (fieldCols[k] !== undefined) newRow[fieldCols[k]] = values[k];
   }
   ctx.sheet.appendRow(newRow);
+  invalidateSparePartsLiteCache(sheetName);
   return { status: 'success', mode: 'create', no: noValue, sheet: sheetName, location: values.location };
 }
 
@@ -3416,6 +3432,7 @@ function deleteMainItem(payload) {
       var rowNumber = ctx.headerRowIndex + 2 + i;
       ctx.sheet.deleteRow(rowNumber);
       setLocationOverride(sheetName, noValue, '');
+      invalidateSparePartsLiteCache(sheetName);
       return { status: 'success', mode: 'delete', no: noValue };
     }
   }
