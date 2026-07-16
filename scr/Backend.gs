@@ -3476,61 +3476,6 @@ function getDriveAuthStatus() {
   }
 }
 
-// ซ่อมสิทธิ์เผยแพร่ไฟล์รูป/แนบทั้งหมดในสเปรดชีตนี้ (ทุกชีต ทุกแถว) — เดิม setSharing() ที่รันตอน
-// อัปโหลดแต่ละครั้งอาจ fail แบบเงียบๆ (ถูก catch ทิ้งแค่ log warning ไม่เคยแจ้งผู้ใช้) ทำให้ไฟล์
-// ถูกสร้างและบันทึก URL ไว้ในชีตแล้ว แต่เว็บสาธารณะเปิดรูปไม่ได้ (ต่างจาก Sheets ที่ล็อกอินด้วย
-// บัญชีเจ้าของไฟล์อยู่แล้วเลยเห็น preview ได้ปกติ) ฟังก์ชันนี้ไล่ setSharing ซ้ำให้ทุกไฟล์ที่เจอ
-function repairImageSharingPermissions(payload) {
-  var session = getSessionUser({ authToken: payload.authToken });
-  var user = findUserByUsername(session.user.username);
-  var role = normalizeRole(user && user.role);
-  if (role !== 'admin') throw new Error('เฉพาะ Admin เท่านั้นที่รันการซ่อมสิทธิ์รูปภาพได้');
-
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheets = spreadsheet.getSheets();
-  var seenFileIds = {};
-  var checked = 0, fixed = 0, broken = 0;
-  var brokenDetails = [];
-
-  sheets.forEach(function(sheet) {
-    var sheetName = sheet.getName();
-    var lastRow = sheet.getLastRow(), lastCol = sheet.getLastColumn();
-    if (lastRow < 2 || lastCol < 1) return;
-    var data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-    var headerRowIndex = findHeaderRowIndex(data);
-    var headers = data[headerRowIndex];
-    var map = buildHeaderIndexMap(headers);
-    var mainCol = map[normalizeHeaderName('image_main_file_id')];
-    var installCol = map[normalizeHeaderName('image_install_file_id')];
-    if (mainCol === undefined && installCol === undefined) return; // ไม่ใช่ชีตอะไหล่หลัก ข้าม
-
-    data.slice(headerRowIndex + 1).forEach(function(row) {
-      [mainCol, installCol].forEach(function(col) {
-        if (col === undefined) return;
-        var fileId = String(row[col] || '').trim();
-        if (!fileId || seenFileIds[fileId]) return;
-        seenFileIds[fileId] = true;
-        checked += 1;
-        try {
-          DriveApp.getFileById(fileId).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-          fixed += 1;
-        } catch (err) {
-          broken += 1;
-          brokenDetails.push({ sheet: sheetName, fileId: fileId, error: err && err.message ? err.message : String(err) });
-        }
-      });
-    });
-  });
-
-  return {
-    status: 'success',
-    checked: checked,
-    fixed: fixed,
-    broken: broken,
-    brokenDetails: brokenDetails.slice(0, 50)
-  };
-}
-
 function extractDriveFileIdBackend(input) {
   var value = String(input || '').trim();
   if (!value) return '';
@@ -3640,7 +3585,6 @@ function doGet(e) {
     if (action === 'logout') return respond(logoutUser(authPayload), e);
     if (action === 'session') return respond(getSessionUser(authPayload), e);
     if (action === 'listUsers') return respond(listUsers(authPayload), e);
-    if (action === 'repairImageSharingPermissions') return respond(repairImageSharingPermissions(e.parameter), e);
     if (action === 'auditItemImages') return respond(auditItemImages(e.parameter), e);
     if (action === 'runAutoPrNow') return respond(runAutoPrNow(e.parameter), e);
     if (action === 'getIssueAnomalies') return respond(getIssueAnomalies(e.parameter), e);
@@ -3906,9 +3850,6 @@ function doPost(e) {
     }
     if (action === 'listUsers') {
       return respond(listUsers(authPayload), e);
-    }
-    if (action === 'repairImageSharingPermissions') {
-      return respond(repairImageSharingPermissions(body), e);
     }
     if (action === 'auditItemImages') {
       return respond(auditItemImages(body), e);
