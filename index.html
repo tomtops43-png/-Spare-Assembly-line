@@ -7752,12 +7752,30 @@ function inferRequestPriority(stock, min) {
     // Combo chart (Chart.js): แท่งน้ำเงิน=Sales, แท่งแดง=Spare Expense (แกนซ้าย บาท) +
     // เส้นดำ=Cost Ratio %, เส้นเขียวประ=Target % (แกนขวา %) — ผู้บริหารอ่านจบใน 5 วินาที
     // perMonth = [{ label, sales, expense, ratio(|null), budget(|null) }] เรียงเก่า→ใหม่
+    // สำคัญ: ป้ายลอยพวกนี้เป็น position:absolute บน body — ถ้าซ่อนแค่ opacity:0
+    // ตัว element ยังค้างที่พิกัดลึกและ "ยืดความสูงหน้า" ทุกหน้าให้เลื่อนเกินเนื้อหา
+    // ต้องซ่อนด้วย display:none เสมอเพื่อไม่ให้กินพื้นที่ scroll
+    function fccHideFloatEl(el) { if (el) { el.style.opacity = 0; el.style.display = 'none'; } }
+    function fccShowFloatEl(el) { if (el) { el.style.display = 'block'; el.style.opacity = 1; } }
+    function fccHideAllChartFloats() {
+      fccHideFloatEl(document.getElementById('fccCostRatioTooltip'));
+      fccHideFloatEl(document.getElementById('fccCostRatioTargetLabel'));
+    }
+    // เฝ้าดู dashboardPage — ทันทีที่ถูกซ่อน (สลับไปหน้าไหนก็ตาม) เก็บป้ายลอยทั้งหมด
+    // ครอบคลุมทุกจุดที่สลับหน้าโดยไม่ต้องไล่แก้ทีละที่
+    (function() {
+      var dp = document.getElementById('dashboardPage');
+      if (!dp || typeof MutationObserver === 'undefined') return;
+      new MutationObserver(function() {
+        if (dp.classList.contains('hidden')) fccHideAllChartFloats();
+      }).observe(dp, { attributes: true, attributeFilter: ['class'] });
+    })();
     function fccCostRatioTooltipEl() {
       var el = document.getElementById('fccCostRatioTooltip');
       if (!el) {
         el = document.createElement('div');
         el.id = 'fccCostRatioTooltip';
-        el.style.cssText = 'position:absolute;pointer-events:none;z-index:10050;opacity:0;transition:opacity .12s ease;transform:translate(-50%,calc(-100% - 12px));background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.18);padding:12px 14px;font-family:\'Prompt\',\'Chakra Petch\',sans-serif;font-size:12.5px;line-height:1.6;color:#334155;min-width:190px;';
+        el.style.cssText = 'position:absolute;display:none;pointer-events:none;z-index:10050;opacity:0;transition:opacity .12s ease;transform:translate(-50%,calc(-100% - 12px));background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 14px 34px rgba(15,23,42,.18);padding:12px 14px;font-family:\'Prompt\',\'Chakra Petch\',sans-serif;font-size:12.5px;line-height:1.6;color:#334155;min-width:190px;';
         document.body.appendChild(el);
       }
       return el;
@@ -7769,7 +7787,7 @@ function inferRequestPriority(stock, min) {
       if (!el) {
         el = document.createElement('div');
         el.id = 'fccCostRatioTargetLabel';
-        el.style.cssText = 'position:absolute;pointer-events:none;z-index:10040;opacity:0;transition:opacity .15s ease;transform:translate(-100%,-50%);font-family:\'Prompt\',\'Chakra Petch\',sans-serif;font-size:10.5px;font-weight:700;color:#16A34A;background:rgba(240,253,244,.95);border:1px solid rgba(34,197,94,.4);border-radius:6px;padding:2px 7px;white-space:nowrap;';
+        el.style.cssText = 'position:absolute;display:none;pointer-events:none;z-index:10040;opacity:0;transition:opacity .15s ease;transform:translate(-100%,-50%);font-family:\'Prompt\',\'Chakra Petch\',sans-serif;font-size:10.5px;font-weight:700;color:#16A34A;background:rgba(240,253,244,.95);border:1px solid rgba(34,197,94,.4);border-radius:6px;padding:2px 7px;white-space:nowrap;';
         document.body.appendChild(el);
       }
       return el;
@@ -7798,16 +7816,18 @@ function inferRequestPriority(stock, min) {
       var fccTargetLabelPlugin = {
         id: 'fccCostRatioTargetLabelPos',
         afterRender: function(chart) {
-          if (tgt == null) { targetLabelEl.style.opacity = 0; return; }
+          if (tgt == null) { fccHideFloatEl(targetLabelEl); return; }
+          // canvas ถูกซ่อน (เช่นสลับไปหน้าอื่น) — ห้ามวางป้าย ไม่งั้นค้างกลางหน้าอื่นและยืดความสูงหน้า
+          if (!chart.canvas || chart.canvas.offsetParent === null) { fccHideFloatEl(targetLabelEl); return; }
           var scale = chart.scales.yPct, area = chart.chartArea;
-          if (!scale || !area) { targetLabelEl.style.opacity = 0; return; }
+          if (!scale || !area) { fccHideFloatEl(targetLabelEl); return; }
           var y = scale.getPixelForValue(tgt);
-          if (y < area.top - 4 || y > area.bottom + 4) { targetLabelEl.style.opacity = 0; return; }
+          if (y < area.top - 4 || y > area.bottom + 4) { fccHideFloatEl(targetLabelEl); return; }
           var rect = chart.canvas.getBoundingClientRect();
           targetLabelEl.textContent = 'เป้าหมาย ' + tgt + '%';
           targetLabelEl.style.left = (rect.left + window.pageXOffset + rect.width - 6) + 'px';
           targetLabelEl.style.top = (rect.top + window.pageYOffset + y) + 'px';
-          targetLabelEl.style.opacity = 1;
+          fccShowFloatEl(targetLabelEl);
         }
       };
       fccCostRatioChart = new Chart(canvas.getContext('2d'), {
@@ -7856,9 +7876,9 @@ function inferRequestPriority(stock, min) {
               external: function(ctx) {
                 var el = fccCostRatioTooltipEl();
                 var tt = ctx.tooltip;
-                if (!tt || tt.opacity === 0 || !tt.dataPoints || !tt.dataPoints.length) { el.style.opacity = 0; return; }
+                if (!tt || tt.opacity === 0 || !tt.dataPoints || !tt.dataPoints.length) { fccHideFloatEl(el); return; }
                 var d = perMonth[tt.dataPoints[0].dataIndex];
-                if (!d) { el.style.opacity = 0; return; }
+                if (!d) { fccHideFloatEl(el); return; }
                 function row(lbl, val, color) { return '<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0;"><span style="color:#94a3b8;">' + lbl + '</span><b style="color:' + color + ';">' + val + '</b></div>'; }
                 var html = '<div style="font-weight:700;color:#0f172a;margin-bottom:7px;border-bottom:1px solid #f1f5f9;padding-bottom:6px;">' + fccEsc(d.label) + '</div>';
                 html += row('ยอดขาย', '฿' + fccInt(d.sales), '#3B82F6');
@@ -7873,7 +7893,7 @@ function inferRequestPriority(stock, min) {
                 var rect = ctx.chart.canvas.getBoundingClientRect();
                 el.style.left = (rect.left + window.pageXOffset + tt.caretX) + 'px';
                 el.style.top = (rect.top + window.pageYOffset + tt.caretY) + 'px';
-                el.style.opacity = 1;
+                fccShowFloatEl(el);
               }
             }
           }
