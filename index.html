@@ -9379,16 +9379,65 @@ function inferRequestPriority(stock, min) {
         return;
       }
       container.innerHTML = list.map(function(m) {
-        return '<div class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">' +
-          '<div class="flex items-center gap-2 min-w-0">' +
+        return '<div data-machine-row="' + escHtml(m.machine_id) + '" data-machine-name="' + escHtml(m.machine_name) + '" class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">' +
+          '<div class="flex items-center gap-2 min-w-0 flex-1">' +
             '<label class="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold ' + (m.active ? 'text-emerald-700' : 'text-slate-400') + '">' +
               '<input type="checkbox" data-machine-active="' + escHtml(m.machine_id) + '" class="h-3.5 w-3.5" ' + (m.active ? 'checked' : '') + ' /> Active' +
             '</label>' +
-            '<span class="truncate text-sm font-medium text-slate-800">' + escHtml(m.machine_name) + '</span>' +
+            '<span data-machine-label class="truncate text-sm font-medium text-slate-800">' + escHtml(m.machine_name) + '</span>' +
           '</div>' +
-          '<button type="button" data-machine-delete="' + escHtml(m.machine_id) + '" class="shrink-0 rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">ลบ</button>' +
+          '<div class="flex shrink-0 gap-1.5">' +
+            '<button type="button" data-machine-edit="' + escHtml(m.machine_id) + '" class="rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50">✏️ แก้ไข</button>' +
+            '<button type="button" data-machine-delete="' + escHtml(m.machine_id) + '" class="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50">ลบ</button>' +
+          '</div>' +
         '</div>';
       }).join('');
+    }
+
+    // สลับแถวเครื่องจักรเป็นโหมดแก้ไขชื่อ inline (backend updateMachine รองรับ machine_name อยู่แล้ว)
+    function enterMachineEditMode(machineId) {
+      var container = document.getElementById('machineManageList');
+      if (!container) return;
+      var row = container.querySelector('[data-machine-row="' + machineId + '"]');
+      if (!row || row.querySelector('[data-machine-edit-input]')) return;
+      var currentName = row.getAttribute('data-machine-name') || '';
+      row.innerHTML = '<div class="flex flex-1 flex-wrap items-center gap-2">' +
+          '<input type="text" data-machine-edit-input value="' + escHtml(currentName) + '" class="h-9 flex-1 min-w-[140px] rounded-lg border border-blue-300 bg-white px-3 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none" />' +
+          '<div class="flex shrink-0 gap-1.5">' +
+            '<button type="button" data-machine-save="' + escHtml(machineId) + '" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700">💾 บันทึก</button>' +
+            '<button type="button" data-machine-cancel class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">ยกเลิก</button>' +
+          '</div>' +
+        '</div>';
+      var input = row.querySelector('[data-machine-edit-input]');
+      if (input) {
+        input.focus();
+        input.select();
+        input.addEventListener('keydown', function(ev) {
+          if (ev.key === 'Enter') { ev.preventDefault(); var saveBtn = row.querySelector('[data-machine-save]'); if (saveBtn) saveBtn.click(); }
+          if (ev.key === 'Escape') { loadMachineManageList(); }
+        });
+      }
+    }
+
+    function saveMachineEdit(machineId, btn) {
+      var container = document.getElementById('machineManageList');
+      var msg = document.getElementById('machineManageMessage');
+      var row = container ? container.querySelector('[data-machine-row="' + machineId + '"]') : null;
+      var input = row ? row.querySelector('[data-machine-edit-input]') : null;
+      var newName = input ? input.value.trim() : '';
+      if (!newName) {
+        if (msg) { msg.className = 'text-xs mb-2 text-rose-600'; msg.textContent = 'กรุณากรอกชื่อเครื่องจักร'; }
+        return;
+      }
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
+      requestApi(withAuthPayload({ action: 'updateMachine', machine_id: machineId, machine_name: newName })).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
+        if (msg) { msg.className = 'text-xs mb-2 text-emerald-600'; msg.textContent = 'แก้ไขชื่อเครื่องจักรแล้ว'; }
+        return loadMachineManageList();
+      }).catch(function(err) {
+        if (msg) { msg.className = 'text-xs mb-2 text-rose-600'; msg.textContent = (err && err.message) || 'บันทึกไม่สำเร็จ'; }
+        loadMachineManageList();
+      });
     }
 
     function loadMachineManageList() {
@@ -13851,8 +13900,17 @@ if (dashboardPage) {
       });
     });
     if (machineManageListEl) machineManageListEl.addEventListener('click', function(e) {
-      var machineId = e.target && e.target.getAttribute && e.target.getAttribute('data-machine-delete');
-      if (!machineId) return;
+      var target = e.target && e.target.closest ? e.target : null;
+      if (!target) return;
+      var editBtn = target.closest('[data-machine-edit]');
+      if (editBtn) { enterMachineEditMode(editBtn.getAttribute('data-machine-edit')); return; }
+      var saveBtn = target.closest('[data-machine-save]');
+      if (saveBtn) { saveMachineEdit(saveBtn.getAttribute('data-machine-save'), saveBtn); return; }
+      var cancelBtn = target.closest('[data-machine-cancel]');
+      if (cancelBtn) { loadMachineManageList(); return; }
+      var deleteBtn = target.closest('[data-machine-delete]');
+      if (!deleteBtn) return;
+      var machineId = deleteBtn.getAttribute('data-machine-delete');
       showConfirmDialog({ title: 'ลบเครื่องจักร', message: 'ยืนยันการลบเครื่องจักรนี้? (อะไหล่ที่เคยผูกไว้จะยังคงมีชื่อเครื่องเดิมค้างอยู่ ต้องไปแก้ไขเอง)', okLabel: 'ลบ' }).then(function(ok) {
         if (!ok) return;
         requestApi(withAuthPayload({ action: 'deleteMachine', machine_id: machineId })).then(function(res) {
