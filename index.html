@@ -5366,7 +5366,37 @@ function getIssueCartEntries() {
       setPermissionUIFromAllowList(parsedPermissions.allow);
       setLineAccessUIFromAllowList(parsedPermissions.allow);
       if (!user) applyRolePreset(document.getElementById('uRole').value);
-      if (selectedUserLabel) selectedUserLabel.textContent = 'กำลังแก้ไข: ' + (username || 'ผู้ใช้ใหม่');
+      if (selectedUserLabel) selectedUserLabel.textContent = username ? ('กำลังแก้ไข: ' + username) : '➕ สร้างผู้ใช้ใหม่ (กรอก Username + Password)';
+      // โหมดสร้างใหม่: ปุ่มลบใช้ไม่ได้ + password จำเป็น
+      var uPasswordEl = document.getElementById('uPassword');
+      if (uPasswordEl) uPasswordEl.placeholder = user ? 'Password (ว่างได้ตอนแก้ไข)' : 'Password (จำเป็นสำหรับผู้ใช้ใหม่)';
+      if (deleteUserBtn) {
+        deleteUserBtn.disabled = !user;
+        deleteUserBtn.style.opacity = user ? '' : '0.45';
+        deleteUserBtn.style.cursor = user ? '' : 'not-allowed';
+      }
+    }
+
+    // เปิด/เลื่อนไปที่ฟอร์มแก้ไขผู้ใช้ให้เห็นชัด (บน desktop ฟอร์มอยู่ล่างจอ ผู้ใช้เลยรู้สึกว่ากดแล้วไม่มีอะไรเกิดขึ้น)
+    function focusUserEditor() {
+      if (!adminEditorPanel) return;
+      var isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        adminEditorPanel.classList.remove('hidden');
+        lockBodyScroll();
+        adminEditorPanel.scrollTop = 0;
+      } else {
+        try { adminEditorPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        catch (err) { adminEditorPanel.scrollIntoView(); }
+      }
+      adminEditorPanel.style.transition = 'box-shadow .25s ease';
+      adminEditorPanel.style.boxShadow = '0 0 0 3px rgba(37,99,235,.45)';
+      setTimeout(function() { adminEditorPanel.style.boxShadow = ''; }, 1400);
+      var usernameInput = document.getElementById('uUsername');
+      if (!usernameInput) return;
+      setTimeout(function() {
+        try { usernameInput.focus({ preventScroll: true }); } catch (err) { usernameInput.focus(); }
+      }, isMobile ? 60 : 350);
     }
 
     function openAdminEditorOnMobile() {
@@ -15522,6 +15552,16 @@ if (dashboardPage) {
       var saveBtn = document.getElementById('saveUserBtn');
       var username = document.getElementById('uUsername').value.trim();
       if (!username) { showQuickToast('กรุณาระบุ Username ก่อนบันทึก', 'warn'); return; }
+      // ผู้ใช้ใหม่ต้องมี password (backend จะ reject ถ้าไม่ส่งมา)
+      var isNewUser = !adminUsersCache.some(function(u) {
+        return String(u.username || '').toLowerCase() === username.toLowerCase();
+      });
+      var passwordInput = document.getElementById('uPassword');
+      if (isNewUser && !String(passwordInput.value || '').trim()) {
+        showQuickToast('ผู้ใช้ใหม่ "' + username + '" ต้องตั้ง Password ก่อนบันทึก', 'warn');
+        try { passwordInput.focus({ preventScroll: true }); } catch (err) { passwordInput.focus(); }
+        return;
+      }
       // Loading state
       if (saveBtn) {
         saveBtn.disabled = true;
@@ -15541,6 +15581,18 @@ if (dashboardPage) {
       postJson(payload).then(parseApiResponse).then(function() {
         selectedAdminUser = username;
         showQuickToast('✅ บันทึก "' + username + '" สำเร็จ', 'success');
+        // ผู้ใช้มีอยู่จริงแล้ว — เลิกโหมด "สร้างใหม่"
+        if (deleteUserBtn) {
+          deleteUserBtn.disabled = false;
+          deleteUserBtn.style.opacity = '';
+          deleteUserBtn.style.cursor = '';
+        }
+        if (passwordInput) passwordInput.value = '';
+        if (selectedUserLabel) selectedUserLabel.textContent = 'กำลังแก้ไข: ' + username;
+        if (userManageMessage) {
+          userManageMessage.className = 'text-sm font-semibold text-emerald-600';
+          userManageMessage.textContent = (isNewUser ? 'สร้างผู้ใช้ใหม่สำเร็จ: ' : 'บันทึกการแก้ไขสำเร็จ: ') + username;
+        }
         if (saveBtn) {
           saveBtn.disabled = false;
           saveBtn.innerHTML = '✓ บันทึกแล้ว';
@@ -15710,11 +15762,21 @@ if (dashboardPage) {
     });
 
     if (newUserBtn) newUserBtn.addEventListener('click', function() {
+      if (!isAdminUser() && !hasPermission('manage_users') && !hasPermission('manage_auth')) {
+        showQuickToast('ไม่มีสิทธิ์จัดการผู้ใช้', 'error');
+        return;
+      }
       setUserEditorValues(null);
-      openAdminEditorOnMobile();
+      if (userManageMessage) {
+        userManageMessage.className = 'text-sm font-semibold text-blue-600';
+        userManageMessage.textContent = '➕ โหมดสร้างผู้ใช้ใหม่ — กรอก Username + Password เลือกระดับสิทธิ์ แล้วกด "บันทึก"';
+      }
+      focusUserEditor();
+      showQuickToast('สร้างผู้ใช้ใหม่ — กรอกข้อมูลในฟอร์ม User Detail Editor', 'info');
     });
     if (resetUserBtn) resetUserBtn.addEventListener('click', function() {
       setUserEditorValues(null);
+      if (userManageMessage) userManageMessage.textContent = '';
     });
     if (closeAdminEditorMobileBtn) closeAdminEditorMobileBtn.addEventListener('click', function() {
       closeAdminEditorOnMobile();
