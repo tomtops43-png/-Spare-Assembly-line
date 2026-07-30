@@ -177,4 +177,16 @@ assert.throws(function () { parsePartTagResponse({ status: 'error', message: '�
 assert(html.includes('if (!partTagConfigState.supported) {'));
 assert(html.includes('ยังใช้งานไม่ได้ — ต้อง Deploy Apps Script ก่อน'));
 
+// ── Regression: item จาก roSearchPool ต้องมี __sourceSheet ────────────────────
+// Admin เลือกอะไหล่เข้ากลุ่มจาก roSearchPool ถ้า pool ไม่ติดชื่อชีตต้นทางมา จะบันทึก
+// sheet_name เป็นค่าว่าง แต่ตอนเบิกจริง payload ส่งชื่อชีตจริงมา → คีย์ไม่ตรงกัน →
+// ไม่ออกเลขให้เลยทั้งที่ตั้งค่าถูก (เงียบสนิท หาสาเหตุยาก)
+assert(html.includes('item.__sourceSheet = item.__sourceSheet || t.sheet;'),
+  'loadRequestOrderSearchPool ต้องติด __sourceSheet ให้ item ในpool');
+
+// backend ต้องมี fallback เทียบแบบไม่สนชีต เฉพาะแถวที่ Sheet Name ว่างจริงๆ
+assert(backend.includes("!String(it.sheet_name || '').trim() &&"),
+  'fallback ต้องจำกัดเฉพาะแถวที่ Sheet Name ว่าง ไม่ใช่เทียบหลวมทุกแถว');
+assert(backend.includes('var keyNoSheet = normalizePartTagItemKey(payload.partNo,'));
+
 console.log('Part tag registry checks passed');
