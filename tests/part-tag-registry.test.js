@@ -189,4 +189,10 @@ assert(backend.includes("!String(it.sheet_name || '').trim() &&"),
   'fallback ต้องจำกัดเฉพาะแถวที่ Sheet Name ว่าง ไม่ใช่เทียบหลวมทุกแถว');
 assert(backend.includes('var keyNoSheet = normalizePartTagItemKey(payload.partNo,'));
 
+// empty state ของทะเบียนชิ้นต้องไม่พูดถึง "Category" อีก (เลิกผูก Category ไปแล้วที่ #540)
+// และต้องชี้ทางไปตั้งค่าที่ Admin → กลุ่มแท็กชิ้น ไม่งั้นผู้ใช้เข้าใจว่าระบบเสีย
+assert(!html.includes('เลขจะถูกออกอัตโนมัติตอนเบิกอะไหล่ใน Category ที่ตั้งค่าไว้'),
+  'empty state ต้องไม่ชี้ให้ไปตั้งค่า Category ที่ไม่มีอยู่แล้ว');
+assert(html.includes('Admin → 🏷️ กลุ่มแท็กชิ้น</b>'));
+
 console.log('Part tag registry checks passed');
