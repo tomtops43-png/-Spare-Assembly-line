@@ -105,10 +105,13 @@
     #starredPartsModal { z-index: 9700; }
     #starredPartsBackdrop { background: rgba(15, 23, 42, 0.55); }
     /* 9750: ทะเบียนชิ้น (partTagRegistryModal)
+       9760: จัดการรายการในกลุ่มแท็ก (partTagGroupItemsModal) — เปิดจาก Admin เหนือทะเบียนชิ้น
        9800: สรุปเลขประจำชิ้นหลังเบิก (partTagIssuedModal) — เด้งทับ Issue Cart ตอนเบิกเสร็จ
               ต้องอยู่บนสุดของกลุ่มนี้ เพราะเป็นเลขที่ช่างต้องอ่านไปเขียนบนของ */
     #partTagRegistryModal { z-index: 9750; }
     #partTagRegistryBackdrop { background: rgba(15, 23, 42, 0.55); }
+    #partTagGroupItemsModal { z-index: 9760; }
+    #partTagGroupItemsBackdrop { background: rgba(15, 23, 42, 0.55); }
     #partTagIssuedModal { z-index: 9800; }
     #partTagIssuedBackdrop { background: rgba(15, 23, 42, 0.6); }
     @media print {
@@ -2439,25 +2442,25 @@
         <div id="machineManageList" class="space-y-1.5"></div>
       </section>
 
-      <!-- 🏷️ ตั้งค่าว่า Category ไหนต้องออกเลขประจำชิ้นตอนเบิก -->
+      <!-- 🏷️ กลุ่มแท็กชิ้น — เครื่องมือเฉพาะกลุ่ม (เช่น Stripper Cutter) ไม่ใช่ทุกชิ้นใน Category
+           จึงเลือกอะไหล่เข้ากลุ่มทีละชิ้นด้วยการค้นหา แทนที่จะผูกกับ Category ทั้งหมด -->
       <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
           <div>
-            <h3 class="text-sm font-bold text-slate-900">🏷️ ตั้งค่าทะเบียนชิ้น (Part Tag)</h3>
-            <p class="text-xs text-slate-500 mt-0.5">เลือกว่า Category ไหน "ต้องออกเลขประจำชิ้น" ตอนเบิก — ระบบจะออกเลขวิ่งให้ 1 เลขต่อ 1 ชิ้น เพื่อตามสถานะได้รายชิ้น</p>
+            <h3 class="text-sm font-bold text-slate-900">🏷️ กลุ่มแท็กชิ้น (Part Tag Groups)</h3>
+            <p class="text-xs text-slate-500 mt-0.5">สร้างกลุ่มสำหรับเครื่องมือเฉพาะ (เช่น "Stripper Cutter") แล้วค้นหา+เลือกอะไหล่ที่ต้องแท็กเข้ากลุ่มทีละชิ้น</p>
           </div>
-          <button id="partTagConfigRefreshBtn" type="button" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">รีเฟรช</button>
+          <button id="partTagGroupRefreshBtn" type="button" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">รีเฟรช</button>
         </div>
         <div class="flex flex-wrap gap-2 mb-2">
-          <input id="partTagConfigCategoryInput" type="text" list="partTagConfigCategoryOptions" class="h-10 flex-1 min-w-[160px] rounded-xl border border-slate-300 px-3 text-sm" placeholder="Category เช่น Mechanical" />
-          <datalist id="partTagConfigCategoryOptions"></datalist>
-          <input id="partTagConfigPrefixInput" type="text" class="h-10 w-24 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Prefix เช่น SC" />
-          <input id="partTagConfigStartInput" type="text" class="h-10 w-28 rounded-xl border border-slate-300 px-3 text-sm" placeholder="เลขเริ่มต้น เช่น 040" />
-          <button id="partTagConfigAddBtn" type="button" class="h-10 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700">+ เปิดใช้แท็ก</button>
+          <input id="partTagGroupNameInput" type="text" class="h-10 flex-1 min-w-[160px] rounded-xl border border-slate-300 px-3 text-sm" placeholder="ชื่อกลุ่ม เช่น Stripper Cutter" />
+          <input id="partTagGroupPrefixInput" type="text" class="h-10 w-24 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Prefix เช่น SC" />
+          <input id="partTagGroupStartInput" type="text" class="h-10 w-28 rounded-xl border border-slate-300 px-3 text-sm" placeholder="เลขเริ่มต้น เช่น 040" />
+          <button id="partTagGroupCreateBtn" type="button" class="h-10 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700">+ สร้างกลุ่ม</button>
         </div>
-        <p class="text-[11px] text-slate-400 mb-2">💡 ถ้าใช้เลขต่อจากระบบเดิมอยู่แล้ว (เช่น CWM System ใช้ SC-001..SC-039) พิมพ์ "040" ในช่องเลขเริ่มต้น ระบบจะออกเลขต่อจาก SC-040 เป็นต้นไป โดยคงจำนวนหลักตามที่พิมพ์ (พิมพ์ "040" = 3 หลัก) ถ้าปล่อยว่างจะเริ่มที่ 1 ด้วย 5 หลัก</p>
+        <p class="text-[11px] text-slate-400 mb-2">💡 ถ้าใช้เลขต่อจากระบบเดิมอยู่แล้ว (เช่น CWM System ใช้ SC-001..SC-039) พิมพ์ "040" ในช่องเลขเริ่มต้น ระบบจะออกเลขต่อจาก SC-040 เป็นต้นไป โดยคงจำนวนหลักตามที่พิมพ์ (พิมพ์ "040" = 3 หลัก) ถ้าปล่อยว่างจะเริ่มที่ 1 ด้วย 5 หลัก — สร้างกลุ่มแล้วกด "จัดการรายการ" เพื่อค้นหา+เพิ่มอะไหล่เข้ากลุ่ม</p>
         <p id="partTagConfigMessage" class="text-xs mb-2"></p>
-        <div id="partTagConfigList" class="space-y-1.5"></div>
+        <div id="partTagGroupList" class="space-y-1.5"></div>
       </section>
 
       <div class="grid gap-4 lg:grid-cols-[1fr_420px]">
@@ -3047,6 +3050,26 @@
     </aside>
   </div>
 
+  <!-- 🏷️ จัดการรายการอะไหล่ในกลุ่มแท็ก — ค้นหาแล้วติ๊กเพิ่มทีละชิ้น (Admin only) -->
+  <div id="partTagGroupItemsModal" class="fixed inset-0 hidden items-stretch md:items-start justify-center overflow-y-auto p-0 md:p-6">
+    <div id="partTagGroupItemsBackdrop" class="absolute inset-0"></div>
+    <aside class="relative z-10 flex h-screen w-screen flex-col overflow-y-auto rounded-none border-0 bg-white p-4 md:my-6 md:h-auto md:max-h-none md:w-[min(640px,calc(100vw-64px))] md:rounded-2xl md:border md:border-slate-200 md:p-5 panel-shadow">
+      <div class="sticky top-0 z-10 -mx-4 mb-3 flex items-center justify-between border-b border-slate-200 bg-white px-4 pb-2 pt-1 md:mx-0 md:border-0 md:px-0 md:pb-0 md:pt-0">
+        <div>
+          <h3 class="text-lg font-bold">🏷️ จัดการรายการ: <span id="partTagGroupItemsTitle">-</span></h3>
+          <p class="text-[11px] text-gray-500">ค้นหาชื่ออะไหล่/รุ่นแล้วกด "+ เพิ่ม" — เฉพาะชิ้นในรายการนี้ที่จะต้องออกเลขตอนเบิก</p>
+        </div>
+        <button id="partTagGroupItemsCloseBtn" type="button" class="h-9 w-9 shrink-0 rounded-full border border-slate-300 text-slate-600">×</button>
+      </div>
+      <input id="partTagGroupItemSearchInput" type="text" placeholder="ค้นหาชื่ออะไหล่ / รุ่น / แบรนด์ / ไลน์" class="h-10 w-full rounded-xl border border-gray-300 px-3 text-sm" />
+      <div id="partTagGroupItemSearchResults" class="mt-1 max-h-40 overflow-auto rounded-xl border border-gray-200 bg-white text-sm"></div>
+      <div class="mt-3 flex items-center justify-between">
+        <p class="text-sm font-semibold text-gray-700">สมาชิกในกลุ่มนี้ (<span id="partTagGroupItemsCount">0</span>)</p>
+      </div>
+      <div id="partTagGroupItemsList" class="min-h-0 flex-1 mt-1 space-y-1.5 overflow-y-auto pr-1"></div>
+    </aside>
+  </div>
+
   <!-- 🏭 รายงานอะไหล่ต่อเครื่องจักร -->
   <div id="machineReportModal" class="fixed inset-0 z-[220] hidden overflow-y-auto bg-gray-900/50 p-4">
     <div class="mx-auto mt-8 max-w-3xl rounded-2xl bg-white p-5 shadow-2xl">
@@ -3502,9 +3525,12 @@
     // ถ้า backend ที่ deploy อยู่ยังไม่มี action นี้ ให้ถือว่า "ไม่มี category ไหนต้องแท็ก"
     // แล้วทำงานเหมือนเดิมทั้งหมด — ห้ามให้ฟีเจอร์ใหม่ไปทำให้การเบิกพัง
     var PART_TAG_DEFAULT_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง'];
-    var partTagConfigState = { loaded: false, supported: true, byCategory: {}, statuses: PART_TAG_DEFAULT_STATUSES.slice(), maxPerTransaction: 50 };
+    var partTagConfigState = { loaded: false, supported: true, byKey: {}, statuses: PART_TAG_DEFAULT_STATUSES.slice(), maxPerTransaction: 50 };
     var partTagRenderRows = [];
     var lastIssuedPartTags = [];
+    var partTagGroupsCache = [];      // กลุ่มแท็กทั้งหมด (สำหรับหน้า Admin)
+    var partTagGroupItemsCache = [];  // สมาชิกของกลุ่มที่กำลังเปิดจัดการอยู่
+    var activePartTagGroupId = '';
     var currentQuickIssueItemNo = '';
     var currentQuickIssueSelectedPart = null;
     var QUICK_ISSUE_SELECTED_PART_KEY = 'quickIssueSelectedPart';
@@ -4708,49 +4734,52 @@
 
     // ════════════════════════════════════════════════════════════════
     // 🏷️ ทะเบียนชิ้น (Part Tag) — ฝั่งหน้าเว็บ
-    // ตอนเบิก ถ้า Category ของอะไหล่ถูกตั้งว่า "ต้องออกเลข" backend จะออกเลขวิ่งให้
+    // ตอนเบิก ถ้าอะไหล่ชิ้นนี้ถูกเพิ่มเข้ากลุ่มแท็กที่ active อยู่ backend จะออกเลขวิ่งให้
     // 1 เลขต่อ 1 ชิ้น แล้วส่งกลับมาใน response ของ transaction → เอามาโชว์ให้ช่าง
     // เขียน/แปะลงบนของจริง แล้วตามสถานะชิ้นนั้นได้ที่หน้าทะเบียนชิ้น
+    // จับคู่ระดับ "รายชิ้น" (partNo+sheetName+model+name) ไม่ใช่ระดับ Category ทั้งกลุ่ม เพราะ
+    // เครื่องมือเฉพาะกลุ่ม (เช่น Stripper Cutter) เป็นแค่บางชิ้นใน Category เดียวกัน ไม่ใช่ทุกชิ้น
     // ════════════════════════════════════════════════════════════════
-    function normalizePartTagCategoryKey(value) {
-      return String(value === undefined || value === null ? '' : value).trim().toLowerCase();
+    function partTagKeyForItem(item) {
+      var sheetName = item && (item.__sourceSheet || item.subLine || getCurrentSheetName());
+      return [item && item.no, sheetName, item && item.model, item && item.name].map(function(v) {
+        return String(v === undefined || v === null ? '' : v).trim();
+      }).join('::').toLowerCase();
     }
 
     function loadPartTagConfig(force) {
       if (partTagConfigState.loaded && !force) return Promise.resolve(partTagConfigState);
       if (!partTagConfigState.supported && !force) return Promise.resolve(partTagConfigState);
-      return requestApi(withAuthPayload({ action: 'getPartTagConfig' })).then(parseApiResponse).then(function(res) {
-        var list = (res && res.config) || [];
+      return requestApi(withAuthPayload({ action: 'getPartTagAssignments' })).then(parseApiResponse).then(function(res) {
+        var list = (res && res.assignments) || [];
         var map = {};
-        list.forEach(function(row) {
-          map[normalizePartTagCategoryKey(row.category)] = {
-            category: String(row.category || ''),
-            requireTag: !!row.require_tag,
-            prefix: String(row.prefix || ''),
-            startNumber: Number(row.start_number) || 1,
-            digits: Number(row.digits) || 5
+        list.forEach(function(a) {
+          if (!a.active) return; // กลุ่มถูกปิดใช้งานชั่วคราว — ไม่ต้องออกเลข
+          map[a.key] = {
+            groupId: String(a.group_id || ''),
+            groupName: String(a.group_name || ''),
+            prefix: String(a.prefix || ''),
+            startNumber: Number(a.start_number) || 1,
+            digits: Number(a.digits) || 5
           };
         });
-        partTagConfigState.byCategory = map;
-        partTagConfigState.statuses = (res && res.statuses && res.statuses.length) ? res.statuses : PART_TAG_DEFAULT_STATUSES.slice();
-        partTagConfigState.maxPerTransaction = Number(res && res.max_per_transaction) || 50;
+        partTagConfigState.byKey = map;
         partTagConfigState.loaded = true;
         partTagConfigState.supported = true;
         return partTagConfigState;
       }).catch(function(err) {
         // backend ยังไม่ deploy เวอร์ชันที่มี action นี้ — ปิดฟีเจอร์เงียบๆ ไม่รบกวนการเบิก
-        console.warn('getPartTagConfig ไม่สำเร็จ — ปิดฟีเจอร์ทะเบียนชิ้นชั่วคราว', err);
+        console.warn('getPartTagAssignments ไม่สำเร็จ — ปิดฟีเจอร์ทะเบียนชิ้นชั่วคราว', err);
         partTagConfigState.supported = false;
         partTagConfigState.loaded = true;
-        partTagConfigState.byCategory = {};
+        partTagConfigState.byKey = {};
         return partTagConfigState;
       });
     }
 
     function getPartTagRuleForItem(item) {
-      if (!partTagConfigState.supported) return null;
-      var rule = partTagConfigState.byCategory[normalizePartTagCategoryKey(item && item.category)];
-      return (rule && rule.requireTag) ? rule : null;
+      if (!partTagConfigState.supported || !item) return null;
+      return partTagConfigState.byKey[partTagKeyForItem(item)] || null;
     }
 
     function itemRequiresPartTag(item) {
@@ -4954,75 +4983,184 @@
       return s;
     }
 
-    function renderPartTagConfigList() {
-      var container = document.getElementById('partTagConfigList');
+    // ── Admin: กลุ่มแท็กชิ้น (เลือกอะไหล่เฉพาะกลุ่มทีละชิ้น ไม่ผูกกับ Category ทั้งหมด) ──
+    function loadPartTagGroupsList(force) {
+      return requestApi(withAuthPayload({ action: 'getPartTagGroups' })).then(parseApiResponse).then(function(res) {
+        partTagGroupsCache = (res && res.groups) || [];
+        if (res && res.statuses && res.statuses.length) partTagConfigState.statuses = res.statuses;
+        if (res && res.max_per_transaction) partTagConfigState.maxPerTransaction = Number(res.max_per_transaction);
+        return partTagGroupsCache;
+      }).catch(function(err) {
+        setPartTagConfigMessage('โหลดกลุ่มแท็กไม่สำเร็จ: ' + (err && err.message ? err.message : err) +
+          ' (ถ้าเพิ่งเพิ่มฟีเจอร์นี้ ต้อง Deploy Apps Script เวอร์ชันใหม่ก่อน)', 'error');
+        partTagGroupsCache = [];
+        return partTagGroupsCache;
+      });
+    }
+
+    function renderPartTagGroupsList() {
+      var container = document.getElementById('partTagGroupList');
       if (!container) return;
-      var rows = Object.keys(partTagConfigState.byCategory).map(function(k) { return partTagConfigState.byCategory[k]; })
-        .sort(function(a, b) { return String(a.category).localeCompare(String(b.category)); });
-      if (!partTagConfigState.supported) {
-        container.innerHTML = '<p class="rounded-xl border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500">Apps Script ที่ deploy อยู่ยังไม่รองรับทะเบียนชิ้น — ต้อง Deploy Backend.gs เวอร์ชันใหม่ก่อน</p>';
+      if (!partTagGroupsCache.length) {
+        container.innerHTML = '<p class="rounded-xl border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500">ยังไม่มีกลุ่มแท็ก — สร้างกลุ่มแล้วกด "จัดการรายการ" เพื่อเลือกอะไหล่เฉพาะที่ต้องแท็กเข้าไปทีละชิ้น</p>';
         return;
       }
-      if (!rows.length) {
-        container.innerHTML = '<p class="rounded-xl border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500">ยังไม่ได้เปิดใช้แท็กกับ Category ไหน — เบิกของจะไม่มีการออกเลขประจำชิ้น</p>';
-        return;
-      }
-      container.innerHTML = rows.map(function(r) {
-        return '<div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">' +
+      container.innerHTML = partTagGroupsCache.map(function(g) {
+        return '<div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2" data-group-row="' + escHtml(g.group_id) + '">' +
           '<div class="min-w-0">' +
-            '<span class="text-sm font-semibold text-slate-800">' + escHtml(r.category) + '</span>' +
+            '<span class="text-sm font-semibold text-slate-800">' + escHtml(g.name) + '</span>' +
             '<span class="ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold" style="' +
-              (r.requireTag ? 'background:#dbeafe;color:#1d4ed8;' : 'background:#f3f4f6;color:#6b7280;') + '">' +
-              (r.requireTag ? 'ต้องแท็ก' : 'ปิดอยู่') + '</span>' +
-            '<span class="ml-2 text-xs text-gray-500">' + escHtml(r.prefix) + '-' + escHtml(padPartTagRunningPreview(r.startNumber, r.digits)) + ' เป็นต้นไป</span>' +
+              (g.active ? 'background:#dbeafe;color:#1d4ed8;' : 'background:#f3f4f6;color:#6b7280;') + '">' +
+              (g.active ? 'ใช้งาน' : 'ปิดอยู่') + '</span>' +
+            '<span class="ml-2 text-xs text-gray-500">' + escHtml(g.prefix) + '-' + escHtml(padPartTagRunningPreview(g.start_number, g.digits)) + ' เป็นต้นไป · ' + (g.item_count || 0) + ' ชิ้น</span>' +
           '</div>' +
-          '<button type="button" data-part-tag-toggle="' + escHtml(r.category) + '" class="rounded-lg border px-2.5 py-1 text-xs font-semibold ' +
-            (r.requireTag ? 'border-rose-200 bg-white text-rose-700' : 'border-blue-200 bg-white text-blue-700') + '">' +
-            (r.requireTag ? 'ปิดแท็ก' : 'เปิดแท็ก') + '</button>' +
+          '<div class="flex items-center gap-2">' +
+            '<label class="flex items-center gap-1 text-xs text-slate-600"><input type="checkbox" data-group-active-toggle="' + escHtml(g.group_id) + '" ' + (g.active ? 'checked' : '') + ' class="h-3.5 w-3.5"/> Active</label>' +
+            '<button type="button" data-group-manage="' + escHtml(g.group_id) + '" class="rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-blue-700">จัดการรายการ</button>' +
+            '<button type="button" data-group-delete="' + escHtml(g.group_id) + '" class="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700">ลบกลุ่ม</button>' +
+          '</div>' +
         '</div>';
       }).join('');
-      Array.prototype.slice.call(container.querySelectorAll('[data-part-tag-toggle]')).forEach(function(btn) {
+
+      Array.prototype.slice.call(container.querySelectorAll('[data-group-active-toggle]')).forEach(function(cb) {
+        cb.addEventListener('change', function() {
+          var groupId = cb.getAttribute('data-group-active-toggle');
+          setPartTagConfigMessage('กำลังบันทึก...', 'muted');
+          requestApi(withAuthPayload({ action: 'updatePartTagGroup', group_id: groupId, active: cb.checked ? '1' : '0' }))
+            .then(parseApiResponse)
+            .then(function() { setPartTagConfigMessage('บันทึกแล้ว', 'success'); return loadPartTagConfig(true); })
+            .then(function() { return loadPartTagGroupsList(true); })
+            .then(renderPartTagGroupsList)
+            .catch(function(err) {
+              setPartTagConfigMessage('บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+              cb.checked = !cb.checked;
+            });
+        });
+      });
+      Array.prototype.slice.call(container.querySelectorAll('[data-group-manage]')).forEach(function(btn) {
+        btn.addEventListener('click', function() { openPartTagGroupItemsModal(btn.getAttribute('data-group-manage')); });
+      });
+      Array.prototype.slice.call(container.querySelectorAll('[data-group-delete]')).forEach(function(btn) {
         btn.addEventListener('click', function() {
-          var category = btn.getAttribute('data-part-tag-toggle');
-          var current = partTagConfigState.byCategory[normalizePartTagCategoryKey(category)];
-          // ปุ่มเปิด/ปิดแท็กเร็วๆ ต้องไม่รีเซ็ต prefix/เลขเริ่มต้น/จำนวนหลักที่เคยตั้งไว้
-          savePartTagConfigRow(category, current ? !current.requireTag : true,
-            current ? current.prefix : '', current ? current.startNumber : 1, current ? current.digits : 5);
+          var groupId = btn.getAttribute('data-group-delete');
+          var group = partTagGroupsCache.filter(function(g) { return g.group_id === groupId; })[0];
+          showConfirmDialog({
+            title: 'ลบกลุ่มแท็ก',
+            message: 'ลบกลุ่ม "' + (group ? group.name : groupId) + '" พร้อมรายการอะไหล่ทั้งหมดในกลุ่ม (' + (group ? group.item_count : 0) + ' ชิ้น)?\nเลขที่เคยออกไปแล้วในทะเบียนชิ้นจะยังอยู่ครบ ไม่ถูกลบ',
+            okLabel: 'ยืนยันลบ'
+          }).then(function(confirmed) {
+            if (!confirmed) return;
+            setPartTagConfigMessage('กำลังลบ...', 'muted');
+            requestApi(withAuthPayload({ action: 'deletePartTagGroup', group_id: groupId }))
+              .then(parseApiResponse)
+              .then(function() { setPartTagConfigMessage('ลบกลุ่มแล้ว', 'success'); return loadPartTagConfig(true); })
+              .then(function() { return loadPartTagGroupsList(true); })
+              .then(renderPartTagGroupsList)
+              .catch(function(err) { setPartTagConfigMessage('ลบไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error'); });
+          });
         });
       });
     }
 
-    function savePartTagConfigRow(category, requireTag, prefix, startNumber, digits) {
-      setPartTagConfigMessage('กำลังบันทึก...', 'muted');
-      return requestApi(withAuthPayload({
-        action: 'setPartTagConfig',
-        category: category,
-        require_tag: requireTag ? '1' : '0',
-        prefix: prefix || '',
-        start_number: startNumber || 1,
-        digits: digits || 5
-      })).then(parseApiResponse).then(function() {
-        setPartTagConfigMessage('บันทึกแล้ว: ' + category, 'success');
-        return loadPartTagConfig(true);
-      }).then(function() {
-        renderPartTagConfigList();
+    function openPartTagGroupItemsModal(groupId) {
+      activePartTagGroupId = groupId;
+      var group = partTagGroupsCache.filter(function(g) { return g.group_id === groupId; })[0];
+      var titleEl = document.getElementById('partTagGroupItemsTitle');
+      if (titleEl) titleEl.textContent = group ? group.name : groupId;
+      var searchInput = document.getElementById('partTagGroupItemSearchInput');
+      if (searchInput) searchInput.value = '';
+      var resultsEl = document.getElementById('partTagGroupItemSearchResults');
+      if (resultsEl) resultsEl.innerHTML = '';
+      var modal = document.getElementById('partTagGroupItemsModal');
+      if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+      loadRequestOrderSearchPool().then(refreshPartTagGroupItemsList);
+    }
+
+    function closePartTagGroupItemsModal() {
+      var modal = document.getElementById('partTagGroupItemsModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      activePartTagGroupId = '';
+    }
+
+    function refreshPartTagGroupItemsList() {
+      if (!activePartTagGroupId) return Promise.resolve();
+      var listEl = document.getElementById('partTagGroupItemsList');
+      var countEl = document.getElementById('partTagGroupItemsCount');
+      if (listEl) listEl.innerHTML = '<p class="px-3 py-4 text-center text-xs text-gray-500">กำลังโหลด...</p>';
+      return requestApi(withAuthPayload({ action: 'getPartTagGroupItems', group_id: activePartTagGroupId })).then(parseApiResponse).then(function(res) {
+        partTagGroupItemsCache = (res && res.items) || [];
+        if (countEl) countEl.textContent = String(partTagGroupItemsCache.length);
+        if (!listEl) return;
+        if (!partTagGroupItemsCache.length) {
+          listEl.innerHTML = '<p class="rounded-xl border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500">ยังไม่มีอะไหล่ในกลุ่มนี้ — ค้นหาด้านบนแล้วกดรายการที่ต้องการเพิ่ม</p>';
+          return;
+        }
+        listEl.innerHTML = partTagGroupItemsCache.map(function(it, idx) {
+          return '<div class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs">' +
+            '<div class="min-w-0"><span class="font-semibold">' + escHtml(it.part_name || '-') + '</span>' +
+            '<span class="ml-1 text-gray-500">' + escHtml(it.model || '-') + (it.sheet_name ? ' · ' + escHtml(it.sheet_name) : '') + '</span></div>' +
+            '<button type="button" data-remove-group-item="' + idx + '" class="shrink-0 rounded-lg border border-rose-200 bg-white px-2 py-1 font-semibold text-rose-700">ลบ</button>' +
+          '</div>';
+        }).join('');
+        Array.prototype.slice.call(listEl.querySelectorAll('[data-remove-group-item]')).forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var it = partTagGroupItemsCache[Number(btn.getAttribute('data-remove-group-item'))];
+            if (!it) return;
+            requestApi(withAuthPayload({
+              action: 'removePartTagGroupItem', group_id: activePartTagGroupId,
+              part_no: it.part_no, sheet_name: it.sheet_name, model: it.model, part_name: it.part_name
+            })).then(parseApiResponse)
+              .then(function() { return loadPartTagConfig(true); })
+              .then(refreshPartTagGroupItemsList)
+              .then(function() { return loadPartTagGroupsList(true); })
+              .then(renderPartTagGroupsList)
+              .catch(function(err) { showQuickToast('ลบไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error'); });
+          });
+        });
       }).catch(function(err) {
-        setPartTagConfigMessage('บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        if (listEl) listEl.innerHTML = '<p class="px-3 py-4 text-center text-xs text-red-600">โหลดไม่สำเร็จ: ' + (err && err.message ? err.message : err) + '</p>';
       });
     }
 
-    // เติม datalist ของ Category จากข้อมูลอะไหล่ที่โหลดอยู่ ให้ admin เลือกได้ไม่ต้องพิมพ์เอง
-    function fillPartTagCategoryOptions() {
-      var dl = document.getElementById('partTagConfigCategoryOptions');
-      if (!dl) return;
-      var seen = {};
-      (partsData || []).forEach(function(p) {
-        var c = String(p.category || '').trim();
-        if (c) seen[c] = true;
-      });
-      dl.innerHTML = Object.keys(seen).sort().map(function(c) {
-        return '<option value="' + escHtml(c) + '"></option>';
+    // ค้นหาอะไหล่ (ข้ามไลน์ ใช้ pool เดียวกับหน้าขอซื้อ) เพื่อเพิ่มเข้ากลุ่มแท็กที่กำลังจัดการอยู่
+    function searchPartTagGroupItemCandidates() {
+      var searchInput = document.getElementById('partTagGroupItemSearchInput');
+      var resultsEl = document.getElementById('partTagGroupItemSearchResults');
+      if (!searchInput || !resultsEl) return;
+      var q = String(searchInput.value || '').trim().toLowerCase();
+      if (!q) { resultsEl.innerHTML = ''; return; }
+      var source = (roSearchPool && roSearchPool.length) ? roSearchPool : (partsData || []);
+      var filtered = source.filter(function(p) {
+        var blob = [p.name, p.model, p.brand, p.line].join(' ').toLowerCase();
+        return blob.indexOf(q) > -1;
+      }).slice(0, 20);
+      if (!filtered.length) { resultsEl.innerHTML = '<p class="px-3 py-2 text-xs text-gray-400">ไม่พบรายการ</p>'; return; }
+      resultsEl.innerHTML = filtered.map(function(item, idx) {
+        return '<button type="button" data-add-group-item="' + idx + '" class="block w-full border-b px-3 py-2 text-left text-xs hover:bg-gray-50">' +
+          escHtml(item.name || '-') + ' <span class="text-gray-500">(' + escHtml(item.model || '-') + (item.line ? ' · ' + escHtml(item.line) : '') + ')</span>' +
+        '</button>';
       }).join('');
+      Array.prototype.slice.call(resultsEl.querySelectorAll('[data-add-group-item]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var item = filtered[Number(btn.getAttribute('data-add-group-item'))];
+          if (!item || !activePartTagGroupId) return;
+          var sheetName = item.__sourceSheet || item.subLine || item.sheet || '';
+          requestApi(withAuthPayload({
+            action: 'addPartTagGroupItem', group_id: activePartTagGroupId,
+            part_no: item.no, sheet_name: sheetName, model: item.model || '', part_name: item.name || '', category: item.category || ''
+          })).then(parseApiResponse).then(function() {
+            showQuickToast('เพิ่ม "' + (item.name || '-') + '" เข้ากลุ่มแล้ว', 'success');
+            searchInput.value = '';
+            resultsEl.innerHTML = '';
+            return loadPartTagConfig(true);
+          }).then(refreshPartTagGroupItemsList)
+            .then(function() { return loadPartTagGroupsList(true); })
+            .then(renderPartTagGroupsList)
+            .catch(function(err) { showQuickToast('เพิ่มไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error'); });
+        });
+      });
     }
 
     // ราคา/หน่วยของรายการจาก master — เกณฑ์เดียวกับระบบ PR: ต้องเป็นตัวเลข > 0 ถึงนับว่ามีราคา
@@ -10332,9 +10470,8 @@ function inferRequestPriority(stock, min) {
         userManageMessage.textContent = err && err.message ? err.message : 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ';
       });
       loadMachineManageList();
-      // 🏷️ ตั้งค่าทะเบียนชิ้น
-      fillPartTagCategoryOptions();
-      loadPartTagConfig(true).then(renderPartTagConfigList);
+      // 🏷️ กลุ่มแท็กชิ้น
+      loadPartTagGroupsList(true).then(renderPartTagGroupsList);
     }
 
     function switchToPrReportPage() {
@@ -13480,7 +13617,7 @@ function inferRequestPriority(stock, min) {
     }
     if (quickReceiveForm) quickReceiveForm.addEventListener('submit', submitQuickReceive);
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') { closeQuickIssueModal(); closeQuickReceiveModal(); closeStarredParts(); closePartTagRegistry(); closeIssuedPartTagsSummary(); }
+      if (e.key === 'Escape') { closeQuickIssueModal(); closeQuickReceiveModal(); closeStarredParts(); closePartTagRegistry(); closeIssuedPartTagsSummary(); closePartTagGroupItemsModal(); }
     });
     function bindStockShortcut(btn, fn) {
       if (!btn) return;
@@ -14964,31 +15101,42 @@ if (dashboardPage) {
           setTimeout(function() { document.body.classList.remove('printing-part-tags'); }, 500);
         }
       });
-      on('partTagConfigAddBtn', 'click', function() {
-        var catEl = document.getElementById('partTagConfigCategoryInput');
-        var prefixEl = document.getElementById('partTagConfigPrefixInput');
-        var startEl = document.getElementById('partTagConfigStartInput');
-        var category = String((catEl && catEl.value) || '').trim();
-        if (!category) { setPartTagConfigMessage('กรุณาระบุ Category', 'error'); return; }
+      on('partTagGroupCreateBtn', 'click', function() {
+        var nameEl = document.getElementById('partTagGroupNameInput');
+        var prefixEl = document.getElementById('partTagGroupPrefixInput');
+        var startEl = document.getElementById('partTagGroupStartInput');
+        var name = String((nameEl && nameEl.value) || '').trim();
+        if (!name) { setPartTagConfigMessage('กรุณาระบุชื่อกลุ่ม', 'error'); return; }
         // แปลง "040" ที่พิมพ์เป็น startNumber=40, digits=3 (นับจากจำนวนหลักที่พิมพ์จริง)
         // เพื่อให้ "สานต่อ" เลขจากระบบเดิม (เช่น CWM System SC-001..SC-039) ได้พอดี
         var startRaw = String((startEl && startEl.value) || '').replace(/\D/g, '');
         var startNumber = startRaw ? parseInt(startRaw, 10) : 1;
         var digits = startRaw ? startRaw.length : 5;
-        savePartTagConfigRow(category, true, String((prefixEl && prefixEl.value) || '').trim(), startNumber, digits).then(function() {
-          if (catEl) catEl.value = '';
+        setPartTagConfigMessage('กำลังสร้าง...', 'muted');
+        requestApi(withAuthPayload({
+          action: 'createPartTagGroup', name: name,
+          prefix: String((prefixEl && prefixEl.value) || '').trim(),
+          start_number: startNumber, digits: digits
+        })).then(parseApiResponse).then(function() {
+          setPartTagConfigMessage('สร้างกลุ่ม "' + name + '" แล้ว', 'success');
+          if (nameEl) nameEl.value = '';
           if (prefixEl) prefixEl.value = '';
           if (startEl) startEl.value = '';
+          return loadPartTagGroupsList(true);
+        }).then(renderPartTagGroupsList).catch(function(err) {
+          setPartTagConfigMessage('สร้างไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
         });
       });
-      on('partTagConfigRefreshBtn', 'click', function() {
+      on('partTagGroupRefreshBtn', 'click', function() {
         setPartTagConfigMessage('กำลังโหลด...', 'muted');
-        loadPartTagConfig(true).then(function() {
-          fillPartTagCategoryOptions();
-          renderPartTagConfigList();
+        loadPartTagGroupsList(true).then(function() {
+          renderPartTagGroupsList();
           setPartTagConfigMessage('', 'muted');
         });
       });
+      on('partTagGroupItemsCloseBtn', 'click', closePartTagGroupItemsModal);
+      on('partTagGroupItemsBackdrop', 'click', closePartTagGroupItemsModal);
+      on('partTagGroupItemSearchInput', 'input', searchPartTagGroupItemCandidates);
     }
     bindPartTagUi();
     if (issueCartReason) issueCartReason.addEventListener('change', function(){ var isOther = String(issueCartReason.value || '') === 'Other'; if (issueCartReasonRemark) { issueCartReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) issueCartReasonRemark.value = ''; } });
