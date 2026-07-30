@@ -101,6 +101,11 @@
        ไม่งั้น confirmDialog จะถูก modal ที่อยู่ท้าย DOM ทับจนมองไม่เห็น */
     #issueCartModal { z-index: 9600; }
     #issueCartBackdrop { background: rgba(15, 23, 42, 0.55); }
+    /* 9700: อะไหล่ติดดาว (starredPartsModal) — เปิดจากใน Issue Cart ได้ ต้องอยู่เหนือ cart */
+    #starredPartsModal { z-index: 9700; }
+    #starredPartsBackdrop { background: rgba(15, 23, 42, 0.55); }
+    .star-toggle-btn { transition: transform .12s ease; }
+    .star-toggle-btn:active { transform: scale(0.88); }
     /* ─────────────────────────────────────────────────────────────
        Inbox / PR approval — Tailwind v2.2.19 dist build นี้ "ไม่มี" extended
        palette (slate/violet/rose/emerald/amber) และไม่รองรับ arbitrary class
@@ -811,12 +816,14 @@
               <button id="searchClearBtnMobile" type="button" class="search-clear-btn hidden mr-1.5 shrink-0 text-slate-400 text-lg leading-none">×</button>
             </div>
             <button id="openIssueCartBtnMobile" type="button" class="flex items-center justify-center gap-0.5 h-10 px-2.5 shrink-0 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-base font-bold">🛒<span id="issueCartBadgeMobile" class="hidden min-w-[16px] h-4 rounded-full bg-red-500 px-1 text-[10px] font-black text-white leading-4">0</span></button>
+            <button id="openStarredBtnMobile" type="button" title="อะไหล่ติดดาว (ต้องสั่งซื้อ)" class="flex items-center justify-center gap-0.5 h-10 px-2.5 shrink-0 rounded-xl border text-base font-bold" style="border-color:#fcd34d;background:#fffbeb;color:#b45309;">⭐<span id="starredBadgeMobile" class="hidden min-w-[16px] h-4 rounded-full px-1 text-[10px] font-black leading-4" style="background:#f59e0b;color:#ffffff;">0</span></button>
             <button id="refreshStockDataBtnMobile" type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-600">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             </button>
           </div>
           <!-- Desktop: search + cart + sheet selector -->
           <button id="openIssueCartBtn" type="button" class="hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition md:inline-flex">🛒 Issue Cart <span id="issueCartBadge" class="hidden min-w-[16px] h-4 rounded-full bg-red-500 px-1 text-[10px] font-black text-white leading-4">0</span></button>
+          <button id="openStarredBtn" type="button" title="อะไหล่ติดดาว (ต้องสั่งซื้อ)" class="hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition md:inline-flex" style="border-color:#fcd34d;background:#fffbeb;color:#b45309;">⭐ ติดดาว <span id="starredBadge" class="hidden min-w-[16px] h-4 rounded-full px-1 text-[10px] font-black leading-4" style="background:#f59e0b;color:#ffffff;">0</span></button>
           <div class="hidden flex-1 md:block">
             <div class="relative flex items-center rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-400 overflow-hidden">
               <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none ml-3 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -2793,6 +2800,8 @@
         <p id="detailMeta" class="mt-1 text-xs text-slate-500"></p>
         <div class="mt-3 flex flex-wrap gap-2">
           <button id="detailAddToCartBtn" type="button" class="h-10 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition">🛒 Add to issue cart</button>
+          <!-- ติดดาวได้จาก Detail ด้วย — อะไหล่ที่หมดสต็อกจะเข้า cart ไม่ได้ แต่เป็นตัวที่ "ต้องสั่ง" ที่สุด -->
+          <button id="detailStarBtn" type="button" class="star-toggle-btn h-10 rounded-xl border px-4 text-sm font-bold transition" style="border-color:#d1d5db;background:#ffffff;color:#6b7280;">☆ ติดดาว</button>
           <a id="detailViewPhoto" href="#" target="_blank" rel="noopener" class="hidden h-10 items-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">🖼️ View Photo</a>
           <a id="detailViewDrawing" href="#" target="_blank" rel="noopener" class="hidden h-10 items-center rounded-xl border border-blue-300 bg-blue-50 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition">📐 View Drawing</a>
           <a id="detailViewDatasheet" href="#" target="_blank" rel="noopener" class="hidden h-10 items-center rounded-xl border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition">📄 View Datasheet</a>
@@ -2899,7 +2908,10 @@
       </div>
       <div class="mb-3 flex items-center justify-between text-sm">
         <p id="issueCartSummary" class="text-slate-600">0 รายการ</p>
-        <button id="clearIssueCartBtn" type="button" class="rounded-lg border border-rose-200 px-3 py-1.5 text-rose-700">ล้างทั้งหมด</button>
+        <div class="flex items-center gap-2">
+          <button id="cartStarredListBtn" type="button" title="ดูรายการอะไหล่ที่ติดดาวไว้" class="rounded-lg border px-3 py-1.5 font-semibold" style="border-color:#fcd34d;background:#fffbeb;color:#b45309;">⭐ ติดดาว <span id="cartStarredCount">0</span></button>
+          <button id="clearIssueCartBtn" type="button" class="rounded-lg border border-rose-200 px-3 py-1.5 text-rose-700">ล้างทั้งหมด</button>
+        </div>
       </div>
       <div id="issueCartList" class="min-h-0 flex-1 max-h-[calc(100vh-250px)] md:max-h-none space-y-2 overflow-y-auto overscroll-contain pr-1" style="-webkit-overflow-scrolling:touch;touch-action:pan-y;"></div>
       <div class="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -2926,6 +2938,29 @@
         <p id="issueCartMessage" class="text-xs text-slate-500"></p>
       </div>
       <p id="issueCartHint" class="mt-3 text-xs text-slate-500">* ขั้นตอนนี้เป็นการเลือกชั่วคราว ยังไม่ตัด stock จริง</p>
+    </aside>
+  </div>
+
+  <!-- ⭐ อะไหล่ติดดาว — โน๊ตไว้ว่า "ต้องสั่งซื้อ" ระหว่างเบิกของ แล้วมาเปิด PR ทีหลัง -->
+  <div id="starredPartsModal" class="fixed inset-0 hidden items-stretch md:items-start justify-center overflow-y-auto p-0 md:p-6">
+    <div id="starredPartsBackdrop" class="absolute inset-0"></div>
+    <aside class="relative z-10 flex h-screen w-screen flex-col overflow-y-auto rounded-none border-0 bg-white p-4 md:my-6 md:h-auto md:max-h-none md:w-[min(720px,calc(100vw-64px))] md:rounded-2xl md:border md:border-slate-200 md:p-5 panel-shadow">
+      <div class="sticky top-0 z-10 -mx-4 mb-3 flex items-center justify-between border-b border-slate-200 bg-white px-4 pb-2 pt-1 md:mx-0 md:border-0 md:px-0 md:pb-0 md:pt-0">
+        <div>
+          <h3 class="text-lg font-bold">⭐ อะไหล่ติดดาว</h3>
+          <p class="text-[11px] text-gray-500">รายการที่โน๊ตไว้ว่าต้องสั่งซื้อ — กด "ขอซื้อ" เพื่อส่งคำขอได้ทันที</p>
+        </div>
+        <button id="closeStarredPartsBtn" type="button" class="h-9 w-9 shrink-0 rounded-full border border-slate-300 text-slate-600">×</button>
+      </div>
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+        <p id="starredPartsSummary" class="text-gray-600">0 รายการ</p>
+        <div class="flex items-center gap-2">
+          <button id="copyStarredListBtn" type="button" title="คัดลอกเป็นข้อความ เอาไปวางใน Line/โน๊ตได้" class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 font-semibold text-blue-700">📋 คัดลอก</button>
+          <button id="clearStarredPartsBtn" type="button" class="rounded-lg border border-red-200 px-3 py-1.5 font-semibold text-red-700">ล้างทั้งหมด</button>
+        </div>
+      </div>
+      <div id="starredPartsList" class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1" style="-webkit-overflow-scrolling:touch;touch-action:pan-y;"></div>
+      <p class="mt-3 text-xs text-gray-500">* รายการติดดาวเก็บไว้ในเครื่องนี้ (ไม่หายตอนบันทึกเบิกหรือปิดเว็บ) ยังไม่ใช่คำขอซื้อ — ต้องกด "🛒 ขอซื้อ" เพื่อส่งคำขอจริง</p>
     </aside>
   </div>
 
@@ -3231,6 +3266,19 @@
     var issueCartNote = document.getElementById('issueCartNote');
     var issueCartSubmitBtn = document.getElementById('issueCartSubmitBtn');
     var issueCartMessage = document.getElementById('issueCartMessage');
+    var openStarredBtn = document.getElementById('openStarredBtn');
+    var openStarredBtnMobile = document.getElementById('openStarredBtnMobile');
+    var starredBadge = document.getElementById('starredBadge');
+    var starredBadgeMobile = document.getElementById('starredBadgeMobile');
+    var cartStarredListBtn = document.getElementById('cartStarredListBtn');
+    var cartStarredCount = document.getElementById('cartStarredCount');
+    var starredPartsModal = document.getElementById('starredPartsModal');
+    var starredPartsBackdrop = document.getElementById('starredPartsBackdrop');
+    var closeStarredPartsBtn = document.getElementById('closeStarredPartsBtn');
+    var clearStarredPartsBtn = document.getElementById('clearStarredPartsBtn');
+    var copyStarredListBtn = document.getElementById('copyStarredListBtn');
+    var starredPartsList = document.getElementById('starredPartsList');
+    var starredPartsSummary = document.getElementById('starredPartsSummary');
     var quickIssueModal = document.getElementById('quickIssueModal');
     var quickIssueBackdrop = document.getElementById('quickIssueBackdrop');
     var quickIssueCloseBtn = document.getElementById('quickIssueCloseBtn');
@@ -3359,6 +3407,13 @@
     var issueCartState = {}; // keyed by getItemIdentityKey(item) — กัน NO ซ้ำข้าม Sheet ชนกัน
     var issueCartRenderEntries = [];
     var issueCartSubmitting = false;
+    // ── อะไหล่ติดดาว (ต้องสั่งซื้อ) ────────────────────────────────
+    // keyed by getItemIdentityKey(item) เหมือน cart แต่ "อยู่ยาว" — ไม่หายตอนบันทึกเบิก/reload
+    // เก็บ snapshot ชื่อ/รุ่น/ไลน์ไว้ในตัว entry ด้วย เพราะรายการติดดาวอาจข้ามไลน์ (partsData มีแค่ไลน์ปัจจุบัน)
+    var STARRED_STORAGE_KEY = 'spare_starred_parts_v1';
+    var starredState = {};
+    var starredRenderEntries = [];
+    var pendingStarredRequestKey = ''; // key ของรายการติดดาวที่กด "ขอซื้อ" ล่าสุด
     var currentQuickIssueItemNo = '';
     var currentQuickIssueSelectedPart = null;
     var QUICK_ISSUE_SELECTED_PART_KEY = 'quickIssueSelectedPart';
@@ -4222,6 +4277,338 @@
       renderIssueCart();
     }
 
+    // ════════════════════════════════════════════════════════════════
+    // ⭐ อะไหล่ติดดาว (ต้องสั่งซื้อ)
+    // ระหว่างเบิกของใน Issue Cart ถ้าเจออะไหล่ที่ "ต้องสั่งเพิ่ม" ให้กดดาวโน๊ตไว้เลย
+    // ไม่ต้องจดหรือจำไปเปิด PR ทีหลัง — รายการอยู่ยาวใน localStorage ของเครื่องนี้
+    // แล้วกด "ขอซื้อ" จากรายการติดดาวเพื่อเด้งไปหน้าขอซื้อพร้อมข้อมูลกรอกให้แล้ว
+    // ════════════════════════════════════════════════════════════════
+    function escapeStarText(value) {
+      return String(value === undefined || value === null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function loadStarredFromStorage() {
+      try {
+        var raw = localStorage.getItem(STARRED_STORAGE_KEY);
+        var parsed = raw ? JSON.parse(raw) : null;
+        starredState = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+      } catch (err) {
+        starredState = {};
+      }
+      updateStarredBadges();
+    }
+
+    function saveStarredToStorage() {
+      try {
+        localStorage.setItem(STARRED_STORAGE_KEY, JSON.stringify(starredState));
+      } catch (err) {
+        // localStorage เต็ม/ปิดอยู่ — ยังใช้งานในรอบนี้ได้ แค่ไม่ค้างข้ามการ reload
+        console.warn('บันทึกรายการติดดาวลงเครื่องไม่สำเร็จ', err);
+      }
+    }
+
+    function getStarredCount() {
+      return Object.keys(starredState).length;
+    }
+
+    function updateStarredBadges() {
+      var count = getStarredCount();
+      [starredBadge, starredBadgeMobile].forEach(function(el) {
+        if (!el) return;
+        el.textContent = String(count);
+        el.classList.toggle('hidden', count === 0);
+      });
+      if (cartStarredCount) cartStarredCount.textContent = String(count);
+    }
+
+    function isStarred(key) {
+      return !!(key && starredState[key]);
+    }
+
+    // เก็บ snapshot ข้อมูลอะไหล่ไว้ในตัว entry — รายการติดดาวต้องอ่านออกแม้สลับไลน์
+    // (partsData โหลดเฉพาะไลน์ปัจจุบัน) หรือแม้อะไหล่ถูกลบออกจาก master ไปแล้ว
+    function buildStarredEntry(item, note) {
+      return {
+        no: item && item.no !== undefined ? String(item.no) : '',
+        name: item ? String(item.name || '') : '',
+        model: item ? String(item.model || '') : '',
+        brand: item ? String(item.brand || '') : '',
+        line: item ? String(item.line || currentLine || '') : String(currentLine || ''),
+        location: item ? String(item.location || '') : '',
+        unit: item ? String(item.unit || '') : '',
+        image: item ? String(item.image_main_url || '') : '',
+        stockAtStar: item ? safeNum(item.stock) : 0,
+        minAtStar: item ? safeNum(item.min) : 0,
+        note: String(note || ''),
+        starredAt: new Date().toISOString(),
+        requestedAt: ''
+      };
+    }
+
+    function toggleStarredItem(item) {
+      if (!item) return false;
+      var key = getItemIdentityKey(item);
+      if (!key) return false;
+      if (starredState[key]) {
+        delete starredState[key];
+        saveStarredToStorage();
+        updateStarredBadges();
+        showQuickToast('เอาดาวออกแล้ว: ' + (item.name || '-'), 'muted');
+      } else {
+        starredState[key] = buildStarredEntry(item, '');
+        saveStarredToStorage();
+        updateStarredBadges();
+        showQuickToast('⭐ ติดดาวไว้แล้ว: ' + (item.name || '-') + ' — ใส่โน๊ตได้เลย', 'success');
+      }
+      if (issueCartModal && !issueCartModal.classList.contains('hidden')) renderIssueCart();
+      if (starredPartsModal && !starredPartsModal.classList.contains('hidden')) renderStarredParts();
+      return isStarred(key);
+    }
+
+    function setStarredNote(key, note) {
+      if (!starredState[key]) return;
+      starredState[key].note = String(note || '');
+      saveStarredToStorage();
+    }
+
+    function unstarByKey(key) {
+      if (!starredState[key]) return;
+      delete starredState[key];
+      saveStarredToStorage();
+      updateStarredBadges();
+      if (issueCartModal && !issueCartModal.classList.contains('hidden')) renderIssueCart();
+      renderStarredParts();
+    }
+
+    // เรียกหลังส่งคำขอซื้อสำเร็จ — คงดาว + โน๊ตไว้ แต่ติดป้ายว่าส่งคำขอแล้ว
+    // (ไม่ลบอัตโนมัติ เพราะโน๊ตที่พิมพ์ไว้มีค่า และผู้ใช้อาจอยากตามสถานะต่อ)
+    function markStarredAsRequested(item) {
+      if (!item) return;
+      var key = getItemIdentityKey(item);
+      // identity key ของ roSearchPool (ยิงต่อไลน์) อาจไม่ตรงกับตอนติดดาวจาก partsData
+      // จึงจำ key ที่กด "ขอซื้อ" มาจากรายการติดดาวไว้ แล้วเทียบชื่อกันอีกชั้นก่อนใช้
+      if (!starredState[key] && pendingStarredRequestKey && starredState[pendingStarredRequestKey]) {
+        var pending = starredState[pendingStarredRequestKey];
+        if (String(pending.name || '').trim().toLowerCase() === String(item.name || '').trim().toLowerCase()) {
+          key = pendingStarredRequestKey;
+        }
+      }
+      pendingStarredRequestKey = '';
+      if (!key || !starredState[key]) return;
+      starredState[key].requestedAt = new Date().toISOString();
+      saveStarredToStorage();
+      if (starredPartsModal && !starredPartsModal.classList.contains('hidden')) renderStarredParts();
+    }
+
+    function syncDetailStarBtn(item) {
+      var btn = document.getElementById('detailStarBtn');
+      if (!btn) return;
+      var on = item ? isStarred(getItemIdentityKey(item)) : false;
+      btn.textContent = on ? '⭐ ติดดาวแล้ว' : '☆ ติดดาว';
+      btn.title = on ? 'เอาดาวออก' : 'ติดดาวไว้ว่าอะไหล่ตัวนี้ต้องสั่งซื้อ';
+      btn.style.cssText = on
+        ? 'border-color:#f59e0b;background:#fef3c7;color:#b45309;'
+        : 'border-color:#d1d5db;background:#ffffff;color:#6b7280;';
+    }
+
+    function starButtonHtml(key, attrName, idx) {
+      var on = isStarred(key);
+      var style = on
+        ? 'border-color:#f59e0b;background:#fef3c7;color:#b45309;'
+        : 'border-color:#d1d5db;background:#ffffff;color:#9ca3af;';
+      return '<button type="button" ' + attrName + '="' + idx + '" title="' + (on ? 'เอาดาวออก' : 'ติดดาว — โน๊ตว่าต้องสั่งซื้อ') + '" ' +
+        'class="star-toggle-btn inline-flex h-8 items-center gap-1 rounded-lg border px-2 text-xs font-bold" style="' + style + '">' +
+        (on ? '⭐' : '☆') + '<span class="hidden sm:inline">' + (on ? 'ติดดาวแล้ว' : 'ติดดาว') + '</span></button>';
+    }
+
+    function openStarredParts() {
+      if (!starredPartsModal) return;
+      starredPartsModal.classList.remove('hidden');
+      starredPartsModal.classList.add('flex');
+      renderStarredParts();
+    }
+
+    function closeStarredParts() {
+      if (!starredPartsModal || starredPartsModal.classList.contains('hidden')) return;
+      starredPartsModal.classList.add('hidden');
+      starredPartsModal.classList.remove('flex');
+    }
+
+    function getStarredEntriesSorted() {
+      return Object.keys(starredState).map(function(key) {
+        return { key: key, entry: starredState[key] || {} };
+      }).sort(function(a, b) {
+        return String(b.entry.starredAt || '').localeCompare(String(a.entry.starredAt || ''));
+      });
+    }
+
+    function renderStarredParts() {
+      if (!starredPartsList) return;
+      var entries = getStarredEntriesSorted();
+      starredRenderEntries = entries;
+      var requestedCount = entries.filter(function(e) { return !!e.entry.requestedAt; }).length;
+      if (starredPartsSummary) {
+        starredPartsSummary.textContent = entries.length + ' รายการ' + (requestedCount ? ' · ✅ ส่งคำขอแล้ว ' + requestedCount : '');
+      }
+      if (!entries.length) {
+        starredPartsList.innerHTML = '<div class="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">ยังไม่มีอะไหล่ติดดาว<br/><span class="text-xs">กดปุ่ม ☆ ที่รายการใน Issue Cart เพื่อโน๊ตว่าอะไหล่ตัวนั้นต้องสั่งซื้อ</span></div>';
+        return;
+      }
+      starredPartsList.innerHTML = entries.map(function(row, idx) {
+        var e = row.entry;
+        // สต็อกสดจาก master ถ้ายังอยู่ในไลน์ที่โหลดไว้ ไม่งั้นใช้ค่าตอนติดดาว
+        var live = findItemByIdentityKey(row.key);
+        var stockText = live
+          ? 'Stock ปัจจุบัน: ' + safeNum(live.stock) + (safeNum(live.min) ? ' / Min ' + safeNum(live.min) : '')
+          : 'Stock ตอนติดดาว: ' + safeNum(e.stockAtStar) + (safeNum(e.minAtStar) ? ' / Min ' + safeNum(e.minAtStar) : '');
+        var img = toSafeImageUrl(e.image, 200);
+        var fallback = getSecondaryDriveImageUrl(e.image);
+        var starredDate = '';
+        try { starredDate = e.starredAt ? new Date(e.starredAt).toLocaleDateString('th-TH', { day: '2-digit', month: 'short' }) : ''; } catch (err) { starredDate = ''; }
+        var requestedBadge = e.requestedAt
+          ? '<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold" style="background:#dcfce7;color:#15803d;">✅ ส่งคำขอแล้ว</span>'
+          : '';
+        return '<article class="rounded-xl border p-2.5" style="border-color:#fde68a;background:#fffdf5;">' +
+          '<div class="flex gap-2.5">' +
+            '<img src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 shrink-0 rounded-lg border border-gray-200 bg-white object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+            '<div class="min-w-0 flex-1">' +
+              '<div class="flex items-start justify-between gap-2">' +
+                '<p class="truncate text-sm font-bold text-gray-900">' + escapeStarText(e.name || '-') + '</p>' +
+                requestedBadge +
+              '</div>' +
+              '<p class="truncate text-xs text-gray-500">' + escapeStarText(e.model || '-') + (e.line ? ' · ไลน์ ' + escapeStarText(e.line) : '') + '</p>' +
+              '<p class="text-xs text-gray-500">' + stockText + (starredDate ? ' · ติดดาว ' + starredDate : '') + '</p>' +
+            '</div>' +
+          '</div>' +
+          '<input data-starred-note="' + idx + '" value="' + escapeStarText(e.note || '') + '" placeholder="📝 โน๊ต เช่น เหลือน้อย ต้องสั่งด่วน / ใช้กับ MC-01" ' +
+            'class="mt-2 h-9 w-full rounded-lg border px-2.5 text-xs" style="border-color:#fcd34d;background:#ffffff;" />' +
+          '<div class="mt-2 flex items-center justify-end gap-2">' +
+            '<button type="button" data-starred-request="' + idx + '" class="rounded-lg px-3 py-1.5 text-xs font-bold text-white" style="background:#2563eb;">🛒 ขอซื้อ</button>' +
+            '<button type="button" data-starred-remove="' + idx + '" class="rounded-lg border px-2.5 py-1.5 text-xs font-semibold" style="border-color:#fecaca;color:#b91c1c;">เอาดาวออก</button>' +
+          '</div>' +
+        '</article>';
+      }).join('');
+
+      Array.prototype.slice.call(starredPartsList.querySelectorAll('[data-starred-note]')).forEach(function(input) {
+        var row = starredRenderEntries[Number(input.getAttribute('data-starred-note'))];
+        if (!row) return;
+        // บันทึกโน๊ตทุกครั้งที่พิมพ์ — ไม่มีปุ่ม save ให้ลืมกด
+        input.addEventListener('input', function() { setStarredNote(row.key, input.value); });
+      });
+      Array.prototype.slice.call(starredPartsList.querySelectorAll('[data-starred-remove]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var row = starredRenderEntries[Number(btn.getAttribute('data-starred-remove'))];
+          if (row) unstarByKey(row.key);
+        });
+      });
+      Array.prototype.slice.call(starredPartsList.querySelectorAll('[data-starred-request]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var row = starredRenderEntries[Number(btn.getAttribute('data-starred-request'))];
+          if (row) requestOrderFromStarred(row.key);
+        });
+      });
+    }
+
+    function buildStarredPlainText() {
+      var entries = getStarredEntriesSorted();
+      if (!entries.length) return '';
+      return ['⭐ อะไหล่ที่ต้องสั่งซื้อ (' + entries.length + ' รายการ)'].concat(entries.map(function(row, idx) {
+        var e = row.entry;
+        var live = findItemByIdentityKey(row.key);
+        var stock = live ? safeNum(live.stock) : safeNum(e.stockAtStar);
+        return (idx + 1) + '. ' + (e.name || '-') + (e.model ? ' (' + e.model + ')' : '') +
+          ' | ไลน์ ' + (e.line || '-') + ' | Stock ' + stock +
+          (e.note ? ' | โน๊ต: ' + e.note : '') +
+          (e.requestedAt ? ' | ✅ ส่งคำขอแล้ว' : '');
+      })).join('\n');
+    }
+
+    function copyStarredList() {
+      var text = buildStarredPlainText();
+      if (!text) { showQuickToast('ยังไม่มีรายการติดดาว', 'warn'); return; }
+      function fallbackCopy() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0;';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+        document.body.removeChild(ta);
+        showQuickToast(ok ? '📋 คัดลอกรายการแล้ว' : 'คัดลอกไม่สำเร็จ กด copy จากช่องโน๊ตแทน', ok ? 'success' : 'error');
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(function() { showQuickToast('📋 คัดลอกรายการแล้ว (' + getStarredCount() + ' รายการ)', 'success'); })
+          .catch(fallbackCopy);
+      } else {
+        fallbackCopy();
+      }
+    }
+
+    // จากรายการติดดาว → เด้งไปหน้า "ขอซื้อ" พร้อมเลือกอะไหล่ + ใส่เหตุผล/หมายเหตุให้แล้ว
+    function requestOrderFromStarred(key) {
+      var entry = starredState[key];
+      if (!entry) return;
+      if (!hasPermission('request_order_create') && !isAdminUser()) {
+        showQuickToast('ไม่มีสิทธิ์ส่งคำขอซื้อ', 'error');
+        return;
+      }
+      pendingStarredRequestKey = key;
+      closeStarredParts();
+      closeIssueCart();
+      switchToRequestOrderPage();
+      loadRequestOrderSearchPool().then(function(pool) {
+        var source = (pool && pool.length) ? pool : (partsData || []);
+        var found = null;
+        for (var i = 0; i < source.length; i += 1) {
+          if (getItemIdentityKey(source[i]) === key) { found = source[i]; break; }
+        }
+        if (!found) {
+          // เผื่อ identity key เปลี่ยน (ย้าย location / แก้ชื่อ) — เทียบด้วยชื่อ+รุ่นเป็น fallback
+          var wantName = String(entry.name || '').trim().toLowerCase();
+          var wantModel = String(entry.model || '').trim().toLowerCase();
+          found = source.filter(function(p) {
+            return String(p.name || '').trim().toLowerCase() === wantName &&
+                   String(p.model || '').trim().toLowerCase() === wantModel;
+          })[0] || null;
+        }
+        var roItemSearchEl = document.getElementById('roItemSearch');
+        if (!found) {
+          if (roRequestType) { roRequestType.value = 'existing'; applyRoRequestTypeUi(); }
+          if (roItemSearchEl) roItemSearchEl.value = entry.name || '';
+          showQuickToast('ไม่พบอะไหล่นี้ในระบบแล้ว — ค้นหา/กรอกเป็นรายการใหม่ได้', 'warn');
+          return;
+        }
+        if (roRequestType) { roRequestType.value = 'existing'; applyRoRequestTypeUi(); }
+        roSelectedItem = found;
+        renderRoSelectedCard(found);
+        if (roItemSearchEl) roItemSearchEl.value = found.name || '';
+        if (roItemSearchResults) roItemSearchResults.innerHTML = '';
+        var stock = safeNum(found.stock);
+        var min = safeNum(found.min);
+        var reasonEl = document.getElementById('roReasonPreset');
+        if (reasonEl && !reasonEl.value) {
+          reasonEl.value = stock <= 0 ? 'อะไหล่หมด' : (min && stock < min ? 'ต่ำกว่าขั้นต่ำ' : 'เตรียมอะไหล่สำรอง');
+          if (roReasonOther) roReasonOther.classList.toggle('hidden', reasonEl.value !== 'อื่นๆ');
+        }
+        var remarkEl = document.getElementById('roRemark');
+        if (remarkEl && !String(remarkEl.value || '').trim()) {
+          remarkEl.value = entry.note ? ('⭐ ' + entry.note) : '⭐ ติดดาวไว้จากหน้า Issue Cart';
+        }
+        var formEl = document.getElementById('requestOrderForm');
+        if (formEl) {
+          try { formEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+          catch (err) { formEl.scrollIntoView(); }
+        }
+        showQuickToast('กรอกคำขอซื้อ "' + (found.name || '-') + '" ให้แล้ว — ตรวจจำนวนแล้วกดส่ง', 'info');
+      }).catch(function() {
+        showQuickToast('โหลดรายการอะไหล่ไม่สำเร็จ กรุณาค้นหาเองในหน้าขอซื้อ', 'error');
+      });
+    }
+
     // ราคา/หน่วยของรายการจาก master — เกณฑ์เดียวกับระบบ PR: ต้องเป็นตัวเลข > 0 ถึงนับว่ามีราคา
     // จุดประสงค์หลักคือให้เห็นว่ารายการไหน "ยังไม่มีราคา" จะได้ตามไปเติมข้อมูลให้ครบ (ใช้ทั้ง cart และการ์ดหน้าหลัก)
     function getItemUnitPrice(item) {
@@ -4260,26 +4647,48 @@
         var priceHtml = priceNum !== null
           ? '<p class="text-xs text-gray-400">฿' + priceNum.toLocaleString('th-TH') + ' / ' + (item.unit || 'PCS') + '</p>'
           : '<p class="text-xs font-semibold text-yellow-700">❓ ยังไม่มีราคา</p>';
-        return '<article class="rounded-xl border border-slate-200 bg-white p-2.5">' +
+        // ⭐ ติดดาว: โน๊ตว่า "ต้องสั่งซื้อ" ได้ตรงนี้เลย ไม่ต้องจำไปเปิด PR ทีหลัง
+        var starred = isStarred(entry.key);
+        var noteHtml = starred
+          ? '<input data-cart-star-note="' + entryIdx + '" value="' + escapeStarText((starredState[entry.key] || {}).note || '') + '" placeholder="📝 โน๊ตว่าทำไมต้องสั่ง (ไม่บังคับ)" ' +
+            'class="mt-2 h-9 w-full rounded-lg border px-2.5 text-xs" style="border-color:#fcd34d;background:#fffbeb;" />'
+          : '';
+        return '<article class="rounded-xl border p-2.5" style="' + (starred ? 'border-color:#fcd34d;background:#fffdf5;' : 'border-color:#e5e7eb;background:#ffffff;') + '">' +
           '<div class="flex gap-2.5">' +
             '<img src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             '<div class="min-w-0 flex-1">' +
-              '<p class="truncate text-sm font-semibold text-slate-900">' + item.name + '</p>' +
+              '<p class="truncate text-sm font-semibold text-slate-900">' + (starred ? '⭐ ' : '') + item.name + '</p>' +
               '<p class="truncate text-xs text-slate-500">' + (item.model || '-') + '</p>' +
               '<p class="text-xs text-slate-500">Stock: ' + item.stock + '</p>' +
               priceHtml +
             '</div>' +
           '</div>' +
+          noteHtml +
           '<div class="mt-2 flex items-center justify-between gap-2">' +
             '<div class="inline-flex items-center rounded-lg border border-slate-300 overflow-hidden">' +
               '<button data-cart-minus="' + entryIdx + '" class="h-8 w-8 bg-white text-slate-700">-</button>' +
               '<span class="inline-flex h-8 min-w-[34px] items-center justify-center text-sm font-semibold">' + qty + '</span>' +
               '<button data-cart-plus="' + entryIdx + '" class="h-8 w-8 bg-white text-slate-700">+</button>' +
             '</div>' +
-            '<button data-cart-remove="' + entryIdx + '" class="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700">Remove</button>' +
+            '<div class="flex items-center gap-2">' +
+              starButtonHtml(entry.key, 'data-cart-star', entryIdx) +
+              '<button data-cart-remove="' + entryIdx + '" class="rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700">Remove</button>' +
+            '</div>' +
           '</div>' +
         '</article>';
       }).join('');
+
+      Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-star]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var entry = issueCartRenderEntries[Number(btn.getAttribute('data-cart-star'))]; if (!entry) return;
+          toggleStarredItem(entry.item);
+        });
+      });
+      Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-star-note]')).forEach(function(input) {
+        var entry = issueCartRenderEntries[Number(input.getAttribute('data-cart-star-note'))];
+        if (!entry) return;
+        input.addEventListener('input', function() { setStarredNote(entry.key, input.value); });
+      });
 
       Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-minus]')).forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -12247,6 +12656,7 @@ function inferRequestPriority(stock, min) {
       }
       detailModalCurrentNo = item.no;
       currentDetailModalItem = item;
+      syncDetailStarBtn(item);
       document.getElementById('detailName').textContent = item.name || '-';
       document.getElementById('detailNo').textContent = item.no || '-';
       document.getElementById('detailModel').textContent = item.model || '-';
@@ -12623,7 +13033,7 @@ function inferRequestPriority(stock, min) {
     }
     if (quickReceiveForm) quickReceiveForm.addEventListener('submit', submitQuickReceive);
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') { closeQuickIssueModal(); closeQuickReceiveModal(); }
+      if (e.key === 'Escape') { closeQuickIssueModal(); closeQuickReceiveModal(); closeStarredParts(); }
     });
     function bindStockShortcut(btn, fn) {
       if (!btn) return;
@@ -14047,6 +14457,38 @@ if (dashboardPage) {
       renderIssueCart();
       setIssueCartMessage('', 'muted');
     });
+    // ⭐ อะไหล่ติดดาว
+    var detailStarBtnEl = document.getElementById('detailStarBtn');
+    if (detailStarBtnEl) detailStarBtnEl.addEventListener('click', function() {
+      var item = currentDetailModalItem;
+      if (!item && detailModalCurrentNo) item = partsData.filter(function(p){ return String(p.no) === String(detailModalCurrentNo); })[0];
+      if (!item) { showQuickToast('ไม่พบข้อมูลอะไหล่', 'error'); return; }
+      toggleStarredItem(item);
+      syncDetailStarBtn(item);
+    });
+    if (openStarredBtn) openStarredBtn.addEventListener('click', openStarredParts);
+    if (openStarredBtnMobile) openStarredBtnMobile.addEventListener('click', openStarredParts);
+    if (cartStarredListBtn) cartStarredListBtn.addEventListener('click', openStarredParts);
+    if (closeStarredPartsBtn) closeStarredPartsBtn.addEventListener('click', closeStarredParts);
+    if (starredPartsBackdrop) starredPartsBackdrop.addEventListener('click', closeStarredParts);
+    if (copyStarredListBtn) copyStarredListBtn.addEventListener('click', copyStarredList);
+    if (clearStarredPartsBtn) clearStarredPartsBtn.addEventListener('click', function() {
+      if (!getStarredCount()) { showQuickToast('ยังไม่มีรายการติดดาว', 'warn'); return; }
+      showConfirmDialog({
+        title: 'ล้างรายการติดดาว',
+        message: 'ลบอะไหล่ติดดาวทั้งหมด ' + getStarredCount() + ' รายการ (รวมโน๊ตที่พิมพ์ไว้)?',
+        okLabel: 'ยืนยันล้าง'
+      }).then(function(confirmed) {
+        if (!confirmed) return;
+        starredState = {};
+        saveStarredToStorage();
+        updateStarredBadges();
+        renderStarredParts();
+        if (issueCartModal && !issueCartModal.classList.contains('hidden')) renderIssueCart();
+        showQuickToast('ล้างรายการติดดาวแล้ว', 'success');
+      });
+    });
+    loadStarredFromStorage();
     if (issueCartReason) issueCartReason.addEventListener('change', function(){ var isOther = String(issueCartReason.value || '') === 'Other'; if (issueCartReasonRemark) { issueCartReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) issueCartReasonRemark.value = ''; } });
     if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } });
     if (issueCartSubmitBtn) issueCartSubmitBtn.addEventListener('click', submitIssueCartTransactions);
@@ -15307,6 +15749,8 @@ if (dashboardPage) {
         if (res && res.status === 'error') throw new Error(res.message || 'ส่งคำขอไม่สำเร็จ');
         if (res && res.purchase_history_recorded === false) showQuickToast('ส่งคำขอซื้อเรียบร้อย แต่บันทึก Purchase History ไม่สำเร็จ กรุณาแจ้งผู้ดูแลระบบ', 'warn');
         else showQuickToast('ส่งคำขอซื้อเรียบร้อย • Status: รอการอนุมัติ', 'success');
+        // ถ้าอะไหล่ตัวนี้ติดดาวไว้ ให้ติดป้าย "ส่งคำขอแล้ว" — คงดาว+โน๊ตไว้ให้ตามสถานะต่อได้
+        markStarredAsRequested(roSelectedItem);
         e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests(); refreshRequestOrderBadgeCount();
       }).catch(function(err) {
         var rawMessage = err && err.message ? err.message : String(err || '');
