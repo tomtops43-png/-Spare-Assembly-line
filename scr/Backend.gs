@@ -65,7 +65,7 @@ var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updat
 // โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
 var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
 var PART_TAG_HEADERS = ['Tag No', 'Part No', 'Part Name', 'Model', 'Category', 'Line', 'Sheet Name', 'Unit', 'Machine', 'Reason', 'Issued At', 'Issued By', 'Status', 'Status At', 'Status By', 'Remark', 'Installed At', 'Removed At'];
-var PART_TAG_CONFIG_HEADERS = ['Category', 'Require Tag', 'Prefix', 'Updated By', 'Updated At'];
+var PART_TAG_CONFIG_HEADERS = ['Category', 'Require Tag', 'Prefix', 'Start Number', 'Digits', 'Updated By', 'Updated At'];
 // สถานะของชิ้น — ใช้คำเดียวกับ CWM System ที่หน้างานใช้อยู่ (ติดตั้ง → ถอด)
 // ค่าแรกคือค่าเริ่มต้นตอนเบิกออกจากคลัง (เบิกมาแล้วแต่ยังไม่ได้ใส่เครื่อง)
 var PART_TAG_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง'];
@@ -1093,12 +1093,18 @@ function defaultPartTagPrefix(category) {
 
 function rowToPartTagConfig(r) {
   var category = String(r[0] || '').trim();
+  var startNumber = parseInt(r[3], 10);
+  var digits = parseInt(r[4], 10);
   return {
     category: category,
     require_tag: String(r[1]).toUpperCase() === 'TRUE' || String(r[1]) === '1',
     prefix: String(r[2] || '').trim() || defaultPartTagPrefix(category),
-    updated_by: String(r[3] || ''),
-    updated_at: String(r[4] || '')
+    // เลขเริ่มต้น/จำนวนหลัก — ใช้ตอนยังไม่เคยออกเลขให้ prefix นี้เลย เพื่อให้ "สานต่อ" เลขจากระบบ
+    // เดิม (เช่น CWM System ใช้ SC-030..SC-039 แล้ว อยากให้ระบบนี้ออกต่อจาก SC-040)
+    start_number: (!isNaN(startNumber) && startNumber > 0) ? startNumber : 1,
+    digits: (!isNaN(digits) && digits > 0) ? digits : 5,
+    updated_by: String(r[5] || ''),
+    updated_at: String(r[6] || '')
   };
 }
 
@@ -1127,31 +1133,41 @@ function setPartTagConfig(payload) {
   var requireTag = String(payload.require_tag) === '1' || String(payload.require_tag).toLowerCase() === 'true';
   var prefix = String(payload.prefix || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
   if (!prefix) prefix = defaultPartTagPrefix(category);
+  var startNumber = parseInt(payload.start_number, 10);
+  if (isNaN(startNumber) || startNumber < 1) startNumber = 1;
+  var digits = parseInt(payload.digits, 10);
+  if (isNaN(digits) || digits < 1) digits = 5;
+  if (digits > 10) digits = 10; // กันพิมพ์ผิดเป็นเลขหลักเยอะเกินจำเป็น
   var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
   var sheet = getPartTagConfigSheet();
   var values = sheet.getDataRange().getValues();
   for (var i = 1; i < values.length; i += 1) {
     if (normalizePartTagCategory(values[i][0]) === normalizePartTagCategory(category)) {
       sheet.getRange(i + 1, 1, 1, PART_TAG_CONFIG_HEADERS.length)
-        .setValues([[category, requireTag, prefix, user.username, now]]);
-      return { status: 'success', category: category, require_tag: requireTag, prefix: prefix };
+        .setValues([[category, requireTag, prefix, startNumber, digits, user.username, now]]);
+      return { status: 'success', category: category, require_tag: requireTag, prefix: prefix, start_number: startNumber, digits: digits };
     }
   }
-  sheet.appendRow([category, requireTag, prefix, user.username, now]);
-  return { status: 'success', category: category, require_tag: requireTag, prefix: prefix };
+  sheet.appendRow([category, requireTag, prefix, startNumber, digits, user.username, now]);
+  return { status: 'success', category: category, require_tag: requireTag, prefix: prefix, start_number: startNumber, digits: digits };
 }
 
-// หา prefix + ว่าต้องออกเลขไหม สำหรับ category ที่กำลังเบิก
+// หา prefix + เลขเริ่มต้น + ว่าต้องออกเลขไหม สำหรับ category ที่กำลังเบิก
 function resolvePartTagRule(category) {
   var key = normalizePartTagCategory(category);
-  if (!key) return { require_tag: false, prefix: '' };
+  if (!key) return { require_tag: false, prefix: '', start_number: 1, digits: 5 };
   var list = getPartTagConfigList();
   for (var i = 0; i < list.length; i += 1) {
     if (normalizePartTagCategory(list[i].category) === key) {
-      return { require_tag: !!list[i].require_tag, prefix: list[i].prefix || defaultPartTagPrefix(category) };
+      return {
+        require_tag: !!list[i].require_tag,
+        prefix: list[i].prefix || defaultPartTagPrefix(category),
+        start_number: list[i].start_number || 1,
+        digits: list[i].digits || 5
+      };
     }
   }
-  return { require_tag: false, prefix: defaultPartTagPrefix(category) };
+  return { require_tag: false, prefix: defaultPartTagPrefix(category), start_number: 1, digits: 5 };
 }
 
 function rowToPartTag(r) {
@@ -1179,7 +1195,9 @@ function rowToPartTag(r) {
 
 // เลขวิ่งถัดไปของ prefix — ไล่จากเลขที่มีอยู่จริงในชีท เอาค่ามากสุด +1
 // (เรียกอยู่ใต้ LockService ของ processTransaction แล้ว จึงไม่ออกเลขซ้ำกันเอง)
-function nextPartTagRunning(existingRows, prefix) {
+// startNumber: ถ้ายังไม่เคยมีเลขของ prefix นี้ในทะเบียนเลย ให้เริ่มที่เลขนี้แทน 1
+// (ใช้ตอน "สานต่อ" เลขจากระบบเดิมที่ใช้อยู่ก่อนแล้ว เช่น CWM System ใช้ SC-001..SC-039 อยู่นอกระบบนี้)
+function nextPartTagRunning(existingRows, prefix, startNumber) {
   var max = 0;
   var head = String(prefix || '') + '-';
   for (var i = 1; i < existingRows.length; i += 1) {
@@ -1188,7 +1206,9 @@ function nextPartTagRunning(existingRows, prefix) {
     var running = parseInt(tag.slice(head.length), 10);
     if (!isNaN(running) && running > max) max = running;
   }
-  return max + 1;
+  if (max > 0) return max + 1;
+  var start = Number(startNumber) || 1;
+  return start > 0 ? start : 1;
 }
 
 // payload.process ของการเบิกอาจถูกต่อท้ายด้วย ' | note: ...' จากหน้าเว็บ
@@ -1197,9 +1217,10 @@ function partTagLineFromProcess(process) {
   return String(process || '').split('| note:')[0].replace(/\s+$/, '');
 }
 
-function padPartTagRunning(n) {
+function padPartTagRunning(n, digits) {
+  var width = Number(digits) || 5;
   var s = String(n);
-  while (s.length < 5) s = '0' + s;
+  while (s.length < width) s = '0' + s;
   return s;
 }
 
@@ -1220,11 +1241,11 @@ function createPartTagsForIssue(payload, issuedBy, qtyPieces) {
     }
     var sheet = getPartTagsSheet();
     var existing = sheet.getDataRange().getValues();
-    var running = nextPartTagRunning(existing, rule.prefix);
+    var running = nextPartTagRunning(existing, rule.prefix, rule.start_number);
     var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
     var rows = [];
     for (var i = 0; i < pieces; i += 1) {
-      var tagNo = rule.prefix + '-' + padPartTagRunning(running + i);
+      var tagNo = rule.prefix + '-' + padPartTagRunning(running + i, rule.digits);
       result.tags.push(tagNo);
       rows.push([
         tagNo,
