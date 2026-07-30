@@ -4921,7 +4921,14 @@
       partTagRenderRows = tags || [];
       if (summaryEl) summaryEl.textContent = partTagRenderRows.length + ' ชิ้น';
       if (!partTagRenderRows.length) {
-        listEl.innerHTML = '<div class="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">ไม่พบเลขประจำชิ้น<br/><span class="text-xs">เลขจะถูกออกอัตโนมัติตอนเบิกอะไหล่ใน Category ที่ตั้งค่าไว้</span></div>';
+        // ว่างเพราะยังไม่มีการออกเลขจริง — ต้องบอกให้ชัดว่าจะไปตั้งค่าที่ไหน ไม่งั้นดูเหมือนระบบเสีย
+        // (ห้ามพูดถึง "Category" อีก — เลิกผูกกับ Category ไปแล้ว ใช้กลุ่มแท็กรายชิ้นแทน)
+        listEl.innerHTML = '<div class="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">' +
+          '<p class="font-semibold">ไม่พบเลขประจำชิ้น</p>' +
+          '<p class="mt-1 text-xs">เลขจะออกอัตโนมัติตอนเบิก เฉพาะอะไหล่ที่ถูกเพิ่มเข้า "กลุ่มแท็ก" ไว้แล้วเท่านั้น</p>' +
+          '<p class="mt-1 text-xs">ตั้งค่าที่ <b>Admin → 🏷️ กลุ่มแท็กชิ้น</b> → สร้างกลุ่ม → กด "จัดการรายการ" → ค้นหาแล้วกดเพิ่มอะไหล่ทีละชิ้น</p>' +
+          '<p class="mt-1 text-xs">ถ้าเพิ่มไว้แล้ว: ตอนกดเบิก แถวนั้นใน Issue Cart ต้องขึ้นป้ายฟ้า 🏷️ ถ้าไม่ขึ้น = ยังจับคู่ชิ้นไม่เจอ</p>' +
+          '</div>';
         return;
       }
       var statusColor = {
