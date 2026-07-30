@@ -4740,6 +4740,21 @@
     // จับคู่ระดับ "รายชิ้น" (partNo+sheetName+model+name) ไม่ใช่ระดับ Category ทั้งกลุ่ม เพราะ
     // เครื่องมือเฉพาะกลุ่ม (เช่น Stripper Cutter) เป็นแค่บางชิ้นใน Category เดียวกัน ไม่ใช่ทุกชิ้น
     // ════════════════════════════════════════════════════════════════
+    // Apps Script เวอร์ชันเก่าที่ยังไม่ได้ deploy จะไม่รู้จัก action ของทะเบียนชิ้น แล้ว doGet
+    // จะ "ตกไปที่ default" = คืน array รายการอะไหล่กลับมา ซึ่งไม่ใช่ error จึงหลุด
+    // parseApiResponse ไปได้ ทำให้หน้าเว็บขึ้นว่าบันทึกสำเร็จทั้งที่ไม่ได้บันทึกอะไรเลย
+    // (อาการ: กดสร้างกลุ่มแล้วรายการยังว่าง ไม่มี error) จึงต้องเช็ค shape ของ response ด้วย
+    var PART_TAG_DEPLOY_HINT = 'Apps Script ที่ deploy อยู่ยังไม่รองรับทะเบียนชิ้น — ต้อง Deploy Backend.gs เวอร์ชันใหม่ก่อน (Apps Script → Deploy → Manage deployments → Edit → Version: New version)';
+
+    function parsePartTagResponse(res, expectedField) {
+      parseApiResponse(res);
+      if (Array.isArray(res) || !res || typeof res !== 'object' || res[expectedField] === undefined) {
+        partTagConfigState.supported = false;
+        throw new Error(PART_TAG_DEPLOY_HINT);
+      }
+      return res;
+    }
+
     function partTagKeyForItem(item) {
       var sheetName = item && (item.__sourceSheet || item.subLine || getCurrentSheetName());
       return [item && item.no, sheetName, item && item.model, item && item.name].map(function(v) {
@@ -4750,7 +4765,9 @@
     function loadPartTagConfig(force) {
       if (partTagConfigState.loaded && !force) return Promise.resolve(partTagConfigState);
       if (!partTagConfigState.supported && !force) return Promise.resolve(partTagConfigState);
-      return requestApi(withAuthPayload({ action: 'getPartTagAssignments' })).then(parseApiResponse).then(function(res) {
+      return requestApi(withAuthPayload({ action: 'getPartTagAssignments' })).then(function(res) {
+        return parsePartTagResponse(res, 'assignments');
+      }).then(function(res) {
         var list = (res && res.assignments) || [];
         var map = {};
         list.forEach(function(a) {
@@ -4885,7 +4902,9 @@
       var status = String((document.getElementById('partTagStatusFilter') || {}).value || '').trim();
       listEl.innerHTML = '<p class="px-3 py-6 text-center text-sm text-gray-500">กำลังโหลด...</p>';
       setPartTagRegistryMessage('', 'muted');
-      return requestApi(withAuthPayload({ action: 'getPartTags', q: q, status: status, limit: 200 })).then(parseApiResponse).then(function(res) {
+      return requestApi(withAuthPayload({ action: 'getPartTags', q: q, status: status, limit: 200 })).then(function(res) {
+        return parsePartTagResponse(res, 'tags');
+      }).then(function(res) {
         var tags = (res && res.tags) || [];
         renderPartTagRegistry(tags);
       }).catch(function(err) {
@@ -4955,7 +4974,9 @@
             status: statusEl ? statusEl.value : row.status,
             machine: machineEl ? machineEl.value : row.machine,
             remark: remarkEl ? remarkEl.value : row.remark
-          })).then(parseApiResponse).then(function() {
+          })).then(function(res) {
+            return parsePartTagResponse(res, 'tag_no');
+          }).then(function() {
             showQuickToast('อัปเดต ' + row.tag_no + ' แล้ว', 'success');
             return searchPartTags();
           }).catch(function(err) {
@@ -4985,14 +5006,15 @@
 
     // ── Admin: กลุ่มแท็กชิ้น (เลือกอะไหล่เฉพาะกลุ่มทีละชิ้น ไม่ผูกกับ Category ทั้งหมด) ──
     function loadPartTagGroupsList(force) {
-      return requestApi(withAuthPayload({ action: 'getPartTagGroups' })).then(parseApiResponse).then(function(res) {
+      return requestApi(withAuthPayload({ action: 'getPartTagGroups' })).then(function(res) {
+        return parsePartTagResponse(res, 'groups');
+      }).then(function(res) {
         partTagGroupsCache = (res && res.groups) || [];
         if (res && res.statuses && res.statuses.length) partTagConfigState.statuses = res.statuses;
         if (res && res.max_per_transaction) partTagConfigState.maxPerTransaction = Number(res.max_per_transaction);
         return partTagGroupsCache;
       }).catch(function(err) {
-        setPartTagConfigMessage('โหลดกลุ่มแท็กไม่สำเร็จ: ' + (err && err.message ? err.message : err) +
-          ' (ถ้าเพิ่งเพิ่มฟีเจอร์นี้ ต้อง Deploy Apps Script เวอร์ชันใหม่ก่อน)', 'error');
+        setPartTagConfigMessage('โหลดกลุ่มแท็กไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
         partTagGroupsCache = [];
         return partTagGroupsCache;
       });
@@ -5001,6 +5023,14 @@
     function renderPartTagGroupsList() {
       var container = document.getElementById('partTagGroupList');
       if (!container) return;
+      // backend ยังไม่ deploy — ต้องบอกให้ชัด ไม่ใช่โชว์ empty state เหมือนไม่มีกลุ่ม
+      // ไม่งั้นกดสร้างกลุ่มแล้วดูเหมือน "ไม่มีอะไรเกิดขึ้น" โดยไม่รู้ว่าต้องไป deploy
+      if (!partTagConfigState.supported) {
+        container.innerHTML = '<div class="rounded-xl border px-3 py-4 text-center text-xs" style="border-color:#fecaca;background:#fef2f2;color:#b91c1c;">' +
+          '<p class="font-bold">⚠️ ยังใช้งานไม่ได้ — ต้อง Deploy Apps Script ก่อน</p>' +
+          '<p class="mt-1">' + escHtml(PART_TAG_DEPLOY_HINT) + '</p></div>';
+        return;
+      }
       if (!partTagGroupsCache.length) {
         container.innerHTML = '<p class="rounded-xl border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500">ยังไม่มีกลุ่มแท็ก — สร้างกลุ่มแล้วกด "จัดการรายการ" เพื่อเลือกอะไหล่เฉพาะที่ต้องแท็กเข้าไปทีละชิ้น</p>';
         return;
@@ -5027,7 +5057,7 @@
           var groupId = cb.getAttribute('data-group-active-toggle');
           setPartTagConfigMessage('กำลังบันทึก...', 'muted');
           requestApi(withAuthPayload({ action: 'updatePartTagGroup', group_id: groupId, active: cb.checked ? '1' : '0' }))
-            .then(parseApiResponse)
+            .then(function(res) { return parsePartTagResponse(res, 'status'); })
             .then(function() { setPartTagConfigMessage('บันทึกแล้ว', 'success'); return loadPartTagConfig(true); })
             .then(function() { return loadPartTagGroupsList(true); })
             .then(renderPartTagGroupsList)
@@ -5052,7 +5082,7 @@
             if (!confirmed) return;
             setPartTagConfigMessage('กำลังลบ...', 'muted');
             requestApi(withAuthPayload({ action: 'deletePartTagGroup', group_id: groupId }))
-              .then(parseApiResponse)
+              .then(function(res) { return parsePartTagResponse(res, 'status'); })
               .then(function() { setPartTagConfigMessage('ลบกลุ่มแล้ว', 'success'); return loadPartTagConfig(true); })
               .then(function() { return loadPartTagGroupsList(true); })
               .then(renderPartTagGroupsList)
@@ -5089,7 +5119,9 @@
       var listEl = document.getElementById('partTagGroupItemsList');
       var countEl = document.getElementById('partTagGroupItemsCount');
       if (listEl) listEl.innerHTML = '<p class="px-3 py-4 text-center text-xs text-gray-500">กำลังโหลด...</p>';
-      return requestApi(withAuthPayload({ action: 'getPartTagGroupItems', group_id: activePartTagGroupId })).then(parseApiResponse).then(function(res) {
+      return requestApi(withAuthPayload({ action: 'getPartTagGroupItems', group_id: activePartTagGroupId })).then(function(res) {
+        return parsePartTagResponse(res, 'items');
+      }).then(function(res) {
         partTagGroupItemsCache = (res && res.items) || [];
         if (countEl) countEl.textContent = String(partTagGroupItemsCache.length);
         if (!listEl) return;
@@ -5111,7 +5143,7 @@
             requestApi(withAuthPayload({
               action: 'removePartTagGroupItem', group_id: activePartTagGroupId,
               part_no: it.part_no, sheet_name: it.sheet_name, model: it.model, part_name: it.part_name
-            })).then(parseApiResponse)
+            })).then(function(res) { return parsePartTagResponse(res, 'status'); })
               .then(function() { return loadPartTagConfig(true); })
               .then(refreshPartTagGroupItemsList)
               .then(function() { return loadPartTagGroupsList(true); })
@@ -5150,7 +5182,9 @@
           requestApi(withAuthPayload({
             action: 'addPartTagGroupItem', group_id: activePartTagGroupId,
             part_no: item.no, sheet_name: sheetName, model: item.model || '', part_name: item.name || '', category: item.category || ''
-          })).then(parseApiResponse).then(function() {
+          })).then(function(res) {
+            return parsePartTagResponse(res, 'status');
+          }).then(function() {
             showQuickToast('เพิ่ม "' + (item.name || '-') + '" เข้ากลุ่มแล้ว', 'success');
             searchInput.value = '';
             resultsEl.innerHTML = '';
@@ -15117,7 +15151,9 @@ if (dashboardPage) {
           action: 'createPartTagGroup', name: name,
           prefix: String((prefixEl && prefixEl.value) || '').trim(),
           start_number: startNumber, digits: digits
-        })).then(parseApiResponse).then(function() {
+        })).then(function(res) {
+          return parsePartTagResponse(res, 'group_id');
+        }).then(function() {
           setPartTagConfigMessage('สร้างกลุ่ม "' + name + '" แล้ว', 'success');
           if (nameEl) nameEl.value = '';
           if (prefixEl) prefixEl.value = '';
@@ -15125,6 +15161,7 @@ if (dashboardPage) {
           return loadPartTagGroupsList(true);
         }).then(renderPartTagGroupsList).catch(function(err) {
           setPartTagConfigMessage('สร้างไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+          renderPartTagGroupsList(); // โชว์กล่องเตือน deploy ถ้าสาเหตุคือ backend เก่า
         });
       });
       on('partTagGroupRefreshBtn', 'click', function() {
