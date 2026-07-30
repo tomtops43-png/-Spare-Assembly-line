@@ -8221,6 +8221,10 @@ function inferRequestPriority(stock, min) {
             if (!Array.isArray(rows)) return [];
             return rows.map(function(item) {
               item.line = item.line || t.line;
+              // ต้องติด __sourceSheet มาด้วย ไม่งั้น item จาก pool นี้จะไม่มีชื่อชีตต้นทาง
+              // ทำให้ getItemIdentityKey / คีย์กลุ่มแท็กที่คิดจาก pool ไม่ตรงกับที่คิดจาก
+              // partsData (ซึ่งมี __sourceSheet) แล้วจับคู่ชิ้นเดียวกันไม่เจอ
+              item.__sourceSheet = item.__sourceSheet || t.sheet;
               return item;
             });
           })

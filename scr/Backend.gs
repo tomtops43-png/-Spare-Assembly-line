@@ -1298,10 +1298,21 @@ function removePartTagGroupItem(payload) {
 
 // หากลุ่มแท็กที่ "ชิ้นนี้เป๊ะๆ" (partNo+sheetName+model+partName) เป็นสมาชิกอยู่ และกลุ่มนั้น active อยู่
 function resolvePartTagRule(payload) {
+  var items = getPartTagGroupItemsList();
   var key = normalizePartTagItemKey(payload.partNo, payload.sheetName, payload.model, payload.partName);
-  var match = getPartTagGroupItemsList().filter(function (it) {
+  var match = items.filter(function (it) {
     return normalizePartTagItemKey(it.part_no, it.sheet_name, it.model, it.part_name) === key;
   })[0];
+  // สมาชิกที่บันทึกไว้ตอน Sheet Name ยังว่าง (เพิ่มมือในชีท หรือมาจาก pool ที่ไม่มีชื่อชีต)
+  // ให้เทียบแบบไม่สนชีตเพื่อไม่ให้ตกหล่น — จำกัดเฉพาะแถวที่ Sheet Name ว่างจริงๆ เท่านั้น
+  // จะได้ไม่กระทบการกัน "No." ซ้ำข้ามชีตของแถวที่ระบุชีตไว้ครบ
+  if (!match) {
+    var keyNoSheet = normalizePartTagItemKey(payload.partNo, '', payload.model, payload.partName);
+    match = items.filter(function (it) {
+      return !String(it.sheet_name || '').trim() &&
+        normalizePartTagItemKey(it.part_no, '', it.model, it.part_name) === keyNoSheet;
+    })[0];
+  }
   if (!match) return { require_tag: false, prefix: '', start_number: 1, digits: 5 };
   var group = getPartTagGroupsList().filter(function (g) { return g.group_id === match.group_id; })[0];
   if (!group || !group.active) return { require_tag: false, prefix: '', start_number: 1, digits: 5 };
