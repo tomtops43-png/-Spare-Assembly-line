@@ -16,7 +16,10 @@ SPARE_APP_CONFIG.machinesSheetName = SPARE_APP_CONFIG.machinesSheetName || 'Mach
 // เพื่อให้ตามได้ว่าชิ้นนั้นออกไปวันไหน ใครเบิก ใส่เครื่องไหน และตอนนี้สถานะอะไร
 // PartTagConfig = ตั้งค่าว่า Category ไหนต้องออกเลข (บังคับเฉพาะบางประเภท) และใช้ prefix อะไร
 SPARE_APP_CONFIG.partTagsSheetName = SPARE_APP_CONFIG.partTagsSheetName || 'PartTags';
-SPARE_APP_CONFIG.partTagConfigSheetName = SPARE_APP_CONFIG.partTagConfigSheetName || 'PartTagConfig';
+// กลุ่มแท็ก (เช่น "Stripper Cutter") — เครื่องมือเฉพาะกลุ่มไม่ใช่ทุกชิ้นใน Category เดียวกัน
+// จึงตั้งค่าเป็นระดับ "กลุ่มที่เลือกทีละชิ้น" แทนที่จะผูกกับ Category ทั้งหมด
+SPARE_APP_CONFIG.partTagGroupsSheetName = SPARE_APP_CONFIG.partTagGroupsSheetName || 'PartTagGroups';
+SPARE_APP_CONFIG.partTagGroupItemsSheetName = SPARE_APP_CONFIG.partTagGroupItemsSheetName || 'PartTagGroupItems';
 // กันเคสเบิกทีเดียวจำนวนมากแล้วสร้างแถวทะเบียนระเบิด — เกินนี้จะไม่ออกเลขให้และแจ้งกลับไป
 SPARE_APP_CONFIG.partTagMaxPerTransaction = SPARE_APP_CONFIG.partTagMaxPerTransaction || 50;
 // Purchase Request (PR) — ระบบอนุมัติก่อนปริ้น (Header/Lines/Audit แยกชีท)
@@ -65,7 +68,8 @@ var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updat
 // โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
 var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
 var PART_TAG_HEADERS = ['Tag No', 'Part No', 'Part Name', 'Model', 'Category', 'Line', 'Sheet Name', 'Unit', 'Machine', 'Reason', 'Issued At', 'Issued By', 'Status', 'Status At', 'Status By', 'Remark', 'Installed At', 'Removed At'];
-var PART_TAG_CONFIG_HEADERS = ['Category', 'Require Tag', 'Prefix', 'Start Number', 'Digits', 'Updated By', 'Updated At'];
+var PART_TAG_GROUP_HEADERS = ['Group ID', 'Group Name', 'Prefix', 'Start Number', 'Digits', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
+var PART_TAG_GROUP_ITEM_HEADERS = ['Group ID', 'Part No', 'Sheet Name', 'Model', 'Part Name', 'Category', 'Added By', 'Added At'];
 // สถานะของชิ้น — ใช้คำเดียวกับ CWM System ที่หน้างานใช้อยู่ (ติดตั้ง → ถอด)
 // ค่าแรกคือค่าเริ่มต้นตอนเบิกออกจากคลัง (เบิกมาแล้วแต่ยังไม่ได้ใส่เครื่อง)
 var PART_TAG_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง'];
@@ -1074,100 +1078,234 @@ function getPartTagsSheet() {
   return sheet;
 }
 
-function getPartTagConfigSheet() {
+function getPartTagGroupsSheet() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.partTagConfigSheetName);
-  if (sheet.getLastRow() === 0) sheet.appendRow(PART_TAG_CONFIG_HEADERS);
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.partTagGroupsSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(PART_TAG_GROUP_HEADERS);
   return sheet;
 }
 
-function normalizePartTagCategory(value) {
-  return String(value || '').trim().toLowerCase();
+function getPartTagGroupItemsSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.partTagGroupItemsSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(PART_TAG_GROUP_ITEM_HEADERS);
+  return sheet;
 }
 
-// prefix เริ่มต้นจากชื่อ Category — เอาเฉพาะ A-Z/0-9 4 ตัวแรก ถ้าเป็นไทยล้วนจะได้ค่าว่าง จึงใช้ TAG
-function defaultPartTagPrefix(category) {
-  var cleaned = String(category || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+// prefix เริ่มต้นจากชื่อกลุ่ม — เอาเฉพาะ A-Z/0-9 4 ตัวแรก ถ้าเป็นไทยล้วนจะได้ค่าว่าง จึงใช้ TAG
+function defaultPartTagPrefix(name) {
+  var cleaned = String(name || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   return cleaned ? cleaned.slice(0, 4) : 'TAG';
 }
 
-function rowToPartTagConfig(r) {
-  var category = String(r[0] || '').trim();
+// identity key ของอะไหล่ 1 รายการ — ต้องตรงกับ getItemIdentityKey ฝั่งหน้าเว็บที่กัน "No." ซ้ำ
+// ข้าม sheet อยู่แล้ว (no + sheetName + model + partName) ใช้ตัดสินว่าชิ้นนี้อยู่ในกลุ่มแท็กไหน
+function normalizePartTagItemKey(partNo, sheetName, model, partName) {
+  return [partNo, sheetName, model, partName].map(function (v) {
+    return String(v === undefined || v === null ? '' : v).trim();
+  }).join('::').toLowerCase();
+}
+
+function rowToPartTagGroup(r) {
   var startNumber = parseInt(r[3], 10);
   var digits = parseInt(r[4], 10);
   return {
-    category: category,
-    require_tag: String(r[1]).toUpperCase() === 'TRUE' || String(r[1]) === '1',
-    prefix: String(r[2] || '').trim() || defaultPartTagPrefix(category),
+    group_id: String(r[0] || ''),
+    name: String(r[1] || ''),
+    prefix: String(r[2] || ''),
     // เลขเริ่มต้น/จำนวนหลัก — ใช้ตอนยังไม่เคยออกเลขให้ prefix นี้เลย เพื่อให้ "สานต่อ" เลขจากระบบ
-    // เดิม (เช่น CWM System ใช้ SC-030..SC-039 แล้ว อยากให้ระบบนี้ออกต่อจาก SC-040)
+    // เดิม (เช่น CWM System ใช้ SC-001..SC-039 แล้ว อยากให้กลุ่มนี้ออกต่อจาก SC-040)
     start_number: (!isNaN(startNumber) && startNumber > 0) ? startNumber : 1,
     digits: (!isNaN(digits) && digits > 0) ? digits : 5,
-    updated_by: String(r[5] || ''),
-    updated_at: String(r[6] || '')
+    active: String(r[5]).toUpperCase() !== 'FALSE',
+    created_by: String(r[6] || ''),
+    created_at: String(r[7] || ''),
+    updated_by: String(r[8] || ''),
+    updated_at: String(r[9] || '')
   };
 }
 
-function getPartTagConfigList() {
-  var values = getPartTagConfigSheet().getDataRange().getValues();
-  if (values.length <= 1) return [];
-  return values.slice(1)
-    .filter(function (r) { return String(r[0] || '').trim(); })
-    .map(rowToPartTagConfig);
+function rowToPartTagGroupItem(r) {
+  return {
+    group_id: String(r[0] || ''),
+    part_no: String(r[1] || ''),
+    sheet_name: String(r[2] || ''),
+    model: String(r[3] || ''),
+    part_name: String(r[4] || ''),
+    category: String(r[5] || ''),
+    added_by: String(r[6] || ''),
+    added_at: String(r[7] || '')
+  };
 }
 
-function getPartTagConfig(payload) {
+function getPartTagGroupsList() {
+  var values = getPartTagGroupsSheet().getDataRange().getValues();
+  if (values.length <= 1) return [];
+  return values.slice(1).filter(function (r) { return String(r[0] || '').trim(); }).map(rowToPartTagGroup);
+}
+
+// groupId ระบุ = กรองเฉพาะสมาชิกของกลุ่มนั้น, ไม่ระบุ = คืนสมาชิกทุกกลุ่ม (ใช้ตอนหา rule ของอะไหล่ที่กำลังเบิก)
+function getPartTagGroupItemsList(groupId) {
+  var values = getPartTagGroupItemsSheet().getDataRange().getValues();
+  if (values.length <= 1) return [];
+  var list = values.slice(1).filter(function (r) { return String(r[0] || '').trim(); }).map(rowToPartTagGroupItem);
+  if (groupId) list = list.filter(function (it) { return it.group_id === groupId; });
+  return list;
+}
+
+function getPartTagGroups(payload) {
   requirePermission({ authToken: payload.authToken }, 'view');
+  var groups = getPartTagGroupsList();
+  var countByGroup = {};
+  getPartTagGroupItemsList().forEach(function (it) { countByGroup[it.group_id] = (countByGroup[it.group_id] || 0) + 1; });
+  groups.forEach(function (g) { g.item_count = countByGroup[g.group_id] || 0; });
   return {
     status: 'success',
     statuses: PART_TAG_STATUSES,
     max_per_transaction: Number(SPARE_APP_CONFIG.partTagMaxPerTransaction) || 50,
-    config: getPartTagConfigList()
+    groups: groups
   };
 }
 
-function setPartTagConfig(payload) {
+// รวมกลุ่ม+สมาชิกเป็น flat list เดียว ให้หน้าเว็บโหลดครั้งเดียวแล้วเช็คได้ทุกแถวใน Issue Cart
+// โดยไม่ต้องยิง request แยกทีละชิ้น (เฉพาะกลุ่มที่ active เท่านั้น)
+function getPartTagAssignments(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var groupById = {};
+  getPartTagGroupsList().forEach(function (g) { groupById[g.group_id] = g; });
+  var assignments = getPartTagGroupItemsList().map(function (it) {
+    var group = groupById[it.group_id];
+    if (!group) return null; // สมาชิกกำพร้า (กลุ่มถูกลบไปแล้วแต่ลบไม่ครบ) — ข้ามไปเงียบๆ
+    return {
+      key: normalizePartTagItemKey(it.part_no, it.sheet_name, it.model, it.part_name),
+      part_no: it.part_no, sheet_name: it.sheet_name, model: it.model, part_name: it.part_name,
+      group_id: it.group_id, group_name: group.name, prefix: group.prefix,
+      start_number: group.start_number, digits: group.digits, active: group.active
+    };
+  }).filter(Boolean);
+  return { status: 'success', assignments: assignments };
+}
+
+function createPartTagGroup(payload) {
   var user = requireAdminUser({ authToken: payload.authToken });
-  var category = String(payload.category || '').trim();
-  if (!category) throw new Error('กรุณาระบุ Category');
-  var requireTag = String(payload.require_tag) === '1' || String(payload.require_tag).toLowerCase() === 'true';
+  var name = String(payload.name || '').trim();
+  if (!name) throw new Error('กรุณาระบุชื่อกลุ่มแท็ก');
+  var dup = getPartTagGroupsList().some(function (g) { return g.name.trim().toLowerCase() === name.toLowerCase(); });
+  if (dup) throw new Error('มีกลุ่มแท็กชื่อนี้อยู่แล้ว');
   var prefix = String(payload.prefix || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-  if (!prefix) prefix = defaultPartTagPrefix(category);
+  if (!prefix) prefix = defaultPartTagPrefix(name);
   var startNumber = parseInt(payload.start_number, 10);
   if (isNaN(startNumber) || startNumber < 1) startNumber = 1;
   var digits = parseInt(payload.digits, 10);
   if (isNaN(digits) || digits < 1) digits = 5;
   if (digits > 10) digits = 10; // กันพิมพ์ผิดเป็นเลขหลักเยอะเกินจำเป็น
   var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
-  var sheet = getPartTagConfigSheet();
-  var values = sheet.getDataRange().getValues();
-  for (var i = 1; i < values.length; i += 1) {
-    if (normalizePartTagCategory(values[i][0]) === normalizePartTagCategory(category)) {
-      sheet.getRange(i + 1, 1, 1, PART_TAG_CONFIG_HEADERS.length)
-        .setValues([[category, requireTag, prefix, startNumber, digits, user.username, now]]);
-      return { status: 'success', category: category, require_tag: requireTag, prefix: prefix, start_number: startNumber, digits: digits };
-    }
-  }
-  sheet.appendRow([category, requireTag, prefix, startNumber, digits, user.username, now]);
-  return { status: 'success', category: category, require_tag: requireTag, prefix: prefix, start_number: startNumber, digits: digits };
+  var groupId = 'PTG-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + Utilities.getUuid().slice(0, 8);
+  getPartTagGroupsSheet().appendRow([groupId, name, prefix, startNumber, digits, true, user.username, now, user.username, now]);
+  return { status: 'success', group_id: groupId };
 }
 
-// หา prefix + เลขเริ่มต้น + ว่าต้องออกเลขไหม สำหรับ category ที่กำลังเบิก
-function resolvePartTagRule(category) {
-  var key = normalizePartTagCategory(category);
-  if (!key) return { require_tag: false, prefix: '', start_number: 1, digits: 5 };
-  var list = getPartTagConfigList();
-  for (var i = 0; i < list.length; i += 1) {
-    if (normalizePartTagCategory(list[i].category) === key) {
-      return {
-        require_tag: !!list[i].require_tag,
-        prefix: list[i].prefix || defaultPartTagPrefix(category),
-        start_number: list[i].start_number || 1,
-        digits: list[i].digits || 5
-      };
+function updatePartTagGroup(payload) {
+  var user = requireAdminUser({ authToken: payload.authToken });
+  var groupId = String(payload.group_id || '').trim();
+  if (!groupId) throw new Error('ไม่พบกลุ่มแท็ก');
+  var sheet = getPartTagGroupsSheet();
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '') !== groupId) continue;
+    var name = payload.name !== undefined ? String(payload.name).trim() : String(values[i][1] || '');
+    if (!name) throw new Error('กรุณาระบุชื่อกลุ่มแท็ก');
+    var prefix = payload.prefix !== undefined
+      ? (String(payload.prefix).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') || defaultPartTagPrefix(name))
+      : String(values[i][2] || '');
+    var startNumber = payload.start_number !== undefined ? parseInt(payload.start_number, 10) : Number(values[i][3]);
+    if (isNaN(startNumber) || startNumber < 1) startNumber = 1;
+    var digits = payload.digits !== undefined ? parseInt(payload.digits, 10) : Number(values[i][4]);
+    if (isNaN(digits) || digits < 1) digits = 5;
+    if (digits > 10) digits = 10;
+    var active = payload.active !== undefined
+      ? (String(payload.active) === '1' || String(payload.active).toLowerCase() === 'true')
+      : (String(values[i][5]).toUpperCase() !== 'FALSE');
+    var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    sheet.getRange(i + 1, 1, 1, PART_TAG_GROUP_HEADERS.length)
+      .setValues([[groupId, name, prefix, startNumber, digits, active, values[i][6] || user.username, values[i][7] || now, user.username, now]]);
+    return { status: 'success' };
+  }
+  throw new Error('ไม่พบกลุ่มแท็กนี้');
+}
+
+// ลบกลุ่ม + สมาชิกทั้งหมดของกลุ่มนั้น (cascade) — เลขที่เคยออกไปแล้วใน PartTags ยังอยู่ครบ ไม่ถูกลบ
+function deletePartTagGroup(payload) {
+  requireAdminUser({ authToken: payload.authToken });
+  var groupId = String(payload.group_id || '').trim();
+  if (!groupId) throw new Error('ไม่พบกลุ่มแท็ก');
+  var sheet = getPartTagGroupsSheet();
+  var values = sheet.getDataRange().getValues();
+  var found = false;
+  for (var i = values.length - 1; i >= 1; i -= 1) {
+    if (String(values[i][0] || '') === groupId) { sheet.deleteRow(i + 1); found = true; break; }
+  }
+  if (!found) throw new Error('ไม่พบกลุ่มแท็กนี้');
+  var itemsSheet = getPartTagGroupItemsSheet();
+  var itemsValues = itemsSheet.getDataRange().getValues();
+  for (var j = itemsValues.length - 1; j >= 1; j -= 1) {
+    if (String(itemsValues[j][0] || '') === groupId) itemsSheet.deleteRow(j + 1);
+  }
+  return { status: 'success' };
+}
+
+function getPartTagGroupItems(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var groupId = String(payload.group_id || '').trim();
+  if (!groupId) throw new Error('ไม่พบกลุ่มแท็ก');
+  return { status: 'success', items: getPartTagGroupItemsList(groupId) };
+}
+
+function addPartTagGroupItem(payload) {
+  var user = requireAdminUser({ authToken: payload.authToken });
+  var groupId = String(payload.group_id || '').trim();
+  if (!groupId) throw new Error('ไม่พบกลุ่มแท็ก');
+  var partName = String(payload.part_name || '').trim();
+  if (!partName) throw new Error('กรุณาระบุชื่ออะไหล่');
+  var partNo = String(payload.part_no || '').trim();
+  var sheetName = String(payload.sheet_name || '').trim();
+  var model = String(payload.model || '').trim();
+  var key = normalizePartTagItemKey(partNo, sheetName, model, partName);
+  var dup = getPartTagGroupItemsList(groupId).some(function (it) {
+    return normalizePartTagItemKey(it.part_no, it.sheet_name, it.model, it.part_name) === key;
+  });
+  if (dup) throw new Error('อะไหล่นี้อยู่ในกลุ่มนี้แล้ว');
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  getPartTagGroupItemsSheet().appendRow([groupId, partNo, sheetName, model, partName, String(payload.category || ''), user.username, now]);
+  return { status: 'success' };
+}
+
+function removePartTagGroupItem(payload) {
+  requireAdminUser({ authToken: payload.authToken });
+  var groupId = String(payload.group_id || '').trim();
+  var key = normalizePartTagItemKey(payload.part_no, payload.sheet_name, payload.model, payload.part_name);
+  var sheet = getPartTagGroupItemsSheet();
+  var values = sheet.getDataRange().getValues();
+  for (var i = values.length - 1; i >= 1; i -= 1) {
+    if (String(values[i][0] || '') !== groupId) continue;
+    if (normalizePartTagItemKey(values[i][1], values[i][2], values[i][3], values[i][4]) === key) {
+      sheet.deleteRow(i + 1);
+      return { status: 'success' };
     }
   }
-  return { require_tag: false, prefix: defaultPartTagPrefix(category), start_number: 1, digits: 5 };
+  throw new Error('ไม่พบอะไหล่นี้ในกลุ่ม');
+}
+
+// หากลุ่มแท็กที่ "ชิ้นนี้เป๊ะๆ" (partNo+sheetName+model+partName) เป็นสมาชิกอยู่ และกลุ่มนั้น active อยู่
+function resolvePartTagRule(payload) {
+  var key = normalizePartTagItemKey(payload.partNo, payload.sheetName, payload.model, payload.partName);
+  var match = getPartTagGroupItemsList().filter(function (it) {
+    return normalizePartTagItemKey(it.part_no, it.sheet_name, it.model, it.part_name) === key;
+  })[0];
+  if (!match) return { require_tag: false, prefix: '', start_number: 1, digits: 5 };
+  var group = getPartTagGroupsList().filter(function (g) { return g.group_id === match.group_id; })[0];
+  if (!group || !group.active) return { require_tag: false, prefix: '', start_number: 1, digits: 5 };
+  return { require_tag: true, prefix: group.prefix, start_number: group.start_number, digits: group.digits, group_name: group.name };
 }
 
 function rowToPartTag(r) {
@@ -1229,7 +1367,7 @@ function padPartTagRunning(n, digits) {
 function createPartTagsForIssue(payload, issuedBy, qtyPieces) {
   var result = { tags: [], required: false, skipped_reason: '' };
   try {
-    var rule = resolvePartTagRule(payload.category);
+    var rule = resolvePartTagRule(payload);
     result.required = !!rule.require_tag;
     if (!rule.require_tag) return result;
     var pieces = Math.floor(Math.abs(Number(qtyPieces) || 0));
@@ -3900,8 +4038,14 @@ function doGet(e) {
     if (action === 'machineSpareReport') return respond(machineSpareReport(e.parameter), e);
     if (action === 'checkCrossLineStock') return respond(checkCrossLineStock(e.parameter), e);
     if (action === 'getPendingPrUsage') return respond(getPendingPrUsage(e.parameter), e);
-    if (action === 'getPartTagConfig') return respond(getPartTagConfig(e.parameter), e);
-    if (action === 'setPartTagConfig') return respond(setPartTagConfig(e.parameter), e);
+    if (action === 'getPartTagGroups') return respond(getPartTagGroups(e.parameter), e);
+    if (action === 'getPartTagAssignments') return respond(getPartTagAssignments(e.parameter), e);
+    if (action === 'createPartTagGroup') return respond(createPartTagGroup(e.parameter), e);
+    if (action === 'updatePartTagGroup') return respond(updatePartTagGroup(e.parameter), e);
+    if (action === 'deletePartTagGroup') return respond(deletePartTagGroup(e.parameter), e);
+    if (action === 'getPartTagGroupItems') return respond(getPartTagGroupItems(e.parameter), e);
+    if (action === 'addPartTagGroupItem') return respond(addPartTagGroupItem(e.parameter), e);
+    if (action === 'removePartTagGroupItem') return respond(removePartTagGroupItem(e.parameter), e);
     if (action === 'getPartTags') return respond(getPartTags(e.parameter), e);
     if (action === 'updatePartTagStatus') return respond(updatePartTagStatus(e.parameter), e);
     if (action === 'getMachines') return respond(getMachines(e.parameter), e);

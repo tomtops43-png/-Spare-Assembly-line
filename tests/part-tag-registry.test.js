@@ -3,15 +3,16 @@ const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
 const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
 
-// ── Backend: config + sheet wiring ────────────────────────────────────────────
+// ── Backend: sheet wiring ──────────────────────────────────────────────────
 assert(backend.includes("SPARE_APP_CONFIG.partTagsSheetName"));
-assert(backend.includes("SPARE_APP_CONFIG.partTagConfigSheetName"));
+assert(backend.includes("SPARE_APP_CONFIG.partTagGroupsSheetName"));
+assert(backend.includes("SPARE_APP_CONFIG.partTagGroupItemsSheetName"));
 assert(backend.includes('var PART_TAG_HEADERS ='));
-assert(backend.includes("var PART_TAG_CONFIG_HEADERS = ['Category', 'Require Tag', 'Prefix', 'Start Number', 'Digits', 'Updated By', 'Updated At']"));
+assert(backend.includes("var PART_TAG_GROUP_HEADERS = ['Group ID', 'Group Name', 'Prefix', 'Start Number', 'Digits', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At']"));
+assert(backend.includes("var PART_TAG_GROUP_ITEM_HEADERS = ['Group ID', 'Part No', 'Sheet Name', 'Model', 'Part Name', 'Category', 'Added By', 'Added At']"));
 // สถานะต้องใช้คำเดียวกับ CWM System ที่หน้างานใช้อยู่ (ติดตั้ง → ถอด)
 assert(backend.includes("var PART_TAG_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง']"));
 assert(backend.includes("'Installed At', 'Removed At'"), 'ต้องเก็บวันติดตั้ง/วันถอด');
-// ติดตั้งใหม่ต้องล้างวันถอดเพื่อเริ่มนับรอบใหม่
 assert(backend.includes('installedAt = now;') && backend.includes("removedAt = '';"));
 
 // ออกเลขเฉพาะขาเบิกออก (signedQty < 0) — รับเข้าต้องไม่ออกเลข
@@ -20,20 +21,29 @@ assert(backend.includes('partTagResult = createPartTagsForIssue(payload, issuedB
 assert(backend.includes('part_tags: partTagResult.tags'));
 assert(backend.includes('part_tag_warning: partTagResult.skipped_reason'));
 
-// เลขเริ่มต้น/จำนวนหลักต่อ category ต้องถูกส่งต่อไปจนถึงจุดออกเลขจริง —
-// นี่คือกลไก "สานต่อ" เลขจากระบบเดิม (เช่น CWM System ใช้ SC-001..SC-039 นอกระบบนี้)
+// เลขเริ่มต้น/จำนวนหลักต่อกลุ่มต้องถูกส่งต่อไปจนถึงจุดออกเลขจริง
 assert(backend.includes('nextPartTagRunning(existing, rule.prefix, rule.start_number)'));
 assert(backend.includes('padPartTagRunning(running + i, rule.digits)'));
+// resolvePartTagRule ต้องรับ payload ทั้งก้อน (จับคู่ระดับรายชิ้น) ไม่ใช่แค่ category
+assert(backend.includes('var rule = resolvePartTagRule(payload);'));
+assert(!backend.includes('resolvePartTagRule(payload.category)'), 'ต้องไม่ผูกกับ Category ทั้งหมดอีกต่อไป');
 
-// action ต้องถูก dispatch ครบทั้ง 4 ตัว
-['getPartTagConfig', 'setPartTagConfig', 'getPartTags', 'updatePartTagStatus'].forEach(function (action) {
+// action ต้องถูก dispatch ครบสำหรับ flow กลุ่มแท็ก + ทะเบียนชิ้น
+[
+  'getPartTagGroups', 'getPartTagAssignments', 'createPartTagGroup', 'updatePartTagGroup',
+  'deletePartTagGroup', 'getPartTagGroupItems', 'addPartTagGroupItem', 'removePartTagGroupItem',
+  'getPartTags', 'updatePartTagStatus'
+].forEach(function (action) {
   assert(backend.includes("action === '" + action + "'"), 'missing dispatch for ' + action);
 });
+// action category-based เดิมต้องไม่มีเหลืออยู่แล้ว (ถูกแทนที่ทั้งหมด)
+assert(!backend.includes("action === 'getPartTagConfig'"));
+assert(!backend.includes("action === 'setPartTagConfig'"));
 
 // ── Backend: logic ของฟังก์ชันล้วน (โหลดมารันจริง) ─────────────────────────────
 const sandbox = {};
 const backendLf = backend.replace(/\r\n/g, '\n');
-const pureFns = ['defaultPartTagPrefix', 'nextPartTagRunning', 'padPartTagRunning', 'normalizePartTagCategory', 'rowToPartTagConfig', 'partTagLineFromProcess'];
+const pureFns = ['defaultPartTagPrefix', 'nextPartTagRunning', 'padPartTagRunning', 'normalizePartTagItemKey', 'partTagLineFromProcess', 'rowToPartTagGroup', 'rowToPartTagGroupItem'];
 pureFns.forEach(function (name) {
   const re = new RegExp('^function[ ]+' + name + '\\([\\s\\S]*?\\n}$', 'm');
   const match = backendLf.match(re);
@@ -41,7 +51,7 @@ pureFns.forEach(function (name) {
   sandbox[name] = new Function('defaultPartTagPrefix', match[0] + '\nreturn ' + name + ';')(sandbox.defaultPartTagPrefix);
 });
 
-assert.strictEqual(sandbox.defaultPartTagPrefix('Mechanical'), 'MECH');
+assert.strictEqual(sandbox.defaultPartTagPrefix('Stripper Cutter'), 'STRI');
 assert.strictEqual(sandbox.defaultPartTagPrefix('Coil Winding'), 'COIL');
 assert.strictEqual(sandbox.defaultPartTagPrefix('อะไหล่'), 'TAG', 'ชื่อไทยล้วนต้อง fallback เป็น TAG');
 assert.strictEqual(sandbox.defaultPartTagPrefix(''), 'TAG');
@@ -64,53 +74,69 @@ assert.strictEqual(sandbox.nextPartTagRunning(rows, 'MECH'), 8);
 assert.strictEqual(sandbox.nextPartTagRunning(rows, 'PIN'), 100);
 assert.strictEqual(sandbox.nextPartTagRunning(rows, 'NEW'), 1, 'prefix ที่ยังไม่มีต้องเริ่มที่ 1 เมื่อไม่ตั้งเลขเริ่มต้น');
 assert.strictEqual(sandbox.nextPartTagRunning([['Tag No']], 'MECH'), 1, 'ชีทเปล่าต้องเริ่มที่ 1 เมื่อไม่ตั้งเลขเริ่มต้น');
-// prefix ที่เป็น substring กันต้องไม่ปนกัน (MECH- ไม่ใช่ ME-)
-assert.strictEqual(sandbox.nextPartTagRunning(rows, 'ME'), 1);
+assert.strictEqual(sandbox.nextPartTagRunning(rows, 'ME'), 1, 'prefix ที่เป็น substring กันต้องไม่ปนกัน (MECH- ไม่ใช่ ME-)');
 
 // "สานต่อ" เลขจากระบบเดิม: prefix ที่ยังไม่เคยออกในทะเบียนนี้เลย ต้องเริ่มจาก startNumber ที่ตั้งไว้
 assert.strictEqual(sandbox.nextPartTagRunning([['Tag No']], 'SC', 40), 40, 'ชีทเปล่า + ตั้งเลขเริ่มต้น 40 ต้องเริ่มที่ 40 ไม่ใช่ 1');
 assert.strictEqual(sandbox.nextPartTagRunning(rows, 'SC', 40), 40, 'prefix ใหม่ที่ยังไม่มีในทะเบียนต้องใช้เลขเริ่มต้นแม้ prefix อื่นมีข้อมูลอยู่แล้ว');
-// ถ้าเคยออกเลขของ prefix นี้ไปแล้ว (max>0) ต้องต่อจาก max เสมอ ไม่ใช่วนกลับไปที่ startNumber
 assert.strictEqual(sandbox.nextPartTagRunning(rows, 'MECH', 999), 8, 'มีเลขอยู่แล้วต้องต่อจาก max ไม่สนใจ startNumber');
 
-assert.strictEqual(sandbox.normalizePartTagCategory('  Mechanical '), 'mechanical');
+// identity key ของอะไหล่ต้องคงที่ (partNo+sheetName+model+partName) trim+lowercase ทั้งหมด
+// เพื่อกันสมาชิกกลุ่มไม่ตรงกับตอนเบิกจริงเพราะช่องว่าง/ตัวพิมพ์ต่างกัน
+assert.strictEqual(
+  sandbox.normalizePartTagItemKey(' SC-01 ', 'Coil Winding', ' ME-1 ', ' Stripper Cutter '),
+  sandbox.normalizePartTagItemKey('sc-01', 'coil winding', 'me-1', 'stripper cutter')
+);
+assert.notStrictEqual(
+  sandbox.normalizePartTagItemKey('SC-01', 'Coil Winding', 'ME-1', 'Stripper Cutter'),
+  sandbox.normalizePartTagItemKey('SC-01', 'H9', 'ME-1', 'Stripper Cutter'),
+  'sheet/line ต่างกันต้องถือเป็นชิ้นคนละตัว (กัน No. ซ้ำข้าม sheet)'
+);
 
 // คอลัมน์ Line ต้องไม่มีโน๊ตของการเบิกติดมา
 assert.strictEqual(sandbox.partTagLineFromProcess('Coil Winding | note: เปลี่ยนตามรอบ'), 'Coil Winding');
 assert.strictEqual(sandbox.partTagLineFromProcess('H9'), 'H9');
 assert.strictEqual(sandbox.partTagLineFromProcess(''), '');
 
-const cfg = sandbox.rowToPartTagConfig(['Mechanical', 'TRUE', '', '', '', 'admin', '2026-07-30']);
-assert.strictEqual(cfg.require_tag, true);
-assert.strictEqual(cfg.prefix, 'MECH', 'prefix ว่างต้อง fallback จากชื่อ category');
-assert.strictEqual(cfg.start_number, 1, 'ไม่ระบุเลขเริ่มต้นต้อง fallback เป็น 1');
-assert.strictEqual(cfg.digits, 5, 'ไม่ระบุจำนวนหลักต้อง fallback เป็น 5');
+const group = sandbox.rowToPartTagGroup(['PTG-1', 'Stripper Cutter', 'SC', '40', '3', 'TRUE', 'admin', '2026-07-30', 'admin', '2026-07-30']);
+assert.strictEqual(group.name, 'Stripper Cutter');
+assert.strictEqual(group.prefix, 'SC');
+assert.strictEqual(group.start_number, 40, 'ต้องอ่านเลขเริ่มต้นที่ admin ตั้งไว้ (สานต่อจาก SC-039 เดิม)');
+assert.strictEqual(group.digits, 3, 'ต้องอ่านจำนวนหลักที่ admin ตั้งไว้ (SC-040 = 3 หลัก)');
+assert.strictEqual(group.active, true);
+assert.strictEqual(sandbox.rowToPartTagGroup(['PTG-2', 'X', 'X', '', '', 'FALSE', 'a', 'b', 'a', 'b']).active, false);
+assert.strictEqual(sandbox.rowToPartTagGroup(['PTG-3', 'X', '', '', '', 'TRUE', 'a', 'b', 'a', 'b']).start_number, 1, 'ไม่ระบุเลขเริ่มต้นต้อง fallback เป็น 1');
+assert.strictEqual(sandbox.rowToPartTagGroup(['PTG-3', 'X', '', '', '', 'TRUE', 'a', 'b', 'a', 'b']).digits, 5, 'ไม่ระบุจำนวนหลักต้อง fallback เป็น 5');
 
-const cfgSeeded = sandbox.rowToPartTagConfig(['Stripper Cutter', 'TRUE', 'SC', '40', '3', 'admin', '2026-07-30']);
-assert.strictEqual(cfgSeeded.prefix, 'SC');
-assert.strictEqual(cfgSeeded.start_number, 40, 'ต้องอ่านเลขเริ่มต้นที่ admin ตั้งไว้ (สานต่อจาก SC-039 เดิม)');
-assert.strictEqual(cfgSeeded.digits, 3, 'ต้องอ่านจำนวนหลักที่ admin ตั้งไว้ (SC-040 = 3 หลัก)');
-
-assert.strictEqual(sandbox.rowToPartTagConfig(['Mechanical', 'FALSE', 'MT', '1', '5', 'a', 'b']).require_tag, false);
-assert.strictEqual(sandbox.rowToPartTagConfig(['Mechanical', '1', 'MT', '1', '5', 'a', 'b']).require_tag, true);
+const groupItem = sandbox.rowToPartTagGroupItem(['PTG-1', 'SC-01', 'Coil Winding', 'ME-1', 'Stripper Cutter', 'Mechanical', 'admin', '2026-07-30']);
+assert.strictEqual(groupItem.group_id, 'PTG-1');
+assert.strictEqual(groupItem.part_name, 'Stripper Cutter');
+assert.strictEqual(groupItem.sheet_name, 'Coil Winding');
 
 // ── Frontend: UI + การรับเลขกลับมา ────────────────────────────────────────────
 assert(html.includes('id="partTagIssuedModal"'));
 assert(html.includes('id="partTagRegistryModal"'));
-assert(html.includes('id="partTagConfigList"'));
+assert(html.includes('id="partTagGroupItemsModal"'));
+assert(html.includes('id="partTagGroupList"'));
 assert(html.includes('#partTagIssuedModal { z-index: 9800; }'), 'สรุปเลขต้องอยู่เหนือ Issue Cart');
 assert(html.includes('if (res.part_tags && res.part_tags.length) {'));
 assert(html.includes('showIssuedPartTagsSummary(issuedTagGroups);'));
 // ต้อง degrade เงียบๆ ถ้า backend ยังไม่ deploy
 assert(html.includes('partTagConfigState.supported = false;'));
-assert(html.includes('if (!partTagConfigState.supported) return null;'));
+assert(html.includes('if (!partTagConfigState.supported || !item) return null;'));
+// จับคู่ระดับรายชิ้น (byKey) ไม่ใช่ระดับ Category (byCategory) อีกต่อไป
+assert(html.includes('partTagConfigState.byKey[partTagKeyForItem(item)]'));
+assert(!html.includes('byCategory'), 'ต้องไม่เหลือโค้ด config แบบผูก Category เดิม');
 
 // Admin: ช่องตั้งเลขเริ่มต้น (สานต่อจากระบบเดิม เช่น CWM System) ต้องแปลง "040" เป็น start=40, digits=3
-assert(html.includes('id="partTagConfigStartInput"'));
+assert(html.includes('id="partTagGroupStartInput"'));
 assert(html.includes("var startRaw = String((startEl && startEl.value) || '').replace(/\\D/g, '');"));
 assert(html.includes("var startNumber = startRaw ? parseInt(startRaw, 10) : 1;"));
 assert(html.includes("var digits = startRaw ? startRaw.length : 5;"));
-// ปุ่มเปิด/ปิดแท็กเร็วๆ ต้องไม่รีเซ็ต prefix/เลขเริ่มต้น/จำนวนหลักที่เคยตั้งไว้
-assert(html.includes('current ? current.startNumber : 1, current ? current.digits : 5'));
+
+// Admin: เลือกอะไหล่เข้ากลุ่มทีละชิ้นด้วยการค้นหา (ใช้ roSearchPool เดียวกับหน้าขอซื้อ)
+assert(html.includes('function searchPartTagGroupItemCandidates()'));
+assert(html.includes("action: 'addPartTagGroupItem'"));
+assert(html.includes("action: 'removePartTagGroupItem'"));
 
 console.log('Part tag registry checks passed');
