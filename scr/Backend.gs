@@ -12,6 +12,13 @@ SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHi
 SPARE_APP_CONFIG.productionVolumeSheetName = SPARE_APP_CONFIG.productionVolumeSheetName || 'ProductionVolume';
 SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCostConfigSheetName || 'ProductionCostConfig';
 SPARE_APP_CONFIG.machinesSheetName = SPARE_APP_CONFIG.machinesSheetName || 'Machines';
+// ทะเบียนชิ้น (Part Tag) — ตอนเบิกออก ระบบออก "เลขประจำชิ้น" วิ่งให้อัตโนมัติ 1 เลขต่อ 1 ชิ้น
+// เพื่อให้ตามได้ว่าชิ้นนั้นออกไปวันไหน ใครเบิก ใส่เครื่องไหน และตอนนี้สถานะอะไร
+// PartTagConfig = ตั้งค่าว่า Category ไหนต้องออกเลข (บังคับเฉพาะบางประเภท) และใช้ prefix อะไร
+SPARE_APP_CONFIG.partTagsSheetName = SPARE_APP_CONFIG.partTagsSheetName || 'PartTags';
+SPARE_APP_CONFIG.partTagConfigSheetName = SPARE_APP_CONFIG.partTagConfigSheetName || 'PartTagConfig';
+// กันเคสเบิกทีเดียวจำนวนมากแล้วสร้างแถวทะเบียนระเบิด — เกินนี้จะไม่ออกเลขให้และแจ้งกลับไป
+SPARE_APP_CONFIG.partTagMaxPerTransaction = SPARE_APP_CONFIG.partTagMaxPerTransaction || 50;
 // Purchase Request (PR) — ระบบอนุมัติก่อนปริ้น (Header/Lines/Audit แยกชีท)
 SPARE_APP_CONFIG.prHeaderSheetName = SPARE_APP_CONFIG.prHeaderSheetName || 'PRHeaders';
 SPARE_APP_CONFIG.prLinesSheetName = SPARE_APP_CONFIG.prLinesSheetName || 'PRLines';
@@ -57,6 +64,13 @@ var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updat
 // เครื่องจักรของแต่ละไลน์ (master list ให้ Admin กรอกเอง) — อะไหล่แต่ละชิ้นผูกได้หลายเครื่องจักร
 // โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
 var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
+var PART_TAG_HEADERS = ['Tag No', 'Part No', 'Part Name', 'Model', 'Category', 'Line', 'Sheet Name', 'Unit', 'Machine', 'Reason', 'Issued At', 'Issued By', 'Status', 'Status At', 'Status By', 'Remark', 'Installed At', 'Removed At'];
+var PART_TAG_CONFIG_HEADERS = ['Category', 'Require Tag', 'Prefix', 'Updated By', 'Updated At'];
+// สถานะของชิ้น — ใช้คำเดียวกับ CWM System ที่หน้างานใช้อยู่ (ติดตั้ง → ถอด)
+// ค่าแรกคือค่าเริ่มต้นตอนเบิกออกจากคลัง (เบิกมาแล้วแต่ยังไม่ได้ใส่เครื่อง)
+var PART_TAG_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง'];
+var PART_TAG_STATUS_INSTALLED = 'ติดตั้งแล้ว';
+var PART_TAG_STATUS_REMOVED = 'ถอดแล้ว';
 // Purchase Request (PR) schema — เก็บ qty_requested (ล็อก) แยกจาก qty_approved (หัวหน้าแก้ได้)
 var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to'];
 var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark', 'image_url'];
@@ -1045,6 +1059,264 @@ function deleteMachine(payload) {
     }
   }
   throw new Error('ไม่พบเครื่องจักรนี้');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// 🏷️ ทะเบียนชิ้น (Part Tags)
+// ตอนเบิกออก ถ้า Category ของอะไหล่ถูกตั้งให้ "ต้องออกเลข" ระบบจะสร้างเลขประจำชิ้น
+// วิ่งต่อจากเลขล่าสุดของ prefix นั้น 1 เลขต่อ 1 ชิ้น (qty 3 = 3 เลข) แล้วส่งเลขกลับไป
+// ให้หน้าเว็บโชว์ ช่างจะได้เขียน/แปะเลขนั้นลงบนของจริงและตามสถานะได้ภายหลัง
+// ════════════════════════════════════════════════════════════════════════
+function getPartTagsSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.partTagsSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(PART_TAG_HEADERS);
+  return sheet;
+}
+
+function getPartTagConfigSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.partTagConfigSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(PART_TAG_CONFIG_HEADERS);
+  return sheet;
+}
+
+function normalizePartTagCategory(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+// prefix เริ่มต้นจากชื่อ Category — เอาเฉพาะ A-Z/0-9 4 ตัวแรก ถ้าเป็นไทยล้วนจะได้ค่าว่าง จึงใช้ TAG
+function defaultPartTagPrefix(category) {
+  var cleaned = String(category || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return cleaned ? cleaned.slice(0, 4) : 'TAG';
+}
+
+function rowToPartTagConfig(r) {
+  var category = String(r[0] || '').trim();
+  return {
+    category: category,
+    require_tag: String(r[1]).toUpperCase() === 'TRUE' || String(r[1]) === '1',
+    prefix: String(r[2] || '').trim() || defaultPartTagPrefix(category),
+    updated_by: String(r[3] || ''),
+    updated_at: String(r[4] || '')
+  };
+}
+
+function getPartTagConfigList() {
+  var values = getPartTagConfigSheet().getDataRange().getValues();
+  if (values.length <= 1) return [];
+  return values.slice(1)
+    .filter(function (r) { return String(r[0] || '').trim(); })
+    .map(rowToPartTagConfig);
+}
+
+function getPartTagConfig(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  return {
+    status: 'success',
+    statuses: PART_TAG_STATUSES,
+    max_per_transaction: Number(SPARE_APP_CONFIG.partTagMaxPerTransaction) || 50,
+    config: getPartTagConfigList()
+  };
+}
+
+function setPartTagConfig(payload) {
+  var user = requireAdminUser({ authToken: payload.authToken });
+  var category = String(payload.category || '').trim();
+  if (!category) throw new Error('กรุณาระบุ Category');
+  var requireTag = String(payload.require_tag) === '1' || String(payload.require_tag).toLowerCase() === 'true';
+  var prefix = String(payload.prefix || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  if (!prefix) prefix = defaultPartTagPrefix(category);
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var sheet = getPartTagConfigSheet();
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    if (normalizePartTagCategory(values[i][0]) === normalizePartTagCategory(category)) {
+      sheet.getRange(i + 1, 1, 1, PART_TAG_CONFIG_HEADERS.length)
+        .setValues([[category, requireTag, prefix, user.username, now]]);
+      return { status: 'success', category: category, require_tag: requireTag, prefix: prefix };
+    }
+  }
+  sheet.appendRow([category, requireTag, prefix, user.username, now]);
+  return { status: 'success', category: category, require_tag: requireTag, prefix: prefix };
+}
+
+// หา prefix + ว่าต้องออกเลขไหม สำหรับ category ที่กำลังเบิก
+function resolvePartTagRule(category) {
+  var key = normalizePartTagCategory(category);
+  if (!key) return { require_tag: false, prefix: '' };
+  var list = getPartTagConfigList();
+  for (var i = 0; i < list.length; i += 1) {
+    if (normalizePartTagCategory(list[i].category) === key) {
+      return { require_tag: !!list[i].require_tag, prefix: list[i].prefix || defaultPartTagPrefix(category) };
+    }
+  }
+  return { require_tag: false, prefix: defaultPartTagPrefix(category) };
+}
+
+function rowToPartTag(r) {
+  return {
+    tag_no: String(r[0] || ''),
+    part_no: String(r[1] || ''),
+    part_name: String(r[2] || ''),
+    model: String(r[3] || ''),
+    category: String(r[4] || ''),
+    line: String(r[5] || ''),
+    sheet_name: String(r[6] || ''),
+    unit: String(r[7] || ''),
+    machine: String(r[8] || ''),
+    reason: String(r[9] || ''),
+    issued_at: String(r[10] || ''),
+    issued_by: String(r[11] || ''),
+    status: String(r[12] || ''),
+    status_at: String(r[13] || ''),
+    status_by: String(r[14] || ''),
+    remark: String(r[15] || ''),
+    installed_at: String(r[16] || ''),
+    removed_at: String(r[17] || '')
+  };
+}
+
+// เลขวิ่งถัดไปของ prefix — ไล่จากเลขที่มีอยู่จริงในชีท เอาค่ามากสุด +1
+// (เรียกอยู่ใต้ LockService ของ processTransaction แล้ว จึงไม่ออกเลขซ้ำกันเอง)
+function nextPartTagRunning(existingRows, prefix) {
+  var max = 0;
+  var head = String(prefix || '') + '-';
+  for (var i = 1; i < existingRows.length; i += 1) {
+    var tag = String(existingRows[i][0] || '');
+    if (tag.indexOf(head) !== 0) continue;
+    var running = parseInt(tag.slice(head.length), 10);
+    if (!isNaN(running) && running > max) max = running;
+  }
+  return max + 1;
+}
+
+// payload.process ของการเบิกอาจถูกต่อท้ายด้วย ' | note: ...' จากหน้าเว็บ
+// คอลัมน์ Line ในทะเบียนต้องเก็บแค่ชื่อไลน์ ไม่เอาโน๊ตติดมาด้วย
+function partTagLineFromProcess(process) {
+  return String(process || '').split('| note:')[0].replace(/\s+$/, '');
+}
+
+function padPartTagRunning(n) {
+  var s = String(n);
+  while (s.length < 5) s = '0' + s;
+  return s;
+}
+
+// สร้างเลขประจำชิ้นสำหรับการเบิกออก 1 ครั้ง — คืน { tags: [...], skipped_reason: '' }
+// ห้าม throw: การออกเลขล้มเหลวต้องไม่ทำให้การเบิก (ที่ตัด stock ไปแล้ว) พังทั้งรายการ
+function createPartTagsForIssue(payload, issuedBy, qtyPieces) {
+  var result = { tags: [], required: false, skipped_reason: '' };
+  try {
+    var rule = resolvePartTagRule(payload.category);
+    result.required = !!rule.require_tag;
+    if (!rule.require_tag) return result;
+    var pieces = Math.floor(Math.abs(Number(qtyPieces) || 0));
+    if (pieces <= 0) return result;
+    var cap = Number(SPARE_APP_CONFIG.partTagMaxPerTransaction) || 50;
+    if (pieces > cap) {
+      result.skipped_reason = 'จำนวน ' + pieces + ' ชิ้นเกินลิมิตออกเลขต่อครั้ง (' + cap + ') — ยังไม่ได้ออกเลขให้ กรุณาแยกเบิกหรือแจ้งผู้ดูแลระบบ';
+      return result;
+    }
+    var sheet = getPartTagsSheet();
+    var existing = sheet.getDataRange().getValues();
+    var running = nextPartTagRunning(existing, rule.prefix);
+    var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    var rows = [];
+    for (var i = 0; i < pieces; i += 1) {
+      var tagNo = rule.prefix + '-' + padPartTagRunning(running + i);
+      result.tags.push(tagNo);
+      rows.push([
+        tagNo,
+        payload.partNo || '',
+        payload.partName || '',
+        payload.model || '',
+        payload.category || '',
+        partTagLineFromProcess(payload.process),
+        payload.sheetName || '',
+        payload.unit || 'PCS',
+        payload.machine || '',
+        payload.reason || '',
+        now,
+        issuedBy || '',
+        PART_TAG_STATUSES[0],
+        now,
+        issuedBy || '',
+        payload.reasonRemark || '',
+        '',
+        ''
+      ]);
+    }
+    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, PART_TAG_HEADERS.length).setValues(rows);
+  } catch (err) {
+    result.tags = [];
+    result.skipped_reason = 'ออกเลขประจำชิ้นไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+    Logger.log('createPartTagsForIssue warning: ' + result.skipped_reason);
+  }
+  return result;
+}
+
+function getPartTags(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var values = getPartTagsSheet().getDataRange().getValues();
+  var list = values.length <= 1 ? [] : values.slice(1)
+    .filter(function (r) { return String(r[0] || '').trim(); })
+    .map(rowToPartTag);
+  var tagNo = String(payload.tag_no || '').trim().toLowerCase();
+  var partNo = String(payload.part_no || '').trim().toLowerCase();
+  var machine = String(payload.machine || '').trim().toLowerCase();
+  var status = String(payload.status || '').trim();
+  var line = String(payload.line || '').trim().toLowerCase();
+  var q = String(payload.q || '').trim().toLowerCase();
+  if (tagNo) list = list.filter(function (t) { return t.tag_no.toLowerCase().indexOf(tagNo) > -1; });
+  if (partNo) list = list.filter(function (t) { return t.part_no.toLowerCase() === partNo; });
+  if (machine) list = list.filter(function (t) { return t.machine.toLowerCase().indexOf(machine) > -1; });
+  if (status) list = list.filter(function (t) { return t.status === status; });
+  if (line) list = list.filter(function (t) { return t.line.toLowerCase().indexOf(line) > -1; });
+  if (q) {
+    list = list.filter(function (t) {
+      return [t.tag_no, t.part_no, t.part_name, t.model, t.machine, t.issued_by, t.remark]
+        .join(' ').toLowerCase().indexOf(q) > -1;
+    });
+  }
+  var limit = Number(payload.limit || 0);
+  list = list.reverse(); // ล่าสุดขึ้นก่อน
+  if (limit > 0) list = list.slice(0, limit);
+  return { status: 'success', statuses: PART_TAG_STATUSES, tags: list };
+}
+
+function updatePartTagStatus(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'issue_part');
+  var tagNo = String(payload.tag_no || '').trim();
+  if (!tagNo) throw new Error('ไม่พบเลขประจำชิ้น');
+  var nextStatus = String(payload.status || '').trim();
+  if (PART_TAG_STATUSES.indexOf(nextStatus) === -1) {
+    throw new Error('สถานะไม่ถูกต้อง (ใช้ได้: ' + PART_TAG_STATUSES.join(', ') + ')');
+  }
+  var sheet = getPartTagsSheet();
+  var values = sheet.getDataRange().getValues();
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '').trim() === tagNo) {
+      var machine = payload.machine !== undefined ? String(payload.machine).trim() : String(values[i][8] || '');
+      var remark = payload.remark !== undefined ? String(payload.remark).trim() : String(values[i][15] || '');
+      // จับวันที่ติดตั้ง/ถอด ให้เหมือน CWM System (ถอดแล้ว 2026-07-28)
+      // ติดตั้งใหม่รอบถัดไป = เขียน Installed At ทับ และล้าง Removed At ให้เริ่มนับรอบใหม่
+      var installedAt = String(values[i][16] || '');
+      var removedAt = String(values[i][17] || '');
+      if (nextStatus === PART_TAG_STATUS_INSTALLED) {
+        installedAt = now;
+        removedAt = '';
+      } else if (nextStatus === PART_TAG_STATUS_REMOVED) {
+        removedAt = now;
+      }
+      sheet.getRange(i + 1, 9).setValue(machine);
+      sheet.getRange(i + 1, 13, 1, 3).setValues([[nextStatus, now, user.username]]);
+      sheet.getRange(i + 1, 16, 1, 3).setValues([[remark, installedAt, removedAt]]);
+      return { status: 'success', tag_no: tagNo, new_status: nextStatus, installed_at: installedAt, removed_at: removedAt };
+    }
+  }
+  throw new Error('ไม่พบเลขประจำชิ้น ' + tagNo + ' ในทะเบียน');
 }
 
 function getPurchaseHistoryImportLogSheet() {
@@ -2824,6 +3096,18 @@ function processTransactionUnlocked(payload) {
     }
   }
 
+  // 🏷️ เบิกออก + Category ที่ตั้งไว้ว่าต้องแท็ก → ออกเลขประจำชิ้นให้ 1 เลขต่อ 1 ชิ้น
+  var partTagResult = { tags: [], required: false, skipped_reason: '' };
+  if (signedQty < 0) {
+    var issuedBy = payload.by || '';
+    try {
+      if (payload.authToken) issuedBy = getSessionUser({ authToken: payload.authToken }).user.username;
+    } catch (userErr) {
+      Logger.log('processTransaction partTag user warning: ' + (userErr && userErr.message ? userErr.message : userErr));
+    }
+    partTagResult = createPartTagsForIssue(payload, issuedBy, Math.abs(signedQty));
+  }
+
   invalidateSparePartsLiteCache(resolvedSheetName);
 
   return {
@@ -2831,7 +3115,10 @@ function processTransactionUnlocked(payload) {
     stockBefore: stockBefore,
     stockAfter: stockAfter,
     qty: signedQty,
-    purchaseHistorySync: purchaseHistorySync
+    purchaseHistorySync: purchaseHistorySync,
+    part_tags: partTagResult.tags,
+    part_tag_required: partTagResult.required,
+    part_tag_warning: partTagResult.skipped_reason
   };
 }
 
@@ -3592,6 +3879,10 @@ function doGet(e) {
     if (action === 'machineSpareReport') return respond(machineSpareReport(e.parameter), e);
     if (action === 'checkCrossLineStock') return respond(checkCrossLineStock(e.parameter), e);
     if (action === 'getPendingPrUsage') return respond(getPendingPrUsage(e.parameter), e);
+    if (action === 'getPartTagConfig') return respond(getPartTagConfig(e.parameter), e);
+    if (action === 'setPartTagConfig') return respond(setPartTagConfig(e.parameter), e);
+    if (action === 'getPartTags') return respond(getPartTags(e.parameter), e);
+    if (action === 'updatePartTagStatus') return respond(updatePartTagStatus(e.parameter), e);
     if (action === 'getMachines') return respond(getMachines(e.parameter), e);
     if (action === 'addMachine') return respond(addMachine(e.parameter), e);
     if (action === 'updateMachine') return respond(updateMachine(e.parameter), e);
