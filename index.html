@@ -2451,9 +2451,11 @@
         <div class="flex flex-wrap gap-2 mb-2">
           <input id="partTagConfigCategoryInput" type="text" list="partTagConfigCategoryOptions" class="h-10 flex-1 min-w-[160px] rounded-xl border border-slate-300 px-3 text-sm" placeholder="Category เช่น Mechanical" />
           <datalist id="partTagConfigCategoryOptions"></datalist>
-          <input id="partTagConfigPrefixInput" type="text" class="h-10 w-28 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Prefix" />
+          <input id="partTagConfigPrefixInput" type="text" class="h-10 w-24 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Prefix เช่น SC" />
+          <input id="partTagConfigStartInput" type="text" class="h-10 w-28 rounded-xl border border-slate-300 px-3 text-sm" placeholder="เลขเริ่มต้น เช่น 040" />
           <button id="partTagConfigAddBtn" type="button" class="h-10 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700">+ เปิดใช้แท็ก</button>
         </div>
+        <p class="text-[11px] text-slate-400 mb-2">💡 ถ้าใช้เลขต่อจากระบบเดิมอยู่แล้ว (เช่น CWM System ใช้ SC-001..SC-039) พิมพ์ "040" ในช่องเลขเริ่มต้น ระบบจะออกเลขต่อจาก SC-040 เป็นต้นไป โดยคงจำนวนหลักตามที่พิมพ์ (พิมพ์ "040" = 3 หลัก) ถ้าปล่อยว่างจะเริ่มที่ 1 ด้วย 5 หลัก</p>
         <p id="partTagConfigMessage" class="text-xs mb-2"></p>
         <div id="partTagConfigList" class="space-y-1.5"></div>
       </section>
@@ -4724,7 +4726,9 @@
           map[normalizePartTagCategoryKey(row.category)] = {
             category: String(row.category || ''),
             requireTag: !!row.require_tag,
-            prefix: String(row.prefix || '')
+            prefix: String(row.prefix || ''),
+            startNumber: Number(row.start_number) || 1,
+            digits: Number(row.digits) || 5
           };
         });
         partTagConfigState.byCategory = map;
@@ -4942,6 +4946,14 @@
       el.textContent = message || '';
     }
 
+    // แสดงตัวอย่างเลขแรกที่จะออก (ก่อนเคยเบิกจริง) ให้ admin เห็นว่าตั้งค่าถูกไหม
+    function padPartTagRunningPreview(startNumber, digits) {
+      var width = Number(digits) || 5;
+      var s = String(Number(startNumber) || 1);
+      while (s.length < width) s = '0' + s;
+      return s;
+    }
+
     function renderPartTagConfigList() {
       var container = document.getElementById('partTagConfigList');
       if (!container) return;
@@ -4962,7 +4974,7 @@
             '<span class="ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold" style="' +
               (r.requireTag ? 'background:#dbeafe;color:#1d4ed8;' : 'background:#f3f4f6;color:#6b7280;') + '">' +
               (r.requireTag ? 'ต้องแท็ก' : 'ปิดอยู่') + '</span>' +
-            '<span class="ml-2 text-xs text-gray-500">prefix: ' + escHtml(r.prefix) + '-xxxxx</span>' +
+            '<span class="ml-2 text-xs text-gray-500">' + escHtml(r.prefix) + '-' + escHtml(padPartTagRunningPreview(r.startNumber, r.digits)) + ' เป็นต้นไป</span>' +
           '</div>' +
           '<button type="button" data-part-tag-toggle="' + escHtml(r.category) + '" class="rounded-lg border px-2.5 py-1 text-xs font-semibold ' +
             (r.requireTag ? 'border-rose-200 bg-white text-rose-700' : 'border-blue-200 bg-white text-blue-700') + '">' +
@@ -4973,18 +4985,22 @@
         btn.addEventListener('click', function() {
           var category = btn.getAttribute('data-part-tag-toggle');
           var current = partTagConfigState.byCategory[normalizePartTagCategoryKey(category)];
-          savePartTagConfigRow(category, current ? !current.requireTag : true, current ? current.prefix : '');
+          // ปุ่มเปิด/ปิดแท็กเร็วๆ ต้องไม่รีเซ็ต prefix/เลขเริ่มต้น/จำนวนหลักที่เคยตั้งไว้
+          savePartTagConfigRow(category, current ? !current.requireTag : true,
+            current ? current.prefix : '', current ? current.startNumber : 1, current ? current.digits : 5);
         });
       });
     }
 
-    function savePartTagConfigRow(category, requireTag, prefix) {
+    function savePartTagConfigRow(category, requireTag, prefix, startNumber, digits) {
       setPartTagConfigMessage('กำลังบันทึก...', 'muted');
       return requestApi(withAuthPayload({
         action: 'setPartTagConfig',
         category: category,
         require_tag: requireTag ? '1' : '0',
-        prefix: prefix || ''
+        prefix: prefix || '',
+        start_number: startNumber || 1,
+        digits: digits || 5
       })).then(parseApiResponse).then(function() {
         setPartTagConfigMessage('บันทึกแล้ว: ' + category, 'success');
         return loadPartTagConfig(true);
@@ -5056,7 +5072,7 @@
         // 🏷️ Category นี้ต้องออกเลขประจำชิ้น — บอกล่วงหน้าว่าเบิกแล้วจะได้เลขกี่ใบ
         var tagRule = getPartTagRuleForItem(item);
         var tagHintHtml = tagRule
-          ? '<p class="mt-1.5 rounded-lg px-2 py-1 text-[11px] font-bold" style="background:#dbeafe;color:#1d4ed8;">🏷️ ต้องแท็กเลขประจำชิ้น — เบิกแล้วระบบจะออกเลขให้ ' + qty + ' ใบ (' + escapeStarText(tagRule.prefix) + '-xxxxx)</p>'
+          ? '<p class="mt-1.5 rounded-lg px-2 py-1 text-[11px] font-bold" style="background:#dbeafe;color:#1d4ed8;">🏷️ ต้องแท็กเลขประจำชิ้น — เบิกแล้วระบบจะออกเลขให้ ' + qty + ' ใบ (' + escapeStarText(tagRule.prefix) + '-' + 'x'.repeat(tagRule.digits || 5) + ')</p>'
           : '';
         return '<article class="rounded-xl border p-2.5" style="' + (starred ? 'border-color:#fcd34d;background:#fffdf5;' : 'border-color:#e5e7eb;background:#ffffff;') + '">' +
           '<div class="flex gap-2.5">' +
@@ -14951,11 +14967,18 @@ if (dashboardPage) {
       on('partTagConfigAddBtn', 'click', function() {
         var catEl = document.getElementById('partTagConfigCategoryInput');
         var prefixEl = document.getElementById('partTagConfigPrefixInput');
+        var startEl = document.getElementById('partTagConfigStartInput');
         var category = String((catEl && catEl.value) || '').trim();
         if (!category) { setPartTagConfigMessage('กรุณาระบุ Category', 'error'); return; }
-        savePartTagConfigRow(category, true, String((prefixEl && prefixEl.value) || '').trim()).then(function() {
+        // แปลง "040" ที่พิมพ์เป็น startNumber=40, digits=3 (นับจากจำนวนหลักที่พิมพ์จริง)
+        // เพื่อให้ "สานต่อ" เลขจากระบบเดิม (เช่น CWM System SC-001..SC-039) ได้พอดี
+        var startRaw = String((startEl && startEl.value) || '').replace(/\D/g, '');
+        var startNumber = startRaw ? parseInt(startRaw, 10) : 1;
+        var digits = startRaw ? startRaw.length : 5;
+        savePartTagConfigRow(category, true, String((prefixEl && prefixEl.value) || '').trim(), startNumber, digits).then(function() {
           if (catEl) catEl.value = '';
           if (prefixEl) prefixEl.value = '';
+          if (startEl) startEl.value = '';
         });
       });
       on('partTagConfigRefreshBtn', 'click', function() {
