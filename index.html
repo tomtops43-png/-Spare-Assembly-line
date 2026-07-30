@@ -1757,7 +1757,7 @@
                 <th class="py-3 px-3 text-left hidden lg:table-cell">Reason</th>
                 <th class="py-3 px-3 text-center hidden lg:table-cell">ก่อน</th>
                 <th class="py-3 px-3 text-center hidden lg:table-cell">หลัง</th>
-                <th id="logDeleteColHeader" class="hidden py-3 px-3 text-center">ลบ</th>
+                <th id="logDeleteColHeader" class="hidden py-3 px-3 text-center">จัดการ</th>
               </tr>
             </thead>
             <tbody id="logTable" class="divide-y divide-slate-100"></tbody>
@@ -7047,6 +7047,30 @@ function getIssueCartEntries() {
       }
     }
 
+    // ↩️ คืนรายการ: ฝั่ง backend เขียน marker 'RETURN_OF:<timestamp>|<partName>' ไว้ใน
+    // Reason Remark ของแถว Return ใช้เช็คว่าแถวเดิมถูกคืนไปแล้วหรือยัง (กันกดซ้ำ)
+    var LOG_RETURN_MARKER = 'RETURN_OF:';
+
+    function logRowReturnKey(item) {
+      return String((item && item.timestamp) || '').trim() + '|' + String((item && item.partName) || '').trim();
+    }
+
+    function buildLogReturnedIndex(rows) {
+      var set = {};
+      (rows || []).forEach(function(r) {
+        var remark = String((r && r.reasonRemark) || '');
+        var at = remark.indexOf(LOG_RETURN_MARKER);
+        if (at === -1) return;
+        var key = remark.slice(at + LOG_RETURN_MARKER.length).split(' | ')[0].trim();
+        if (key) set[key] = true;
+      });
+      return set;
+    }
+
+    function isLogRowReversal(item) {
+      return String((item && item.reason) || '').trim() === 'Return';
+    }
+
     function renderLogTable(allRows) {
       if (allRows && allRows !== logCache) { /* filtered call */ }
       var filtered = getLogFilteredRows();
@@ -7056,9 +7080,13 @@ function getIssueCartEntries() {
       var start = (logCurrentPage - 1) * LOG_PAGE_SIZE;
       var pageRows = filtered.slice(start, start + LOG_PAGE_SIZE);
       var canDeleteLog = hasPermission('delete_logs');
+      // ปุ่มคืนรายการเป็นของ Admin เท่านั้น (แก้ยอดสต็อกจริง) — คนละสิทธิ์กับปุ่มลบประวัติ
+      var canReturnLog = isAdminUser();
+      var showActionCol = canDeleteLog || canReturnLog;
+      var returnedIndex = buildLogReturnedIndex(logCache);
       var logDeleteColHeader = document.getElementById('logDeleteColHeader');
-      if (logDeleteColHeader) logDeleteColHeader.classList.toggle('hidden', !canDeleteLog);
-      var colCount = canDeleteLog ? 13 : 12;
+      if (logDeleteColHeader) logDeleteColHeader.classList.toggle('hidden', !showActionCol);
+      var colCount = showActionCol ? 13 : 12;
 
       if (!total) {
         logTable.innerHTML = '<tr><td colspan="' + colCount + '" class="py-8 text-center text-slate-400">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
@@ -7068,8 +7096,25 @@ function getIssueCartEntries() {
           var isOut = String(item.type || '').toLowerCase() === 'output';
           var qty = Number(item.qty || 0);
           var displayQty = isOut ? -Math.abs(qty) : Math.abs(qty);
-          var deleteCell = canDeleteLog
-            ? '<td class="py-2.5 px-3 text-center"><button type="button" class="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-100" data-log-delete="' + item.no + '" data-log-timestamp="' + escHtml(item.timestamp || '') + '" data-log-partname="' + escHtml(item.partName || '') + '" title="ลบรายการนี้ (ไม่กระทบ Stock ปัจจุบัน)">🗑</button></td>'
+          var alreadyReturned = !!returnedIndex[logRowReturnKey(item)];
+          var isReversal = isLogRowReversal(item);
+          var returnBtn = '';
+          if (canReturnLog) {
+            if (isReversal) {
+              returnBtn = '<span class="rounded-lg px-2 py-1 text-[10px] font-bold" style="background:#e0e7ff;color:#3730a3;" title="แถวนี้คือรายการคืน">↩ Return</span>';
+            } else if (alreadyReturned) {
+              returnBtn = '<span class="rounded-lg px-2 py-1 text-[10px] font-bold" style="background:#dcfce7;color:#15803d;" title="รายการนี้ถูกคืนแล้ว">✓ คืนแล้ว</span>';
+            } else {
+              returnBtn = '<button type="button" class="rounded-lg border px-2 py-1 text-xs font-semibold" style="border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;"' +
+                ' data-log-return="' + item.no + '" data-log-timestamp="' + escHtml(item.timestamp || '') + '" data-log-partname="' + escHtml(item.partName || '') + '"' +
+                ' title="คืนรายการนี้ — ทำรายการตรงข้ามเพื่อคืนสต็อกกลับให้ถูกต้อง">↩ คืน</button>';
+            }
+          }
+          var deleteBtn = canDeleteLog
+            ? '<button type="button" class="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-100" data-log-delete="' + item.no + '" data-log-timestamp="' + escHtml(item.timestamp || '') + '" data-log-partname="' + escHtml(item.partName || '') + '" title="ลบรายการนี้ (ไม่กระทบ Stock ปัจจุบัน)">🗑</button>'
+            : '';
+          var deleteCell = showActionCol
+            ? '<td class="py-2.5 px-3"><div class="flex items-center justify-center gap-1.5">' + returnBtn + deleteBtn + '</div></td>'
             : '';
           return '<tr class="' + rowBg + ' hover:bg-blue-50/60 transition-colors">' +
             '<td class="py-2.5 px-3 whitespace-nowrap text-xs text-slate-500">' + formatThaiDateTime(item.timestamp) + '</td>' +
@@ -7153,6 +7198,46 @@ function getIssueCartEntries() {
       bindLogFilter('logFilterSearch', function(v){ logFilterSearchVal = v; });
       var refreshBtn = document.getElementById('logRefreshBtn');
       if (refreshBtn) refreshBtn.addEventListener('click', function() { logCache = []; loadLogData(); });
+      // ↩️ คืนรายการ (Admin) — ทำรายการตรงข้ามเพื่อคืนสต็อก ไม่ใช่แค่ลบประวัติ
+      if (logTable) logTable.addEventListener('click', function(e) {
+        var btn = e.target.closest ? e.target.closest('[data-log-return]') : null;
+        if (!btn) return;
+        var no = btn.getAttribute('data-log-return');
+        var timestamp = btn.getAttribute('data-log-timestamp') || '';
+        var partName = btn.getAttribute('data-log-partname') || '';
+        var row = logCache.filter(function(it) { return String(it.no) === String(no); })[0];
+        var signedQty = row ? Number(row.qty || 0) : 0;
+        var isOut = signedQty < 0;
+        var absQty = Math.abs(signedQty);
+        showConfirmDialog({
+          title: '↩ คืนรายการ',
+          message: 'คืนรายการ "' + (partName || '-') + '" จำนวน ' + absQty + '\n\n' +
+            (isOut
+              ? 'รายการนี้เป็นการเบิกออก → ระบบจะ "รับเข้า" คืน ' + absQty + ' หน่วย (สต็อกเพิ่มขึ้น)'
+              : 'รายการนี้เป็นการรับเข้า → ระบบจะ "เบิกออก" ' + absQty + ' หน่วย (สต็อกลดลง)') + '\n\n' +
+            'ประวัติเดิมยังอยู่ และจะมีแถว Return เพิ่มเข้ามาเป็นหลักฐาน',
+          okLabel: '↩ ยืนยันคืน'
+        }).then(function(ok) {
+          if (!ok) return;
+          btn.disabled = true;
+          btn.textContent = '...';
+          requestApi(withAuthPayload({ action: 'returnLogEntry', no: no, timestamp: timestamp, partName: partName }))
+            .then(parseApiResponse)
+            .then(function(res) {
+              showQuickToast('↩ คืนรายการแล้ว: ' + (partName || '-') + ' · สต็อก ' +
+                (res.stockBefore != null ? res.stockBefore : '?') + ' → ' + (res.stockAfter != null ? res.stockAfter : '?'), 'success');
+              // สต็อกเปลี่ยนจริง ต้องดึงข้อมูลอะไหล่ใหม่ ไม่ใช่แค่รีเฟรช log
+              logCache = [];
+              loadLogData();
+              loadPartsData({ skipCache: true });
+            })
+            .catch(function(err) {
+              btn.disabled = false;
+              btn.textContent = '↩ คืน';
+              showQuickToast('คืนไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+            });
+        });
+      });
       if (logTable) logTable.addEventListener('click', function(e) {
         var btn = e.target.closest ? e.target.closest('[data-log-delete]') : null;
         if (!btn) return;

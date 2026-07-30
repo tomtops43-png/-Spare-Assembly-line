@@ -3158,6 +3158,160 @@ function deleteLogEntryUnlocked(payload) {
   return { status: 'success', deleted_no: no };
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// ↩️ คืนรายการ Log (Return) — Admin เท่านั้น
+// ต่างจาก deleteLogEntry ที่ลบแค่ประวัติ (stock ยังผิดอยู่): ตัวนี้ทำรายการตรงข้าม
+// เพื่อ "คืนสต็อกกลับ" ให้ถูกต้อง แล้วบันทึกเป็นแถวใหม่ไว้เป็นหลักฐาน (ไม่ลบของเดิม)
+// ใช้กรณีทดลองเบิก/บันทึกผิด แล้วอยากให้ตัวเลขกลับมาถูกโดยไม่ต้องไปแก้ชีทมือ
+// ════════════════════════════════════════════════════════════════════════
+var LOG_RETURN_MARKER = 'RETURN_OF:';
+
+// ชีท Log ไม่ได้เก็บชื่อชีทสต็อกต้นทางไว้ จึงต้องสแกนหาว่าอะไหล่ตัวนี้อยู่ชีทไหน
+// ห้ามใช้ ensureSheetWithTemplate เพราะมันสร้างชีทใหม่ถ้าไม่มี — จะเกิดชีทขยะ
+function logItemMatchesStockRow(row, map, item) {
+  var rowNo = pickRowValue(row, map, ['no'], '');
+  var rowName = pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '');
+  var rowModel = pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '');
+  var nameMatch = String(rowName) === String(item.partName);
+  var modelMatch = !item.model || String(rowModel) === String(item.model);
+  var hasNo = item.partNo !== undefined && String(item.partNo) !== '';
+  var noMatch = hasNo && String(rowNo) === String(item.partNo);
+  return (noMatch && modelMatch && (!item.partName || nameMatch)) || (nameMatch && modelMatch);
+}
+
+function findStockSheetNameForLogItem(item) {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  for (var c = 0; c < STOCK_LOCATION_SHEETS.length; c += 1) {
+    var name = STOCK_LOCATION_SHEETS[c];
+    var sheet = spreadsheet.getSheetByName(name);
+    if (!sheet) continue;
+    var data = sheet.getDataRange().getValues();
+    if (!data.length || data.length <= 1) continue;
+    var headerRowIndex = findHeaderRowIndex(data);
+    var map = buildHeaderIndexMap(data[headerRowIndex]);
+    var rows = data.slice(headerRowIndex + 1);
+    for (var i = 0; i < rows.length; i += 1) {
+      if (logItemMatchesStockRow(rows[i], map, item)) return name;
+    }
+  }
+  return '';
+}
+
+function returnLogEntry(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    return returnLogEntryUnlocked(payload);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function returnLogEntryUnlocked(payload) {
+  var user = requireAdminUser({ authToken: payload.authToken });
+  var no = Number(payload.no);
+  if (!no || no <= 0) throw new Error('ไม่พบรายการที่จะคืน');
+
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
+  ensureLogSheetHeaders(historySheet);
+  var rowIndex = no + 1; // แถว 1 คือ header
+  if (rowIndex > historySheet.getLastRow()) throw new Error('ไม่พบรายการที่จะคืน (แถวอาจถูกลบไปแล้ว)');
+
+  var data = historySheet.getDataRange().getValues();
+  var headerMap = buildHeaderIndexMap(data[0] || []);
+  var row = data[rowIndex - 1] || [];
+  function cell(keys, fallback) {
+    for (var i = 0; i < keys.length; i += 1) {
+      var idx = headerMap[keys[i]];
+      if (idx !== undefined) return row[idx];
+    }
+    return fallback;
+  }
+
+  var originalTs = String(cell(['timestamp'], '')).trim();
+  var originalName = String(cell(['partname'], '')).trim();
+  // race guard เหมือน deleteLogEntry — กันกรณีมีแถวถูกเพิ่ม/ลบสลับตำแหน่งไปแล้ว
+  var expectedTs = String(payload.timestamp || '').trim();
+  var expectedName = String(payload.partName || '').trim();
+  if (expectedTs && expectedTs !== originalTs) {
+    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ กรุณารีเฟรชแล้วลองใหม่');
+  }
+  if (expectedName && expectedName !== originalName) {
+    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ กรุณารีเฟรชแล้วลองใหม่');
+  }
+
+  var signedQty = Number(cell(['qty'], 0));
+  if (!signedQty) throw new Error('รายการนี้ไม่มีจำนวน จึงคืนไม่ได้');
+
+  var marker = LOG_RETURN_MARKER + originalTs + '|' + originalName;
+  var remarkIdx = headerMap['reasonremark'];
+  if (String(cell(['reason'], '')).trim() === 'Return') {
+    throw new Error('แถวนี้เป็นรายการคืนอยู่แล้ว จึงคืนซ้ำไม่ได้');
+  }
+  if (remarkIdx !== undefined) {
+    for (var r = 1; r < data.length; r += 1) {
+      if (String(data[r][remarkIdx] || '').indexOf(marker) > -1) {
+        throw new Error('รายการนี้ถูกคืนไปแล้ว (ดูแถว Return ในประวัติ)');
+      }
+    }
+  }
+
+  var item = {
+    partNo: cell(['partno'], ''),
+    partName: originalName,
+    model: cell(['model'], '')
+  };
+  var sheetName = findStockSheetNameForLogItem(item);
+  if (!sheetName) {
+    throw new Error('ไม่พบอะไหล่ "' + originalName + '" ในชีทสต็อกแล้ว จึงคืนสต็อกอัตโนมัติไม่ได้ กรุณาแก้ยอดในชีทเอง');
+  }
+
+  // qty ใน Log เป็นค่าที่มีเครื่องหมาย (Output = ติดลบ) — คืนคือทำรายการตรงข้าม
+  var reverseType = signedQty < 0 ? 'Input' : 'Output';
+  var reversePayload = {
+    partNo: item.partNo,
+    type: reverseType,
+    process: cell(['process'], '') || '-',
+    category: cell(['category'], '') || 'General',
+    partName: originalName,
+    model: item.model || '-',
+    brand: cell(['brand'], '') || '-',
+    qty: Math.abs(signedQty),
+    unit: cell(['unit'], '') || 'PCS',
+    by: user.username,
+    reason: 'Return',
+    reasonRemark: marker + ' | คืนรายการโดย ' + user.username,
+    machine: cell(['machine'], ''),
+    sheetName: sheetName,
+    // การคืนไม่ใช่การซื้อเข้า และไม่ใช่การเบิกใหม่ — ต้องไม่ไปแตะ 2 ระบบนี้
+    skipPurchaseHistory: true,
+    skipPartTags: true
+  };
+
+  var result;
+  try {
+    result = processTransactionUnlocked(reversePayload);
+  } catch (err) {
+    var message = err && err.message ? err.message : String(err || '');
+    if (message.indexOf('สต็อกไม่พอ') > -1) {
+      throw new Error('คืนรายการนี้ไม่ได้: ต้องหักสต็อกออก ' + Math.abs(signedQty) +
+        ' แต่ของคงเหลือไม่พอ (อาจมีคนเบิกไปหลังจากรายการนี้แล้ว) กรุณาตรวจยอดก่อน');
+    }
+    throw err;
+  }
+
+  return {
+    status: 'success',
+    returned_no: no,
+    reverse_type: reverseType,
+    qty: Math.abs(signedQty),
+    sheet: sheetName,
+    stockBefore: result.stockBefore,
+    stockAfter: result.stockAfter
+  };
+}
+
 function processTransaction(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -3257,7 +3411,9 @@ function processTransactionUnlocked(payload) {
   ]);
 
   var purchaseHistorySync = null;
-  if (signedQty > 0) {
+  // skipPurchaseHistory: ใช้ตอน "คืนรายการ" (returnLogEntry) — การคืนของที่เบิกไปจะกลายเป็น
+  // Input ซึ่งปกติจะไปสร้าง Purchase History ให้ ทั้งที่ไม่ได้ซื้อของเข้ามาจริง
+  if (signedQty > 0 && !payload.skipPurchaseHistory) {
     try {
       var transactionUser = payload.authToken ? getSessionUser({ authToken: payload.authToken }).user.username : (payload.by || '');
       purchaseHistorySync = syncPurchaseHistoryOnReceive(payload, transactionUser);
@@ -3266,9 +3422,10 @@ function processTransactionUnlocked(payload) {
     }
   }
 
-  // 🏷️ เบิกออก + Category ที่ตั้งไว้ว่าต้องแท็ก → ออกเลขประจำชิ้นให้ 1 เลขต่อ 1 ชิ้น
+  // 🏷️ เบิกออก + อยู่ในกลุ่มแท็กที่ active → ออกเลขประจำชิ้นให้ 1 เลขต่อ 1 ชิ้น
+  // skipPartTags: ใช้ตอน "คืนรายการ" ของที่รับเข้า — จะกลายเป็น Output ซึ่งไม่ควรออกเลขใหม่
   var partTagResult = { tags: [], required: false, skipped_reason: '' };
-  if (signedQty < 0) {
+  if (signedQty < 0 && !payload.skipPartTags) {
     var issuedBy = payload.by || '';
     try {
       if (payload.authToken) issuedBy = getSessionUser({ authToken: payload.authToken }).user.username;
@@ -4116,6 +4273,7 @@ function doGet(e) {
     }
     if (action === 'logs') return respond(getLogRows(), e);
     if (action === 'deleteLogEntry') return respond(deleteLogEntry(e.parameter), e);
+    if (action === 'returnLogEntry') return respond(returnLogEntry(e.parameter), e);
     if (action === 'nextNo') {
       requirePermission(authPayload, 'manage_items');
       return respond(getNextNoBySheet(e.parameter.sheet), e);
@@ -4387,6 +4545,7 @@ function doPost(e) {
     if (action === 'markOrderRequestReceived') return respond(markOrderRequestReceived(body), e);
     if (action === 'editOrderRequest') return respond(editOrderRequest(body), e);
     if (action === 'deleteLogEntry') return respond(deleteLogEntry(body), e);
+    if (action === 'returnLogEntry') return respond(returnLogEntry(body), e);
     if (action === 'convertOrderRequestsToPR') return respond(convertOrderRequestsToPR(body), e);
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(body, body.status), e);
     if (action === 'getInbox') return respond(getInbox(body), e);

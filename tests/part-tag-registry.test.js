@@ -16,7 +16,8 @@ assert(backend.includes("'Installed At', 'Removed At'"), 'ต้องเก็�
 assert(backend.includes('installedAt = now;') && backend.includes("removedAt = '';"));
 
 // ออกเลขเฉพาะขาเบิกออก (signedQty < 0) — รับเข้าต้องไม่ออกเลข
-assert(backend.includes('if (signedQty < 0) {'));
+// (มีเงื่อนไข !payload.skipPartTags ต่อท้ายด้วย เพื่อไม่ออกเลขใหม่ตอน "คืนรายการ")
+assert(/if \(signedQty < 0 && !payload\.skipPartTags\) \{/.test(backend));
 assert(backend.includes('partTagResult = createPartTagsForIssue(payload, issuedBy, Math.abs(signedQty));'));
 assert(backend.includes('part_tags: partTagResult.tags'));
 assert(backend.includes('part_tag_warning: partTagResult.skipped_reason'));
