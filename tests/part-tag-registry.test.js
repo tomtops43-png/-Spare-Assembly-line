@@ -139,4 +139,42 @@ assert(html.includes('function searchPartTagGroupItemCandidates()'));
 assert(html.includes("action: 'addPartTagGroupItem'"));
 assert(html.includes("action: 'removePartTagGroupItem'"));
 
+// ── Regression: backend เก่าตอบ array กลับมา ต้องไม่ถูกอ่านว่า "สำเร็จ" ────────
+// Apps Script เวอร์ชันที่ยังไม่ deploy จะไม่รู้จัก action ของทะเบียนชิ้น แล้ว doGet ตกไปที่
+// default = คืน array รายการอะไหล่ ซึ่งไม่มี status:'error' จึงหลุด parseApiResponse ไปได้
+// ทำให้หน้าเว็บขึ้นว่าสร้างกลุ่มสำเร็จทั้งที่ไม่ได้บันทึกอะไร (อาการที่ผู้ใช้เจอ)
+assert(/function parsePartTagResponse\(res, expectedField\)/.test(html));
+assert(html.includes('var PART_TAG_DEPLOY_HINT ='));
+
+const guardSrc = html.replace(/\r\n/g, '\n').match(/^ {4}function parsePartTagResponse\([\s\S]*?\n {4}}$/m);
+assert(guardSrc, 'cannot extract parsePartTagResponse');
+const guardState = { supported: true };
+const parsePartTagResponse = new Function(
+  'parseApiResponse', 'partTagConfigState', 'PART_TAG_DEPLOY_HINT',
+  guardSrc[0] + '\nreturn parsePartTagResponse;'
+)(
+  function (res) { if (res && res.status === 'error') throw new Error(res.message); return res; },
+  guardState,
+  'DEPLOY_HINT'
+);
+
+// array (backend เก่าตกมาที่ default) ต้อง throw + ปิดฟีเจอร์
+assert.throws(function () { parsePartTagResponse([{ no: '1', name: 'part' }], 'group_id'); }, /DEPLOY_HINT/);
+assert.strictEqual(guardState.supported, false, 'ต้องปิดฟีเจอร์เมื่อรู้ว่า backend ยังไม่ deploy');
+// response ที่ไม่มี field ที่คาดไว้ ก็ต้องไม่ผ่าน
+assert.throws(function () { parsePartTagResponse({ status: 'success' }, 'group_id'); }, /DEPLOY_HINT/);
+assert.throws(function () { parsePartTagResponse(null, 'groups'); }, /DEPLOY_HINT/);
+// response ที่ถูกต้องต้องผ่านและคืนค่าเดิม
+guardState.supported = true;
+const okRes = { status: 'success', group_id: 'PTG-1' };
+assert.strictEqual(parsePartTagResponse(okRes, 'group_id'), okRes);
+assert.strictEqual(parsePartTagResponse({ status: 'success', groups: [] }, 'groups').groups.length, 0, 'groups ว่างเป็นค่าที่ถูกต้อง ไม่ใช่ error');
+assert.strictEqual(guardState.supported, true);
+// error จาก backend จริงต้องยัง throw ตามเดิม (ไม่ถูกกลบด้วย hint)
+assert.throws(function () { parsePartTagResponse({ status: 'error', message: 'ไม่มีสิทธิ์' }, 'group_id'); }, /ไม่มีสิทธิ์/);
+
+// Admin ต้องโชว์กล่องเตือน deploy แทน empty state ที่ดูเหมือน "ไม่มีอะไรเกิดขึ้น"
+assert(html.includes('if (!partTagConfigState.supported) {'));
+assert(html.includes('ยังใช้งานไม่ได้ — ต้อง Deploy Apps Script ก่อน'));
+
 console.log('Part tag registry checks passed');
