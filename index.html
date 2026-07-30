@@ -104,6 +104,19 @@
     /* 9700: อะไหล่ติดดาว (starredPartsModal) — เปิดจากใน Issue Cart ได้ ต้องอยู่เหนือ cart */
     #starredPartsModal { z-index: 9700; }
     #starredPartsBackdrop { background: rgba(15, 23, 42, 0.55); }
+    /* 9750: ทะเบียนชิ้น (partTagRegistryModal)
+       9800: สรุปเลขประจำชิ้นหลังเบิก (partTagIssuedModal) — เด้งทับ Issue Cart ตอนเบิกเสร็จ
+              ต้องอยู่บนสุดของกลุ่มนี้ เพราะเป็นเลขที่ช่างต้องอ่านไปเขียนบนของ */
+    #partTagRegistryModal { z-index: 9750; }
+    #partTagRegistryBackdrop { background: rgba(15, 23, 42, 0.55); }
+    #partTagIssuedModal { z-index: 9800; }
+    #partTagIssuedBackdrop { background: rgba(15, 23, 42, 0.6); }
+    @media print {
+      body.printing-part-tags > *:not(#partTagIssuedModal) { display: none !important; }
+      body.printing-part-tags #partTagIssuedModal { position: static !important; display: block !important; }
+      body.printing-part-tags #partTagIssuedBackdrop,
+      body.printing-part-tags .part-tag-no-print { display: none !important; }
+    }
     .star-toggle-btn { transition: transform .12s ease; }
     .star-toggle-btn:active { transform: scale(0.88); }
     /* ─────────────────────────────────────────────────────────────
@@ -817,6 +830,7 @@
             </div>
             <button id="openIssueCartBtnMobile" type="button" class="flex items-center justify-center gap-0.5 h-10 px-2.5 shrink-0 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-base font-bold">🛒<span id="issueCartBadgeMobile" class="hidden min-w-[16px] h-4 rounded-full bg-red-500 px-1 text-[10px] font-black text-white leading-4">0</span></button>
             <button id="openStarredBtnMobile" type="button" title="อะไหล่ติดดาว (ต้องสั่งซื้อ)" class="flex items-center justify-center gap-0.5 h-10 px-2.5 shrink-0 rounded-xl border text-base font-bold" style="border-color:#fcd34d;background:#fffbeb;color:#b45309;">⭐<span id="starredBadgeMobile" class="hidden min-w-[16px] h-4 rounded-full px-1 text-[10px] font-black leading-4" style="background:#f59e0b;color:#ffffff;">0</span></button>
+            <button id="openPartTagRegistryBtnMobile" type="button" title="ทะเบียนชิ้น" class="flex items-center justify-center h-10 px-2.5 shrink-0 rounded-xl border text-base font-bold" style="border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;">🏷️</button>
             <button id="refreshStockDataBtnMobile" type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-600">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             </button>
@@ -824,6 +838,7 @@
           <!-- Desktop: search + cart + sheet selector -->
           <button id="openIssueCartBtn" type="button" class="hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition md:inline-flex">🛒 Issue Cart <span id="issueCartBadge" class="hidden min-w-[16px] h-4 rounded-full bg-red-500 px-1 text-[10px] font-black text-white leading-4">0</span></button>
           <button id="openStarredBtn" type="button" title="อะไหล่ติดดาว (ต้องสั่งซื้อ)" class="hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition md:inline-flex" style="border-color:#fcd34d;background:#fffbeb;color:#b45309;">⭐ ติดดาว <span id="starredBadge" class="hidden min-w-[16px] h-4 rounded-full px-1 text-[10px] font-black leading-4" style="background:#f59e0b;color:#ffffff;">0</span></button>
+          <button id="openPartTagRegistryBtn" type="button" title="ทะเบียนชิ้น — ตามสถานะอะไหล่แต่ละชิ้นด้วยเลขประจำชิ้น" class="hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition md:inline-flex" style="border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;">🏷️ ทะเบียนชิ้น</button>
           <div class="hidden flex-1 md:block">
             <div class="relative flex items-center rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-400 overflow-hidden">
               <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none ml-3 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -2424,6 +2439,25 @@
         <div id="machineManageList" class="space-y-1.5"></div>
       </section>
 
+      <!-- 🏷️ ตั้งค่าว่า Category ไหนต้องออกเลขประจำชิ้นตอนเบิก -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">🏷️ ตั้งค่าทะเบียนชิ้น (Part Tag)</h3>
+            <p class="text-xs text-slate-500 mt-0.5">เลือกว่า Category ไหน "ต้องออกเลขประจำชิ้น" ตอนเบิก — ระบบจะออกเลขวิ่งให้ 1 เลขต่อ 1 ชิ้น เพื่อตามสถานะได้รายชิ้น</p>
+          </div>
+          <button id="partTagConfigRefreshBtn" type="button" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">รีเฟรช</button>
+        </div>
+        <div class="flex flex-wrap gap-2 mb-2">
+          <input id="partTagConfigCategoryInput" type="text" list="partTagConfigCategoryOptions" class="h-10 flex-1 min-w-[160px] rounded-xl border border-slate-300 px-3 text-sm" placeholder="Category เช่น Mechanical" />
+          <datalist id="partTagConfigCategoryOptions"></datalist>
+          <input id="partTagConfigPrefixInput" type="text" class="h-10 w-28 rounded-xl border border-slate-300 px-3 text-sm" placeholder="Prefix" />
+          <button id="partTagConfigAddBtn" type="button" class="h-10 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700">+ เปิดใช้แท็ก</button>
+        </div>
+        <p id="partTagConfigMessage" class="text-xs mb-2"></p>
+        <div id="partTagConfigList" class="space-y-1.5"></div>
+      </section>
+
       <div class="grid gap-4 lg:grid-cols-[1fr_420px]">
         <!-- User List -->
         <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -2964,6 +2998,53 @@
     </aside>
   </div>
 
+  <!-- 🏷️ สรุปเลขประจำชิ้นที่ระบบออกให้หลังเบิกเสร็จ — ช่างต้องเขียน/แปะเลขนี้ลงบนของจริง -->
+  <div id="partTagIssuedModal" class="fixed inset-0 hidden items-stretch md:items-start justify-center overflow-y-auto p-0 md:p-6">
+    <div id="partTagIssuedBackdrop" class="absolute inset-0"></div>
+    <aside class="relative z-10 flex h-screen w-screen flex-col overflow-y-auto rounded-none border-0 bg-white p-4 md:my-6 md:h-auto md:max-h-none md:w-[min(640px,calc(100vw-64px))] md:rounded-2xl md:border md:border-slate-200 md:p-5 panel-shadow">
+      <div class="mb-3 flex items-start justify-between gap-2">
+        <div>
+          <h3 class="text-lg font-bold">🏷️ เลขประจำชิ้นที่ต้องแปะ</h3>
+          <p id="partTagIssuedSummary" class="text-[11px] text-gray-500"></p>
+        </div>
+        <button id="partTagIssuedCloseBtn" type="button" class="part-tag-no-print h-9 w-9 shrink-0 rounded-full border border-slate-300 text-slate-600">×</button>
+      </div>
+      <div id="partTagIssuedBody" class="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1"></div>
+      <div class="part-tag-no-print mt-3 flex flex-wrap gap-2">
+        <button id="partTagIssuedCopyBtn" type="button" class="h-10 flex-1 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-bold text-blue-700">📋 คัดลอกเลข</button>
+        <button id="partTagIssuedPrintBtn" type="button" class="h-10 flex-1 rounded-xl border border-gray-300 bg-white px-3 text-sm font-bold text-gray-700">🖨️ พิมพ์</button>
+        <button id="partTagIssuedOkBtn" type="button" class="h-10 flex-1 rounded-xl px-3 text-sm font-bold text-white" style="background:#2563eb;">เขียนเลขแล้ว</button>
+      </div>
+      <p class="part-tag-no-print mt-2 text-xs text-gray-500">* เลขนี้ถูกบันทึกในทะเบียนชิ้นแล้ว ตามสถานะต่อได้ที่เมนู 🏷️ ทะเบียนชิ้น</p>
+    </aside>
+  </div>
+
+  <!-- 🏷️ ทะเบียนชิ้น — ค้นหาเลข ดูว่าอยู่เครื่องไหน ใครเบิก และอัปเดตสถานะ -->
+  <div id="partTagRegistryModal" class="fixed inset-0 hidden items-stretch md:items-start justify-center overflow-y-auto p-0 md:p-6">
+    <div id="partTagRegistryBackdrop" class="absolute inset-0"></div>
+    <aside class="relative z-10 flex h-screen w-screen flex-col overflow-y-auto rounded-none border-0 bg-white p-4 md:my-6 md:h-auto md:max-h-none md:w-[min(760px,calc(100vw-64px))] md:rounded-2xl md:border md:border-slate-200 md:p-5 panel-shadow">
+      <div class="sticky top-0 z-10 -mx-4 mb-3 flex items-center justify-between border-b border-slate-200 bg-white px-4 pb-2 pt-1 md:mx-0 md:border-0 md:px-0 md:pb-0 md:pt-0">
+        <div>
+          <h3 class="text-lg font-bold">🏷️ ทะเบียนชิ้น (Part Tags)</h3>
+          <p class="text-[11px] text-gray-500">ตามสถานะอะไหล่แต่ละชิ้น — อยู่เครื่องไหน เบิกเมื่อไร เปลี่ยนแล้วหรือยัง</p>
+        </div>
+        <button id="partTagRegistryCloseBtn" type="button" class="h-9 w-9 shrink-0 rounded-full border border-slate-300 text-slate-600">×</button>
+      </div>
+      <div class="mb-2 flex flex-wrap gap-2">
+        <input id="partTagSearchInput" type="text" placeholder="ค้นหาเลขประจำชิ้น / ชื่ออะไหล่ / เครื่อง / ผู้เบิก" class="h-10 flex-1 min-w-[180px] rounded-xl border border-gray-300 px-3 text-sm" />
+        <select id="partTagStatusFilter" class="h-10 rounded-xl border border-gray-300 bg-white px-3 text-sm">
+          <option value="">สถานะทั้งหมด</option>
+        </select>
+        <button id="partTagSearchBtn" type="button" class="h-10 rounded-xl px-4 text-sm font-bold text-white" style="background:#2563eb;">ค้นหา</button>
+      </div>
+      <div class="mb-2 flex items-center justify-between">
+        <p id="partTagRegistrySummary" class="text-sm text-gray-600">0 ชิ้น</p>
+        <p id="partTagRegistryMessage" class="text-xs text-gray-500"></p>
+      </div>
+      <div id="partTagRegistryList" class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1" style="-webkit-overflow-scrolling:touch;touch-action:pan-y;"></div>
+    </aside>
+  </div>
+
   <!-- 🏭 รายงานอะไหล่ต่อเครื่องจักร -->
   <div id="machineReportModal" class="fixed inset-0 z-[220] hidden overflow-y-auto bg-gray-900/50 p-4">
     <div class="mx-auto mt-8 max-w-3xl rounded-2xl bg-white p-5 shadow-2xl">
@@ -3414,6 +3495,14 @@
     var starredState = {};
     var starredRenderEntries = [];
     var pendingStarredRequestKey = ''; // key ของรายการติดดาวที่กด "ขอซื้อ" ล่าสุด
+    // ── 🏷️ ทะเบียนชิ้น (Part Tag) ────────────────────────────────
+    // Category ไหนต้องออกเลขประจำชิ้นตอนเบิก ตั้งค่าที่หน้า Admin เก็บใน Sheet PartTagConfig
+    // ถ้า backend ที่ deploy อยู่ยังไม่มี action นี้ ให้ถือว่า "ไม่มี category ไหนต้องแท็ก"
+    // แล้วทำงานเหมือนเดิมทั้งหมด — ห้ามให้ฟีเจอร์ใหม่ไปทำให้การเบิกพัง
+    var PART_TAG_DEFAULT_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง'];
+    var partTagConfigState = { loaded: false, supported: true, byCategory: {}, statuses: PART_TAG_DEFAULT_STATUSES.slice(), maxPerTransaction: 50 };
+    var partTagRenderRows = [];
+    var lastIssuedPartTags = [];
     var currentQuickIssueItemNo = '';
     var currentQuickIssueSelectedPart = null;
     var QUICK_ISSUE_SELECTED_PART_KEY = 'quickIssueSelectedPart';
@@ -4233,6 +4322,12 @@
       syncTxnActorFields();
       setIssueCartMessage('', 'muted');
       renderIssueCart();
+      // ถ้า config ยังไม่ถูกโหลด ให้โหลดแล้ว render ซ้ำ เพื่อให้ป้าย "ต้องแท็ก" ขึ้นครบ
+      if (!partTagConfigState.loaded) {
+        loadPartTagConfig().then(function() {
+          if (issueCartModal && !issueCartModal.classList.contains('hidden')) renderIssueCart();
+        });
+      }
     }
 
     function closeIssueCart() {
@@ -4609,6 +4704,311 @@
       });
     }
 
+    // ════════════════════════════════════════════════════════════════
+    // 🏷️ ทะเบียนชิ้น (Part Tag) — ฝั่งหน้าเว็บ
+    // ตอนเบิก ถ้า Category ของอะไหล่ถูกตั้งว่า "ต้องออกเลข" backend จะออกเลขวิ่งให้
+    // 1 เลขต่อ 1 ชิ้น แล้วส่งกลับมาใน response ของ transaction → เอามาโชว์ให้ช่าง
+    // เขียน/แปะลงบนของจริง แล้วตามสถานะชิ้นนั้นได้ที่หน้าทะเบียนชิ้น
+    // ════════════════════════════════════════════════════════════════
+    function normalizePartTagCategoryKey(value) {
+      return String(value === undefined || value === null ? '' : value).trim().toLowerCase();
+    }
+
+    function loadPartTagConfig(force) {
+      if (partTagConfigState.loaded && !force) return Promise.resolve(partTagConfigState);
+      if (!partTagConfigState.supported && !force) return Promise.resolve(partTagConfigState);
+      return requestApi(withAuthPayload({ action: 'getPartTagConfig' })).then(parseApiResponse).then(function(res) {
+        var list = (res && res.config) || [];
+        var map = {};
+        list.forEach(function(row) {
+          map[normalizePartTagCategoryKey(row.category)] = {
+            category: String(row.category || ''),
+            requireTag: !!row.require_tag,
+            prefix: String(row.prefix || '')
+          };
+        });
+        partTagConfigState.byCategory = map;
+        partTagConfigState.statuses = (res && res.statuses && res.statuses.length) ? res.statuses : PART_TAG_DEFAULT_STATUSES.slice();
+        partTagConfigState.maxPerTransaction = Number(res && res.max_per_transaction) || 50;
+        partTagConfigState.loaded = true;
+        partTagConfigState.supported = true;
+        return partTagConfigState;
+      }).catch(function(err) {
+        // backend ยังไม่ deploy เวอร์ชันที่มี action นี้ — ปิดฟีเจอร์เงียบๆ ไม่รบกวนการเบิก
+        console.warn('getPartTagConfig ไม่สำเร็จ — ปิดฟีเจอร์ทะเบียนชิ้นชั่วคราว', err);
+        partTagConfigState.supported = false;
+        partTagConfigState.loaded = true;
+        partTagConfigState.byCategory = {};
+        return partTagConfigState;
+      });
+    }
+
+    function getPartTagRuleForItem(item) {
+      if (!partTagConfigState.supported) return null;
+      var rule = partTagConfigState.byCategory[normalizePartTagCategoryKey(item && item.category)];
+      return (rule && rule.requireTag) ? rule : null;
+    }
+
+    function itemRequiresPartTag(item) {
+      return !!getPartTagRuleForItem(item);
+    }
+
+    // สรุปเลขที่ออกให้หลังเบิกเสร็จ — จุดสำคัญของฟีเจอร์: ช่างต้องรู้ว่า "ของชิ้นนี้คือ No. อะไร"
+    function showIssuedPartTagsSummary(groups) {
+      var modal = document.getElementById('partTagIssuedModal');
+      var body = document.getElementById('partTagIssuedBody');
+      if (!modal || !body || !groups || !groups.length) return;
+      var totalTags = groups.reduce(function(sum, g) { return sum + g.tags.length; }, 0);
+      var summaryEl = document.getElementById('partTagIssuedSummary');
+      if (summaryEl) summaryEl.textContent = 'ออกเลขให้ ' + totalTags + ' ชิ้น จาก ' + groups.length + ' รายการ — เขียน/แปะเลขนี้ลงบนของก่อนนำไปใช้';
+      body.innerHTML = groups.map(function(g) {
+        return '<article class="rounded-xl border p-3" style="border-color:#bfdbfe;background:#eff6ff;">' +
+          '<p class="text-sm font-bold text-gray-900">' + escapeStarText(g.name || '-') + '</p>' +
+          '<p class="text-xs text-gray-500">' + escapeStarText(g.model || '-') +
+            (g.machine ? ' · เครื่อง ' + escapeStarText(g.machine) : '') + ' · ' + g.tags.length + ' ชิ้น</p>' +
+          '<div class="mt-2 flex flex-wrap gap-1.5">' +
+            g.tags.map(function(t) {
+              return '<span class="rounded-lg px-2 py-1 text-sm font-black tracking-wide" style="background:#1d4ed8;color:#ffffff;">' + escapeStarText(t) + '</span>';
+            }).join('') +
+          '</div>' +
+        '</article>';
+      }).join('');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeIssuedPartTagsSummary() {
+      var modal = document.getElementById('partTagIssuedModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function buildIssuedPartTagsText(groups) {
+      if (!groups || !groups.length) return '';
+      return ['🏷️ เลขประจำชิ้นที่ออกให้ (' + new Date().toLocaleString('th-TH') + ')'].concat(groups.map(function(g) {
+        return '- ' + (g.name || '-') + (g.model ? ' (' + g.model + ')' : '') +
+          (g.machine ? ' | เครื่อง ' + g.machine : '') + ': ' + g.tags.join(', ');
+      })).join('\n');
+    }
+
+    function copyTextToClipboard(text, okMessage) {
+      if (!text) { showQuickToast('ไม่มีข้อมูลให้คัดลอก', 'warn'); return; }
+      function fallbackCopy() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0;';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+        document.body.removeChild(ta);
+        showQuickToast(ok ? okMessage : 'คัดลอกไม่สำเร็จ', ok ? 'success' : 'error');
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() { showQuickToast(okMessage, 'success'); }).catch(fallbackCopy);
+      } else {
+        fallbackCopy();
+      }
+    }
+
+    function openPartTagRegistry() {
+      var modal = document.getElementById('partTagRegistryModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      loadPartTagConfig().then(function() {
+        var statusSel = document.getElementById('partTagStatusFilter');
+        if (statusSel && statusSel.options.length <= 1) {
+          partTagConfigState.statuses.forEach(function(s) {
+            var opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            statusSel.appendChild(opt);
+          });
+        }
+        return searchPartTags();
+      });
+    }
+
+    function closePartTagRegistry() {
+      var modal = document.getElementById('partTagRegistryModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function setPartTagRegistryMessage(message, tone) {
+      var el = document.getElementById('partTagRegistryMessage');
+      if (!el) return;
+      el.className = 'text-xs ' + (tone === 'error' ? 'text-red-600' : tone === 'success' ? 'text-green-600' : 'text-gray-500');
+      el.textContent = message || '';
+    }
+
+    function searchPartTags() {
+      var listEl = document.getElementById('partTagRegistryList');
+      if (!listEl) return Promise.resolve();
+      var q = String((document.getElementById('partTagSearchInput') || {}).value || '').trim();
+      var status = String((document.getElementById('partTagStatusFilter') || {}).value || '').trim();
+      listEl.innerHTML = '<p class="px-3 py-6 text-center text-sm text-gray-500">กำลังโหลด...</p>';
+      setPartTagRegistryMessage('', 'muted');
+      return requestApi(withAuthPayload({ action: 'getPartTags', q: q, status: status, limit: 200 })).then(parseApiResponse).then(function(res) {
+        var tags = (res && res.tags) || [];
+        renderPartTagRegistry(tags);
+      }).catch(function(err) {
+        listEl.innerHTML = '';
+        setPartTagRegistryMessage('โหลดทะเบียนชิ้นไม่สำเร็จ: ' + (err && err.message ? err.message : err) +
+          ' (ถ้าเพิ่งเพิ่มฟีเจอร์นี้ ต้อง Deploy Apps Script เวอร์ชันใหม่ก่อน)', 'error');
+      });
+    }
+
+    function renderPartTagRegistry(tags) {
+      var listEl = document.getElementById('partTagRegistryList');
+      var summaryEl = document.getElementById('partTagRegistrySummary');
+      if (!listEl) return;
+      partTagRenderRows = tags || [];
+      if (summaryEl) summaryEl.textContent = partTagRenderRows.length + ' ชิ้น';
+      if (!partTagRenderRows.length) {
+        listEl.innerHTML = '<div class="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">ไม่พบเลขประจำชิ้น<br/><span class="text-xs">เลขจะถูกออกอัตโนมัติตอนเบิกอะไหล่ใน Category ที่ตั้งค่าไว้</span></div>';
+        return;
+      }
+      var statusColor = {
+        'รอติดตั้ง': 'background:#fef3c7;color:#b45309;',
+        'ติดตั้งแล้ว': 'background:#dcfce7;color:#15803d;',
+        'ถอดแล้ว': 'background:#f3f4f6;color:#4b5563;',
+        'ชำรุด/ทิ้ง': 'background:#fee2e2;color:#b91c1c;',
+        'คืนคลัง': 'background:#dbeafe;color:#1d4ed8;'
+      };
+      listEl.innerHTML = partTagRenderRows.map(function(t, idx) {
+        var statusStyle = statusColor[t.status] || 'background:#f3f4f6;color:#374151;';
+        return '<article class="rounded-xl border border-gray-200 bg-white p-3">' +
+          '<div class="flex flex-wrap items-center justify-between gap-2">' +
+            '<span class="rounded-lg px-2 py-1 text-sm font-black tracking-wide" style="background:#1e293b;color:#ffffff;">' + escapeStarText(t.tag_no) + '</span>' +
+            '<span class="rounded-full px-2.5 py-1 text-[11px] font-bold" style="' + statusStyle + '">' + escapeStarText(t.status || '-') + '</span>' +
+          '</div>' +
+          '<p class="mt-2 text-sm font-semibold text-gray-900">' + escapeStarText(t.part_name || '-') + '</p>' +
+          '<p class="text-xs text-gray-500">' + escapeStarText(t.model || '-') + ' · ไลน์ ' + escapeStarText(t.line || '-') +
+            (t.machine ? ' · เครื่อง ' + escapeStarText(t.machine) : '') + '</p>' +
+          '<p class="text-xs text-gray-500">เบิก ' + escapeStarText(t.issued_at || '-') + ' โดย ' + escapeStarText(t.issued_by || '-') + '</p>' +
+          (t.installed_at ? '<p class="text-xs" style="color:#15803d;">🔧 ติดตั้ง ' + escapeStarText(t.installed_at) + '</p>' : '') +
+          (t.removed_at ? '<p class="text-xs" style="color:#b91c1c;">📤 ถอด ' + escapeStarText(t.removed_at) + '</p>' : '') +
+          (t.remark ? '<p class="text-xs text-gray-500">โน๊ต: ' + escapeStarText(t.remark) + '</p>' : '') +
+          '<div class="mt-2 flex flex-wrap items-center gap-2">' +
+            '<select data-tag-status="' + idx + '" class="h-9 rounded-lg border border-gray-300 bg-white px-2 text-xs">' +
+              partTagConfigState.statuses.map(function(s) {
+                return '<option value="' + escapeStarText(s) + '"' + (s === t.status ? ' selected' : '') + '>' + escapeStarText(s) + '</option>';
+              }).join('') +
+            '</select>' +
+            '<input data-tag-machine="' + idx + '" value="' + escapeStarText(t.machine || '') + '" placeholder="เครื่องที่ใส่" class="h-9 w-32 rounded-lg border border-gray-300 px-2 text-xs" />' +
+            '<input data-tag-remark="' + idx + '" value="' + escapeStarText(t.remark || '') + '" placeholder="โน๊ต" class="h-9 flex-1 min-w-[120px] rounded-lg border border-gray-300 px-2 text-xs" />' +
+            '<button type="button" data-tag-save="' + idx + '" class="h-9 rounded-lg px-3 text-xs font-bold text-white" style="background:#2563eb;">บันทึก</button>' +
+          '</div>' +
+        '</article>';
+      }).join('');
+
+      Array.prototype.slice.call(listEl.querySelectorAll('[data-tag-save]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var idx = Number(btn.getAttribute('data-tag-save'));
+          var row = partTagRenderRows[idx];
+          if (!row) return;
+          var statusEl = listEl.querySelector('[data-tag-status="' + idx + '"]');
+          var machineEl = listEl.querySelector('[data-tag-machine="' + idx + '"]');
+          var remarkEl = listEl.querySelector('[data-tag-remark="' + idx + '"]');
+          btn.disabled = true;
+          btn.textContent = 'กำลังบันทึก...';
+          requestApi(withAuthPayload({
+            action: 'updatePartTagStatus',
+            tag_no: row.tag_no,
+            status: statusEl ? statusEl.value : row.status,
+            machine: machineEl ? machineEl.value : row.machine,
+            remark: remarkEl ? remarkEl.value : row.remark
+          })).then(parseApiResponse).then(function() {
+            showQuickToast('อัปเดต ' + row.tag_no + ' แล้ว', 'success');
+            return searchPartTags();
+          }).catch(function(err) {
+            showQuickToast('อัปเดตไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+            btn.disabled = false;
+            btn.textContent = 'บันทึก';
+          });
+        });
+      });
+    }
+
+    // ── Admin: ตั้งค่าว่า Category ไหนต้องออกเลขประจำชิ้น ─────────
+    function setPartTagConfigMessage(message, tone) {
+      var el = document.getElementById('partTagConfigMessage');
+      if (!el) return;
+      el.className = 'text-xs mb-2 ' + (tone === 'error' ? 'text-red-600' : tone === 'success' ? 'text-green-600' : 'text-gray-500');
+      el.textContent = message || '';
+    }
+
+    function renderPartTagConfigList() {
+      var container = document.getElementById('partTagConfigList');
+      if (!container) return;
+      var rows = Object.keys(partTagConfigState.byCategory).map(function(k) { return partTagConfigState.byCategory[k]; })
+        .sort(function(a, b) { return String(a.category).localeCompare(String(b.category)); });
+      if (!partTagConfigState.supported) {
+        container.innerHTML = '<p class="rounded-xl border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500">Apps Script ที่ deploy อยู่ยังไม่รองรับทะเบียนชิ้น — ต้อง Deploy Backend.gs เวอร์ชันใหม่ก่อน</p>';
+        return;
+      }
+      if (!rows.length) {
+        container.innerHTML = '<p class="rounded-xl border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-500">ยังไม่ได้เปิดใช้แท็กกับ Category ไหน — เบิกของจะไม่มีการออกเลขประจำชิ้น</p>';
+        return;
+      }
+      container.innerHTML = rows.map(function(r) {
+        return '<div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">' +
+          '<div class="min-w-0">' +
+            '<span class="text-sm font-semibold text-slate-800">' + escHtml(r.category) + '</span>' +
+            '<span class="ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold" style="' +
+              (r.requireTag ? 'background:#dbeafe;color:#1d4ed8;' : 'background:#f3f4f6;color:#6b7280;') + '">' +
+              (r.requireTag ? 'ต้องแท็ก' : 'ปิดอยู่') + '</span>' +
+            '<span class="ml-2 text-xs text-gray-500">prefix: ' + escHtml(r.prefix) + '-xxxxx</span>' +
+          '</div>' +
+          '<button type="button" data-part-tag-toggle="' + escHtml(r.category) + '" class="rounded-lg border px-2.5 py-1 text-xs font-semibold ' +
+            (r.requireTag ? 'border-rose-200 bg-white text-rose-700' : 'border-blue-200 bg-white text-blue-700') + '">' +
+            (r.requireTag ? 'ปิดแท็ก' : 'เปิดแท็ก') + '</button>' +
+        '</div>';
+      }).join('');
+      Array.prototype.slice.call(container.querySelectorAll('[data-part-tag-toggle]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var category = btn.getAttribute('data-part-tag-toggle');
+          var current = partTagConfigState.byCategory[normalizePartTagCategoryKey(category)];
+          savePartTagConfigRow(category, current ? !current.requireTag : true, current ? current.prefix : '');
+        });
+      });
+    }
+
+    function savePartTagConfigRow(category, requireTag, prefix) {
+      setPartTagConfigMessage('กำลังบันทึก...', 'muted');
+      return requestApi(withAuthPayload({
+        action: 'setPartTagConfig',
+        category: category,
+        require_tag: requireTag ? '1' : '0',
+        prefix: prefix || ''
+      })).then(parseApiResponse).then(function() {
+        setPartTagConfigMessage('บันทึกแล้ว: ' + category, 'success');
+        return loadPartTagConfig(true);
+      }).then(function() {
+        renderPartTagConfigList();
+      }).catch(function(err) {
+        setPartTagConfigMessage('บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      });
+    }
+
+    // เติม datalist ของ Category จากข้อมูลอะไหล่ที่โหลดอยู่ ให้ admin เลือกได้ไม่ต้องพิมพ์เอง
+    function fillPartTagCategoryOptions() {
+      var dl = document.getElementById('partTagConfigCategoryOptions');
+      if (!dl) return;
+      var seen = {};
+      (partsData || []).forEach(function(p) {
+        var c = String(p.category || '').trim();
+        if (c) seen[c] = true;
+      });
+      dl.innerHTML = Object.keys(seen).sort().map(function(c) {
+        return '<option value="' + escHtml(c) + '"></option>';
+      }).join('');
+    }
+
     // ราคา/หน่วยของรายการจาก master — เกณฑ์เดียวกับระบบ PR: ต้องเป็นตัวเลข > 0 ถึงนับว่ามีราคา
     // จุดประสงค์หลักคือให้เห็นว่ารายการไหน "ยังไม่มีราคา" จะได้ตามไปเติมข้อมูลให้ครบ (ใช้ทั้ง cart และการ์ดหน้าหลัก)
     function getItemUnitPrice(item) {
@@ -4653,6 +5053,11 @@
           ? '<input data-cart-star-note="' + entryIdx + '" value="' + escapeStarText((starredState[entry.key] || {}).note || '') + '" placeholder="📝 โน๊ตว่าทำไมต้องสั่ง (ไม่บังคับ)" ' +
             'class="mt-2 h-9 w-full rounded-lg border px-2.5 text-xs" style="border-color:#fcd34d;background:#fffbeb;" />'
           : '';
+        // 🏷️ Category นี้ต้องออกเลขประจำชิ้น — บอกล่วงหน้าว่าเบิกแล้วจะได้เลขกี่ใบ
+        var tagRule = getPartTagRuleForItem(item);
+        var tagHintHtml = tagRule
+          ? '<p class="mt-1.5 rounded-lg px-2 py-1 text-[11px] font-bold" style="background:#dbeafe;color:#1d4ed8;">🏷️ ต้องแท็กเลขประจำชิ้น — เบิกแล้วระบบจะออกเลขให้ ' + qty + ' ใบ (' + escapeStarText(tagRule.prefix) + '-xxxxx)</p>'
+          : '';
         return '<article class="rounded-xl border p-2.5" style="' + (starred ? 'border-color:#fcd34d;background:#fffdf5;' : 'border-color:#e5e7eb;background:#ffffff;') + '">' +
           '<div class="flex gap-2.5">' +
             '<img src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
@@ -4661,6 +5066,7 @@
               '<p class="truncate text-xs text-slate-500">' + (item.model || '-') + '</p>' +
               '<p class="text-xs text-slate-500">Stock: ' + item.stock + '</p>' +
               priceHtml +
+              tagHintHtml +
             '</div>' +
           '</div>' +
           noteHtml +
@@ -5476,6 +5882,8 @@ function getIssueCartEntries() {
       applyIssueCartAuthorizationUi();
       applyReceivePermissionUi();
       normalizeMobileHeaderCartUi();
+      // 🏷️ โหลดว่า Category ไหนต้องออกเลขประจำชิ้น เพื่อให้ Issue Cart เตือนล่วงหน้าได้
+      loadPartTagConfig();
     }
 
     function escHtml(str) {
@@ -9908,6 +10316,9 @@ function inferRequestPriority(stock, min) {
         userManageMessage.textContent = err && err.message ? err.message : 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ';
       });
       loadMachineManageList();
+      // 🏷️ ตั้งค่าทะเบียนชิ้น
+      fillPartTagCategoryOptions();
+      loadPartTagConfig(true).then(renderPartTagConfigList);
     }
 
     function switchToPrReportPage() {
@@ -11082,6 +11493,8 @@ function inferRequestPriority(stock, min) {
       var idx = 0;
       var successKeys = [];
       var failures = [];
+      var issuedTagGroups = [];   // เลขประจำชิ้นที่ backend ออกให้ แยกตามรายการ
+      var tagWarnings = [];
 
       function runNext() {
         if (idx >= entries.length) return Promise.resolve();
@@ -11106,6 +11519,16 @@ function inferRequestPriority(stock, min) {
         return callTransactionViaJsonp(payload).then(function(res) {
           if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
           successKeys.push(entry.key);
+          // 🏷️ backend เวอร์ชันที่รองรับจะส่งเลขประจำชิ้นกลับมา (เวอร์ชันเก่าไม่มี field นี้ = ข้ามไป)
+          if (res.part_tags && res.part_tags.length) {
+            issuedTagGroups.push({
+              name: latestItem.name || '',
+              model: latestItem.model || '',
+              machine: machineValue,
+              tags: res.part_tags.slice()
+            });
+          }
+          if (res.part_tag_warning) tagWarnings.push((latestItem.name || entry.no) + ': ' + res.part_tag_warning);
         }).catch(function(err) {
           latestItem.stock = beforeStock;
           applyFilters(false);
@@ -11136,8 +11559,16 @@ function inferRequestPriority(stock, min) {
           }
         }
 
+        // 🏷️ โชว์เลขประจำชิ้นก่อนอย่างอื่น — ช่างต้องเอาเลขไปเขียนบนของก่อนเดินออกจากคลัง
+        if (issuedTagGroups.length) {
+          lastIssuedPartTags = issuedTagGroups;
+          showIssuedPartTagsSummary(issuedTagGroups);
+        }
+        if (tagWarnings.length) showQuickToast('⚠️ ' + tagWarnings.join(' | '), 'warn');
+
         if (!failures.length) {
-          setIssueCartMessage('บันทึกสำเร็จทั้งหมด ' + successKeys.length + ' รายการ', 'success');
+          setIssueCartMessage('บันทึกสำเร็จทั้งหมด ' + successKeys.length + ' รายการ' +
+            (issuedTagGroups.length ? ' · ออกเลขประจำชิ้นแล้ว' : ''), 'success');
           if (issueCartNote) issueCartNote.value = '';
           if (issueCartReason) issueCartReason.value = '';
           if (issueCartReasonRemark) { issueCartReasonRemark.value = ''; issueCartReasonRemark.classList.add('hidden'); }
@@ -13033,7 +13464,7 @@ function inferRequestPriority(stock, min) {
     }
     if (quickReceiveForm) quickReceiveForm.addEventListener('submit', submitQuickReceive);
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') { closeQuickIssueModal(); closeQuickReceiveModal(); closeStarredParts(); }
+      if (e.key === 'Escape') { closeQuickIssueModal(); closeQuickReceiveModal(); closeStarredParts(); closePartTagRegistry(); closeIssuedPartTagsSummary(); }
     });
     function bindStockShortcut(btn, fn) {
       if (!btn) return;
@@ -14489,6 +14920,54 @@ if (dashboardPage) {
       });
     });
     loadStarredFromStorage();
+
+    // 🏷️ ทะเบียนชิ้น
+    function bindPartTagUi() {
+      function on(id, evt, fn) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener(evt, fn);
+      }
+      on('openPartTagRegistryBtn', 'click', openPartTagRegistry);
+      on('openPartTagRegistryBtnMobile', 'click', openPartTagRegistry);
+      on('partTagRegistryCloseBtn', 'click', closePartTagRegistry);
+      on('partTagRegistryBackdrop', 'click', closePartTagRegistry);
+      on('partTagSearchBtn', 'click', function() { searchPartTags(); });
+      on('partTagStatusFilter', 'change', function() { searchPartTags(); });
+      on('partTagSearchInput', 'keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); searchPartTags(); }
+      });
+      on('partTagIssuedCloseBtn', 'click', closeIssuedPartTagsSummary);
+      on('partTagIssuedOkBtn', 'click', closeIssuedPartTagsSummary);
+      on('partTagIssuedBackdrop', 'click', closeIssuedPartTagsSummary);
+      on('partTagIssuedCopyBtn', 'click', function() {
+        copyTextToClipboard(buildIssuedPartTagsText(lastIssuedPartTags), '📋 คัดลอกเลขประจำชิ้นแล้ว');
+      });
+      on('partTagIssuedPrintBtn', 'click', function() {
+        document.body.classList.add('printing-part-tags');
+        try { window.print(); } finally {
+          setTimeout(function() { document.body.classList.remove('printing-part-tags'); }, 500);
+        }
+      });
+      on('partTagConfigAddBtn', 'click', function() {
+        var catEl = document.getElementById('partTagConfigCategoryInput');
+        var prefixEl = document.getElementById('partTagConfigPrefixInput');
+        var category = String((catEl && catEl.value) || '').trim();
+        if (!category) { setPartTagConfigMessage('กรุณาระบุ Category', 'error'); return; }
+        savePartTagConfigRow(category, true, String((prefixEl && prefixEl.value) || '').trim()).then(function() {
+          if (catEl) catEl.value = '';
+          if (prefixEl) prefixEl.value = '';
+        });
+      });
+      on('partTagConfigRefreshBtn', 'click', function() {
+        setPartTagConfigMessage('กำลังโหลด...', 'muted');
+        loadPartTagConfig(true).then(function() {
+          fillPartTagCategoryOptions();
+          renderPartTagConfigList();
+          setPartTagConfigMessage('', 'muted');
+        });
+      });
+    }
+    bindPartTagUi();
     if (issueCartReason) issueCartReason.addEventListener('change', function(){ var isOther = String(issueCartReason.value || '') === 'Other'; if (issueCartReasonRemark) { issueCartReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) issueCartReasonRemark.value = ''; } });
     if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } });
     if (issueCartSubmitBtn) issueCartSubmitBtn.addEventListener('click', submitIssueCartTransactions);
