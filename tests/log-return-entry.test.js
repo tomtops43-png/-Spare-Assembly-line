@@ -73,6 +73,11 @@ assert(html.includes('✓ คืนแล้ว'));
 assert(html.includes('↩ Return'));
 // คืนแล้วสต็อกเปลี่ยนจริง ต้องโหลดข้อมูลอะไหล่ใหม่ ไม่ใช่รีเฟรชแค่ log
 assert(html.includes('loadPartsData({ skipCache: true });'));
+// คืนแล้วเลขประจำชิ้นถูกลบให้ใช้ซ้ำได้ — ต้องบอกผู้ใช้ด้วยว่าเลขไหนถูกคืน
+assert(html.includes('var removedTags = (res && res.removed_tags) || [];'));
+assert(html.includes("' · คืนเลข ' + removedTags.join(', ') + ' ให้ใช้ซ้ำได้'"));
+assert(html.includes('ถ้ารายการนี้เคยออกเลขประจำชิ้นไว้ เลขนั้นจะถูกลบเพื่อให้กลับมาใช้ซ้ำได้'),
+  'confirm ต้องบอกล่วงหน้าว่าเลขจะถูกลบ');
 
 // ── Frontend: logic ของ index กันคืนซ้ำ (โหลดมารันจริง) ───────────────────────
 const sandbox = {};

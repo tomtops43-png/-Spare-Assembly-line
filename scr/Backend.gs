@@ -67,14 +67,17 @@ var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updat
 // เครื่องจักรของแต่ละไลน์ (master list ให้ Admin กรอกเอง) — อะไหล่แต่ละชิ้นผูกได้หลายเครื่องจักร
 // โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
 var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
-var PART_TAG_HEADERS = ['Tag No', 'Part No', 'Part Name', 'Model', 'Category', 'Line', 'Sheet Name', 'Unit', 'Machine', 'Reason', 'Issued At', 'Issued By', 'Status', 'Status At', 'Status By', 'Remark', 'Installed At', 'Removed At'];
+// Log Ref = timestamp ของแถว Log ที่ออกเลขนี้ ใช้ผูกกลับเพื่อลบเลขทิ้งตอน "คืนรายการ"
+var PART_TAG_HEADERS = ['Tag No', 'Part No', 'Part Name', 'Model', 'Category', 'Line', 'Sheet Name', 'Unit', 'Machine', 'Reason', 'Issued At', 'Issued By', 'Status', 'Status At', 'Status By', 'Remark', 'Installed At', 'Removed At', 'Log Ref'];
 var PART_TAG_GROUP_HEADERS = ['Group ID', 'Group Name', 'Prefix', 'Start Number', 'Digits', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
 var PART_TAG_GROUP_ITEM_HEADERS = ['Group ID', 'Part No', 'Sheet Name', 'Model', 'Part Name', 'Category', 'Added By', 'Added At'];
 // สถานะของชิ้น — ใช้คำเดียวกับ CWM System ที่หน้างานใช้อยู่ (ติดตั้ง → ถอด)
-// ค่าแรกคือค่าเริ่มต้นตอนเบิกออกจากคลัง (เบิกมาแล้วแต่ยังไม่ได้ใส่เครื่อง)
+// 'รอติดตั้ง' ยังคงไว้ให้แก้ย้อนหลังได้ แต่ไม่ใช่ค่าเริ่มต้นแล้ว: ตอนนี้บังคับเลือกเครื่อง
+// ตั้งแต่ตอนเบิก จึงถือว่าเบิกไปติดตั้งเลย (ดู PART_TAG_STATUS_ON_ISSUE)
 var PART_TAG_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง'];
 var PART_TAG_STATUS_INSTALLED = 'ติดตั้งแล้ว';
 var PART_TAG_STATUS_REMOVED = 'ถอดแล้ว';
+var PART_TAG_STATUS_ON_ISSUE = PART_TAG_STATUS_INSTALLED;
 // Purchase Request (PR) schema — เก็บ qty_requested (ล็อก) แยกจาก qty_approved (หัวหน้าแก้ได้)
 var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to'];
 var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark', 'image_url'];
@@ -1338,8 +1341,44 @@ function rowToPartTag(r) {
     status_by: String(r[14] || ''),
     remark: String(r[15] || ''),
     installed_at: String(r[16] || ''),
-    removed_at: String(r[17] || '')
+    removed_at: String(r[17] || ''),
+    log_ref: String(r[18] || '')
   };
+}
+
+// ลบเลขประจำชิ้นที่ออกจากแถว Log นั้น — ใช้ตอน "คืนรายการ" เพื่อให้เลขเดิมกลับมาใช้ได้
+// (nextPartTagRunning ไล่จากเลขที่มีอยู่จริง พอลบแถวออกเลขเดิมจึงถูกหยิบมาใช้ซ้ำเอง)
+// แถวเก่าที่ออกก่อนมีคอลัมน์ Log Ref จะ fallback ไปเทียบเวลาเบิก + ชื่ออะไหล่แทน
+function deletePartTagsForLogEntry(logTimestamp, partName) {
+  var removed = [];
+  try {
+    var target = normalizeLogTimestamp(logTimestamp);
+    if (!target) return removed;
+    var wantName = String(partName || '').trim().toLowerCase();
+    var sheet = getPartTagsSheet();
+    var values = sheet.getDataRange().getValues();
+    var logRefIdx = PART_TAG_HEADERS.indexOf('Log Ref');
+    var issuedAtIdx = PART_TAG_HEADERS.indexOf('Issued At');
+    for (var i = values.length - 1; i >= 1; i -= 1) {
+      var row = values[i];
+      if (!String(row[0] || '').trim()) continue;
+      var ref = normalizeLogTimestamp(row[logRefIdx]);
+      var matched = ref ? (ref === target) : false;
+      if (!matched) {
+        // แถวเก่าไม่มี Log Ref — เทียบเวลาเบิกกับชื่ออะไหล่แทน
+        var issuedAt = normalizeLogTimestamp(row[issuedAtIdx]);
+        var rowName = String(row[2] || '').trim().toLowerCase();
+        matched = !ref && issuedAt === target && (!wantName || rowName === wantName);
+      }
+      if (!matched) continue;
+      removed.push(String(row[0] || ''));
+      sheet.deleteRow(i + 1);
+    }
+  } catch (err) {
+    // ลบเลขไม่สำเร็จต้องไม่ทำให้การคืน (ที่คืนสต็อกไปแล้ว) พัง — แจ้งไว้ใน log พอ
+    Logger.log('deletePartTagsForLogEntry warning: ' + (err && err.message ? err.message : err));
+  }
+  return removed.reverse();
 }
 
 // เลขวิ่งถัดไปของ prefix — ไล่จากเลขที่มีอยู่จริงในชีท เอาค่ามากสุด +1
@@ -1375,7 +1414,7 @@ function padPartTagRunning(n, digits) {
 
 // สร้างเลขประจำชิ้นสำหรับการเบิกออก 1 ครั้ง — คืน { tags: [...], skipped_reason: '' }
 // ห้าม throw: การออกเลขล้มเหลวต้องไม่ทำให้การเบิก (ที่ตัด stock ไปแล้ว) พังทั้งรายการ
-function createPartTagsForIssue(payload, issuedBy, qtyPieces) {
+function createPartTagsForIssue(payload, issuedBy, qtyPieces, txnTimestamp) {
   var result = { tags: [], required: false, skipped_reason: '' };
   try {
     var rule = resolvePartTagRule(payload);
@@ -1391,7 +1430,8 @@ function createPartTagsForIssue(payload, issuedBy, qtyPieces) {
     var sheet = getPartTagsSheet();
     var existing = sheet.getDataRange().getValues();
     var running = nextPartTagRunning(existing, rule.prefix, rule.start_number);
-    var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    // ใช้เวลาเดียวกับแถว Log ที่คู่กัน เพื่อให้ผูกกลับหากันได้ตอนคืนรายการ
+    var now = String(txnTimestamp || '') || Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
     var rows = [];
     for (var i = 0; i < pieces; i += 1) {
       var tagNo = rule.prefix + '-' + padPartTagRunning(running + i, rule.digits);
@@ -1409,12 +1449,14 @@ function createPartTagsForIssue(payload, issuedBy, qtyPieces) {
         payload.reason || '',
         now,
         issuedBy || '',
-        PART_TAG_STATUSES[0],
+        // บังคับเลือกเครื่องตั้งแต่ตอนเบิกแล้ว จึงถือว่าติดตั้งเลย ไม่ต้องมาไล่กดเปลี่ยนทีหลัง
+        PART_TAG_STATUS_ON_ISSUE,
         now,
         issuedBy || '',
         payload.reasonRemark || '',
-        '',
-        ''
+        now, // Installed At
+        '',  // Removed At
+        now  // Log Ref — timestamp ของแถว Log ที่ออกเลขนี้
       ]);
     }
     sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, PART_TAG_HEADERS.length).setValues(rows);
@@ -3321,6 +3363,10 @@ function returnLogEntryUnlocked(payload) {
     throw err;
   }
 
+  // คืนแล้วต้องลบเลขประจำชิ้นที่ออกจากรายการนี้ทิ้งด้วย ไม่งั้นจะเหลือเลขค้างชี้ไปยัง
+  // การเบิกที่ถูกยกเลิกไปแล้ว และเลขนั้นจะถูกกินไปเปล่าๆ — ลบแล้วเบิกใหม่จะได้เลขเดิมคืน
+  var removedTags = deletePartTagsForLogEntry(originalTs, originalName);
+
   return {
     status: 'success',
     returned_no: no,
@@ -3328,7 +3374,8 @@ function returnLogEntryUnlocked(payload) {
     qty: Math.abs(signedQty),
     sheet: sheetName,
     stockBefore: result.stockBefore,
-    stockAfter: result.stockAfter
+    stockAfter: result.stockAfter,
+    removed_tags: removedTags
   };
 }
 
@@ -3411,8 +3458,11 @@ function processTransactionUnlocked(payload) {
     mainSheet.getRange(sheetRowNumber, needPoCol + 1).setValue(needPoValue);
   }
 
+  // คำนวณเวลาครั้งเดียวแล้วใช้ร่วมกับเลขประจำชิ้น เพื่อให้ผูกแถว Log กับ PartTags หากันได้
+  // (ถ้าต่างคนต่างเรียก new Date() อาจคลาดกัน 1 วินาที แล้วตอนคืนรายการจะหาเลขไม่เจอ)
+  var txnTimestamp = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss");
   historySheet.appendRow([
-    Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss"),
+    txnTimestamp,
     payload.type || 'Input',
     payload.process || '-',
     payload.category || 'General',
@@ -3452,7 +3502,7 @@ function processTransactionUnlocked(payload) {
     } catch (userErr) {
       Logger.log('processTransaction partTag user warning: ' + (userErr && userErr.message ? userErr.message : userErr));
     }
-    partTagResult = createPartTagsForIssue(payload, issuedBy, Math.abs(signedQty));
+    partTagResult = createPartTagsForIssue(payload, issuedBy, Math.abs(signedQty), txnTimestamp);
   }
 
   invalidateSparePartsLiteCache(resolvedSheetName);
