@@ -4972,6 +4972,13 @@
             '<input data-tag-remark="' + idx + '" value="' + escapeStarText(t.remark || '') + '" placeholder="โน๊ต" class="h-9 flex-1 min-w-[120px] rounded-lg border border-gray-300 px-2 text-xs" />' +
             '<button type="button" data-tag-save="' + idx + '" class="h-9 rounded-lg px-3 text-xs font-bold text-white" style="background:#2563eb;">บันทึก</button>' +
           '</div>' +
+          // "คืนคลัง" ในช่องด้านบนแค่เปลี่ยนป้าย ไม่แตะ stock/ไม่ลบเลข — ปุ่มนี้คือคืนของจริง
+          // (ทำรายการตรงข้าม + คืนสต็อก + ลบเลขนี้ทิ้ง) Admin เท่านั้น เหมือนปุ่ม ↩ คืน ในหน้า Log
+          (isAdminUser()
+            ? '<div class="mt-2 border-t border-gray-100 pt-2">' +
+                '<button type="button" data-tag-return="' + idx + '" class="h-9 w-full rounded-lg border px-3 text-xs font-bold" style="border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;">↩ คืนของจริง (คืนสต็อก + ลบเลขนี้)</button>' +
+              '</div>'
+            : '') +
         '</article>';
       }).join('');
 
@@ -5000,6 +5007,38 @@
             showQuickToast('อัปเดตไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
             btn.disabled = false;
             btn.textContent = 'บันทึก';
+          });
+        });
+      });
+
+      Array.prototype.slice.call(listEl.querySelectorAll('[data-tag-return]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var idx = Number(btn.getAttribute('data-tag-return'));
+          var row = partTagRenderRows[idx];
+          if (!row) return;
+          showConfirmDialog({
+            title: '↩ คืนของจริง',
+            message: 'คืนอะไหล่ "' + (row.part_name || '-') + '" (' + row.tag_no + ') กลับเข้าคลัง?\n\n' +
+              'ระบบจะคืนสต็อกที่เบิกไป และลบเลข ' + row.tag_no + ' ออกจากทะเบียน (เลขจะกลับมาใช้ซ้ำได้)\n' +
+              'ต่างจากการเปลี่ยนสถานะเป็น "คืนคลัง" ด้านบน ซึ่งเป็นแค่บันทึกป้ายกำกับ ไม่คืนสต็อกให้',
+            okLabel: '↩ ยืนยันคืน'
+          }).then(function(ok) {
+            if (!ok) return;
+            btn.disabled = true;
+            btn.textContent = 'กำลังคืน...';
+            requestApi(withAuthPayload({
+              action: 'returnLogEntry',
+              timestamp: row.log_ref || row.issued_at,
+              partName: row.part_name
+            })).then(parseApiResponse).then(function(res) {
+              showQuickToast('↩ คืน ' + row.tag_no + ' แล้ว · สต็อก ' +
+                (res.stockBefore != null ? res.stockBefore : '?') + ' → ' + (res.stockAfter != null ? res.stockAfter : '?'), 'success');
+              return searchPartTags();
+            }).catch(function(err) {
+              showQuickToast('คืนไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+              btn.disabled = false;
+              btn.textContent = '↩ คืนของจริง (คืนสต็อก + ลบเลขนี้)';
+            });
           });
         });
       });
