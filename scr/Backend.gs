@@ -3270,18 +3270,41 @@ function returnLogEntry(payload) {
   }
 }
 
+// หาแถว Log จาก timestamp+partName แทนเลขลำดับ "no" — ใช้ตอนเรียกคืนจากหน้าอื่นที่
+// ไม่มีเลข "no" ของ Log ให้ใช้ (เช่น ทะเบียนชิ้น ที่รู้แค่ timestamp ตอนออกเลขกับชื่ออะไหล่)
+function findLogRowIndexByTimestampAndName(data, timestamp, partName) {
+  var headerMap = buildHeaderIndexMap(data[0] || []);
+  var tsIdx = headerMap['timestamp'];
+  var nameIdx = headerMap['partname'];
+  if (tsIdx === undefined) return 0;
+  var wantName = String(partName || '').trim();
+  for (var i = 1; i < data.length; i += 1) {
+    if (!logTimestampsMatch(timestamp, data[i][tsIdx])) continue;
+    if (wantName && nameIdx !== undefined && String(data[i][nameIdx] || '').trim() !== wantName) continue;
+    return i + 1; // สอดคล้องกับความหมายของ "no": แถวข้อมูลแรก (data[1]) คือ no=1 → rowIndex=2
+  }
+  return 0;
+}
+
 function returnLogEntryUnlocked(payload) {
   var user = requireAdminUser({ authToken: payload.authToken });
-  var no = Number(payload.no);
-  if (!no || no <= 0) throw new Error('ไม่พบรายการที่จะคืน');
-
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
   ensureLogSheetHeaders(historySheet);
-  var rowIndex = no + 1; // แถว 1 คือ header
-  if (rowIndex > historySheet.getLastRow()) throw new Error('ไม่พบรายการที่จะคืน (แถวอาจถูกลบไปแล้ว)');
-
   var data = historySheet.getDataRange().getValues();
+
+  var no = Number(payload.no);
+  var rowIndex;
+  if (no && no > 0) {
+    rowIndex = no + 1; // แถว 1 คือ header
+    if (rowIndex > historySheet.getLastRow()) throw new Error('ไม่พบรายการที่จะคืน (แถวอาจถูกลบไปแล้ว)');
+  } else {
+    // ไม่มี "no" มาด้วย (เรียกจากทะเบียนชิ้น) — หาแถวจาก timestamp+partName แทน
+    rowIndex = findLogRowIndexByTimestampAndName(data, payload.timestamp, payload.partName);
+    if (!rowIndex) throw new Error('ไม่พบรายการเบิกต้นทางในประวัติ Log กรุณาคืนจากหน้า Log แทน');
+    no = rowIndex - 1;
+  }
+
   var headerMap = buildHeaderIndexMap(data[0] || []);
   var row = data[rowIndex - 1] || [];
   function cell(keys, fallback) {

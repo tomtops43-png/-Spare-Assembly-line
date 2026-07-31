@@ -58,6 +58,13 @@ assert(!/expectedTs && tsIdx !== undefined && String\(row\[tsIdx\]/.test(backend
 // สต็อกไม่พอตอนคืนขา Input ต้องได้ error ที่อ่านรู้เรื่อง
 assert(backend.includes('คืนรายการนี้ไม่ได้: ต้องหักสต็อกออก'));
 
+// ── คืนได้โดยไม่ต้องมีเลข "no" ของ Log (เรียกจากทะเบียนชิ้น) ──────────────────
+// ทะเบียนชิ้นรู้แค่ timestamp ที่ออกเลข (log_ref) กับชื่ออะไหล่ ไม่รู้เลขลำดับแถวใน Log
+assert(backend.includes('function findLogRowIndexByTimestampAndName(data, timestamp, partName)'));
+assert(/function returnLogEntryUnlocked\(payload\)[\s\S]{0,900}findLogRowIndexByTimestampAndName\(data, payload\.timestamp, payload\.partName\)/.test(backendLf),
+  'returnLogEntryUnlocked ต้อง fallback ไปหาแถวจาก timestamp+partName เมื่อไม่มี no');
+assert(backend.includes("throw new Error('ไม่พบรายการเบิกต้นทางในประวัติ Log กรุณาคืนจากหน้า Log แทน');"));
+
 // ── Frontend: ปุ่ม + สถานะ ───────────────────────────────────────────────────
 assert(html.includes("var LOG_RETURN_MARKER = 'RETURN_OF:';"));
 assert(html.includes('data-log-return='), 'ต้องมีปุ่มคืนในตาราง Log');
@@ -129,5 +136,20 @@ assert.strictEqual(sandbox.isLogRowReversal(null), false, 'null ต้องไ�
 const backendMarker = /var LOG_RETURN_MARKER = '([^']+)'/.exec(backend)[1];
 const htmlMarker = /var LOG_RETURN_MARKER = '([^']+)'/.exec(html)[1];
 assert.strictEqual(backendMarker, htmlMarker, 'marker ฝั่ง backend และ frontend ต้องเป็นค่าเดียวกัน');
+
+// ── ทะเบียนชิ้น: ปุ่ม "คืนของจริง" ต้องแยกจากช่องเปลี่ยนสถานะ "คืนคลัง" ────────
+// บั๊กต้นเรื่อง: ผู้ใช้เปลี่ยนสถานะแท็กเป็น "คืนคลัง" ผ่านช่อง data-tag-save คิดว่า
+// เป็นการคืนของ แต่ action นั้น (updatePartTagStatus) แค่เปลี่ยนป้าย ไม่แตะ stock/log เลย
+// จึงต้องมีปุ่มคืนจริงแยกต่างหากที่เรียก returnLogEntry ตรงๆ
+assert(html.includes('data-tag-return='), 'ทะเบียนชิ้นต้องมีปุ่มคืนของจริงแยกจากปุ่มบันทึกสถานะ');
+assert(/data-tag-return=[\s\S]{0,300}isAdminUser\(\)/.test(html.replace(/\r\n/g, '\n')) ||
+  /isAdminUser\(\)[\s\S]{0,300}data-tag-return=/.test(html.replace(/\r\n/g, '\n')),
+  'ปุ่มคืนของจริงต้องโชว์เฉพาะ Admin');
+assert(/data-tag-return[\s\S]{0,1200}action: 'returnLogEntry'/.test(html.replace(/\r\n/g, '\n')),
+  'ปุ่มคืนของจริงต้องเรียก action returnLogEntry ไม่ใช่ updatePartTagStatus');
+assert(/data-tag-return[\s\S]{0,1200}timestamp: row\.log_ref \|\| row\.issued_at/.test(html.replace(/\r\n/g, '\n')),
+  'ต้องส่ง timestamp จาก log_ref ก่อน แล้ว fallback ไปที่ issued_at');
+assert(html.includes('เป็นแค่บันทึกป้ายกำกับ ไม่คืนสต็อกให้'),
+  'confirm ต้องอธิบายความต่างจากการเปลี่ยนสถานะ "คืนคลัง" เฉยๆ');
 
 console.log('Log return-entry checks passed');
