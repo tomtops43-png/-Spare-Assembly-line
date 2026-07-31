@@ -137,6 +137,18 @@ assert.strictEqual(groupItem.group_id, 'PTG-1');
 assert.strictEqual(groupItem.part_name, 'Stripper Cutter');
 assert.strictEqual(groupItem.sheet_name, 'Coil Winding');
 
+// ── Regression: rowToPartTag ต้อง normalize คอลัมน์วัน-เวลาทุกตัว ──────────────
+// Sheets แปลงสตริงที่ appendRow เขียนลงเป็น Date object ให้เอง ถ้าอ่านด้วย
+// String(dateObj) ตรงๆ จะได้ toString() ดิบ (เช่น มีวงเล็บชื่อเขตเวลาภาษาไทย)
+// ซึ่งพัง 2 ทาง: (1) แสดงผลรก (2) ส่งค่านี้กลับไปเป็น timestamp ให้ returnLogEntry
+// แล้ว parse ไม่ตรงกับเวลาจริงในแถว Log ทำให้หารายการเบิกต้นทางไม่เจอ คืนของไม่ได้
+assert(!/issued_at: String\(r\[10\]/.test(backend), 'issued_at ต้องไม่ใช้ String(...) ดิบแล้ว');
+assert(backend.includes('issued_at: normalizeLogTimestamp(r[10]),'));
+assert(backend.includes('status_at: normalizeLogTimestamp(r[13]),'));
+assert(backend.includes('installed_at: normalizeLogTimestamp(r[16]),'));
+assert(backend.includes('removed_at: normalizeLogTimestamp(r[17]),'));
+assert(backend.includes('log_ref: normalizeLogTimestamp(r[18])'));
+
 // ── Frontend: UI + การรับเลขกลับมา ────────────────────────────────────────────
 assert(html.includes('id="partTagIssuedModal"'));
 assert(html.includes('id="partTagRegistryModal"'));
