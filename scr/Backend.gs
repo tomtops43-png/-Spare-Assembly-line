@@ -1334,15 +1334,21 @@ function rowToPartTag(r) {
     unit: String(r[7] || ''),
     machine: String(r[8] || ''),
     reason: String(r[9] || ''),
-    issued_at: String(r[10] || ''),
+    // ต้อง normalize ทุกคอลัมน์ที่เป็นวัน-เวลา — Sheets แปลงสตริงที่ appendRow เขียนลง
+    // ไปเป็น Date object ให้เอง ถ้าอ่านด้วย String(dateObj) ตรงๆ จะได้ toString() ดิบ
+    // (เช่น "Fri Jul 31 2026 13:01:57 GMT+0700 (เวลาอินโดจีน)") ซึ่งทั้งแสดงผลรก
+    // และเมื่อส่งค่านี้กลับไปที่ returnLogEntry เป็น timestamp มันจะ parse ไม่ตรงกับ
+    // เวลาจริงในแถว Log (ดู normalizeLogTimestamp / logTimestampsMatch) ทำให้หา
+    // รายการเบิกต้นทางไม่เจอ คืนของไม่ได้เลย
+    issued_at: normalizeLogTimestamp(r[10]),
     issued_by: String(r[11] || ''),
     status: String(r[12] || ''),
-    status_at: String(r[13] || ''),
+    status_at: normalizeLogTimestamp(r[13]),
     status_by: String(r[14] || ''),
     remark: String(r[15] || ''),
-    installed_at: String(r[16] || ''),
-    removed_at: String(r[17] || ''),
-    log_ref: String(r[18] || '')
+    installed_at: normalizeLogTimestamp(r[16]),
+    removed_at: normalizeLogTimestamp(r[17]),
+    log_ref: normalizeLogTimestamp(r[18])
   };
 }
 
