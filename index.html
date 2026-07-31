@@ -7317,7 +7317,8 @@ function getIssueCartEntries() {
             (isOut
               ? 'รายการนี้เป็นการเบิกออก → ระบบจะ "รับเข้า" คืน ' + absQty + ' หน่วย (สต็อกเพิ่มขึ้น)'
               : 'รายการนี้เป็นการรับเข้า → ระบบจะ "เบิกออก" ' + absQty + ' หน่วย (สต็อกลดลง)') + '\n\n' +
-            'ประวัติเดิมยังอยู่ และจะมีแถว Return เพิ่มเข้ามาเป็นหลักฐาน',
+            'ประวัติเดิมยังอยู่ และจะมีแถว Return เพิ่มเข้ามาเป็นหลักฐาน\n' +
+            'ถ้ารายการนี้เคยออกเลขประจำชิ้นไว้ เลขนั้นจะถูกลบเพื่อให้กลับมาใช้ซ้ำได้',
           okLabel: '↩ ยืนยันคืน'
         }).then(function(ok) {
           if (!ok) return;
@@ -7326,8 +7327,10 @@ function getIssueCartEntries() {
           requestApi(withAuthPayload({ action: 'returnLogEntry', no: no, timestamp: timestamp, partName: partName }))
             .then(parseApiResponse)
             .then(function(res) {
+              var removedTags = (res && res.removed_tags) || [];
               showQuickToast('↩ คืนรายการแล้ว: ' + (partName || '-') + ' · สต็อก ' +
-                (res.stockBefore != null ? res.stockBefore : '?') + ' → ' + (res.stockAfter != null ? res.stockAfter : '?'), 'success');
+                (res.stockBefore != null ? res.stockBefore : '?') + ' → ' + (res.stockAfter != null ? res.stockAfter : '?') +
+                (removedTags.length ? ' · คืนเลข ' + removedTags.join(', ') + ' ให้ใช้ซ้ำได้' : ''), 'success');
               // สต็อกเปลี่ยนจริง ต้องดึงข้อมูลอะไหล่ใหม่ ไม่ใช่แค่รีเฟรช log
               logCache = [];
               loadLogData();

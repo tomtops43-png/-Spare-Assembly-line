@@ -13,12 +13,35 @@ assert(backend.includes("var PART_TAG_GROUP_ITEM_HEADERS = ['Group ID', 'Part No
 // สถานะต้องใช้คำเดียวกับ CWM System ที่หน้างานใช้อยู่ (ติดตั้ง → ถอด)
 assert(backend.includes("var PART_TAG_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง']"));
 assert(backend.includes("'Installed At', 'Removed At'"), 'ต้องเก็บวันติดตั้ง/วันถอด');
+assert(backend.includes("'Log Ref'"), 'ต้องผูกเลขกับแถว Log ที่ออกมัน เพื่อลบทิ้งได้ตอนคืนรายการ');
+
+// ── บังคับเลือกเครื่องตอนเบิกแล้ว จึงถือว่าเบิกไปติดตั้งเลย ไม่ใช่ "รอติดตั้ง" ──
+assert(backend.includes('var PART_TAG_STATUS_ON_ISSUE = PART_TAG_STATUS_INSTALLED;'));
+assert(/rows\.push\(\[[\s\S]{0,700}PART_TAG_STATUS_ON_ISSUE/.test(backend.replace(/\r\n/g, '\n')),
+  'ตอนออกเลขต้องใช้สถานะติดตั้งแล้ว ไม่ใช่ PART_TAG_STATUSES[0]');
+assert(!/rows\.push\(\[[\s\S]{0,700}PART_TAG_STATUSES\[0\]/.test(backend.replace(/\r\n/g, '\n')),
+  'ต้องไม่ใช้ค่าเริ่มต้น "รอติดตั้ง" ตอนออกเลขแล้ว');
+
+// ── คืนรายการต้องลบเลขที่ออกไป เพื่อให้เลขเดิมกลับมาใช้ซ้ำได้ ──────────────────
+assert(backend.includes('function deletePartTagsForLogEntry(logTimestamp, partName)'));
+assert(backend.includes('var removedTags = deletePartTagsForLogEntry(originalTs, originalName);'),
+  'returnLogEntry ต้องลบเลขประจำชิ้นของรายการนั้นด้วย');
+assert(backend.includes('removed_tags: removedTags'));
+// แถวเก่าที่ยังไม่มี Log Ref ต้องยัง match ได้ ไม่งั้นเลขที่ออกไปก่อนหน้าจะลบไม่ออก
+assert(backend.includes('matched = !ref && issuedAt === target'),
+  'ต้องมี fallback เทียบเวลาเบิกสำหรับแถวที่ยังไม่มี Log Ref');
+// ลบเลขพลาดต้องไม่ทำให้การคืน (ที่คืนสต็อกไปแล้ว) พัง
+assert(/function deletePartTagsForLogEntry[\s\S]{0,1400}catch \(err\)/.test(backend.replace(/\r\n/g, '\n')));
+
+// แถว Log กับเลขประจำชิ้นต้องใช้ timestamp ตัวเดียวกัน ไม่งั้นผูกกลับหากันไม่เจอ
+assert(backend.includes('var txnTimestamp = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss");'));
+assert(backend.includes('createPartTagsForIssue(payload, issuedBy, Math.abs(signedQty), txnTimestamp)'));
 assert(backend.includes('installedAt = now;') && backend.includes("removedAt = '';"));
 
 // ออกเลขเฉพาะขาเบิกออก (signedQty < 0) — รับเข้าต้องไม่ออกเลข
 // (มีเงื่อนไข !payload.skipPartTags ต่อท้ายด้วย เพื่อไม่ออกเลขใหม่ตอน "คืนรายการ")
 assert(/if \(signedQty < 0 && !payload\.skipPartTags\) \{/.test(backend));
-assert(backend.includes('partTagResult = createPartTagsForIssue(payload, issuedBy, Math.abs(signedQty));'));
+assert(backend.includes('partTagResult = createPartTagsForIssue(payload, issuedBy, Math.abs(signedQty), txnTimestamp);'));
 assert(backend.includes('part_tags: partTagResult.tags'));
 assert(backend.includes('part_tag_warning: partTagResult.skipped_reason'));
 
