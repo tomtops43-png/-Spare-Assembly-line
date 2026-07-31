@@ -3146,13 +3146,13 @@ function deleteLogEntryUnlocked(payload) {
   // condition กรณีมีรายการอื่นถูกเพิ่ม/ลบสลับแถวไปแล้วตั้งแต่ตอนโหลดหน้าเว็บ
   var tsIdx = headerMap['timestamp'];
   var nameIdx = headerMap['partname'];
-  var expectedTs = String(payload.timestamp || '').trim();
   var expectedName = String(payload.partName || payload.partname || '').trim();
-  if (expectedTs && tsIdx !== undefined && String(row[tsIdx] || '').trim() !== expectedTs) {
-    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ กรุณารีเฟรชแล้วลองใหม่');
+  // ต้อง normalize ก่อนเทียบ — ค่าในเซลล์เป็น Date จริง ไม่ใช่สตริงที่เขียนลงไป (ดู normalizeLogTimestamp)
+  if (tsIdx !== undefined && !logTimestampsMatch(payload.timestamp, row[tsIdx])) {
+    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ (เวลาไม่ตรงกับแถวนี้) กรุณารีเฟรชแล้วลองใหม่');
   }
   if (expectedName && nameIdx !== undefined && String(row[nameIdx] || '').trim() !== expectedName) {
-    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ กรุณารีเฟรชแล้วลองใหม่');
+    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ (ชื่ออะไหล่ไม่ตรงกับแถวนี้) กรุณารีเฟรชแล้วลองใหม่');
   }
   historySheet.deleteRow(rowIndex);
   return { status: 'success', deleted_no: no };
@@ -3165,6 +3165,27 @@ function deleteLogEntryUnlocked(payload) {
 // ใช้กรณีทดลองเบิก/บันทึกผิด แล้วอยากให้ตัวเลขกลับมาถูกโดยไม่ต้องไปแก้ชีทมือ
 // ════════════════════════════════════════════════════════════════════════
 var LOG_RETURN_MARKER = 'RETURN_OF:';
+
+// Timestamp ในชีท Log มักไม่ใช่สตริง — appendRow เขียนสตริง 'yyyy-MM-dd HH:mm:ss' ลงไป
+// แต่ Google Sheets แปลงเป็น Date จริงให้เอง พออ่านกลับด้วย getValues() จะได้ Date object
+// ส่งออกเป็น JSON กลายเป็น ISO ('2026-07-30T11:13:17.000Z') ฝั่งหน้าเว็บส่งค่านั้นกลับมา
+// แล้วถูกเทียบกับ Date.toString() ของ Apps Script ซึ่งคนละรูปแบบ → guard ตีว่าข้อมูลเปลี่ยน
+// ทั้งที่เป็นแถวเดียวกัน จึงต้อง normalize ทั้งสองฝั่งให้เป็นรูปแบบเดียวก่อนเทียบเสมอ
+function normalizeLogTimestamp(value) {
+  if (value === undefined || value === null || value === '') return '';
+  var date = (value instanceof Date) ? value : new Date(value);
+  if (date instanceof Date && !isNaN(date.getTime())) {
+    return Utilities.formatDate(date, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  }
+  return String(value).trim();
+}
+
+function logTimestampsMatch(expected, actual) {
+  var a = normalizeLogTimestamp(expected);
+  var b = normalizeLogTimestamp(actual);
+  if (!a || !b) return true; // ไม่มีค่าให้เทียบ = ข้ามการตรวจ (ยังมี partName กันอีกชั้น)
+  return a === b;
+}
 
 // ชีท Log ไม่ได้เก็บชื่อชีทสต็อกต้นทางไว้ จึงต้องสแกนหาว่าอะไหล่ตัวนี้อยู่ชีทไหน
 // ห้ามใช้ ensureSheetWithTemplate เพราะมันสร้างชีทใหม่ถ้าไม่มี — จะเกิดชีทขยะ
@@ -3229,16 +3250,15 @@ function returnLogEntryUnlocked(payload) {
     return fallback;
   }
 
-  var originalTs = String(cell(['timestamp'], '')).trim();
+  var originalTs = normalizeLogTimestamp(cell(['timestamp'], ''));
   var originalName = String(cell(['partname'], '')).trim();
   // race guard เหมือน deleteLogEntry — กันกรณีมีแถวถูกเพิ่ม/ลบสลับตำแหน่งไปแล้ว
-  var expectedTs = String(payload.timestamp || '').trim();
   var expectedName = String(payload.partName || '').trim();
-  if (expectedTs && expectedTs !== originalTs) {
-    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ กรุณารีเฟรชแล้วลองใหม่');
+  if (!logTimestampsMatch(payload.timestamp, cell(['timestamp'], ''))) {
+    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ (เวลาไม่ตรงกับแถวนี้) กรุณารีเฟรชแล้วลองใหม่');
   }
   if (expectedName && expectedName !== originalName) {
-    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ กรุณารีเฟรชแล้วลองใหม่');
+    throw new Error('ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้ (ชื่ออะไหล่ไม่ตรงกับแถวนี้) กรุณารีเฟรชแล้วลองใหม่');
   }
 
   var signedQty = Number(cell(['qty'], 0));

@@ -43,6 +43,18 @@ assert(!/function returnLogEntryUnlocked[\s\S]*?\n}/.test(backendLf.slice(backen
   'returnLogEntry ต้องไม่ลบแถวเดิม');
 // race guard เหมือน deleteLogEntry
 assert(/function returnLogEntryUnlocked[\s\S]{0,2500}ข้อมูล Log มีการเปลี่ยนแปลงตั้งแต่โหลดหน้านี้/.test(backendLf));
+
+// ── race guard ต้องเทียบ timestamp แบบ normalize แล้วเท่านั้น ──────────────────
+// เซลล์ Timestamp เป็น Date จริง (Sheets แปลงให้) → ส่งออกเป็น ISO → เทียบสตริงตรงๆ
+// กับ Date.toString() ของ Apps Script ไม่มีวันตรง ทำให้คืน/ลบไม่ได้เลยทั้งที่แถวถูกต้อง
+assert(backend.includes('function normalizeLogTimestamp(value)'));
+assert(backend.includes('function logTimestampsMatch(expected, actual)'));
+assert(backend.includes("Utilities.formatDate(date, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss')"));
+// ทั้ง return และ delete ต้องใช้ตัวเทียบตัวเดียวกัน (delete มีบั๊กเดียวกันซ่อนอยู่)
+assert((backend.match(/logTimestampsMatch\(payload\.timestamp/g) || []).length === 2,
+  'ทั้ง returnLogEntry และ deleteLogEntry ต้องใช้ logTimestampsMatch');
+assert(!/expectedTs && tsIdx !== undefined && String\(row\[tsIdx\]/.test(backend),
+  'deleteLogEntry ต้องไม่เทียบสตริงดิบแบบเดิมแล้ว');
 // สต็อกไม่พอตอนคืนขา Input ต้องได้ error ที่อ่านรู้เรื่อง
 assert(backend.includes('คืนรายการนี้ไม่ได้: ต้องหักสต็อกออก'));
 
@@ -64,24 +76,42 @@ assert(html.includes('loadPartsData({ skipCache: true });'));
 
 // ── Frontend: logic ของ index กันคืนซ้ำ (โหลดมารันจริง) ───────────────────────
 const sandbox = {};
-['logRowReturnKey', 'buildLogReturnedIndex', 'isLogRowReversal'].forEach(function (name) {
+const htmlLf = html.replace(/\r\n/g, '\n');
+['normalizeLogTimestampKey', 'logRowReturnKey', 'buildLogReturnedIndex', 'isLogRowReversal'].forEach(function (name) {
   const re = new RegExp('^    function[ ]+' + name + '\\([\\s\\S]*?\\n    }$', 'm');
-  const match = html.replace(/\r\n/g, '\n').match(re);
+  const match = htmlLf.match(re);
   assert(match, 'cannot extract ' + name);
-  sandbox[name] = new Function("var LOG_RETURN_MARKER = 'RETURN_OF:';\n" + match[0] + '\nreturn ' + name + ';')();
+  sandbox[name] = new Function('normalizeLogTimestampKey',
+    "var LOG_RETURN_MARKER = 'RETURN_OF:';\n" + match[0] + '\nreturn ' + name + ';')(sandbox.normalizeLogTimestampKey);
 });
 
-assert.strictEqual(sandbox.logRowReturnKey({ timestamp: ' 2026-07-30 18:13:17 ', partName: ' MT PIN ' }),
-  '2026-07-30 18:13:17|MT PIN', 'key ต้อง trim ทั้งสองส่วน');
+// ── หัวใจของบั๊ก: เซลล์ Timestamp เป็น Date จริง → API ส่งกลับมาเป็น ISO ─────────
+// ทั้งสองรูปแบบต้อง normalize ได้ค่าเดียวกัน ไม่งั้น guard ฝั่ง server จะตีว่าข้อมูลเปลี่ยน
+// และป้าย "คืนแล้ว" ฝั่ง client จะไม่ขึ้น
+assert.strictEqual(sandbox.normalizeLogTimestampKey('2026-07-30T11:13:17.000Z'), '2026-07-30 18:13:17',
+  'ISO (UTC) ต้องแปลงเป็นเวลาไทย');
+assert.strictEqual(sandbox.normalizeLogTimestampKey('2026-07-30 18:13:17'), '2026-07-30 18:13:17',
+  'สตริงเวลาไทยต้องได้ค่าเดิม');
+assert.strictEqual(sandbox.normalizeLogTimestampKey('2026-07-30T11:13:17.000Z'),
+  sandbox.normalizeLogTimestampKey(new Date('2026-07-30T11:13:17.000Z')),
+  'Date object กับ ISO string ต้องได้ค่าเดียวกัน');
+assert.strictEqual(sandbox.normalizeLogTimestampKey(''), '');
+assert.strictEqual(sandbox.normalizeLogTimestampKey(null), '');
+assert.strictEqual(sandbox.normalizeLogTimestampKey('ไม่ใช่วันที่'), 'ไม่ใช่วันที่', 'ค่าที่ parse ไม่ได้ต้องคืนสตริงเดิม');
 
+assert.strictEqual(sandbox.logRowReturnKey({ timestamp: '2026-07-30T11:13:17.000Z', partName: ' MT PIN ' }),
+  '2026-07-30 18:13:17|MT PIN', 'key ต้อง normalize เวลา + trim ชื่อ');
+
+// แถวจาก API มาเป็น ISO — marker ที่ backend เขียนไว้เป็นเวลาไทย ต้อง match กันให้ได้
 const rows = [
-  { no: 1, timestamp: '2026-07-30 18:13:17', partName: 'MT PIN', reason: 'Trial', reasonRemark: '' },
-  { no: 2, timestamp: '2026-07-30 18:20:00', partName: 'MT PIN', reason: 'Return', reasonRemark: 'RETURN_OF:2026-07-30 18:13:17|MT PIN | คืนรายการโดย Admin' },
-  { no: 3, timestamp: '2026-07-30 17:30:30', partName: 'SESAME', reason: 'N/A', reasonRemark: '' }
+  { no: 1, timestamp: '2026-07-30T11:13:17.000Z', partName: 'MT PIN', reason: 'Trial', reasonRemark: '' },
+  { no: 2, timestamp: '2026-07-30T11:20:00.000Z', partName: 'MT PIN', reason: 'Return', reasonRemark: 'RETURN_OF:2026-07-30 18:13:17|MT PIN | คืนรายการโดย Admin' },
+  { no: 3, timestamp: '2026-07-30T10:30:30.000Z', partName: 'SESAME', reason: 'N/A', reasonRemark: '' }
 ];
 const idx = sandbox.buildLogReturnedIndex(rows);
-assert.strictEqual(idx['2026-07-30 18:13:17|MT PIN'], true, 'แถวที่ถูกคืนต้องถูก mark');
-assert.strictEqual(idx['2026-07-30 17:30:30|SESAME'], undefined, 'แถวที่ยังไม่ถูกคืนต้องไม่ถูก mark');
+assert.strictEqual(idx[sandbox.logRowReturnKey(rows[0])], true,
+  'แถวที่ถูกคืนต้องถูก mark แม้ timestamp ที่ได้จาก API เป็น ISO แต่ marker เป็นเวลาไทย');
+assert.strictEqual(idx[sandbox.logRowReturnKey(rows[2])], undefined, 'แถวที่ยังไม่ถูกคืนต้องไม่ถูก mark');
 assert.strictEqual(sandbox.buildLogReturnedIndex([])['x'], undefined);
 assert.strictEqual(sandbox.buildLogReturnedIndex(null) && Object.keys(sandbox.buildLogReturnedIndex(null)).length, 0,
   'rows เป็น null ต้องไม่ throw');
