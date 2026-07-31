@@ -7051,8 +7051,24 @@ function getIssueCartEntries() {
     // Reason Remark ของแถว Return ใช้เช็คว่าแถวเดิมถูกคืนไปแล้วหรือยัง (กันกดซ้ำ)
     var LOG_RETURN_MARKER = 'RETURN_OF:';
 
+    // ต้องแปลง timestamp ให้เป็นรูปแบบเดียวกับที่ backend เขียนลง marker
+    // ('yyyy-MM-dd HH:mm:ss' เวลาไทย) เพราะค่าที่ได้จาก API เป็น ISO (เซลล์เป็น Date จริง)
+    // ถ้าไม่แปลง คีย์จะไม่ตรงกัน แล้วป้าย "คืนแล้ว" จะไม่ขึ้นทั้งที่คืนไปแล้ว
+    function normalizeLogTimestampKey(value) {
+      if (value === undefined || value === null || value === '') return '';
+      var dt = new Date(value);
+      if (isNaN(dt.getTime())) return String(value).trim();
+      var parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      }).formatToParts(dt).reduce(function(acc, p) { acc[p.type] = p.value; return acc; }, {});
+      var hour = parts.hour === '24' ? '00' : parts.hour; // บาง engine คืน 24 สำหรับเที่ยงคืน
+      return parts.year + '-' + parts.month + '-' + parts.day + ' ' + hour + ':' + parts.minute + ':' + parts.second;
+    }
+
     function logRowReturnKey(item) {
-      return String((item && item.timestamp) || '').trim() + '|' + String((item && item.partName) || '').trim();
+      return normalizeLogTimestampKey(item && item.timestamp) + '|' + String((item && item.partName) || '').trim();
     }
 
     function buildLogReturnedIndex(rows) {
