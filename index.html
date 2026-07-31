@@ -2970,8 +2970,12 @@
           <option value="Other">📝 อื่นๆ (Other)</option>
         </select>
         <input id="issueCartReasonRemark" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="📝 ระบุเหตุผลอื่นๆ (บังคับกรอก)" />
-        <input id="issueCartMachine" type="text" list="issueCartMachineOptions" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="🏭 ใช้กับเครื่องไหน (optional เช่น MC-01)" />
-        <datalist id="issueCartMachineOptions"></datalist>
+        <!-- ดึงรายชื่อเครื่องจักรที่ลงทะเบียนไว้ของไลน์นี้มาให้เลือก (Admin > จัดการเครื่องจักรต่อไลน์)
+             เดิมเป็นช่องพิมพ์อิสระ + datalist ที่เติมจากประวัติ Log ทำให้ชื่อเครื่องสะกดไม่ตรงกัน -->
+        <select id="issueCartMachine" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+          <option value="">🏭 ใช้กับเครื่องไหน (ไม่บังคับ)</option>
+        </select>
+        <input id="issueCartMachineOther" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="🏭 ระบุชื่อเครื่องเอง" />
         <input id="issueCartNote" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="หมายเหตุ (optional)" />
         <button id="issueCartSubmitBtn" type="button" style="background-color:#2563eb;border-color:#1d4ed8;color:#ffffff;" class="h-11 w-full rounded-lg border px-4 text-sm font-semibold shadow-sm">บันทึกรายการ</button>
         <p id="issueCartMessage" class="text-xs text-slate-500"></p>
@@ -4349,6 +4353,7 @@
       if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
       syncTxnActorFields();
       setIssueCartMessage('', 'muted');
+      populateIssueCartMachineOptions();
       renderIssueCart();
       // ถ้า config ยังไม่ถูกโหลด ให้โหลดแล้ว render ซ้ำ เพื่อให้ป้าย "ต้องแท็ก" ขึ้นครบ
       if (!partTagConfigState.loaded) {
@@ -5311,6 +5316,57 @@
           removeFromIssueCart(entry.key);
         });
       });
+    }
+
+    // ── 🏭 ช่อง "ใช้กับเครื่องไหน" — dropdown จากทะเบียนเครื่องจักรของไลน์นั้น ──
+    // ต้องเป็นรายชื่อที่ลงทะเบียนไว้จริง (Admin > จัดการเครื่องจักรต่อไลน์) ไม่ใช่พิมพ์อิสระ
+    // เพราะชื่อเครื่องต้องสะกดตรงกันถึงจะตามประวัติต่อเครื่องได้
+    var ISSUE_CART_MACHINE_OTHER = '__other__';
+
+    function populateIssueCartMachineOptions() {
+      var sel = document.getElementById('issueCartMachine');
+      if (!sel) return Promise.resolve([]);
+      var line = String(currentLine || '').trim();
+      var previous = String(sel.value || '');
+      return fetchMachinesForLine(line).then(function(list) {
+        var names = (list || []).map(function(m) { return String((m && m.machine_name) || '').trim(); })
+          .filter(function(n) { return !!n; });
+        var placeholder = names.length
+          ? '🏭 ใช้กับเครื่องไหน (ไม่บังคับ)'
+          : '🏭 ยังไม่มีเครื่องจักรของไลน์นี้ — เพิ่มที่ Admin';
+        sel.innerHTML = '<option value="">' + escHtml(placeholder) + '</option>' +
+          names.map(function(n) { return '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>'; }).join('') +
+          '<option value="' + ISSUE_CART_MACHINE_OTHER + '">✏️ อื่นๆ (พิมพ์เอง)</option>';
+        // คงค่าที่เลือกไว้ถ้ายังมีอยู่ในรายการใหม่ (เช่นเปิด/ปิด cart ซ้ำ)
+        if (previous && (names.indexOf(previous) > -1 || previous === ISSUE_CART_MACHINE_OTHER)) sel.value = previous;
+        syncIssueCartMachineOtherVisibility();
+        return names;
+      });
+    }
+
+    function syncIssueCartMachineOtherVisibility() {
+      var sel = document.getElementById('issueCartMachine');
+      var other = document.getElementById('issueCartMachineOther');
+      if (!sel || !other) return;
+      var isOther = String(sel.value || '') === ISSUE_CART_MACHINE_OTHER;
+      other.classList.toggle('hidden', !isOther);
+      if (!isOther) other.value = '';
+    }
+
+    function getIssueCartMachineValue() {
+      var sel = document.getElementById('issueCartMachine');
+      if (!sel) return '';
+      if (String(sel.value || '') === ISSUE_CART_MACHINE_OTHER) {
+        var other = document.getElementById('issueCartMachineOther');
+        return String((other && other.value) || '').trim();
+      }
+      return String(sel.value || '').trim();
+    }
+
+    function resetIssueCartMachineField() {
+      var sel = document.getElementById('issueCartMachine');
+      if (sel) sel.value = '';
+      syncIssueCartMachineOtherVisibility();
     }
 
     function setIssueCartMessage(message, tone) {
@@ -7188,7 +7244,6 @@ function getIssueCartEntries() {
           // จึง = ทั้งหมดพอดี ไม่กระทบพฤติกรรมเดิมตอนยังไม่กรองอะไร
           renderLogStats(getLogFilteredRows());
           renderLogTable(logCache);
-          updateMachineDatalist(logCache);
           updateLogLastUpdatedText();
         })
         .catch(function(err) {
@@ -11781,8 +11836,7 @@ function inferRequestPriority(stock, min) {
       var noteValue = String((issueCartNote && issueCartNote.value) || '').trim();
       var reasonValue = String((issueCartReason && issueCartReason.value) || '').trim();
       var reasonRemarkValue = String((issueCartReasonRemark && issueCartReasonRemark.value) || '').trim();
-      var machineEl = document.getElementById('issueCartMachine');
-      var machineValue = String((machineEl && machineEl.value) || '').trim();
+      var machineValue = getIssueCartMachineValue();
       showConfirmDialog({ title: 'ยืนยันการเบิก', message: 'ยืนยันการเบิก ' + entries.length + ' รายการ ?', okLabel: 'เบิกสินค้า' }).then(function(ok) {
         if (!ok) return;
 
@@ -11871,7 +11925,7 @@ function inferRequestPriority(stock, min) {
           if (issueCartNote) issueCartNote.value = '';
           if (issueCartReason) issueCartReason.value = '';
           if (issueCartReasonRemark) { issueCartReasonRemark.value = ''; issueCartReasonRemark.classList.add('hidden'); }
-          if (machineEl) machineEl.value = '';
+          resetIssueCartMachineField();
         } else if (successKeys.length) {
           setIssueCartMessage('สำเร็จ ' + successKeys.length + ' รายการ, ไม่สำเร็จ ' + failures.length + ' รายการ: ' + failures.join(' | '), 'error');
         } else {
@@ -14370,19 +14424,9 @@ function inferRequestPriority(stock, min) {
       loadInboxBadge();
     });
 
-    // ============ 🏭 เครื่องจักร: datalist จาก log + รายงานต่อเครื่อง ============
-    function updateMachineDatalist(logs) {
-      var dl = document.getElementById('issueCartMachineOptions');
-      if (!dl) return;
-      var seen = {};
-      (logs || []).forEach(function(r) {
-        var m = String(r.machine || '').trim();
-        if (m) seen[m] = true;
-      });
-      dl.innerHTML = Object.keys(seen).sort().map(function(m) {
-        return '<option value="' + escHtml(m) + '"></option>';
-      }).join('');
-    }
+    // ============ 🏭 เครื่องจักร: รายงานต่อเครื่อง ============
+    // (เดิมมี updateMachineDatalist ที่เติม datalist จากชื่อเครื่องในประวัติ Log — ถอดออกแล้ว
+    //  เพราะช่อง "ใช้กับเครื่องไหน" เปลี่ยนเป็น dropdown จากทะเบียนเครื่องจักรจริงแทน)
 
     (function initMachineReport() {
       var btn = document.getElementById('machineReportBtn');
@@ -15289,6 +15333,8 @@ if (dashboardPage) {
     }
     bindPartTagUi();
     if (issueCartReason) issueCartReason.addEventListener('change', function(){ var isOther = String(issueCartReason.value || '') === 'Other'; if (issueCartReasonRemark) { issueCartReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) issueCartReasonRemark.value = ''; } });
+    var issueCartMachineSelect = document.getElementById('issueCartMachine');
+    if (issueCartMachineSelect) issueCartMachineSelect.addEventListener('change', syncIssueCartMachineOtherVisibility);
     if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } });
     if (issueCartSubmitBtn) issueCartSubmitBtn.addEventListener('click', submitIssueCartTransactions);
     if (detailAddToCartBtn) detailAddToCartBtn.addEventListener('click', function() {
