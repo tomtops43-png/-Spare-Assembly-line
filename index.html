@@ -2973,9 +2973,9 @@
         <!-- ดึงรายชื่อเครื่องจักรที่ลงทะเบียนไว้ของไลน์นี้มาให้เลือก (Admin > จัดการเครื่องจักรต่อไลน์)
              เดิมเป็นช่องพิมพ์อิสระ + datalist ที่เติมจากประวัติ Log ทำให้ชื่อเครื่องสะกดไม่ตรงกัน -->
         <select id="issueCartMachine" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
-          <option value="">🏭 ใช้กับเครื่องไหน (ไม่บังคับ)</option>
+          <option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>
         </select>
-        <input id="issueCartMachineOther" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="🏭 ระบุชื่อเครื่องเอง" />
+        <input id="issueCartMachineOther" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="🏭 ระบุชื่อเครื่องเอง (บังคับ)" />
         <input id="issueCartNote" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="หมายเหตุ (optional)" />
         <button id="issueCartSubmitBtn" type="button" style="background-color:#2563eb;border-color:#1d4ed8;color:#ffffff;" class="h-11 w-full rounded-lg border px-4 text-sm font-semibold shadow-sm">บันทึกรายการ</button>
         <p id="issueCartMessage" class="text-xs text-slate-500"></p>
@@ -3135,9 +3135,9 @@
         <input id="quickIssueReasonRemark" type="text" class="hidden h-11 w-full rounded-xl border border-blue-300 bg-blue-50 px-3 text-base" placeholder="📝 ระบุเหตุผลอื่นๆ (บังคับกรอก)" />
         <!-- เครื่องจักรของไลน์อะไหล่ชิ้นนี้ (ทะเบียนเดียวกับ Issue Cart) -->
         <select id="quickIssueMachine" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
-          <option value="">🏭 ใช้กับเครื่องไหน (ไม่บังคับ)</option>
+          <option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>
         </select>
-        <input id="quickIssueMachineOther" type="text" class="hidden h-11 w-full rounded-xl border border-blue-300 bg-blue-50 px-3 text-base" placeholder="🏭 ระบุชื่อเครื่องเอง" />
+        <input id="quickIssueMachineOther" type="text" class="hidden h-11 w-full rounded-xl border border-blue-300 bg-blue-50 px-3 text-base" placeholder="🏭 ระบุชื่อเครื่องเอง (บังคับ)" />
         </div>
         <div class="mt-auto pt-4">
           <button id="quickIssueSubmitBtn" type="submit" class="h-12 w-full rounded-xl bg-blue-600 px-4 text-xl font-semibold text-white">บันทึกรายการ</button>
@@ -5337,8 +5337,8 @@
         var names = (list || []).map(function(m) { return String((m && m.machine_name) || '').trim(); })
           .filter(function(n) { return !!n; });
         var placeholder = names.length
-          ? '🏭 ใช้กับเครื่องไหน (ไม่บังคับ)'
-          : '🏭 ยังไม่มีเครื่องจักรของไลน์นี้ — เพิ่มที่ Admin';
+          ? '🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)'
+          : '🏭 ยังไม่มีเครื่องจักรของไลน์นี้ — เลือก "อื่นๆ" เพื่อพิมพ์เอง';
         sel.innerHTML = '<option value="">' + escHtml(placeholder) + '</option>' +
           names.map(function(n) { return '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>'; }).join('') +
           '<option value="' + MACHINE_SELECT_OTHER + '">✏️ อื่นๆ (พิมพ์เอง)</option>';
@@ -5454,6 +5454,8 @@ function getIssueCartEntries() {
       var reasonRemark = String((issueCartReasonRemark && issueCartReasonRemark.value) || '').trim();
       if (!reason) return 'กรุณาเลือก Reason สำหรับการเบิกออก';
       if (reason === 'Other' && !reasonRemark) return 'กรุณาระบุ Reason Remark';
+      // บังคับระบุเครื่อง — ต้องเก็บให้ครบทุกรายการ ถึงจะสรุปได้ว่าเครื่องไหนกินอะไหล่บ่อย
+      if (!getIssueCartMachineValue()) return 'กรุณาเลือกเครื่องที่จะเอาอะไหล่ไปใส่ (บังคับ)';
       for (var i = 0; i < entries.length; i += 1) {
         var entry = entries[i];
         var qty = safeNum(entry.qty);
@@ -12178,6 +12180,13 @@ function inferRequestPriority(stock, min) {
         quickIssueMessage.textContent = 'กรุณาระบุ Reason Remark';
         return;
       }
+      // บังคับระบุเครื่อง — ต้องเก็บให้ครบทุกรายการ ถึงจะสรุปได้ว่าเครื่องไหนกินอะไหล่บ่อย
+      var quickMachine = getQuickIssueMachineValue();
+      if (!quickMachine) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'กรุณาเลือกเครื่องที่จะเอาอะไหล่ไปใส่ (บังคับ)';
+        return;
+      }
       if (!by) return;
       if (!currentUser || !currentUser.username) {
         txnMessage.className = 'mt-3 text-sm text-rose-600';
@@ -12197,7 +12206,7 @@ function inferRequestPriority(stock, min) {
         by: by,
         reason: reason,
         reasonRemark: reason === 'Other' ? reasonRemark : '',
-        machine: getQuickIssueMachineValue(),
+        machine: quickMachine,
         sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
       setQuickIssueSubmitState(true);
