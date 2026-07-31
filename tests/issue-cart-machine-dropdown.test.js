@@ -38,15 +38,28 @@ assert(html.includes('populateQuickIssueMachineOptions(item.line || currentLine)
   'เบิกด่วนต้องโหลดเครื่องตามไลน์ของอะไหล่ชิ้นนั้น');
 assert(html.includes('resetQuickIssueMachineField();'));
 // payload เดิมไม่มี machine เลย — ต้องส่งไปด้วย ไม่งั้นบันทึกแล้วไม่รู้ว่าใส่เครื่องไหน
-assert(html.includes('machine: getQuickIssueMachineValue(),'),
-  'payload ของเบิกด่วนต้องส่ง machine ไปด้วย');
+assert(html.includes('machine: quickMachine,'),
+  'payload ของเบิกด่วนต้องส่ง machine ไปด้วย (ค่าที่ผ่านการตรวจแล้ว)');
 assert(/quickIssueMachineSelect\.addEventListener\('change'/.test(html));
 
 // ── ยังพิมพ์เองได้เผื่อเครื่องที่ยังไม่ลงทะเบียน ─────────────────────────────
 assert((html.match(/✏️ อื่นๆ \(พิมพ์เอง\)/g) || []).length >= 1);
 assert((html.match(/🏭 ระบุชื่อเครื่องเอง/g) || []).length === 2, 'ต้องมีช่องพิมพ์เองทั้งสองฟอร์ม');
-// ไลน์ที่ยังไม่มีเครื่องลงทะเบียน ต้องบอกให้รู้ ไม่ใช่ปล่อย dropdown ว่างเปล่า
-assert(html.includes('ยังไม่มีเครื่องจักรของไลน์นี้ — เพิ่มที่ Admin'));
+// ไลน์ที่ยังไม่มีเครื่องลงทะเบียน ต้องชี้ทางออก ไม่ใช่ปล่อย dropdown ว่างจนเบิกไม่ได้
+assert(html.includes('ยังไม่มีเครื่องจักรของไลน์นี้ — เลือก "อื่นๆ" เพื่อพิมพ์เอง'));
+
+// ── บังคับเลือกเครื่องทั้งสองฟอร์ม ───────────────────────────────────────────
+// ต้องได้ข้อมูลครบทุกรายการเบิก ถึงจะสรุปได้ว่าเครื่องไหนกินอะไหล่บ่อย
+assert(html.includes("if (!getIssueCartMachineValue()) return 'กรุณาเลือกเครื่องที่จะเอาอะไหล่ไปใส่ (บังคับ)';"),
+  'Issue Cart ต้องบล็อกการบันทึกถ้าไม่เลือกเครื่อง');
+assert(/var quickMachine = getQuickIssueMachineValue\(\);[\s\S]{0,200}if \(!quickMachine\) \{/.test(html),
+  'เบิกด่วนต้องบล็อกการบันทึกถ้าไม่เลือกเครื่อง');
+// ต้องเช็คก่อนถึงจะสร้าง payload — ไม่ใช่ส่งค่าว่างไปแล้วค่อยว่ากัน
+assert(html.indexOf('if (!quickMachine) {') < html.indexOf('machine: quickMachine,'),
+  'ต้องตรวจก่อนประกอบ payload');
+assert(!html.includes('🏭 ใช้กับเครื่องไหน (ไม่บังคับ)'), 'ป้ายต้องไม่บอกว่าไม่บังคับแล้ว');
+assert((html.match(/🏭 เลือกเครื่องที่จะเอาไปใส่ \(บังคับ\)/g) || []).length === 3,
+  'ป้าย "บังคับ" ต้องขึ้นทั้ง 2 ฟอร์ม (HTML) และตอน JS เติมรายชื่อ');
 
 // ── ค่าที่ส่งไปบันทึกต้องมาจาก helper ตัวเดียว ────────────────────────────────
 // ถ้าอ่าน .value ของ select ตรงๆ จะได้ '__other__' ติดไปในประวัติแทนชื่อเครื่องจริง
