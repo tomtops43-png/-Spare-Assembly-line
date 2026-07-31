@@ -3133,6 +3133,11 @@
           <option value="Other">📝 อื่นๆ (Other)</option>
         </select>
         <input id="quickIssueReasonRemark" type="text" class="hidden h-11 w-full rounded-xl border border-blue-300 bg-blue-50 px-3 text-base" placeholder="📝 ระบุเหตุผลอื่นๆ (บังคับกรอก)" />
+        <!-- เครื่องจักรของไลน์อะไหล่ชิ้นนี้ (ทะเบียนเดียวกับ Issue Cart) -->
+        <select id="quickIssueMachine" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+          <option value="">🏭 ใช้กับเครื่องไหน (ไม่บังคับ)</option>
+        </select>
+        <input id="quickIssueMachineOther" type="text" class="hidden h-11 w-full rounded-xl border border-blue-300 bg-blue-50 px-3 text-base" placeholder="🏭 ระบุชื่อเครื่องเอง" />
         </div>
         <div class="mt-auto pt-4">
           <button id="quickIssueSubmitBtn" type="submit" class="h-12 w-full rounded-xl bg-blue-600 px-4 text-xl font-semibold text-white">บันทึกรายการ</button>
@@ -5320,15 +5325,15 @@
 
     // ── 🏭 ช่อง "ใช้กับเครื่องไหน" — dropdown จากทะเบียนเครื่องจักรของไลน์นั้น ──
     // ต้องเป็นรายชื่อที่ลงทะเบียนไว้จริง (Admin > จัดการเครื่องจักรต่อไลน์) ไม่ใช่พิมพ์อิสระ
-    // เพราะชื่อเครื่องต้องสะกดตรงกันถึงจะตามประวัติต่อเครื่องได้
-    var ISSUE_CART_MACHINE_OTHER = '__other__';
+    // เพราะชื่อเครื่องต้องสะกดตรงกันถึงจะตามประวัติต่อเครื่อง/ทะเบียนชิ้นได้
+    // ใช้ร่วมกันทั้ง Issue Cart และ เบิกด่วน (quick issue) — ตรรกะเดียวกัน คนละ element
+    var MACHINE_SELECT_OTHER = '__other__';
 
-    function populateIssueCartMachineOptions() {
-      var sel = document.getElementById('issueCartMachine');
+    function populateMachineSelect(selectId, otherId, line) {
+      var sel = document.getElementById(selectId);
       if (!sel) return Promise.resolve([]);
-      var line = String(currentLine || '').trim();
       var previous = String(sel.value || '');
-      return fetchMachinesForLine(line).then(function(list) {
+      return fetchMachinesForLine(String(line || '').trim()).then(function(list) {
         var names = (list || []).map(function(m) { return String((m && m.machine_name) || '').trim(); })
           .filter(function(n) { return !!n; });
         var placeholder = names.length
@@ -5336,37 +5341,61 @@
           : '🏭 ยังไม่มีเครื่องจักรของไลน์นี้ — เพิ่มที่ Admin';
         sel.innerHTML = '<option value="">' + escHtml(placeholder) + '</option>' +
           names.map(function(n) { return '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>'; }).join('') +
-          '<option value="' + ISSUE_CART_MACHINE_OTHER + '">✏️ อื่นๆ (พิมพ์เอง)</option>';
-        // คงค่าที่เลือกไว้ถ้ายังมีอยู่ในรายการใหม่ (เช่นเปิด/ปิด cart ซ้ำ)
-        if (previous && (names.indexOf(previous) > -1 || previous === ISSUE_CART_MACHINE_OTHER)) sel.value = previous;
-        syncIssueCartMachineOtherVisibility();
+          '<option value="' + MACHINE_SELECT_OTHER + '">✏️ อื่นๆ (พิมพ์เอง)</option>';
+        // คงค่าที่เลือกไว้ถ้ายังมีอยู่ในรายการใหม่ (เช่นเปิด/ปิดฟอร์มซ้ำ)
+        if (previous && (names.indexOf(previous) > -1 || previous === MACHINE_SELECT_OTHER)) sel.value = previous;
+        syncMachineSelectOther(selectId, otherId);
         return names;
       });
     }
 
-    function syncIssueCartMachineOtherVisibility() {
-      var sel = document.getElementById('issueCartMachine');
-      var other = document.getElementById('issueCartMachineOther');
+    function syncMachineSelectOther(selectId, otherId) {
+      var sel = document.getElementById(selectId);
+      var other = document.getElementById(otherId);
       if (!sel || !other) return;
-      var isOther = String(sel.value || '') === ISSUE_CART_MACHINE_OTHER;
+      var isOther = String(sel.value || '') === MACHINE_SELECT_OTHER;
       other.classList.toggle('hidden', !isOther);
       if (!isOther) other.value = '';
     }
 
-    function getIssueCartMachineValue() {
-      var sel = document.getElementById('issueCartMachine');
+    // ต้องอ่านผ่านตัวนี้เสมอ ไม่งั้นค่า sentinel '__other__' จะหลุดไปบันทึกลงประวัติ
+    function getMachineSelectValue(selectId, otherId) {
+      var sel = document.getElementById(selectId);
       if (!sel) return '';
-      if (String(sel.value || '') === ISSUE_CART_MACHINE_OTHER) {
-        var other = document.getElementById('issueCartMachineOther');
+      if (String(sel.value || '') === MACHINE_SELECT_OTHER) {
+        var other = document.getElementById(otherId);
         return String((other && other.value) || '').trim();
       }
       return String(sel.value || '').trim();
     }
 
-    function resetIssueCartMachineField() {
-      var sel = document.getElementById('issueCartMachine');
+    function resetMachineSelect(selectId, otherId) {
+      var sel = document.getElementById(selectId);
       if (sel) sel.value = '';
-      syncIssueCartMachineOtherVisibility();
+      syncMachineSelectOther(selectId, otherId);
+    }
+
+    function populateIssueCartMachineOptions() {
+      return populateMachineSelect('issueCartMachine', 'issueCartMachineOther', currentLine);
+    }
+    function syncIssueCartMachineOtherVisibility() {
+      syncMachineSelectOther('issueCartMachine', 'issueCartMachineOther');
+    }
+    function getIssueCartMachineValue() {
+      return getMachineSelectValue('issueCartMachine', 'issueCartMachineOther');
+    }
+    function resetIssueCartMachineField() {
+      resetMachineSelect('issueCartMachine', 'issueCartMachineOther');
+    }
+
+    function populateQuickIssueMachineOptions(line) {
+      return populateMachineSelect('quickIssueMachine', 'quickIssueMachineOther', line || currentLine);
+    }
+    function getQuickIssueMachineValue() {
+      return getMachineSelectValue('quickIssueMachine', 'quickIssueMachineOther');
+    }
+    function resetQuickIssueMachineField() {
+      resetMachineSelect('quickIssueMachine', 'quickIssueMachineOther');
     }
 
     function setIssueCartMessage(message, tone) {
@@ -12088,6 +12117,9 @@ function inferRequestPriority(stock, min) {
         quickIssueReasonRemark.value = '';
         quickIssueReasonRemark.classList.add('hidden');
       }
+      // เครื่องจักรต้องเป็นของไลน์อะไหล่ชิ้นนี้ (อาจคนละไลน์กับที่กำลังเปิดดูอยู่)
+      resetQuickIssueMachineField();
+      populateQuickIssueMachineOptions(item.line || currentLine);
       quickIssueMessage.className = 'text-sm text-slate-500';
       quickIssueMessage.textContent = '';
       setQuickIssueSubmitState(false);
@@ -12165,6 +12197,7 @@ function inferRequestPriority(stock, min) {
         by: by,
         reason: reason,
         reasonRemark: reason === 'Other' ? reasonRemark : '',
+        machine: getQuickIssueMachineValue(),
         sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
       setQuickIssueSubmitState(true);
@@ -15336,6 +15369,10 @@ if (dashboardPage) {
     var issueCartMachineSelect = document.getElementById('issueCartMachine');
     if (issueCartMachineSelect) issueCartMachineSelect.addEventListener('change', syncIssueCartMachineOtherVisibility);
     if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } });
+    var quickIssueMachineSelect = document.getElementById('quickIssueMachine');
+    if (quickIssueMachineSelect) quickIssueMachineSelect.addEventListener('change', function() {
+      syncMachineSelectOther('quickIssueMachine', 'quickIssueMachineOther');
+    });
     if (issueCartSubmitBtn) issueCartSubmitBtn.addEventListener('click', submitIssueCartTransactions);
     if (detailAddToCartBtn) detailAddToCartBtn.addEventListener('click', function() {
       // ใช้ item ตัวที่เปิดอยู่จริงในหน้า Detail โดยตรง (กัน NO ซ้ำข้าม Sheet แล้วหยิบผิดตัว)
