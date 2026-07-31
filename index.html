@@ -3138,6 +3138,14 @@
           <option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>
         </select>
         <input id="quickIssueMachineOther" type="text" class="hidden h-11 w-full rounded-xl border border-blue-300 bg-blue-50 px-3 text-base" placeholder="🏭 ระบุชื่อเครื่องเอง (บังคับ)" />
+        <!-- เลขประจำชิ้นที่ช่างอ่านจากตัวของ — โชว์เฉพาะอะไหล่ที่อยู่ในกลุ่มแท็ก -->
+        <div id="quickIssueTagWrap" class="hidden rounded-xl px-3 py-2" style="background:#eff6ff;border:1px solid #bfdbfe;">
+          <p id="quickIssueTagHint" class="text-[11px] font-bold" style="color:#1d4ed8;">🏷️ ต้องระบุเลขประจำชิ้น — อ่านจากตัวของที่หยิบมา</p>
+          <div class="mt-1 flex gap-1.5">
+            <input id="quickIssueTagNos" type="text" class="h-10 flex-1 rounded-lg border px-2 text-sm" style="border-color:#93c5fd;" placeholder="เลขประจำชิ้น" />
+            <button id="quickIssueTagNextBtn" type="button" class="h-10 shrink-0 rounded-lg border px-2 text-xs font-bold" style="border-color:#93c5fd;background:#ffffff;color:#1d4ed8;">ใช้เลขถัดไป</button>
+          </div>
+        </div>
         </div>
         <div class="mt-auto pt-4">
           <button id="quickIssueSubmitBtn" type="submit" class="h-12 w-full rounded-xl bg-blue-600 px-4 text-xl font-semibold text-white">บันทึกรายการ</button>
@@ -3537,6 +3545,9 @@
     var partTagConfigState = { loaded: false, supported: true, byKey: {}, statuses: PART_TAG_DEFAULT_STATUSES.slice(), maxPerTransaction: 50 };
     var partTagRenderRows = [];
     var lastIssuedPartTags = [];
+    // เลขประจำชิ้นที่ช่างกรอกต่อรายการใน cart (keyed by identity key เหมือน issueCartState)
+    // เก็บแยกเพราะ renderIssueCart วาดใหม่ทั้งก้อนทุกครั้ง ค่าที่พิมพ์ไว้ต้องไม่หาย
+    var issueCartTagNos = {};
     var partTagGroupsCache = [];      // กลุ่มแท็กทั้งหมด (สำหรับหน้า Admin)
     var partTagGroupItemsCache = [];  // สมาชิกของกลุ่มที่กำลังเปิดจัดการอยู่
     var activePartTagGroupId = '';
@@ -4787,7 +4798,8 @@
             groupName: String(a.group_name || ''),
             prefix: String(a.prefix || ''),
             startNumber: Number(a.start_number) || 1,
-            digits: Number(a.digits) || 5
+            digits: Number(a.digits) || 5,
+            nextTagNo: String(a.next_tag_no || '')
           };
         });
         partTagConfigState.byKey = map;
@@ -5298,10 +5310,25 @@
             'class="mt-2 h-9 w-full rounded-lg border px-2.5 text-xs" style="border-color:#fcd34d;background:#fffbeb;" />'
           : '';
         // 🏷️ Category นี้ต้องออกเลขประจำชิ้น — บอกล่วงหน้าว่าเบิกแล้วจะได้เลขกี่ใบ
+        // ของในคลังมีเลขติดอยู่ที่ตัวแล้ว ช่างต้องกรอกเลขของชิ้นที่หยิบมาจริง
+        // ระบบไม่ออกเลขให้เอง (ยกเว้นกดปุ่ม "ใช้เลขถัดไป" สำหรับของที่ยังไม่มีเลข)
         var tagRule = getPartTagRuleForItem(item);
-        var tagHintHtml = tagRule
-          ? '<p class="mt-1.5 rounded-lg px-2 py-1 text-[11px] font-bold" style="background:#dbeafe;color:#1d4ed8;">🏷️ ต้องแท็กเลขประจำชิ้น — เบิกแล้วระบบจะออกเลขให้ ' + qty + ' ใบ (' + escapeStarText(tagRule.prefix) + '-' + 'x'.repeat(tagRule.digits || 5) + ')</p>'
-          : '';
+        var tagHintHtml = '';
+        if (tagRule) {
+          var savedTagNos = issueCartTagNos[entry.key] || '';
+          tagHintHtml =
+            '<div class="mt-1.5 rounded-lg px-2 py-2" style="background:#eff6ff;border:1px solid #bfdbfe;">' +
+              '<p class="text-[11px] font-bold" style="color:#1d4ed8;">🏷️ ต้องระบุเลขประจำชิ้น ' + qty + ' เลข — อ่านจากตัวของที่หยิบมา' +
+                (qty > 1 ? ' (คั่นด้วย ,)' : '') + '</p>' +
+              '<div class="mt-1 flex gap-1.5">' +
+                '<input data-cart-tagnos="' + entryIdx + '" value="' + escapeStarText(savedTagNos) + '" ' +
+                  'placeholder="เช่น ' + escapeStarText(tagRule.nextTagNo || (tagRule.prefix + '-001')) + '" ' +
+                  'class="h-8 flex-1 rounded-lg border px-2 text-xs" style="border-color:#93c5fd;" />' +
+                '<button type="button" data-cart-tagnext="' + entryIdx + '" title="ของชิ้นนี้ยังไม่มีเลขติด — ออกเลขใหม่ให้" ' +
+                  'class="h-8 shrink-0 rounded-lg border px-2 text-[11px] font-bold" style="border-color:#93c5fd;background:#ffffff;color:#1d4ed8;">ใช้เลขถัดไป</button>' +
+              '</div>' +
+            '</div>';
+        }
         return '<article class="rounded-xl border p-2.5" style="' + (starred ? 'border-color:#fcd34d;background:#fffdf5;' : 'border-color:#e5e7eb;background:#ffffff;') + '">' +
           '<div class="flex gap-2.5">' +
             '<img src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
@@ -5338,6 +5365,34 @@
         var entry = issueCartRenderEntries[Number(input.getAttribute('data-cart-star-note'))];
         if (!entry) return;
         input.addEventListener('input', function() { setStarredNote(entry.key, input.value); });
+      });
+      Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-tagnos]')).forEach(function(input) {
+        var entry = issueCartRenderEntries[Number(input.getAttribute('data-cart-tagnos'))];
+        if (!entry) return;
+        // เก็บลง state ทันทีที่พิมพ์ ไม่งั้นค่าหายตอน renderIssueCart วาดใหม่ (เช่นกด +/-)
+        input.addEventListener('input', function() { issueCartTagNos[entry.key] = input.value; });
+      });
+      Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-tagnext]')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var entry = issueCartRenderEntries[Number(btn.getAttribute('data-cart-tagnext'))];
+          if (!entry) return;
+          var rule = getPartTagRuleForItem(entry.item);
+          if (!rule || !rule.nextTagNo) {
+            showQuickToast('ยังไม่รู้เลขถัดไป กรุณารีเฟรชหน้าแล้วลองใหม่', 'warn');
+            return;
+          }
+          // เติมเฉพาะช่องที่ยังว่าง — ถ้าพิมพ์เลขจากตัวของไว้แล้วห้ามทับ
+          var input = issueCartList.querySelector('[data-cart-tagnos="' + Number(btn.getAttribute('data-cart-tagnext')) + '"]');
+          if (input && String(input.value || '').trim()) {
+            showQuickToast('มีเลขกรอกไว้แล้ว — ลบออกก่อนถ้าต้องการใช้เลขใหม่', 'warn');
+            return;
+          }
+          if (input) {
+            input.value = rule.nextTagNo;
+            issueCartTagNos[entry.key] = rule.nextTagNo;
+            showQuickToast('ใส่เลขใหม่ ' + rule.nextTagNo + ' ให้แล้ว — อย่าลืมเขียนเลขนี้ลงบนตัวของ', 'info');
+          }
+        });
       });
 
       Array.prototype.slice.call(issueCartList.querySelectorAll('[data-cart-minus]')).forEach(function(btn) {
@@ -5427,6 +5482,24 @@
       resetMachineSelect('issueCartMachine', 'issueCartMachineOther');
     }
 
+    // โชว์ช่องเลขประจำชิ้นเฉพาะอะไหล่ที่อยู่ในกลุ่มแท็ก และล้างค่าเดิมของชิ้นก่อนหน้าทิ้ง
+    // resetValue = true เฉพาะตอนเปิด modal ใหม่ (เปลี่ยนชิ้น) — ห้ามล้างตอนแค่แก้จำนวน
+    // ไม่งั้นเลขที่ช่างพิมพ์ไว้จะหายทุกครั้งที่กดเปลี่ยนจำนวน
+    function syncQuickIssueTagField(item, resetValue) {
+      var wrap = document.getElementById('quickIssueTagWrap');
+      var input = document.getElementById('quickIssueTagNos');
+      var hint = document.getElementById('quickIssueTagHint');
+      if (!wrap || !input) return;
+      var rule = getPartTagRuleForItem(item);
+      if (resetValue) input.value = '';
+      input.placeholder = rule && rule.nextTagNo ? ('เช่น ' + rule.nextTagNo) : 'เลขประจำชิ้น';
+      wrap.classList.toggle('hidden', !rule);
+      if (rule && hint) {
+        var q = Number((document.getElementById('quickIssueQty') || {}).value || 0);
+        hint.textContent = '🏷️ ต้องระบุเลขประจำชิ้น' + (q > 1 ? ' ' + q + ' เลข (คั่นด้วย ,)' : '') + ' — อ่านจากตัวของที่หยิบมา';
+      }
+    }
+
     function populateQuickIssueMachineOptions(line) {
       return populateMachineSelect('quickIssueMachine', 'quickIssueMachineOther', line || currentLine);
     }
@@ -5485,6 +5558,12 @@ function getIssueCartEntries() {
       }).filter(Boolean);
     }
 
+    // แยกเลขประจำชิ้นที่พิมพ์มา (คั่นด้วย , หรือขึ้นบรรทัดใหม่) — ตรรกะเดียวกับฝั่ง backend
+    function parseTagNosInput(raw) {
+      return String(raw || '').split(/[,\n]/).map(function(s) { return String(s || '').trim(); })
+        .filter(function(s) { return !!s; });
+    }
+
     function validateIssueCartSubmission(entries) {
       if (!canIssuePart()) return 'คุณไม่มีสิทธิ์ทำรายการเบิก';
       if (!entries.length) return 'ยังไม่มีรายการใน cart';
@@ -5495,6 +5574,20 @@ function getIssueCartEntries() {
       if (reason === 'Other' && !reasonRemark) return 'กรุณาระบุ Reason Remark';
       // บังคับระบุเครื่อง — ต้องเก็บให้ครบทุกรายการ ถึงจะสรุปได้ว่าเครื่องไหนกินอะไหล่บ่อย
       if (!getIssueCartMachineValue()) return 'กรุณาเลือกเครื่องที่จะเอาอะไหล่ไปใส่ (บังคับ)';
+      // อะไหล่ที่อยู่ในกลุ่มแท็ก ต้องระบุเลขของชิ้นที่หยิบมาให้ครบตามจำนวน
+      for (var t = 0; t < entries.length; t += 1) {
+        var tagEntry = entries[t];
+        if (!itemRequiresPartTag(tagEntry.item)) continue;
+        var nos = parseTagNosInput(issueCartTagNos[tagEntry.key]);
+        var wantQty = safeNum(tagEntry.qty);
+        if (!nos.length) {
+          return 'กรุณาระบุเลขประจำชิ้นของ "' + (tagEntry.item.name || tagEntry.no) + '" (อ่านจากตัวของที่หยิบมา)';
+        }
+        if (nos.length !== wantQty) {
+          return 'เลขประจำชิ้นของ "' + (tagEntry.item.name || tagEntry.no) + '" มี ' + nos.length +
+            ' เลข แต่เบิก ' + wantQty + ' ชิ้น — ต้องใส่ให้ครบทุกชิ้น (คั่นด้วย ,)';
+        }
+      }
       for (var i = 0; i < entries.length; i += 1) {
         var entry = entries[i];
         var qty = safeNum(entry.qty);
@@ -7032,7 +7125,8 @@ function getIssueCartEntries() {
         by: payload.by || '',
         reason: payload.reason || '',
         reasonRemark: payload.reasonRemark || '',
-        machine: payload.machine || ''
+        machine: payload.machine || '',
+        tagNos: payload.tagNos || ''
       };
       var query = [
         'action=transact',
@@ -7050,6 +7144,7 @@ function getIssueCartEntries() {
         'reason=' + encodeURIComponent(requestPayload.reason),
         'reasonRemark=' + encodeURIComponent(requestPayload.reasonRemark),
         'machine=' + encodeURIComponent(requestPayload.machine),
+        'tagNos=' + encodeURIComponent(requestPayload.tagNos || ''),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
 
@@ -11874,7 +11969,7 @@ function inferRequestPriority(stock, min) {
       });
     }
 
-    function createOutputTransactionPayload(item, qty, byValue, processValue, noteValue, reasonValue, reasonRemarkValue, machineValue) {
+    function createOutputTransactionPayload(item, qty, byValue, processValue, noteValue, reasonValue, reasonRemarkValue, machineValue, tagNosValue) {
       var processText = processValue || item.line || '-';
       if (noteValue) processText = processText + ' | note: ' + noteValue;
       return {
@@ -11891,6 +11986,7 @@ function inferRequestPriority(stock, min) {
         reason: reasonValue || '',
         reasonRemark: reasonRemarkValue || '',
         machine: machineValue || '',
+        tagNos: tagNosValue || '',
         sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
     }
@@ -11937,7 +12033,7 @@ function inferRequestPriority(stock, min) {
           failures.push((latestItem.name || entry.no) + ': stock ไม่พอสำหรับเบิก');
           return runNext();
         }
-        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, processValue, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '', machineValue);
+        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, processValue, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '', machineValue, issueCartTagNos[entry.key]);
         var beforeStock = Number(latestItem.stock || 0);
         latestItem.stock = Math.max(0, beforeStock - latestQty);
         applyFilters(false);
@@ -11963,7 +12059,7 @@ function inferRequestPriority(stock, min) {
       }
 
       runNext().then(function() {
-        successKeys.forEach(function(key) { delete issueCartState[key]; });
+        successKeys.forEach(function(key) { delete issueCartState[key]; delete issueCartTagNos[key]; });
         updateIssueCartBadges();
         renderIssueCart();
 
@@ -12164,6 +12260,7 @@ function inferRequestPriority(stock, min) {
       // เครื่องจักรต้องเป็นของไลน์อะไหล่ชิ้นนี้ (อาจคนละไลน์กับที่กำลังเปิดดูอยู่)
       resetQuickIssueMachineField();
       populateQuickIssueMachineOptions(item.line || currentLine);
+      syncQuickIssueTagField(item, true);
       quickIssueMessage.className = 'text-sm text-slate-500';
       quickIssueMessage.textContent = '';
       setQuickIssueSubmitState(false);
@@ -12229,6 +12326,21 @@ function inferRequestPriority(stock, min) {
         quickIssueMessage.textContent = 'กรุณาเลือกเครื่องที่จะเอาอะไหล่ไปใส่ (บังคับ)';
         return;
       }
+      // อะไหล่ในกลุ่มแท็ก ต้องระบุเลขของชิ้นที่หยิบมาให้ครบตามจำนวน
+      var quickTagNosRaw = String((document.getElementById('quickIssueTagNos') || {}).value || '');
+      if (itemRequiresPartTag(item)) {
+        var quickNos = parseTagNosInput(quickTagNosRaw);
+        if (!quickNos.length) {
+          quickIssueMessage.className = 'text-sm text-rose-600';
+          quickIssueMessage.textContent = 'กรุณาระบุเลขประจำชิ้นที่หยิบมา (อ่านจากตัวของ)';
+          return;
+        }
+        if (quickNos.length !== qty) {
+          quickIssueMessage.className = 'text-sm text-rose-600';
+          quickIssueMessage.textContent = 'ใส่เลขมา ' + quickNos.length + ' เลข แต่เบิก ' + qty + ' ชิ้น — ต้องใส่ให้ครบ (คั่นด้วย ,)';
+          return;
+        }
+      }
       if (!by) return;
       if (!currentUser || !currentUser.username) {
         txnMessage.className = 'mt-3 text-sm text-rose-600';
@@ -12249,6 +12361,7 @@ function inferRequestPriority(stock, min) {
         reason: reason,
         reasonRemark: reason === 'Other' ? reasonRemark : '',
         machine: quickMachine,
+        tagNos: quickTagNosRaw,
         sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
       setQuickIssueSubmitState(true);
@@ -15423,6 +15536,25 @@ if (dashboardPage) {
     var quickIssueMachineSelect = document.getElementById('quickIssueMachine');
     if (quickIssueMachineSelect) quickIssueMachineSelect.addEventListener('change', function() {
       syncMachineSelectOther('quickIssueMachine', 'quickIssueMachineOther');
+    });
+    var quickIssueTagNextBtn = document.getElementById('quickIssueTagNextBtn');
+    if (quickIssueTagNextBtn) quickIssueTagNextBtn.addEventListener('click', function() {
+      var input = document.getElementById('quickIssueTagNos');
+      var rule = getPartTagRuleForItem(getCurrentQuickIssueItem());
+      if (!rule || !rule.nextTagNo) { showQuickToast('ยังไม่รู้เลขถัดไป กรุณารีเฟรชหน้าแล้วลองใหม่', 'warn'); return; }
+      if (input && String(input.value || '').trim()) {
+        showQuickToast('มีเลขกรอกไว้แล้ว — ลบออกก่อนถ้าต้องการใช้เลขใหม่', 'warn');
+        return;
+      }
+      if (input) {
+        input.value = rule.nextTagNo;
+        showQuickToast('ใส่เลขใหม่ ' + rule.nextTagNo + ' ให้แล้ว — อย่าลืมเขียนเลขนี้ลงบนตัวของ', 'info');
+      }
+    });
+    // เปลี่ยนจำนวนแล้วข้อความบอกจำนวนเลขที่ต้องใส่ต้องอัปเดตตาม
+    var quickIssueQtyEl = document.getElementById('quickIssueQty');
+    if (quickIssueQtyEl) quickIssueQtyEl.addEventListener('input', function() {
+      syncQuickIssueTagField(getCurrentQuickIssueItem());
     });
     if (issueCartSubmitBtn) issueCartSubmitBtn.addEventListener('click', submitIssueCartTransactions);
     if (detailAddToCartBtn) detailAddToCartBtn.addEventListener('click', function() {
