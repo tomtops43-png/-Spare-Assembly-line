@@ -1176,6 +1176,14 @@ function getPartTagAssignments(payload) {
   requirePermission({ authToken: payload.authToken }, 'view');
   var groupById = {};
   getPartTagGroupsList().forEach(function (g) { groupById[g.group_id] = g; });
+  // เลขถัดไปของแต่ละกลุ่ม — ให้หน้าเว็บเสนอเป็นค่าเริ่มต้นได้สำหรับของที่ยังไม่มีเลขติดมา
+  var existingTagRows = getPartTagsSheet().getDataRange().getValues();
+  var nextByGroup = {};
+  Object.keys(groupById).forEach(function (gid) {
+    var g = groupById[gid];
+    nextByGroup[gid] = g.prefix + '-' +
+      padPartTagRunning(nextPartTagRunning(existingTagRows, g.prefix, g.start_number), g.digits);
+  });
   var assignments = getPartTagGroupItemsList().map(function (it) {
     var group = groupById[it.group_id];
     if (!group) return null; // สมาชิกกำพร้า (กลุ่มถูกลบไปแล้วแต่ลบไม่ครบ) — ข้ามไปเงียบๆ
@@ -1183,7 +1191,8 @@ function getPartTagAssignments(payload) {
       key: normalizePartTagItemKey(it.part_no, it.sheet_name, it.model, it.part_name),
       part_no: it.part_no, sheet_name: it.sheet_name, model: it.model, part_name: it.part_name,
       group_id: it.group_id, group_name: group.name, prefix: group.prefix,
-      start_number: group.start_number, digits: group.digits, active: group.active
+      start_number: group.start_number, digits: group.digits, active: group.active,
+      next_tag_no: nextByGroup[it.group_id] || ''
     };
   }).filter(Boolean);
   return { status: 'success', assignments: assignments };
@@ -1420,6 +1429,45 @@ function padPartTagRunning(n, digits) {
 
 // สร้างเลขประจำชิ้นสำหรับการเบิกออก 1 ครั้ง — คืน { tags: [...], skipped_reason: '' }
 // ห้าม throw: การออกเลขล้มเหลวต้องไม่ทำให้การเบิก (ที่ตัด stock ไปแล้ว) พังทั้งรายการ
+function parsePartTagNosInput(raw) {
+  return String(raw || '').split(/[,\n]/).map(function (s) { return String(s || '').trim(); })
+    .filter(function (s) { return !!s; });
+}
+
+// ตรวจเลขที่ช่างกรอกมาก่อนแตะ stock — ถ้าผิดต้อง throw ตั้งแต่ยังไม่ได้เขียนอะไรลงชีท
+// ของในคลังมีเลขติดอยู่แล้ว เลขเดิมจึงถูกเบิกซ้ำได้เมื่อชิ้นนั้นถูกถอด/คืนกลับมา
+// แต่ถ้าเลขนั้น "ยังติดตั้งอยู่" แปลว่ากรอกผิดชิ้น ต้องบล็อกไว้
+function validatePartTagNosForIssue(payload, pieces) {
+  var rule = resolvePartTagRule(payload);
+  if (!rule.require_tag) return { require_tag: false, tags: [] };
+  var wanted = parsePartTagNosInput(payload.tagNos);
+  if (!wanted.length) return { require_tag: true, tags: [], rule: rule }; // ไม่ได้กรอกมา → ออกเลขให้อัตโนมัติ
+  if (wanted.length !== pieces) {
+    throw new Error('จำนวนเลขประจำชิ้นไม่ตรงกับจำนวนที่เบิก: กรอกมา ' + wanted.length +
+      ' เลข แต่เบิก ' + pieces + ' ชิ้น');
+  }
+  var seen = {};
+  for (var d = 0; d < wanted.length; d += 1) {
+    var key = wanted[d].toLowerCase();
+    if (seen[key]) throw new Error('เลขประจำชิ้นซ้ำกันในรายการเดียวกัน: ' + wanted[d]);
+    seen[key] = true;
+  }
+  var values = getPartTagsSheet().getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    var existingNo = String(values[i][0] || '').trim();
+    if (!existingNo) continue;
+    for (var w = 0; w < wanted.length; w += 1) {
+      if (existingNo.toLowerCase() !== wanted[w].toLowerCase()) continue;
+      var status = String(values[i][12] || '').trim();
+      if (status === PART_TAG_STATUS_INSTALLED) {
+        throw new Error('เลข ' + existingNo + ' ยังติดตั้งอยู่ที่เครื่อง ' + (String(values[i][8] || '') || '-') +
+          ' — ตรวจเลขบนตัวของอีกครั้ง หรือถอดชิ้นนั้นออกจากระบบก่อน');
+      }
+    }
+  }
+  return { require_tag: true, tags: wanted, rule: rule };
+}
+
 function createPartTagsForIssue(payload, issuedBy, qtyPieces, txnTimestamp) {
   var result = { tags: [], required: false, skipped_reason: '' };
   try {
@@ -1433,16 +1481,28 @@ function createPartTagsForIssue(payload, issuedBy, qtyPieces, txnTimestamp) {
       result.skipped_reason = 'จำนวน ' + pieces + ' ชิ้นเกินลิมิตออกเลขต่อครั้ง (' + cap + ') — ยังไม่ได้ออกเลขให้ กรุณาแยกเบิกหรือแจ้งผู้ดูแลระบบ';
       return result;
     }
+    var suppliedTags = parsePartTagNosInput(payload.tagNos);
     var sheet = getPartTagsSheet();
     var existing = sheet.getDataRange().getValues();
     var running = nextPartTagRunning(existing, rule.prefix, rule.start_number);
     // ใช้เวลาเดียวกับแถว Log ที่คู่กัน เพื่อให้ผูกกลับหากันได้ตอนคืนรายการ
     var now = String(txnTimestamp || '') || Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
-    var rows = [];
+    // หาแถวเดิมของแต่ละเลขไว้ก่อน — ชิ้นที่เคยถอด/คืนกลับมาแล้วเบิกออกไปใหม่ ต้องอัปเดต
+    // แถวเดิมของมัน ไม่ใช่สร้างแถวใหม่ซ้ำเลขเดียวกัน
+    var rowIndexByTagNo = {};
+    for (var e = 1; e < existing.length; e += 1) {
+      var no = String(existing[e][0] || '').trim();
+      if (no) rowIndexByTagNo[no.toLowerCase()] = e + 1; // แถวจริงในชีท (1-based)
+    }
+
+    var autoUsed = 0;
+    var newRows = [];
     for (var i = 0; i < pieces; i += 1) {
-      var tagNo = rule.prefix + '-' + padPartTagRunning(running + i, rule.digits);
+      // เลขที่ช่างอ่านจากตัวของมาก่อนเสมอ ถ้าไม่ได้กรอก (ของยังไม่มีเลข) ค่อยออกเลขใหม่ให้
+      var tagNo = suppliedTags[i] || (rule.prefix + '-' + padPartTagRunning(running + autoUsed, rule.digits));
+      if (!suppliedTags[i]) autoUsed += 1;
       result.tags.push(tagNo);
-      rows.push([
+      var rowValues = [
         tagNo,
         payload.partNo || '',
         payload.partName || '',
@@ -1461,11 +1521,19 @@ function createPartTagsForIssue(payload, issuedBy, qtyPieces, txnTimestamp) {
         issuedBy || '',
         payload.reasonRemark || '',
         now, // Installed At
-        '',  // Removed At
+        '',  // Removed At (เบิกออกไปรอบใหม่ = ล้างวันถอดของรอบก่อน)
         now  // Log Ref — timestamp ของแถว Log ที่ออกเลขนี้
-      ]);
+      ];
+      var existingRow = rowIndexByTagNo[String(tagNo).toLowerCase()];
+      if (existingRow) {
+        sheet.getRange(existingRow, 1, 1, PART_TAG_HEADERS.length).setValues([rowValues]);
+      } else {
+        newRows.push(rowValues);
+      }
     }
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, PART_TAG_HEADERS.length).setValues(rows);
+    if (newRows.length) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, PART_TAG_HEADERS.length).setValues(newRows);
+    }
   } catch (err) {
     result.tags = [];
     result.skipped_reason = 'ออกเลขประจำชิ้นไม่สำเร็จ: ' + (err && err.message ? err.message : err);
@@ -3120,6 +3188,9 @@ function parseTransactionPayloadFromGet(e) {
     reason: e.parameter.reason,
     reasonRemark: e.parameter.reasonRemark,
     machine: e.parameter.machine,
+    // เลขประจำชิ้นที่ช่างอ่านจากตัวของที่หยิบมา (คั่นด้วย ,) — ของในคลังมีเลขติดอยู่แล้ว
+    // ระบบจึงต้องรับเลขจริงมาบันทึก ไม่ใช่ออกเลขใหม่เอง
+    tagNos: e.parameter.tagNos,
     sheetName: e.parameter.sheet,
     authToken: e.parameter.authToken || e.parameter.token || ''
   };
@@ -3477,6 +3548,12 @@ function processTransactionUnlocked(payload) {
   var stockBefore = Number(targetRow[stockCol]) || 0;
   var stockAfter = stockBefore + signedQty;
   if (stockAfter < 0) throw new Error('สต็อกไม่พอสำหรับการเบิกออก');
+
+  // ตรวจเลขประจำชิ้นก่อนแตะ stock — ถ้าเลขผิดต้องล้มทั้งรายการตั้งแต่ยังไม่เขียนอะไรลงชีท
+  // (ถ้าไปตรวจตอนสร้างแท็กท้ายฟังก์ชัน stock จะถูกตัดไปแล้วแต่แท็กไม่ออก ข้อมูลเพี้ยน)
+  if (signedQty < 0 && !payload.skipPartTags) {
+    validatePartTagNosForIssue(payload, Math.abs(signedQty));
+  }
 
   var sheetRowNumber = headerRowIndex + 2 + targetIndex;
   mainSheet.getRange(sheetRowNumber, stockCol + 1).setValue(stockAfter);

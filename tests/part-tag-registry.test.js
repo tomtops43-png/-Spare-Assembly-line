@@ -17,10 +17,30 @@ assert(backend.includes("'Log Ref'"), 'ต้องผูกเลขกับ�
 
 // ── บังคับเลือกเครื่องตอนเบิกแล้ว จึงถือว่าเบิกไปติดตั้งเลย ไม่ใช่ "รอติดตั้ง" ──
 assert(backend.includes('var PART_TAG_STATUS_ON_ISSUE = PART_TAG_STATUS_INSTALLED;'));
-assert(/rows\.push\(\[[\s\S]{0,700}PART_TAG_STATUS_ON_ISSUE/.test(backend.replace(/\r\n/g, '\n')),
+assert(/var rowValues = \[[\s\S]{0,700}PART_TAG_STATUS_ON_ISSUE/.test(backend.replace(/\r\n/g, '\n')),
   'ตอนออกเลขต้องใช้สถานะติดตั้งแล้ว ไม่ใช่ PART_TAG_STATUSES[0]');
-assert(!/rows\.push\(\[[\s\S]{0,700}PART_TAG_STATUSES\[0\]/.test(backend.replace(/\r\n/g, '\n')),
+assert(!/var rowValues = \[[\s\S]{0,700}PART_TAG_STATUSES\[0\]/.test(backend.replace(/\r\n/g, '\n')),
   'ต้องไม่ใช้ค่าเริ่มต้น "รอติดตั้ง" ตอนออกเลขแล้ว');
+
+// ── ของในคลังมีเลขติดอยู่แล้ว → ช่างกรอกเลขที่หยิบมา ระบบไม่ออกเลขเองเป็นหลัก ────
+assert(backend.includes('function parsePartTagNosInput(raw)'));
+assert(backend.includes('function validatePartTagNosForIssue(payload, pieces)'));
+assert(backend.includes('tagNos: e.parameter.tagNos,'), 'ต้องรับ tagNos ผ่าน GET/JSONP ด้วย');
+// เลขที่กรอกมาต้องมาก่อนเลขอัตโนมัติเสมอ
+assert(backend.includes('var tagNo = suppliedTags[i] || (rule.prefix'),
+  'ต้องใช้เลขที่ช่างกรอกก่อน แล้วค่อย fallback ไปออกเลขใหม่');
+// ตรวจก่อนแตะ stock — ถ้าเลขผิดต้องล้มทั้งรายการตั้งแต่ยังไม่เขียนอะไร
+assert(backend.includes('validatePartTagNosForIssue(payload, Math.abs(signedQty));'));
+assert(backend.indexOf('validatePartTagNosForIssue(payload, Math.abs(signedQty));') <
+       backend.indexOf('mainSheet.getRange(sheetRowNumber, stockCol + 1).setValue(stockAfter);'),
+  'ต้องตรวจเลขก่อนเขียน stock');
+// เลขที่ยังติดตั้งอยู่ห้ามถูกเบิกซ้ำ (กรอกผิดชิ้น)
+assert(backend.includes('ยังติดตั้งอยู่ที่เครื่อง '));
+// ชิ้นเดิมที่ถอด/คืนกลับมาแล้วเบิกใหม่ ต้องอัปเดตแถวเดิม ไม่ใช่สร้างแถวซ้ำเลขเดียวกัน
+assert(backend.includes('var rowIndexByTagNo = {};'));
+assert(backend.includes('sheet.getRange(existingRow, 1, 1, PART_TAG_HEADERS.length).setValues([rowValues]);'));
+// ต้องส่งเลขถัดไปให้หน้าเว็บเสนอได้ สำหรับของที่ยังไม่มีเลขติด
+assert(backend.includes('next_tag_no: nextByGroup[it.group_id]'));
 
 // ── คืนรายการต้องลบเลขที่ออกไป เพื่อให้เลขเดิมกลับมาใช้ซ้ำได้ ──────────────────
 assert(backend.includes('function deletePartTagsForLogEntry(logTimestamp, partName)'));
@@ -47,7 +67,9 @@ assert(backend.includes('part_tag_warning: partTagResult.skipped_reason'));
 
 // เลขเริ่มต้น/จำนวนหลักต่อกลุ่มต้องถูกส่งต่อไปจนถึงจุดออกเลขจริง
 assert(backend.includes('nextPartTagRunning(existing, rule.prefix, rule.start_number)'));
-assert(backend.includes('padPartTagRunning(running + i, rule.digits)'));
+// เลขอัตโนมัติเดินตามจำนวนที่ "ออกเองจริง" (autoUsed) ไม่ใช่ index ของลูป
+// เพราะบางชิ้นช่างกรอกเลขมาเอง เลขอัตโนมัติต้องไม่ข้ามกระโดด
+assert(backend.includes('padPartTagRunning(running + autoUsed, rule.digits)'));
 // resolvePartTagRule ต้องรับ payload ทั้งก้อน (จับคู่ระดับรายชิ้น) ไม่ใช่แค่ category
 assert(backend.includes('var rule = resolvePartTagRule(payload);'));
 assert(!backend.includes('resolvePartTagRule(payload.category)'), 'ต้องไม่ผูกกับ Category ทั้งหมดอีกต่อไป');
@@ -162,6 +184,28 @@ assert(html.includes('partTagConfigState.supported = false;'));
 assert(html.includes('if (!partTagConfigState.supported || !item) return null;'));
 // จับคู่ระดับรายชิ้น (byKey) ไม่ใช่ระดับ Category (byCategory) อีกต่อไป
 assert(html.includes('partTagConfigState.byKey[partTagKeyForItem(item)]'));
+
+// ── หน้าเว็บ: ช่องกรอกเลขที่หยิบมา ทั้ง Issue Cart และเบิกด่วน ─────────────────
+assert(html.includes('function parseTagNosInput(raw)'));
+assert(html.includes('data-cart-tagnos='), 'Issue Cart ต้องมีช่องกรอกเลขต่อรายการ');
+assert(html.includes('id="quickIssueTagNos"'), 'เบิกด่วนต้องมีช่องกรอกเลข');
+// ค่าที่พิมพ์ต้องไม่หายตอน renderIssueCart วาดใหม่ (เช่นกดเพิ่ม/ลดจำนวน)
+assert(html.includes('var issueCartTagNos = {};'));
+assert(html.includes('issueCartTagNos[entry.key] = input.value;'));
+// จำนวนเลขต้องเท่าจำนวนที่เบิก ทั้งสองฟอร์ม
+assert(html.includes("' เลข แต่เบิก ' + wantQty + ' ชิ้น — ต้องใส่ให้ครบทุกชิ้น (คั่นด้วย ,)'"));
+assert(html.includes("' เลข แต่เบิก ' + qty + ' ชิ้น — ต้องใส่ให้ครบ (คั่นด้วย ,)'"));
+// ส่ง tagNos ไปกับ payload ทั้งสองทาง
+assert(html.includes('tagNos: tagNosValue'));
+assert(html.includes('tagNos: quickTagNosRaw,'));
+assert(html.includes("'tagNos=' + encodeURIComponent(requestPayload.tagNos || ''),"),
+  'JSONP query ต้องส่ง tagNos ไปด้วย ไม่งั้น backend ไม่เห็นเลขที่กรอก');
+// เบิกสำเร็จต้องล้างเลขที่กรอกไว้ ไม่ให้ค้างไปรอบถัดไป
+assert(html.includes('delete issueCartTagNos[key];'));
+// แก้จำนวนในเบิกด่วนต้องไม่ล้างเลขที่พิมพ์ไว้
+assert(html.includes('function syncQuickIssueTagField(item, resetValue)'));
+assert(html.includes('if (resetValue) input.value = \'\';'));
+assert(html.includes('syncQuickIssueTagField(item, true);'), 'เปิด modal ใหม่ต้องล้างค่าของชิ้นก่อนหน้า');
 assert(!html.includes('byCategory'), 'ต้องไม่เหลือโค้ด config แบบผูก Category เดิม');
 
 // Admin: ช่องตั้งเลขเริ่มต้น (สานต่อจากระบบเดิม เช่น CWM System) ต้องแปลง "040" เป็น start=40, digits=3
