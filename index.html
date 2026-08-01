@@ -3542,7 +3542,7 @@
     // ถ้า backend ที่ deploy อยู่ยังไม่มี action นี้ ให้ถือว่า "ไม่มี category ไหนต้องแท็ก"
     // แล้วทำงานเหมือนเดิมทั้งหมด — ห้ามให้ฟีเจอร์ใหม่ไปทำให้การเบิกพัง
     var PART_TAG_DEFAULT_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง'];
-    var partTagConfigState = { loaded: false, supported: true, byKey: {}, statuses: PART_TAG_DEFAULT_STATUSES.slice(), maxPerTransaction: 50 };
+    var partTagConfigState = { loaded: false, supported: true, byKey: {}, byLooseKey: {}, statuses: PART_TAG_DEFAULT_STATUSES.slice(), maxPerTransaction: 50 };
     var partTagRenderRows = [];
     var lastIssuedPartTags = [];
     // เลขประจำชิ้นที่ช่างกรอกต่อรายการใน cart (keyed by identity key เหมือน issueCartState)
@@ -4783,6 +4783,17 @@
       }).join('::').toLowerCase();
     }
 
+    // คีย์แบบหลวม (No.+Sheet เท่านั้น) — Admin เพิ่มสมาชิกจาก pool ค้นหาข้ามไลน์ (ค่า raw
+    // ไม่ผ่าน normalizeRecord) แต่ตอน render การ์ด/ตะกร้าใช้ partsData (ผ่าน normalizeRecord
+    // แล้ว) บาง field เช่น model/name จึงฟอร์แมตต่างกันเล็กน้อยได้ทั้งที่เป็นแถวเดียวกันจริงๆ
+    // No.+Sheet คือคีย์เดียวกับที่แอปนี้ใช้กัน "No." ซ้ำข้ามชีตอยู่แล้วในจุดอื่นๆ
+    function partTagLooseKeyForItem(item) {
+      var sheetName = item && (item.__sourceSheet || item.subLine || getCurrentSheetName());
+      return [item && item.no, sheetName].map(function(v) {
+        return String(v === undefined || v === null ? '' : v).trim();
+      }).join('::').toLowerCase();
+    }
+
     function loadPartTagConfig(force) {
       if (partTagConfigState.loaded && !force) return Promise.resolve(partTagConfigState);
       if (!partTagConfigState.supported && !force) return Promise.resolve(partTagConfigState);
@@ -4791,9 +4802,10 @@
       }).then(function(res) {
         var list = (res && res.assignments) || [];
         var map = {};
+        var looseMap = {};
         list.forEach(function(a) {
           if (!a.active) return; // กลุ่มถูกปิดใช้งานชั่วคราว — ไม่ต้องออกเลข
-          map[a.key] = {
+          var rule = {
             groupId: String(a.group_id || ''),
             groupName: String(a.group_name || ''),
             prefix: String(a.prefix || ''),
@@ -4801,8 +4813,12 @@
             digits: Number(a.digits) || 5,
             nextTagNo: String(a.next_tag_no || '')
           };
+          map[a.key] = rule;
+          var looseKey = [a.part_no, a.sheet_name].map(function(v) { return String(v || '').trim(); }).join('::').toLowerCase();
+          if (!looseMap[looseKey]) looseMap[looseKey] = rule; // เจอมากกว่า 1 ใช้ตัวแรกพอ
         });
         partTagConfigState.byKey = map;
+        partTagConfigState.byLooseKey = looseMap;
         partTagConfigState.loaded = true;
         partTagConfigState.supported = true;
         return partTagConfigState;
@@ -4812,13 +4828,15 @@
         partTagConfigState.supported = false;
         partTagConfigState.loaded = true;
         partTagConfigState.byKey = {};
+        partTagConfigState.byLooseKey = {};
         return partTagConfigState;
       });
     }
 
     function getPartTagRuleForItem(item) {
       if (!partTagConfigState.supported || !item) return null;
-      return partTagConfigState.byKey[partTagKeyForItem(item)] || null;
+      return partTagConfigState.byKey[partTagKeyForItem(item)] ||
+        (partTagConfigState.byLooseKey || {})[partTagLooseKeyForItem(item)] || null;
     }
 
     function itemRequiresPartTag(item) {

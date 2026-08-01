@@ -42,6 +42,16 @@ assert(backend.includes('sheet.getRange(existingRow, 1, 1, PART_TAG_HEADERS.leng
 // ต้องส่งเลขถัดไปให้หน้าเว็บเสนอได้ สำหรับของที่ยังไม่มีเลขติด
 assert(backend.includes('next_tag_no: nextByGroup[it.group_id]'));
 
+// ── กันจับคู่พลาดเพราะ model/name ฟอร์แมตต่างกันข้ามแหล่งข้อมูล (roSearchPool แบบ raw
+// vs partsData ที่ผ่าน normalizeRecord) — fallback สุดท้ายเทียบแค่ No.+Sheet ────────
+assert(backend.includes("var looseKey = normalizePartTagItemKey(payload.partNo, payload.sheetName, '', '');"));
+assert(/function resolvePartTagRule[\s\S]{0,1600}looseKey/.test(backend.replace(/\r\n/g, '\n')),
+  'resolvePartTagRule ต้องมี fallback เทียบแค่ No.+Sheet เป็นด่านสุดท้าย');
+assert(html.includes('function partTagLooseKeyForItem(item)'));
+assert(html.includes('partTagConfigState.byLooseKey'));
+assert(/function getPartTagRuleForItem\(item\)[\s\S]{0,300}byLooseKey/.test(html.replace(/\r\n/g, '\n')),
+  'getPartTagRuleForItem ต้อง fallback ไปที่ byLooseKey เมื่อคีย์เต็มไม่ตรง');
+
 // ── คืนรายการต้องลบเลขที่ออกไป เพื่อให้เลขเดิมกลับมาใช้ซ้ำได้ ──────────────────
 assert(backend.includes('function deletePartTagsForLogEntry(logTimestamp, partName)'));
 assert(backend.includes('var removedTags = deletePartTagsForLogEntry(originalTs, originalName);'),
