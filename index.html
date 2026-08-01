@@ -1974,7 +1974,7 @@
       <!-- Step 1: Quick Mode Selection -->
       <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <p class="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">ขั้นตอนที่ 1 — เลือกประเภท PR</p>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <button type="button" data-pr-preset="assembly_monthly" class="pr-preset-btn group flex flex-col items-start gap-2 rounded-2xl border-2 border-blue-500 bg-blue-50 p-4 text-left transition hover:shadow-md">
             <span class="text-2xl">📅</span>
             <div>
@@ -2003,12 +2003,20 @@
               <p class="text-xs text-slate-500 mt-0.5">ดึงจากรายการคำขอซื้อ (รออนุมัติ/อนุมัติแล้ว)</p>
             </div>
           </button>
+          <button type="button" data-pr-preset="from_starred" class="pr-preset-btn group flex flex-col items-start gap-2 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left transition hover:border-amber-400 hover:bg-amber-50 hover:shadow-md">
+            <span class="text-2xl">⭐</span>
+            <div>
+              <p class="font-bold text-slate-800">PR อะไหล่ติดดาว</p>
+              <p class="text-xs text-slate-500 mt-0.5">ดึงจากรายการที่โน๊ตดาวไว้ว่าต้องสั่ง</p>
+            </div>
+          </button>
         </div>
         <select id="prMode" class="hidden">
           <option value="assembly_monthly" selected>Assembly Monthly PR (All lines)</option>
           <option value="line_specific">Line-specific PR</option>
           <option value="urgent">Urgent PR (Stock 0 / Critical)</option>
           <option value="from_request">PR from Order Requests</option>
+          <option value="from_starred">PR from Starred Parts</option>
         </select>
       </div>
 
@@ -2050,6 +2058,7 @@
           <label class="flex items-center gap-2 cursor-pointer"><input id="prCriticalOnly" type="checkbox" class="h-4 w-4 rounded" /><span>⭐ Critical เท่านั้น</span></label>
         </div>
         <p id="prFromRequestHint" class="mt-3 hidden rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">🧾 โหมดนี้จะดึงรายการจาก "ขอซื้ออะไหล่" ที่สถานะ <b>รออนุมัติ / อนุมัติแล้ว / พักรายการ</b> มาให้โดยตรง — ไม่ต้องตั้งเงื่อนไข Stock</p>
+        <p id="prFromStarredHint" class="mt-3 hidden rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">⭐ โหมดนี้จะดึง <b>อะไหล่ที่ติดดาวไว้ในเครื่องนี้</b> มาทำ PR ให้ทั้งหมด (โน๊ตที่พิมพ์ไว้จะกลายเป็นเหตุผล/Purpose) — ไม่ต้องตั้งเงื่อนไข Stock</p>
         <button id="prRunBtn" type="button" class="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition sm:w-auto sm:px-8">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           โหลดรายการที่ต้องสั่ง
@@ -2102,6 +2111,7 @@
               <option value="OCCAS">ใช้บางครั้ง</option>
               <option value="TOPUP">เติมให้เต็ม Max เท่านั้น</option>
               <option value="CRIT">Critical</option>
+              <option value="STAR">⭐ ติดดาวไว้</option>
               <option value="PENDING">⚠️ มีคำสั่งซื้อค้างอยู่</option>
             </select>
             <label class="flex h-9 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm cursor-pointer">
@@ -2995,19 +3005,20 @@
       <div class="sticky top-0 z-10 -mx-4 mb-3 flex items-center justify-between border-b border-slate-200 bg-white px-4 pb-2 pt-1 md:mx-0 md:border-0 md:px-0 md:pb-0 md:pt-0">
         <div>
           <h3 class="text-lg font-bold">⭐ อะไหล่ติดดาว</h3>
-          <p class="text-[11px] text-gray-500">รายการที่โน๊ตไว้ว่าต้องสั่งซื้อ — กด "ขอซื้อ" เพื่อส่งคำขอได้ทันที</p>
+          <p class="text-[11px] text-gray-500">รายการที่โน๊ตไว้ว่าต้องสั่งซื้อ — กด "ขอซื้อ" ส่งคำขอทีละตัว หรือ "เปิด PR" ยกทั้งรายการ</p>
         </div>
         <button id="closeStarredPartsBtn" type="button" class="h-9 w-9 shrink-0 rounded-full border border-slate-300 text-slate-600">×</button>
       </div>
       <div class="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
         <p id="starredPartsSummary" class="text-gray-600">0 รายการ</p>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="starredToPrBtn" type="button" title="ยกรายการติดดาวทั้งหมดไปสร้างใบขอซื้อ (PR Report)" class="rounded-lg border px-3 py-1.5 font-bold" style="border-color:#fcd34d;background:#f59e0b;color:#ffffff;">📋 เปิด PR ทั้งรายการ</button>
           <button id="copyStarredListBtn" type="button" title="คัดลอกเป็นข้อความ เอาไปวางใน Line/โน๊ตได้" class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 font-semibold text-blue-700">📋 คัดลอก</button>
           <button id="clearStarredPartsBtn" type="button" class="rounded-lg border border-red-200 px-3 py-1.5 font-semibold text-red-700">ล้างทั้งหมด</button>
         </div>
       </div>
       <div id="starredPartsList" class="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1" style="-webkit-overflow-scrolling:touch;touch-action:pan-y;"></div>
-      <p class="mt-3 text-xs text-gray-500">* รายการติดดาวเก็บไว้ในเครื่องนี้ (ไม่หายตอนบันทึกเบิกหรือปิดเว็บ) ยังไม่ใช่คำขอซื้อ — ต้องกด "🛒 ขอซื้อ" เพื่อส่งคำขอจริง</p>
+      <p class="mt-3 text-xs text-gray-500">* รายการติดดาวเก็บไว้ในเครื่องนี้ (ไม่หายตอนบันทึกเบิกหรือปิดเว็บ) ยังไม่ใช่คำขอซื้อ — ต้องกด "🛒 ขอซื้อ" เพื่อส่งคำขอจริง หรือ "📋 เปิด PR ทั้งรายการ" เพื่อทำใบขอซื้อรวดเดียว</p>
     </aside>
   </div>
 
@@ -4696,6 +4707,25 @@
       }
     }
 
+    // จากรายการติดดาว → เด้งไปหน้า PR Report ในโหมด "PR อะไหล่ติดดาว" แล้ว Generate ให้เลย
+    // ต่างจาก "ขอซื้อ" ที่ทำทีละตัว — อันนี้ยกทั้งรายการไปทำใบขอซื้อรวดเดียว
+    function openPrFromStarred() {
+      if (!getStarredCount()) { showQuickToast('ยังไม่มีรายการติดดาว', 'warn'); return; }
+      if (!hasPermission('view_logs')) { showQuickToast('ไม่มีสิทธิ์เข้าหน้า PR Report', 'error'); return; }
+      var count = getStarredCount();
+      closeStarredParts();
+      closeIssueCart();
+      switchToPrReportPage();
+      if (typeof window.__applyPrPreset === 'function') window.__applyPrPreset('from_starred');
+      else if (prMode) { prMode.value = 'from_starred'; }
+      showQuickToast('⭐ กำลังดึงอะไหล่ติดดาว ' + count + ' รายการมาทำ PR...', 'info');
+      // กดปุ่ม Generate จริงแทนการเรียก runPrCandidateSelection() ตรงๆ — ปุ่มนั้นออกเลข PR,
+      // เปิดขั้นตอนที่ 3/4 และแผงงบให้ด้วย ถ้าข้ามไปจะได้หน้าที่โหลดรายการมาแล้วแต่ยังซ่อนอยู่
+      var runBtn = document.getElementById('prRunBtn');
+      if (runBtn) runBtn.click();
+      else runPrCandidateSelection();
+    }
+
     // จากรายการติดดาว → เด้งไปหน้า "ขอซื้อ" พร้อมเลือกอะไหล่ + ใส่เหตุผล/หมายเหตุให้แล้ว
     function requestOrderFromStarred(key) {
       var entry = starredState[key];
@@ -6319,6 +6349,9 @@ function getIssueCartEntries() {
 
       tabLog.classList.toggle('hidden', !canViewLogs);
       tabPrReport.classList.toggle('hidden', !canViewLogs);
+      // ปุ่ม "เปิด PR ทั้งรายการ" ในป๊อปอัพติดดาว พาไปหน้า PR Report — ซ่อนถ้าเข้าหน้านั้นไม่ได้
+      var starredToPrBtnEl = document.getElementById('starredToPrBtn');
+      if (starredToPrBtnEl) starredToPrBtnEl.classList.toggle('hidden', !canViewLogs);
       tabManage.classList.toggle('hidden', !canManageItems);
       qaManageBtn.classList.toggle('hidden', !canManageItems);
       tabAdmin.classList.toggle('hidden', !canManageUsers);
@@ -11041,6 +11074,77 @@ function inferRequestPriority(stock, min) {
         });
       });
     }
+    // ⭐ อะไหล่ติดดาว → PR โดยตรง
+    // ดาวเก็บไว้ใน localStorage ของเครื่องนี้ (snapshot ชื่อ/รุ่น/ไลน์/สต็อกตอนติดดาว) แต่ตอนทำ PR
+    // ต้องใช้สต็อก/ราคาสดจาก master ให้ได้มากที่สุด — จับคู่ด้วย identity key ก่อน แล้ว fallback ชื่อ+รุ่น
+    // (identity key มี location อยู่ด้วย ถ้าอะไหล่ถูกย้ายที่หลังติดดาวจะจับไม่เจอ)
+    function loadStarredPrCandidates() {
+      var starredRows = getStarredEntriesSorted();
+      if (!starredRows.length) return Promise.resolve([]);
+      return loadPrSourceItems('assembly_monthly', 'all').catch(function() { return partsData.slice(); }).then(function(allItems) {
+        var byIdentity = {};
+        var byNameModel = {};
+        (allItems || []).forEach(function(it) {
+          var idKey = getItemIdentityKey(it);
+          if (idKey && !byIdentity[idKey]) byIdentity[idKey] = it;
+          var nmKey = String(it.name || '').trim().toLowerCase() + '::' + String(it.model || '').trim().toLowerCase();
+          if (nmKey !== '::' && !byNameModel[nmKey]) byNameModel[nmKey] = it;
+        });
+        return starredRows.map(function(row) {
+          var e = row.entry || {};
+          var live = byIdentity[row.key]
+            || byNameModel[String(e.name || '').trim().toLowerCase() + '::' + String(e.model || '').trim().toLowerCase()]
+            || null;
+          var stock = live ? Number(live.stock || 0) : safeNum(e.stockAtStar);
+          var min = live ? Number(live.min || 0) : safeNum(e.minAtStar);
+          var max = live ? Number(live.max || 0) : 0;
+          var need = Math.max((max || min) - stock, 0);
+          var reasons = ['STAR'];
+          if (stock <= 0) reasons.push('OOS');
+          else if (min && stock < min) reasons.push('BMIN');
+          if (need > 0) reasons.push('TOPUP');
+          var critical = stock <= 0 ? 'Critical' : (min && stock < min ? 'High' : 'Medium');
+          if (critical === 'Critical') reasons.push('CRIT');
+          var pendingOrder = live ? findPendingPurchaseForItem(live) : null;
+          if (pendingOrder) reasons.push('PENDING');
+          var src = live || {};
+          return {
+            id: 'STAR-' + row.key,
+            starredKey: row.key,
+            selected: true,
+            no: (live ? live.no : e.no) || '-',
+            name: (live ? live.name : e.name) || '-',
+            model: (live ? live.model : e.model) || '-',
+            brand: (live ? live.brand : e.brand) || '-',
+            category: src.category || '-',
+            line: canonicalLineName(src.__sourceLine || getPrLineFromSourceSheet(src.__sourceSheet) || src.line || e.line || currentLine),
+            subLine: src.subLine || src.__sourceSheet || e.line || '-',
+            location: (live ? live.location : e.location) || '-',
+            unit: (live ? live.unit : e.unit) || '',
+            stock: stock, min: min, max: max, need: need,
+            suggestedQty: Math.max(need, 1),
+            recentUsage: 0, usageTier: 'none',
+            critical: critical, priority: critical,
+            reason: Array.from(new Set(reasons)).join(', '),
+            pendingOrder: pendingOrder,
+            unitPrice: Number(src.unit_price || src.unitPrice || 0),
+            currency: src.currency || 'THB',
+            supplier: src.supplier || '',
+            priceUpdatedAt: src.price_updated_at || '',
+            priceRemark: src.price_remark || '',
+            machineStation: '',
+            // โน๊ตที่พิมพ์ไว้ตอนติดดาวคือเหตุผลที่ต้องสั่งจริงๆ — ยกมาเป็น Purpose ของ PR เลย
+            purpose: e.note ? ('⭐ ' + e.note) : '⭐ ติดดาวไว้ว่าต้องสั่งซื้อ',
+            mainImage: src.image_main_url || src.mainImage || src.imageUrlMain || src.imageMain || src.image || e.image || '',
+            drawingUrl: src.drawing_url || '', drawing_url: src.drawing_url || '',
+            drawingFileName: src.drawing_file_name || '', drawing_file_name: src.drawing_file_name || '',
+            drawingRevision: src.drawing_revision || '', drawing_revision: src.drawing_revision || '',
+            drawingStatus: live ? normalizeDrawingStatus(live) : '', drawing_status: live ? normalizeDrawingStatus(live) : '',
+            datasheetUrl: src.datasheet_url || '', quotationUrl: src.quotation_url || ''
+          };
+        });
+      });
+    }
     function loadPrSourceItems(mode, lineFilterValue) {
       var targets = [];
       if (mode === 'line_specific' && lineFilterValue && lineFilterValue !== 'all') {
@@ -11150,10 +11254,19 @@ function inferRequestPriority(stock, min) {
       var includeUsage = document.getElementById('prIncludeUsage').checked;
       var criticalOnly = document.getElementById('prCriticalOnly').checked;
       setPrGenerationLoading(true, 'Loading and evaluating PR candidates...');
-      if (mode === 'from_request') {
-        loadOrderRequestPrCandidates().then(function(candidates) {
+      if (mode === 'from_request' || mode === 'from_starred') {
+        var loader = mode === 'from_starred' ? loadStarredPrCandidates : loadOrderRequestPrCandidates;
+        // ต้องมี Purchase History ไว้เทียบ "เคยสั่งค้างอยู่หรือยัง" ให้โหมดติดดาวด้วย
+        var prep = mode === 'from_starred'
+          ? loadPurchaseHistory(true).catch(function() { return purchaseHistoryCache || []; })
+          : Promise.resolve();
+        prep.then(loader).then(function(candidates) {
           prCandidateState = candidates;
           prHistoryBatchId = 'AUTOPR-' + Date.now();
+          if (mode === 'from_starred' && !candidates.length) {
+            prCandidateList.innerHTML = '<p class="text-sm text-slate-500">ยังไม่มีอะไหล่ติดดาว — กดปุ่ม ☆ ที่รายการอะไหล่เพื่อโน๊ตว่าต้องสั่งซื้อก่อน</p>';
+            return;
+          }
           renderPrCandidates();
         }).catch(function(err) {
           prCandidateList.innerHTML = '<p class="text-sm text-rose-600">Generate candidates failed: ' + escHtml(err && err.message ? err.message : err) + '</p>';
@@ -11266,7 +11379,7 @@ function inferRequestPriority(stock, min) {
       var lines=['H9','Arc Chute','Coil Winding','Lug&Screw'];
       var tabs = document.getElementById('prLineTabs'); if (tabs) tabs.innerHTML = ['all'].concat(lines).map(function(l){ var active=(prLineTabState===l); return '<button data-pr-line-tab="'+l+'" class="h-8 rounded border px-2 '+(active?'bg-blue-600 text-white border-blue-600':'bg-white border-slate-300')+'">'+(l==='all'?'All':l)+'</button>'; }).join('');
       var lineMap={}; filtered.forEach(function(c){ var ln=String(c.line||'-'); (lineMap[ln]=lineMap[ln]||[]).push(c); });
-      var PR_REASON_LABELS = { OOS: ['หมดสต็อก', 'bg-rose-100 text-rose-700'], BMIN: ['ต่ำกว่า Min', 'bg-orange-100 text-orange-700'], REP: ['ใช้บ่อย', 'bg-blue-100 text-blue-700'], OCCAS: ['ใช้บางครั้ง', 'bg-slate-200 text-slate-600'], TOPUP: ['เติมให้เต็ม Max', 'bg-slate-100 text-slate-500'], CRIT: ['Critical', 'bg-rose-100 text-rose-700'], PENDING: ['มีคำสั่งซื้อค้าง', 'bg-amber-100 text-amber-800'], REQ: ['จากคำขอซื้อ', 'bg-violet-100 text-violet-700'] };
+      var PR_REASON_LABELS = { OOS: ['หมดสต็อก', 'bg-rose-100 text-rose-700'], BMIN: ['ต่ำกว่า Min', 'bg-orange-100 text-orange-700'], REP: ['ใช้บ่อย', 'bg-blue-100 text-blue-700'], OCCAS: ['ใช้บางครั้ง', 'bg-slate-200 text-slate-600'], TOPUP: ['เติมให้เต็ม Max', 'bg-slate-100 text-slate-500'], CRIT: ['Critical', 'bg-rose-100 text-rose-700'], PENDING: ['มีคำสั่งซื้อค้าง', 'bg-amber-100 text-amber-800'], REQ: ['จากคำขอซื้อ', 'bg-violet-100 text-violet-700'], STAR: ['⭐ ติดดาวไว้', 'bg-amber-100 text-amber-800'] };
       var PR_CRITICAL_BADGE = { critical: 'bg-rose-100 text-rose-700', high: 'bg-orange-100 text-orange-700', medium: 'bg-amber-100 text-amber-800', low: 'bg-slate-100 text-slate-600' };
       function renderItemCard(c){
         var idx=prCandidateState.indexOf(c); var qtyVal = Number(c.suggestedQty); if(!Number.isFinite(qtyVal)) qtyVal = 1; var priceVal = Number(c.unitPrice); if(!Number.isFinite(priceVal)) priceVal = 0; var total=qtyVal*priceVal;
@@ -11318,8 +11431,8 @@ function inferRequestPriority(stock, min) {
       }
       var html='';
       var currentPrMode = prMode ? String(prMode.value || 'assembly_monthly') : 'assembly_monthly';
-      if (currentPrMode === 'from_request') {
-        // โหมด "PR ขอซื้ออะไหล่" ไม่ต้องแบ่งตาม Line — รวมรายการทั้งหมดไว้ด้วยกัน
+      if (currentPrMode === 'from_request' || currentPrMode === 'from_starred') {
+        // โหมด "PR ขอซื้ออะไหล่" / "PR อะไหล่ติดดาว" ไม่ต้องแบ่งตาม Line — รวมรายการทั้งหมดไว้ด้วยกัน
         html = '<div class="space-y-2">' + filtered.map(renderItemCard).join('') + '</div>';
       } else {
         lines.forEach(function(line){ var items=lineMap[line]||[]; if(!items.length) return; var collapsed=!!prLineCollapsedState[line]; html += '<section class="rounded-lg border border-slate-200"><div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2"><button data-pr-toggle-line="'+line+'" data-pr-line-header="'+line+'" class="font-semibold text-left">'+escHtml(lineAmountText(line, items))+'</button><div class="flex gap-1"><button data-pr-select-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Select all</button><button data-pr-unselect-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">Unselect all</button><button data-pr-toggle-line="'+line+'" class="h-7 rounded border border-slate-300 px-2 text-xs">'+(collapsed?'Expand':'Collapse')+'</button></div></div>'; if(!collapsed){ if(line === 'Coil Winding'){ var groupOrder=['10A','16A','20A','32A','Other']; var gmap={}; items.forEach(function(it){ var g=detectCoilGroup(it); (gmap[g]=gmap[g]||[]).push(it); }); html += '<div class="space-y-2 p-2">'+groupOrder.map(function(g){ var arr=gmap[g]||[]; if(!arr.length) return ''; return '<div class="rounded border border-slate-200"><div class="bg-slate-100 px-2 py-1 text-xs font-semibold">Model Group: '+g+' ('+arr.length+' items)</div><div class="space-y-2 bg-slate-50 p-2">'+arr.map(renderItemCard).join('')+'</div></div>'; }).join('')+'</div>'; } else { html += '<div class="space-y-2 bg-slate-50 p-2">'+items.map(renderItemCard).join('')+'</div>'; } } html += '</section>'; });
@@ -15520,6 +15633,8 @@ if (dashboardPage) {
     if (closeStarredPartsBtn) closeStarredPartsBtn.addEventListener('click', closeStarredParts);
     if (starredPartsBackdrop) starredPartsBackdrop.addEventListener('click', closeStarredParts);
     if (copyStarredListBtn) copyStarredListBtn.addEventListener('click', copyStarredList);
+    var starredToPrBtn = document.getElementById('starredToPrBtn');
+    if (starredToPrBtn) starredToPrBtn.addEventListener('click', openPrFromStarred);
     if (clearStarredPartsBtn) clearStarredPartsBtn.addEventListener('click', function() {
       if (!getStarredCount()) { showQuickToast('ยังไม่มีรายการติดดาว', 'warn'); return; }
       showConfirmDialog({
@@ -15650,7 +15765,8 @@ if (dashboardPage) {
         assembly_monthly: { border: '#3b82f6', bg: '#eff6ff', text: '#1e40af' },
         urgent: { border: '#ef4444', bg: '#fff1f2', text: '#be123c' },
         line_specific: { border: '#7c3aed', bg: '#f5f3ff', text: '#5b21b6' },
-        from_request: { border: '#10b981', bg: '#ecfdf5', text: '#047857' }
+        from_request: { border: '#10b981', bg: '#ecfdf5', text: '#047857' },
+        from_starred: { border: '#f59e0b', bg: '#fffbeb', text: '#b45309' }
       };
       function applyPreset(mode) {
         if (prMode) prMode.value = mode;
@@ -15674,8 +15790,10 @@ if (dashboardPage) {
         if (mode !== 'line_specific') prLineTabState = 'all';
         var condWrap = document.getElementById('prConditionsWrap');
         var reqHint = document.getElementById('prFromRequestHint');
-        if (condWrap) condWrap.classList.toggle('hidden', mode === 'from_request');
+        var starHint = document.getElementById('prFromStarredHint');
+        if (condWrap) condWrap.classList.toggle('hidden', mode === 'from_request' || mode === 'from_starred');
         if (reqHint) reqHint.classList.toggle('hidden', mode !== 'from_request');
+        if (starHint) starHint.classList.toggle('hidden', mode !== 'from_starred');
       }
       document.querySelectorAll('.pr-preset-btn').forEach(function(btn) {
         btn.addEventListener('click', function() { applyPreset(btn.getAttribute('data-pr-preset')); });
@@ -15683,6 +15801,8 @@ if (dashboardPage) {
       // default highlight
       applyPreset('assembly_monthly');
       if (prMode) prMode.addEventListener('change', function() { applyPreset(prMode.value); });
+      // ให้ปุ่ม "เปิด PR" ในป๊อปอัพอะไหล่ติดดาวสั่งสลับโหมดจากนอก IIFE นี้ได้
+      window.__applyPrPreset = applyPreset;
     })();
 
     // ── PR Number generator ────────────────────────────────────────
@@ -15690,7 +15810,7 @@ if (dashboardPage) {
       var now = new Date();
       var yy = now.getFullYear();
       var mm = String(now.getMonth() + 1).padStart(2, '0');
-      var modeCode = mode === 'urgent' ? 'URG' : mode === 'from_request' ? 'REQ' : mode === 'line_specific' ? (String(line || 'LINE').replace(/[^A-Z0-9]/gi, '').toUpperCase().substring(0, 4)) : 'MON';
+      var modeCode = mode === 'urgent' ? 'URG' : mode === 'from_request' ? 'REQ' : mode === 'from_starred' ? 'STAR' : mode === 'line_specific' ? (String(line || 'LINE').replace(/[^A-Z0-9]/gi, '').toUpperCase().substring(0, 4)) : 'MON';
       var seq = String(Math.floor(Math.random() * 900) + 100);
       return 'PR-' + yy + mm + '-' + modeCode + '-' + seq;
     }
