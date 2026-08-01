@@ -974,14 +974,18 @@
           </button>
         </div>
         <!-- Quick Stats -->
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-center">
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div class="rounded-xl border-2 border-amber-300 bg-amber-50 px-3 py-2.5 text-center ring-2 ring-amber-100">
             <p class="text-2xl font-black text-amber-600" id="roPendingCount">0</p>
-            <p class="text-[11px] font-semibold text-amber-700">🟡 รอดำเนินการ</p>
+            <p class="text-[11px] font-semibold text-amber-700">🟡 รออนุมัติ</p>
           </div>
           <div class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-center">
             <p class="text-2xl font-black text-rose-600" id="roUrgentCount">0</p>
             <p class="text-[11px] font-semibold text-rose-700">🔴 ด่วน/วิกฤติ</p>
+          </div>
+          <div class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-center">
+            <p class="text-2xl font-black text-indigo-600" id="roRequesterCount">0</p>
+            <p class="text-[11px] font-semibold text-indigo-700">👤 คนขอซื้อ</p>
           </div>
           <div class="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-center">
             <p class="text-2xl font-black text-blue-600" id="roApprovedCount">0</p>
@@ -989,7 +993,7 @@
           </div>
           <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-center">
             <p class="text-2xl font-black text-slate-600" id="roTotalCount">0</p>
-            <p class="text-[11px] font-semibold text-slate-600">📋 ทั้งหมด</p>
+            <p class="text-[11px] font-semibold text-slate-600">📋 รายการทั้งหมด</p>
           </div>
         </div>
       </div>
@@ -8292,8 +8296,11 @@ function getIssueCartEntries() {
         });
         var pending = rows.filter(function(r){ return String(r.status||'') === 'Pending'; });
         var urgent = rows.filter(function(r){ var p = String(r.priority || '').toLowerCase(); return p === 'urgent' || p === 'critical'; });
+        var requesterSet = {};
+        rows.forEach(function(r){ requesterSet[String(r.requested_by || '').trim() || '__missing__'] = true; });
         document.getElementById('roPendingCount').textContent = String(pending.length);
         document.getElementById('roUrgentCount').textContent = String(urgent.length);
+        var requesterCountEl = document.getElementById('roRequesterCount'); if (requesterCountEl) requesterCountEl.textContent = String(Object.keys(requesterSet).length);
         requestOrderBadgeCount = pending.length;
         updateRequestOrderBadgeUI();
 
@@ -8355,6 +8362,17 @@ function getIssueCartEntries() {
           return;
         }
         var groupedEntries = groupKeys.map(function(name){ return { name: name, items: grouped[name] || [] }; });
+        groupedEntries.forEach(function(entry) {
+          entry.pendingCount = entry.items.filter(function(r){ return String(r.status||'') === 'Pending'; }).length;
+          entry.urgentCount = entry.items.filter(function(r){ var p = String(r.priority||'').toLowerCase(); return (p==='urgent'||p==='critical') && String(r.status||'')==='Pending'; }).length;
+          entry.latest = entry.items.reduce(function(acc,r){ var d=new Date(r.requested_date||r.updated_at||0).getTime(); return d>acc?d:acc; },0);
+        });
+        // Requesters awaiting action (urgent pending, then any pending) float to the top so it's obvious who's waiting on approval
+        groupedEntries.sort(function(a, b) {
+          if (a.urgentCount !== b.urgentCount) return b.urgentCount - a.urgentCount;
+          if (a.pendingCount !== b.pendingCount) return b.pendingCount - a.pendingCount;
+          return b.latest - a.latest;
+        });
         window.__roGroupedEntries = groupedEntries;
         roList.innerHTML = groupedEntries.map(function(entry, gIdx) {
           var name = entry.name;
@@ -8363,25 +8381,35 @@ function getIssueCartEntries() {
           var urgentItems = pendingItems.filter(function(r){ var p = String(r.priority||'').toLowerCase(); return p==='urgent'||p==='critical'; });
           var displayName = name === '__missing__' ? 'ไม่ระบุชื่อ' : name;
           var initial = displayName.charAt(0).toUpperCase();
-          var latest = items.reduce(function(acc,r){ var d=new Date(r.requested_date||r.updated_at||0).getTime(); return d>acc?d:acc; },0);
+          var latest = entry.latest;
           var lines = Array.from(new Set(items.map(function(r){ return String(r.line||'').trim(); }).filter(Boolean))).join(' · ');
-          // Status summary chips
+          // Status summary chips — pending shown first so approval-waiting status is never buried
           var statusMap = {};
           items.forEach(function(r){ var s=String(r.status||'Pending'); statusMap[s]=(statusMap[s]||0)+1; });
-          var statusChips = Object.keys(statusMap).map(function(s) {
+          var statusOrder = Object.keys(statusMap).sort(function(a, b) {
+            if (a === 'Pending') return -1;
+            if (b === 'Pending') return 1;
+            return 0;
+          });
+          var statusChips = statusOrder.map(function(s) {
             var st = getStatusStyle(s);
-            return '<span style="background:' + st.bg + ';border:1px solid ' + st.border + ';color:' + st.text + ';" class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold">' + st.label + ' ' + statusMap[s] + '</span>';
+            var isPending = s === 'Pending';
+            var extraStyle = isPending ? 'box-shadow:0 0 0 1px ' + st.border + ' inset;' : '';
+            return '<span style="background:' + st.bg + ';border:1px solid ' + st.border + ';color:' + st.text + ';' + extraStyle + '" class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold' + (isPending ? ' text-xs' : '') + '">' + st.label + ' ' + statusMap[s] + '</span>';
           }).join('');
           var urgentBanner = urgentItems.length > 0
             ? '<div style="background:#fff1f2;border:1px solid #fecaca;" class="mt-2 rounded-lg px-3 py-1.5 text-xs font-bold text-rose-700">🚨 มี ' + urgentItems.length + ' รายการด่วน/วิกฤติ — ต้องดำเนินการทันที</div>'
             : '';
-          return '<div class="px-4 py-3 transition hover:bg-slate-50/80">' +
+          var pendingBadge = pendingItems.length > 0
+            ? '<span class="rounded-full bg-amber-500 px-2.5 py-0.5 text-[11px] font-black text-white whitespace-nowrap">🟡 รออนุมัติ ' + pendingItems.length + '</span>'
+            : '<span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500 whitespace-nowrap">ไม่มีรออนุมัติ</span>';
+          return '<div class="px-4 py-3 transition hover:bg-slate-50/80' + (pendingItems.length > 0 ? ' bg-amber-50/40' : '') + '">' +
             '<div class="flex items-start gap-3">' +
               '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-black text-white shadow-sm">' + initial + '</div>' +
               '<div class="min-w-0 flex-1">' +
                 '<div class="flex items-center justify-between gap-2">' +
-                  '<p class="font-bold text-slate-900">' + displayName + '</p>' +
-                  '<span class="rounded-full bg-blue-600 px-2.5 py-0.5 text-[11px] font-black text-white">' + items.length + ' รายการ</span>' +
+                  '<p class="font-bold text-slate-900">' + displayName + '<span class="ml-1.5 text-[11px] font-semibold text-slate-400">' + items.length + ' รายการ</span></p>' +
+                  pendingBadge +
                 '</div>' +
                 '<p class="text-[11px] text-slate-500 mt-0.5">' + (lines || '-') + ' · ' + (latest ? formatThaiDateTime(latest) : '-') + '</p>' +
                 '<div class="mt-1.5 flex flex-wrap gap-1">' + statusChips + '</div>' +
