@@ -1325,6 +1325,16 @@ function resolvePartTagRule(payload) {
         normalizePartTagItemKey(it.part_no, '', it.model, it.part_name) === keyNoSheet;
     })[0];
   }
+  // สุดท้ายเทียบแค่ No.+Sheet — กัน model/name ไม่ตรงกันเป๊ะๆ เพราะ Admin เพิ่มสมาชิกจาก
+  // pool ค้นหาข้ามไลน์ (raw, ไม่ normalize) แต่ตอนเบิกจริง payload มาจาก partsData
+  // (ผ่าน normalizeRecord) ซึ่งอาจฟอร์แมตบางฟิลด์ต่างกันเล็กน้อย ทั้งที่เป็นแถวเดียวกันจริงๆ
+  // No.+Sheet คือคีย์เดียวกับที่แอปนี้ใช้กัน "No." ซ้ำข้ามชีตอยู่แล้วในจุดอื่นๆ
+  if (!match) {
+    var looseKey = normalizePartTagItemKey(payload.partNo, payload.sheetName, '', '');
+    match = items.filter(function (it) {
+      return normalizePartTagItemKey(it.part_no, it.sheet_name, '', '') === looseKey;
+    })[0];
+  }
   if (!match) return { require_tag: false, prefix: '', start_number: 1, digits: 5 };
   var group = getPartTagGroupsList().filter(function (g) { return g.group_id === match.group_id; })[0];
   if (!group || !group.active) return { require_tag: false, prefix: '', start_number: 1, digits: 5 };
