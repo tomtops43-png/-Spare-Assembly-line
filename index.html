@@ -4081,6 +4081,17 @@
     function getItemSourceSheet(item) {
       return String((item && (item.subLine || item.__sourceSheet || item.sourceSheet)) || '').trim();
     }
+
+    // สตริงสำหรับค้นหา (ชื่อ+รุ่น+แบรนด์+Coil Size) — จำไว้ในตัว item เลย ไม่ต้องต่อสตริง+toLowerCase
+    // ใหม่ทุกตัวทุกครั้งที่กดคีย์ พิมพ์ยาวๆ ทีนึงเดิมคิดซ้ำเท่ากับ (จำนวนอะไหล่ × จำนวนตัวอักษร)
+    // ปลอดภัยเพราะ partsData ถูกสร้างใหม่ทั้งชุดผ่าน normalizeRecord() ทุกครั้งที่โหลดข้อมูล
+    // ของเก่าจึงถูกทิ้งไปพร้อมกัน ไม่มีสิทธิ์ค้างเป็นค่าเดิมที่ผิด
+    function getItemSearchText(item) {
+      if (item.__searchText === undefined) {
+        item.__searchText = [item.name, item.model, item.brand, item.coil_size].join(' ').toLowerCase();
+      }
+      return item.__searchText;
+    }
     function getLineCacheKey(lineKey, sheetName) {
       return 'spare_parts_cache::' + String(lineKey || currentLine || 'H9') + '::' + String(sheetName || getCurrentSheetName() || 'default');
     }
@@ -4149,7 +4160,8 @@
         return true;
       });
 
-      console.log('[item data after save/load]', partsData);
+      // (ตัด console.log ที่ dump partsData ทั้งก้อนออก — DevTools ค้าง reference ไว้ทำให้ทั้งชุด
+      //  ไม่ถูก GC และ console อืดเมื่อข้อมูลเยอะ)
       populateCategoryOptions(partsData);
       populateBrandOptions(partsData);
       populateCoilSizeOptions(partsData);
@@ -4645,7 +4657,7 @@
           : '';
         return '<article class="rounded-xl border p-2.5" style="border-color:#fde68a;background:#fffdf5;">' +
           '<div class="flex gap-2.5">' +
-            '<img src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 shrink-0 rounded-lg border border-gray-200 bg-white object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+            '<img loading="lazy" decoding="async" src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 shrink-0 rounded-lg border border-gray-200 bg-white object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             '<div class="min-w-0 flex-1">' +
               '<div class="flex items-start justify-between gap-2">' +
                 '<p class="truncate text-sm font-bold text-gray-900">' + escapeStarText(e.name || '-') + '</p>' +
@@ -5415,7 +5427,7 @@
         }
         return '<article class="rounded-xl border p-2.5" style="' + (starred ? 'border-color:#fcd34d;background:#fffdf5;' : 'border-color:#e5e7eb;background:#ffffff;') + '">' +
           '<div class="flex gap-2.5">' +
-            '<img src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+            '<img loading="lazy" decoding="async" src="' + img + '" data-fallback-src="' + (fallback || '') + '" alt="thumb" class="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             '<div class="min-w-0 flex-1">' +
               '<p class="truncate text-sm font-semibold text-slate-900">' + (starred ? '⭐ ' : '') + item.name + '</p>' +
               '<p class="truncate text-xs text-slate-500">' + (item.model || '-') + '</p>' +
@@ -6296,9 +6308,6 @@ function getIssueCartEntries() {
     function updateRequestOrderBadgeUI() {
       var btn = document.getElementById('requestOrderNavBtn');
       var badge = document.getElementById('requestOrderNavBadge');
-      console.log('btn exists', !!btn);
-      console.log('badge exists', !!badge);
-      console.log('badge inside btn', btn && badge ? btn.contains(badge) : false);
       if (!btn || !badge || !btn.contains(badge)) {
         console.warn('request order nav template is invalid: badge must exist inside requestOrderNavBtn');
         return;
@@ -7511,11 +7520,20 @@ function getIssueCartEntries() {
     (function() {
       // ผู้ใช้แจ้งว่าตั้ง filter แล้วการ์ดสถิติด้านบนไม่ขยับตาม — เดิม renderLogStats ถูกเรียกแค่ตอน
       // โหลดข้อมูลใหม่ ไม่ได้ผูกกับการเปลี่ยน filter เลย จึงเพิ่ม renderLogStats ในทุก handler ด้วย
+      function runLogFilterRender() {
+        logCurrentPage = 1;
+        renderLogStats(getLogFilteredRows());
+        renderLogTable(logCache);
+      }
+      // ช่องค้นหาต้องหน่วงก่อนค่อยวาดใหม่ — งานต่อ 1 ครั้งคือกรอง logCache ทั้งก้อนสองรอบ
+      // (renderLogStats รอบนึง + ข้างใน renderLogTable อีกรอบ) บวก buildLogReturnedIndex ที่ไล่ทั้ง
+      // logCache อีก ประวัติหลักพันแถวแล้วยิงทุกตัวอักษรที่พิมพ์ = พิมพ์หน่วงจนตัวหนังสือตามไม่ทัน
+      var debouncedLogFilterRender = debounce(runLogFilterRender, 250);
       function bindLogFilter(id, setter) {
         var el = document.getElementById(id);
         if (!el) return;
-        el.addEventListener('change', function() { setter(el.value); logCurrentPage = 1; renderLogStats(getLogFilteredRows()); renderLogTable(logCache); });
-        if (id === 'logFilterSearch') el.addEventListener('input', function() { setter(el.value); logCurrentPage = 1; renderLogStats(getLogFilteredRows()); renderLogTable(logCache); });
+        el.addEventListener('change', function() { setter(el.value); runLogFilterRender(); });
+        if (id === 'logFilterSearch') el.addEventListener('input', function() { setter(el.value); debouncedLogFilterRender(); });
       }
       bindLogFilter('logFilterLine',   function(v){ logFilterLineVal   = v; });
       bindLogFilter('logFilterType',   function(v){ logFilterTypeVal   = v; });
@@ -8266,7 +8284,7 @@ function getIssueCartEntries() {
           scUpdateStats();
         });
       });
-      if (searchEl) searchEl.addEventListener('input', scRenderTable);
+      if (searchEl) searchEl.addEventListener('input', debounce(scRenderTable, 200));
       if (filterEl) filterEl.addEventListener('change', scRenderTable);
       if (histBtn) histBtn.addEventListener('click', scLoadHistory);
       if (hideHistBtn) hideHistBtn.addEventListener('click', function(){ document.getElementById('scHistorySection').classList.add('hidden'); });
@@ -8651,7 +8669,7 @@ function inferRequestPriority(stock, min) {
       document.getElementById('roQty').value = suggestedQty;
       card.classList.remove('hidden');
       card.innerHTML = '<div class="flex gap-3 items-start">' +
-        '<img src="' + (item.image_main || item.photo || 'images/no-image.svg') + '" class="h-16 w-16 rounded border bg-white object-contain"/>' +
+        '<img loading="lazy" decoding="async" src="' + (item.image_main || item.photo || 'images/no-image.svg') + '" class="h-16 w-16 rounded border bg-white object-contain"/>' +
         '<div class="min-w-0"><p class="font-semibold">' + (item.name || '-') + '</p>' +
         '<p class="text-xs text-slate-600">รุ่น: ' + (item.model || '-') + ' | ไลน์: ' + (item.line || '-') + '</p>' +
         '<p class="text-xs text-slate-600">ยี่ห้อ: ' + (item.brand || '-') + '</p>' +
@@ -8767,7 +8785,7 @@ function inferRequestPriority(stock, min) {
       if (!main) main = 'images/no-image.svg';
       var fb = '';
       try { fb = getSecondaryDriveImageUrl(item.image_main_url) || ''; } catch (e2) { fb = ''; }
-      return 'src="' + fccEsc(main) + '"' + (fb && fb !== main ? ' data-fb="' + fccEsc(fb) + '"' : '') + ' loading="lazy" alt=""';
+      return 'src="' + fccEsc(main) + '"' + (fb && fb !== main ? ' data-fb="' + fccEsc(fb) + '"' : '') + ' loading="lazy" decoding="async" alt=""';
     }
     function fccPerm(key) {
       try { return typeof hasPermission === 'function' ? !!hasPermission(key) : true; } catch (e) { return true; }
@@ -11408,7 +11426,7 @@ function inferRequestPriority(stock, min) {
         var pendingHtml = c.pendingOrder ? '<div class="mb-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800"><span class="text-base leading-none">⚠️</span><span>มีคำสั่งซื้อค้างอยู่ <b>'+Number(c.pendingOrder.qty||0).toLocaleString('th-TH')+'</b> ชิ้น (สถานะ: '+escHtml(c.pendingOrder.status||'-')+(c.pendingOrder.date ? ' • สั่งเมื่อ '+escHtml(String(c.pendingOrder.date).slice(0,10)) : '')+') — ตรวจสอบก่อนสั่งซ้ำ</span></div>' : '';
         var thumbSrc = toSafeImageUrl(c.mainImage, 200);
         var thumbFallback = getSecondaryDriveImageUrl(c.mainImage);
-        var thumbHtml = '<img loading="lazy" src="'+thumbSrc+'" data-fallback-src="'+(thumbFallback||'')+'" alt="'+escHtml(c.name||'')+'" class="h-14 w-14 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1 cursor-zoom-in" data-pr-zoom="'+idx+'" onerror="if(this.dataset.fallbackSrc){var n=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=n;}else{this.src=\''+FALLBACK_IMAGE+'\';}" />';
+        var thumbHtml = '<img loading="lazy" decoding="async" src="'+thumbSrc+'" data-fallback-src="'+(thumbFallback||'')+'" alt="'+escHtml(c.name||'')+'" class="h-14 w-14 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1 cursor-zoom-in" data-pr-zoom="'+idx+'" onerror="if(this.dataset.fallbackSrc){var n=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=n;}else{this.src=\''+FALLBACK_IMAGE+'\';}" />';
         return '<div class="rounded-xl border '+(c.pendingOrder?'border-amber-300 bg-amber-50/20':'border-slate-200 bg-white')+' p-3 text-sm shadow-sm">'
           + pendingHtml
           + '<div class="flex items-start gap-2.5">'
@@ -12151,7 +12169,7 @@ function inferRequestPriority(stock, min) {
         var cardBorder = active ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-200';
         return '<button type="button" data-txn-key="' + txnKey + '" class="text-left rounded-2xl border ' + cardBorder + ' bg-white p-3 shadow-sm hover:shadow transition">' +
           '<div class="flex gap-3">' +
-          '<img loading="lazy" src="' + toSafeImageUrl(item.image_main_url, 300) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + (getSecondaryDriveImageUrl(item.image_main_url) || '') + '" />' +
+          '<img loading="lazy" decoding="async" src="' + toSafeImageUrl(item.image_main_url, 300) + '" alt="' + (item.name || '-') + '" class="h-16 w-16 rounded-lg border border-slate-200 object-contain bg-slate-100" data-fallback-src="' + (getSecondaryDriveImageUrl(item.image_main_url) || '') + '" />' +
           '<div class="min-w-0 flex-1">' +
           '<p class="text-sm font-semibold text-slate-900 truncate">' + (item.name || '-') + '</p>' +
           '<p class="text-xs text-slate-500 truncate mt-1">รุ่น: ' + (item.model || '-') + ' • #' + (item.no || '-') + '</p>' +
@@ -12427,7 +12445,6 @@ function inferRequestPriority(stock, min) {
         })[0];
       }
       if (!item) return;
-      console.log("Quick issue selected item:", item);
       if (detailModal && !detailModal.classList.contains('hidden')) closeDetailModal();
       if (issueCartModal && !issueCartModal.classList.contains('hidden')) closeIssueCart();
       if (editModal && !editModal.classList.contains('hidden')) closeEditModal();
@@ -13566,7 +13583,7 @@ function inferRequestPriority(stock, min) {
         return '<article data-row-key="' + itemKey + '" class="group relative flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="h-1 w-full shrink-0" style="' + topStripe + '"></div>' +
           '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:4/3;">' +
-            '<img loading="lazy" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain p-2 transition duration-300 group-hover:scale-105 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\''+ FALLBACK_IMAGE +'\';}" />' +
+            '<img loading="lazy" decoding="async" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain p-2 transition duration-300 group-hover:scale-105 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\''+ FALLBACK_IMAGE +'\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-xl') + '</div>' : '') +
             (drawingBadge ? '<div class="absolute top-2 left-2">' + drawingBadge + '</div>' : '') +
           '</div>' +
@@ -13674,7 +13691,7 @@ function inferRequestPriority(stock, min) {
         return '<article data-view-key="' + itemKey + '" class="relative flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 active:scale-95 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="h-1 w-full shrink-0" style="' + mTopStripe + '"></div>' +
           '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:1/1;">' +
-            '<img loading="lazy" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain p-2 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
+            '<img loading="lazy" decoding="async" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain p-2 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-base') + '</div>' : '') +
           '</div>' +
           '<div class="flex flex-1 flex-col px-2.5 pt-2.5 pb-1 ' + visualState.contentClass + '">' +
@@ -13966,8 +13983,6 @@ function inferRequestPriority(stock, min) {
       mainImg.classList.toggle('hidden', !mainOk);
       document.getElementById('detailMainEmpty').classList.toggle('hidden', mainOk);
       loadPartPurchaseHistory(item);
-      console.log('[render detail item]', item);
-      console.log('[render detail image]', { no: item.no, image_main_url: item.image_main_url, finalSrc: detailImageSrc, fallbackSrc: detailFallbackSrc });
       bindImageFallback(mainImg);
       var canAddToCart = safeNum(item.stock) > 0;
       if (detailAddToCartBtn) {
@@ -14037,6 +14052,22 @@ function inferRequestPriority(stock, min) {
       };
     }
 
+    // ยิงงานหนักไม่เกิน 1 ครั้งต่อเฟรม — ใช้กับ event ที่ยิงรัวๆ อย่าง resize
+    // (บนมือถือ แถบ address bar ซ่อน/โผล่ตอนเลื่อนจอก็นับเป็น resize ยิงรัวเป็นสิบครั้งต่อวินาที)
+    function rafThrottle(fn) {
+      var scheduled = false;
+      var lastArgs = null;
+      return function() {
+        lastArgs = arguments;
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(function() {
+          scheduled = false;
+          fn.apply(null, lastArgs);
+        });
+      };
+    }
+
     function renderPagination(totalItems) {
       var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
       if (currentPage > totalPages) currentPage = totalPages;
@@ -14077,18 +14108,15 @@ function inferRequestPriority(stock, min) {
     }
 
     function renderFilteredResults(filtered) {
-      console.time('renderCards');
       var start = (currentPage - 1) * pageSize;
       var paged = filtered.slice(start, start + pageSize);
       renderTable(paged);
       renderMobileCards(paged);
       renderPagination(filtered.length);
       renderStats(filtered);
-      console.timeEnd('renderCards');
     }
 
     function applyFilters(resetPage) {
-      console.time('filterLine');
       updateResponsivePageSize();
       if (typeof resetPage === 'undefined') resetPage = true;
       var keyword = searchInput.value.trim().toLowerCase();
@@ -14105,21 +14133,28 @@ function inferRequestPriority(stock, min) {
         if (hasKeyword) searchScopeHint.textContent = 'กำลังค้นหาในทุกชีตย่อยของ ' + currentLine;
       }
 
+      // ลูปนี้วิ่งทับ partsData ทั้งก้อนทุกครั้งที่พิมพ์/เปลี่ยนฟิลเตอร์ ของเดิมคิดงานหนักทุกตัวเสมอ
+      // แม้ฟิลเตอร์นั้นจะปิดอยู่ — เช่นสร้าง+join+toLowerCase สตริงค้นหาทั้งที่ยังไม่ได้พิมพ์อะไรเลย
+      // (indexOf('') คืน 0 เสมอ = เสียเปล่าล้วนๆ) ตอนนี้ข้ามงานที่ไม่จำเป็นทั้งหมด
+      var needSourceSheet = selectedSubSheet !== 'all';
+      var needStatus = selectedStatus !== 'all';
       var filtered = partsData.filter(function(item) {
-        var hitSearch = [item.name, item.model, item.brand, item.coil_size].join(' ').toLowerCase().indexOf(keyword) > -1;
-        var hitCategory = category === 'all' || item.category === category;
-        var sourceSheet = getItemSourceSheet(item);
-        var hitLine = selectedSubSheet === 'all' || sourceSheet === selectedSubSheet;
-        var status = getStockStatus(item);
-        var hitStatus = selectedStatus === 'all'
-          || (selectedStatus === 'out' && status === 'OUT')
-          || (selectedStatus === 'low' && status === 'LOW')
-          || (selectedStatus === 'near' && safeNum(item.stock) <= safeNum(item.min))
-          || (selectedStatus === 'ok' && status === 'OK');
-        var hitBrand = selectedBrand === 'all' || item.brand === selectedBrand;
-        var hitCoil = selectedCoilSize === 'all' || String(item.coil_size || '-').trim() === selectedCoilSize;
-        var hitPrice = !noPriceOnlyState || getItemUnitPrice(item) === null;
-        return hitSearch && hitCategory && hitLine && hitStatus && hitBrand && hitCoil && hitPrice;
+        // เช็คตัวที่ถูกที่สุดก่อน เจอไม่ผ่านก็ตัดจบทันที ไม่ต้องคิดตัวที่แพงกว่า
+        if (category !== 'all' && item.category !== category) return false;
+        if (selectedBrand !== 'all' && item.brand !== selectedBrand) return false;
+        if (selectedCoilSize !== 'all' && String(item.coil_size || '-').trim() !== selectedCoilSize) return false;
+        if (needSourceSheet && getItemSourceSheet(item) !== selectedSubSheet) return false;
+        if (needStatus) {
+          var status = getStockStatus(item);
+          var hitStatus = (selectedStatus === 'out' && status === 'OUT')
+            || (selectedStatus === 'low' && status === 'LOW')
+            || (selectedStatus === 'near' && safeNum(item.stock) <= safeNum(item.min))
+            || (selectedStatus === 'ok' && status === 'OK');
+          if (!hitStatus) return false;
+        }
+        if (noPriceOnlyState && getItemUnitPrice(item) !== null) return false;
+        if (hasKeyword && getItemSearchText(item).indexOf(keyword) === -1) return false;
+        return true;
       });
       updateNoPriceFilterBtn();
 
@@ -14130,7 +14165,6 @@ function inferRequestPriority(stock, min) {
 
       if (resetPage) currentPage = 1;
       renderFilteredResults(filtered);
-      console.timeEnd('filterLine');
     }
 
     function syncCoilFilterVisibility(){
@@ -14204,7 +14238,7 @@ function inferRequestPriority(stock, min) {
       applyFilters();
       searchInputMobile.focus();
     });
-    txnSearchInput.addEventListener('input', renderTxnResultList);
+    txnSearchInput.addEventListener('input', debounce(renderTxnResultList, 200));
     txnCategoryFilter.addEventListener('change', renderTxnResultList);
     txnBrandFilter.addEventListener('change', renderTxnResultList);
     txnStatusFilter.addEventListener('change', renderTxnResultList);
@@ -14301,7 +14335,7 @@ function inferRequestPriority(stock, min) {
         stockUtilityMenuMobile.classList.toggle('grid', isHidden);
       });
     }
-    window.addEventListener('resize', function() {
+    window.addEventListener('resize', rafThrottle(function() {
       updateLineMenuVisibility();
       normalizeMobileHeaderCartUi();
       if (!stockPage.classList.contains('hidden')) setTabStyles('stock');
@@ -14312,7 +14346,7 @@ function inferRequestPriority(stock, min) {
       else if (purchaseHistoryPage && !purchaseHistoryPage.classList.contains('hidden')) setTabStyles('purchase-history');
       else if (!managePage.classList.contains('hidden')) setTabStyles('manage');
       else if (!adminPage.classList.contains('hidden')) setTabStyles('admin');
-    });
+    }));
     qaManageBtn.addEventListener('click', switchToManagePage);
     if (txnReason) {
       txnReason.addEventListener('change', function() {
@@ -14639,7 +14673,7 @@ function inferRequestPriority(stock, min) {
             '<td class="py-2 pr-2 text-slate-400">' + ln.line_no + '</td>' +
             '<td class="py-2 pr-2">' +
               '<div class="flex items-start gap-2">' +
-                '<img src="' + imgSrc + '" alt="" class="h-11 w-11 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-0.5' + (hasImg ? ' cursor-zoom-in' : '') + '" data-appr-zoom="' + (hasImg ? escHtml(imgSrc) : '') + '" onerror="this.src=\'' + FALLBACK_IMAGE + '\';this.removeAttribute(\'data-appr-zoom\');" />' +
+                '<img loading="lazy" decoding="async" src="' + imgSrc + '" alt="" class="h-11 w-11 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-0.5' + (hasImg ? ' cursor-zoom-in' : '') + '" data-appr-zoom="' + (hasImg ? escHtml(imgSrc) : '') + '" onerror="this.src=\'' + FALLBACK_IMAGE + '\';this.removeAttribute(\'data-appr-zoom\');" />' +
                 '<div class="min-w-0">' +
                   '<div class="font-semibold text-slate-700">' + escHtml(ln.part_name || '-') + '</div>' +
                   '<div class="text-xs text-slate-400">' + escHtml(ln.model || '') + (ln.part_no ? ' · ' + escHtml(ln.part_no) : '') + '</div>' +
@@ -15448,7 +15482,24 @@ if (dashboardPage) {
         switchToRequestOrderPage();
       });
     }
-    window.addEventListener('resize', function(){ initDashboardSidebarNav(); if (!stockPage.classList.contains('hidden')) { applyFilters(false); } });
+    // เดิม resize ยิง applyFilters(false) ทุกครั้ง = กรอง partsData ทั้งก้อน + สร้างการ์ดใหม่ทั้งกริด
+    // ซ้ำๆ หลายสิบครั้งต่อวินาที (มือถือยิ่งหนัก เพราะ address bar ซ่อน/โผล่ตอนเลื่อนจอก็นับเป็น resize)
+    // จอกระตุกชัดเจน — ตอนนี้จำกัดไม่เกิน 1 ครั้งต่อเฟรม แล้วยังเช็คซ้ำอีกชั้นว่ามีอะไรเปลี่ยนจริงไหม
+    // สิ่งเดียวที่กริดขึ้นกับความกว้างจอคือ pageSize กับ breakpoint 1024 (ตัวเลือก sort คนละช่องกัน)
+    // ถ้าสองอย่างนี้ไม่เปลี่ยน ก็ไม่ต้อง re-render เลย — resize ส่วนใหญ่จึงกลายเป็น no-op
+    var lastResizePageSize = pageSize;
+    var lastResizeIsDesktop = window.innerWidth >= 1024;
+    var handleResizeRelayout = rafThrottle(function() {
+      initDashboardSidebarNav();
+      if (stockPage.classList.contains('hidden')) return;
+      updateResponsivePageSize();
+      var isDesktop = window.innerWidth >= 1024;
+      if (pageSize === lastResizePageSize && isDesktop === lastResizeIsDesktop) return;
+      lastResizePageSize = pageSize;
+      lastResizeIsDesktop = isDesktop;
+      applyFilters(false);
+    });
+    window.addEventListener('resize', handleResizeRelayout);
     lineMenuDockToggle.addEventListener('click', function() {
       if (window.innerWidth < 1024 && topNavTabs) {
         topNavTabs.classList.toggle('-translate-x-full');
@@ -15919,7 +15970,10 @@ if (dashboardPage) {
       var sticky = document.getElementById('prBudgetSticky'); if (sticky) sticky.classList.remove('hidden');
       loadPrApproverHint();
     });
-    ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
+    // ช่องพิมพ์หน่วงก่อนวาด (renderPrCandidates สร้างการ์ดใหม่ทั้งลิสต์ + คำนวณแผงงบใหม่ทุกครั้ง)
+    // ส่วน dropdown/checkbox กดทีเดียวจบ ให้ตอบสนองทันทีเหมือนเดิม
+    var debouncedRenderPrCandidates = debounce(renderPrCandidates, 250);
+    ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', id === 'prCandidateSearch' ? debouncedRenderPrCandidates : renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
     var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; if(line !== 'all') prLineCollapsedState[line] = false; renderPrCandidates(); });
     if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } var zi=t.getAttribute('data-pr-zoom'); if(zi!==null){ openImageViewer(t.currentSrc || t.src); return; } });
     var prPeriodEl = document.getElementById('prPeriod');
@@ -16197,6 +16251,8 @@ if (dashboardPage) {
           if (custom) remark.push('Custom-made part');
           if (c.unitPrice === null) remark.push('TBC item needs visual identification');
           if (needsVisual) remark.push('Need picture for purchasing identification');
+          // เอกสารสำหรับปริ้น/PDF ห้ามใส่ decoding="async" — ต้องให้รูป decode เสร็จก่อนสั่งปริ้น
+          // ไม่งั้นเสี่ยงได้ PDF ที่ช่องรูปว่าง (ตัว export รอ event load ของรูปอยู่แล้วก่อนปริ้น)
           var imgHtml = c.image ? '<img loading="lazy" src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.outerHTML=\"No image available\";" />' : 'No image available';
           counter.n += 1;
           var cols = ['<td class="num">'+counter.n+'</td>','<td>' + imgHtml + '</td>','<td>'+esc(c.name)+'</td>','<td>'+esc(c.line)+'</td>','<td>'+esc(c.brand)+'</td>','<td>'+esc(c.model || c.no)+'</td>','<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.unit || 'PCS')+'</td>','<td>'+esc(remark.join(', ') || 'Reference')+'</td>'];
@@ -16976,19 +17032,23 @@ if (dashboardPage) {
       });
     }
     if (roItemSearch && roItemSearchResults) {
-      roItemSearch.addEventListener('input', function() {
+      // roSearchPool คืออะไหล่รวมทุกไลน์ (ใหญ่กว่า partsData ของไลน์เดียวมาก) เดิมต่อสตริง
+      // + toLowerCase ใหม่ทุกตัวทุกครั้งที่กดคีย์ — หน่วงคีย์ก่อนค้น แล้วจำสตริงไว้ในตัว item
+      roItemSearch.addEventListener('input', debounce(function() {
         var q = String(roItemSearch.value || '').trim().toLowerCase();
         if (!q) { roSearchResultState = []; roItemSearchResults.innerHTML = ''; return; }
         var source = (roSearchPool && roSearchPool.length) ? roSearchPool : (partsData || []);
         var filtered = source.filter(function(p) {
-          var blob = [p.name, p.model, p.brand, p.line, p.location].join(' ').toLowerCase();
-          return blob.indexOf(q) > -1;
+          if (p.__roSearchText === undefined) {
+            p.__roSearchText = [p.name, p.model, p.brand, p.line, p.location].join(' ').toLowerCase();
+          }
+          return p.__roSearchText.indexOf(q) > -1;
         }).slice(0, 20);
         roSearchResultState = filtered.slice();
         roItemSearchResults.innerHTML = filtered.map(function(item, idx) {
           return '<button type="button" data-idx="' + idx + '" class="block w-full border-b px-3 py-2.5 text-left text-sm hover:bg-slate-50">' + (item.name || '-') + ' <span class="text-xs text-slate-500">(' + (item.model || '-') + ')</span></button>';
         }).join('') || '<p class="px-3 py-2 text-slate-400">ไม่พบรายการ</p>';
-      });
+      }, 200));
       roItemSearchResults.addEventListener('click', function(e) {
         var btn = e.target.closest('[data-idx]');
         if (!btn) return;
@@ -17368,7 +17428,7 @@ if (dashboardPage) {
       });
     });
     refreshUsersBtn.addEventListener('click', function() { loadUsers(); });
-    if (userSearchInput) userSearchInput.addEventListener('input', applyUserFiltersAndRender);
+    if (userSearchInput) userSearchInput.addEventListener('input', debounce(applyUserFiltersAndRender, 200));
     if (userRoleFilter) userRoleFilter.addEventListener('change', applyUserFiltersAndRender);
     if (userStatusFilter) userStatusFilter.addEventListener('change', applyUserFiltersAndRender);
     if (userLineFilter) userLineFilter.addEventListener('change', applyUserFiltersAndRender);
