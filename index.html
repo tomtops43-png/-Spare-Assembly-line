@@ -8480,13 +8480,14 @@ function getIssueCartEntries() {
       window.__roActiveGroupIdx = Number(groupIdx);
       window.__roBulkSelected = {};
       updateRequestOrderBulkToolbar();
-      detailTitle.textContent = 'รายการของ: ' + (name === '__missing__' ? 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' : name);
+      var pendingCountForTitle = items.filter(function(r){ return String(r.status || 'Pending') === 'Pending'; }).length;
+      detailTitle.textContent = 'รายการของ: ' + (name === '__missing__' ? 'ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ' : name) + ' (รออนุมัติ ' + pendingCountForTitle + ')';
       var canManage = hasPermission('request_order_approve') || hasPermission('request_order_reject');
       function statusBadge(status) {
         var m = {'Pending':'bg-amber-100 text-amber-800','Approved':'bg-blue-100 text-blue-800','On Hold':'bg-violet-100 text-violet-800','Rejected':'bg-rose-100 text-rose-800','Purchased':'bg-cyan-100 text-cyan-800','Received':'bg-emerald-100 text-emerald-800','Converted to PR':'bg-purple-100 text-purple-800','Closed':'bg-slate-100 text-slate-600'};
         return '<span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold ' + (m[status]||'bg-slate-100 text-slate-600') + '">' + toThaiRequestStatus(status) + '</span>';
       }
-      detailList.innerHTML = '<div class="space-y-3 p-3">' + (items.map(function(r, idx) {
+      function renderRequestCard(r, idx) {
         var s = String(r.status || 'Pending');
         var isPending = s === 'Pending';
         var invalid = !String(r.item_name || '').trim() || Number(r.request_qty || 0) <= 0;
@@ -8553,7 +8554,19 @@ function getIssueCartEntries() {
           (acts.length ? '<div class="mt-3 flex flex-wrap gap-1.5">' + acts.join('') + '</div>' : '') +
           (invalid ? '<p class="mt-2 text-[11px] font-bold text-rose-600">⚠️ ข้อมูลไม่สมบูรณ์ กรุณาตรวจสอบ</p>' : '') +
         '</div>';
-      }).join('') || '<p class="text-slate-400 text-center py-6">ไม่พบรายการ</p>') + '</div>';
+      }
+      var pendingItems = items.filter(function(r){ return String(r.status || 'Pending') === 'Pending'; });
+      var otherItems = items.filter(function(r){ return String(r.status || 'Pending') !== 'Pending'; });
+      var pendingHtml = pendingItems.length
+        ? pendingItems.map(function(r, idx) { return renderRequestCard(r, idx); }).join('')
+        : '<p class="text-slate-400 text-center py-6">✅ ไม่มีรายการรออนุมัติ</p>';
+      var otherHtml = otherItems.length
+        ? '<details class="mt-3 rounded-2xl border border-slate-200 bg-slate-50/60">' +
+            '<summary class="cursor-pointer select-none px-4 py-2.5 text-xs font-bold text-slate-500">แสดงรายการที่จัดการแล้ว (' + otherItems.length + ')</summary>' +
+            '<div class="space-y-3 p-3 pt-0">' + otherItems.map(function(r, idx) { return renderRequestCard(r, idx); }).join('') + '</div>' +
+          '</details>'
+        : '';
+      detailList.innerHTML = '<div class="space-y-3 p-3">' + pendingHtml + '</div>' + otherHtml;
       detailModal.classList.remove('hidden');
       document.body.classList.add('overflow-hidden');
     }
