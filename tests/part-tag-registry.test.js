@@ -49,8 +49,26 @@ assert(/function resolvePartTagRule[\s\S]{0,1600}looseKey/.test(backend.replace(
   'resolvePartTagRule ต้องมี fallback เทียบแค่ No.+Sheet เป็นด่านสุดท้าย');
 assert(html.includes('function partTagLooseKeyForItem(item)'));
 assert(html.includes('partTagConfigState.byLooseKey'));
-assert(/function getPartTagRuleForItem\(item\)[\s\S]{0,300}byLooseKey/.test(html.replace(/\r\n/g, '\n')),
+assert(/function getPartTagRuleForItem\(item\)[\s\S]{0,400}byLooseKey/.test(html.replace(/\r\n/g, '\n')),
   'getPartTagRuleForItem ต้อง fallback ไปที่ byLooseKey เมื่อคีย์เต็มไม่ตรง');
+
+// ── Regression จริงที่เจอ: สมาชิกที่เพิ่มเข้ากลุ่มตอน Sheet Name ยังบันทึกเป็นค่าว่าง ──
+// (เช่นถูกเพิ่มก่อน loadRequestOrderSearchPool จะแก้ให้ติด __sourceSheet มาด้วยเสมอ)
+// stored key จึงเป็น "12:::model::name" (sheet ว่าง) แต่ item จริงมี sheet เต็ม "12::coil
+// winding::model::name" — ทั้ง byKey (strict) และ byLooseKey (No.+Sheet) ไม่ match เลย
+// เพราะฝั่ง loose ก็ยังเทียบ Sheet อยู่ดี ต้องมี tier ที่ไม่สนใจ Sheet เมื่อฝั่งเก็บไว้ว่างจริงๆ
+// มิเรอร์ backend's resolvePartTagRule ที่มี tier นี้อยู่แล้ว
+assert(html.includes('function partTagEmptySheetKeyForItem(item)'));
+assert(html.includes('partTagConfigState.byEmptySheetKey'));
+assert(html.includes("if (!String(a.sheet_name || '').trim()) {"),
+  'ต้อง index เฉพาะแถวที่ sheet_name ว่างจริงๆ เข้า byEmptySheetKey ไม่ใช่ทุกแถว');
+assert(/function getPartTagRuleForItem\(item\)[\s\S]{0,400}byEmptySheetKey/.test(html.replace(/\r\n/g, '\n')),
+  'getPartTagRuleForItem ต้อง fallback ไปที่ byEmptySheetKey ก่อน byLooseKey');
+// ลำดับ tier ต้องเป็น strict -> empty-sheet -> loose (No.+Sheet) ตามความแม่นยำมากไปน้อย
+assert(html.indexOf('partTagConfigState.byKey[partTagKeyForItem(item)]') <
+       html.indexOf('byEmptySheetKey || {})[partTagEmptySheetKeyForItem(item)]'));
+assert(html.indexOf('byEmptySheetKey || {})[partTagEmptySheetKeyForItem(item)]') <
+       html.indexOf('byLooseKey || {})[partTagLooseKeyForItem(item)]'));
 
 // ── คืนรายการต้องลบเลขที่ออกไป เพื่อให้เลขเดิมกลับมาใช้ซ้ำได้ ──────────────────
 assert(backend.includes('function deletePartTagsForLogEntry(logTimestamp, partName)'));
