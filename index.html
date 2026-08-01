@@ -3315,6 +3315,8 @@
         </button>
       </div>
       <div class="overflow-y-auto p-4" style="max-height:60vh">
+        <!-- กราฟงบ Spare part สแนปช็อตตอนคนส่งกดส่งอนุมัติ — ให้หัวหน้าเห็นภาพรวมงบตรงนี้เลย ไม่ต้องเปิดหน้า PR builder เอง -->
+        <div id="prApprovalBudgetSnapshot" class="hidden mb-3"></div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -14611,15 +14613,23 @@ function inferRequestPriority(stock, min) {
       var modal = document.getElementById('prApprovalModal');
       var meta = document.getElementById('prApprovalMeta');
       var body = document.getElementById('prApprovalLines');
+      var budgetSnapshotEl = document.getElementById('prApprovalBudgetSnapshot');
       if (!modal) return;
       if (body) body.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">กำลังโหลด...</td></tr>';
       if (meta) meta.textContent = prId;
+      if (budgetSnapshotEl) { budgetSnapshotEl.innerHTML = ''; budgetSnapshotEl.classList.add('hidden'); }
       var reasonEl = document.getElementById('prRejectReason'); if (reasonEl) reasonEl.value = '';
       modal.classList.remove('hidden');
       requestApi(withAuthPayload({ action: 'getPRForApproval', pr_id: prId })).then(function(res) {
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'โหลด PR ไม่สำเร็จ');
         prApprovalState = res;
         if (meta) meta.textContent = res.header.pr_id + ' · โดย ' + (res.header.created_by || '-') + ' · ไลน์ ' + (res.header.line || '-') + ' · ' + res.lines.length + ' รายการ';
+        // กราฟงบ Spare part ตอนคนส่งกดส่งอนุมัติ — สแนปช็อต HTML ตรงๆ จากตอนสร้าง PR ให้เห็นภาพเดียวกัน
+        if (budgetSnapshotEl) {
+          var snapshotHtml = String((res.header && res.header.budget_snapshot_html) || '').trim();
+          if (snapshotHtml) { budgetSnapshotEl.innerHTML = snapshotHtml; budgetSnapshotEl.classList.remove('hidden'); }
+          else { budgetSnapshotEl.innerHTML = ''; budgetSnapshotEl.classList.add('hidden'); }
+        }
         if (body) body.innerHTML = res.lines.map(function(ln) {
           // สแนปช็อตรูปตอนสร้าง PR (image_url) — ให้ผู้อนุมัติเห็นรูปประกอบจริง ไม่ใช่แค่ชื่อ/รุ่น
           // เป็นตัวหนังสือ กันอนุมัติผิดตัวเวลาชื่อ/รุ่นคล้ายกัน (เช่น "Unknown Brand" หลายรายการ)
@@ -16756,6 +16766,10 @@ if (dashboardPage) {
           var payload = { action: 'createPR', pr_id: prNumber, line: headerLine, lines_json: JSON.stringify(lines) };
           if (assignTo) payload.assign_to = assignTo;
           if (gate.bypass) { payload.budget_bypass = 'true'; payload.bypass_reason = gate.reason; payload.budget_over_detail = gate.overDetail; }
+          // แนบกราฟงบ Spare part ตอนกดส่งอนุมัติ (สแนปช็อต HTML ของแผงที่เห็นอยู่ตรงๆ) ให้หัวหน้า
+          // เห็นภาพเดียวกันตอนตรวจใน Inbox ไม่ต้องเปิดหน้า PR builder เองแยกต่างหาก
+          var prBudgetPanelEl = document.getElementById('prBudgetPanel');
+          if (prBudgetPanelEl) payload.budget_snapshot_html = prBudgetPanelEl.innerHTML;
           postJson(withAuthPayload(payload))
             .then(parseApiResponse).then(function(res) {
               showQuickToast('✅ ส่ง PR ' + (res.pr_id || prNumber) + ' รออนุมัติแล้ว (' + (res.item_count || lines.length) + ' รายการ)' + (assignTo ? ' · ส่งให้ ' + assignTo : '') + (gate.bypass ? ' · บันทึก Bypass งบแล้ว' : ''), 'success');

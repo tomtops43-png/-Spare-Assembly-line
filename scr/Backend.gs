@@ -79,7 +79,7 @@ var PART_TAG_STATUS_INSTALLED = 'ติดตั้งแล้ว';
 var PART_TAG_STATUS_REMOVED = 'ถอดแล้ว';
 var PART_TAG_STATUS_ON_ISSUE = PART_TAG_STATUS_INSTALLED;
 // Purchase Request (PR) schema — เก็บ qty_requested (ล็อก) แยกจาก qty_approved (หัวหน้าแก้ได้)
-var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to'];
+var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to', 'budget_snapshot_html'];
 var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark', 'image_url'];
 var PR_AUDIT_HEADERS = ['timestamp', 'pr_id', 'action', 'actor', 'line', 'old_qty', 'new_qty', 'detail'];
 var PR_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'];
@@ -2413,6 +2413,11 @@ function createPRUnlocked(payload) {
   headerRowArr[hIdx.total_amount] = totalAmount;
   headerRowArr[hIdx.updated_at] = now;
   if (hIdx.assigned_to !== undefined) headerRowArr[hIdx.assigned_to] = assignedTo;
+  // สแนปช็อตกราฟงบ Spare part ตอนกดส่งอนุมัติ (HTML ที่หน้า builder เห็นอยู่ตรงๆ) — แนบให้
+  // หัวหน้าเห็นภาพรวมงบตอนตรวจ ไม่ต้องเปิดหน้า PR builder เองแยกต่างหาก จำกัดความยาวกันเซลล์บวม
+  if (hIdx.budget_snapshot_html !== undefined) {
+    headerRowArr[hIdx.budget_snapshot_html] = String(payload.budget_snapshot_html || '').slice(0, 20000);
+  }
   headerSheet.appendRow(headerRowArr);
 
   appendPrAudit(prId, 'CREATE', user.username, headerLine, '', '', lines.length + ' รายการ' + (assignedTo ? ' · มอบหมายให้ ' + assignedTo : ''));
@@ -2441,6 +2446,9 @@ function getPRForApproval(payload) {
   if (hRow === -1) throw new Error('ไม่พบ PR: ' + prId);
   var header = prHeaderRowToCard(hIdx, hData[hRow]);
   if (!prUserCanAccessLine(user, header.line)) throw new Error('ไม่มีสิทธิ์ดู PR ของไลน์นี้');
+  // อ่านตรงจาก row แทนที่จะใส่ใน prHeaderRowToCard() ตรงๆ — ฟังก์ชันนั้นถูก listPrCardsForUser()
+  // ใช้ทำ Inbox list/badge ที่ polling บ่อย ถ้าใส่ HTML สแนปช็อตติดไปด้วยทุกใบจะทำ response บวมเปล่าๆ
+  header.budget_snapshot_html = hIdx.budget_snapshot_html !== undefined ? prStr(hData[hRow][hIdx.budget_snapshot_html]) : '';
 
   var linesSheet = getPrLinesSheet();
   var lData = linesSheet.getDataRange().getValues();
