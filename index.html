@@ -2756,7 +2756,19 @@
             <div><label class="text-xs font-medium text-slate-500">Sheet</label><input id="eSheet" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-500" readonly /></div>
             <div class="sm:col-span-2 md:col-span-1"><label class="text-xs font-medium text-slate-500">Name / Description</label><input id="eName" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" required /></div>
             <div><label class="text-xs font-medium text-slate-500">Model</label><input id="eModel" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
-            <div><label class="text-xs font-medium text-slate-500">Machine Model / Coil Size</label><input id="eCoilSize" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div>
+              <label class="text-xs font-medium text-slate-500">Machine Model / Coil Size</label>
+              <select id="eCoilSize" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition">
+                <option value="">เลือก Coil Size</option>
+                <option>10</option>
+                <option>16</option>
+                <option>20</option>
+                <option>25/32</option>
+                <option>Common</option>
+                <option>Other</option>
+              </select>
+              <input id="eCoilSizeOther" type="text" class="mt-1.5 hidden w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" placeholder="กรอก Coil Size" />
+            </div>
             <div><label class="text-xs font-medium text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
             <div><label class="text-xs font-medium text-slate-500">Location</label><input id="eLocation" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
             <div><label class="text-xs font-medium text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
@@ -12875,7 +12887,20 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eSheet').value = item.__sourceSheet || getCurrentSheetName();
       document.getElementById('eName').value = item.name || '';
       document.getElementById('eModel').value = item.model || '';
-      var eCoilSize = document.getElementById('eCoilSize'); if (eCoilSize) eCoilSize.value = item.coil_size || item.machine_model || '';
+      var eCoilSize = document.getElementById('eCoilSize');
+      var eCoilSizeOther = document.getElementById('eCoilSizeOther');
+      if (eCoilSize) {
+        var coilVal = String(item.coil_size || item.machine_model || '').trim();
+        var coilPresetOptions = Array.prototype.map.call(eCoilSize.options, function(o) { return o.value; });
+        if (coilVal && coilPresetOptions.indexOf(coilVal) === -1) {
+          // ค่าเดิมไม่ตรงกับตัวเลือกที่มีให้ (เช่น "MF-DRWG-CWM-PF250-K04-25" จากของเก่า) — เก็บไว้ในช่อง Other แทนการทิ้งข้อมูล
+          eCoilSize.value = 'Other';
+          if (eCoilSizeOther) { eCoilSizeOther.value = coilVal; eCoilSizeOther.classList.remove('hidden'); }
+        } else {
+          eCoilSize.value = coilVal;
+          if (eCoilSizeOther) { eCoilSizeOther.value = ''; eCoilSizeOther.classList.add('hidden'); }
+        }
+      }
       document.getElementById('eLine').value = item.line || '';
       document.getElementById('eLocation').value = item.location || '';
       document.getElementById('eCategory').value = item.category || '';
@@ -12999,7 +13024,13 @@ function inferRequestPriority(stock, min) {
         drawing_status: document.getElementById('eDrawingStatus').value.trim(),
         datasheet_url: document.getElementById('eDatasheetUrl').value.trim(),
         quotation_url: document.getElementById('eQuotationUrl').value.trim(),
-        coil_size: (document.getElementById('eCoilSize') ? document.getElementById('eCoilSize').value.trim() : ''),
+        coil_size: (function(){
+          var sel = document.getElementById('eCoilSize');
+          if (!sel) return '';
+          var v = sel.value.trim();
+          if (v === 'Other') { var other = document.getElementById('eCoilSizeOther'); v = other ? other.value.trim() : ''; }
+          return v;
+        })(),
         machines: getSelectedEditMachines().join(', ')
       };
       console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
@@ -15552,6 +15583,7 @@ if (dashboardPage) {
     });
     manageForm.addEventListener('submit', submitManageItem);
     var mCoilSize = document.getElementById('mCoilSize'); var mCoilSizeOther = document.getElementById('mCoilSizeOther'); if (mCoilSize) mCoilSize.addEventListener('change', function(){ if(!mCoilSizeOther) return; mCoilSizeOther.classList.toggle('hidden', mCoilSize.value !== 'Other'); });
+    var eCoilSizeSelect = document.getElementById('eCoilSize'); var eCoilSizeOtherInput = document.getElementById('eCoilSizeOther'); if (eCoilSizeSelect) eCoilSizeSelect.addEventListener('change', function(){ if(!eCoilSizeOtherInput) return; eCoilSizeOtherInput.classList.toggle('hidden', eCoilSizeSelect.value !== 'Other'); });
     syncManageCoilSizeVisibility();
     if (importExcelBtn) importExcelBtn.addEventListener('click', function(){ importExcelFile.click(); });
     if (importExcelFile) importExcelFile.addEventListener('change', function(e){ var file=e.target.files[0]; if(!file) return; parseImportFile(file).then(function(matrix){ var headerRowIndex = detectHeaderRow(matrix); var headers = (matrix[headerRowIndex] || []).map(function(h){ return String(h || '').trim(); }).filter(Boolean); var mapping = getDefaultCoilMapping(headers); renderMappingPanel(headers, mapping); var bodyRows = matrix.slice(headerRowIndex + 1).filter(function(r){ return r && r.length; }).map(function(r){ var obj={}; headers.forEach(function(h,i){ obj[h]=r[i]; }); return obj; }); importState.rawRows = bodyRows; importState.rows = buildImportRows(bodyRows, readMappingFromPanel()); var selectedLineForImport = (manageLineSelect && manageLineSelect.value) ? manageLineSelect.value : currentLine; var opts = getAllowedSheetsForLine(selectedLineForImport); importSheetSelect.innerHTML = '<option value="">เลือก Sheet ปลายทาง</option>' + opts.map(function(x){ return '<option value="'+x+'">'+x+'</option>'; }).join(''); if (manageSheetSelect && manageSheetSelect.value) importSheetSelect.value = manageSheetSelect.value; renderImportPreview(importState.rows); }).catch(function(err){ manageMessage.className='mt-3 text-sm text-rose-600'; manageMessage.textContent='อ่านไฟล์ไม่สำเร็จ: '+err.message; }); });
