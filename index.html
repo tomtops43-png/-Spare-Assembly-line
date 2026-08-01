@@ -3542,7 +3542,7 @@
     // ถ้า backend ที่ deploy อยู่ยังไม่มี action นี้ ให้ถือว่า "ไม่มี category ไหนต้องแท็ก"
     // แล้วทำงานเหมือนเดิมทั้งหมด — ห้ามให้ฟีเจอร์ใหม่ไปทำให้การเบิกพัง
     var PART_TAG_DEFAULT_STATUSES = ['รอติดตั้ง', 'ติดตั้งแล้ว', 'ถอดแล้ว', 'ชำรุด/ทิ้ง', 'คืนคลัง'];
-    var partTagConfigState = { loaded: false, supported: true, byKey: {}, byLooseKey: {}, statuses: PART_TAG_DEFAULT_STATUSES.slice(), maxPerTransaction: 50 };
+    var partTagConfigState = { loaded: false, supported: true, byKey: {}, byLooseKey: {}, byEmptySheetKey: {}, statuses: PART_TAG_DEFAULT_STATUSES.slice(), maxPerTransaction: 50 };
     var partTagRenderRows = [];
     var lastIssuedPartTags = [];
     // เลขประจำชิ้นที่ช่างกรอกต่อรายการใน cart (keyed by identity key เหมือน issueCartState)
@@ -4794,6 +4794,16 @@
       }).join('::').toLowerCase();
     }
 
+    // คีย์แบบไม่สนชีต (No.+Model+Name) — เฉพาะแมตช์กับสมาชิกที่ตอนถูกเพิ่มเข้ากลุ่ม
+    // Sheet Name บันทึกไว้เป็นค่าว่าง (เช่น เพิ่มไว้ก่อนที่ pool ค้นหาจะแก้ให้ติด __sourceSheet
+    // มาด้วยเสมอ) มิเรอร์ tier เดียวกับฝั่ง backend ใน resolvePartTagRule ทุกประการ — ถ้ามีแค่
+    // ฝั่งเดียวจะทำให้ป้ายไม่ขึ้นทั้งที่เบิกจริงจะออกเลขให้ (validate ไม่ตรงกับพฤติกรรมจริง)
+    function partTagEmptySheetKeyForItem(item) {
+      return [item && item.no, item && item.model, item && item.name].map(function(v) {
+        return String(v === undefined || v === null ? '' : v).trim();
+      }).join('::').toLowerCase();
+    }
+
     function loadPartTagConfig(force) {
       if (partTagConfigState.loaded && !force) return Promise.resolve(partTagConfigState);
       if (!partTagConfigState.supported && !force) return Promise.resolve(partTagConfigState);
@@ -4803,6 +4813,7 @@
         var list = (res && res.assignments) || [];
         var map = {};
         var looseMap = {};
+        var emptySheetMap = {};
         list.forEach(function(a) {
           if (!a.active) return; // กลุ่มถูกปิดใช้งานชั่วคราว — ไม่ต้องออกเลข
           var rule = {
@@ -4816,9 +4827,14 @@
           map[a.key] = rule;
           var looseKey = [a.part_no, a.sheet_name].map(function(v) { return String(v || '').trim(); }).join('::').toLowerCase();
           if (!looseMap[looseKey]) looseMap[looseKey] = rule; // เจอมากกว่า 1 ใช้ตัวแรกพอ
+          if (!String(a.sheet_name || '').trim()) {
+            var emptySheetKey = [a.part_no, a.model, a.part_name].map(function(v) { return String(v || '').trim(); }).join('::').toLowerCase();
+            if (!emptySheetMap[emptySheetKey]) emptySheetMap[emptySheetKey] = rule;
+          }
         });
         partTagConfigState.byKey = map;
         partTagConfigState.byLooseKey = looseMap;
+        partTagConfigState.byEmptySheetKey = emptySheetMap;
         partTagConfigState.loaded = true;
         partTagConfigState.supported = true;
         return partTagConfigState;
@@ -4829,6 +4845,7 @@
         partTagConfigState.loaded = true;
         partTagConfigState.byKey = {};
         partTagConfigState.byLooseKey = {};
+        partTagConfigState.byEmptySheetKey = {};
         return partTagConfigState;
       });
     }
@@ -4836,6 +4853,7 @@
     function getPartTagRuleForItem(item) {
       if (!partTagConfigState.supported || !item) return null;
       return partTagConfigState.byKey[partTagKeyForItem(item)] ||
+        (partTagConfigState.byEmptySheetKey || {})[partTagEmptySheetKeyForItem(item)] ||
         (partTagConfigState.byLooseKey || {})[partTagLooseKeyForItem(item)] || null;
     }
 
