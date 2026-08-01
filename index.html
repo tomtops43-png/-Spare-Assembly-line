@@ -7118,6 +7118,7 @@ function getIssueCartEntries() {
         drawing_status: payload.drawing_status || '',
         datasheet_url: payload.datasheet_url || '',
         quotation_url: payload.quotation_url || '',
+        coil_size: payload.coil_size || '',
         machines: payload.machines || ''
       };
       requestPayload.qty = Number(payload.qty !== undefined ? payload.qty : requestPayload.stock || 0);
@@ -7155,6 +7156,7 @@ function getIssueCartEntries() {
         'drawing_status=' + encodeURIComponent(requestPayload.drawing_status),
         'datasheet_url=' + encodeURIComponent(requestPayload.datasheet_url),
         'quotation_url=' + encodeURIComponent(requestPayload.quotation_url),
+        'coil_size=' + encodeURIComponent(requestPayload.coil_size),
         'machines=' + encodeURIComponent(requestPayload.machines),
         'qty=' + encodeURIComponent(String(requestPayload.qty)),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')

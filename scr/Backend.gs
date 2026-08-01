@@ -4504,6 +4504,7 @@ function doGet(e) {
       drawing_status: e.parameter.drawing_status,
       datasheet_url: e.parameter.datasheet_url,
       quotation_url: e.parameter.quotation_url,
+      coil_size: e.parameter.coil_size,
       machines: e.parameter.machines
     }), e);
     }
