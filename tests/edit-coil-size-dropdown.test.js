@@ -7,7 +7,8 @@ const html = fs.readFileSync('index.html', 'utf8');
 
 // ---- HTML: dropdown แทน text input ----
 assert(!/id="eCoilSize" class="[^"]*"\s*\/>/.test(html), 'eCoilSize is no longer a bare text input');
-assert(/<select id="eCoilSize"[^>]*>[\s\S]{0,400}<option>10<\/option>[\s\S]{0,100}<option>16<\/option>[\s\S]{0,100}<option>20<\/option>[\s\S]{0,100}<option>25\/32<\/option>[\s\S]{0,100}<option>Common<\/option>[\s\S]{0,100}<option>Other<\/option>/.test(html), 'eCoilSize select has the same preset options as the add-part form (#mCoilSize)');
+// ตัวเลือกต้องลงท้าย A ให้ตรงกับฟิลเตอร์ Coil Size (ดู pr เรื่อง dropdown ไม่ตรงกัน)
+assert(/<select id="eCoilSize"[^>]*>[\s\S]{0,400}<option>10A<\/option>[\s\S]{0,100}<option>16A<\/option>[\s\S]{0,100}<option>20A<\/option>[\s\S]{0,100}<option>25\/32A<\/option>[\s\S]{0,100}<option>Common<\/option>[\s\S]{0,100}<option>Other<\/option>/.test(html), 'eCoilSize select has the same preset options as the add-part form (#mCoilSize)');
 assert(html.includes('id="eCoilSizeOther"'), 'has a fallback free-text input for custom Coil Size values');
 
 // ---- JS: populate on open ----

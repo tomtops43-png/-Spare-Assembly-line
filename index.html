@@ -1565,7 +1565,7 @@
           <!-- Coil Size (hidden by default) -->
           <div id="mCoilSizeWrap" class="hidden mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="block text-xs font-semibold text-slate-600">Coil Size
-              <select id="mCoilSize" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"><option value="">เลือก Coil Size</option><option>10</option><option>16</option><option>20</option><option>25/32</option><option>Common</option><option>Other</option></select>
+              <select id="mCoilSize" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"><option value="">เลือก Coil Size</option><option>10A</option><option>16A</option><option>20A</option><option>25/32A</option><option>Common</option><option>Other</option></select>
             </label>
             <label class="block text-xs font-semibold text-slate-600">Coil Size อื่นๆ
               <input id="mCoilSizeOther" type="text" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm hidden" placeholder="กรอก Coil Size" />
@@ -2760,10 +2760,10 @@
               <label class="text-xs font-medium text-slate-500">Machine Model / Coil Size</label>
               <select id="eCoilSize" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition">
                 <option value="">เลือก Coil Size</option>
-                <option>10</option>
-                <option>16</option>
-                <option>20</option>
-                <option>25/32</option>
+                <option>10A</option>
+                <option>16A</option>
+                <option>20A</option>
+                <option>25/32A</option>
                 <option>Common</option>
                 <option>Other</option>
               </select>
@@ -3378,6 +3378,41 @@
     };
     var LINE_CACHE_VERSION = 'lite-master-cache-v3';
     var MASTER_CACHE_TTL_MS = 8 * 60 * 1000;
+
+    // ── Coil Size: ตัวเลือกชุดเดียวที่ใช้ทั้งฟิลเตอร์และทุกฟอร์ม (เพิ่ม/แก้ไข/นำเข้า) ──────
+    // ต้องลงท้ายด้วย "A" ให้ตรงกับค่าที่เก็บในชีตจริง เดิมฟอร์มเขียน option มือแยกกัน 3 ที่
+    // เป็น '10/16/20/25/32' (ไม่มี A) เลยไม่ตรงกับฟิลเตอร์ '10A/16A/20A/25/32A' —
+    // ของเดิมที่เป็น '25/32A' อยู่แล้วจะหาไม่เจอในลิสต์ แล้วเด้งไปช่อง "Other" ทั้งที่เป็นค่ามาตรฐาน
+    var COIL_SIZE_OPTIONS = ['10A', '16A', '20A', '25/32A', 'Common'];
+    // ค่าเก่าที่ไม่มี A (หรือพิมพ์เล็ก/มีช่องว่าง) ถือเป็นตัวเดียวกับค่ามาตรฐาน — map ให้ตรงลิสต์
+    // จะได้ไม่หลุดไป Other และพอ save ทับก็ปรับเป็นรูปแบบมาตรฐานให้เอง
+    function canonicalCoilSize(value) {
+      var raw = String(value === undefined || value === null ? '' : value).trim();
+      if (!raw || raw === '-') return '';
+      for (var i = 0; i < COIL_SIZE_OPTIONS.length; i += 1) {
+        var opt = COIL_SIZE_OPTIONS[i];
+        if (raw.toLowerCase() === opt.toLowerCase()) return opt;
+        // '10' → '10A', '25/32' → '25/32A'
+        if (/a$/i.test(opt) && raw.toLowerCase() === opt.slice(0, -1).toLowerCase()) return opt;
+      }
+      return raw;
+    }
+    function coilSizeOptionsHtml(placeholderLabel, includeOther) {
+      var html = placeholderLabel ? '<option value="">' + placeholderLabel + '</option>' : '';
+      html += COIL_SIZE_OPTIONS.map(function(v){ return '<option value="' + v + '">' + v + '</option>'; }).join('');
+      if (includeOther) html += '<option value="Other">Other</option>';
+      return html;
+    }
+    // เขียนตัวเลือกลง select ของฟอร์มทั้งหมดตอนโหลด — กันไม่ให้ใครมาแก้ option มือแยกกันอีก
+    function syncCoilSizeSelectOptions() {
+      ['mCoilSize', 'eCoilSize'].forEach(function(id){
+        var sel = document.getElementById(id);
+        if (!sel) return;
+        var keep = sel.value;
+        sel.innerHTML = coilSizeOptionsHtml('เลือก Coil Size', true);
+        sel.value = keep;
+      });
+    }
 
     var desktopCardGrid = document.getElementById('desktopCardGrid');
     var paginationControls = document.getElementById('paginationControls');
@@ -12911,7 +12946,9 @@ function inferRequestPriority(stock, min) {
       var eCoilSize = document.getElementById('eCoilSize');
       var eCoilSizeOther = document.getElementById('eCoilSizeOther');
       if (eCoilSize) {
-        var coilVal = String(item.coil_size || item.machine_model || '').trim();
+        // canonicalCoilSize: ค่าเก่าที่ไม่มี A ('25/32') ให้ตรงกับตัวเลือกมาตรฐาน ('25/32A')
+        // ไม่งั้นค่ามาตรฐานจะเด้งไป Other ทำให้ dropdown ไม่ตรงกับฟิลเตอร์
+        var coilVal = canonicalCoilSize(item.coil_size || item.machine_model || '');
         var coilPresetOptions = Array.prototype.map.call(eCoilSize.options, function(o) { return o.value; });
         if (coilVal && coilPresetOptions.indexOf(coilVal) === -1) {
           // ค่าเดิมไม่ตรงกับตัวเลือกที่มีให้ (เช่น "MF-DRWG-CWM-PF250-K04-25" จากของเก่า) — เก็บไว้ในช่อง Other แทนการทิ้งข้อมูล
@@ -13050,7 +13087,8 @@ function inferRequestPriority(stock, min) {
           if (!sel) return '';
           var v = sel.value.trim();
           if (v === 'Other') { var other = document.getElementById('eCoilSizeOther'); v = other ? other.value.trim() : ''; }
-          return v;
+          // พิมพ์ '25/32' ในช่อง Other = ค่าเดียวกับ '25/32A' — เก็บเป็นรูปแบบมาตรฐานให้ตรงฟิลเตอร์
+          return canonicalCoilSize(v);
         })(),
         machines: getSelectedEditMachines().join(', ')
       };
@@ -13172,7 +13210,7 @@ function inferRequestPriority(stock, min) {
         {k:'no',l:'Bag No. -> NO'}, {k:'image',l:'Picture -> Image URL'}, {k:'part_no',l:'Item Number -> Part No'},
         {k:'nppa',l:'NPPA -> NPPA'}, {k:'model',l:'Code -> Model'}, {k:'name',l:'Name -> Part Name'}, {k:'coil_size',l:'Machine Model/Coil Size'}
       ];
-      importMappingPanel.innerHTML = '<p class="mb-1 font-semibold">Mapping Preview (Coil Winding)</p><label class="mb-2 flex items-center gap-2"><span class="w-44">Default Coil Size</span><select id="importDefaultCoilSize" class="rounded border border-slate-300 px-2 py-1"><option value="-">-</option><option>10</option><option>16</option><option>20</option><option>25/32</option><option>Common</option><option>Other</option></select></label>' + fields.map(function(f){
+      importMappingPanel.innerHTML = '<p class="mb-1 font-semibold">Mapping Preview (Coil Winding)</p><label class="mb-2 flex items-center gap-2"><span class="w-44">Default Coil Size</span><select id="importDefaultCoilSize" class="rounded border border-slate-300 px-2 py-1"><option value="-">-</option>' + coilSizeOptionsHtml('', true) + '</select></label>' + fields.map(function(f){
         return '<label class="mb-1 flex items-center gap-2"><span class="w-44">'+f.l+'</span><select data-map="'+f.k+'" class="rounded border border-slate-300 px-2 py-1">'+options+'</select></label>';
       }).join('');
       fields.forEach(function(f){ var el=importMappingPanel.querySelector('[data-map="'+f.k+'"]'); if(el) el.value = mapping[f.k] || ''; });
@@ -13221,7 +13259,7 @@ function inferRequestPriority(stock, min) {
           supplier: '-', image_main_url: String(row[mapping.image] || '').trim(),
           part_no: String(row[mapping.part_no] || '').trim(),
           nppa: String(row[mapping.nppa] || '').trim(),
-          coil_size: String(row[mapping.coil_size] || importState.defaultCoilSize || '-').trim() || '-',
+          coil_size: canonicalCoilSize(row[mapping.coil_size] || importState.defaultCoilSize || '-') || '-',
           line: 'Coil Winding', sheet: '', status: status, row: idx + 1
         };
       });
@@ -13302,7 +13340,7 @@ function inferRequestPriority(stock, min) {
         drawing_status: document.getElementById('mDrawingStatus').value.trim(),
         datasheet_url: document.getElementById('mDatasheetUrl').value.trim(),
         quotation_url: document.getElementById('mQuotationUrl').value.trim(),
-        coil_size: (function(){ var v=document.getElementById('mCoilSize').value.trim(); if (v==='Other') v=document.getElementById('mCoilSizeOther').value.trim(); return v || '-'; })()
+        coil_size: (function(){ var v=document.getElementById('mCoilSize').value.trim(); if (v==='Other') v=document.getElementById('mCoilSizeOther').value.trim(); return canonicalCoilSize(v) || '-'; })()
       };
       console.log('[location][manage payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       manageMessage.className = 'mt-3 text-sm text-emerald-600';
@@ -13446,13 +13484,14 @@ function inferRequestPriority(stock, min) {
     }
     function populateCoilSizeOptions(data) {
       if (!coilSizeFilter) return;
-      var fixed = ['10A', '16A', '20A', '25/32A', 'Common'];
+      var fixed = COIL_SIZE_OPTIONS.slice();
       var skip = { '': true, '-': true, 'all': true };
       var extras = [];
       var seen = {};
       fixed.forEach(function(v){ seen[v] = true; });
       (data || []).forEach(function(item){
-        var value = String(item.coil_size || '').trim();
+        // canonical ก่อนเก็บเป็น extra — ไม่งั้นแถวเก่าที่เป็น '25/32' จะโผล่เป็นตัวเลือกซ้ำกับ '25/32A'
+        var value = canonicalCoilSize(item.coil_size);
         if (!value) return;
         var lower = value.toLowerCase();
         if (skip[value] || skip[lower] || seen[value]) return;
@@ -14142,7 +14181,8 @@ function inferRequestPriority(stock, min) {
         // เช็คตัวที่ถูกที่สุดก่อน เจอไม่ผ่านก็ตัดจบทันที ไม่ต้องคิดตัวที่แพงกว่า
         if (category !== 'all' && item.category !== category) return false;
         if (selectedBrand !== 'all' && item.brand !== selectedBrand) return false;
-        if (selectedCoilSize !== 'all' && String(item.coil_size || '-').trim() !== selectedCoilSize) return false;
+        // เทียบแบบ canonical — แถวเก่าที่เก็บ '25/32' (ไม่มี A) ต้องยังหาเจอใต้ฟิลเตอร์ '25/32A'
+        if (selectedCoilSize !== 'all' && (canonicalCoilSize(item.coil_size) || '-') !== selectedCoilSize) return false;
         if (needSourceSheet && getItemSourceSheet(item) !== selectedSubSheet) return false;
         if (needStatus) {
           var status = getStockStatus(item);
@@ -15674,6 +15714,9 @@ if (dashboardPage) {
       } catch (e) { done(); }
     });
     manageForm.addEventListener('submit', submitManageItem);
+    // เขียนตัวเลือก Coil Size ของฟอร์มใหม่จาก COIL_SIZE_OPTIONS ตอนโหลด — ต่อให้ HTML static
+    // หลุดไม่ตรง ตัวจริงที่ผู้ใช้เห็นก็ยังตรงกับฟิลเตอร์เสมอ
+    syncCoilSizeSelectOptions();
     var mCoilSize = document.getElementById('mCoilSize'); var mCoilSizeOther = document.getElementById('mCoilSizeOther'); if (mCoilSize) mCoilSize.addEventListener('change', function(){ if(!mCoilSizeOther) return; mCoilSizeOther.classList.toggle('hidden', mCoilSize.value !== 'Other'); });
     var eCoilSizeSelect = document.getElementById('eCoilSize'); var eCoilSizeOtherInput = document.getElementById('eCoilSizeOther'); if (eCoilSizeSelect) eCoilSizeSelect.addEventListener('change', function(){ if(!eCoilSizeOtherInput) return; eCoilSizeOtherInput.classList.toggle('hidden', eCoilSizeSelect.value !== 'Other'); });
     syncManageCoilSizeVisibility();
