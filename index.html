@@ -14766,7 +14766,12 @@ function inferRequestPriority(stock, min) {
           no: ln.part_no || '', name: ln.part_name || '-', model: ln.model || '', brand: ln.brand || '',
           category: ln.category || '', unit: ln.unit || 'PCS', line: header.line || '-',
           suggestedQty: Number(ln.qty_approved || 0), unit_price: ln.unit_price,
-          reason: ln.remark || '', purpose: ln.remark || ''
+          reason: ln.remark || '', purpose: ln.remark || '',
+          // รูปที่สแนปช็อตไว้ตอนสร้าง PR — ต้องส่งต่อให้ Annex C ด้วย
+          // ไม่งั้นช่อง Picture จะขึ้น "No image available" ทุกแถว เพราะตัว report
+          // หารูปได้แค่จาก master (partsData) ซึ่งตอนปริ้นจาก Inbox มักเป็นคนละไลน์/ยังไม่โหลด
+          mainImage: ln.image_url || '',
+          image: ln.image_url || ''
         };
       });
       var createdAt = String(header.created_at || '');
@@ -14799,11 +14804,35 @@ function inferRequestPriority(stock, min) {
       doc.write('<html lang="th"><head><meta charset="utf-8"/><title>PR ' + escHtml(header.pr_id) + '</title>' +
         '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet"><style>' + css + '</style></head><body>' + html + '</body></html>');
       doc.close();
-      // หน่วงให้ font โหลดก่อนเหมือนเดิม แล้วเก็บ iframe ทิ้งหลังผู้ใช้ปิด dialog ปริ้น
+      // หน่วงให้ font โหลดก่อนเหมือนเดิม แล้วรอรูปใน Annex C โหลดครบจริงๆ ก่อนเปิด dialog ปริ้น
+      // — 500ms ตายตัวไม่พอสำหรับ thumbnail จาก Google Drive ทำให้ได้ PDF ที่ช่องรูปว่าง
+      // เก็บ iframe ทิ้งหลังผู้ใช้ปิด dialog ปริ้น
       setTimeout(function() {
-        try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (printErr) { console.warn('iframe print failed', printErr); }
-        setTimeout(function() { frame.remove(); }, 60000);
-      }, 500);
+        waitForPrintImages(frame.contentWindow, 12000).then(function() {
+          try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (printErr) { console.warn('iframe print failed', printErr); }
+          setTimeout(function() { frame.remove(); }, 60000);
+        });
+      }, 300);
+    }
+    // รอให้รูปทุกใบในเอกสารปริ้นโหลดเสร็จ (หรือ error) ก่อนสั่งปริ้น มี timeout กันค้าง
+    // ถ้ามีรูปไหนโหลดไม่ขึ้น — ปริ้นต่อได้ ช่องนั้นจะขึ้น "No image available" แทน
+    function waitForPrintImages(win, timeoutMs) {
+      return new Promise(function(resolve) {
+        var imgs;
+        try { imgs = Array.prototype.slice.call((win && win.document && win.document.images) || []); }
+        catch (readErr) { resolve(); return; }
+        var pending = imgs.filter(function(img) { return !img.complete; });
+        if (!pending.length) { resolve(); return; }
+        var settled = false;
+        var left = pending.length;
+        function finish() { if (settled) return; settled = true; resolve(); }
+        function one() { left -= 1; if (left <= 0) finish(); }
+        pending.forEach(function(img) {
+          img.addEventListener('load', one, { once: true });
+          img.addEventListener('error', one, { once: true });
+        });
+        setTimeout(finish, timeoutMs || 12000);
+      });
     }
 
     // ---- bindings ----
@@ -16251,9 +16280,12 @@ if (dashboardPage) {
           if (custom) remark.push('Custom-made part');
           if (c.unitPrice === null) remark.push('TBC item needs visual identification');
           if (needsVisual) remark.push('Need picture for purchasing identification');
-          // เอกสารสำหรับปริ้น/PDF ห้ามใส่ decoding="async" — ต้องให้รูป decode เสร็จก่อนสั่งปริ้น
-          // ไม่งั้นเสี่ยงได้ PDF ที่ช่องรูปว่าง (ตัว export รอ event load ของรูปอยู่แล้วก่อนปริ้น)
-          var imgHtml = c.image ? '<img loading="lazy" src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.outerHTML=\"No image available\";" />' : 'No image available';
+          // เอกสารสำหรับปริ้น/PDF ห้ามใส่ decoding="async" และห้ามใส่ loading="lazy" —
+          // ต้องให้รูปโหลด+decode เสร็จก่อนสั่งปริ้น ไม่งั้นได้ PDF ที่ช่องรูปว่าง
+          // (lazy อันตรายที่สุด เพราะเราปริ้นผ่าน iframe ขนาด 0x0 ที่ซ่อนอยู่ — รูป lazy จะไม่เข้า viewport
+          //  แล้วไม่โหลดเลยสักรูป) ตัว export รอ event load ของรูปอยู่แล้วก่อนปริ้น
+          // onerror ต้องใช้ &quot; ไม่ใช่ \" — เดิม \" ไปปิด attribute กลางคัน ทำให้ handler พัง
+          var imgHtml = c.image ? '<img src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.onerror=null;this.replaceWith(document.createTextNode(&quot;No image available&quot;));" />' : 'No image available';
           counter.n += 1;
           var cols = ['<td class="num">'+counter.n+'</td>','<td>' + imgHtml + '</td>','<td>'+esc(c.name)+'</td>','<td>'+esc(c.line)+'</td>','<td>'+esc(c.brand)+'</td>','<td>'+esc(c.model || c.no)+'</td>','<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.unit || 'PCS')+'</td>','<td>'+esc(remark.join(', ') || 'Reference')+'</td>'];
           return '<tr>' + cols.join('') + '</tr>';
