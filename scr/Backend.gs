@@ -52,7 +52,9 @@ SPARE_APP_CONFIG.sessionRefreshThresholdMs = SPARE_APP_CONFIG.sessionRefreshThre
 var SESSION_PROPERTY_PREFIX = 'spare_session::';
 var LOG_HEADERS = ['Timestamp', 'Type', 'Process', 'Category', 'Part Name', 'Model', 'Brand', 'Qty', 'Unit', 'By', 'Part No', 'Stock Before', 'Stock After', 'Reason', 'Reason Remark', 'Machine'];
 var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_json', 'session_token', 'session_expiry'];
-var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at', 'unit', 'unit_price', 'currency'];
+// client_uid = กุญแจกันซ้ำที่ฝั่งเว็บสร้างขึ้นต่อ 1 คำขอ ส่งซ้ำกี่รอบก็ใช้ค่าเดิม
+// ใช้เช็คว่าคำขอใบนี้เคยบันทึกไปแล้วหรือยัง (เคสเน็ตหลุดตอนรับคำตอบ แต่ของเข้าชีตแล้ว)
+var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at', 'unit', 'unit_price', 'currency', 'client_uid'];
 var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
 var PURCHASE_HISTORY_HEADERS = ['History ID', 'Request ID', 'Source', 'Requested Date', 'Month', 'Line', 'Part ID', 'Part Name', 'Brand', 'Model / Part No.', 'Qty Ordered', 'Unit', 'Unit Price', 'Currency', 'Total Amount', 'Requested By', 'Status', 'Ordered Date', 'Received Date', 'Received Qty', 'Updated By', 'Remark', 'Deleted', 'Created At', 'Updated At', 'Import Batch ID', 'Source File Name', 'Source File Hash', 'Price Status', 'Created By', 'Request Period'];
 var PURCHASE_HISTORY_AUDIT_HEADERS = ['Date Time', 'User', 'History ID', 'Action Type', 'Old Value', 'New Value', 'Reason'];
@@ -2001,12 +2003,45 @@ function ensureOrderRequestsSheetReady(payload) {
   }
 }
 
+// หา request_id ของคำขอที่ถูกบันทึกด้วย client_uid นี้ไปแล้ว (ไล่จากแถวล่างสุดขึ้นไป
+// เพราะคำขอที่เพิ่งส่งอยู่ท้ายชีตเสมอ) ไม่เจอคืนค่าว่าง
+function findOrderRequestIdByClientUid(sheet, idx, clientUid) {
+  if (!clientUid || idx.client_uid === undefined || idx.request_id === undefined) return '';
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return '';
+  var uids = sheet.getRange(2, idx.client_uid + 1, lastRow - 1, 1).getValues();
+  for (var i = uids.length - 1; i >= 0; i -= 1) {
+    if (String(uids[i][0]).trim() === clientUid) {
+      return String(sheet.getRange(i + 2, idx.request_id + 1).getValue() || '');
+    }
+  }
+  return '';
+}
+
 function createOrderRequest(payload) {
+  // ล็อกแบบเดียวกับ approvePR — กันสองคำขอที่ยิงพร้อมกันเช็ค client_uid ไม่เจอทั้งคู่
+  // แล้วต่างคนต่าง append จนได้แถวซ้ำ
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
   try {
     var session = getSessionUser({ authToken: payload.authToken });
     var user = findUserByUsername(session.user.username);
     requirePermission({ authToken: payload.authToken }, 'request_order_create');
     var sheet = getOrderRequestSheet();
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { return String(h).trim(); });
+    var idx = {};
+    headers.forEach(function(h, i) { idx[h] = i; });
+
+    // เคสจริงที่ผู้ใช้เจอ: กดส่ง → ของเข้าชีตแล้ว แต่เน็ตหลุดตอนรับคำตอบ เว็บขึ้น "ไม่สำเร็จ"
+    // ผู้ใช้เลยกดส่งซ้ำ → ได้คำขอซ้ำ 2 ใบ ตอนนี้ใบที่สองจะเจอ client_uid เดิม
+    // แล้วคืนใบเดิมกลับไปเป็น success แทนการสร้างแถวใหม่
+    var clientUid = String(payload.client_uid || '').trim();
+    var duplicateOf = findOrderRequestIdByClientUid(sheet, idx, clientUid);
+    if (duplicateOf) {
+      Logger.log('createOrderRequest duplicate suppressed: ' + clientUid + ' → ' + duplicateOf);
+      return { status: 'success', request_id: duplicateOf, duplicate: true, purchase_history_recorded: true };
+    }
+
     var now = new Date();
     var requestId = 'REQ-' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss') + '-' + Utilities.getUuid().slice(0, 8);
     var attachmentUrl = String(payload.attachment_url || '');
@@ -2018,17 +2053,48 @@ function createOrderRequest(payload) {
         requestedBy: user.username || ''
       });
     }
-    var row = [
-      requestId, payload.requested_date || Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'), user.username, user.role,
-      payload.item_id || '', payload.item_name || '', payload.model || '', payload.brand || '', payload.category || '',
-      payload.line || '', Number(payload.current_stock || 0), Number(payload.min || 0), Number(payload.max || 0), Number(payload.request_qty || 0),
-      payload.priority || 'Normal', payload.reason || '', payload.expected_use_date || '', payload.remark || '', attachmentUrl,
-      'Pending', '', '', '', '', Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'), payload.unit || '', payload.unit_price === undefined ? '' : payload.unit_price, payload.currency || ''
-    ];
+    var stamp = Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    var values = {
+      request_id: requestId,
+      requested_date: payload.requested_date || stamp,
+      requested_by: user.username,
+      requester_role: user.role,
+      item_id: payload.item_id || '',
+      item_name: payload.item_name || '',
+      model: payload.model || '',
+      brand: payload.brand || '',
+      category: payload.category || '',
+      line: payload.line || '',
+      current_stock: Number(payload.current_stock || 0),
+      min: Number(payload.min || 0),
+      max: Number(payload.max || 0),
+      request_qty: Number(payload.request_qty || 0),
+      priority: payload.priority || 'Normal',
+      reason: payload.reason || '',
+      expected_use_date: payload.expected_use_date || '',
+      remark: payload.remark || '',
+      attachment_url: attachmentUrl,
+      status: 'Pending',
+      admin_comment: '',
+      approved_by: '',
+      approved_date: '',
+      converted_pr_id: '',
+      updated_at: stamp,
+      unit: payload.unit || '',
+      unit_price: payload.unit_price === undefined ? '' : payload.unit_price,
+      currency: payload.currency || '',
+      client_uid: clientUid
+    };
+    // เขียนตามลำดับหัวคอลัมน์จริงในชีต ไม่ยึดลำดับใน ORDER_REQUEST_HEADERS ตายตัว
+    // (ชีตเก่าที่ยังไม่มี client_uid จะถูก getOrderRequestSheet เติมคอลัมน์ให้ก่อนแล้ว)
+    var row = headers.map(function(h) {
+      var v = values[h];
+      return v === undefined ? '' : v;
+    });
     sheet.appendRow(row);
     var purchaseHistoryRecorded = true;
     try {
-      syncPurchaseHistoryForRequest(toRequestObject(ORDER_REQUEST_HEADERS, row), 'Pending', user.username, payload.remark || '');
+      syncPurchaseHistoryForRequest(toRequestObject(headers, row), 'Pending', user.username, payload.remark || '');
     } catch (historyErr) {
       purchaseHistoryRecorded = false;
       Logger.log('createOrderRequest PurchaseHistory warning: ' + (historyErr && historyErr.message ? historyErr.message : historyErr));
@@ -2037,6 +2103,8 @@ function createOrderRequest(payload) {
   } catch (err) {
     Logger.log('createOrderRequest error: ' + (err && err.message ? err.message : err));
     throw err;
+  } finally {
+    lock.releaseLock();
   }
 }
 
