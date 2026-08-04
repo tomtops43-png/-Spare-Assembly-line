@@ -232,7 +232,7 @@ assert(html.includes("'tagNos=' + encodeURIComponent(requestPayload.tagNos || ''
 assert(html.includes('delete issueCartTagNos[key];'));
 // แก้จำนวนในเบิกด่วนต้องไม่ล้างเลขที่พิมพ์ไว้
 assert(html.includes('function syncQuickIssueTagField(item, resetValue)'));
-assert(html.includes('if (resetValue) input.value = \'\';'));
+assert(html.includes('if (resetValue) { input.value = \'\'; quickIssueAutoTagNos = \'\'; }'));
 assert(html.includes('syncQuickIssueTagField(item, true);'), 'เปิด modal ใหม่ต้องล้างค่าของชิ้นก่อนหน้า');
 assert(!html.includes('byCategory'), 'ต้องไม่เหลือโค้ด config แบบผูก Category เดิม');
 
