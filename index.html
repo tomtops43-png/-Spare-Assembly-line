@@ -3612,6 +3612,10 @@
     // เลขประจำชิ้นที่ช่างกรอกต่อรายการใน cart (keyed by identity key เหมือน issueCartState)
     // เก็บแยกเพราะ renderIssueCart วาดใหม่ทั้งก้อนทุกครั้ง ค่าที่พิมพ์ไว้ต้องไม่หาย
     var issueCartTagNos = {};
+    // ชุดเลขที่ "ระบบเติมให้เอง" ล่าสุดต่อรายการ — ใช้แยกว่าค่าที่อยู่ในช่องตอนนี้เป็นของระบบ
+    // (เติมทับได้เมื่อเปลี่ยนจำนวน) หรือช่างพิมพ์เอง (ห้ามทับเด็ดขาด)
+    var issueCartAutoTagNos = {};
+    var quickIssueAutoTagNos = '';
     var partTagGroupsCache = [];      // กลุ่มแท็กทั้งหมด (สำหรับหน้า Admin)
     var partTagGroupItemsCache = [];  // สมาชิกของกลุ่มที่กำลังเปิดจัดการอยู่
     var activePartTagGroupId = '';
@@ -4497,6 +4501,8 @@
 
     function removeFromIssueCart(key) {
       delete issueCartState[key];
+      delete issueCartTagNos[key];
+      delete issueCartAutoTagNos[key];
       updateIssueCartBadges();
       renderIssueCart();
     }
@@ -5468,25 +5474,35 @@
           ? '<input data-cart-star-note="' + entryIdx + '" value="' + escapeStarText((starredState[entry.key] || {}).note || '') + '" placeholder="📝 โน๊ตว่าทำไมต้องสั่ง (ไม่บังคับ)" ' +
             'class="mt-2 h-9 w-full rounded-lg border px-2.5 text-xs" style="border-color:#fcd34d;background:#fffbeb;" />'
           : '';
-        // 🏷️ Category นี้ต้องออกเลขประจำชิ้น — บอกล่วงหน้าว่าเบิกแล้วจะได้เลขกี่ใบ
-        // ของในคลังมีเลขติดอยู่ที่ตัวแล้ว ช่างต้องกรอกเลขของชิ้นที่หยิบมาจริง
-        // ระบบไม่ออกเลขให้เอง (ยกเว้นกดปุ่ม "ใช้เลขถัดไป" สำหรับของที่ยังไม่มีเลข)
+        // 🏷️ Category นี้ต้องออกเลขประจำชิ้น — ระบบรันเลขถัดไปใส่ให้เลยตามจำนวนที่เบิก
+        // ถ้าของที่หยิบมามีเลขติดตัวอยู่แล้ว ช่างแก้ทับเป็นเลขจริงได้ และจะไม่ถูกเขียนทับอีก
         var tagRule = getPartTagRuleForItem(item);
         var tagHintHtml = '';
         if (tagRule) {
-          var savedTagNos = issueCartTagNos[entry.key] || '';
-          // โชว์เลขที่จะได้จริงตามจำนวนที่เบิก — เบิก 3 ต้องเห็นครบ 3 เลข ไม่ใช่เลขเดียว
           var tagSeq = formatTagNoSequence(tagRule, qty);
+          var savedTagNos = String(issueCartTagNos[entry.key] || '');
+          // เติมให้อัตโนมัติเมื่อยังว่าง หรือค่าที่มีคือชุดที่ระบบเติมเองรอบก่อน (เปลี่ยนจำนวนแล้วต้องรันใหม่)
+          // ค่าที่ช่างพิมพ์เองจะไม่เข้าเงื่อนไขนี้ เลยไม่โดนทับ
+          if (tagSeq && (!savedTagNos.trim() || savedTagNos === issueCartAutoTagNos[entry.key])) {
+            savedTagNos = tagSeq;
+            issueCartTagNos[entry.key] = tagSeq;
+            issueCartAutoTagNos[entry.key] = tagSeq;
+          }
+          var tagIsAuto = !!tagSeq && savedTagNos === issueCartAutoTagNos[entry.key];
           tagHintHtml =
             '<div class="mt-1.5 rounded-lg px-2 py-2" style="background:#eff6ff;border:1px solid #bfdbfe;">' +
-              '<p class="text-[11px] font-bold" style="color:#1d4ed8;">🏷️ ต้องระบุเลขประจำชิ้น ' + qty + ' เลข — อ่านจากตัวของที่หยิบมา' +
+              '<p class="text-[11px] font-bold" style="color:#1d4ed8;">🏷️ ต้องระบุเลขประจำชิ้น ' + qty + ' เลข' +
                 (qty > 1 ? ' (คั่นด้วย ,)' : '') + '</p>' +
-              (tagSeq ? '<p class="text-[11px]" style="color:#1d4ed8;">ถ้าของยังไม่มีเลข กด "ใช้เลขถัดไป" จะได้ ' + escapeStarText(tagSeq) + '</p>' : '') +
+              '<p class="text-[11px]" style="color:#1d4ed8;">' +
+                (tagIsAuto
+                  ? 'ระบบใส่เลขถัดไปให้แล้ว — ถ้าของที่หยิบมามีเลขติดอยู่ ให้แก้เป็นเลขจริงบนตัวของ'
+                  : 'อ่านจากตัวของที่หยิบมา' + (tagSeq ? ' · กด "ใช้เลขถัดไป" เพื่อกลับไปใช้ ' + escapeStarText(tagSeq) : '')) +
+              '</p>' +
               '<div class="mt-1 flex gap-1.5">' +
                 '<input data-cart-tagnos="' + entryIdx + '" value="' + escapeStarText(savedTagNos) + '" ' +
                   'placeholder="เช่น ' + escapeStarText(tagSeq || (tagRule.prefix + '-001')) + '" ' +
                   'class="h-8 flex-1 rounded-lg border px-2 text-xs" style="border-color:#93c5fd;" />' +
-                '<button type="button" data-cart-tagnext="' + entryIdx + '" title="ของชิ้นนี้ยังไม่มีเลขติด — ออกเลขใหม่ให้" ' +
+                '<button type="button" data-cart-tagnext="' + entryIdx + '" title="ดึงเลขถัดไปกลับมาใส่ให้ครบตามจำนวน (ทับเลขที่กรอกไว้)" ' +
                   'class="h-8 shrink-0 rounded-lg border px-2 text-[11px] font-bold" style="border-color:#93c5fd;background:#ffffff;color:#1d4ed8;">ใช้เลขถัดไป</button>' +
               '</div>' +
             '</div>';
@@ -5543,17 +5559,15 @@
             showQuickToast('ยังไม่รู้เลขถัดไป กรุณารีเฟรชหน้าแล้วลองใหม่', 'warn');
             return;
           }
-          // เติมเฉพาะช่องที่ยังว่าง — ถ้าพิมพ์เลขจากตัวของไว้แล้วห้ามทับ
+          // ช่องถูกเติมอัตโนมัติอยู่แล้ว ปุ่มนี้จึงเป็น "ดึงเลขถัดไปกลับมา" หลังช่างแก้เอง — ทับได้เลย
           var input = issueCartList.querySelector('[data-cart-tagnos="' + Number(btn.getAttribute('data-cart-tagnext')) + '"]');
-          if (input && String(input.value || '').trim()) {
-            showQuickToast('มีเลขกรอกไว้แล้ว — ลบออกก่อนถ้าต้องการใช้เลขใหม่', 'warn');
-            return;
-          }
           if (input) {
             // ออกเลขให้ครบตามจำนวนที่เบิกในบรรทัดนี้ (จำกัดไม่เกิน stock เหมือนที่แสดงผล)
             var seq = formatTagNoSequence(rule, Math.min(entry.qty, safeNum(entry.item.stock)));
             input.value = seq;
             issueCartTagNos[entry.key] = seq;
+            issueCartAutoTagNos[entry.key] = seq;
+            renderIssueCart();
             showQuickToast('ใส่เลขใหม่ ' + seq + ' ให้แล้ว — อย่าลืมเขียนเลขนี้ลงบนตัวของ', 'info');
           }
         });
@@ -5655,17 +5669,26 @@
       var hint = document.getElementById('quickIssueTagHint');
       if (!wrap || !input) return;
       var rule = getPartTagRuleForItem(item);
-      if (resetValue) input.value = '';
+      if (resetValue) { input.value = ''; quickIssueAutoTagNos = ''; }
       wrap.classList.toggle('hidden', !rule);
       if (!rule) return;
       var q = Number((document.getElementById('quickIssueQty') || {}).value || 0);
-      // โชว์เลขที่จะได้จริงตามจำนวนที่เบิก ช่างจะได้รู้ทันทีว่าต้องหยิบ/เขียนเลขไหนบ้าง
-      // ไม่ต้องเดาเอง และไม่ต้องกดปุ่มก่อนถึงจะเห็น
       var seq = formatTagNoSequence(rule, q);
       input.placeholder = seq ? ('เช่น ' + seq) : 'เลขประจำชิ้น';
+      // เติมเลขลงช่องให้เลย ไม่ต้องกดปุ่ม — เปลี่ยนจำนวนเป็น 5 ก็รันเลขให้ครบ 5 ทันที
+      // ทับได้เฉพาะค่าที่ระบบเติมเองรอบก่อน ถ้าช่างพิมพ์แก้ไว้แล้วห้ามทับเด็ดขาด
+      var typed = String(input.value || '').trim();
+      if (seq && (!typed || typed === quickIssueAutoTagNos)) {
+        input.value = seq;
+        quickIssueAutoTagNos = seq;
+        typed = seq;
+      }
       if (hint) {
-        hint.textContent = '🏷️ ต้องระบุเลขประจำชิ้น' + (q > 1 ? ' ' + q + ' เลข (คั่นด้วย ,)' : '') + ' — อ่านจากตัวของที่หยิบมา' +
-          (seq ? ' · ถ้าของยังไม่มีเลข กด "ใช้เลขถัดไป" จะได้ ' + seq : '');
+        var isAuto = seq && typed === quickIssueAutoTagNos;
+        hint.textContent = '🏷️ ต้องระบุเลขประจำชิ้น' + (q > 1 ? ' ' + q + ' เลข (คั่นด้วย ,)' : '') +
+          (isAuto
+            ? ' — ระบบใส่เลขถัดไปให้แล้ว ถ้าของที่หยิบมามีเลขติดอยู่ ให้แก้เป็นเลขจริงบนตัวของ'
+            : ' — อ่านจากตัวของที่หยิบมา' + (seq ? ' · กด "ใช้เลขถัดไป" เพื่อกลับไปใช้ ' + seq : ''));
       }
     }
 
@@ -12363,7 +12386,7 @@ function inferRequestPriority(stock, min) {
       }
 
       runNext().then(function() {
-        successKeys.forEach(function(key) { delete issueCartState[key]; delete issueCartTagNos[key]; });
+        successKeys.forEach(function(key) { delete issueCartState[key]; delete issueCartTagNos[key]; delete issueCartAutoTagNos[key]; });
         updateIssueCartBadges();
         renderIssueCart();
 
@@ -12389,6 +12412,8 @@ function inferRequestPriority(stock, min) {
         if (issuedTagGroups.length) {
           lastIssuedPartTags = issuedTagGroups;
           showIssuedPartTagsSummary(issuedTagGroups);
+          // เลขเพิ่งถูกใช้ไป — ต้องดึงเลขถัดไปใหม่ ไม่งั้นรอบหน้าจะเติมเลขที่ใช้แล้วให้อัตโนมัติ
+          loadPartTagConfig(true);
         }
         if (tagWarnings.length) showQuickToast('⚠️ ' + tagWarnings.join(' | '), 'warn');
 
@@ -12677,6 +12702,8 @@ function inferRequestPriority(stock, min) {
         applyFilters(false);
         showQuickToast('บันทึกสำเร็จ', 'success');
         closeQuickIssueModal();
+        // เลขประจำชิ้นเพิ่งถูกใช้ไป — ดึงเลขถัดไปใหม่ ไม่งั้นรอบหน้าจะเติมเลขที่ใช้แล้วให้อัตโนมัติ
+        if (res.part_tags && res.part_tags.length) loadPartTagConfig(true);
         refreshItemsFromServer([{ no: item.no, sheetName: payload.sheetName }]).then(function(updated) {
           if (!updated) loadPartsData({ skipCache: true });
         });
@@ -15946,15 +15973,14 @@ if (dashboardPage) {
       var input = document.getElementById('quickIssueTagNos');
       var rule = getPartTagRuleForItem(getCurrentQuickIssueItem());
       if (!rule || !rule.nextTagNo) { showQuickToast('ยังไม่รู้เลขถัดไป กรุณารีเฟรชหน้าแล้วลองใหม่', 'warn'); return; }
-      if (input && String(input.value || '').trim()) {
-        showQuickToast('มีเลขกรอกไว้แล้ว — ลบออกก่อนถ้าต้องการใช้เลขใหม่', 'warn');
-        return;
-      }
       if (input) {
+        // ตอนนี้ช่องถูกเติมอัตโนมัติอยู่แล้ว ปุ่มนี้จึงเป็น "ดึงเลขถัดไปกลับมา" หลังช่างแก้เอง
         // เบิกกี่ชิ้นก็ออกให้ครบเท่านั้นเลข ไม่ใช่เลขเดียวแล้วให้ช่างไปไล่ต่อเอง
         var qty = Number((document.getElementById('quickIssueQty') || {}).value || 1);
         var seq = formatTagNoSequence(rule, qty);
         input.value = seq;
+        quickIssueAutoTagNos = seq;
+        syncQuickIssueTagField(getCurrentQuickIssueItem());
         showQuickToast('ใส่เลขใหม่ ' + seq + ' ให้แล้ว — อย่าลืมเขียนเลขนี้ลงบนตัวของ', 'info');
       }
     });
