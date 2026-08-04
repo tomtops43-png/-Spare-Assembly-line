@@ -4960,6 +4960,30 @@
       return !!getPartTagRuleForItem(item);
     }
 
+    // เบิกทีละหลายชิ้น = ต้องได้เลขต่อเนื่องหลายเลข ไม่ใช่เลขเดียว
+    // เช่น เลขถัดไป SC-040 เบิก 3 ชิ้น → SC-040, SC-041, SC-042
+    // อ่านชุดตัวเลขท้ายสุดแล้วบวกทีละ 1 คงจำนวนหลักเดิม (SC-099 → SC-100 ไม่ตัดหลัก)
+    function buildTagNoSequence(rule, qty) {
+      var first = String((rule && rule.nextTagNo) || '').trim();
+      if (!first) return [];
+      var count = Math.max(1, Math.floor(Number(qty) || 1));
+      var parts = first.match(/^(.*?)(\d+)$/);
+      if (!parts) return [first]; // เลขไม่ได้ลงท้ายด้วยตัวเลข — ไล่ต่อเองไม่ได้ ให้แค่ตัวเดียว
+      var head = parts[1];
+      var width = parts[2].length;
+      var start = Number(parts[2]);
+      var out = [];
+      for (var i = 0; i < count; i += 1) {
+        var num = String(start + i);
+        while (num.length < width) num = '0' + num;
+        out.push(head + num);
+      }
+      return out;
+    }
+    function formatTagNoSequence(rule, qty) {
+      return buildTagNoSequence(rule, qty).join(', ');
+    }
+
     // สรุปเลขที่ออกให้หลังเบิกเสร็จ — จุดสำคัญของฟีเจอร์: ช่างต้องรู้ว่า "ของชิ้นนี้คือ No. อะไร"
     function showIssuedPartTagsSummary(groups) {
       var modal = document.getElementById('partTagIssuedModal');
@@ -5451,13 +5475,16 @@
         var tagHintHtml = '';
         if (tagRule) {
           var savedTagNos = issueCartTagNos[entry.key] || '';
+          // โชว์เลขที่จะได้จริงตามจำนวนที่เบิก — เบิก 3 ต้องเห็นครบ 3 เลข ไม่ใช่เลขเดียว
+          var tagSeq = formatTagNoSequence(tagRule, qty);
           tagHintHtml =
             '<div class="mt-1.5 rounded-lg px-2 py-2" style="background:#eff6ff;border:1px solid #bfdbfe;">' +
               '<p class="text-[11px] font-bold" style="color:#1d4ed8;">🏷️ ต้องระบุเลขประจำชิ้น ' + qty + ' เลข — อ่านจากตัวของที่หยิบมา' +
                 (qty > 1 ? ' (คั่นด้วย ,)' : '') + '</p>' +
+              (tagSeq ? '<p class="text-[11px]" style="color:#1d4ed8;">ถ้าของยังไม่มีเลข กด "ใช้เลขถัดไป" จะได้ ' + escapeStarText(tagSeq) + '</p>' : '') +
               '<div class="mt-1 flex gap-1.5">' +
                 '<input data-cart-tagnos="' + entryIdx + '" value="' + escapeStarText(savedTagNos) + '" ' +
-                  'placeholder="เช่น ' + escapeStarText(tagRule.nextTagNo || (tagRule.prefix + '-001')) + '" ' +
+                  'placeholder="เช่น ' + escapeStarText(tagSeq || (tagRule.prefix + '-001')) + '" ' +
                   'class="h-8 flex-1 rounded-lg border px-2 text-xs" style="border-color:#93c5fd;" />' +
                 '<button type="button" data-cart-tagnext="' + entryIdx + '" title="ของชิ้นนี้ยังไม่มีเลขติด — ออกเลขใหม่ให้" ' +
                   'class="h-8 shrink-0 rounded-lg border px-2 text-[11px] font-bold" style="border-color:#93c5fd;background:#ffffff;color:#1d4ed8;">ใช้เลขถัดไป</button>' +
@@ -5523,9 +5550,11 @@
             return;
           }
           if (input) {
-            input.value = rule.nextTagNo;
-            issueCartTagNos[entry.key] = rule.nextTagNo;
-            showQuickToast('ใส่เลขใหม่ ' + rule.nextTagNo + ' ให้แล้ว — อย่าลืมเขียนเลขนี้ลงบนตัวของ', 'info');
+            // ออกเลขให้ครบตามจำนวนที่เบิกในบรรทัดนี้ (จำกัดไม่เกิน stock เหมือนที่แสดงผล)
+            var seq = formatTagNoSequence(rule, Math.min(entry.qty, safeNum(entry.item.stock)));
+            input.value = seq;
+            issueCartTagNos[entry.key] = seq;
+            showQuickToast('ใส่เลขใหม่ ' + seq + ' ให้แล้ว — อย่าลืมเขียนเลขนี้ลงบนตัวของ', 'info');
           }
         });
       });
@@ -5627,11 +5656,16 @@
       if (!wrap || !input) return;
       var rule = getPartTagRuleForItem(item);
       if (resetValue) input.value = '';
-      input.placeholder = rule && rule.nextTagNo ? ('เช่น ' + rule.nextTagNo) : 'เลขประจำชิ้น';
       wrap.classList.toggle('hidden', !rule);
-      if (rule && hint) {
-        var q = Number((document.getElementById('quickIssueQty') || {}).value || 0);
-        hint.textContent = '🏷️ ต้องระบุเลขประจำชิ้น' + (q > 1 ? ' ' + q + ' เลข (คั่นด้วย ,)' : '') + ' — อ่านจากตัวของที่หยิบมา';
+      if (!rule) return;
+      var q = Number((document.getElementById('quickIssueQty') || {}).value || 0);
+      // โชว์เลขที่จะได้จริงตามจำนวนที่เบิก ช่างจะได้รู้ทันทีว่าต้องหยิบ/เขียนเลขไหนบ้าง
+      // ไม่ต้องเดาเอง และไม่ต้องกดปุ่มก่อนถึงจะเห็น
+      var seq = formatTagNoSequence(rule, q);
+      input.placeholder = seq ? ('เช่น ' + seq) : 'เลขประจำชิ้น';
+      if (hint) {
+        hint.textContent = '🏷️ ต้องระบุเลขประจำชิ้น' + (q > 1 ? ' ' + q + ' เลข (คั่นด้วย ,)' : '') + ' — อ่านจากตัวของที่หยิบมา' +
+          (seq ? ' · ถ้าของยังไม่มีเลข กด "ใช้เลขถัดไป" จะได้ ' + seq : '');
       }
     }
 
@@ -15917,8 +15951,11 @@ if (dashboardPage) {
         return;
       }
       if (input) {
-        input.value = rule.nextTagNo;
-        showQuickToast('ใส่เลขใหม่ ' + rule.nextTagNo + ' ให้แล้ว — อย่าลืมเขียนเลขนี้ลงบนตัวของ', 'info');
+        // เบิกกี่ชิ้นก็ออกให้ครบเท่านั้นเลข ไม่ใช่เลขเดียวแล้วให้ช่างไปไล่ต่อเอง
+        var qty = Number((document.getElementById('quickIssueQty') || {}).value || 1);
+        var seq = formatTagNoSequence(rule, qty);
+        input.value = seq;
+        showQuickToast('ใส่เลขใหม่ ' + seq + ' ให้แล้ว — อย่าลืมเขียนเลขนี้ลงบนตัวของ', 'info');
       }
     });
     // เปลี่ยนจำนวนแล้วข้อความบอกจำนวนเลขที่ต้องใส่ต้องอัปเดตตาม
