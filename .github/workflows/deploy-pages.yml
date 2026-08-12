@@ -15,6 +15,11 @@ concurrency:
   group: "pages"
   cancel-in-progress: true
 
+# runner ของ GitHub เป็น UTC แต่ระบบนี้ใช้งานที่โรงงานไทย และ Backend.gs
+# fix timezone เป็น Asia/Bangkok ทุกจุด — ถ้าไม่ pin ตรงนี้ เทสต์ที่เกี่ยวกับเวลาจะเพี้ยน 7 ชม.
+env:
+  TZ: Asia/Bangkok
+
 jobs:
   test:
     runs-on: ubuntu-latest
