@@ -3829,22 +3829,7 @@
       { key: 'coil_winding', label: 'Coil Winding' },
       { key: 'lug_screw', label: 'Lug&Screw' }
     ];
-    var ROLE_PRESETS = {
-      admin: {
-        permissions: PERMISSION_GROUPS.reduce(function(acc, group) {
-          return acc.concat(group.items.map(function(item) { return item.key; }));
-        }, []),
-        lines: 'all'
-      },
-      leader: {
-        permissions: ['view_stock', 'view_detail', 'issue_part', 'receive_part', 'edit_item', 'view_logs', 'access_admin_panel', 'view_dashboard', 'view_alerts', 'use_issue_cart', 'request_order_create', 'request_order_view_own'],
-        lines: 'managed'
-      },
-      user: {
-        permissions: ['view_stock', 'view_detail', 'issue_part', 'use_issue_cart', 'view_alerts', 'request_order_create', 'request_order_view_own'],
-        lines: 'view'
-      }
-    };
+    // ROLE_PRESETS ตัวจริงอยู่กับการ์ด preset ในส่วน Admin Panel ด้านล่าง (ค้นหา "Role Preset Definitions")
     var PERMISSION_COMPAT_MAP = {
       manage_users: ['manage_users', 'manage_auth'],
       delete_users: ['delete_users', 'delete_user'],
@@ -6671,26 +6656,22 @@ function getIssueCartEntries() {
       if (uAllLinesAccess) uAllLinesAccess.checked = !hasSpecific;
     }
 
-    function applyRolePreset(roleValue) {
-      var preset = ROLE_PRESETS[roleValue];
-      if (!preset) return;
-      Array.prototype.slice.call(document.querySelectorAll('[data-permission-key]')).forEach(function(input) {
-        input.checked = preset.permissions.indexOf(input.getAttribute('data-permission-key')) !== -1;
-      });
-      if (uAllLinesAccess) uAllLinesAccess.checked = preset.lines === 'all';
-      if (preset.lines !== 'all') {
-        LINE_OPTIONS.forEach(function(line) {
-          var view = document.querySelector('[data-line-view="' + line.key + '"]');
-          var manage = document.querySelector('[data-line-manage="' + line.key + '"]');
-          if (view) view.checked = preset.lines === 'view' || preset.lines === 'managed';
-          if (manage) manage.checked = preset.lines === 'managed';
-        });
-      } else {
+    // ตั้งค่า checkbox สิทธิ์ไลน์ (ตาราง View/Manage) ตาม preset — ถ้าไม่ sync ตรงนี้
+    // ค่าไลน์ของ user คนก่อนหน้าจะค้างอยู่ตอนกด preset ให้คนใหม่
+    function applyLineAccessPreset(linesMode) {
+      if (uAllLinesAccess) uAllLinesAccess.checked = linesMode === 'all';
+      if (linesMode === 'all') {
         Array.prototype.slice.call(document.querySelectorAll('[data-line-view],[data-line-manage]')).forEach(function(input) {
           input.checked = false;
         });
+        return;
       }
-      syncPermissionsJsonFromUI();
+      LINE_OPTIONS.forEach(function(line) {
+        var view = document.querySelector('[data-line-view="' + line.key + '"]');
+        var manage = document.querySelector('[data-line-manage="' + line.key + '"]');
+        if (view) view.checked = linesMode === 'view' || linesMode === 'managed';
+        if (manage) manage.checked = linesMode === 'managed';
+      });
     }
 
     function getSelectedPermissionsFromUI() {
@@ -17655,6 +17636,7 @@ if (dashboardPage) {
         label: '👁 Viewer / ผู้เยี่ยมชม',
         detail: 'ดูสต็อกอย่างเดียว · ห้ามเบิก · ห้ามขอซื้อ · ห้ามทุกอย่าง',
         borderColor: '#64748b', bg: '#f8fafc',
+        lines: 'view',
         permissions: [
           'view_stock', 'view_detail', 'view_alerts'
           // ❌ ไม่มี issue_part, receive_part, use_issue_cart
@@ -17669,6 +17651,7 @@ if (dashboardPage) {
         label: '📋 Leader PD',
         detail: 'ดูสต็อก · ขอซื้ออะไหล่ได้ · ดูคำขอตัวเอง · ห้ามเบิก/รับเข้า',
         borderColor: '#ea580c', bg: '#fff7ed',
+        lines: 'view',
         permissions: [
           'view_stock', 'view_detail', 'view_alerts',
           'request_order_create', 'request_order_view_own'
@@ -17683,6 +17666,7 @@ if (dashboardPage) {
         label: '🔧 ช่างทั่วไป',
         detail: 'เบิกของ · ขอซื้อ · นับสต็อก',
         borderColor: '#2563eb', bg: '#eff6ff',
+        lines: 'view',
         permissions: [
           'view_stock', 'view_detail', 'view_alerts',
           'issue_part', 'use_issue_cart',
@@ -17696,6 +17680,7 @@ if (dashboardPage) {
         label: '👷 หัวหน้าช่าง',
         detail: 'ช่าง + รับเข้า · อนุมัติคำขอซื้อ · อนุมัติเช็คสต็อก',
         borderColor: '#0d9488', bg: '#f0fdfa',
+        lines: 'managed',
         permissions: [
           'view_stock', 'view_detail', 'view_alerts',
           'issue_part', 'receive_part', 'use_issue_cart',
@@ -17711,6 +17696,7 @@ if (dashboardPage) {
         label: '🔑 Engineer / Supervisor',
         detail: 'หัวหน้า + ดู Log · Dashboard · PR Report ประจำเดือน · แก้ไขรายการ',
         borderColor: '#7c3aed', bg: '#f5f3ff',
+        lines: 'managed',
         permissions: [
           'view_stock', 'view_detail', 'view_alerts',
           'issue_part', 'receive_part', 'use_issue_cart',
@@ -17729,6 +17715,7 @@ if (dashboardPage) {
         label: '🔴 Admin',
         detail: 'ทุกสิทธิ์ · จัดการผู้ใช้ · ระบบทั้งหมด',
         borderColor: '#dc2626', bg: '#fff1f2',
+        lines: 'all',
         permissions: [
           'view_stock', 'view_detail', 'view_alerts',
           'issue_part', 'receive_part', 'use_issue_cart',
@@ -17755,6 +17742,8 @@ if (dashboardPage) {
       document.querySelectorAll('[data-permission-key]').forEach(function(cb) {
         cb.checked = allPerms.indexOf(cb.getAttribute('data-permission-key')) !== -1;
       });
+      // สิทธิ์ไลน์ (ตาราง View/Manage) ต้อง set ตาม preset ด้วย ไม่งั้นค่าไลน์ของ user คนก่อนค้าง
+      if (typeof applyLineAccessPreset === 'function') applyLineAccessPreset(preset.lines);
       // อัพเดท permissionsJson hidden field ทันที
       if (typeof syncPermissionsJsonFromUI === 'function') syncPermissionsJsonFromUI();
       // show summary banner

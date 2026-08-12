@@ -1,0 +1,24 @@
+name: Tests
+
+# รันเทสต์บน PR ก่อน merge — ส่วน push เข้า main มี job test ใน deploy-pages.yml คุมอยู่แล้ว
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run tests
+        run: npm test

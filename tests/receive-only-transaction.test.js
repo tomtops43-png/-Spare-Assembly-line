@@ -3,7 +3,9 @@ const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
 const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
 
-assert(html.includes('id="tabTxn"') && html.includes('>รับเข้า</button>'));
+// แท็บ "รับเข้า" มีไอคอน SVG + <span> ข้างใน ไม่ใช่ text ตรงๆ ใน <button> แล้ว
+assert(/<button id="tabTxn"[\s\S]{0,600}?>รับเข้า<\/span>[\s\S]{0,80}?<\/button>/.test(html),
+  'ต้องมีแท็บ id="tabTxn" ที่มีป้ายว่า "รับเข้า"');
 assert(html.includes('<input id="txnType" type="hidden" value="Input"'));
 assert(!html.includes('id="txnTypeOutputOption"'));
 assert(html.includes('📥 ประเภทรายการ: รับเข้า'));
