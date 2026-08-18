@@ -3855,6 +3855,32 @@
     var isLineMenuVisible = false;
 
     var _bodyScrollY = 0;
+    // ปิด modal เมื่อคลิก "พื้นหลัง" — ต้องเช็คทั้งตอนกดเมาส์ลงและตอนปล่อยว่าอยู่บนพื้นหลังจริง
+    //
+    // เดิมเช็คแค่ e.target === element ในอีเวนต์ click ซึ่งพังเวลาผู้ใช้ลากเลือกข้อความ:
+    // กดเมาส์ลงในช่องกรอก แล้วลากออกไปปล่อยนอกกรอบ เบราว์เซอร์จะยิง click โดยตั้ง target
+    // เป็น "บรรพบุรุษร่วม" ของจุดกดกับจุดปล่อย ซึ่งก็คือตัว modal เอง → ปิดทิ้งทั้งที่ยังแก้ไม่เสร็จ
+    // ข้อมูลที่พิมพ์ไว้หายหมด (เจอบ่อยสุดตอน copy ชื่อ Model ในฟอร์มแก้ไขอะไหล่)
+    function bindBackdropClose(element, onClose, isBackdrop) {
+      if (!element || typeof onClose !== 'function') return;
+      var hitBackdrop = isBackdrop || function(target) { return target === element; };
+      var pressedOnBackdrop = false;
+      var releasedOnBackdrop = false;
+      element.addEventListener('mousedown', function(e) {
+        pressedOnBackdrop = hitBackdrop(e.target);
+        releasedOnBackdrop = false;
+      });
+      element.addEventListener('mouseup', function(e) {
+        releasedOnBackdrop = hitBackdrop(e.target);
+      });
+      element.addEventListener('click', function(e) {
+        var shouldClose = pressedOnBackdrop && releasedOnBackdrop && hitBackdrop(e.target);
+        pressedOnBackdrop = false;
+        releasedOnBackdrop = false;
+        if (shouldClose) onClose(e);
+      });
+    }
+
     function lockBodyScroll() {
       if (modalLockCount === 0) {
         _bodyScrollY = window.scrollY || window.pageYOffset || 0;
@@ -10485,15 +10511,30 @@ function inferRequestPriority(stock, min) {
           dialog.style.display = 'none';
           okBtn.removeEventListener('click', onOk);
           cancelBtn.removeEventListener('click', onCancel);
+          dialog.removeEventListener('mousedown', onBgDown);
+          dialog.removeEventListener('mouseup', onBgUp);
+          dialog.removeEventListener('click', onBg);
           resolve(result);
         }
         function onOk()     { cleanup(true);  }
         function onCancel() { cleanup(false); }
+        // เช็คทั้งจุดกดและจุดปล่อยเหมือน bindBackdropClose — ลากเลือกข้อความในกล่องแล้ว
+        // ปล่อยเมาส์นอกกรอบต้องไม่นับเป็นการกดยกเลิก
+        var pressedOnBg = false;
+        var releasedOnBg = false;
+        function onBgDown(e) { pressedOnBg = e.target === dialog; releasedOnBg = false; }
+        function onBgUp(e) { releasedOnBg = e.target === dialog; }
+        function onBg(e) {
+          var shouldClose = pressedOnBg && releasedOnBg && e.target === dialog;
+          pressedOnBg = false;
+          releasedOnBg = false;
+          if (shouldClose) cleanup(false);
+        }
         okBtn.addEventListener('click', onOk);
         cancelBtn.addEventListener('click', onCancel);
-        dialog.addEventListener('click', function onBg(e) {
-          if (e.target === dialog) { dialog.removeEventListener('click', onBg); cleanup(false); }
-        });
+        dialog.addEventListener('mousedown', onBgDown);
+        dialog.addEventListener('mouseup', onBgUp);
+        dialog.addEventListener('click', onBg);
       });
     }
 
@@ -14125,9 +14166,7 @@ function inferRequestPriority(stock, min) {
       if (!closeBtn) return;
 
       closeBtn.addEventListener('click', closeDetailModal);
-      detailModal.addEventListener('click', function(e) {
-        if (e.target === detailModal) closeDetailModal();
-      });
+      bindBackdropClose(detailModal, closeDetailModal);
       document.addEventListener('keydown', function(e) {
         if (e.key !== 'Escape') return;
         if (detailModal.classList.contains('hidden')) return;
@@ -14376,17 +14415,13 @@ function inferRequestPriority(stock, min) {
     if (quickIssueBackdrop) quickIssueBackdrop.addEventListener('click', closeQuickIssueModal);
     if (quickIssueCloseBtn) quickIssueCloseBtn.addEventListener('click', closeQuickIssueModal);
     if (quickIssueModal) {
-      quickIssueModal.addEventListener('click', function(e) {
-        if (e.target === quickIssueModal) closeQuickIssueModal();
-      });
+      bindBackdropClose(quickIssueModal, closeQuickIssueModal);
     }
     if (quickIssueForm) quickIssueForm.addEventListener('submit', submitQuickIssue);
     if (quickReceiveBackdrop) quickReceiveBackdrop.addEventListener('click', closeQuickReceiveModal);
     if (quickReceiveCloseBtn) quickReceiveCloseBtn.addEventListener('click', closeQuickReceiveModal);
     if (quickReceiveModal) {
-      quickReceiveModal.addEventListener('click', function(e) {
-        if (e.target === quickReceiveModal) closeQuickReceiveModal();
-      });
+      bindBackdropClose(quickReceiveModal, closeQuickReceiveModal);
     }
     if (quickReceiveForm) quickReceiveForm.addEventListener('submit', submitQuickReceive);
     document.addEventListener('keydown', function(e) {
@@ -15046,7 +15081,7 @@ function inferRequestPriority(stock, min) {
       if (!btn || !modal || !body) return;
       function close() { modal.classList.add('hidden'); }
       if (closeBtn) closeBtn.addEventListener('click', close);
-      modal.addEventListener('click', function(e) { if (e.target === modal) close(); });
+      bindBackdropClose(modal, close);
       btn.addEventListener('click', function() {
         modal.classList.remove('hidden');
         body.innerHTML = '<div class="p-8 text-center text-gray-400">⏳ กำลังรวบรวมข้อมูล...</div>';
@@ -15271,7 +15306,7 @@ function inferRequestPriority(stock, min) {
       }).catch(function(err) { alert('แก้ไขไม่สำเร็จ: ' + (err && err.message ? err.message : err)); });
     });
     ['purchaseHistoryEditClose', 'purchaseHistoryEditCancel'].forEach(function(id) { var button = document.getElementById(id); if (button) button.addEventListener('click', closePurchaseHistoryEdit); });
-    if (purchaseHistoryEditModal) purchaseHistoryEditModal.addEventListener('click', function(e) { if (e.target === purchaseHistoryEditModal) closePurchaseHistoryEdit(); });
+    bindBackdropClose(purchaseHistoryEditModal, closePurchaseHistoryEdit);
     if (purchaseHistoryAddBtn) purchaseHistoryAddBtn.addEventListener('click', function() {
       if (!hasPermission('view_logs')) return;
       phManualForm.reset();
@@ -15448,7 +15483,7 @@ function inferRequestPriority(stock, min) {
       if (purchaseHistoryImportStatus) purchaseHistoryImportStatus.textContent = files.length ? 'เลือกไฟล์แล้ว กด “อ่าน PDF และแสดง Preview”' : '';
     });
     ['purchaseHistoryImportClose', 'purchaseHistoryImportCancel'].forEach(function(id) { var button = document.getElementById(id); if (button) button.addEventListener('click', closePurchaseHistoryImport); });
-    if (purchaseHistoryImportModal) purchaseHistoryImportModal.addEventListener('click', function(e) { if (e.target === purchaseHistoryImportModal) closePurchaseHistoryImport(); });
+    bindBackdropClose(purchaseHistoryImportModal, closePurchaseHistoryImport);
     if (purchaseHistoryParsePdfBtn) purchaseHistoryParsePdfBtn.addEventListener('click', function() {
       var files = Array.prototype.slice.call((purchaseHistoryPdfFiles && purchaseHistoryPdfFiles.files) || []);
       if (!files.length) return alert('กรุณาเลือกไฟล์ PDF อย่างน้อย 1 ไฟล์');
@@ -15803,16 +15838,12 @@ if (dashboardPage) {
     if (confirmImportBtn) confirmImportBtn.addEventListener('click', confirmImportRows);
     document.getElementById('btnDeleteItem').addEventListener('click', deleteManageItem);
     document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
-    editModal.addEventListener('click', function(e){
-      if (e.target === editModal) closeEditModal();
-    });
+    bindBackdropClose(editModal, closeEditModal);
     bindDetailModalCloseBehavior();
     closeImageViewerBtn.addEventListener('click', closeImageViewer);
     // แตะ backdrop (นอกรูป) ปิด
-    imageViewer.addEventListener('click', function(e) {
-      var inner = document.getElementById('imageViewerInner');
-      var img = document.getElementById('imageViewerImg');
-      if (e.target === imageViewer || e.target === inner) closeImageViewer();
+    bindBackdropClose(imageViewer, closeImageViewer, function(target) {
+      return target === imageViewer || target === document.getElementById('imageViewerInner');
     });
     // Swipe down เพื่อปิด (mobile)
     (function() {
@@ -17446,9 +17477,9 @@ if (dashboardPage) {
     var roImageModalClose = document.getElementById('roImageModalClose');
     var roImageModalPreview = document.getElementById('roImageModalPreview');
     if (roDetailClose && roDetailModal) roDetailClose.addEventListener('click', closeRequestOrderDetailModal);
-    if (roDetailModal) roDetailModal.addEventListener('click', function(e){ if (e.target === roDetailModal) closeRequestOrderDetailModal(); });
+    bindBackdropClose(roDetailModal, closeRequestOrderDetailModal);
     if (roImageModalClose && roImageModal) roImageModalClose.addEventListener('click', function(){ roImageModal.classList.add('hidden'); });
-    if (roImageModal) roImageModal.addEventListener('click', function(e){ if (e.target === roImageModal) roImageModal.classList.add('hidden'); });
+    bindBackdropClose(roImageModal, function() { roImageModal.classList.add('hidden'); });
     if (roImageModalPreview) {
       roImageModalPreview.onerror = function() {
         var src = roImageModalPreview.getAttribute('src') || '';
