@@ -3376,7 +3376,7 @@
       'Coil Winding': ['Coil Winding'],
       'Lug&Screw': ['Lug&Screw']
     };
-    var LINE_CACHE_VERSION = 'lite-master-cache-v3';
+    var LINE_CACHE_VERSION = 'lite-master-cache-v4';
     var MASTER_CACHE_TTL_MS = 8 * 60 * 1000;
 
     // ── Coil Size: ตัวเลือกชุดเดียวที่ใช้ทั้งฟิลเตอร์และทุกฟอร์ม (เพิ่ม/แก้ไข/นำเข้า) ──────
@@ -4039,7 +4039,10 @@
         drawing_status: firstDefined([item.drawing_status, item.drawingStatus, item['Drawing Status']], ''),
         datasheet_url: firstDefined([item.datasheet_url, item.datasheetUrl, item['Datasheet URL']], ''),
         quotation_url: firstDefined([item.quotation_url, item.quotationUrl, item['Quotation URL']], ''),
-        coil_size: firstDefined([item.coil_size, item.machine_model, item.model_size, item.size, item.type], '-')
+        coil_size: firstDefined([item.coil_size, item.machine_model, item.model_size, item.size, item.type], '-'),
+        // รายชื่อเครื่องจักรที่ผูกไว้ (comma-separated) — ถ้าไม่ map ตรงนี้ ค่าที่ติ๊กไว้จะหายทุกครั้งที่โหลดรายการ
+        // ทำให้ช่องติ๊กในหน้าแก้ไข/ป้ายในหน้ารายละเอียดว่างเปล่าทั้งที่ในชีทมีค่า
+        machines: firstDefined([item.machines, item.machineList, item.machine_list, item.machineNames, item['Machines']], '')
       };
     }
 
@@ -12952,6 +12955,11 @@ function inferRequestPriority(stock, min) {
       var container = document.getElementById('eMachinesList');
       if (!container) return;
       var lineKey = String(line || '').trim();
+      // ธงนี้บอกว่า checkbox พร้อมให้อ่านค่าหรือยัง — ตอนบันทึกต้องเช็คก่อน ไม่งั้น
+      // กดเซฟตอนรายการยังโหลดไม่เสร็จจะได้ค่าว่างแล้วลบเครื่องจักรที่ผูกไว้ทิ้งหมด
+      container.setAttribute('data-machines-ready', '0');
+      // จำค่าที่ขอให้ติ๊กไว้ก่อน เผื่อผู้ใช้เปลี่ยน Line ระหว่างที่ยังโหลดไม่เสร็จ จะได้ไม่หลุด
+      try { container.setAttribute('data-machines-pending', JSON.stringify(selectedNames || [])); } catch (err) {}
       if (!lineKey) {
         container.innerHTML = '<span class="text-sm text-slate-400">ระบุ Line ก่อนเพื่อแสดงรายชื่อเครื่องจักร</span>';
         return;
@@ -12962,6 +12970,7 @@ function inferRequestPriority(stock, min) {
         if (eLineEl && String(eLineEl.value || '').trim() !== lineKey) return;
         if (!list.length) {
           container.innerHTML = '<span class="text-sm text-slate-400">ยังไม่มีเครื่องจักรของไลน์นี้ — เพิ่มได้ที่ Admin &gt; จัดการเครื่องจักร</span>';
+          container.setAttribute('data-machines-ready', '1');
           return;
         }
         var selected = (selectedNames || []).map(function(s) { return String(s || '').trim(); });
@@ -12971,7 +12980,21 @@ function inferRequestPriority(stock, min) {
             '<input type="checkbox" class="e-machine-checkbox h-4 w-4" value="' + escHtml(m.machine_name) + '" ' + checked + ' /> ' + escHtml(m.machine_name) +
           '</label>';
         }).join('');
+        container.setAttribute('data-machines-ready', '1');
       });
+    }
+
+    function isEditMachinesReady() {
+      var container = document.getElementById('eMachinesList');
+      return !!container && container.getAttribute('data-machines-ready') === '1';
+    }
+
+    // ค่าที่ควรถือว่า "ถูกเลือกอยู่" ตอน re-render — ถ้า checkbox ยังไม่ขึ้น ให้ใช้ค่าที่ค้างไว้แทน
+    function getEditMachinesSelection() {
+      if (isEditMachinesReady()) return getSelectedEditMachines();
+      var container = document.getElementById('eMachinesList');
+      if (!container) return [];
+      try { return JSON.parse(container.getAttribute('data-machines-pending') || '[]') || []; } catch (err) { return []; }
     }
 
     function getSelectedEditMachines() {
@@ -13143,7 +13166,8 @@ function inferRequestPriority(stock, min) {
           // พิมพ์ '25/32' ในช่อง Other = ค่าเดียวกับ '25/32A' — เก็บเป็นรูปแบบมาตรฐานให้ตรงฟิลเตอร์
           return canonicalCoilSize(v);
         })(),
-        machines: getSelectedEditMachines().join(', ')
+        // ยังโหลดรายการเครื่องจักรไม่เสร็จ = ผู้ใช้ยังไม่ทันเห็น/แก้ ให้คงค่าเดิมไว้
+        machines: isEditMachinesReady() ? getSelectedEditMachines().join(', ') : String(oldItem.machines || '')
       };
       console.log('[location][edit payload]', { no: payload.no, sheet: payload.sheet, location: payload.location });
       editMessage.className = 'mt-3 text-sm text-emerald-600';
@@ -15679,7 +15703,7 @@ if (dashboardPage) {
     });
     var eLineInputForMachines = document.getElementById('eLine');
     if (eLineInputForMachines) eLineInputForMachines.addEventListener('change', function() {
-      renderEditMachinesCheckboxes(eLineInputForMachines.value.trim(), getSelectedEditMachines());
+      renderEditMachinesCheckboxes(eLineInputForMachines.value.trim(), getEditMachinesSelection());
     });
     var machineManageLineSelect = document.getElementById('machineManageLineSelect');
     if (machineManageLineSelect) machineManageLineSelect.addEventListener('change', function() { loadMachineManageList(); });
