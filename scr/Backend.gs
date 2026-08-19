@@ -3565,6 +3565,44 @@ function returnLogEntryUnlocked(payload) {
   };
 }
 
+// =============================
+// ของใหม่เข้า (New Arrival) — เก็บเวลารับเข้าล่าสุดต่อรายการ
+// =============================
+// หน้า Stock ใช้ค่านี้ทำไฮไลต์ "ของใหม่" ให้ช่างเห็นตอนเลื่อนหา แล้วหายเองเมื่อครบ 7 วัน
+// เก็บเป็นคอลัมน์ในชีทอะไหล่ (ไม่ใช่คำนวณจาก Log ตอนอ่าน) เพราะหน้า Stock โหลดถี่
+// และ Log มีเป็นพันแถว — ดึงมาคำนวณทุกครั้งจะช้าเกินรับได้
+var NEW_ARRIVAL_HEADER = 'Last Received At';
+var NEW_ARRIVAL_ALIASES = ['lastreceivedat', 'lastreceived', 'receivedat', 'newarrivalat'];
+// กรอบ "ของใหม่" 7 วัน — ต้องตรงกับ NEW_ARRIVAL_WINDOW_DAYS ฝั่ง index.html
+// (ฝั่งหน้าเว็บเป็นคนตัดสินว่าจะขึ้นป้ายไหม ตัวนี้ไว้กันคนแก้แล้วลืมแก้อีกฝั่ง)
+var NEW_ARRIVAL_WINDOW_DAYS = 7;
+
+// คืน index คอลัมน์ Last Received At ของชีทอะไหล่ (สร้างให้ถ้ายังไม่มี)
+// รับ headers/map/headerRowIndex ของ processTransaction มาตรงๆ เพราะที่นั่นอ่านชีทไว้แล้ว
+function ensureLastReceivedColumn(sheet, headers, map, headerRowIndex) {
+  for (var i = 0; i < NEW_ARRIVAL_ALIASES.length; i += 1) {
+    if (map[NEW_ARRIVAL_ALIASES[i]] !== undefined) return map[NEW_ARRIVAL_ALIASES[i]];
+  }
+  var newColIndex = headers.length;
+  sheet.getRange(headerRowIndex + 1, newColIndex + 1).setValue(NEW_ARRIVAL_HEADER);
+  headers.push(NEW_ARRIVAL_HEADER);
+  map[normalizeHeaderName(NEW_ARRIVAL_HEADER)] = newColIndex;
+  return newColIndex;
+}
+
+// ประทับเวลารับเข้าล่าสุดลงแถวอะไหล่
+function stampLastReceivedAt(sheet, headers, map, headerRowIndex, sheetRowNumber, timestamp) {
+  try {
+    var col = ensureLastReceivedColumn(sheet, headers, map, headerRowIndex);
+    sheet.getRange(sheetRowNumber, col + 1).setValue(timestamp);
+    return true;
+  } catch (err) {
+    // ประทับเวลาไม่สำเร็จต้องไม่ทำให้การรับเข้าล้มทั้งรายการ — สต็อกสำคัญกว่าไฮไลต์
+    Logger.log('stampLastReceivedAt warning: ' + (err && err.message ? err.message : err));
+    return false;
+  }
+}
+
 function processTransaction(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -3671,6 +3709,11 @@ function processTransactionUnlocked(payload) {
     payload.reasonRemark || '',
     payload.machine || ''
   ]);
+
+  // รับเข้าของจริง (ไม่ใช่การคืนของที่เบิกไป) → ประทับเวลาไว้ให้หน้า Stock ขึ้นป้าย "ของใหม่"
+  if (signedQty > 0 && !payload.skipPurchaseHistory) {
+    stampLastReceivedAt(mainSheet, headers, map, headerRowIndex, sheetRowNumber, txnTimestamp);
+  }
 
   var purchaseHistorySync = null;
   // skipPurchaseHistory: ใช้ตอน "คืนรายการ" (returnLogEntry) — การคืนของที่เบิกไปจะกลายเป็น
@@ -4662,7 +4705,10 @@ function doGet(e) {
         price_remark: isLiteRead ? '' : pickRowValue(row, map, ['priceremark', 'price_remark'], ''),
         coil_size: pickRowValue(row, map, ['coilsize', 'machine_model', 'machinemodel', 'machinemodelcoilsize', 'model_size'], '-'),
         // รายชื่อเครื่องจักรที่ใช้อะไหล่นี้ได้ (comma-separated) — มาจาก master list ในชีต Machines
-        machines: pickRowValue(row, map, ['machines', 'machinelist', 'machine_list', 'machinenames'], '')
+        machines: pickRowValue(row, map, ['machines', 'machinelist', 'machine_list', 'machinenames'], ''),
+        // เวลารับเข้าล่าสุด — หน้า Stock ใช้ขึ้นป้าย "ของใหม่" 7 วัน
+        // ห้ามตัดทิ้งในโหมด lite เพราะการ์ดหน้ารายการคือที่ที่ต้องใช้
+        last_received_at: pickRowValue(row, map, NEW_ARRIVAL_ALIASES, '')
       };
     }).filter(function (item) {
       return item.name && item.name !== '-';

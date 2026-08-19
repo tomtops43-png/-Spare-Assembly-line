@@ -12,6 +12,46 @@
     @media (max-width: 767px) {
       input, select, textarea { font-size: 16px !important; }
     }
+    /* ── ของใหม่เข้า (New Arrival) — การ์ดเรืองแสงสีทอง 7 วันแล้วกลับเป็นปกติเอง ── */
+    .new-arrival-card {
+      background: linear-gradient(160deg, #fffbeb 0%, #ffffff 45%);
+      box-shadow: 0 0 0 2px #fcd34d, 0 8px 22px rgba(245, 158, 11, 0.22);
+      animation: newArrivalGlow 2.4s ease-in-out infinite;
+    }
+    .new-arrival-card:hover {
+      box-shadow: 0 0 0 2px #f59e0b, 0 14px 30px rgba(245, 158, 11, 0.32);
+      animation: none;
+    }
+    @keyframes newArrivalGlow {
+      0%, 100% { box-shadow: 0 0 0 2px #fcd34d, 0 8px 22px rgba(245, 158, 11, 0.18); }
+      50%      { box-shadow: 0 0 0 3px #f59e0b, 0 10px 26px rgba(245, 158, 11, 0.34); }
+    }
+    /* ป้าย "ของใหม่" — ไล่สีทองพร้อมแสงวิ่งผ่านเบาๆ ให้สะดุดตาตอนเลื่อนหาของ */
+    .new-arrival-badge {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #fde68a, #fbbf24);
+      border: 1px solid #f59e0b;
+    }
+    .new-arrival-badge::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -60%;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+      animation: newArrivalShine 2.6s ease-in-out infinite;
+    }
+    @keyframes newArrivalShine {
+      0%        { left: -60%; }
+      55%, 100% { left: 130%; }
+    }
+    /* เครื่องที่ตั้งค่า "ลดการเคลื่อนไหว" ไว้ ให้เหลือแค่กรอบทองนิ่งๆ ไม่ต้องกะพริบ */
+    @media (prefers-reduced-motion: reduce) {
+      .new-arrival-card { animation: none; }
+      .new-arrival-badge::after { animation: none; display: none; }
+    }
     .panel-shadow { box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08); }
     #loginModal {
       background-image: url('images/login-bg.svg');
@@ -4068,7 +4108,9 @@
         coil_size: firstDefined([item.coil_size, item.machine_model, item.model_size, item.size, item.type], '-'),
         // รายชื่อเครื่องจักรที่ผูกไว้ (comma-separated) — ถ้าไม่ map ตรงนี้ ค่าที่ติ๊กไว้จะหายทุกครั้งที่โหลดรายการ
         // ทำให้ช่องติ๊กในหน้าแก้ไข/ป้ายในหน้ารายละเอียดว่างเปล่าทั้งที่ในชีทมีค่า
-        machines: firstDefined([item.machines, item.machineList, item.machine_list, item.machineNames, item['Machines']], '')
+        machines: firstDefined([item.machines, item.machineList, item.machine_list, item.machineNames, item['Machines']], ''),
+        // เวลารับเข้าล่าสุด — ใช้ขึ้นป้าย "ของใหม่" บนการ์ดหน้า Stock 7 วัน
+        last_received_at: firstDefined([item.last_received_at, item.lastReceivedAt, item['Last Received At']], '')
       };
     }
 
@@ -4398,22 +4440,76 @@
       };
     }
 
+    // ── ของใหม่เข้า (New Arrival) ────────────────────────────────────────────
+    // ของที่เพิ่งรับเข้าภายใน 7 วัน ให้การ์ดหน้า Stock เรืองแสงสีเหลือง + ขึ้นป้าย
+    // เพื่อให้ช่างเลื่อนหาแล้วเห็นทันทีว่ามีของใหม่มาแล้ว พอครบ 7 วันจะกลับเป็นการ์ดปกติเอง
+    var NEW_ARRIVAL_WINDOW_DAYS = 7;
+
+    // ค่าจากชีทมาได้ 2 แบบ: สตริง "yyyy-MM-dd HH:mm:ss" หรือ Date ที่ถูกแปลงเป็น ISO ตอนส่ง JSON
+    // ต้องรับได้ทั้งคู่ ไม่งั้นป้ายจะไม่ขึ้นเลยเวลา Google Sheets แปลงเซลล์เป็นวันที่ให้อัตโนมัติ
+    function parseReceivedAt(value) {
+      if (value === undefined || value === null || value === '') return null;
+      if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+      var raw = String(value).trim();
+      if (!raw) return null;
+      var dt = new Date(raw.indexOf('T') === -1 ? raw.replace(' ', 'T') : raw);
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    // จำนวนวันเต็มที่ผ่านมาตั้งแต่รับเข้า (0 = วันนี้) — null ถ้าไม่เข้าเกณฑ์ของใหม่
+    function getNewArrivalAgeDays(item) {
+      var dt = parseReceivedAt(item && item.last_received_at);
+      if (!dt) return null;
+      var diffMs = Date.now() - dt.getTime();
+      // เผื่อเวลาเครื่องคลาดกันเล็กน้อย (หรือชีทบันทึกเป็นเวลาไทยแต่เครื่องตั้ง timezone อื่น)
+      // ยังถือว่าเป็นของใหม่ ไม่ตัดทิ้งเพราะติดลบไปไม่กี่ชั่วโมง
+      if (diffMs < -12 * 60 * 60 * 1000) return null;
+      var days = Math.floor(Math.max(diffMs, 0) / (24 * 60 * 60 * 1000));
+      return days < NEW_ARRIVAL_WINDOW_DAYS ? days : null;
+    }
+
+    function isNewArrival(item) {
+      return getNewArrivalAgeDays(item) !== null;
+    }
+
+    function getNewArrivalLabel(ageDays) {
+      if (ageDays === 0) return 'เข้าวันนี้';
+      if (ageDays === 1) return 'เข้าเมื่อวาน';
+      return 'เข้า ' + ageDays + ' วันก่อน';
+    }
+
+    // ป้าย "ของใหม่" ที่วางทับบนรูปการ์ด
+    function renderNewArrivalBadge(item, compact) {
+      var ageDays = getNewArrivalAgeDays(item);
+      if (ageDays === null) return '';
+      var pad = compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[10px]';
+      return '<span class="new-arrival-badge inline-flex items-center gap-1 rounded-full font-extrabold text-amber-900 shadow-sm ' + pad + '">' +
+        '<span>✨</span><span>ของใหม่</span>' +
+        (compact ? '' : '<span class="font-semibold opacity-75">· ' + getNewArrivalLabel(ageDays) + '</span>') +
+      '</span>';
+    }
+
     function getCardVisualState(item) {
       var status = getStockStatus(item);
+      // ของใหม่เข้าใน 7 วัน = กรอบเหลืองเรืองแสง ให้สังเกตเห็นตอนเลื่อนหาของ
+      // ของที่หมดสต็อกไม่ต้องเรืองแสง (ยังไงก็เบิกไม่ได้ ป้ายจะแย่งความสนใจเปล่าๆ)
+      var newArrival = status !== 'OUT' && isNewArrival(item);
       if (status === 'OUT') {
         return {
           cardClass: 'border-slate-300 bg-slate-100',
           imageClass: 'opacity-50 grayscale saturate-0',
           contentClass: 'opacity-55 saturate-50',
           showOutLabel: true,
+          isNewArrival: false,
           overlayLabelClass: 'absolute inset-0 z-10 pointer-events-none flex items-center justify-center bg-slate-100/45'
         };
       }
       return {
-        cardClass: 'border-slate-200 bg-white',
+        cardClass: newArrival ? 'new-arrival-card border-amber-300' : 'border-slate-200 bg-white',
         imageClass: '',
         contentClass: '',
         showOutLabel: false,
+        isNewArrival: newArrival,
         overlayLabelClass: ''
       };
     }
@@ -12867,6 +12963,7 @@ function inferRequestPriority(stock, min) {
         var updatedStock = Number(res.stockAfter);
         var beforeStock = Number(res.stockBefore != null ? res.stockBefore : item.stock || 0);
         item.stock = isNaN(updatedStock) ? beforeStock + qty : updatedStock;
+        item.last_received_at = new Date();
         applyFilters(false);
         showQuickToast('✅ รับเข้าสำเร็จ: Stock ' + beforeStock + ' → ' + item.stock, 'success');
         closeQuickReceiveModal();
@@ -12946,6 +13043,8 @@ function inferRequestPriority(stock, min) {
       var beforeStock = Number(selected.stock || 0);
       var optimisticStock = beforeStock + qty;
       selected.stock = optimisticStock;
+      // ขึ้นป้าย "ของใหม่" ให้เห็นทันทีโดยไม่ต้องรอโหลดใหม่ (เดี๋ยว server ยืนยันค่าเดิมกลับมาอยู่แล้ว)
+      selected.last_received_at = new Date();
       applyFilters(false);
 
       callTransactionViaJsonp(payload).then(function(res) {
@@ -13732,6 +13831,8 @@ function inferRequestPriority(stock, min) {
         var qtyBg = status === 'OUT' ? 'background:linear-gradient(135deg,#fff1f2,#ffe4e6)' : status === 'LOW' ? 'background:linear-gradient(135deg,#fffbeb,#fef3c7)' : 'background:linear-gradient(135deg,#f0fdf4,#dcfce7)';
         var qtyColor = status === 'OUT' ? 'color:#be123c' : status === 'LOW' ? 'color:#b45309' : 'color:#15803d';
         var topStripe = status === 'OUT' ? 'background:#fda4af' : status === 'LOW' ? 'background:#fcd34d' : 'background:#86efac';
+        // ของใหม่ให้แถบบนเป็นแถบทองไล่สี ทับสีสถานะปกติ เพื่อให้เห็นแต่ไกล
+        if (visualState.isNewArrival) topStripe = 'background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b)';
         // มีราคาโชว์ตัวเลขกลืนกับสีกล่องคงเหลือ ไม่มีราคาต้องขึ้นป้ายชัดๆ แทนที่จะเงียบหาย — จะได้ตามไปเติมราคาให้ครบ
         var priceVal = getItemUnitPrice(item);
         var priceBadge = priceVal !== null
@@ -13742,7 +13843,7 @@ function inferRequestPriority(stock, min) {
           '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:4/3;">' +
             '<img loading="lazy" decoding="async" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain p-2 transition duration-300 group-hover:scale-105 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\''+ FALLBACK_IMAGE +'\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-xl') + '</div>' : '') +
-            (drawingBadge ? '<div class="absolute top-2 left-2">' + drawingBadge + '</div>' : '') +
+            '<div class="absolute top-2 left-2 flex flex-col items-start gap-1">' + renderNewArrivalBadge(item, false) + drawingBadge + '</div>' +
           '</div>' +
           '<div class="flex flex-1 flex-col px-3.5 pt-3 pb-2 ' + visualState.contentClass + '">' +
             '<p class="font-extrabold text-[15px] leading-snug text-slate-900" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.name + '</p>' +
@@ -13844,12 +13945,14 @@ function inferRequestPriority(stock, min) {
         var mQtyBg = status === 'OUT' ? 'background:linear-gradient(135deg,#fff1f2,#ffe4e6)' : status === 'LOW' ? 'background:linear-gradient(135deg,#fffbeb,#fef3c7)' : 'background:linear-gradient(135deg,#f0fdf4,#dcfce7)';
         var mQtyColor = status === 'OUT' ? 'color:#be123c' : status === 'LOW' ? 'color:#b45309' : 'color:#15803d';
         var mTopStripe = status === 'OUT' ? 'background:#fda4af' : status === 'LOW' ? 'background:#fcd34d' : 'background:#86efac';
+        if (visualState.isNewArrival) mTopStripe = 'background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b)';
         var mPriceVal = getItemUnitPrice(item);
         return '<article data-view-key="' + itemKey + '" class="relative flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 active:scale-95 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="h-1 w-full shrink-0" style="' + mTopStripe + '"></div>' +
           '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:1/1;">' +
             '<img loading="lazy" decoding="async" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain p-2 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-base') + '</div>' : '') +
+            (visualState.isNewArrival ? '<div class="absolute top-1.5 left-1.5">' + renderNewArrivalBadge(item, true) + '</div>' : '') +
           '</div>' +
           '<div class="flex flex-1 flex-col px-2.5 pt-2.5 pb-1 ' + visualState.contentClass + '">' +
             '<p class="font-extrabold text-[13px] leading-snug text-slate-900" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.name + '</p>' +
