@@ -23,8 +23,11 @@ assert(/renderEditMachinesCheckboxes\(item\.line \|\| '', String\(item\.machines
 // ── กันเซฟทับตอนรายการเครื่องจักรยังโหลดไม่เสร็จ ─────────────────────────────
 const renderSrc = script.match(/function renderEditMachinesCheckboxes\(line, selectedNames\)[\s\S]*?\n    \}/)[0];
 assert(/data-machines-ready', '0'/.test(renderSrc), 'ต้องรีเซ็ตธง ready ก่อนเริ่มโหลด');
-assert((renderSrc.match(/data-machines-ready', '1'/g) || []).length === 2,
-  "ต้องตั้งธง ready='1' ทั้งเคสมีเครื่องจักรและเคสไลน์นี้ไม่มีเครื่องจักร");
+// ทุกทางที่วาด checkbox เสร็จต้องตั้งธง ready='1' — ตอนนี้มี 3 ทาง:
+// (1) ไลน์นี้ไม่มีเครื่องจักร (2) รายการเรียบ ไม่มีขนาดในชื่อ (3) แบบจัดกลุ่มตามขนาด
+// ถ้าเพิ่มทางใหม่แล้วลืมตั้งธง = กดเซฟแล้วเครื่องจักรที่ผูกไว้จะถูกลบทิ้ง
+assert((renderSrc.match(/data-machines-ready', '1'/g) || []).length === 3,
+  "ต้องตั้งธง ready='1' ครบทุกทางที่วาด checkbox เสร็จ (ไม่มีเครื่อง / รายการเรียบ / จัดกลุ่ม)");
 assert(/data-machines-pending/.test(renderSrc), 'ต้องจำค่าที่ขอให้ติ๊กไว้ เผื่อเปลี่ยน Line ระหว่างโหลด');
 
 assert(/machines: isEditMachinesReady\(\) \? getSelectedEditMachines\(\)\.join\(', '\) : String\(oldItem\.machines \|\| ''\)/.test(script),

@@ -13091,6 +13091,70 @@ function inferRequestPriority(stock, min) {
 
 
 
+    // ── จับคู่อะไหล่กับ "กลุ่มขนาดเครื่อง" (10A / 16A / 20A / 32A) ───────────────
+    // ไลน์ Coil Winding ตั้งชื่อเครื่องเป็น "CWM-07 (32A)" โดยแปะขนาดไว้ในชื่อ (ชีท Machines
+    // ไม่มีคอลัมน์ขนาด) — จึงต้องแกะขนาดออกจากชื่อเอา ถ้าวันหลังเพิ่มคอลัมน์ Size จริงในชีท
+    // ให้แก้แค่ getMachineSizeTag() จุดเดียว ที่เหลือใช้ได้ต่อทั้งหมด
+    function getMachineSizeTag(machine) {
+      var name = String((machine && machine.machine_name) || machine || '');
+      // รับได้ทั้ง "CWM-07 (32A)" และ "CWM-07 32A" — ตัวเลข + A ท้ายชื่อคือขนาด
+      var inBracket = name.match(/\(\s*(\d+)\s*A\s*\)/i);
+      if (inBracket) return inBracket[1] + 'A';
+      var trailing = name.match(/(\d+)\s*A\s*$/i);
+      return trailing ? trailing[1] + 'A' : '';
+    }
+
+    // Coil Size ของอะไหล่ → ขนาดเครื่องที่เข้าได้
+    // คืน null = ไม่จำกัดกลุ่ม (Common หรือไม่ได้ระบุ Coil Size)
+    function getMachineSizesForCoilSize(coilSize) {
+      var raw = canonicalCoilSize(coilSize);
+      if (!raw || raw === 'Common') return null;
+      // "25/32A" หมายถึงเครื่อง 25A และ 32A (ตอนนี้ลงทะเบียนไว้แค่ 32A แต่เผื่อไว้)
+      var nums = raw.match(/\d+/g);
+      if (!nums || !nums.length) return null;
+      return nums.map(function(n) { return n + 'A'; });
+    }
+
+    // Coil Size ที่ฟอร์มแก้ไขกำลังเลือกอยู่ (เผื่อเลือก Other แล้วพิมพ์เอง)
+    function getEditFormCoilSize() {
+      var sel = document.getElementById('eCoilSize');
+      if (!sel) return '';
+      var v = String(sel.value || '').trim();
+      if (v === 'Other') {
+        var other = document.getElementById('eCoilSizeOther');
+        v = other ? String(other.value || '').trim() : '';
+      }
+      return canonicalCoilSize(v);
+    }
+
+    // จัดเครื่องจักรเป็นกลุ่มตามขนาด เรียงตามตัวเลข (10A → 16A → 20A → 32A)
+    // เครื่องที่ไม่ได้แปะขนาดไว้ในชื่อ จะรวมอยู่กลุ่มท้ายสุด "ไม่ระบุขนาด" ไม่ให้หายไปเฉยๆ
+    function groupMachinesBySize(list) {
+      var groups = {};
+      var order = [];
+      (list || []).forEach(function(m) {
+        var tag = getMachineSizeTag(m);
+        var key = tag || '';
+        if (!groups[key]) { groups[key] = []; order.push(key); }
+        groups[key].push(m);
+      });
+      order.sort(function(a, b) {
+        if (!a) return 1;
+        if (!b) return -1;
+        return parseInt(a, 10) - parseInt(b, 10);
+      });
+      return order.map(function(key) {
+        return { size: key, label: key || 'ไม่ระบุขนาด', machines: groups[key] };
+      });
+    }
+
+    function machineCheckboxHtml(machine, isChecked) {
+      return '<label class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm cursor-pointer hover:bg-slate-50">' +
+        '<input type="checkbox" class="e-machine-checkbox h-4 w-4" value="' + escHtml(machine.machine_name) + '" ' + (isChecked ? 'checked' : '') + ' /> ' +
+        escHtml(machine.machine_name) +
+      '</label>';
+    }
+
     function renderEditMachinesCheckboxes(line, selectedNames) {
       var container = document.getElementById('eMachinesList');
       if (!container) return;
@@ -13114,12 +13178,71 @@ function inferRequestPriority(stock, min) {
           return;
         }
         var selected = (selectedNames || []).map(function(s) { return String(s || '').trim(); });
-        container.innerHTML = list.map(function(m) {
-          var checked = selected.indexOf(m.machine_name) > -1 ? 'checked' : '';
-          return '<label class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm cursor-pointer hover:bg-slate-50">' +
-            '<input type="checkbox" class="e-machine-checkbox h-4 w-4" value="' + escHtml(m.machine_name) + '" ' + checked + ' /> ' + escHtml(m.machine_name) +
-          '</label>';
+        var groups = groupMachinesBySize(list);
+        var coilSize = getEditFormCoilSize();
+        var matchSizes = getMachineSizesForCoilSize(coilSize);
+
+        // อะไหล่ที่ยังไม่เคยผูกเครื่องไว้เลย + รู้ขนาดชัดเจน → ติ๊กกลุ่มที่ตรงให้เลย
+        // (ของที่เคยติ๊กไว้แล้วห้ามแตะ — ผู้ใช้อาจตั้งใจเลือกข้ามกลุ่ม)
+        // เก็บเฉพาะขนาดที่ติ๊กได้จริง เพื่อไม่ให้ข้อความบอกถึงกลุ่มที่ยังไม่มีเครื่องลงทะเบียน
+        // (เช่น 25/32A จับได้แค่ 32A เพราะยังไม่มีเครื่อง 25A — จะบอกว่า "ติ๊กกลุ่ม 25A/32A" ไม่ได้)
+        var autoPickedSizes = [];
+        if (!selected.length && matchSizes) {
+          list.forEach(function(m) {
+            var tag = getMachineSizeTag(m);
+            if (matchSizes.indexOf(tag) === -1) return;
+            selected.push(m.machine_name);
+            if (autoPickedSizes.indexOf(tag) === -1) autoPickedSizes.push(tag);
+          });
+        }
+
+        var onlyOneGroup = groups.length <= 1 && !groups.some(function(g) { return g.size; });
+        if (onlyOneGroup) {
+          // ไลน์ที่ไม่ได้แปะขนาดไว้ในชื่อเครื่องเลย (เช่นไลน์อื่นที่ไม่ใช่ Coil) → แสดงแบบเดิม
+          container.innerHTML = '<div class="flex flex-wrap gap-2">' + list.map(function(m) {
+            return machineCheckboxHtml(m, selected.indexOf(m.machine_name) > -1);
+          }).join('') + '</div>';
+          container.setAttribute('data-machines-ready', '1');
+          return;
+        }
+
+        var html = groups.map(function(group) {
+          var isMatch = !!(matchSizes && group.size && matchSizes.indexOf(group.size) > -1);
+          var pickedInGroup = group.machines.filter(function(m) { return selected.indexOf(m.machine_name) > -1; }).length;
+          var allPicked = pickedInGroup === group.machines.length;
+          var boxClass = isMatch
+            ? 'border-amber-400 bg-amber-50/70 ring-1 ring-amber-300'
+            : 'border-slate-200 bg-white';
+          var titleClass = isMatch ? 'text-amber-800' : 'text-slate-500';
+          return '<div data-machine-group="' + escHtml(group.size) + '" class="rounded-xl border p-2.5 ' + boxClass + '">' +
+            '<div class="mb-2 flex items-center justify-between gap-2">' +
+              '<span class="text-xs font-bold ' + titleClass + '">' + escHtml(group.label) +
+                (isMatch ? ' <span class="rounded-full bg-amber-200 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-900">ตรงกับอะไหล่</span>' : '') +
+                ' <span class="font-normal text-slate-400">(' + pickedInGroup + '/' + group.machines.length + ')</span>' +
+              '</span>' +
+              '<button type="button" data-machine-group-toggle="' + escHtml(group.size) + '" data-select-all="' + (allPicked ? '0' : '1') + '" ' +
+                'class="shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50">' +
+                (allPicked ? 'ล้างกลุ่มนี้' : 'เลือกทั้งกลุ่ม') +
+              '</button>' +
+            '</div>' +
+            '<div class="flex flex-wrap gap-2">' + group.machines.map(function(m) {
+              return machineCheckboxHtml(m, selected.indexOf(m.machine_name) > -1);
+            }).join('') + '</div>' +
+          '</div>';
         }).join('');
+
+        var hint = '';
+        if (autoPickedSizes.length) {
+          hint = '<p class="mb-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800">' +
+            '⚡ ติ๊กกลุ่ม ' + escHtml(autoPickedSizes.join(' / ')) + ' ให้อัตโนมัติตาม Coil Size "' + escHtml(coilSize) + '" — แก้ได้ตามต้องการ' +
+          '</p>';
+        } else if (coilSize === 'Common') {
+          hint = '<p class="mb-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-500">' +
+            'Coil Size = Common → เลือกได้ทุกกลุ่ม ไม่จำกัดขนาด' +
+          '</p>';
+        }
+
+        container.innerHTML = hint + '<div class="flex flex-col gap-2">' + html + '</div>';
         container.setAttribute('data-machines-ready', '1');
       });
     }
@@ -15839,6 +15962,33 @@ if (dashboardPage) {
         setAttachmentLink('eDrawingView', '');
       });
     });
+    // ปุ่มเลือก/ล้างยกกลุ่มขนาด — ผูกที่ container ตัวเดียว เพราะปุ่มถูกสร้างใหม่ทุกครั้งที่ re-render
+    var eMachinesListEl = document.getElementById('eMachinesList');
+    if (eMachinesListEl) eMachinesListEl.addEventListener('click', function(e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-machine-group-toggle]') : null;
+      if (!btn) return;
+      e.preventDefault();
+      var groupEl = btn.closest('[data-machine-group]');
+      if (!groupEl) return;
+      var selectAll = btn.getAttribute('data-select-all') === '1';
+      Array.prototype.slice.call(groupEl.querySelectorAll('.e-machine-checkbox')).forEach(function(cb) {
+        cb.checked = selectAll;
+      });
+      // วาดใหม่เพื่ออัปเดตตัวนับ (n/m) กับป้ายปุ่มให้ตรงกับสถานะจริง
+      renderEditMachinesCheckboxes(eLineInputForMachines ? eLineInputForMachines.value.trim() : '', getSelectedEditMachines());
+    });
+
+    // เปลี่ยน Coil Size แล้วต้องวาดกลุ่มใหม่ เพื่อย้ายไฮไลต์ "ตรงกับอะไหล่" ไปกลุ่มที่ถูก
+    // ค่าที่ติ๊กไว้แล้วยกไปด้วย ไม่รีเซ็ตทิ้ง (ถ้ายังไม่เคยติ๊กเลย ตัว render จะติ๊กกลุ่มใหม่ให้เอง)
+    ['eCoilSize', 'eCoilSizeOther'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('change', function() {
+        if (!eLineInputForMachines) return;
+        renderEditMachinesCheckboxes(eLineInputForMachines.value.trim(), getEditMachinesSelection());
+      });
+    });
+
     var eLineInputForMachines = document.getElementById('eLine');
     if (eLineInputForMachines) eLineInputForMachines.addEventListener('change', function() {
       renderEditMachinesCheckboxes(eLineInputForMachines.value.trim(), getEditMachinesSelection());
