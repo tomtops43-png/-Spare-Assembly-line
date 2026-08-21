@@ -3623,12 +3623,37 @@
     var currentTxnItemNo = '';
     var currentPage = 1;
     var pageSize = 10;
+    // ── ขนาดหน้าต้องหารลงตัวกับจำนวนคอลัมน์ของกริด ───────────────────────────
+    // กริดการ์ดบนจอคอมใช้ repeat(auto-fit, minmax(220px,1fr)) — จำนวนคอลัมน์จึงขึ้นกับ
+    // ความกว้างจริงของกล่อง ไม่ใช่ค่าที่เราตั้งไว้ ถ้า pageSize ไม่ใช่ตัวคูณของคอลัมน์
+    // แถวสุดท้ายจะมีช่องโหว่ทั้งที่ยังมีของหน้าถัดไป (เช่น 5 คอลัมน์ + pageSize 24
+    // → แถวสุดท้ายเหลือ 4 ใบ ว่างไป 1 ช่อง) จึงคำนวณคอลัมน์ก่อน แล้วปัดให้ลงตัวเสมอ
+    var STOCK_GRID_MIN_COL = 220;   // ต้องตรงกับ minmax(220px,...) ใน #desktopCardGrid
+    var STOCK_GRID_GAP = 12;        // ต้องตรงกับ gap-3 (0.75rem) ของกริดทั้งสองตัว
+    var STOCK_GRID_MOBILE_COLS = 2; // #mobileCardList เป็น grid-cols-2 ตายตัว
+
+    function getStockGridColumnCount() {
+      var w = window.innerWidth || 0;
+      if (w < 1024) return STOCK_GRID_MOBILE_COLS; // จอเล็กใช้กริดมือถือ (2 คอลัมน์คงที่)
+      var grid = document.getElementById('desktopCardGrid');
+      var width = grid ? grid.clientWidth : 0;
+      // ตอนหน้ายังไม่ถูกวาด/ถูกซ่อนอยู่ clientWidth เป็น 0 — ไล่ถอยไปหาค่าที่ใกล้เคียงที่สุด
+      if (!width && grid && grid.parentNode && grid.parentNode.clientWidth) {
+        width = grid.parentNode.clientWidth;
+      }
+      if (!width) width = Math.max(0, w - 64);
+      // สูตรเดียวกับที่เบราว์เซอร์ใช้ตัดคอลัมน์ให้ auto-fit
+      var cols = Math.floor((width + STOCK_GRID_GAP) / (STOCK_GRID_MIN_COL + STOCK_GRID_GAP));
+      return Math.max(1, cols);
+    }
+
     function updateResponsivePageSize() {
       var w = window.innerWidth || 0;
-      if (w < 768) pageSize = 10;
-      else if (w < 1200) pageSize = 12;
-      else if (w < 1600) pageSize = 24;
-      else pageSize = 30;
+      // จำนวนการ์ดที่อยากได้ต่อหน้า (คงความหนาแน่นเดิมไว้) แล้วค่อยปัดให้ลงตัวกับคอลัมน์
+      var target = w < 768 ? 10 : (w < 1200 ? 12 : (w < 1600 ? 24 : 30));
+      var cols = getStockGridColumnCount();
+      var rows = Math.max(1, Math.round(target / cols));
+      pageSize = cols * rows;
     }
     var tableStatusMode = 'all';
     var issueCartState = {}; // keyed by getItemIdentityKey(item) — กัน NO ซ้ำข้าม Sheet ชนกัน
