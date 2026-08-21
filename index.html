@@ -5711,15 +5711,45 @@
     // ใช้ร่วมกันทั้ง Issue Cart และ เบิกด่วน (quick issue) — ตรรกะเดียวกัน คนละ element
     var MACHINE_SELECT_OTHER = '__other__';
 
-    function populateMachineSelect(selectId, otherId, line) {
+    // แปลงค่าคอลัมน์ Machines ของอะไหล่ (comma-separated) เป็น array ชื่อเครื่อง
+    function parseItemMachines(item) {
+      return String((item && item.machines) || '').split(',')
+        .map(function(s) { return String(s || '').trim(); })
+        .filter(Boolean);
+    }
+
+    // เครื่องที่ "ใช้ได้ทุกรายการ" ในชุดที่จะเบิก — ตัดกันเฉพาะรายการที่ผูกเครื่องไว้
+    // รายการที่ยังไม่เคยผูกเครื่องถือว่าไม่บังคับ จึงไม่นำมาตัดตัวเลือกของคนอื่น
+    function getSharedMachineNames(items) {
+      var shared = null;
+      (items || []).forEach(function(item) {
+        var names = parseItemMachines(item);
+        if (!names.length) return;
+        if (shared === null) { shared = names.slice(); return; }
+        shared = shared.filter(function(n) { return names.indexOf(n) > -1; });
+      });
+      return shared || [];
+    }
+
+    // allowedNames = รายชื่อเครื่องที่อะไหล่ผูกไว้ (ว่าง = ไม่จำกัด แสดงทุกเครื่องของไลน์)
+    // ถ้ากรองแล้วไม่เหลือสักตัว (เช่นเครื่องถูกลบ/เปลี่ยนชื่อไปแล้ว) จะถอยไปแสดงทั้งหมด
+    // ไม่ปล่อยให้ช่องว่างจนเบิกไม่ได้
+    function populateMachineSelect(selectId, otherId, line, allowedNames) {
       var sel = document.getElementById(selectId);
       if (!sel) return Promise.resolve([]);
       var previous = String(sel.value || '');
       return fetchMachinesForLine(String(line || '').trim()).then(function(list) {
         var names = (list || []).map(function(m) { return String((m && m.machine_name) || '').trim(); })
           .filter(function(n) { return !!n; });
+        var allowList = (allowedNames || []).map(function(n) { return String(n || '').trim(); }).filter(Boolean);
+        var filtered = allowList.length
+          ? names.filter(function(n) { return allowList.indexOf(n) > -1; })
+          : [];
+        var isFiltered = filtered.length > 0;
+        if (isFiltered) names = filtered;
+        setMachineSelectScopeHint(selectId, isFiltered ? names.length : 0, allowList.length);
         var placeholder = names.length
-          ? '🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)'
+          ? (isFiltered ? '🏭 เลือกเครื่อง (เฉพาะที่อะไหล่นี้ใช้ได้)' : '🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)')
           : '🏭 ยังไม่มีเครื่องจักรของไลน์นี้ — เลือก "อื่นๆ" เพื่อพิมพ์เอง';
         sel.innerHTML = '<option value="">' + escHtml(placeholder) + '</option>' +
           names.map(function(n) { return '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>'; }).join('') +
@@ -5729,6 +5759,26 @@
         syncMachineSelectOther(selectId, otherId);
         return names;
       });
+    }
+
+    // ป้ายบอกว่ารายการถูกตัดให้เหลือเฉพาะเครื่องที่อะไหล่ผูกไว้ — ไม่งั้นช่างจะงงว่า
+    // ทำไมเครื่องที่เคยเห็นหายไป (สร้าง element ให้เองครั้งแรก แล้วใช้ซ้ำ)
+    function setMachineSelectScopeHint(selectId, shownCount, linkedCount) {
+      var sel = document.getElementById(selectId);
+      if (!sel || !sel.parentNode) return;
+      var hintId = selectId + 'ScopeHint';
+      var hint = document.getElementById(hintId);
+      if (!shownCount) { if (hint) hint.classList.add('hidden'); return; }
+      if (!hint) {
+        hint = document.createElement('p');
+        hint.id = hintId;
+        hint.className = 'text-[11px] font-semibold text-emerald-700';
+        sel.parentNode.insertBefore(hint, sel.nextSibling);
+      }
+      hint.classList.remove('hidden');
+      hint.textContent = '🏭 แสดงเฉพาะ ' + shownCount + ' เครื่องที่อะไหล่นี้ผูกไว้'
+        + (shownCount < linkedCount ? ' (อีก ' + (linkedCount - shownCount) + ' เครื่องไม่พบในทะเบียนแล้ว)' : '')
+        + ' — ถ้าต้องใส่เครื่องอื่น เลือก "อื่นๆ (พิมพ์เอง)"';
     }
 
     function syncMachineSelectOther(selectId, otherId) {
@@ -5758,7 +5808,10 @@
     }
 
     function populateIssueCartMachineOptions() {
-      return populateMachineSelect('issueCartMachine', 'issueCartMachineOther', currentLine);
+      // ตะกร้าใช้เครื่องเดียวกับทุกรายการ จึงเหลือเฉพาะเครื่องที่ทุกชิ้นใส่ได้
+      // ถ้าในตะกร้ามีของคนละขนาดปนกัน จะตัดกันไม่เหลือ → ถอยไปแสดงทุกเครื่องเอง
+      var items = getIssueCartEntries().map(function(e) { return e.item; });
+      return populateMachineSelect('issueCartMachine', 'issueCartMachineOther', currentLine, getSharedMachineNames(items));
     }
     function syncIssueCartMachineOtherVisibility() {
       syncMachineSelectOther('issueCartMachine', 'issueCartMachineOther');
@@ -5802,8 +5855,8 @@
       }
     }
 
-    function populateQuickIssueMachineOptions(line) {
-      return populateMachineSelect('quickIssueMachine', 'quickIssueMachineOther', line || currentLine);
+    function populateQuickIssueMachineOptions(line, item) {
+      return populateMachineSelect('quickIssueMachine', 'quickIssueMachineOther', line || currentLine, parseItemMachines(item));
     }
     function getQuickIssueMachineValue() {
       return getMachineSelectValue('quickIssueMachine', 'quickIssueMachineOther');
@@ -12708,7 +12761,7 @@ function inferRequestPriority(stock, min) {
       }
       // เครื่องจักรต้องเป็นของไลน์อะไหล่ชิ้นนี้ (อาจคนละไลน์กับที่กำลังเปิดดูอยู่)
       resetQuickIssueMachineField();
-      populateQuickIssueMachineOptions(item.line || currentLine);
+      populateQuickIssueMachineOptions(item.line || currentLine, item);
       syncQuickIssueTagField(item, true);
       quickIssueMessage.className = 'text-sm text-slate-500';
       quickIssueMessage.textContent = '';
