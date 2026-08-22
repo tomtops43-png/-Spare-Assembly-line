@@ -8,6 +8,14 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
     body { font-family: 'Prompt', sans-serif; background: linear-gradient(180deg,#f1f5f9 0%,#eef2ff 100%); }
+    /* ── ล็อกหน้าจอไม่ให้เลื่อนซ้าย-ขวา (มือถือ) ──
+       iOS Safari ไม่สนใจ overflow-x:hidden ที่ <body> อย่างเดียว ต้องใส่ที่ <html> ด้วย
+       ใช้ clip เพราะไม่สร้าง scroll container ใหม่ → sticky header ยังทำงานปกติ */
+    html { overflow-x: clip; }
+    body { overflow-x: clip; max-width: 100%; }
+    @supports not (overflow-x: clip) {
+      html { overflow-x: hidden; }   /* fallback: propagate ไป viewport, ไม่กระทบ sticky */
+    }
     /* Prevent iOS/Android auto-zoom on input focus — must be ≥16px */
     @media (max-width: 767px) {
       input, select, textarea { font-size: 16px !important; }
@@ -255,6 +263,13 @@
     /* บังคับโชว์ label ในเมนูเสมอ (label span ไม่มี id, badge span มี id) */
     .nav-dropdown-panel .eng-tab span:not([id]) { display:inline !important; }
     .nav-group-trigger:hover { background-color:#f1f5f9; }
+    /* มือถือ: ให้เมนูย่อยกางเต็มความกว้างแถบเมนู จะได้ไม่ยื่นพ้นขอบขวาจนดันหน้าจอ */
+    @media (max-width: 767px) {
+      #topNavTabs { position: relative; }
+      .nav-group { position: static; }
+      .nav-dropdown-panel,
+      .nav-dropdown-panel.nav-dropdown-right { left: 0; right: 0; width: auto; min-width: 0; }
+    }
     #confirmDialog {
       position: fixed; inset: 0; z-index: 10002;
       background: rgba(15, 23, 42, 0.6);
@@ -653,7 +668,7 @@
     }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 overflow-x-hidden">
+<body class="bg-slate-100 text-slate-800">
   <div id="appSplash" class="splash-overlay">
     <div class="splash-card">
       <div class="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-2xl text-white shadow-lg">🏭</div>
@@ -865,10 +880,10 @@
             </div>
           </div>
           <!-- Mobile search + cart + refresh -->
-          <div class="flex flex-1 items-center gap-1.5 md:hidden">
-            <div class="relative flex flex-1 items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div class="flex min-w-0 flex-1 items-center gap-1.5 md:hidden">
+            <div class="relative flex min-w-0 flex-1 items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
               <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none ml-3 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่..." class="h-10 flex-1 bg-transparent pl-2 pr-2 text-sm outline-none" />
+              <input id="searchInputMobile" type="text" placeholder="ค้นหาอะไหล่..." class="h-10 w-full min-w-0 flex-1 bg-transparent pl-2 pr-2 text-sm outline-none" />
               <button id="searchClearBtnMobile" type="button" class="search-clear-btn hidden mr-1.5 shrink-0 text-slate-400 text-lg leading-none">×</button>
             </div>
             <button id="openIssueCartBtnMobile" type="button" class="flex items-center justify-center gap-0.5 h-10 px-2.5 shrink-0 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-base font-bold">🛒<span id="issueCartBadgeMobile" class="hidden min-w-[16px] h-4 rounded-full bg-red-500 px-1 text-[10px] font-black text-white leading-4">0</span></button>
@@ -885,7 +900,7 @@
           <div class="hidden flex-1 md:block">
             <div class="relative flex items-center rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-400 overflow-hidden">
               <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none ml-3 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-10 flex-1 bg-transparent pl-2 pr-2 text-sm outline-none" />
+              <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-10 w-full min-w-0 flex-1 bg-transparent pl-2 pr-2 text-sm outline-none" />
               <button id="searchClearBtn" type="button" class="search-clear-btn hidden mr-1.5 shrink-0 text-slate-400 text-lg leading-none">×</button>
             </div>
           </div>
