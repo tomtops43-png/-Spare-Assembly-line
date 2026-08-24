@@ -17605,17 +17605,58 @@ if (dashboardPage) {
     }
     // uid ผูกกับ "เนื้อคำขอ" — กดส่งซ้ำใบเดิมได้ uid เดิม (server กันซ้ำได้)
     // แต่ถ้าแก้ข้อมูลแล้วส่งใหม่ ถือเป็นคนละใบ ต้องได้ uid ใหม่
-    var roSubmitTicket = { uid: '', fingerprint: '' };
+    // ตั๋วต้องอยู่ข้ามการ reload ด้วย — บนมือถือคนเจอ error แล้วมักปิดแอป/รีเฟรชก่อนกดส่งใหม่
+    // ถ้าเก็บไว้แค่ในหน่วยความจำ รอบที่สองจะได้ uid ใหม่ แล้ว server ก็กันซ้ำไม่ได้
+    var RO_SUBMIT_TICKET_KEY = 'spare_ro_submit_ticket';
+    // อายุตั๋ว — ยาวพอสำหรับ "เจอ error → ปิดแอป → กลับมากดส่งใหม่"
+    // แต่สั้นพอที่จะไม่ไปบล็อกคำขอที่ตั้งใจขอซ้ำของเดิมทีหลังในวันเดียวกัน
+    var RO_SUBMIT_TICKET_TTL_MS = 2 * 60 * 60 * 1000;
+    function emptyRoSubmitTicket() { return { uid: '', fingerprint: '', owner: '', savedAt: 0 }; }
+    var roSubmitTicket = emptyRoSubmitTicket();
+    // ตั๋วผูกกับคนที่ล็อกอินอยู่ กันเครื่องที่ใช้ร่วมกัน (คนถัดไปขอของเหมือนกันเป๊ะ
+    // ต้องได้ใบของตัวเอง ไม่ใช่ไปชนใบของคนก่อนหน้า)
+    function roSubmitTicketOwner() {
+      return String((currentUser && (currentUser.username || currentUser.name)) || '').trim();
+    }
+    function readRoSubmitTicket() {
+      try {
+        var raw = localStorage.getItem(RO_SUBMIT_TICKET_KEY);
+        var t = raw ? JSON.parse(raw) : null;
+        if (!t || !t.uid || !t.fingerprint) return null;
+        if (!(Number(t.savedAt) > 0) || Date.now() - Number(t.savedAt) > RO_SUBMIT_TICKET_TTL_MS) return null;
+        if (String(t.owner || '') !== roSubmitTicketOwner()) return null;
+        return { uid: String(t.uid), fingerprint: String(t.fingerprint), owner: String(t.owner), savedAt: Number(t.savedAt) };
+      } catch (err) {
+        return null;   // localStorage ปิดอยู่/ข้อมูลเสีย — ถอยไปใช้ตั๋วในหน่วยความจำรอบนี้
+      }
+    }
+    function saveRoSubmitTicket() {
+      try {
+        localStorage.setItem(RO_SUBMIT_TICKET_KEY, JSON.stringify(roSubmitTicket));
+      } catch (err) {
+        // localStorage เต็ม/ปิดอยู่ — รอบนี้ยังกันซ้ำได้ แค่ไม่รอดข้ามการ reload
+        console.warn('บันทึกตั๋วกันคำขอซ้ำลงเครื่องไม่สำเร็จ', err);
+      }
+    }
     function getRoSubmitUid(payload) {
       var fp = orderRequestFingerprint(payload);
       if (roSubmitTicket.uid && roSubmitTicket.fingerprint === fp) return roSubmitTicket.uid;
+      // ในหน่วยความจำไม่มี = เพิ่งรีเฟรช/เปิดแอปใหม่ — กู้ตั๋วที่ค้างในเครื่องก่อนออกใบใหม่
+      var stored = readRoSubmitTicket();
+      if (stored && stored.fingerprint === fp) { roSubmitTicket = stored; return roSubmitTicket.uid; }
       roSubmitTicket = {
         uid: 'ro-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10),
-        fingerprint: fp
+        fingerprint: fp,
+        owner: roSubmitTicketOwner(),
+        savedAt: Date.now()
       };
+      saveRoSubmitTicket();
       return roSubmitTicket.uid;
     }
-    function clearRoSubmitTicket() { roSubmitTicket = { uid: '', fingerprint: '' }; }
+    function clearRoSubmitTicket() {
+      roSubmitTicket = emptyRoSubmitTicket();
+      try { localStorage.removeItem(RO_SUBMIT_TICKET_KEY); } catch (err) {}
+    }
     function findSubmittedOrderRequest(clientUid, fingerprint) {
       return requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
         if (!Array.isArray(rows)) return null;
