@@ -1488,6 +1488,16 @@
                 <option value="pm">🔧 บำรุงรักษาตามแผน (PM)</option>
                 <option value="other">⚙️ ปรับปรุง / ทดสอบ / อื่นๆ</option>
               </select>
+              <select id="fccRepairLineFilter" class="fcc-select fcc-select-sm" aria-label="เลือกไลน์สำหรับค่าซ่อม">
+                <option value="__all__">ทุกไลน์ (รวม 4 ไลน์)</option>
+                <option value="H9">H9</option>
+                <option value="Arc Chute">Arc Chute</option>
+                <option value="Coil Winding">Coil Winding</option>
+                <option value="Lug&Screw">Lug&amp;Screw</option>
+              </select>
+              <select id="fccRepairMonthFilter" class="fcc-select fcc-select-sm" aria-label="เลือกเดือนสำหรับค่าซ่อม">
+                <option value="__all__">ทุกเดือน (รวม)</option>
+              </select>
               <select id="fccRepairRangeFilter" class="fcc-select fcc-select-sm" aria-label="เลือกช่วงเวลาสำหรับค่าซ่อม">
                 <option value="6">6 เดือนล่าสุด</option>
                 <option value="12" selected>12 เดือนล่าสุด</option>
@@ -1497,7 +1507,11 @@
           </div>
           <div class="fcc-card-b">
             <div id="fccRepairSummary" style="display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin-bottom:12px;"></div>
-            <div id="fccRepairTable"><div class="fcc-skel" style="height:150px"></div></div>
+            <div style="margin-bottom:6px; font-size:11px; color:#64748b; font-weight:600;">แนวโน้มค่าซ่อมรายเดือน — แยกสัดส่วนตามไลน์</div>
+            <div style="position:relative; height:300px;"><canvas id="fccRepairTrendCanvas"></canvas></div>
+            <div style="margin:14px 0 6px; font-size:11px; color:#64748b; font-weight:600;">เทียบค่าซ่อมรวมของแต่ละไลน์</div>
+            <div style="position:relative; height:170px;"><canvas id="fccRepairLineCanvas"></canvas></div>
+            <div id="fccRepairTable" style="margin-top:14px;"><div class="fcc-skel" style="height:150px"></div></div>
             <div id="fccRepairNote" style="margin-top:10px;"></div>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0;">
               <button id="fccRepairExportBtn" type="button" class="fcc-btn">📊 Export CSV</button>
@@ -9756,6 +9770,193 @@ function inferRequestPriority(stock, min) {
        และแนวตั้ง (รวมทุกเดือนของไลน์นั้น) + ยอดรวมทั้งหมดมุมขวาล่าง          */
     var FCC_REPAIR_LINES = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
     var fccRepairExportRows = null; // เก็บผลลัพธ์ล่าสุดไว้ให้ปุ่ม Export CSV ใช้ต่อ
+    var fccRepairTrendChart = null, fccRepairLineChart = null; // Chart.js instances — ต้อง destroy ก่อน render ใหม่
+    var fccRepairMonthOptionsKey = ''; // กันไม่ให้ rebuild dropdown เดือนทุกครั้งจนค่าที่เลือกไว้หาย
+
+    // สีประจำไลน์ — ผูกกับ "ตัวไลน์" ไม่ใช่อันดับ เพื่อให้สีไม่สลับเวลากรองข้อมูล
+    // (ชุดสีผ่านการตรวจ contrast / ตาบอดสีแล้ว: worst adjacent CVD ΔE 9.1, normal-vision ΔE 22.9)
+    var FCC_REPAIR_COLOR = { 'H9': '#2a78d6', 'Arc Chute': '#eb6834', 'Coil Winding': '#1baf7a', 'Lug&Screw': '#eda100' };
+    var FCC_REPAIR_EXTRA_COLORS = ['#e87ba4', '#4a3aa7', '#e34948', '#008300'];
+    function fccRepairColor(line, extraIdx) {
+      if (FCC_REPAIR_COLOR[line]) return FCC_REPAIR_COLOR[line];
+      return FCC_REPAIR_EXTRA_COLORS[extraIdx] || '#94a3b8'; // เกินชุดสีแล้วใช้เทากลาง ไม่วนสีซ้ำ
+    }
+    function fccRepairDim(hex, alpha) {
+      var h = String(hex || '').replace('#', '');
+      if (h.length !== 6) return hex;
+      return 'rgba(' + parseInt(h.slice(0, 2), 16) + ',' + parseInt(h.slice(2, 4), 16) + ',' + parseInt(h.slice(4, 6), 16) + ',' + alpha + ')';
+    }
+    function fccRepairDestroyCharts() {
+      if (fccRepairTrendChart) { fccRepairTrendChart.destroy(); fccRepairTrendChart = null; }
+      if (fccRepairLineChart) { fccRepairLineChart.destroy(); fccRepairLineChart = null; }
+    }
+    // ฟอนต์ Prompt โหลดแบบ async — ถ้า Chart.js วัดความกว้างข้อความตอนฟอนต์ยังไม่มา
+    // จะจองที่ไว้น้อยเกินไป ทำให้ legend ตัวสุดท้ายและป้ายแกน Y โดนตัดหายไป
+    // จึงต้องสั่ง update อีกรอบเมื่อฟอนต์พร้อม เพื่อให้วัดใหม่ด้วยฟอนต์จริง
+    function fccRepairRelayoutOnFontReady(chart) {
+      if (!chart || !document.fonts || !document.fonts.ready) return;
+      document.fonts.ready.then(function() {
+        try { if (chart && chart.ctx) chart.update('none'); } catch (e) {}
+      });
+    }
+
+    /* กราฟที่ 1 — Stacked bar: ค่าซ่อมรายเดือน แยกสัดส่วนตามไลน์
+       เห็นทั้งแนวโน้มรวม (ความสูงรวมของแท่ง) และองค์ประกอบแต่ละไลน์ในแท่งเดียว
+       ถ้าเลือกเดือนเจาะจง เดือนอื่นจะจางลงเพื่อคงบริบทไว้ให้เทียบได้              */
+    function fccRenderRepairTrendChart(chartMonths, lineCols, cell, monthTotal, selMonth) {
+      var canvas = document.getElementById('fccRepairTrendCanvas');
+      if (!canvas) return;
+      if (typeof Chart === 'undefined') { setTimeout(function() { if (typeof Chart !== 'undefined') fccRenderRepairCost(); }, 400); return; }
+      if (fccRepairTrendChart) { fccRepairTrendChart.destroy(); fccRepairTrendChart = null; }
+      var FONT = "'Prompt','Chakra Petch',sans-serif";
+      var extraIdx = -1;
+      var datasets = lineCols.map(function(l) {
+        if (!FCC_REPAIR_COLOR[l]) extraIdx += 1;
+        var base = fccRepairColor(l, extraIdx);
+        return {
+          label: l,
+          data: chartMonths.map(function(m) { var c = cell[m] && cell[m][l]; return c ? Math.round(c.amount) : 0; }),
+          qtyData: chartMonths.map(function(m) { var c = cell[m] && cell[m][l]; return c ? c.qty : 0; }),
+          backgroundColor: chartMonths.map(function(m) { return (selMonth && m !== selMonth) ? fccRepairDim(base, 0.2) : base; }),
+          borderColor: '#ffffff', borderWidth: 2, borderRadius: 3, borderSkipped: false,
+          categoryPercentage: 0.68, barPercentage: 0.9
+        };
+      });
+      // ป้ายบอกยอดรวมเฉพาะแท่งที่ "สำคัญ" เท่านั้น (เดือนที่เลือก หรือเดือนที่สูงสุด) — ไม่ติดป้ายทุกแท่ง
+      var peakMonth = chartMonths.slice().sort(function(a, b) { return (monthTotal[b] || 0) - (monthTotal[a] || 0); })[0];
+      var labelMonth = selMonth || peakMonth;
+      var totalLabelPlugin = {
+        id: 'fccRepairTotalLabel',
+        afterDatasetsDraw: function(chart) {
+          var i = chartMonths.indexOf(labelMonth);
+          if (i < 0) return;
+          var ctx = chart.ctx, top = null;
+          chart.data.datasets.forEach(function(ds, di) {
+            var meta = chart.getDatasetMeta(di);
+            var el = meta && meta.data && meta.data[i];
+            if (el && ds.data[i] > 0 && (top === null || el.y < top)) top = el.y;
+          });
+          if (top === null) return;
+          var x = chart.getDatasetMeta(0).data[i].x;
+          ctx.save();
+          ctx.font = '700 11px ' + FONT;
+          ctx.fillStyle = '#0f172a';
+          ctx.textAlign = 'center';
+          ctx.fillText('฿' + fccInt(monthTotal[labelMonth] || 0), x, Math.max(top - 7, 12));
+          ctx.restore();
+        }
+      };
+      fccRepairTrendChart = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        plugins: [totalLabelPlugin],
+        data: { labels: chartMonths.map(function(m) { return fccMonthLabel(m); }), datasets: datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: { stacked: true, grid: { display: false }, border: { color: '#e2e8f0' },
+                 ticks: { font: { family: FONT, size: 11 }, color: '#64748b' } },
+            y: { stacked: true, beginAtZero: true,
+                 grid: { color: '#eef2f7', drawTicks: false },
+                 border: { display: false },
+                 ticks: { font: { family: FONT, size: 10.5 }, color: '#94a3b8', padding: 6,
+                          callback: function(v) { return '฿' + fccMoney(v); } } }
+          },
+          plugins: {
+            legend: { position: 'top', align: 'end',
+                      labels: { font: { family: FONT, size: 11 }, color: '#475569', usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 9, boxHeight: 9, padding: 12 } },
+            tooltip: {
+              backgroundColor: '#ffffff', titleColor: '#0f172a', bodyColor: '#334155', footerColor: '#0f172a',
+              borderColor: '#e2e8f0', borderWidth: 1, padding: 11, cornerRadius: 10, displayColors: true,
+              usePointStyle: true, titleFont: { family: FONT, size: 12.5, weight: '700' },
+              bodyFont: { family: FONT, size: 12 }, footerFont: { family: FONT, size: 12, weight: '700' },
+              filter: function(item) { return item.parsed.y > 0; },
+              callbacks: {
+                label: function(c) {
+                  var q = c.dataset.qtyData ? c.dataset.qtyData[c.dataIndex] : 0;
+                  return '  ' + c.dataset.label + ': ฿' + fccInt(c.parsed.y) + (q ? ' (' + fccInt(q) + ' ชิ้น)' : '');
+                },
+                footer: function(items) {
+                  if (!items || !items.length) return '';
+                  return 'รวมทั้งเดือน: ฿' + fccInt(monthTotal[chartMonths[items[0].dataIndex]] || 0);
+                }
+              }
+            }
+          }
+        }
+      });
+      fccRepairRelayoutOnFontReady(fccRepairTrendChart);
+    }
+
+    /* กราฟที่ 2 — Horizontal bar: เทียบค่าซ่อมรวมของแต่ละไลน์ในช่วงที่ดูอยู่
+       ใช้แท่งแทนโดนัท เพราะอ่านค่าที่ใกล้เคียงกันได้แม่นกว่ามาก                  */
+    function fccRenderRepairLineChart(lineCols, viewLineTotal, grand, selLine) {
+      var canvas = document.getElementById('fccRepairLineCanvas');
+      if (!canvas) return;
+      if (typeof Chart === 'undefined') return;
+      if (fccRepairLineChart) { fccRepairLineChart.destroy(); fccRepairLineChart = null; }
+      var FONT = "'Prompt','Chakra Petch',sans-serif";
+      var ranked = lineCols.slice().sort(function(a, b) { return (viewLineTotal[b] || 0) - (viewLineTotal[a] || 0); });
+      var extraSeen = {}, extraIdx = -1;
+      ranked.forEach(function(l) { if (!FCC_REPAIR_COLOR[l] && extraSeen[l] === undefined) { extraIdx += 1; extraSeen[l] = extraIdx; } });
+      // ป้ายค่าท้ายแท่ง — จำเป็นตาม relief rule ของสีที่ contrast ต่ำ และช่วยให้อ่านค่าได้ทันทีโดยไม่ต้อง hover
+      var valueLabelPlugin = {
+        id: 'fccRepairBarValue',
+        afterDatasetsDraw: function(chart) {
+          var ctx = chart.ctx, meta = chart.getDatasetMeta(0);
+          ctx.save();
+          ctx.font = '700 11px ' + FONT;
+          ctx.fillStyle = '#0f172a';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          meta.data.forEach(function(el, i) {
+            var v = chart.data.datasets[0].data[i];
+            if (!v) return;
+            var pct = grand > 0 ? ' · ' + (v / grand * 100).toFixed(0) + '%' : '';
+            ctx.fillText('฿' + fccInt(v) + pct, el.x + 8, el.y);
+          });
+          ctx.restore();
+        }
+      };
+      fccRepairLineChart = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        plugins: [valueLabelPlugin],
+        data: {
+          labels: ranked,
+          datasets: [{
+            label: 'ค่าซ่อม',
+            data: ranked.map(function(l) { return Math.round(viewLineTotal[l] || 0); }),
+            backgroundColor: ranked.map(function(l) {
+              var base = fccRepairColor(l, extraSeen[l]);
+              return (selLine && l !== selLine) ? fccRepairDim(base, 0.2) : base; // ไลน์ที่ไม่ได้เลือกจางลง แต่ยังเทียบเห็น
+            }),
+            borderRadius: 3, borderSkipped: false, barPercentage: 0.72, categoryPercentage: 0.85
+          }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          layout: { padding: { right: 96 } }, // เผื่อที่ให้ป้ายค่าท้ายแท่งไม่ล้นกรอบ
+          scales: {
+            x: { beginAtZero: true, grid: { color: '#eef2f7', drawTicks: false }, border: { display: false },
+                 ticks: { font: { family: FONT, size: 10.5 }, color: '#94a3b8', callback: function(v) { return '฿' + fccMoney(v); } } },
+            y: { grid: { display: false }, border: { color: '#e2e8f0' },
+                 ticks: { font: { family: FONT, size: 11.5 }, color: '#334155', padding: 4 },
+                 // กันชื่อไลน์ยาว (เช่น "Coil Winding") โดนตัด แม้ตอนวัดฟอนต์ยังไม่พร้อม
+                 afterFit: function(scale) { if (scale.width < 112) scale.width = 112; } }
+          },
+          plugins: {
+            legend: { display: false }, // ชื่อไลน์อยู่บนแกน Y แล้ว ไม่ต้องมี legend ซ้ำ
+            tooltip: {
+              backgroundColor: '#ffffff', titleColor: '#0f172a', bodyColor: '#334155',
+              borderColor: '#e2e8f0', borderWidth: 1, padding: 10, cornerRadius: 10, displayColors: false,
+              titleFont: { family: FONT, size: 12.5, weight: '700' }, bodyFont: { family: FONT, size: 12 },
+              callbacks: { label: function(c) { return '฿' + fccInt(c.parsed.x) + (grand > 0 ? ' · ' + (c.parsed.x / grand * 100).toFixed(1) + '% ของทั้งหมด' : ''); } }
+            }
+          }
+        }
+      });
+      fccRepairRelayoutOnFontReady(fccRepairLineChart);
+    }
 
     // จัดกลุ่มเหตุผลการเบิกเป็นประเภทงาน เพื่อให้กรอง "เฉพาะงานซ่อม" ได้จริง
     function fccRepairReasonGroup(reason) {
@@ -9798,11 +9999,27 @@ function inferRequestPriority(stock, min) {
         tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีค่าซ่อมในเงื่อนไขที่เลือก — ต้องมีการเบิกอะไหล่ที่ระบุราคาต่อหน่วยไว้แล้ว</div>';
         if (sumEl) sumEl.innerHTML = '';
         if (noteEl) noteEl.innerHTML = '';
+        fccRepairDestroyCharts();
         fccRepairExportRows = null;
         return;
       }
       var monthSet = {};
       months.forEach(function(m) { monthSet[m] = true; });
+
+      // ── dropdown "แยกเป็นเดือน": เติมรายชื่อเดือนตามช่วงที่เลือก โดยคงค่าที่ผู้ใช้เลือกไว้ถ้ายังมีอยู่ ──
+      var monthSel = document.getElementById('fccRepairMonthFilter');
+      var selMonth = '';
+      if (monthSel) {
+        var optKey = months.join('|');
+        var wanted = String(monthSel.value || '__all__');
+        if (fccRepairMonthOptionsKey !== optKey) {
+          monthSel.innerHTML = '<option value="__all__">ทุกเดือน (รวม)</option>' +
+            months.map(function(m) { return '<option value="' + fccEsc(m) + '">' + fccEsc(fccMonthLabel(m)) + '</option>'; }).join('');
+          fccRepairMonthOptionsKey = optKey;
+          monthSel.value = monthSet[wanted] ? wanted : '__all__';
+        }
+        selMonth = monthSet[monthSel.value] ? monthSel.value : '';
+      }
 
       // pivot: cell[month][line] = { amount, qty }
       var cell = {}, lineTotal = {}, monthTotal = {}, monthQty = {}, grand = 0, grandQty = 0;
@@ -9825,10 +10042,54 @@ function inferRequestPriority(stock, min) {
       var lineCols = FCC_REPAIR_LINES.filter(function(l) { return linesSeen[l]; })
         .concat(Object.keys(linesSeen).filter(function(l) { return FCC_REPAIR_LINES.indexOf(l) === -1; }).sort());
 
+      // ── ขอบเขตที่ "กำลังดูอยู่": เลือกเดือน/ไลน์เจาะจงแล้ว ตาราง+การ์ดสรุปจะโฟกัสเฉพาะส่วนนั้น
+      //    ส่วนกราฟยังแสดงครบทุกเดือน/ทุกไลน์เสมอ (ตัวที่ไม่ได้เลือกจางลง) เพื่อไม่ให้เสียบริบทการเทียบ ──
+      var lineSel = document.getElementById('fccRepairLineFilter');
+      var selLineRaw = lineSel ? String(lineSel.value || '__all__') : '__all__';
+      var selLine = (selLineRaw !== '__all__' && lineCols.indexOf(selLineRaw) > -1) ? selLineRaw : '';
+      var viewLineCols = selLine ? [selLine] : lineCols;
+      var viewMonths = selMonth ? [selMonth] : months;
+
+      var viewLineTotal = {}, viewGrand = 0, viewQty = 0;
+      // ยอดรวมของมุมมองต้องนับเฉพาะ "เดือนที่เลือก × ไลน์ที่เลือก" เท่านั้น
+      // (คำนวณจาก cell ตรงๆ ไม่ใช้ monthTotal ซึ่งเป็นยอดรวมทุกไลน์ ไม่งั้นยอดจะเกินตอนกรองไลน์)
+      viewMonths.forEach(function(m) {
+        viewLineCols.forEach(function(l) {
+          var c = cell[m] && cell[m][l];
+          if (!c) return;
+          viewLineTotal[l] = (viewLineTotal[l] || 0) + c.amount;
+          viewGrand += c.amount;
+          viewQty += c.qty;
+        });
+      });
+      // ยอดรวมรายเดือนที่ใช้ในตาราง/กราฟ ต้องสอดคล้องกับไลน์ที่เลือกด้วย
+      var viewMonthTotal = {}, viewMonthQty = {};
+      months.forEach(function(m) {
+        var a = 0, q = 0;
+        viewLineCols.forEach(function(l) {
+          var c = cell[m] && cell[m][l];
+          if (c) { a += c.amount; q += c.qty; }
+        });
+        viewMonthTotal[m] = a; viewMonthQty[m] = q;
+      });
+
+      // ── กราฟ ──
+      // กราฟแนวโน้ม: แสดงทุกเดือนเสมอ (เก่า → ใหม่) แต่ซีรีส์ตามไลน์ที่เลือก
+      fccRenderRepairTrendChart(months.slice().reverse(), viewLineCols, cell, viewMonthTotal, selMonth);
+      // กราฟเทียบไลน์: แสดงครบทุกไลน์เสมอเพื่อให้เทียบกันได้ ไลน์ที่ไม่ได้เลือกจะจางลง
+      var barLineTotal = {};
+      lineCols.forEach(function(l) {
+        var a = 0;
+        viewMonths.forEach(function(m) { var c = cell[m] && cell[m][l]; if (c) a += c.amount; });
+        barLineTotal[l] = a;
+      });
+      var barGrand = lineCols.reduce(function(s, l) { return s + (barLineTotal[l] || 0); }, 0);
+      fccRenderRepairLineChart(lineCols.filter(function(l) { return (barLineTotal[l] || 0) > 0; }), barLineTotal, barGrand, selLine);
+
       // ── สรุปหัวการ์ด ──
-      var avgPerMonth = months.length ? grand / months.length : 0;
-      var topLine = Object.keys(lineTotal).sort(function(a, b) { return lineTotal[b] - lineTotal[a]; })[0] || '-';
-      var peakMonth = months.slice().sort(function(a, b) { return (monthTotal[b] || 0) - (monthTotal[a] || 0); })[0] || '';
+      var avgPerMonth = viewMonths.length ? viewGrand / viewMonths.length : 0;
+      var topLine = Object.keys(viewLineTotal).sort(function(a, b) { return viewLineTotal[b] - viewLineTotal[a]; })[0] || '-';
+      var peakMonth = months.slice().sort(function(a, b) { return (viewMonthTotal[b] || 0) - (viewMonthTotal[a] || 0); })[0] || '';
       function sumCard(label, value, note, color) {
         return '<div style="border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; background:#f8fafc;">' +
           '<div style="font-size:10.5px; color:#64748b; font-weight:600;">' + fccEsc(label) + '</div>' +
@@ -9837,21 +10098,34 @@ function inferRequestPriority(stock, min) {
           '</div>';
       }
       if (sumEl) {
+        // เลือกเดือนเดียว: เทียบกับค่าเฉลี่ยของช่วง (เฉพาะไลน์ที่เลือก) เพื่อบอกว่าสูง/ต่ำกว่าปกติแค่ไหน
+        var rangeTotal = months.reduce(function(s, m) { return s + (viewMonthTotal[m] || 0); }, 0);
+        var avgAll = months.length ? rangeTotal / months.length : 0;
+        var diffPct = (selMonth && avgAll > 0) ? ((viewGrand - avgAll) / avgAll * 100) : null;
+        var scopeTxt = (selLine ? selLine : 'ทุกไลน์') + (selMonth ? ' · ' + fccMonthLabel(selMonth) : '');
         sumEl.innerHTML =
-          sumCard('ค่าซ่อมรวมทั้งหมด', '฿' + fccInt(grand), fccInt(grandQty) + ' ชิ้น · ' + months.length + ' เดือน', '#dc2626') +
-          sumCard('เฉลี่ยต่อเดือน', '฿' + fccInt(avgPerMonth), 'จาก ' + months.length + ' เดือนที่มีข้อมูล', '#0f172a') +
-          sumCard('ไลน์ที่ใช้มากสุด', fccEsc(topLine), topLine !== '-' ? '฿' + fccInt(lineTotal[topLine] || 0) : '', '#7c3aed') +
-          sumCard('เดือนที่สูงสุด', peakMonth ? fccEsc(fccMonthLabel(peakMonth)) : '-', peakMonth ? '฿' + fccInt(monthTotal[peakMonth] || 0) : '', '#d97706');
+          sumCard('ค่าซ่อมรวม (' + scopeTxt + ')', '฿' + fccInt(viewGrand),
+                  fccInt(viewQty) + ' ชิ้น · ' + viewMonths.length + ' เดือน', '#dc2626') +
+          sumCard(selMonth ? 'เทียบค่าเฉลี่ยช่วงนี้' : 'เฉลี่ยต่อเดือน',
+                  selMonth ? (diffPct === null ? '—' : (diffPct >= 0 ? '+' : '') + diffPct.toFixed(0) + '%') : '฿' + fccInt(avgPerMonth),
+                  selMonth ? 'เฉลี่ย ฿' + fccInt(avgAll) + '/เดือน' : 'จาก ' + months.length + ' เดือนที่มีข้อมูล',
+                  selMonth ? (diffPct !== null && diffPct > 0 ? '#dc2626' : '#16a34a') : '#0f172a') +
+          sumCard(selLine ? 'สัดส่วนของไลน์นี้' : 'ไลน์ที่ใช้มากสุด',
+                  selLine ? (barGrand > 0 ? ((barLineTotal[selLine] || 0) / barGrand * 100).toFixed(0) + '%' : '—') : fccEsc(topLine),
+                  selLine ? 'จากค่าซ่อมทุกไลน์ ฿' + fccInt(barGrand)
+                          : (topLine !== '-' ? '฿' + fccInt(viewLineTotal[topLine] || 0) + (viewGrand > 0 ? ' · ' + ((viewLineTotal[topLine] || 0) / viewGrand * 100).toFixed(0) + '%' : '') : ''),
+                  '#7c3aed') +
+          sumCard('เดือนที่สูงสุด', peakMonth ? fccEsc(fccMonthLabel(peakMonth)) : '-', peakMonth ? '฿' + fccInt(viewMonthTotal[peakMonth] || 0) : '', '#d97706');
       }
 
       // ── ตาราง pivot ──
       var head = '<thead><tr style="border-bottom:2px solid #e2e8f0; color:#64748b; font-size:11px;">' +
         '<th style="padding:6px 10px; text-align:left; position:sticky; left:0; background:#fff; z-index:1;">เดือน</th>' +
-        lineCols.map(function(l) { return '<th style="padding:6px 10px; text-align:right; white-space:nowrap;">' + fccEsc(l) + '</th>'; }).join('') +
-        '<th style="padding:6px 10px; text-align:right; background:#f1f5f9; white-space:nowrap;">รวมทุกไลน์</th>' +
+        viewLineCols.map(function(l) { return '<th style="padding:6px 10px; text-align:right; white-space:nowrap;">' + fccEsc(l) + '</th>'; }).join('') +
+        '<th style="padding:6px 10px; text-align:right; background:#f1f5f9; white-space:nowrap;">' + (selLine ? 'รวม' : 'รวมทุกไลน์') + '</th>' +
         '</tr></thead>';
-      var body = months.map(function(m) {
-        var tds = lineCols.map(function(l) {
+      var body = viewMonths.map(function(m) {
+        var tds = viewLineCols.map(function(l) {
           var c = cell[m] && cell[m][l];
           if (!c || !c.amount) return '<td style="padding:8px 10px; text-align:right; color:#cbd5e1;">—</td>';
           return '<td style="padding:8px 10px; text-align:right;" title="' + fccEsc(l + ' · ' + fccMonthLabel(m) + ' · ' + fccInt(c.qty) + ' ชิ้น') + '">' +
@@ -9860,16 +10134,16 @@ function inferRequestPriority(stock, min) {
         return '<tr style="border-bottom:1px solid #f1f5f9;">' +
           '<td style="padding:8px 10px; font-weight:600; position:sticky; left:0; background:#fff;">' + fccEsc(fccMonthLabel(m)) + '</td>' +
           tds +
-          '<td style="padding:8px 10px; text-align:right; font-weight:800; background:#f8fafc;">฿' + fccInt(monthTotal[m] || 0) +
-          '<div style="font-size:9.5px; color:#94a3b8; font-weight:600;">' + fccInt(monthQty[m] || 0) + ' ชิ้น</div></td>' +
+          '<td style="padding:8px 10px; text-align:right; font-weight:800; background:#f8fafc;">฿' + fccInt(viewMonthTotal[m] || 0) +
+          '<div style="font-size:9.5px; color:#94a3b8; font-weight:600;">' + fccInt(viewMonthQty[m] || 0) + ' ชิ้น</div></td>' +
           '</tr>';
       }).join('');
       var foot = '<tfoot><tr style="border-top:2px solid #cbd5e1; background:#f1f5f9;">' +
-        '<td style="padding:9px 10px; font-weight:800; position:sticky; left:0; background:#f1f5f9;">รวมทุกเดือน</td>' +
-        lineCols.map(function(l) {
-          return '<td style="padding:9px 10px; text-align:right; font-weight:800;">฿' + fccInt(lineTotal[l] || 0) + '</td>';
+        '<td style="padding:9px 10px; font-weight:800; position:sticky; left:0; background:#f1f5f9;">' + (selMonth ? 'รวมเดือนนี้' : 'รวมทุกเดือน') + '</td>' +
+        viewLineCols.map(function(l) {
+          return '<td style="padding:9px 10px; text-align:right; font-weight:800;">฿' + fccInt(viewLineTotal[l] || 0) + '</td>';
         }).join('') +
-        '<td style="padding:9px 10px; text-align:right; font-weight:900; color:#dc2626; background:#fee2e2;">฿' + fccInt(grand) + '</td>' +
+        '<td style="padding:9px 10px; text-align:right; font-weight:900; color:#dc2626; background:#fee2e2;">฿' + fccInt(viewGrand) + '</td>' +
         '</tr></tfoot>';
       tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12.5px; min-width:520px;">' +
         head + '<tbody>' + body + '</tbody>' + foot + '</table></div>';
@@ -9889,11 +10163,13 @@ function inferRequestPriority(stock, min) {
           : reasonMode === 'pm' ? 'เฉพาะบำรุงรักษาตามแผน (PM)'
           : reasonMode === 'other' ? 'เฉพาะปรับปรุง / ทดสอบ / อื่นๆ'
           : 'ทุกประเภทงาน';
-        subEl.textContent = 'คิดจากการเบิกจริง × ราคาต่อหน่วย · ' + modeTxt + ' · ' + months.length + ' เดือน · รวม ฿' + fccInt(grand);
+        subEl.textContent = 'คิดจากการเบิกจริง × ราคาต่อหน่วย · ' + modeTxt + ' · ' +
+          (selLine ? 'ไลน์ ' + selLine : 'ทุกไลน์') + ' · ' +
+          (selMonth ? fccMonthLabel(selMonth) : viewMonths.length + ' เดือน') + ' · รวม ฿' + fccInt(viewGrand);
       }
 
-      // เก็บไว้ให้ Export CSV ใช้ (โครงเดียวกับตารางที่เห็นบนจอ)
-      fccRepairExportRows = { months: months, lineCols: lineCols, cell: cell, lineTotal: lineTotal, monthTotal: monthTotal, grand: grand };
+      // เก็บไว้ให้ Export CSV ใช้ (ตรงกับที่เห็นบนจอเป๊ะ — เดือน/ไลน์ตามตัวกรองที่เลือกอยู่)
+      fccRepairExportRows = { months: viewMonths, lineCols: viewLineCols, cell: cell, lineTotal: viewLineTotal, monthTotal: viewMonthTotal, grand: viewGrand, selLine: selLine, selMonth: selMonth };
     }
 
     function fccExportRepairCostCsv() {
@@ -9901,7 +10177,13 @@ function inferRequestPriority(stock, min) {
       if (!d || !d.months.length) { showQuickToast('ยังไม่มีข้อมูลค่าซ่อมให้ Export', 'warn'); return; }
       var esc = function(v) { return '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"'; };
       var lines = [];
-      lines.push(['เดือน'].concat(d.lineCols).concat(['รวมทุกไลน์']).map(esc).join(','));
+      // บรรทัดแรกบอกเงื่อนไขที่กรองไว้ เพื่อให้ไฟล์อธิบายตัวเองได้เวลาเปิดย้อนหลัง
+      var reasonSel = document.getElementById('fccRepairReasonFilter');
+      var reasonTxt = reasonSel && reasonSel.selectedIndex >= 0 ? reasonSel.options[reasonSel.selectedIndex].text : '';
+      lines.push([('ค่าซ่อม (Repair Cost) — ' + (d.selLine ? 'ไลน์ ' + d.selLine : 'ทุกไลน์') +
+        (d.selMonth ? ' · ' + fccMonthLabel(d.selMonth) : '') + (reasonTxt ? ' · ' + reasonTxt : ''))].map(esc).join(','));
+      lines.push('');
+      lines.push(['เดือน'].concat(d.lineCols).concat([d.selLine ? 'รวม' : 'รวมทุกไลน์']).map(esc).join(','));
       d.months.forEach(function(m) {
         var row = [fccMonthLabel(m)];
         d.lineCols.forEach(function(l) {
@@ -16093,7 +16375,7 @@ function inferRequestPriority(stock, min) {
     var fccCostRatioLineFilterEl = document.getElementById('fccCostRatioLineFilter');
     if (fccCostRatioLineFilterEl) fccCostRatioLineFilterEl.addEventListener('change', fccRenderCostRatio);
     // ── ค่าซ่อม (Repair Cost): เปลี่ยนตัวกรองแล้วคำนวณใหม่ทันที (ใช้ข้อมูลที่โหลดไว้แล้ว ไม่ยิง API ซ้ำ) ──
-    ['fccRepairReasonFilter', 'fccRepairRangeFilter'].forEach(function(id) {
+    ['fccRepairReasonFilter', 'fccRepairRangeFilter', 'fccRepairLineFilter', 'fccRepairMonthFilter'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.addEventListener('change', fccRenderRepairCost);
     });
