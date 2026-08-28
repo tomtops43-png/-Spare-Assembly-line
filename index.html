@@ -1474,6 +1474,37 @@
             </div>
           </div>
         </div>
+        <!-- ค่าซ่อม (Repair Cost) — คิดจากประวัติการเบิกอะไหล่จริง แยกไลน์ × เดือน + ยอดรวม -->
+        <div class="fcc-card" style="margin-top:12px">
+          <div class="fcc-card-h">
+            <div>
+              <div class="fcc-card-t"><span class="ico">&#x1F527;</span>ค่าซ่อม (Repair Cost) — จากประวัติการเบิกอะไหล่</div>
+              <div class="fcc-card-sub" id="fccRepairSub">คิดจาก จำนวนที่เบิกจริง × ราคาต่อหน่วย แยกตามไลน์และเดือน พร้อมยอดรวม</div>
+            </div>
+            <div class="fcc-controls">
+              <select id="fccRepairReasonFilter" class="fcc-select fcc-select-sm" aria-label="เลือกประเภทงานสำหรับค่าซ่อม">
+                <option value="__all__">ทุกประเภทงาน (รวมทั้งหมด)</option>
+                <option value="repair">🚨 เฉพาะงานซ่อม (Breakdown + Replace NG)</option>
+                <option value="pm">🔧 บำรุงรักษาตามแผน (PM)</option>
+                <option value="other">⚙️ ปรับปรุง / ทดสอบ / อื่นๆ</option>
+              </select>
+              <select id="fccRepairRangeFilter" class="fcc-select fcc-select-sm" aria-label="เลือกช่วงเวลาสำหรับค่าซ่อม">
+                <option value="6">6 เดือนล่าสุด</option>
+                <option value="12" selected>12 เดือนล่าสุด</option>
+                <option value="0">ทั้งหมด</option>
+              </select>
+            </div>
+          </div>
+          <div class="fcc-card-b">
+            <div id="fccRepairSummary" style="display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin-bottom:12px;"></div>
+            <div id="fccRepairTable"><div class="fcc-skel" style="height:150px"></div></div>
+            <div id="fccRepairNote" style="margin-top:10px;"></div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0;">
+              <button id="fccRepairExportBtn" type="button" class="fcc-btn">📊 Export CSV</button>
+              <span style="font-size:10.5px; color:#94a3b8;">💡 ราคาต่อหน่วยดึงจาก Master อัตโนมัติ (จับคู่ตาม Line + ชื่อ + Model) — อะไหล่ที่ยังไม่ได้ใส่ราคาจะไม่ถูกนับเป็นค่าซ่อม</span>
+            </div>
+          </div>
+        </div>
         <div id="fccExec" class="fcc-exec" style="margin-top:12px">
           <div class="fcc-card fcc-skel" style="min-height:92px"></div>
           <div class="fcc-card fcc-skel" style="min-height:92px"></div>
@@ -9559,7 +9590,9 @@ function inferRequestPriority(stock, min) {
           qty: qty,
           unitPrice: unitPrice,
           model: r.model || '',
-          partName: r.partName || r.name || ''
+          partName: r.partName || r.name || '',
+          reason: String(r.reason || '').trim(),
+          by: String(r.by || '').trim()
         };
       }).filter(function(r) { return r !== null && r.month; });
     }
@@ -9715,6 +9748,181 @@ function inferRequestPriority(stock, min) {
           }
         }
       });
+    }
+
+    /* ── ค่าซ่อม (Repair Cost) จากประวัติการเบิกอะไหล่ ──────────────────
+       คิดจากข้อมูลจริง: จำนวนที่เบิกออก × ราคาต่อหน่วยของอะไหล่ชิ้นนั้น
+       จัดเป็นตาราง Pivot เดือน × ไลน์ พร้อมยอดรวมทั้งแนวนอน (รวมทุกไลน์ในเดือนนั้น)
+       และแนวตั้ง (รวมทุกเดือนของไลน์นั้น) + ยอดรวมทั้งหมดมุมขวาล่าง          */
+    var FCC_REPAIR_LINES = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+    var fccRepairExportRows = null; // เก็บผลลัพธ์ล่าสุดไว้ให้ปุ่ม Export CSV ใช้ต่อ
+
+    // จัดกลุ่มเหตุผลการเบิกเป็นประเภทงาน เพื่อให้กรอง "เฉพาะงานซ่อม" ได้จริง
+    function fccRepairReasonGroup(reason) {
+      var r = String(reason || '').trim().toLowerCase();
+      if (r.indexOf('breakdown') !== -1 || r.indexOf('replace') !== -1 || r.indexOf('ng') === 0) return 'repair';
+      if (r === 'pm' || r.indexOf('preventive') !== -1) return 'pm';
+      return 'other';
+    }
+
+    function fccRenderRepairCost() {
+      var tableEl = document.getElementById('fccRepairTable');
+      var sumEl = document.getElementById('fccRepairSummary');
+      var noteEl = document.getElementById('fccRepairNote');
+      var subEl = document.getElementById('fccRepairSub');
+      if (!tableEl) return;
+      var logs = fccLast.Logs;
+      if (!Array.isArray(logs)) return; // ยังโหลดไม่เสร็จ — คง skeleton ไว้
+
+      var reasonSel = document.getElementById('fccRepairReasonFilter');
+      var rangeSel = document.getElementById('fccRepairRangeFilter');
+      var reasonMode = reasonSel ? String(reasonSel.value || '__all__') : '__all__';
+      var monthLimit = rangeSel ? Number(rangeSel.value || 12) : 12;
+
+      var all = fccExpenseValidRows(logs);
+      var rows = reasonMode === '__all__' ? all : all.filter(function(r) { return fccRepairReasonGroup(r.reason) === reasonMode; });
+
+      // เก็บอะไหล่ที่เบิกแต่ยังไม่มีราคา เพื่อเตือนว่ายอดค่าซ่อมยังไม่ครบ
+      var unpricedQty = 0, unpricedModels = {};
+      var priced = [];
+      rows.forEach(function(r) {
+        if (r.unitPrice > 0) { priced.push(r); return; }
+        unpricedQty += r.qty;
+        var k = String(r.model || '').trim() || String(r.partName || '').trim() || 'ไม่ระบุ';
+        unpricedModels[k] = (unpricedModels[k] || 0) + r.qty;
+      });
+
+      var monthsAll = Array.from(new Set(priced.map(function(r) { return r.month; }))).sort();
+      var months = (monthLimit > 0 ? monthsAll.slice(-monthLimit) : monthsAll).slice().reverse(); // ใหม่ → เก่า (อ่านง่ายบนตาราง)
+      if (!months.length) {
+        tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีค่าซ่อมในเงื่อนไขที่เลือก — ต้องมีการเบิกอะไหล่ที่ระบุราคาต่อหน่วยไว้แล้ว</div>';
+        if (sumEl) sumEl.innerHTML = '';
+        if (noteEl) noteEl.innerHTML = '';
+        fccRepairExportRows = null;
+        return;
+      }
+      var monthSet = {};
+      months.forEach(function(m) { monthSet[m] = true; });
+
+      // pivot: cell[month][line] = { amount, qty }
+      var cell = {}, lineTotal = {}, monthTotal = {}, monthQty = {}, grand = 0, grandQty = 0;
+      var linesSeen = {};
+      priced.forEach(function(r) {
+        if (!monthSet[r.month]) return;
+        var ln = r.line || '-';
+        linesSeen[ln] = true;
+        if (!cell[r.month]) cell[r.month] = {};
+        if (!cell[r.month][ln]) cell[r.month][ln] = { amount: 0, qty: 0 };
+        cell[r.month][ln].amount += r.amount;
+        cell[r.month][ln].qty += r.qty;
+        lineTotal[ln] = (lineTotal[ln] || 0) + r.amount;
+        monthTotal[r.month] = (monthTotal[r.month] || 0) + r.amount;
+        monthQty[r.month] = (monthQty[r.month] || 0) + r.qty;
+        grand += r.amount;
+        grandQty += r.qty;
+      });
+      // คอลัมน์ไลน์: เรียงตามลำดับมาตรฐานก่อน แล้วต่อท้ายด้วยไลน์แปลกๆ ที่เจอในข้อมูลจริง
+      var lineCols = FCC_REPAIR_LINES.filter(function(l) { return linesSeen[l]; })
+        .concat(Object.keys(linesSeen).filter(function(l) { return FCC_REPAIR_LINES.indexOf(l) === -1; }).sort());
+
+      // ── สรุปหัวการ์ด ──
+      var avgPerMonth = months.length ? grand / months.length : 0;
+      var topLine = Object.keys(lineTotal).sort(function(a, b) { return lineTotal[b] - lineTotal[a]; })[0] || '-';
+      var peakMonth = months.slice().sort(function(a, b) { return (monthTotal[b] || 0) - (monthTotal[a] || 0); })[0] || '';
+      function sumCard(label, value, note, color) {
+        return '<div style="border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; background:#f8fafc;">' +
+          '<div style="font-size:10.5px; color:#64748b; font-weight:600;">' + fccEsc(label) + '</div>' +
+          '<div style="font-size:19px; font-weight:800; color:' + color + '; margin-top:2px;">' + value + '</div>' +
+          (note ? '<div style="font-size:10px; color:#94a3b8; margin-top:1px;">' + fccEsc(note) + '</div>' : '') +
+          '</div>';
+      }
+      if (sumEl) {
+        sumEl.innerHTML =
+          sumCard('ค่าซ่อมรวมทั้งหมด', '฿' + fccInt(grand), fccInt(grandQty) + ' ชิ้น · ' + months.length + ' เดือน', '#dc2626') +
+          sumCard('เฉลี่ยต่อเดือน', '฿' + fccInt(avgPerMonth), 'จาก ' + months.length + ' เดือนที่มีข้อมูล', '#0f172a') +
+          sumCard('ไลน์ที่ใช้มากสุด', fccEsc(topLine), topLine !== '-' ? '฿' + fccInt(lineTotal[topLine] || 0) : '', '#7c3aed') +
+          sumCard('เดือนที่สูงสุด', peakMonth ? fccEsc(fccMonthLabel(peakMonth)) : '-', peakMonth ? '฿' + fccInt(monthTotal[peakMonth] || 0) : '', '#d97706');
+      }
+
+      // ── ตาราง pivot ──
+      var head = '<thead><tr style="border-bottom:2px solid #e2e8f0; color:#64748b; font-size:11px;">' +
+        '<th style="padding:6px 10px; text-align:left; position:sticky; left:0; background:#fff; z-index:1;">เดือน</th>' +
+        lineCols.map(function(l) { return '<th style="padding:6px 10px; text-align:right; white-space:nowrap;">' + fccEsc(l) + '</th>'; }).join('') +
+        '<th style="padding:6px 10px; text-align:right; background:#f1f5f9; white-space:nowrap;">รวมทุกไลน์</th>' +
+        '</tr></thead>';
+      var body = months.map(function(m) {
+        var tds = lineCols.map(function(l) {
+          var c = cell[m] && cell[m][l];
+          if (!c || !c.amount) return '<td style="padding:8px 10px; text-align:right; color:#cbd5e1;">—</td>';
+          return '<td style="padding:8px 10px; text-align:right;" title="' + fccEsc(l + ' · ' + fccMonthLabel(m) + ' · ' + fccInt(c.qty) + ' ชิ้น') + '">' +
+            '฿' + fccInt(c.amount) + '<div style="font-size:9.5px; color:#94a3b8;">' + fccInt(c.qty) + ' ชิ้น</div></td>';
+        }).join('');
+        return '<tr style="border-bottom:1px solid #f1f5f9;">' +
+          '<td style="padding:8px 10px; font-weight:600; position:sticky; left:0; background:#fff;">' + fccEsc(fccMonthLabel(m)) + '</td>' +
+          tds +
+          '<td style="padding:8px 10px; text-align:right; font-weight:800; background:#f8fafc;">฿' + fccInt(monthTotal[m] || 0) +
+          '<div style="font-size:9.5px; color:#94a3b8; font-weight:600;">' + fccInt(monthQty[m] || 0) + ' ชิ้น</div></td>' +
+          '</tr>';
+      }).join('');
+      var foot = '<tfoot><tr style="border-top:2px solid #cbd5e1; background:#f1f5f9;">' +
+        '<td style="padding:9px 10px; font-weight:800; position:sticky; left:0; background:#f1f5f9;">รวมทุกเดือน</td>' +
+        lineCols.map(function(l) {
+          return '<td style="padding:9px 10px; text-align:right; font-weight:800;">฿' + fccInt(lineTotal[l] || 0) + '</td>';
+        }).join('') +
+        '<td style="padding:9px 10px; text-align:right; font-weight:900; color:#dc2626; background:#fee2e2;">฿' + fccInt(grand) + '</td>' +
+        '</tr></tfoot>';
+      tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12.5px; min-width:520px;">' +
+        head + '<tbody>' + body + '</tbody>' + foot + '</table></div>';
+
+      // ── หมายเหตุ: อะไหล่ที่เบิกแล้วแต่ยังไม่มีราคา (ทำให้ยอดค่าซ่อมต่ำกว่าจริง) ──
+      if (noteEl) {
+        var unpKeys = Object.keys(unpricedModels).sort(function(a, b) { return unpricedModels[b] - unpricedModels[a]; });
+        noteEl.innerHTML = unpKeys.length
+          ? '<div style="border:1px solid #fde68a; background:#fffbeb; border-radius:10px; padding:8px 11px; font-size:11px; color:#92400e;">' +
+              '⚠️ มีอะไหล่ที่เบิกแล้วแต่ยังไม่ได้ใส่ราคา ' + fccInt(unpricedQty) + ' ชิ้น (' + unpKeys.length + ' รุ่น) — ยอดค่าซ่อมจริงจะสูงกว่านี้ ' +
+              '<span style="color:#b45309;">เช่น ' + fccEsc(unpKeys.slice(0, 5).join(', ')) + (unpKeys.length > 5 ? ' …' : '') + '</span>' +
+            '</div>'
+          : '';
+      }
+      if (subEl) {
+        var modeTxt = reasonMode === 'repair' ? 'เฉพาะงานซ่อม (Breakdown + Replace NG)'
+          : reasonMode === 'pm' ? 'เฉพาะบำรุงรักษาตามแผน (PM)'
+          : reasonMode === 'other' ? 'เฉพาะปรับปรุง / ทดสอบ / อื่นๆ'
+          : 'ทุกประเภทงาน';
+        subEl.textContent = 'คิดจากการเบิกจริง × ราคาต่อหน่วย · ' + modeTxt + ' · ' + months.length + ' เดือน · รวม ฿' + fccInt(grand);
+      }
+
+      // เก็บไว้ให้ Export CSV ใช้ (โครงเดียวกับตารางที่เห็นบนจอ)
+      fccRepairExportRows = { months: months, lineCols: lineCols, cell: cell, lineTotal: lineTotal, monthTotal: monthTotal, grand: grand };
+    }
+
+    function fccExportRepairCostCsv() {
+      var d = fccRepairExportRows;
+      if (!d || !d.months.length) { showQuickToast('ยังไม่มีข้อมูลค่าซ่อมให้ Export', 'warn'); return; }
+      var esc = function(v) { return '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"'; };
+      var lines = [];
+      lines.push(['เดือน'].concat(d.lineCols).concat(['รวมทุกไลน์']).map(esc).join(','));
+      d.months.forEach(function(m) {
+        var row = [fccMonthLabel(m)];
+        d.lineCols.forEach(function(l) {
+          var c = d.cell[m] && d.cell[m][l];
+          row.push(c && c.amount ? Math.round(c.amount) : 0);
+        });
+        row.push(Math.round(d.monthTotal[m] || 0));
+        lines.push(row.map(esc).join(','));
+      });
+      var totalRow = ['รวมทุกเดือน'];
+      d.lineCols.forEach(function(l) { totalRow.push(Math.round(d.lineTotal[l] || 0)); });
+      totalRow.push(Math.round(d.grand));
+      lines.push(totalRow.map(esc).join(','));
+      // BOM ให้ Excel อ่านภาษาไทยถูกต้อง
+      var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'repair-cost-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showQuickToast('Export ค่าซ่อมเป็น CSV แล้ว', 'success');
     }
 
     /* ── Cost Ratio (รายจ่ายอะไหล่ / มูลค่าผลิต) ──────────────────────── */
@@ -10401,6 +10609,7 @@ function inferRequestPriority(stock, min) {
         fccLast.ProdVolume = A.prodVolume;
         fccLast.ProdConfig = A.prodConfig;
         fccRenderCostRatio();
+        fccRenderRepairCost();
       });
     }
 
@@ -15883,6 +16092,13 @@ function inferRequestPriority(stock, min) {
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
     var fccCostRatioLineFilterEl = document.getElementById('fccCostRatioLineFilter');
     if (fccCostRatioLineFilterEl) fccCostRatioLineFilterEl.addEventListener('change', fccRenderCostRatio);
+    // ── ค่าซ่อม (Repair Cost): เปลี่ยนตัวกรองแล้วคำนวณใหม่ทันที (ใช้ข้อมูลที่โหลดไว้แล้ว ไม่ยิง API ซ้ำ) ──
+    ['fccRepairReasonFilter', 'fccRepairRangeFilter'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('change', fccRenderRepairCost);
+    });
+    var fccRepairExportBtnEl = document.getElementById('fccRepairExportBtn');
+    if (fccRepairExportBtnEl) fccRepairExportBtnEl.addEventListener('click', fccExportRepairCostCsv);
     var fccCostRatioSaveConfigBtn = document.getElementById('fccCostRatioSaveConfigBtn');
     if (fccCostRatioSaveConfigBtn) fccCostRatioSaveConfigBtn.addEventListener('click', function() {
       var sel = fccCostRatioLineFilterEl ? String(fccCostRatioLineFilterEl.value || '__all__') : '__all__';
