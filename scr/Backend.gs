@@ -3401,7 +3401,13 @@ function logItemMatchesStockRow(row, map, item) {
   var rowName = pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '');
   var rowModel = pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '');
   var nameMatch = String(rowName) === String(item.partName);
-  var modelMatch = !item.model || String(rowModel) === String(item.model);
+  // "-" คือ placeholder ที่ใส่แทนรุ่นว่าง (ดู processTransactionUnlocked) ไม่ใช่รุ่นจริง
+  // ถ้าฝั่งใดฝั่งหนึ่งไม่มีรุ่นที่มีความหมาย (ว่าง/"-") ให้ข้ามการเทียบรุ่น ไม่งั้นอะไหล่ไม่มีรุ่นจะหาไม่เจอตลอด
+  var itemModelStr = String(item.model || '').trim();
+  var rowModelStr = String(rowModel || '').trim();
+  var itemModelMeaningful = !!itemModelStr && itemModelStr !== '-';
+  var rowModelMeaningful = !!rowModelStr && rowModelStr !== '-';
+  var modelMatch = (!itemModelMeaningful || !rowModelMeaningful) ? true : (rowModelStr === itemModelStr);
   var hasNo = item.partNo !== undefined && String(item.partNo) !== '';
   var noMatch = hasNo && String(rowNo) === String(item.partNo);
   return (noMatch && modelMatch && (!item.partName || nameMatch)) || (nameMatch && modelMatch);
