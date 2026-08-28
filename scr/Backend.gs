@@ -3670,7 +3670,14 @@ function processTransactionUnlocked(payload) {
     var rowModel = pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '');
     var noMatch = payload.partNo !== undefined && String(rowNo) === String(payload.partNo);
     var nameMatch = String(rowName) === String(payload.partName);
-    var modelMatch = !payload.model || String(rowModel) === String(payload.model);
+    // "-" คือค่า placeholder ที่ฝั่ง client ใส่ให้เวลาไม่มีรุ่น (item.model || '-') ไม่ใช่รุ่นจริง
+    // ถ้าฝั่งใดฝั่งหนึ่งไม่มีรุ่นที่มีความหมาย (ว่าง/"-") ให้ข้ามการเทียบรุ่นไปเลย ไม่งั้นอะไหล่ที่ไม่มีรุ่น
+    // จะ match ไม่ได้ตลอด (rowModel ว่างจริงในชีท แต่ payload.model ถูกเติมเป็น "-" มา)
+    var payloadModelStr = String(payload.model || '').trim();
+    var rowModelStr = String(rowModel || '').trim();
+    var payloadModelMeaningful = !!payloadModelStr && payloadModelStr !== '-';
+    var rowModelMeaningful = !!rowModelStr && rowModelStr !== '-';
+    var modelMatch = (!payloadModelMeaningful || !rowModelMeaningful) ? true : (rowModelStr === payloadModelStr);
     var strictNoMatch = noMatch && modelMatch && (!payload.partName || nameMatch);
     if (strictNoMatch || (nameMatch && modelMatch)) {
       targetIndex = i;
