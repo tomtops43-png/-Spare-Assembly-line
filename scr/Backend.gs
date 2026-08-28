@@ -3277,6 +3277,8 @@ function parseTransactionPayloadFromGet(e) {
     // เลขประจำชิ้นที่ช่างอ่านจากตัวของที่หยิบมา (คั่นด้วย ,) — ของในคลังมีเลขติดอยู่แล้ว
     // ระบบจึงต้องรับเลขจริงมาบันทึก ไม่ใช่ออกเลขใหม่เอง
     tagNos: e.parameter.tagNos,
+    // วันเวลาที่เบิกจริง (ย้อนหลังได้) — รูปแบบ "yyyy-MM-dd HH:mm:ss" ตามเวลาไทย ถ้าไม่ส่งมาจะใช้เวลาปัจจุบัน
+    txnDate: e.parameter.txnDate,
     sheetName: e.parameter.sheet,
     authToken: e.parameter.authToken || e.parameter.token || ''
   };
@@ -3613,6 +3615,23 @@ function processTransaction(payload) {
   }
 }
 
+// ตรวจสอบวันเวลาที่ผู้ใช้ระบุมาสำหรับ "ลงรายการย้อนหลัง" — ต้องเป็นรูปแบบ "yyyy-MM-dd HH:mm:ss"
+// และไม่เกินเวลาปัจจุบัน (กันพิมพ์ผิดเป็นอนาคต) ไม่งั้นถือว่าไม่ได้ระบุ ใช้เวลาปัจจุบันแทน
+function resolveTxnTimestamp(rawTxnDate) {
+  var now = new Date();
+  var nowFormatted = Utilities.formatDate(now, "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss");
+  var raw = String(rawTxnDate || '').trim();
+  if (!raw) return nowFormatted;
+  var match = raw.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return nowFormatted;
+  var year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  var hour = Number(match[4]), minute = Number(match[5]), second = Number(match[6]);
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) return nowFormatted;
+  // เทียบแบบ string ตรงๆ ได้เพราะ format เดียวกันเรียงลำดับได้ (yyyy-MM-dd HH:mm:ss)
+  if (raw > nowFormatted) return nowFormatted;
+  return raw;
+}
+
 function processTransactionUnlocked(payload) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
@@ -3690,7 +3709,9 @@ function processTransactionUnlocked(payload) {
 
   // คำนวณเวลาครั้งเดียวแล้วใช้ร่วมกับเลขประจำชิ้น เพื่อให้ผูกแถว Log กับ PartTags หากันได้
   // (ถ้าต่างคนต่างเรียก new Date() อาจคลาดกัน 1 วินาที แล้วตอนคืนรายการจะหาเลขไม่เจอ)
-  var txnTimestamp = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss");
+  // รองรับลงรายการเบิกย้อนหลัง: ถ้า payload.txnDate ถูกส่งมาและอยู่ในรูปแบบ/ช่วงเวลาที่ถูกต้อง (ไม่เกินเวลาปัจจุบัน)
+  // จะใช้ค่านั้นแทนเวลาปัจจุบัน เพื่อให้การ์ดค่าซ่อมสรุปยอดตรงกับเดือนที่เบิกจริง
+  var txnTimestamp = resolveTxnTimestamp(payload.txnDate);
   historySheet.appendRow([
     txnTimestamp,
     payload.type || 'Input',

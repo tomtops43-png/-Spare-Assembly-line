@@ -3102,6 +3102,10 @@
           <option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>
         </select>
         <input id="issueCartMachineOther" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="🏭 ระบุชื่อเครื่องเอง (บังคับ)" />
+        <div>
+          <label for="issueCartDate" class="mb-1 block text-xs font-semibold text-slate-500">📅 วันเวลาที่เบิก (ย้อนหลังได้)</label>
+          <input id="issueCartDate" type="datetime-local" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" />
+        </div>
         <input id="issueCartNote" type="text" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" placeholder="หมายเหตุ (optional)" />
         <button id="issueCartSubmitBtn" type="button" style="background-color:#2563eb;border-color:#1d4ed8;color:#ffffff;" class="h-11 w-full rounded-lg border px-4 text-sm font-semibold shadow-sm">บันทึกรายการ</button>
         <p id="issueCartMessage" class="text-xs text-slate-500"></p>
@@ -3248,6 +3252,10 @@
         <div class="relative">
           <input id="quickIssueProcess" type="text" class="h-11 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 text-base font-semibold text-slate-700 cursor-not-allowed" placeholder="ไลน์/งาน (Auto)" readonly />
           <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">🔒 Auto</span>
+        </div>
+        <div>
+          <label for="quickIssueDate" class="mb-1 block text-xs font-semibold text-slate-500">📅 วันเวลาที่เบิก (ย้อนหลังได้)</label>
+          <input id="quickIssueDate" type="datetime-local" class="h-11 w-full rounded-xl border border-slate-300 px-3 text-base" />
         </div>
         <select id="quickIssueReason" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
           <option value="">— เลือกเหตุผลการเบิก —</option>
@@ -3548,6 +3556,7 @@
     var issueCartSummary = document.getElementById('issueCartSummary');
     var issueCartBy = document.getElementById('issueCartBy');
     var issueCartProcess = document.getElementById('issueCartProcess');
+    var issueCartDate = document.getElementById('issueCartDate');
     var issueCartReason = document.getElementById('issueCartReason');
     var issueCartReasonRemark = document.getElementById('issueCartReasonRemark');
     var issueCartNote = document.getElementById('issueCartNote');
@@ -3581,6 +3590,7 @@
     var quickIssueQty = document.getElementById('quickIssueQty');
     var quickIssueBy = document.getElementById('quickIssueBy');
     var quickIssueProcess = document.getElementById('quickIssueProcess');
+    var quickIssueDate = document.getElementById('quickIssueDate');
     var quickIssueReason = document.getElementById('quickIssueReason');
     var quickIssueReasonRemark = document.getElementById('quickIssueReasonRemark');
     var quickIssueSubmitBtn = document.getElementById('quickIssueSubmitBtn');
@@ -4646,6 +4656,7 @@
       document.body.style.overflow = '';
       if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
       if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
+      if (issueCartDate && !issueCartDate.value) issueCartDate.value = formatDateToLocalInputValue(new Date());
       syncTxnActorFields();
       setIssueCartMessage('', 'muted');
       populateIssueCartMachineOptions();
@@ -7546,6 +7557,20 @@ function getIssueCartEntries() {
       return runManageCandidate(0);
     }
 
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+    function formatDateToLocalInputValue(d) {
+      if (!(d instanceof Date) || isNaN(d.getTime())) return '';
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    }
+    // input type="datetime-local" ให้ค่ามาแบบ "YYYY-MM-DDTHH:mm" ตามเวลาที่ผู้ใช้ตั้งใจกรอก (ไม่มี timezone)
+    // แปลงเป็นรูปแบบเดียวกับที่ฝั่งเซิร์ฟเวอร์เขียนลง Log ("YYYY-MM-DD HH:mm:ss" เวลาไทย) เพื่อให้การ์ดค่าซ่อมอ่านตรงกัน
+    function formatLocalInputValueToTxnDate(value) {
+      var s = String(value || '').trim();
+      if (!s) return '';
+      var m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      if (!m) return '';
+      return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] + ':00';
+    }
     function callTransactionViaJsonp(payload) {
       var requestPayload = {
         authToken: authToken,
@@ -7564,7 +7589,8 @@ function getIssueCartEntries() {
         reason: payload.reason || '',
         reasonRemark: payload.reasonRemark || '',
         machine: payload.machine || '',
-        tagNos: payload.tagNos || ''
+        tagNos: payload.tagNos || '',
+        txnDate: payload.txnDate || ''
       };
       var query = [
         'action=transact',
@@ -7583,6 +7609,7 @@ function getIssueCartEntries() {
         'reasonRemark=' + encodeURIComponent(requestPayload.reasonRemark),
         'machine=' + encodeURIComponent(requestPayload.machine),
         'tagNos=' + encodeURIComponent(requestPayload.tagNos || ''),
+        'txnDate=' + encodeURIComponent(requestPayload.txnDate || ''),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
 
@@ -13001,7 +13028,7 @@ function inferRequestPriority(stock, min) {
       });
     }
 
-    function createOutputTransactionPayload(item, qty, byValue, processValue, noteValue, reasonValue, reasonRemarkValue, machineValue, tagNosValue) {
+    function createOutputTransactionPayload(item, qty, byValue, processValue, noteValue, reasonValue, reasonRemarkValue, machineValue, tagNosValue, txnDateValue) {
       var processText = processValue || item.line || '-';
       if (noteValue) processText = processText + ' | note: ' + noteValue;
       return {
@@ -13019,6 +13046,7 @@ function inferRequestPriority(stock, min) {
         reasonRemark: reasonRemarkValue || '',
         machine: machineValue || '',
         tagNos: tagNosValue || '',
+        txnDate: txnDateValue || '',
         sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
     }
@@ -13038,6 +13066,11 @@ function inferRequestPriority(stock, min) {
       var reasonValue = String((issueCartReason && issueCartReason.value) || '').trim();
       var reasonRemarkValue = String((issueCartReasonRemark && issueCartReasonRemark.value) || '').trim();
       var machineValue = getIssueCartMachineValue();
+      var txnDateValue = formatLocalInputValueToTxnDate(issueCartDate && issueCartDate.value);
+      if (issueCartDate && issueCartDate.value && !txnDateValue) {
+        setIssueCartMessage('วันเวลาที่เบิกไม่ถูกต้อง', 'error');
+        return;
+      }
       showConfirmDialog({ title: 'ยืนยันการเบิก', message: 'ยืนยันการเบิก ' + entries.length + ' รายการ ?', okLabel: 'เบิกสินค้า' }).then(function(ok) {
         if (!ok) return;
 
@@ -13065,7 +13098,7 @@ function inferRequestPriority(stock, min) {
           failures.push((latestItem.name || entry.no) + ': stock ไม่พอสำหรับเบิก');
           return runNext();
         }
-        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, processValue, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '', machineValue, issueCartTagNos[entry.key]);
+        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, processValue, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '', machineValue, issueCartTagNos[entry.key], txnDateValue);
         var beforeStock = Number(latestItem.stock || 0);
         latestItem.stock = Math.max(0, beforeStock - latestQty);
         applyFilters(false);
@@ -13127,6 +13160,7 @@ function inferRequestPriority(stock, min) {
             (issuedTagGroups.length ? ' · ออกเลขประจำชิ้นแล้ว' : ''), 'success');
           if (issueCartNote) issueCartNote.value = '';
           if (issueCartReason) issueCartReason.value = '';
+          if (issueCartDate) issueCartDate.value = formatDateToLocalInputValue(new Date());
           if (issueCartReasonRemark) { issueCartReasonRemark.value = ''; issueCartReasonRemark.classList.add('hidden'); }
           resetIssueCartMachineField();
         } else if (successKeys.length) {
@@ -13283,6 +13317,7 @@ function inferRequestPriority(stock, min) {
       quickIssueStock.textContent = 'Stock: ' + (item.stock || 0) + ' ' + (item.unit || 'PCS');
       quickIssueType.value = 'Output';
       quickIssueQty.value = '';
+      if (quickIssueDate) quickIssueDate.value = formatDateToLocalInputValue(new Date());
       syncTxnActorFields();
       quickIssueProcess.value = item.line || currentLine || '';
       if (quickIssueReason) quickIssueReason.value = '';
@@ -13380,6 +13415,12 @@ function inferRequestPriority(stock, min) {
         txnMessage.textContent = 'กรุณาเข้าสู่ระบบใหม่';
         return;
       }
+      var quickTxnDate = formatLocalInputValueToTxnDate(quickIssueDate && quickIssueDate.value);
+      if (quickIssueDate && quickIssueDate.value && !quickTxnDate) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'วันเวลาที่เบิกไม่ถูกต้อง';
+        return;
+      }
       var payload = {
         partNo: item.no,
         type: quickIssueType.value || 'Output',
@@ -13395,6 +13436,7 @@ function inferRequestPriority(stock, min) {
         reasonRemark: reason === 'Other' ? reasonRemark : '',
         machine: quickMachine,
         tagNos: quickTagNosRaw,
+        txnDate: quickTxnDate,
         sheetName: item.__sourceSheet || item.subLine || getCurrentSheetName()
       };
       setQuickIssueSubmitState(true);
