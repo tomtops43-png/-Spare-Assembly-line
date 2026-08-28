@@ -1998,6 +1998,8 @@
           </select>
           <button id="scFillZeroBtn" type="button" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">ใส่ 0 ทุกรายการที่ยังไม่นับ</button>
           <button id="scFillSystemBtn" type="button" class="h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition">คัดลอกจำนวนจากระบบทั้งหมด</button>
+          <button id="scPrintSheetBtn" type="button" class="h-9 rounded-xl border-2 border-indigo-600 bg-indigo-600 px-3 text-xs font-bold text-white hover:bg-indigo-700 transition">🖨️ พิมพ์ใบนับ (มีรูป)</button>
+          <button id="scExportCsvBtn" type="button" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">⬇️ CSV</button>
         </div>
         <!-- Table header -->
         <div class="overflow-x-auto">
@@ -8199,15 +8201,7 @@ function getIssueCartEntries() {
     function scRenderTable() {
       var tbody = document.getElementById('scTableBody');
       if (!tbody || !scSession) return;
-      var q = String((document.getElementById('scSearch')||{}).value||'').toLowerCase();
-      var fs = String((document.getElementById('scFilterStatus')||{}).value||'all');
-      var items = (scSession.items||[]).filter(function(it, i) {
-        it._idx = i;
-        var statusClass = scGetStatusClass(it);
-        if (fs !== 'all' && statusClass !== fs) return false;
-        if (q && [it.name,it.model,it.location,it.brand].join(' ').toLowerCase().indexOf(q)===-1) return false;
-        return true;
-      });
+      var items = scGetFilteredItems();
       if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">ไม่พบรายการ</td></tr>'; return; }
       tbody.innerHTML = items.map(function(it) {
         var s = scGetStatusClass(it);
@@ -8298,7 +8292,8 @@ function getIssueCartEntries() {
           items: pool.map(function(p){
             return { id: p.id||p.no, name: p.name, model: p.model||'-', brand: p.brand||'-',
               location: p.location||'-', unit: p.unit||'PCS',
-              systemQty: Number(p.stock||0), counted: null, reason: '', sheet: p.__sourceSheet||'' };
+              systemQty: Number(p.stock||0), counted: null, reason: '', sheet: p.__sourceSheet||'',
+              image: p.image_main_url || p.image_main || p.photo || '' };
           })
         };
 
@@ -8437,6 +8432,184 @@ function getIssueCartEntries() {
       }).finally(function() {
         if (submitBtn) { submitBtn.disabled = false; submitBtn.style.background='#059669'; submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> ส่งผลและปรับ Stock'; }
       });
+    }
+
+    // ── Export ใบนับสต็อก (พิมพ์ให้ช่างนับในไลน์) ──────────────────
+    // ช่างนับในมือถือไม่สะดวก → พิมพ์เป็นกระดาษ A4 พร้อมรูปอะไหล่
+    // จัดกลุ่มตามตำแหน่งเก็บ เพื่อให้เดินนับตามชั้นวางได้ทีเดียวจบ
+    function scGetFilteredItems() {
+      if (!scSession) return [];
+      var q = String((document.getElementById('scSearch')||{}).value||'').toLowerCase();
+      var fs = String((document.getElementById('scFilterStatus')||{}).value||'all');
+      return (scSession.items||[]).filter(function(it, i) {
+        it._idx = i;
+        if (fs !== 'all' && scGetStatusClass(it) !== fs) return false;
+        if (q && [it.name,it.model,it.location,it.brand].join(' ').toLowerCase().indexOf(q)===-1) return false;
+        return true;
+      });
+    }
+
+    function scSortedForPrint() {
+      var items = scGetFilteredItems().slice();
+      items.sort(function(a, b) {
+        var la = String(a.location||'-'), lb = String(b.location||'-');
+        if (la !== lb) return la.localeCompare(lb, 'th');
+        return String(a.name||'').localeCompare(String(b.name||''), 'th');
+      });
+      return items;
+    }
+
+    function scSessionLabel() {
+      if (!scSession) return '';
+      return scSession.month + ' — ' + (scSession.line==='all' ? 'ทุก Line' : scSession.line) +
+        (scSession.category && scSession.category!=='all' ? ' / ' + scSession.category : '');
+    }
+
+    function scPrintCountSheet() {
+      if (!scSession) { showQuickToast('ยังไม่ได้เปิด Session','warn'); return; }
+      var items = scSortedForPrint();
+      if (!items.length) { showQuickToast('ไม่มีรายการให้พิมพ์','warn'); return; }
+
+      var esc = function(v) {
+        return String(v===null||v===undefined?'':v)
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      };
+      var now = new Date().toLocaleString('th-TH');
+      var rows = '', lastLoc = null, n = 0;
+      items.forEach(function(it) {
+        var loc = String(it.location||'-');
+        if (loc !== lastLoc) {
+          lastLoc = loc;
+          rows += '<tr class="grp"><td colspan="7">📍 ตำแหน่งเก็บ: ' + esc(loc) + '</td></tr>';
+        }
+        n++;
+        var img = String(it.image||'');
+        rows += '<tr>' +
+          '<td class="c num">' + n + '</td>' +
+          '<td class="c"><div class="ph">' + (img ? '<img src="' + esc(img) + '" alt=""/>' : '') + '</div></td>' +
+          '<td><span class="nm">' + esc(it.name) + '</span>' +
+            '<span class="sub">' + esc(it.model||'-') + (it.brand && it.brand!=='-' ? ' · ' + esc(it.brand) : '') + '</span></td>' +
+          '<td class="c unit">' + esc(it.unit||'PCS') + '</td>' +
+          '<td class="c sys">' + esc(it.systemQty) + '</td>' +
+          '<td class="c"><div class="box"></div></td>' +
+          '<td class="note"></td>' +
+        '</tr>';
+      });
+
+      var html = '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/>' +
+        '<title>ใบนับสต็อก ' + esc(scSessionLabel()) + '</title>' +
+        '<style>' +
+        '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;900&display=swap");' +
+        '*{box-sizing:border-box}' +
+        'body{--ph:46px;font-family:"Noto Sans Thai",sans-serif;color:#0f172a;margin:0;padding:14px;' +
+          '-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+        '.bar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:14px;align-items:center;' +
+          'background:#1e293b;color:#fff;padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}' +
+        '.bar label{display:flex;align-items:center;gap:6px;cursor:pointer}' +
+        '.bar select{border-radius:6px;border:0;padding:4px 6px;font-family:inherit}' +
+        '.bar button{margin-left:auto;background:#4f46e5;color:#fff;border:0;border-radius:8px;' +
+          'padding:8px 18px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}' +
+        '.head{border-bottom:3px solid #4f46e5;padding-bottom:8px;margin-bottom:10px}' +
+        '.head h1{font-size:19px;margin:0;color:#1e3a5f}' +
+        '.head p{margin:3px 0;font-size:11px;color:#475569}' +
+        '.meta{display:flex;gap:18px;flex-wrap:wrap;font-size:11px;margin-top:6px}' +
+        '.meta span{border:1px solid #cbd5e1;border-radius:6px;padding:3px 10px}' +
+        '.fill{display:inline-block;min-width:120px;border-bottom:1px dotted #64748b}' +
+        'table{width:100%;border-collapse:collapse;table-layout:fixed}' +
+        'th{background:#1e293b;color:#fff;font-size:10px;padding:6px 4px;text-align:center;border:1px solid #334155}' +
+        'td{border:1px solid #cbd5e1;padding:4px 6px;font-size:11px;vertical-align:middle}' +
+        'td.c{text-align:center}' +
+        'td.num{color:#64748b;font-size:10px}' +
+        'tr.grp td{background:#e0e7ff;font-weight:700;font-size:11px;color:#3730a3;padding:4px 8px}' +
+        '.ph{position:relative;width:var(--ph);height:var(--ph);margin:0 auto;background:#f1f5f9;' +
+          'border:1px solid #e2e8f0;border-radius:4px;overflow:hidden}' +
+        '.ph:before{content:"ไม่มีรูป";position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);' +
+          'text-align:center;font-size:7px;color:#94a3b8}' +
+        '.ph img{position:relative;width:100%;height:100%;object-fit:contain;background:#fff;display:block}' +
+        '.nm{display:block;font-weight:700;font-size:11.5px;line-height:1.25}' +
+        '.sub{display:block;font-size:9.5px;color:#64748b}' +
+        '.box{height:calc(var(--ph) - 16px);min-height:24px;border:1.5px solid #94a3b8;border-radius:4px;background:#fff}' +
+        '.note{background:#fafafa}' +
+        'body.blind .sys{display:none}' +
+        '.sign{margin-top:22px;display:flex;gap:28px;justify-content:space-between;font-size:11px;text-align:center}' +
+        '.sign div{flex:1;border-top:1.5px solid #0f172a;padding-top:6px}' +
+        '.foot{margin-top:14px;text-align:center;font-size:9px;color:#94a3b8}' +
+        '@media print{.bar{display:none}body{padding:0}@page{size:A4 portrait;margin:10mm}' +
+          'thead{display:table-header-group}tr{page-break-inside:avoid}.sign{page-break-inside:avoid}}' +
+        '</style></head><body>' +
+        '<div class="bar">' +
+          '<label><input type="checkbox" id="blindChk"/> ซ่อนยอดในระบบ (นับแบบ blind)</label>' +
+          '<label>ขนาดรูป <select id="sizeSel">' +
+            '<option value="34">เล็ก</option><option value="46" selected>กลาง</option><option value="66">ใหญ่</option>' +
+          '</select></label>' +
+          '<button type="button" id="printBtn">🖨️ พิมพ์</button>' +
+        '</div>' +
+        '<div class="head">' +
+          '<h1>📦 ใบนับสต็อกอะไหล่ (Stock Count Sheet)</h1>' +
+          '<p><b>' + esc(scSessionLabel()) + '</b> · ' + items.length + ' รายการ · เปิด Session โดย ' + esc(scSession.createdBy) + '</p>' +
+          '<p>พิมพ์เมื่อ ' + esc(now) + '</p>' +
+          '<div class="meta">' +
+            '<span>ผู้นับ: <b class="fill"></b></span>' +
+            '<span>วันที่นับ: <b class="fill"></b></span>' +
+            '<span>เวลา: <b class="fill"></b></span>' +
+          '</div>' +
+        '</div>' +
+        '<table><thead><tr>' +
+          '<th style="width:26px">#</th>' +
+          '<th style="width:60px">รูป</th>' +
+          '<th>ชื่ออะไหล่ / รุ่น · แบรนด์</th>' +
+          '<th style="width:44px">หน่วย</th>' +
+          '<th class="sys" style="width:52px">ในระบบ</th>' +
+          '<th style="width:74px">นับได้จริง</th>' +
+          '<th style="width:110px">หมายเหตุ</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>' +
+        '<div class="sign">' +
+          '<div>ผู้นับ (ช่าง)<br/><br/>____________________</div>' +
+          '<div>ตรวจสอบ (Leader)<br/><br/>____________________</div>' +
+          '<div>รับทราบ (Engineer)<br/><br/>____________________</div>' +
+        '</div>' +
+        '<p class="foot">Spare Parts Portal · ใบนับสต็อก ' + esc(scSessionLabel()) + ' · ' + esc(now) + '</p>' +
+        '<' + 'script>' +
+          'document.getElementById("blindChk").addEventListener("change",function(){document.body.classList.toggle("blind",this.checked);});' +
+          'document.getElementById("sizeSel").addEventListener("change",function(){document.body.style.setProperty("--ph",this.value+"px");});' +
+          'function scWaitImages(cb){var imgs=[].slice.call(document.images),left=imgs.length,done=false;' +
+            'function fin(){if(done)return;done=true;cb();}' +
+            'function one(){left--;if(left<=0)fin();}' +
+            'if(!left)return fin();' +
+            'imgs.forEach(function(im){if(im.complete){one();return;}' +
+              'im.addEventListener("load",one);' +
+              'im.addEventListener("error",function(){im.style.display="none";one();});});' +
+            'setTimeout(fin,9000);}' +
+          'document.getElementById("printBtn").addEventListener("click",function(){scWaitImages(function(){window.print();});});' +
+          'window.addEventListener("load",function(){scWaitImages(function(){setTimeout(function(){window.print();},250);});});' +
+        '<' + '/script>' +
+        '</body></html>';
+
+      var win = window.open('', '_blank');
+      if (!win) { showQuickToast('อนุญาต popup เพื่อพิมพ์ใบนับ','warn'); return; }
+      win.document.write(html);
+      win.document.close();
+      showQuickToast('เปิดใบนับ ' + items.length + ' รายการ — รอรูปโหลดครบแล้วสั่งพิมพ์','success');
+    }
+
+    function scExportCountCsv() {
+      if (!scSession) { showQuickToast('ยังไม่ได้เปิด Session','warn'); return; }
+      var items = scSortedForPrint();
+      if (!items.length) { showQuickToast('ไม่มีรายการให้ Export','warn'); return; }
+      var head = ['#','ชื่ออะไหล่','รุ่น','แบรนด์','ตำแหน่ง','หน่วย','ยอดในระบบ','นับได้จริง','หมายเหตุ','ลิงก์รูป'];
+      var q = function(v){ return '"' + String(v===null||v===undefined?'':v).replace(/"/g,'""') + '"'; };
+      var lines = [head.map(q).join(',')];
+      items.forEach(function(it, i) {
+        lines.push([i+1, it.name, it.model||'-', it.brand||'-', it.location||'-', it.unit||'PCS',
+          it.systemQty, (it.counted===null||it.counted===undefined?'':it.counted), it.reason||'', it.image||''].map(q).join(','));
+      });
+      var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'stock-count-' + scSession.month + '-' + String(scSession.line).replace(/[^A-Za-z0-9]+/g,'_') + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showQuickToast('ดาวน์โหลด CSV ' + items.length + ' รายการแล้ว','success');
     }
 
     // ── PDF Export ─────────────────────────────────────────────────
@@ -8640,6 +8813,8 @@ function getIssueCartEntries() {
       var hideHistBtn = document.getElementById('scHideHistoryBtn');
       var fillZeroBtn = document.getElementById('scFillZeroBtn');
       var fillSysBtn = document.getElementById('scFillSystemBtn');
+      var printSheetBtn = document.getElementById('scPrintSheetBtn');
+      var exportCsvBtn = document.getElementById('scExportCsvBtn');
       var tbody = document.getElementById('scTableBody');
 
       if (startBtn) startBtn.addEventListener('click', scStartSession);
@@ -8670,6 +8845,8 @@ function getIssueCartEntries() {
         scSession.items.forEach(function(it){ it.counted = it.systemQty; it.reason = ''; });
         scRenderTable(); scUpdateStats(); showQuickToast('คัดลอกจำนวนจากระบบเรียบร้อย','success');
       });
+      if (printSheetBtn) printSheetBtn.addEventListener('click', scPrintCountSheet);
+      if (exportCsvBtn) exportCsvBtn.addEventListener('click', scExportCountCsv);
       if (tbody) tbody.addEventListener('input', function(e){
         var idx = e.target.getAttribute('data-sc-idx');
         var field = e.target.getAttribute('data-sc-field');
