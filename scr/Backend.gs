@@ -5051,7 +5051,10 @@ function adjustStockFromCount(payload) {
         reason: 'Stock Adjustment',
         reasonRemark: 'Stock Count: ' + String(payload.session_id || '') + ' | ' + String(item.reason || 'ปรับจากการนับจริง'),
         partNo: String(item.id || ''),
-        category: String(item.category || 'General')
+        category: String(item.category || 'General'),
+        // การปรับยอดขึ้นไม่ใช่การซื้อของเข้ามาจริง — ถ้าไม่กันไว้ processTransaction จะสร้าง
+        // Purchase History ให้ (ทำให้ยอดค่าใช้จ่ายเดือนนั้นบวมเกินจริง) และติดป้าย "ของใหม่" ในหน้า Stock
+        skipPurchaseHistory: true
       };
       processTransaction(txnPayload);
       results.push({ name: item.name, variance: variance, status: 'adjusted' });

@@ -8355,6 +8355,10 @@ function getIssueCartEntries() {
         return Promise.resolve({ sessionId: sessionId, adjusted: 0 });
 
       }).then(function(res) {
+        // ต้อง copy session ก่อนใช้ — ทั้งบล็อกนี้อ่านค่าจากมัน ถ้าประกาศทีหลัง var hoisting
+        // จะทำให้เป็น undefined แล้ว throw ตั้งแต่บรรทัดแรก คิวรออนุมัติจะไม่ถูกสร้างเลย
+        var sessionCopy = JSON.parse(JSON.stringify(scSession));
+
         // Backup ใน localStorage พร้อม status + items สำหรับ approve
         var hist = JSON.parse(localStorage.getItem('sc_history')||'[]');
         hist.unshift({ id: res.sessionId, month: sessionCopy.month, line: sessionCopy.line,
@@ -8367,7 +8371,6 @@ function getIssueCartEntries() {
 
         // ── STEP 3: สรุปผลและถามว่าจะ Export PDF ─────────────────
         var pct = items.length ? Math.round((matched/items.length)*100) : 0;
-        var sessionCopy = JSON.parse(JSON.stringify(scSession)); // เก็บ copy ก่อนล้าง
 
         // ปิด session ก่อน
         scSession = null;
