@@ -5161,7 +5161,9 @@ function approveStockCount(payload) {
       return {
         id: it.id || '', name: it.name, model: it.model || '-', brand: it.brand || '-',
         unit: it.unit || 'PCS', counted: it.counted, system_qty: it.systemQty,
-        reason: it.reason || ('อนุมัติโดย ' + user.username), line: sessionLine
+        reason: it.reason || ('อนุมัติโดย ' + user.username), line: sessionLine,
+        // ชีทต้นทางของอะไหล่ตัวนั้น — ขาดค่านี้ไปยอดจะถูกปรับผิดชีท
+        sheet: it.sheet || '', category: it.category || 'General'
       };
     });
     // ปรับ Stock ให้เสร็จก่อนค่อยประทับสถานะ — ถ้าล้มกลางทางแถวยังเป็น pending ให้กดซ้ำได้
@@ -5206,6 +5208,11 @@ function adjustStockFromCount(payload) {
     try {
       var variance = Number(item.counted) - Number(item.system_qty);
       if (variance === 0) return;
+      // ไม่รู้ชีทต้นทาง = เดาไม่ได้ว่าจะไปแก้ยอดที่ไหน — ล้มรายการนี้ไปเลยดีกว่าปล่อยให้
+      // fallback ไปชีท default แล้วไปแก้ยอดของชีทที่ไม่ได้นับ (ผลนับที่บันทึกก่อนแก้บั๊กไม่มีค่านี้)
+      if (!String(item.sheet || '').trim()) {
+        throw new Error('ไม่รู้ว่าอะไหล่นี้อยู่ชีทไหน (ผลนับถูกบันทึกไว้ก่อนแก้บั๊ก) — ต้องนับใหม่แล้วส่งผลอีกครั้ง');
+      }
       var txnPayload = {
         authToken: payload.authToken,
         partName: String(item.name || ''),
@@ -5220,6 +5227,10 @@ function adjustStockFromCount(payload) {
         reasonRemark: 'Stock Count: ' + String(payload.session_id || '') + ' | ' + String(item.reason || 'ปรับจากการนับจริง'),
         partNo: String(item.id || ''),
         category: String(item.category || 'General'),
+        // ต้องระบุชีทต้นทางเสมอ — ถ้าไม่ส่ง resolveReadSheetName จะ fallback ไปชีท default
+        // ('Main List Stock') แล้วไปหาอะไหล่ผิดชีท: ถ้าไม่เจอก็ error, ถ้าเจอชื่อซ้ำ
+        // ก็ไปแก้ยอดของชีทที่ไม่ได้นับ
+        sheetName: String(item.sheet || ''),
         // การปรับยอดขึ้นไม่ใช่การซื้อของเข้ามาจริง — ถ้าไม่กันไว้ processTransaction จะสร้าง
         // Purchase History ให้ (ทำให้ยอดค่าใช้จ่ายเดือนนั้นบวมเกินจริง) และติดป้าย "ของใหม่" ในหน้า Stock
         skipPurchaseHistory: true
