@@ -8152,8 +8152,11 @@ function getIssueCartEntries() {
         cats.forEach(function(c){ var o=document.createElement('option'); o.value=c; o.textContent=c; catEl.appendChild(o); });
       }
       scUpdateStats();
+      // ย้ายประวัติเก่าใน localStorage ขึ้นเซิร์ฟเวอร์ก่อน แล้วค่อยโหลดคิว/ประวัติมาแสดง
       // Engineer/Admin ต้องเห็นคิวรออนุมัติทันทีที่เปิดหน้า — ไม่ต้องกดปุ่มดูประวัติก่อน
-      if (scCanApprove()) scRefresh().catch(function(err){ console.warn('scRefresh failed', err); });
+      scMigrateLegacyHistory().then(function() {
+        if (scCanApprove()) return scRefresh();
+      }).catch(function(err){ console.warn('scInitPage refresh failed', err); });
     }
 
     function scGetStatusClass(item) {
@@ -8686,6 +8689,54 @@ function getIssueCartEntries() {
       return hasPermission('manage_items') || isAdminUser();
     }
 
+    // ประวัติรุ่นแรกของฟีเจอร์นี้ (คอมมิต cb174ff) เก็บใน localStorage อย่างเดียว ไม่เคยยิงขึ้น
+    // เซิร์ฟเวอร์ — ผลนับรอบนั้นมีอยู่ที่เดียวคือเบราว์เซอร์เครื่องนั้น ต้องยกขึ้นชีทเก็บเป็นหลักฐาน
+    // ก่อนที่จะหายไปพร้อมการล้าง browser data
+    //
+    // ยกขึ้นแล้ว 'ไม่ลบ' ของเดิมในเครื่องทิ้ง — เก็บไว้เป็น backup เผื่อการนำเข้าผิดพลาด
+    var SC_LEGACY_KEY = 'sc_history';
+    var SC_LEGACY_DONE_KEY = 'sc_history_migrated';
+
+    function scReadLegacyHistory() {
+      try {
+        var raw = localStorage.getItem(SC_LEGACY_KEY);
+        if (!raw) return [];
+        var list = JSON.parse(raw);
+        return Array.isArray(list) ? list : [];
+      } catch (err) { return []; }
+    }
+
+    function scMigrateLegacyHistory() {
+      if (localStorage.getItem(SC_LEGACY_DONE_KEY) === '1') return Promise.resolve(0);
+      var legacy = scReadLegacyHistory();
+      if (!legacy.length) { localStorage.setItem(SC_LEGACY_DONE_KEY, '1'); return Promise.resolve(0); }
+
+      var imported = 0;
+      // ส่งทีละรายการ — แต่ละ record พ่วง items ของทั้ง session มาด้วย รวมกันแล้ว payload ใหญ่เกิน
+      return legacy.reduce(function(chain, h) {
+        return chain.then(function() {
+          return postJson(withAuthPayload({
+            action: 'importLegacyStockCount',
+            session_id: h.id || ('SC-LEGACY-' + new Date(h.submittedAt || Date.now()).getTime()),
+            month: h.month || '', line: h.line || 'all', category: h.category || 'all',
+            created_by: h.createdBy || '', created_at: h.createdAt || '', submitted_at: h.submittedAt || '',
+            legacy_status: h.status || '',
+            total_items: h.total || 0, matched: h.matched || 0, diff_count: h.diffCount || 0,
+            items: JSON.stringify(h.items || [])
+          })).then(parseApiResponse).then(function(res) { if (res && res.imported) imported += 1; });
+        });
+      }, Promise.resolve()).then(function() {
+        localStorage.setItem(SC_LEGACY_DONE_KEY, '1');
+        if (imported) showQuickToast('📦 เก็บประวัติเช็คสต็อกเก่า ' + imported + ' รายการขึ้นเซิร์ฟเวอร์แล้ว', 'success');
+        return imported;
+      }).catch(function(err) {
+        // ไม่ตั้ง flag — เปิดหน้าครั้งหน้าจะลองใหม่ ดีกว่าปล่อยให้หลักฐานค้างอยู่ในเครื่องเดียว
+        console.warn('scMigrateLegacyHistory failed', err);
+        showQuickToast('เก็บประวัติเก่าไม่สำเร็จ จะลองใหม่ครั้งหน้า: ' + (err && err.message ? err.message : err), 'warn');
+        return 0;
+      });
+    }
+
     function scLineLabel(line) {
       return String(line) === 'all' ? 'ทุก Line' : String(line || '-');
     }
@@ -8723,6 +8774,12 @@ function getIssueCartEntries() {
 
     function scStatusBadge(row) {
       if (row.is_pending) return '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">⏳ รออนุมัติ</span>';
+      // record ที่ยกมาจาก localStorage — เก็บเป็นหลักฐาน ไม่เข้าคิวอนุมัติ
+      if (String(row.status).indexOf('archived_') === 0) {
+        var was = String(row.status) === 'archived_approved' ? ' (เคยอนุมัติ)'
+          : String(row.status) === 'archived_rejected' ? ' (เคยส่งคืน)' : '';
+        return '<span class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">📦 บันทึกย้อนหลัง' + was + '</span>';
+      }
       if (String(row.status) === 'rejected') return '<span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">❌ ส่งคืน</span>';
       return '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">✅ อนุมัติแล้ว</span>';
     }

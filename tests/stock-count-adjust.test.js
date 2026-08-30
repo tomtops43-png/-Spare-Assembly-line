@@ -90,8 +90,12 @@ assert(ensureBlock.includes('sheet.getRange(1, lastCol + 1, 1, missing.length)')
   'ต้องเติมคอลัมน์ต่อท้าย ไม่ใช่เขียนทับทั้งแถวหัว');
 
 // ── Frontend: ต้องเลิกใช้ localStorage เป็นคิวอนุมัติ ────────────────────────────
-assert(!/sc_history/.test(html),
-  'ห้ามเหลือคิวอนุมัติใน localStorage — Engineer ต้องอนุมัติจากเครื่องไหนก็ได้');
+// (sc_history ยังถูกอ่านอยู่ แต่เพื่อ "ยกขึ้นเซิร์ฟเวอร์" อย่างเดียว ไม่ใช่ใช้เป็นคิว)
+const pendingBlock = slice(htmlLf, 'function scRenderPending()', 'function scDecide(btn)', 'scRenderPending');
+assert(!/localStorage/.test(pendingBlock),
+  'คิวรออนุมัติห้ามอ่าน localStorage — Engineer ต้องอนุมัติจากเครื่องไหนก็ได้');
+const historyBlock = slice(htmlLf, 'function scRenderHistory()', 'function scRenderPending()', 'scRenderHistory');
+assert(!/localStorage/.test(historyBlock), 'ประวัติห้ามอ่าน localStorage');
 assert(html.includes("action: 'getStockCountHistory'"), 'ประวัติ/คิว ต้องดึงจากเซิร์ฟเวอร์');
 assert(html.includes("action: 'approveStockCount'"), 'ปุ่มอนุมัติต้องยิงไป approveStockCount');
 const decideBlock = slice(htmlLf, 'function scDecide(btn)', '// ── Stock Count event bindings', 'scDecide');
@@ -101,6 +105,46 @@ assert(decideBlock.includes("decision: decision"));
 assert(decideBlock.includes('loadPartsData({ skipCache: true })'),
   'ปรับ Stock แล้วต้องโหลดข้อมูลอะไหล่ใหม่ ไม่งั้นตารางค้างยอดเก่า');
 // เปิดหน้ามาต้องเห็นคิวเลย ไม่ต้องกดปุ่มดูประวัติก่อน
-assert(htmlLf.includes('if (scCanApprove()) scRefresh()'));
+assert(htmlLf.includes('if (scCanApprove()) return scRefresh();'));
+
+// ── เก็บประวัติเก่าไว้เป็นหลักฐาน ───────────────────────────────────────────────
+// เวอร์ชันแรกของฟีเจอร์ (cb174ff) บันทึกผลนับลง localStorage อย่างเดียว ไม่เคยยิงขึ้นเซิร์ฟเวอร์
+// ผลนับรอบนั้นจึงมีอยู่ที่เดียวคือเบราว์เซอร์ของช่าง ต้องยกขึ้นชีทก่อนหาย
+assert(backend.includes('function importLegacyStockCount(payload)'));
+assert((backend.match(/action === 'importLegacyStockCount'/g) || []).length === 2,
+  'ต้อง dispatch importLegacyStockCount ทั้ง doGet และ doPost');
+const legacyBlock = slice(backendLf, 'function importLegacyStockCount(payload)',
+  'function approveStockCount(payload)', 'importLegacyStockCount');
+// ของเก่าเก็บเป็นหลักฐานอย่างเดียว ห้ามหลุดเข้าคิวอนุมัติแล้วไปปรับ Stock ด้วยยอดที่เก่าเป็นเดือน
+assert(/archived_legacy/.test(legacyBlock) && /archived_approved/.test(legacyBlock) && /archived_rejected/.test(legacyBlock),
+  'สถานะของ record ที่นำเข้าต้องขึ้นต้นด้วย archived_');
+const pendingStatuses = backend.match(/STOCK_COUNT_PENDING_STATUSES = \[[^\]]*\]/)[0];
+assert(!/archived/.test(pendingStatuses),
+  'สถานะ archived_* ห้ามถูกนับเป็นรออนุมัติ — เก็บเป็นหลักฐานอย่างเดียว');
+assert(/appendRow/.test(legacyBlock), 'ต้อง append แถวใหม่ ไม่ใช่เขียนทับของเดิม');
+assert(legacyBlock.includes("imported: false"), 'ต้องกันนำเข้าซ้ำด้วย session_id');
+
+// ห้ามลบ localStorage ทิ้งหลังยกขึ้นเซิร์ฟเวอร์ — เก็บไว้เป็น backup ในเครื่อง
+assert(!/removeItem\(\s*(SC_LEGACY_KEY|'sc_history')/.test(html),
+  'ห้ามลบ sc_history ทิ้ง — เก็บไว้เป็นหลักฐานสำรองในเครื่อง');
+assert(html.includes("action: 'importLegacyStockCount'"), 'หน้าเว็บต้องยกประวัติเก่าขึ้นเซิร์ฟเวอร์');
+const migrateBlock = slice(htmlLf, 'function scMigrateLegacyHistory()', 'function scLineLabel(line)', 'scMigrateLegacyHistory');
+assert(migrateBlock.includes('legacy_status: h.status'),
+  'ต้องยกผลตัดสินเดิม (อนุมัติ/ส่งคืน) ขึ้นไปด้วย ไม่งั้นประวัติเพี้ยน');
+assert(migrateBlock.includes('items: JSON.stringify(h.items || [])'),
+  'ต้องยกรายการที่นับได้ขึ้นไปด้วย ไม่งั้นเก็บไว้เป็นหลักฐานไม่ได้');
+// ยกไม่สำเร็จต้องไม่ตั้ง flag — ครั้งหน้าจะได้ลองใหม่ ไม่ใช่ปล่อยหลักฐานค้างในเครื่องเดียว
+const doneIdx = migrateBlock.indexOf('localStorage.setItem(SC_LEGACY_DONE_KEY');
+assert(doneIdx > -1 && doneIdx < migrateBlock.indexOf('.catch(function(err)'),
+  'ต้องตั้ง flag ใน then เท่านั้น ห้ามตั้งใน catch');
+
+// ── ชีทเป็น append-only: ห้ามมีอะไรลบแถวประวัติเช็คสต็อกทิ้ง ─────────────────────
+const stockCountArea = slice(backendLf, 'var STOCK_COUNT_SHEET_NAME',
+  '// SMART AUTOMATION + AI FEATURES', 'stock count backend');
+assert(!/deleteRow|clearContent|clear\(\)/.test(stockCountArea),
+  'โค้ดฝั่งเช็คสต็อกห้ามลบ/ล้างแถวในชีท — เก็บเป็นหลักฐานทั้งหมด');
+// อนุมัติแล้วต้องไม่ล้าง items_json ทิ้ง — ยอดที่ช่างนับได้คือตัวหลักฐาน
+assert(!/idx\.items_json \+ 1/.test(approveBlock),
+  'approveStockCount ห้ามเขียนทับคอลัมน์ items_json');
 
 console.log('stock-count-adjust: OK');
