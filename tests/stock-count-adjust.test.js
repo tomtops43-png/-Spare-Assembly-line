@@ -5,15 +5,17 @@ const htmlLf = html.replace(/\r\n/g, '\n');
 const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
 const backendLf = backend.replace(/\r\n/g, '\n');
 
+function slice(src, from, to, label) {
+  const a = src.indexOf(from);
+  const b = src.indexOf(to);
+  assert(a > -1 && b > a, 'ต้องหาบล็อก ' + label + ' เจอ');
+  return src.slice(a, b);
+}
+
 // ── Frontend: scDoSubmit ต้องประกาศ sessionCopy ก่อนใช้ ────────────────────────
 // var hoisting: ถ้าประกาศ var sessionCopy ทีหลังจุดที่อ่านค่า จะได้ undefined แล้ว throw
-// ตั้งแต่บรรทัดแรกของ .then() → คิว pending_approval ไม่ถูกเขียนลง localStorage เลย
-// ผลคือ Engineer ไม่มีอะไรให้กดอนุมัติ และ Stock ไม่มีวันถูกปรับ
-const submitBlock = htmlLf.slice(
-  htmlLf.indexOf('function scDoSubmit()'),
-  htmlLf.indexOf('function scGetFilteredItems()')
-);
-assert(submitBlock, 'ต้องหาบล็อก scDoSubmit เจอ');
+// ตั้งแต่บรรทัดแรกของ .then() → ส่งผลนับแล้วขึ้น "บันทึกไม่สำเร็จ" ทั้งที่ลงชีทไปแล้ว
+const submitBlock = slice(htmlLf, 'function scDoSubmit()', 'function scGetFilteredItems()', 'scDoSubmit');
 assert((submitBlock.match(/var sessionCopy = JSON\.parse\(JSON\.stringify\(scSession\)\);/g) || []).length === 1,
   'ต้องประกาศ sessionCopy ครั้งเดียวใน scDoSubmit');
 const declPos = submitBlock.indexOf('var sessionCopy =');
@@ -21,34 +23,84 @@ const firstUsePos = submitBlock.indexOf('sessionCopy.month');
 assert(declPos > -1 && firstUsePos > -1);
 assert(declPos < firstUsePos,
   'ต้องประกาศ sessionCopy ก่อนบรรทัดแรกที่ใช้ ไม่งั้น var hoisting จะทำให้เป็น undefined');
-// ต้อง copy ก่อนล้าง scSession ไม่งั้นได้ null
 assert(declPos < submitBlock.indexOf('scSession = null;'),
   'ต้อง copy scSession ก่อนตั้งเป็น null');
-// รายการที่ส่งแล้วต้องเข้าคิวรออนุมัติ ไม่ปรับ Stock ทันที
-assert(submitBlock.includes("status: 'pending_approval'"));
 assert(!/adjustStockFromCount/.test(submitBlock),
   'scDoSubmit ห้ามปรับ Stock เอง — ต้องรอ Engineer อนุมัติ');
 
 // ── Backend: ปรับยอดจากการนับ ห้ามสร้าง Purchase History ───────────────────────
 // นับได้เกินระบบ → ลงเป็น Input ซึ่ง processTransaction จะ sync purchase history ให้
 // (ทำให้ยอดค่าใช้จ่ายเดือนนั้นบวมเกินจริง) และ stamp ป้าย "ของใหม่" ทั้งที่ไม่ได้ซื้อของเข้ามา
-const adjustBlock = backendLf.slice(
-  backendLf.indexOf('function adjustStockFromCount(payload)'),
-  backendLf.indexOf('// SMART AUTOMATION + AI FEATURES')
-);
-assert(adjustBlock, 'ต้องหาบล็อก adjustStockFromCount เจอ');
+const adjustBlock = slice(backendLf, 'function adjustStockFromCount(payload)',
+  '// SMART AUTOMATION + AI FEATURES', 'adjustStockFromCount');
 assert(adjustBlock.includes('skipPurchaseHistory: true'),
   'txnPayload ของ adjustStockFromCount ต้องมี skipPurchaseHistory: true');
 assert(adjustBlock.indexOf('skipPurchaseHistory: true') < adjustBlock.indexOf('processTransaction(txnPayload)'),
   'ต้องใส่ flag ก่อนเรียก processTransaction');
-// flag นี้ต้องยังกันทั้ง purchase history และป้ายของใหม่อยู่
-assert(backend.includes('if (signedQty > 0 && !payload.skipPurchaseHistory) {'));
 assert((backend.match(/if \(signedQty > 0 && !payload\.skipPurchaseHistory\) \{/g) || []).length === 2,
-  'ต้องกันทั้ง stampLastReceivedAt และ syncPurchaseHistoryOnReceive');
+  'flag นี้ต้องยังกันทั้ง stampLastReceivedAt และ syncPurchaseHistoryOnReceive');
 
 // ปรับยอดเป็นการลง Input/Output ด้วยส่วนต่าง ไม่ใช่เขียนทับตัวเลข — ต้องมี audit trail
 assert(adjustBlock.includes('var variance = Number(item.counted) - Number(item.system_qty);'));
 assert(adjustBlock.includes("type: variance > 0 ? 'Input' : 'Output'"));
 assert(adjustBlock.includes("reason: 'Stock Adjustment'"));
+
+// endpoint ที่แก้ยอดสต็อกได้ตรงๆ ต้องไม่เปิดให้ช่างที่มีแค่สิทธิ์กรอกยอดนับ
+assert(adjustBlock.includes("requirePermission({ authToken: payload.authToken }, 'manage_items')"),
+  'adjustStockFromCount ต้อง gate ด้วย manage_items');
+assert(!/requirePermission\(\{ authToken: payload\.authToken \}, 'view_logs'\)/.test(adjustBlock),
+  "adjustStockFromCount ต้องไม่ gate ด้วย 'view_logs' (กว้างเกินไป)");
+
+// ── Backend: คิวอนุมัติต้องอยู่บนชีท ไม่ใช่ localStorage ─────────────────────────
+assert(backend.includes('function approveStockCount(payload)'));
+assert((backend.match(/action === 'approveStockCount'/g) || []).length === 2,
+  'ต้อง dispatch approveStockCount ทั้ง doGet และ doPost');
+assert((backend.match(/action === 'getStockCountHistory'/g) || []).length === 2,
+  'ต้อง dispatch getStockCountHistory ทั้ง doGet และ doPost (หน้าเว็บเรียกผ่าน POST)');
+
+const approveBlock = slice(backendLf, 'function approveStockCount(payload)',
+  'function adjustStockFromCount(payload)', 'approveStockCount');
+assert(approveBlock.includes("requirePermission({ authToken: payload.authToken }, 'manage_items')"),
+  'approveStockCount ต้อง gate ด้วย manage_items');
+// items ต้องอ่านจากชีท ไม่รับจาก client — กันแก้ตัวเลขที่นับได้ระหว่างทางก่อนอนุมัติ
+assert(approveBlock.includes('data[rowIndex][idx.items_json]'),
+  'approveStockCount ต้องอ่าน items จากชีท');
+assert(!/payload\.(items|diff_items)/.test(approveBlock),
+  'approveStockCount ห้ามรับ items/diff_items จาก client');
+// กันกดอนุมัติซ้ำ
+assert(approveBlock.includes('isStockCountPending(currentStatus)'));
+assert(approveBlock.includes('ถูกดำเนินการไปแล้ว'));
+// ห้ามจับ script lock ครอบ adjustStockFromCount — ข้างในเรียก processTransaction ที่จับ lock เอง
+// (โปรเจกต์นี้ใช้ *Unlocked variant กันซ้อน เช่น returnLogEntryUnlocked → processTransactionUnlocked)
+assert(!/LockService/.test(approveBlock),
+  'approveStockCount ห้ามจับ script lock ซ้อนกับ processTransaction');
+
+// สถานะ + คอลัมน์ผู้อนุมัติ
+assert(backend.includes("'approved_by','approved_at','adjusted_count'"),
+  'STOCK_COUNT_HEADERS ต้องมีคอลัมน์ผู้อนุมัติ');
+assert(backend.includes("var STOCK_COUNT_PENDING_STATUSES = ['', 'submitted', 'pending_approval'];"),
+  "แถวเก่าที่สถานะเป็น 'submitted' ต้องยังนับเป็นรออนุมัติ");
+assert(backendLf.includes("    'pending_approval',"),
+  'saveStockCountResult ต้องเขียนสถานะ pending_approval');
+// ชีทเก่ามี 13 คอลัมน์ — ต้องเติมหัวที่ขาด "ต่อท้าย" เท่านั้น ห้ามเขียนทับหัวเดิม
+assert(backend.includes('function ensureStockCountHeaders(sheet)'));
+const ensureBlock = slice(backendLf, 'function ensureStockCountHeaders(sheet)',
+  'function stockCountIndexMap(headers)', 'ensureStockCountHeaders');
+assert(ensureBlock.includes('sheet.getRange(1, lastCol + 1, 1, missing.length)'),
+  'ต้องเติมคอลัมน์ต่อท้าย ไม่ใช่เขียนทับทั้งแถวหัว');
+
+// ── Frontend: ต้องเลิกใช้ localStorage เป็นคิวอนุมัติ ────────────────────────────
+assert(!/sc_history/.test(html),
+  'ห้ามเหลือคิวอนุมัติใน localStorage — Engineer ต้องอนุมัติจากเครื่องไหนก็ได้');
+assert(html.includes("action: 'getStockCountHistory'"), 'ประวัติ/คิว ต้องดึงจากเซิร์ฟเวอร์');
+assert(html.includes("action: 'approveStockCount'"), 'ปุ่มอนุมัติต้องยิงไป approveStockCount');
+const decideBlock = slice(htmlLf, 'function scDecide(btn)', '// ── Stock Count event bindings', 'scDecide');
+assert(!/\b(items|diff_items)\s*:/.test(decideBlock),
+  'ฝั่งหน้าเว็บห้ามส่ง items ไปตอนอนุมัติ — Backend อ่านจากชีทเอง');
+assert(decideBlock.includes("decision: decision"));
+assert(decideBlock.includes('loadPartsData({ skipCache: true })'),
+  'ปรับ Stock แล้วต้องโหลดข้อมูลอะไหล่ใหม่ ไม่งั้นตารางค้างยอดเก่า');
+// เปิดหน้ามาต้องเห็นคิวเลย ไม่ต้องกดปุ่มดูประวัติก่อน
+assert(htmlLf.includes('if (scCanApprove()) scRefresh()'));
 
 console.log('stock-count-adjust: OK');
