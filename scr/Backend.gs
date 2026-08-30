@@ -4984,7 +4984,8 @@ var STOCK_COUNT_HEADERS = ['session_id','month','line','category','sheets','crea
 var STOCK_COUNT_PENDING_STATUSES = ['', 'submitted', 'pending_approval'];
 
 function getOrCreateStockCountSheet() {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  // ทั้งไฟล์นี้ทำงานบนสเปรดชีตที่สคริปต์ผูกอยู่ — ห้ามใช้ openById กับค่าคงที่ที่ไม่มีใครประกาศ
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(STOCK_COUNT_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(STOCK_COUNT_SHEET_NAME);

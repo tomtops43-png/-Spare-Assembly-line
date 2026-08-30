@@ -164,4 +164,31 @@ assert(!/deleteRow|clearContent|clear\(\)/.test(stockCountArea),
 assert(!/idx\.items_json \+ 1/.test(approveBlock),
   'approveStockCount ห้ามเขียนทับคอลัมน์ items_json');
 
+// ── Backend: ต้องใช้สเปรดชีตที่สคริปต์ผูกอยู่ ────────────────────────────────────
+// getOrCreateStockCountSheet เคยเรียก SpreadsheetApp.openById(SPREADSHEET_ID) โดยที่
+// SPREADSHEET_ID ไม่เคยถูกประกาศไว้ที่ไหนเลย → ทุก action ของหน้าเช็คสต็อกพังหมด
+// ("SPREADSHEET_ID is not defined") ฟังก์ชันอื่นในไฟล์ใช้ getActiveSpreadsheet() กันทั้งหมด
+assert(!/SPREADSHEET_ID/.test(backend),
+  'ห้ามอ้างตัวแปร SPREADSHEET_ID ที่ไม่มีใครประกาศ');
+const sheetGetterBlock = slice(backendLf, 'function getOrCreateStockCountSheet()',
+  'function ensureStockCountHeaders(sheet)', 'getOrCreateStockCountSheet');
+assert(sheetGetterBlock.includes('SpreadsheetApp.getActiveSpreadsheet()'),
+  'ต้องใช้ getActiveSpreadsheet() เหมือนฟังก์ชันอื่นในไฟล์');
+assert(!/SpreadsheetApp\.openById\(/.test(sheetGetterBlock));
+
+// ── Frontend: ยอดที่นับไปแล้วห้ามหายเพราะรีเฟรช/บันทึกไม่ผ่าน ──────────────────
+assert(htmlLf.includes("var SC_DRAFT_KEY = 'sc_draft_session';"));
+assert(htmlLf.includes('function scRestoreDraft()') && htmlLf.includes('function scSaveDraft()'));
+// เซฟทุกทางที่ยอดเปลี่ยน: พิมพ์เอง / ใส่ 0 ทั้งหมด / คัดลอกจากระบบ / เปิด Session
+assert((htmlLf.match(/scSaveDraft\(\);/g) || []).length >= 3, 'ต้องเซฟ draft ทุกจุดที่ยอดเปลี่ยน');
+assert(htmlLf.includes('scSaveDraftSoon();'), 'ช่องกรอกต้องเซฟแบบ debounce');
+assert(htmlLf.includes('scRestoreDraft();'), 'เปิดหน้ามาต้องถามกู้ draft');
+// ล้าง draft ได้เฉพาะตอนบันทึกขึ้นชีทสำเร็จ หรือกดยกเลิก Session เอง — ห้ามล้างตอน error
+assert(submitBlock.indexOf('scClearDraft();') > -1 &&
+  submitBlock.indexOf('scClearDraft();') < submitBlock.indexOf('scSession = null;'),
+  'ต้องล้าง draft ในทางสำเร็จ ก่อนปิด session');
+const submitCatch = submitBlock.slice(submitBlock.indexOf("showQuickToast('บันทึกไม่สำเร็จ"));
+assert(!/scClearDraft/.test(submitCatch),
+  'บันทึกไม่สำเร็จห้ามล้าง draft — ยอดที่นับมาทั้งวันต้องยังอยู่');
+
 console.log('stock-count-adjust: OK');
