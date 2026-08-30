@@ -2000,6 +2000,8 @@
           <button id="scFillSystemBtn" type="button" class="h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition">คัดลอกจำนวนจากระบบทั้งหมด</button>
           <button id="scPrintSheetBtn" type="button" class="h-9 rounded-xl border-2 border-indigo-600 bg-indigo-600 px-3 text-xs font-bold text-white hover:bg-indigo-700 transition">🖨️ พิมพ์ใบนับ (มีรูป)</button>
           <button id="scExportCsvBtn" type="button" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">⬇️ CSV</button>
+          <button id="scImportCsvBtn" type="button" class="h-9 rounded-xl border border-emerald-300 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition">⬆️ นำเข้า CSV</button>
+          <input id="scImportCsvInput" type="file" accept=".csv,text/csv" class="hidden" />
         </div>
         <!-- Table header -->
         <div class="overflow-x-auto">
@@ -8500,6 +8502,102 @@ function getIssueCartEntries() {
       });
     }
 
+    // ── นำเข้ายอดที่นับได้จากไฟล์ CSV ที่ Export ไว้ ────────────────────────────
+    // ใช้ตอนที่ยอดในหน้าจอหาย (รีเฟรช/เครื่องดับ/ส่งไม่ผ่าน) แต่ยังมีไฟล์ CSV ที่เซฟไว้
+    // เติมทับ Session ที่เปิดอยู่เท่านั้น — ไม่สร้าง Session ใหม่ เพราะ CSV ไม่มีข้อมูลชีทต้นทาง
+    // ซึ่งจำเป็นตอนปรับยอด (ดู sheetName ใน adjustStockFromCount)
+    function scParseCsv(text) {
+      var norm = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+      var rows = [], row = [], field = '', inQuotes = false;
+      for (var i = 0; i < norm.length; i += 1) {
+        var c = norm.charAt(i);
+        if (inQuotes) {
+          if (c !== '"') { field += c; continue; }
+          if (norm.charAt(i + 1) === '"') { field += '"'; i += 1; } else { inQuotes = false; }
+          continue;
+        }
+        if (c === '"') { inQuotes = true; }
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+        else { field += c; }
+      }
+      if (field !== '' || row.length) { row.push(field); rows.push(row); }
+      return rows;
+    }
+
+    // จับคู่ด้วยชื่อ+รุ่น เหมือนที่ Backend ใช้ — '-' คือ placeholder ของรุ่นว่าง ไม่ใช่รุ่นจริง
+    function scMatchKey(name, model) {
+      var m = String(model === null || model === undefined ? '' : model).trim();
+      if (m === '-') m = '';
+      return String(name || '').trim().toLowerCase() + '||' + m.toLowerCase();
+    }
+
+    function scImportCountCsv(file) {
+      if (!scSession) { showQuickToast('ต้องเปิด Session ก่อนถึงจะนำเข้า CSV ได้', 'warn'); return; }
+      var reader = new FileReader();
+      reader.onerror = function() { showQuickToast('อ่านไฟล์ไม่สำเร็จ', 'error'); };
+      reader.onload = function(ev) {
+        try { scApplyImportedCsv(scParseCsv(ev.target.result)); }
+        catch (err) { showQuickToast('นำเข้าไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error'); }
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    function scApplyImportedCsv(rows) {
+      if (!rows.length) throw new Error('ไฟล์ว่าง');
+      var header = rows[0].map(function(h){ return String(h || '').trim(); });
+      var col = {};
+      header.forEach(function(h, i) { col[h] = i; });
+      var nameCol = col['ชื่ออะไหล่'], modelCol = col['รุ่น'], countedCol = col['นับได้จริง'], reasonCol = col['หมายเหตุ'];
+      if (nameCol === undefined || countedCol === undefined) {
+        throw new Error('ไม่พบคอลัมน์ "ชื่ออะไหล่" หรือ "นับได้จริง" — ต้องใช้ไฟล์ที่ Export จากหน้านี้');
+      }
+
+      // ชื่อ+รุ่นซ้ำกันได้ เก็บเป็นคิวแล้วจ่ายทีละตัว กันเติมทับรายการเดิมซ้ำๆ
+      var pool = {};
+      scSession.items.forEach(function(it, idx) {
+        var k = scMatchKey(it.name, it.model);
+        if (!pool[k]) pool[k] = [];
+        pool[k].push(idx);
+      });
+
+      var picks = [], unmatched = [];
+      rows.slice(1).forEach(function(r) {
+        if (!r || !r.length) return;
+        var name = String(r[nameCol] || '').trim();
+        if (!name) return;
+        var k = scMatchKey(name, modelCol === undefined ? '' : r[modelCol]);
+        if (!pool[k] || !pool[k].length) { unmatched.push(name); return; }
+        var raw = String(r[countedCol] === undefined || r[countedCol] === null ? '' : r[countedCol]).trim();
+        picks.push({
+          idx: pool[k].shift(),
+          counted: raw === '' ? null : Number(raw),
+          reason: reasonCol === undefined ? '' : String(r[reasonCol] || '').trim()
+        });
+      });
+
+      var withNumber = picks.filter(function(x){ return x.counted !== null && !isNaN(x.counted); });
+      if (!withNumber.length) throw new Error('ไม่มียอดที่นับได้ในไฟล์นี้เลย');
+
+      var already = scSession.items.filter(function(it){ return it.counted !== null && it.counted !== ''; }).length;
+      var msg = 'จะเติมยอด ' + withNumber.length + ' รายการจากไฟล์' +
+        (already ? ' · ทับยอดที่กรอกไว้แล้ว ' + already + ' รายการ' : '') +
+        (unmatched.length ? ' · จับคู่ไม่ได้ ' + unmatched.length + ' รายการ (' + unmatched.slice(0,3).join(', ') + (unmatched.length>3?' ...':'') + ')' : '');
+      showConfirmDialog({ title: 'นำเข้ายอดจาก CSV?', message: msg, okLabel: 'นำเข้า' }).then(function(ok) {
+        if (!ok) return;
+        withNumber.forEach(function(x) {
+          var item = scSession.items[x.idx];
+          if (!item) return;
+          item.counted = x.counted;
+          if (x.reason) item.reason = x.reason;
+        });
+        scRenderTable(); scUpdateStats(); scSaveDraft();
+        showQuickToast('นำเข้ายอดจาก CSV แล้ว ' + withNumber.length + ' รายการ' +
+          (unmatched.length ? ' · จับคู่ไม่ได้ ' + unmatched.length + ' รายการ' : ''),
+          unmatched.length ? 'warn' : 'success');
+      });
+    }
+
     function scSortedForPrint() {
       var items = scGetFilteredItems().slice();
       items.sort(function(a, b) {
@@ -9047,6 +9145,16 @@ function getIssueCartEntries() {
       });
       if (printSheetBtn) printSheetBtn.addEventListener('click', scPrintCountSheet);
       if (exportCsvBtn) exportCsvBtn.addEventListener('click', scExportCountCsv);
+      var importCsvBtn = document.getElementById('scImportCsvBtn');
+      var importCsvInput = document.getElementById('scImportCsvInput');
+      if (importCsvBtn && importCsvInput) {
+        importCsvBtn.addEventListener('click', function(){ importCsvInput.click(); });
+        importCsvInput.addEventListener('change', function() {
+          var file = importCsvInput.files && importCsvInput.files[0];
+          importCsvInput.value = ''; // เคลียร์ก่อน เผื่อเลือกไฟล์เดิมซ้ำ change จะได้ยิงอีก
+          if (file) scImportCountCsv(file);
+        });
+      }
       if (tbody) tbody.addEventListener('input', function(e){
         var idx = e.target.getAttribute('data-sc-idx');
         var field = e.target.getAttribute('data-sc-field');
