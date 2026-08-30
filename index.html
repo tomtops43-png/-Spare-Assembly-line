@@ -8153,6 +8153,7 @@ function getIssueCartEntries() {
       }
       scUpdateStats();
       scSyncSubmitLabel();
+      scRestoreDraft();
       // ย้ายประวัติเก่าใน localStorage ขึ้นเซิร์ฟเวอร์ก่อน แล้วค่อยโหลดคิว/ประวัติมาแสดง
       // Engineer/Admin ต้องเห็นคิวรออนุมัติทันทีที่เปิดหน้า — ไม่ต้องกดปุ่มดูประวัติก่อน
       scMigrateLegacyHistory().then(function() {
@@ -8312,7 +8313,7 @@ function getIssueCartEntries() {
         if (sub) sub.textContent = 'เริ่มโดย '+(currentUser?currentUser.username:'?')+' · '+pool.length+' รายการ จาก '+sheets.join(', ')+' · กำลังนับ';
         var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.remove('hidden');
         document.getElementById('scCountSheet').classList.remove('hidden');
-        scUpdateStats(); scRenderTable();
+        scUpdateStats(); scRenderTable(); scSaveDraft();
         showQuickToast('✅ เปิด Session สำเร็จ — '+pool.length+' รายการ ('+sheets.length+' sheets)','success');
       }).catch(function(err) {
         showQuickToast('โหลดข้อมูลไม่สำเร็จ: '+(err&&err.message?err.message:err),'error');
@@ -8404,7 +8405,8 @@ function getIssueCartEntries() {
         // ── STEP 3: สรุปผลและถามว่าจะ Export PDF ─────────────────
         var pct = items.length ? Math.round((matched/items.length)*100) : 0;
 
-        // ปิด session ก่อน
+        // ปิด session ก่อน — ถึงตรงนี้แปลว่าบันทึกขึ้นชีทสำเร็จแล้ว ล้าง draft ได้
+        scClearDraft();
         scSession = null;
         document.getElementById('scActiveSession').classList.add('hidden');
         document.getElementById('scNoSession').classList.remove('hidden');
@@ -8733,6 +8735,67 @@ function getIssueCartEntries() {
       return hasPermission('manage_items') || isAdminUser();
     }
 
+    // ── Draft: กันยอดที่นับไปแล้วหายตอนรีเฟรช/ปิดแท็บ/เน็ตหลุด ────────────────
+    // ยอดที่ช่างเดินนับมาทั้งวันเคยอยู่ในตัวแปร scSession อย่างเดียว ถ้าบันทึกขึ้นชีทไม่ผ่าน
+    // (เช่นตอน Backend พัง) แล้วเผลอรีเฟรช = นับใหม่ทั้งรอบ
+    var SC_DRAFT_KEY = 'sc_draft_session';
+
+    var scDraftTimer = null;
+    function scSaveDraftSoon() {
+      if (scDraftTimer) clearTimeout(scDraftTimer);
+      scDraftTimer = setTimeout(scSaveDraft, 400);
+    }
+
+    function scSaveDraft() {
+      try {
+        if (!scSession) { localStorage.removeItem(SC_DRAFT_KEY); return; }
+        localStorage.setItem(SC_DRAFT_KEY, JSON.stringify({ savedAt: new Date().toISOString(), session: scSession }));
+      } catch (err) { console.warn('scSaveDraft failed', err); } // เต็ม quota ก็ไม่ควรทำให้หน้าค้าง
+    }
+
+    function scClearDraft() {
+      try { localStorage.removeItem(SC_DRAFT_KEY); } catch (err) {}
+    }
+
+    // เรียกตอนเปิดหน้า — ถ้ามี draft ค้างอยู่ให้ถามก่อนว่าจะนับต่อไหม
+    function scRestoreDraft() {
+      if (scSession) return; // กำลังนับอยู่แล้ว อย่าไปทับ
+      var raw = null;
+      try { raw = localStorage.getItem(SC_DRAFT_KEY); } catch (err) { return; }
+      if (!raw) return;
+      var draft = null;
+      try { draft = JSON.parse(raw); } catch (err) { scClearDraft(); return; }
+      if (!draft || !draft.session || !Array.isArray(draft.session.items)) { scClearDraft(); return; }
+
+      var counted = draft.session.items.filter(function(it){ return it.counted !== null && it.counted !== ''; }).length;
+      showConfirmDialog({
+        title: 'พบการนับที่ค้างอยู่',
+        message: draft.session.month + ' — ' + scLineLabel(draft.session.line) + ' · นับไปแล้ว ' + counted + '/' +
+                 draft.session.items.length + ' รายการ (บันทึกไว้ ' + scFmtTime(draft.savedAt) + ') ต้องการนับต่อไหม?',
+        okLabel: 'นับต่อ'
+      }).then(function(ok) {
+        if (!ok) return; // ไม่ลบ draft ทิ้ง — เผลอกดผิดจะได้ยังกู้ได้ตอนเปิดหน้าครั้งหน้า
+        scSession = draft.session;
+        scResumeSessionUi();
+        showQuickToast('กู้การนับที่ค้างไว้แล้ว — นับต่อได้เลย', 'success');
+      });
+    }
+
+    // เปิด UI โหมดกำลังนับกลับมา (ใช้ร่วมกันระหว่างเปิด Session ใหม่กับกู้ draft)
+    function scResumeSessionUi() {
+      if (!scSession) return;
+      var title = document.getElementById('scActiveTitle');
+      if (title) title.textContent = 'Session: ' + scSessionLabel();
+      var sub = document.getElementById('scActiveSubtitle');
+      if (sub) sub.textContent = 'เริ่มโดย ' + scSession.createdBy + ' · ' + scSession.items.length + ' รายการ · กำลังนับ';
+      document.getElementById('scNoSession').classList.add('hidden');
+      document.getElementById('scActiveSession').classList.remove('hidden');
+      document.getElementById('scCountSheet').classList.remove('hidden');
+      var badge = document.getElementById('scActiveSessionBadge'); if (badge) badge.classList.remove('hidden');
+      scSyncSubmitLabel();
+      scUpdateStats(); scRenderTable();
+    }
+
     // ประวัติรุ่นแรกของฟีเจอร์นี้ (คอมมิต cb174ff) เก็บใน localStorage อย่างเดียว ไม่เคยยิงขึ้น
     // เซิร์ฟเวอร์ — ผลนับรอบนั้นมีอยู่ที่เดียวคือเบราว์เซอร์เครื่องนั้น ต้องยกขึ้นชีทเก็บเป็นหลักฐาน
     // ก่อนที่จะหายไปพร้อมการล้าง browser data
@@ -8955,6 +9018,7 @@ function getIssueCartEntries() {
         showConfirmDialog({ title:'ยกเลิก Session?', message:'ข้อมูลที่กรอกไปจะหายทั้งหมด', okLabel:'ยกเลิก Session' }).then(function(ok){
           if (!ok) return;
           scSession = null;
+          scClearDraft();
           document.getElementById('scActiveSession').classList.add('hidden');
           document.getElementById('scNoSession').classList.remove('hidden');
           document.getElementById('scCountSheet').classList.add('hidden');
@@ -8970,12 +9034,12 @@ function getIssueCartEntries() {
       if (fillZeroBtn) fillZeroBtn.addEventListener('click', function(){
         if (!scSession) return;
         scSession.items.forEach(function(it){ if(it.counted===null||it.counted==='') it.counted=0; });
-        scRenderTable(); scUpdateStats();
+        scRenderTable(); scUpdateStats(); scSaveDraft();
       });
       if (fillSysBtn) fillSysBtn.addEventListener('click', function(){
         if (!scSession) return;
         scSession.items.forEach(function(it){ it.counted = it.systemQty; it.reason = ''; });
-        scRenderTable(); scUpdateStats(); showQuickToast('คัดลอกจำนวนจากระบบเรียบร้อย','success');
+        scRenderTable(); scUpdateStats(); scSaveDraft(); showQuickToast('คัดลอกจำนวนจากระบบเรียบร้อย','success');
       });
       if (printSheetBtn) printSheetBtn.addEventListener('click', scPrintCountSheet);
       if (exportCsvBtn) exportCsvBtn.addEventListener('click', scExportCountCsv);
@@ -8993,6 +9057,7 @@ function getIssueCartEntries() {
           e.target.className += s==='match'?' border-emerald-400 bg-emerald-50':s==='diff'?' border-rose-400 bg-rose-50':' border-slate-300 bg-white';
         }
         scUpdateStats();
+        scSaveDraftSoon();
       });
     })();
 
