@@ -8152,6 +8152,8 @@ function getIssueCartEntries() {
         cats.forEach(function(c){ var o=document.createElement('option'); o.value=c; o.textContent=c; catEl.appendChild(o); });
       }
       scUpdateStats();
+      // Engineer/Admin ต้องเห็นคิวรออนุมัติทันทีที่เปิดหน้า — ไม่ต้องกดปุ่มดูประวัติก่อน
+      if (scCanApprove()) scRefresh().catch(function(err){ console.warn('scRefresh failed', err); });
     }
 
     function scGetStatusClass(item) {
@@ -8355,19 +8357,12 @@ function getIssueCartEntries() {
         return Promise.resolve({ sessionId: sessionId, adjusted: 0 });
 
       }).then(function(res) {
-        // ต้อง copy session ก่อนใช้ — ทั้งบล็อกนี้อ่านค่าจากมัน ถ้าประกาศทีหลัง var hoisting
-        // จะทำให้เป็น undefined แล้ว throw ตั้งแต่บรรทัดแรก คิวรออนุมัติจะไม่ถูกสร้างเลย
+        // ต้อง copy ก่อนใช้ และก่อนล้าง scSession — ทั้งกล่องสรุปผลและ Export PDF อ่านค่าจากมัน
+        // ถ้าประกาศทีหลัง var hoisting จะทำให้เป็น undefined แล้ว throw ตั้งแต่บรรทัดแรก
         var sessionCopy = JSON.parse(JSON.stringify(scSession));
 
-        // Backup ใน localStorage พร้อม status + items สำหรับ approve
-        var hist = JSON.parse(localStorage.getItem('sc_history')||'[]');
-        hist.unshift({ id: res.sessionId, month: sessionCopy.month, line: sessionCopy.line,
-          createdBy: sessionCopy.createdBy, submittedAt: new Date().toISOString(),
-          total: items.length, matched: matched, diffCount: diffItems.length,
-          status: 'pending_approval',
-          items: items // เก็บ items ไว้สำหรับ Engineer approve
-        });
-        localStorage.setItem('sc_history', JSON.stringify(hist.slice(0,30)));
+        // คิวรออนุมัติเก็บบนชีท StockCount แล้ว (status = pending_approval) ไม่เก็บ localStorage
+        // เพราะ Engineer ต้องกดอนุมัติจากเครื่องไหนก็ได้ ไม่ใช่เครื่องเดียวกับที่ช่างกดส่ง
 
         // ── STEP 3: สรุปผลและถามว่าจะ Export PDF ─────────────────
         var pct = items.length ? Math.round((matched/items.length)*100) : 0;
@@ -8682,127 +8677,160 @@ function getIssueCartEntries() {
       setTimeout(function(){ win.print(); }, 800);
     }
 
+    // คิวอนุมัติ + ประวัติ อ่านจากชีท StockCount ไม่ใช่ localStorage — ของเดิมเก็บใน
+    // localStorage ทำให้ Engineer ต้องมากดอนุมัติบนเครื่อง/เบราว์เซอร์เดียวกับที่ช่างกดส่งผล
+    // เปิดคนละเครื่องจะเห็นคิวว่างเปล่า และผลนับหายถ้าล้าง browser data
+    var scHistoryRows = [];
+
+    function scCanApprove() {
+      return hasPermission('manage_items') || isAdminUser();
+    }
+
+    function scLineLabel(line) {
+      return String(line) === 'all' ? 'ทุก Line' : String(line || '-');
+    }
+
+    // submitted_at จากชีทเป็นสตริง 'yyyy-MM-dd HH:mm:ss' ไม่ใช่ ISO — บางเบราว์เซอร์ parse ไม่ได้
+    function scFmtTime(value) {
+      if (!value) return '-';
+      var d = new Date(value);
+      return isNaN(d.getTime()) ? String(value) : d.toLocaleString('th-TH');
+    }
+
+    // ดึงรอบเดียวแล้ว render ทั้งประวัติและคิวรออนุมัติ
+    function scRefresh() {
+      return postJson(withAuthPayload({ action: 'getStockCountHistory' }))
+        .then(parseApiResponse)
+        .then(function(rows) {
+          scHistoryRows = Array.isArray(rows) ? rows : [];
+          scRenderHistory();
+          scRenderPending();
+          return scHistoryRows;
+        });
+    }
+
     function scLoadHistory() {
       var sec = document.getElementById('scHistorySection');
       var list = document.getElementById('scHistoryList');
-      if (!sec || !list) return;
+      if (!sec || !list) return Promise.resolve();
       sec.classList.remove('hidden');
-      var history = JSON.parse(localStorage.getItem('sc_history')||'[]');
-      if (!history.length) { list.innerHTML='<div class="px-4 py-6 text-center text-slate-400 text-sm">ยังไม่มีประวัติ</div>'; return; }
-      list.innerHTML = history.map(function(h){
-        var pct = h.total ? Math.round((h.matched/h.total)*100) : 0;
-        var color = pct>=95?'text-emerald-600':pct>=80?'text-amber-600':'text-rose-600';
-        var statusBadge = h.status==='approved'
-          ? '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">✅ อนุมัติแล้ว</span>'
-          : h.status==='rejected'
-          ? '<span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">❌ ส่งคืน</span>'
-          : '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">⏳ รออนุมัติ</span>';
+      list.innerHTML = '<div class="px-4 py-6 text-center text-slate-400 text-sm">⏳ กำลังโหลด...</div>';
+      return scRefresh().catch(function(err) {
+        list.innerHTML = '<div class="px-4 py-6 text-center text-rose-600 text-sm">โหลดประวัติไม่สำเร็จ: ' +
+          escHtml(err && err.message ? err.message : err) + '</div>';
+      });
+    }
+
+    function scStatusBadge(row) {
+      if (row.is_pending) return '<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">⏳ รออนุมัติ</span>';
+      if (String(row.status) === 'rejected') return '<span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">❌ ส่งคืน</span>';
+      return '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">✅ อนุมัติแล้ว</span>';
+    }
+
+    function scRenderHistory() {
+      var list = document.getElementById('scHistoryList');
+      if (!list) return;
+      if (!scHistoryRows.length) {
+        list.innerHTML = '<div class="px-4 py-6 text-center text-slate-400 text-sm">ยังไม่มีประวัติ</div>';
+        return;
+      }
+      list.innerHTML = scHistoryRows.map(function(h) {
+        var total = Number(h.total_items) || 0;
+        var matched = Number(h.matched) || 0;
+        var pct = total ? Math.round((matched / total) * 100) : 0;
+        var color = pct >= 95 ? 'text-emerald-600' : pct >= 80 ? 'text-amber-600' : 'text-rose-600';
+        var approvedNote = (!h.is_pending && h.approved_by)
+          ? '<span class="text-slate-400"> · ' + (String(h.status) === 'rejected' ? 'ส่งคืนโดย ' : 'อนุมัติโดย ') + escHtml(h.approved_by) + '</span>'
+          : '';
         return '<div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">' +
           '<div class="flex-1 min-w-0">' +
             '<div class="flex items-center gap-2 flex-wrap">' +
-              '<p class="font-bold text-slate-900 text-sm">'+h.month+' — '+(h.line==='all'?'ทุก Line':h.line)+'</p>' +
-              statusBadge +
+              '<p class="font-bold text-slate-900 text-sm">' + escHtml(h.month) + ' — ' + escHtml(scLineLabel(h.line)) + '</p>' +
+              scStatusBadge(h) +
             '</div>' +
-            '<p class="text-xs text-slate-500">โดย '+h.createdBy+' · '+new Date(h.submittedAt).toLocaleString('th-TH')+'</p>' +
+            '<p class="text-xs text-slate-500">โดย ' + escHtml(h.created_by) + ' · ' + escHtml(scFmtTime(h.submitted_at)) + approvedNote + '</p>' +
           '</div>' +
           '<div class="text-right shrink-0">' +
-            '<p class="font-black text-lg '+color+'">'+pct+'%</p>' +
-            '<p class="text-[11px] text-slate-400">ตรง '+h.matched+'/'+h.total+'</p>' +
+            '<p class="font-black text-lg ' + color + '">' + pct + '%</p>' +
+            '<p class="text-[11px] text-slate-400">ตรง ' + matched + '/' + total + '</p>' +
           '</div>' +
         '</div>';
       }).join('');
-      // Load pending for Engineer/Admin
-      scLoadPending();
     }
 
-    function scLoadPending() {
-      var canApprove = hasPermission('manage_items') || isAdminUser();
+    function scRenderPending() {
       var pendingSec = document.getElementById('scPendingSection');
       var pendingList = document.getElementById('scPendingList');
       var pendingBadge = document.getElementById('scPendingBadge');
       if (!pendingSec || !pendingList) return;
-      var history = JSON.parse(localStorage.getItem('sc_history')||'[]');
-      var pending = history.filter(function(h){ return !h.status || h.status === 'pending_approval'; });
-      pendingBadge.textContent = String(pending.length);
-      if (!canApprove || pending.length === 0) { pendingSec.classList.add('hidden'); return; }
+      var pending = scHistoryRows.filter(function(h){ return !!h.is_pending; });
+      if (pendingBadge) pendingBadge.textContent = String(pending.length);
+      // ฝั่ง Backend gate ด้วย manage_items อยู่แล้ว ตรงนี้แค่ไม่ต้องโชว์ปุ่มให้ช่างเห็นเปล่าๆ
+      if (!scCanApprove() || !pending.length) { pendingSec.classList.add('hidden'); return; }
       pendingSec.classList.remove('hidden');
-      pendingList.innerHTML = pending.map(function(h, idx) {
-        var pct = h.total ? Math.round((h.matched/h.total)*100) : 0;
-        var hasDiff = h.diffCount > 0;
+      pendingList.innerHTML = pending.map(function(h) {
+        var total = Number(h.total_items) || 0;
+        var matched = Number(h.matched) || 0;
+        var diffCount = Number(h.diff_count) || 0;
+        var pct = total ? Math.round((matched / total) * 100) : 0;
+        var sid = escHtml(h.session_id);
         return '<div class="px-4 py-4 bg-white">' +
           '<div class="flex items-center justify-between gap-3 flex-wrap">' +
             '<div>' +
-              '<p class="font-bold text-slate-900">' + h.month + ' — ' + (h.line==='all'?'ทุก Line':h.line) + '</p>' +
-              '<p class="text-xs text-slate-500 mt-0.5">ส่งโดย ' + h.createdBy + ' · ' + new Date(h.submittedAt).toLocaleString('th-TH') + '</p>' +
-              '<div class="mt-1.5 flex gap-3 text-xs">' +
-                '<span class="font-semibold text-slate-700">รายการทั้งหมด: ' + h.total + '</span>' +
-                '<span class="font-semibold text-emerald-700">✅ ตรง: ' + h.matched + '</span>' +
-                (hasDiff ? '<span class="font-bold text-rose-600">⚠️ ไม่ตรง: ' + h.diffCount + '</span>' : '') +
-                '<span class="font-bold" style="color:'+(pct>=95?'#15803d':pct>=80?'#b45309':'#be123c')+'">' + pct + '%</span>' +
+              '<p class="font-bold text-slate-900">' + escHtml(h.month) + ' — ' + escHtml(scLineLabel(h.line)) + '</p>' +
+              '<p class="text-xs text-slate-500 mt-0.5">ส่งโดย ' + escHtml(h.created_by) + ' · ' + escHtml(scFmtTime(h.submitted_at)) + '</p>' +
+              '<div class="mt-1.5 flex gap-3 text-xs flex-wrap">' +
+                '<span class="font-semibold text-slate-700">รายการทั้งหมด: ' + total + '</span>' +
+                '<span class="font-semibold text-emerald-700">✅ ตรง: ' + matched + '</span>' +
+                (diffCount ? '<span class="font-bold text-rose-600">⚠️ ไม่ตรง: ' + diffCount + '</span>' : '') +
+                '<span class="font-bold" style="color:' + (pct>=95?'#15803d':pct>=80?'#b45309':'#be123c') + '">' + pct + '%</span>' +
               '</div>' +
             '</div>' +
             '<div class="flex gap-2 shrink-0">' +
-              '<button data-sc-reject="'+idx+'" class="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition">↩ ส่งคืนแก้ไข</button>' +
-              '<button data-sc-approve="'+idx+'" class="rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition" style="background:#059669;">✅ อนุมัติและปรับ Stock</button>' +
+              '<button data-sc-decide="rejected" data-sc-session="' + sid + '" class="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition">↩ ส่งคืนแก้ไข</button>' +
+              '<button data-sc-decide="approved" data-sc-session="' + sid + '" class="rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition" style="background:#059669;">✅ อนุมัติและปรับ Stock</button>' +
             '</div>' +
           '</div>' +
         '</div>';
       }).join('');
 
-      // Bind approve/reject
-      pendingList.querySelectorAll('[data-sc-approve]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var idx = Number(btn.getAttribute('data-sc-approve'));
-          var hist = JSON.parse(localStorage.getItem('sc_history')||'[]');
-          var pending = hist.filter(function(h){ return !h.status||h.status==='pending_approval'; });
-          var session = pending[idx];
-          if (!session) return;
-          showConfirmDialog({ title:'อนุมัติและปรับ Stock?', message:'ระบบจะปรับ Stock '+session.diffCount+' รายการที่นับไม่ตรงทันที', okLabel:'อนุมัติ' }).then(function(ok) {
-            if (!ok) return;
-            btn.disabled = true; btn.textContent = '⏳ กำลังปรับ...';
-            var diffItems = (session.items||[]).filter(function(it){ return it.counted!==null && it.counted!=='' && Number(it.counted)!==Number(it.systemQty); });
-            if (!diffItems.length) {
-              scMarkApproved(session, hist, 'approved'); return;
-            }
-            var adjPayload = withAuthPayload({
-              action: 'adjustStockFromCount',
-              session_id: session.id || ('SC-'+Date.now()),
-              line: session.line,
-              diff_items: JSON.stringify(diffItems.map(function(it){
-                return { id: it.id||'', name: it.name, model: it.model||'-', brand: it.brand||'-',
-                         unit: it.unit||'PCS', counted: it.counted, system_qty: it.systemQty,
-                         reason: it.reason||'อนุมัติโดย '+(currentUser?currentUser.username:'Engineer'), line: session.line };
-              }))
-            });
-            postJson(adjPayload).then(parseApiResponse).then(function(adj){
-              showQuickToast('✅ ปรับ Stock ' + (adj.adjusted||0) + ' รายการแล้ว','success');
-              scMarkApproved(session, hist, 'approved');
-            }).catch(function(err){ showQuickToast('ปรับ Stock ไม่สำเร็จ: '+(err&&err.message?err.message:err),'error'); btn.disabled=false; btn.textContent='✅ อนุมัติและปรับ Stock'; });
-          });
-        });
-      });
-      pendingList.querySelectorAll('[data-sc-reject]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var idx = Number(btn.getAttribute('data-sc-reject'));
-          var hist = JSON.parse(localStorage.getItem('sc_history')||'[]');
-          var pending = hist.filter(function(h){ return !h.status||h.status==='pending_approval'; });
-          var session = pending[idx];
-          if (!session) return;
-          showConfirmDialog({ title:'ส่งคืนให้แก้ไข?', message:'ช่างจะต้องเปิด Session ใหม่และนับใหม่', okLabel:'ส่งคืน' }).then(function(ok) {
-            if (!ok) return;
-            scMarkApproved(session, hist, 'rejected');
-            showQuickToast('↩ ส่งคืนให้แก้ไขแล้ว','warn');
-          });
-        });
+      pendingList.querySelectorAll('[data-sc-decide]').forEach(function(btn) {
+        btn.addEventListener('click', function() { scDecide(btn); });
       });
     }
 
-    function scMarkApproved(session, hist, newStatus) {
-      hist.forEach(function(h) {
-        if (h.id === session.id && h.submittedAt === session.submittedAt) h.status = newStatus;
+    function scDecide(btn) {
+      var sessionId = btn.getAttribute('data-sc-session');
+      var decision = btn.getAttribute('data-sc-decide');
+      var row = scHistoryRows.filter(function(r){ return String(r.session_id) === sessionId; })[0];
+      if (!row) return;
+      var dlg = decision === 'approved'
+        ? { title:'อนุมัติและปรับ Stock?', message:'ระบบจะปรับ Stock ' + (Number(row.diff_count)||0) + ' รายการที่นับไม่ตรงทันที', okLabel:'อนุมัติ' }
+        : { title:'ส่งคืนให้แก้ไข?', message:'ช่างจะต้องเปิด Session ใหม่และนับใหม่', okLabel:'ส่งคืน' };
+      showConfirmDialog(dlg).then(function(ok) {
+        if (!ok) return;
+        var label = btn.innerHTML;
+        btn.disabled = true; btn.textContent = '⏳ กำลังดำเนินการ...';
+        // ไม่ส่ง items ไปด้วย — Backend อ่านยอดที่นับได้จากชีทเอง กันตัวเลขถูกแก้ระหว่างทาง
+        postJson(withAuthPayload({ action: 'approveStockCount', session_id: sessionId, decision: decision }))
+          .then(parseApiResponse)
+          .then(function(res) {
+            if (decision === 'approved') {
+              var msg = '✅ ปรับ Stock ' + (res.adjusted || 0) + ' รายการแล้ว';
+              if (res.failed) msg += ' · ไม่สำเร็จ ' + res.failed + ' รายการ';
+              showQuickToast(msg, res.failed ? 'warn' : 'success');
+              // ยอดในระบบเพิ่งเปลี่ยน — ตารางสต็อกที่ค้างอยู่จะไม่ตรงถ้าไม่โหลดใหม่
+              loadPartsData({ skipCache: true });
+            } else {
+              showQuickToast('↩ ส่งคืนให้แก้ไขแล้ว', 'warn');
+            }
+            return scRefresh();
+          })
+          .catch(function(err) {
+            showQuickToast('ดำเนินการไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+            btn.disabled = false; btn.innerHTML = label;
+          });
       });
-      localStorage.setItem('sc_history', JSON.stringify(hist));
-      scLoadHistory();
     }
 
     // ── Stock Count event bindings ─────────────────────────────────

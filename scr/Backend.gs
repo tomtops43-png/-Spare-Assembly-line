@@ -4601,6 +4601,7 @@ function doGet(e) {
     if (action === 'saveStockCountResult') return respond(saveStockCountResult(e.parameter), e);
     if (action === 'getStockCountHistory') return respond(getStockCountHistory(e.parameter), e);
     if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(e.parameter), e);
+    if (action === 'approveStockCount') return respond(approveStockCount(e.parameter), e);
     requirePermission(authPayload, 'view');
     if (action === 'transact') {
       requirePermission(authPayload, 'transact');
@@ -4862,7 +4863,9 @@ function doPost(e) {
       return respond(deleteUser({ authToken: authPayload.authToken, username: body.username }), e);
     }
     if (action === 'saveStockCountResult') return respond(saveStockCountResult(body), e);
+    if (action === 'getStockCountHistory') return respond(getStockCountHistory(body), e);
     if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(body), e);
+    if (action === 'approveStockCount') return respond(approveStockCount(body), e);
     if (action === 'createOrderRequest') return respond(createOrderRequest(body), e);
     if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(body), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(body), e);
@@ -4973,7 +4976,10 @@ function doPost(e) {
 // STOCK COUNT
 // =============================
 var STOCK_COUNT_SHEET_NAME = 'StockCount';
-var STOCK_COUNT_HEADERS = ['session_id','month','line','category','sheets','created_by','created_at','submitted_at','status','total_items','matched','diff_count','items_json'];
+var STOCK_COUNT_HEADERS = ['session_id','month','line','category','sheets','created_by','created_at','submitted_at','status','total_items','matched','diff_count','items_json','approved_by','approved_at','adjusted_count'];
+// สถานะที่ถือว่ายังรออนุมัติ — 'submitted' คือค่าเก่าจากตอนที่คิวอนุมัติยังอยู่ใน localStorage
+// ของเครื่องช่าง แถวเก่าที่ค้างอยู่ต้องยังโผล่ในคิวให้ Engineer กดได้
+var STOCK_COUNT_PENDING_STATUSES = ['', 'submitted', 'pending_approval'];
 
 function getOrCreateStockCountSheet() {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -4983,8 +4989,32 @@ function getOrCreateStockCountSheet() {
     sheet.appendRow(STOCK_COUNT_HEADERS);
     sheet.setFrozenRows(1);
     sheet.getRange(1,1,1,STOCK_COUNT_HEADERS.length).setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
+    return sheet;
   }
+  ensureStockCountHeaders(sheet);
   return sheet;
+}
+
+// ชีทที่สร้างไว้ก่อนย้ายคิวอนุมัติขึ้นเซิร์ฟเวอร์มีแค่ 13 คอลัมน์ — เติมหัวที่ขาดต่อท้ายให้เอง
+// ต่อท้ายอย่างเดียว ห้ามสลับ/แทรกคอลัมน์เดิม ไม่งั้นข้อมูลเก่าเลื่อนตำแหน่งหมด
+function ensureStockCountHeaders(sheet) {
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < 1) { sheet.getRange(1,1,1,STOCK_COUNT_HEADERS.length).setValues([STOCK_COUNT_HEADERS]); return; }
+  var current = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h){ return String(h || ''); });
+  var missing = STOCK_COUNT_HEADERS.filter(function(h){ return current.indexOf(h) === -1; });
+  if (!missing.length) return;
+  sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing])
+    .setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
+}
+
+function stockCountIndexMap(headers) {
+  var map = {};
+  (headers || []).forEach(function(h, i) { map[String(h || '')] = i; });
+  return map;
+}
+
+function isStockCountPending(status) {
+  return STOCK_COUNT_PENDING_STATUSES.indexOf(String(status || '').trim()) > -1;
 }
 
 function saveStockCountResult(payload) {
@@ -5003,11 +5033,14 @@ function saveStockCountResult(payload) {
     String(payload.created_by || session.user.username),
     String(payload.created_at || ''),
     Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
-    'submitted',
+    'pending_approval',
     Number(payload.total_items || 0),
     Number(payload.matched || 0),
     Number(payload.diff_count || 0),
-    JSON.stringify(items || [])
+    JSON.stringify(items || []),
+    '', // approved_by
+    '', // approved_at
+    ''  // adjusted_count
   ]);
   return { status: 'success', session_id: sessionId, message: 'บันทึกผลเช็คสต็อกแล้ว' };
 }
@@ -5022,14 +5055,94 @@ function getStockCountHistory(payload) {
   return data.slice(1).map(function(row) {
     var obj = {};
     headers.forEach(function(h, i) { obj[String(h)] = row[i]; });
+    obj.is_pending = isStockCountPending(obj.status);
     obj.items_json = undefined; // ไม่ส่ง items ทั้งหมด (ใหญ่เกิน)
     return obj;
   }).reverse();
 }
 
+// อนุมัติ / ส่งคืนผลเช็คสต็อก — คิวอนุมัติอยู่บนชีท ไม่ใช่ localStorage ของเครื่องใครเครื่องมัน
+// Engineer จึงกดอนุมัติจากเครื่องไหนก็ได้ และ items ที่ใช้ปรับ Stock อ่านจากชีทเสมอ
+// ไม่รับมาจาก client — กันการแก้ตัวเลขที่นับได้ระหว่างทางก่อนอนุมัติ
+//
+// ไม่จับ script lock ตรงนี้: adjustStockFromCount เรียก processTransaction ซึ่งจับ lock เอง
+// (ดู returnLogEntryUnlocked ที่ต้องเรียก processTransactionUnlocked ด้วยเหตุผลเดียวกัน)
+// กันกดซ้ำด้วยการเช็คสถานะปัจจุบันก่อนแทน
+function approveStockCount(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'manage_items');
+  var sessionId = String(payload.session_id || '').trim();
+  if (!sessionId) throw new Error('ต้องระบุ session_id');
+  var decision = String(payload.decision || 'approved').trim();
+  if (decision !== 'approved' && decision !== 'rejected') throw new Error('decision ต้องเป็น approved หรือ rejected');
+
+  var sheet = getOrCreateStockCountSheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) throw new Error('ยังไม่มีผลเช็คสต็อกในระบบ');
+  var idx = stockCountIndexMap(data[0]);
+  if (idx.session_id === undefined || idx.status === undefined) throw new Error('ชีท ' + STOCK_COUNT_SHEET_NAME + ' ไม่มีคอลัมน์ session_id/status');
+
+  var rowIndex = -1;
+  for (var i = 1; i < data.length; i += 1) {
+    if (String(data[i][idx.session_id]).trim() === sessionId) { rowIndex = i; break; }
+  }
+  if (rowIndex === -1) throw new Error('ไม่พบผลเช็คสต็อก: ' + sessionId);
+
+  var currentStatus = String(data[rowIndex][idx.status] || '');
+  if (!isStockCountPending(currentStatus)) {
+    throw new Error('ผลเช็คสต็อกนี้ถูกดำเนินการไปแล้ว (สถานะปัจจุบัน: ' + currentStatus + ')');
+  }
+
+  var sessionLine = idx.line !== undefined ? String(data[rowIndex][idx.line] || '') : '';
+  var adjustResult = { adjusted: 0, results: [] };
+
+  if (decision === 'approved') {
+    var items = [];
+    try { items = JSON.parse(String(data[rowIndex][idx.items_json] || '[]')) || []; } catch (parseErr) { items = []; }
+    var diffItems = items.filter(function(it) {
+      if (!it) return false;
+      if (it.counted === null || it.counted === undefined || it.counted === '') return false; // ยังไม่ได้นับ ไม่ใช่ส่วนต่าง
+      return Number(it.counted) !== Number(it.systemQty);
+    }).map(function(it) {
+      return {
+        id: it.id || '', name: it.name, model: it.model || '-', brand: it.brand || '-',
+        unit: it.unit || 'PCS', counted: it.counted, system_qty: it.systemQty,
+        reason: it.reason || ('อนุมัติโดย ' + user.username), line: sessionLine
+      };
+    });
+    // ปรับ Stock ให้เสร็จก่อนค่อยประทับสถานะ — ถ้าล้มกลางทางแถวยังเป็น pending ให้กดซ้ำได้
+    adjustResult = adjustStockFromCount({
+      authToken: payload.authToken,
+      session_id: sessionId,
+      line: sessionLine,
+      diff_items: diffItems
+    });
+  }
+
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  sheet.getRange(rowIndex + 1, idx.status + 1).setValue(decision);
+  if (idx.approved_by !== undefined) sheet.getRange(rowIndex + 1, idx.approved_by + 1).setValue(user.username);
+  if (idx.approved_at !== undefined) sheet.getRange(rowIndex + 1, idx.approved_at + 1).setValue(now);
+  if (idx.adjusted_count !== undefined) sheet.getRange(rowIndex + 1, idx.adjusted_count + 1).setValue(Number(adjustResult.adjusted || 0));
+
+  var failed = (adjustResult.results || []).filter(function(r){ return r.status === 'error'; });
+  return {
+    status: 'success',
+    session_id: sessionId,
+    decision: decision,
+    adjusted: Number(adjustResult.adjusted || 0),
+    failed: failed.length,
+    results: adjustResult.results || [],
+    message: decision === 'approved'
+      ? ('อนุมัติแล้ว — ปรับ Stock ' + Number(adjustResult.adjusted || 0) + ' รายการ')
+      : 'ส่งคืนให้แก้ไขแล้ว'
+  };
+}
+
 function adjustStockFromCount(payload) {
   var session = getSessionUser({ authToken: payload.authToken });
-  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  // ปรับ Stock จริง — ต้องเป็นคนที่อนุมัติได้เท่านั้น ('view_logs' คือสิทธิ์ของช่างที่แค่กรอกยอดนับ
+  // ซึ่งกว้างเกินไปสำหรับ endpoint ที่แก้ยอดสต็อกได้โดยตรง)
+  requirePermission({ authToken: payload.authToken }, 'manage_items');
   var diffItems = payload.diff_items;
   if (typeof diffItems === 'string') { try { diffItems = JSON.parse(diffItems); } catch(e) { diffItems = []; } }
   if (!diffItems || !diffItems.length) return { status: 'success', adjusted: 0, results: [] };
