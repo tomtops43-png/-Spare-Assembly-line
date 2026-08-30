@@ -4602,6 +4602,7 @@ function doGet(e) {
     if (action === 'getStockCountHistory') return respond(getStockCountHistory(e.parameter), e);
     if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(e.parameter), e);
     if (action === 'approveStockCount') return respond(approveStockCount(e.parameter), e);
+    if (action === 'importLegacyStockCount') return respond(importLegacyStockCount(e.parameter), e);
     requirePermission(authPayload, 'view');
     if (action === 'transact') {
       requirePermission(authPayload, 'transact');
@@ -4866,6 +4867,7 @@ function doPost(e) {
     if (action === 'getStockCountHistory') return respond(getStockCountHistory(body), e);
     if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(body), e);
     if (action === 'approveStockCount') return respond(approveStockCount(body), e);
+    if (action === 'importLegacyStockCount') return respond(importLegacyStockCount(body), e);
     if (action === 'createOrderRequest') return respond(createOrderRequest(body), e);
     if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(body), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(body), e);
@@ -5068,6 +5070,58 @@ function getStockCountHistory(payload) {
 // ไม่จับ script lock ตรงนี้: adjustStockFromCount เรียก processTransaction ซึ่งจับ lock เอง
 // (ดู returnLogEntryUnlocked ที่ต้องเรียก processTransactionUnlocked ด้วยเหตุผลเดียวกัน)
 // กันกดซ้ำด้วยการเช็คสถานะปัจจุบันก่อนแทน
+// นำเข้าประวัติเช็คสต็อกที่ค้างอยู่ใน localStorage ของเครื่องช่าง
+// เวอร์ชันแรกของฟีเจอร์ (คอมมิต cb174ff) บันทึกผลนับลง localStorage อย่างเดียว ไม่เคยยิงขึ้น
+// เซิร์ฟเวอร์เลย ผลนับรอบนั้นจึงมีอยู่ที่เดียวคือเบราว์เซอร์ของช่าง — ถ้าไม่ดึงขึ้นมาเก็บ
+// จะหายไปพร้อมการล้าง browser data
+//
+// สถานะขึ้นต้นด้วย 'archived_' เสมอ = เก็บเป็นหลักฐานอย่างเดียว ห้ามเข้าคิวอนุมัติเด็ดขาด
+// เพราะยอดที่นับไว้อาจเก่าเป็นเดือน เอาไปปรับ Stock ย้อนหลังตอนนี้จะยิ่งทำให้ยอดเพี้ยน
+function importLegacyStockCount(payload) {
+  var session = getSessionUser({ authToken: payload.authToken });
+  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  var sessionId = String(payload.session_id || '').trim();
+  if (!sessionId) throw new Error('ต้องระบุ session_id');
+
+  var sheet = getOrCreateStockCountSheet();
+  var data = sheet.getDataRange().getValues();
+  var idx = stockCountIndexMap(data[0]);
+  for (var i = 1; i < data.length; i += 1) {
+    // กันนำเข้าซ้ำ — ช่างเปิดหน้าใหม่ หรือ record เดียวกันค้างอยู่หลายเครื่อง
+    if (String(data[i][idx.session_id]).trim() === sessionId) {
+      return { status: 'success', session_id: sessionId, imported: false, message: 'มีอยู่แล้ว' };
+    }
+  }
+
+  var items = payload.items;
+  if (typeof items === 'string') { try { items = JSON.parse(items); } catch (e) { items = []; } }
+  // เก็บผลตัดสินเดิมไว้ด้วย — บาง record ถูกอนุมัติ/ส่งคืนไปแล้วสมัยที่คิวยังอยู่ในเครื่อง
+  var legacyStatus = String(payload.legacy_status || '').trim();
+  var archivedStatus = legacyStatus === 'approved' ? 'archived_approved'
+    : legacyStatus === 'rejected' ? 'archived_rejected'
+    : 'archived_legacy';
+
+  sheet.appendRow([
+    sessionId,
+    String(payload.month || ''),
+    String(payload.line || 'all'),
+    String(payload.category || 'all'),
+    String(payload.sheets || 'นำเข้าจาก localStorage ของเครื่องช่าง'),
+    String(payload.created_by || session.user.username),
+    String(payload.created_at || ''),
+    String(payload.submitted_at || ''),
+    archivedStatus,
+    Number(payload.total_items || 0),
+    Number(payload.matched || 0),
+    Number(payload.diff_count || 0),
+    JSON.stringify(items || []),
+    '', // approved_by — ของเก่าไม่รู้ว่าใครกด
+    '', // approved_at
+    ''  // adjusted_count
+  ]);
+  return { status: 'success', session_id: sessionId, imported: true, archived_status: archivedStatus };
+}
+
 function approveStockCount(payload) {
   var user = requirePermission({ authToken: payload.authToken }, 'manage_items');
   var sessionId = String(payload.session_id || '').trim();
