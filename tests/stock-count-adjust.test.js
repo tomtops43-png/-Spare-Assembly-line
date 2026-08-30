@@ -26,7 +26,24 @@ assert(declPos < firstUsePos,
 assert(declPos < submitBlock.indexOf('scSession = null;'),
   'ต้อง copy scSession ก่อนตั้งเป็น null');
 assert(!/adjustStockFromCount/.test(submitBlock),
-  'scDoSubmit ห้ามปรับ Stock เอง — ต้องรอ Engineer อนุมัติ');
+  'scDoSubmit ห้ามยิง adjustStockFromCount ตรงๆ — ต้องผ่าน approveStockCount ที่ gate สิทธิ์ไว้');
+
+// ── Frontend: คนที่อนุมัติได้อยู่แล้วไม่ต้องส่งให้ใครตรวจ ────────────────────────
+// Admin/Engineer กดส่งผลแล้วปรับ Stock ทันที · คนอื่นยังเข้าคิว pending_approval ตามเดิม
+assert(submitBlock.includes('if (!scCanApprove()) return { sessionId: sessionId, adjusted: 0, failed: 0, autoApproved: false };'),
+  'ไม่มีสิทธิ์อนุมัติต้องเข้าคิวตามเดิม');
+assert(submitBlock.includes("action: 'approveStockCount'"),
+  'มีสิทธิ์อนุมัติต้องอนุมัติของตัวเองต่อทันที');
+assert(submitBlock.includes('loadPartsData({ skipCache: true })'),
+  'ปรับ Stock แล้วต้องโหลดข้อมูลอะไหล่ใหม่ ไม่งั้นตารางค้างยอดเก่า');
+// ปรับ Stock ไม่ผ่านต้องไม่ทำให้ผลนับหาย — ตกไปเข้าคิวรออนุมัติแทน
+assert(/\.catch\(function\(err\) \{[\s\S]{0,400}autoApproved: false/.test(submitBlock),
+  'ปรับ Stock ล้มต้อง fallback เป็นเข้าคิว ไม่ใช่ทิ้งผลนับ');
+const submitSessionBlock = slice(htmlLf, 'function scSubmitSession()', 'function scDoSubmit()', 'scSubmitSession');
+assert(submitSessionBlock.includes('scCanApprove() && diffCount > 0'),
+  'กดแล้วยอดสต็อกเปลี่ยนทันที ต้องถามยืนยันก่อน');
+assert(htmlLf.includes('function scSubmitLabelText()') && htmlLf.includes('function scSyncSubmitLabel()'),
+  'ป้ายปุ่มต้องเปลี่ยนตามสิทธิ์ ไม่ใช่ค้างว่า "ส่งให้ Engineer ตรวจสอบ" ตลอด');
 
 // ── Backend: ปรับยอดจากการนับ ห้ามสร้าง Purchase History ───────────────────────
 // นับได้เกินระบบ → ลงเป็น Input ซึ่ง processTransaction จะ sync purchase history ให้
