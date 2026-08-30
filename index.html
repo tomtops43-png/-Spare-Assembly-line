@@ -1965,7 +1965,7 @@
               </button>
               <button id="scSubmitBtn" type="button" style="background:#4f46e5;color:#ffffff;border:2px solid #3730a3;border-radius:12px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#ffffff" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                ส่งผลให้ Engineer ตรวจสอบ
+                <span id="scSubmitLabel">ส่งผลให้ Engineer ตรวจสอบ</span>
               </button>
             </div>
           </div>
@@ -8152,6 +8152,7 @@ function getIssueCartEntries() {
         cats.forEach(function(c){ var o=document.createElement('option'); o.value=c; o.textContent=c; catEl.appendChild(o); });
       }
       scUpdateStats();
+      scSyncSubmitLabel();
       // ย้ายประวัติเก่าใน localStorage ขึ้นเซิร์ฟเวอร์ก่อน แล้วค่อยโหลดคิว/ประวัติมาแสดง
       // Engineer/Admin ต้องเห็นคิวรออนุมัติทันทีที่เปิดหน้า — ไม่ต้องกดปุ่มดูประวัติก่อน
       scMigrateLegacyHistory().then(function() {
@@ -8320,12 +8321,32 @@ function getIssueCartEntries() {
       });
     }
 
+    // คนที่มีสิทธิ์อนุมัติอยู่แล้ว (Admin / Engineer) ไม่ต้องส่งให้ใครตรวจ — ปรับ Stock ได้เลย
+    // คนอื่นยังต้องเข้าคิว pending_approval ตามเดิม
+    function scSubmitLabelText() {
+      return scCanApprove() ? 'ส่งผลและปรับ Stock ทันที' : 'ส่งผลให้ Engineer ตรวจสอบ';
+    }
+
+    function scSyncSubmitLabel() {
+      var el = document.getElementById('scSubmitLabel');
+      if (el) el.textContent = scSubmitLabelText();
+    }
+
     function scSubmitSession() {
       if (!scSession) return;
       var uncounted = scSession.items.filter(function(it){ return it.counted===null||it.counted===''; });
+      var diffCount = scSession.items.filter(function(it){ return scGetStatusClass(it)==='diff'; }).length;
+      var steps = [];
       if (uncounted.length > 0) {
-        showConfirmDialog({ title:'ยังมี '+uncounted.length+' รายการที่ยังไม่ได้นับ', message:'ต้องการส่งผลโดยถือว่ารายการที่ยังไม่นับ = ยังไม่ทราบ?', okLabel:'ส่งผลต่อไป' }).then(function(ok){ if(ok) scDoSubmit(); });
-      } else { scDoSubmit(); }
+        steps.push({ title:'ยังมี '+uncounted.length+' รายการที่ยังไม่ได้นับ', message:'ต้องการส่งผลโดยถือว่ารายการที่ยังไม่นับ = ยังไม่ทราบ?', okLabel:'ส่งผลต่อไป' });
+      }
+      // ของเดิมกดแล้วแค่เข้าคิว แต่ตอนนี้ Admin/Engineer กดแล้วยอดสต็อกเปลี่ยนทันที — ต้องถามก่อน
+      if (scCanApprove() && diffCount > 0) {
+        steps.push({ title:'ปรับ Stock ทันที?', message:'ยอดในระบบของ '+diffCount+' รายการที่นับไม่ตรงจะถูกปรับตามที่นับได้เลย โดยไม่ต้องรออนุมัติ', okLabel:'ปรับเลย' });
+      }
+      steps.reduce(function(chain, step) {
+        return chain.then(function(ok) { return ok ? showConfirmDialog(step) : false; });
+      }, Promise.resolve(true)).then(function(ok) { if (ok) scDoSubmit(); });
     }
 
     function scDoSubmit() {
@@ -8356,8 +8377,21 @@ function getIssueCartEntries() {
 
       postJson(savePayload).then(parseApiResponse).then(function(result) {
         var sessionId = result.session_id || ('SC-' + Date.now());
-        // ไม่ปรับ Stock ทันที — รอ Engineer อนุมัติก่อน
-        return Promise.resolve({ sessionId: sessionId, adjusted: 0 });
+        // ไม่มีสิทธิ์อนุมัติ → เข้าคิวรอ Engineer ตามเดิม
+        if (!scCanApprove()) return { sessionId: sessionId, adjusted: 0, failed: 0, autoApproved: false };
+        // มีสิทธิ์อยู่แล้ว → อนุมัติของตัวเองต่อทันที ไม่ต้องส่งให้ใครตรวจ
+        return postJson(withAuthPayload({ action: 'approveStockCount', session_id: sessionId, decision: 'approved' }))
+          .then(parseApiResponse)
+          .then(function(adj) {
+            // ยอดในระบบเพิ่งเปลี่ยน — ตารางสต็อกที่ค้างอยู่จะไม่ตรงถ้าไม่โหลดใหม่
+            loadPartsData({ skipCache: true });
+            return { sessionId: sessionId, adjusted: Number(adj.adjusted || 0), failed: Number(adj.failed || 0), autoApproved: true };
+          })
+          .catch(function(err) {
+            // ผลนับลงชีทไปแล้ว แค่ขั้นปรับ Stock ไม่ผ่าน — ตกไปเข้าคิวรออนุมัติแทน ข้อมูลไม่หาย
+            showQuickToast('บันทึกผลนับแล้ว แต่ปรับ Stock ไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' — รายการเข้าคิวรออนุมัติแทน', 'warn');
+            return { sessionId: sessionId, adjusted: 0, failed: 0, autoApproved: false };
+          });
 
       }).then(function(res) {
         // ต้อง copy ก่อนใช้ และก่อนล้าง scSession — ทั้งกล่องสรุปผลและ Export PDF อ่านค่าจากมัน
@@ -8387,7 +8421,8 @@ function getIssueCartEntries() {
           var pctBg   = pct>=95?'#f0fdf4':pct>=80?'#fffbeb':'#fff1f2';
           ol.innerHTML = '<div style="background:#fff;border-radius:20px;width:100%;max-width:460px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.3);">' +
             '<div style="background:linear-gradient(135deg,#4f46e5,#3730a3);padding:20px 24px;">' +
-              '<p style="font-size:13px;font-weight:600;color:#a5b4fc;margin:0 0 4px">📤 ส่งผลให้ Engineer ตรวจสอบแล้ว</p>' +
+              '<p style="font-size:13px;font-weight:600;color:#a5b4fc;margin:0 0 4px">' +
+                (res.autoApproved ? '✅ ปรับ Stock ตามยอดที่นับได้แล้ว' : '📤 ส่งผลให้ Engineer ตรวจสอบแล้ว') + '</p>' +
               '<p style="font-size:18px;font-weight:800;color:#fff;margin:0">' + res.sessionId + '</p>' +
               '<p style="font-size:12px;color:#c7d2fe;margin:4px 0 0">' + sessionCopy.month + ' · ' + (sessionCopy.line==='all'?'ทุก Line':sessionCopy.line) + '</p>' +
             '</div>' +
@@ -8410,10 +8445,16 @@ function getIssueCartEntries() {
                   '<p style="font-size:11px;margin:2px 0 0;color:'+pctColor+'">ความแม่น</p>' +
                 '</div>' +
               '</div>' +
-              '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px;margin-bottom:14px;">' +
-                '<p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 4px">⏳ รอ Engineer / Admin อนุมัติ</p>' +
-                '<p style="font-size:12px;color:#78350f;margin:0">ผลจะถูกบันทึกลง Google Sheet แล้ว — Stock จะถูกปรับเมื่อ Engineer อนุมัติเท่านั้น</p>' +
-              '</div>' +
+              (res.autoApproved
+                ? '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px;margin-bottom:14px;">' +
+                    '<p style="font-size:13px;font-weight:700;color:#166534;margin:0 0 4px">✅ ปรับ Stock แล้ว ' + res.adjusted + ' รายการ</p>' +
+                    '<p style="font-size:12px;color:#15803d;margin:0">คุณมีสิทธิ์อนุมัติอยู่แล้ว ระบบจึงปรับยอดให้ทันทีโดยไม่ต้องรอใครตรวจ · ทุกรายการถูกบันทึกในชีท Log ไว้เป็นหลักฐาน' +
+                    (res.failed ? ' · ⚠️ ปรับไม่สำเร็จ ' + res.failed + ' รายการ' : '') + '</p>' +
+                  '</div>'
+                : '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px;margin-bottom:14px;">' +
+                    '<p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 4px">⏳ รอ Engineer / Admin อนุมัติ</p>' +
+                    '<p style="font-size:12px;color:#78350f;margin:0">ผลถูกบันทึกลง Google Sheet แล้ว — Stock จะถูกปรับเมื่อ Engineer อนุมัติเท่านั้น</p>' +
+                  '</div>') +
               '<div style="display:flex;gap:10px;">' +
                 '<button id="_scResultClose" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;font-weight:600;font-size:14px;cursor:pointer;color:#374151;">ปิด</button>' +
                 '<button id="_scResultPdf" style="flex:2;height:42px;border-radius:12px;border:none;background:linear-gradient(135deg,#4f46e5,#3730a3);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">📄 Export PDF รายงาน</button>' +
@@ -8431,7 +8472,10 @@ function getIssueCartEntries() {
       }).catch(function(err) {
         showQuickToast('บันทึกไม่สำเร็จ: '+(err&&err.message?err.message:err), 'error');
       }).finally(function() {
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.style.background='#059669'; submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> ส่งผลและปรับ Stock'; }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> <span id="scSubmitLabel">' + scSubmitLabelText() + '</span>';
+        }
       });
     }
 
