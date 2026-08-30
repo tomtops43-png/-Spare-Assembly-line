@@ -191,4 +191,26 @@ const submitCatch = submitBlock.slice(submitBlock.indexOf("showQuickToast('บ�
 assert(!/scClearDraft/.test(submitCatch),
   'บันทึกไม่สำเร็จห้ามล้าง draft — ยอดที่นับมาทั้งวันต้องยังอยู่');
 
+// ── ปรับยอดต้องลงชีทต้นทางของอะไหล่ ไม่ใช่ชีท default ─────────────────────────
+// processTransaction ใช้ resolveReadSheetName(payload.sheetName) ถ้าไม่ส่งมาจะ fallback ไป
+// SPARE_APP_CONFIG.readSheetName ('Main List Stock') — นับชีท Coil Winding แล้วไปแก้ยอดที่
+// Main List Stock: ถ้าหาไม่เจอก็ error เงียบๆ (ยอดเหมือนเดิม) ถ้าเจอชื่อซ้ำก็แก้ผิดชีท
+assert(adjustBlock.includes("sheetName: String(item.sheet || '')"),
+  'txnPayload ต้องระบุชีทต้นทาง ไม่งั้นปรับผิดชีท');
+assert(adjustBlock.indexOf('sheetName') < adjustBlock.indexOf('processTransaction(txnPayload)'));
+// ไม่รู้ชีท = ต้องล้มรายการนั้นให้เห็น ไม่ใช่เดาแล้วไปแก้ชีทอื่น
+assert(adjustBlock.includes('ไม่รู้ว่าอะไหล่นี้อยู่ชีทไหน'),
+  'ไม่รู้ชีทต้นทางต้อง throw ไม่ใช่ fallback ไปชีท default');
+assert(adjustBlock.indexOf('ไม่รู้ว่าอะไหล่นี้อยู่ชีทไหน') < adjustBlock.indexOf('var txnPayload'),
+  'ต้องเช็คก่อนสร้าง txnPayload');
+
+// ชีทต้นทางต้องถูกส่งต่อครบทั้งสาย: เปิด session → บันทึกขึ้นชีท → อนุมัติ → ปรับยอด
+const startBlock = slice(htmlLf, 'function scStartSession()', 'function scSubmitLabelText()', 'scStartSession');
+assert(/sheet: p\.__sourceSheet/.test(startBlock), 'ตอนเปิด session ต้องเก็บชีทต้นทางของแต่ละรายการ');
+assert(/category: p\.category/.test(startBlock), 'ต้องเก็บ category ด้วย ไม่งั้น Log ลงเป็น General หมด');
+assert(/sheet: it\.sheet/.test(submitBlock), 'ตอนส่งผลต้องแนบชีทต้นทางขึ้นชีทด้วย');
+assert(/id: it\.id/.test(submitBlock) && /brand: it\.brand/.test(submitBlock),
+  'ต้องแนบ id/brand ด้วย ไม่งั้นจับคู่อะไหล่ไม่แม่น');
+assert(/sheet: it\.sheet \|\| ''/.test(approveBlock), 'approveStockCount ต้องส่งชีทต้นทางต่อ');
+
 console.log('stock-count-adjust: OK');

@@ -8300,6 +8300,7 @@ function getIssueCartEntries() {
             return { id: p.id||p.no, name: p.name, model: p.model||'-', brand: p.brand||'-',
               location: p.location||'-', unit: p.unit||'PCS',
               systemQty: Number(p.stock||0), counted: null, reason: '', sheet: p.__sourceSheet||'',
+              category: p.category||'General',
               image: p.image_main_url || p.image_main || p.photo || '' };
           })
         };
@@ -8370,7 +8371,10 @@ function getIssueCartEntries() {
         matched: matched,
         diff_count: diffItems.length,
         items: JSON.stringify(items.map(function(it){
-          return { name: it.name, model: it.model, location: it.location,
+          // sheet คือชีทต้นทางจริงของอะไหล่ตัวนั้น ต้องส่งไปด้วยเสมอ — ตอนอนุมัติ Backend ใช้ค่านี้
+          // ชี้ว่าจะไปแก้ยอดที่ชีทไหน ถ้าไม่ส่ง มันจะ fallback ไปชีท default แล้วปรับผิดชีท
+          return { id: it.id, name: it.name, model: it.model, brand: it.brand,
+                   location: it.location, sheet: it.sheet, category: it.category,
                    systemQty: it.systemQty, counted: it.counted,
                    reason: it.reason || '', unit: it.unit };
         }))
