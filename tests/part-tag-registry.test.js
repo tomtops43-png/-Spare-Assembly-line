@@ -82,7 +82,10 @@ assert(backend.includes('matched = !ref && issuedAt === target'),
 assert(/function deletePartTagsForLogEntry[\s\S]{0,1400}catch \(err\)/.test(backend.replace(/\r\n/g, '\n')));
 
 // แถว Log กับเลขประจำชิ้นต้องใช้ timestamp ตัวเดียวกัน ไม่งั้นผูกกลับหากันไม่เจอ
-assert(backend.includes('var txnTimestamp = Utilities.formatDate(new Date(), "Asia/Bangkok", "yyyy-MM-dd HH:mm:ss");'));
+// (#576 เปลี่ยนมาผ่าน resolveTxnTimestamp เพื่อรองรับลงรายการย้อนหลัง — ตัวแปรเดิม
+// ยังต้องถูกส่งต่อไปที่ createPartTagsForIssue ตัวเดียวกันเหมือนเดิม)
+assert(backend.includes('var txnTimestamp = resolveTxnTimestamp(payload.txnDate);'));
+assert(backend.includes('function resolveTxnTimestamp(rawTxnDate)'));
 assert(backend.includes('createPartTagsForIssue(payload, issuedBy, Math.abs(signedQty), txnTimestamp)'));
 assert(backend.includes('installedAt = now;') && backend.includes("removedAt = '';"));
 
