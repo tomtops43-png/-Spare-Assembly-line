@@ -8295,6 +8295,16 @@ function getIssueCartEntries() {
           return;
         }
 
+        // เรียงตามตำแหน่งเก็บแล้วชื่อ — เหมือนกับที่ scSortedForPrint ใช้ตอนพิมพ์ใบนับ/Export CSV
+        // ต้องเรียงตั้งแต่ตอนสร้าง session เลย ไม่งั้นตารางในหน้าเว็บ (เรียงตามลำดับที่โหลดมาดิบๆ)
+        // กับใบที่ปริ้นให้ช่างนับ (เรียงตามตำแหน่งเก็บ+ชื่อ) จะคนละลำดับกัน คีย์ยอดตามใบยากเพราะเลข
+        // ในตารางไม่ตรงกับเลขในใบ
+        pool.sort(function(a, b) {
+          var la = String(a.location||'-'), lb = String(b.location||'-');
+          if (la !== lb) return la.localeCompare(lb, 'th');
+          return String(a.name||'').localeCompare(String(b.name||''), 'th');
+        });
+
         scSession = {
           month: month, line: line, category: cat,
           sheets: sheets,

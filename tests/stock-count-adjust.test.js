@@ -218,4 +218,15 @@ assert(/id: it\.id/.test(submitBlock) && /brand: it\.brand/.test(submitBlock),
   'ต้องแนบ id/brand ด้วย ไม่งั้นจับคู่อะไหล่ไม่แม่น');
 assert(/sheet: it\.sheet \|\| ''/.test(approveBlock), 'approveStockCount ต้องส่งชีทต้นทางต่อ');
 
+// ── ตารางในหน้าเว็บต้องเรียงเหมือนใบที่ปริ้นให้ช่างนับ ──────────────────────────
+// ใบพิมพ์ (scSortedForPrint) เรียงตามตำแหน่งเก็บแล้วชื่อมาตั้งแต่แรก แต่ตารางในหน้าเว็บ
+// ใช้ลำดับดิบที่โหลดมาจากหลาย sheet (ไม่ได้เรียง) — ช่างนับตามใบพิมพ์แล้ว แต่คนคีย์ยอด
+// เจอลำดับในจอไม่ตรงกับใบ ต้องไล่หาทีละบรรทัด ต้องเรียง pool ตั้งแต่ตอนเปิด session เลย
+assert(startBlock.indexOf('pool.sort(function(a, b)') > -1,
+  'ตอนเปิด session ต้องเรียง pool ก่อนสร้าง items ไม่งั้นตารางในจอกับใบที่ปริ้นคนละลำดับกัน');
+assert(startBlock.indexOf("localeCompare(lb, 'th')") > -1 && startBlock.indexOf("localeCompare(String(b.name||''), 'th')") > -1,
+  'ต้องเรียงด้วย comparator เดียวกับ scSortedForPrint (ตำแหน่งเก็บ แล้วชื่อ)');
+assert(startBlock.indexOf('pool.sort(function(a, b)') < startBlock.indexOf('scSession = {'),
+  'ต้องเรียงก่อนสร้าง scSession.items ไม่งั้นลำดับที่เห็นในตารางยังเป็นลำดับดิบ');
+
 console.log('stock-count-adjust: OK');
