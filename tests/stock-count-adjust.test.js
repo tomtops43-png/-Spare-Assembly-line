@@ -207,6 +207,11 @@ assert(adjustBlock.indexOf('ไม่รู้ว่าอะไหล่นี�
 // ชีทต้นทางต้องถูกส่งต่อครบทั้งสาย: เปิด session → บันทึกขึ้นชีท → อนุมัติ → ปรับยอด
 const startBlock = slice(htmlLf, 'function scStartSession()', 'function scSubmitLabelText()', 'scStartSession');
 assert(/sheet: p\.__sourceSheet/.test(startBlock), 'ตอนเปิด session ต้องเก็บชีทต้นทางของแต่ละรายการ');
+// โหลดแยกทีละ sheet แล้วรวมพูล — ต้องแปะ __sourceSheet ให้แต่ละแถวตอนโหลด ก่อนรวม ไม่งั้นรวมแล้ว
+// แยกไม่ออกว่าแถวไหนมาจากชีทไหน (backend ไม่ได้ใส่ฟิลด์ sheet มาให้ในแถวเอง) ทำให้ p.__sourceSheet
+// ว่างเปล่าทุกแถว → ส่งผลนับได้ปกติ แต่ตอนอนุมัติแล้วปรับ Stock ล้มทุกรายการเพราะไม่รู้ชีทต้นทาง
+assert(/\.map\(function\(sheetName\)[\s\S]{0,700}__sourceSheet\s*=\s*sheetName/.test(startBlock),
+  'ตอนโหลดแต่ละ sheet ต้องแปะ __sourceSheet = sheetName ให้ทุกแถวก่อนรวมพูล ไม่งั้น sheet ต้นทางหายหมด');
 assert(/category: p\.category/.test(startBlock), 'ต้องเก็บ category ด้วย ไม่งั้น Log ลงเป็น General หมด');
 assert(/sheet: it\.sheet/.test(submitBlock), 'ตอนส่งผลต้องแนบชีทต้นทางขึ้นชีทด้วย');
 assert(/id: it\.id/.test(submitBlock) && /brand: it\.brand/.test(submitBlock),

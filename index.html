@@ -8265,7 +8265,10 @@ function getIssueCartEntries() {
         return loadJsonpWithFallback(function(base){
           return base + appendAuthToQuery('?sheet=' + encodeURIComponent(sheetName));
         }).then(function(rows) {
-          return Array.isArray(rows) ? rows : [];
+          // ต้องแปะ __sourceSheet ให้แต่ละแถวตอนนี้ ก่อนรวมพูลจากหลายชีท — รวมแล้วจะแยกไม่ออก
+          // ว่าแถวไหนมาจากชีทไหน ทำให้ตอนอนุมัติแล้วปรับ Stock (adjustStockFromCount) ไม่รู้ว่า
+          // จะไปแก้ยอดชีทไหน ล้มทุกรายการ
+          return (Array.isArray(rows) ? rows : []).map(function(r) { r.__sourceSheet = sheetName; return r; });
         }).catch(function() { return []; });
       })).then(function(results) {
         // Merge + normalize + dedup
