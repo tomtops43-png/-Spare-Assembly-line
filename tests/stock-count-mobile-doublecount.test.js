@@ -105,8 +105,19 @@ const historyBlock = slice(htmlLf, 'function scRenderHistory()', 'function scRen
 assert(/var showAccuracy = scCanApprove\(\);/.test(historyBlock),
   'ประวัติต้องโชว์ความแม่น/ตรงกี่รายการ เฉพาะ Admin');
 // ส่งซ้ำได้ (ทับผลของตัวเอง) ถ้าเห็นว่า "ตรง 52/74" ย้อนหลัง ก็ย้อนไปแก้ให้ตรงระบบได้
-assert(/showAccuracy[\s\S]{0,320}รายการ<\/p>/.test(historyBlock),
+assert(/: '<p class="font-black text-lg text-slate-700">' \+ g\.total \+ '<\/p>'/.test(historyBlock),
   'คนที่ไม่ใช่ Admin ต้องเห็นแค่จำนวนรายการ ไม่ใช่เปอร์เซ็นต์ความแม่น');
+// ทุกจุดที่เฉลยตัวเลขเทียบระบบต้องอยู่ใต้ showAccuracy ทั้งหมด
+["g.pct + '%</p>'", '✅ ตรง ', '⚠️ ไม่ตรง ', 'data-sc-copy-summary'].forEach(function (needle) {
+  const at = historyBlock.indexOf(needle);
+  assert(at > -1, 'ต้องเจอ ' + needle + ' ในบล็อกประวัติ');
+  const branch = historyBlock.lastIndexOf('showAccuracy', at);
+  assert(branch > -1 && historyBlock.slice(branch, at).indexOf("'</div>'") === -1,
+    needle + ' ต้องอยู่ในกิ่ง showAccuracy — ไม่งั้นคนที่นับปิดยอดเห็นตัวเลขเทียบระบบย้อนหลัง');
+});
+// ปุ่มคัดลอกสรุปทุกไลน์ก็เป็นของ Admin — ในสรุปมีทั้ง ตรง/ไม่ตรง/ความแม่นยำ
+assert(/copyAllBtn\.classList\.toggle\('hidden', !showAccuracy\)/.test(historyBlock),
+  'ปุ่มคัดลอกสรุปทุกไลน์ต้องโชว์เฉพาะ Admin');
 
 // draft ที่เซฟไว้ก่อนมีฟีเจอร์นี้ไม่มีฟิลด์ blind (undefined = เห็นยอดระบบ) ต้องคำนวณใหม่เสมอ
 const restoreBlock = slice(htmlLf, 'function scRestoreDraft()', 'function scResumeSessionUi()', 'scRestoreDraft');

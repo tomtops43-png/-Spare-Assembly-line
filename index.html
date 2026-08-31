@@ -2081,9 +2081,12 @@
 
       <!-- History -->
       <div id="scHistorySection" class="hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div class="border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+        <div class="border-b border-slate-100 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <h3 class="font-bold text-slate-800">📋 ประวัติการเช็คสต็อก</h3>
-          <button id="scHideHistoryBtn" type="button" class="text-xs text-slate-500 hover:text-slate-700">ซ่อน ✕</button>
+          <div class="flex items-center gap-2">
+            <button id="scCopyAllHistoryBtn" type="button" class="hidden h-8 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 transition">📋 คัดลอกสรุปทุกไลน์</button>
+            <button id="scHideHistoryBtn" type="button" class="text-xs text-slate-500 hover:text-slate-700">ซ่อน ✕</button>
+          </div>
         </div>
         <div id="scHistoryList" class="divide-y divide-slate-100 max-h-72 overflow-y-auto"></div>
       </div>
@@ -8565,7 +8568,7 @@ function getIssueCartEntries() {
         document.getElementById('scNoSession').classList.add('hidden');
         document.getElementById('scActiveSession').classList.remove('hidden');
         var title = document.getElementById('scActiveTitle');
-        if (title) title.textContent = 'Session: '+month+' — '+(line==='all'?'ทุก Line':line)+(cat!=='all'?' / '+cat:'')+' ('+sheets.length+' sheets)';
+        if (title) title.textContent = 'Session: '+scFmtMonth(month)+' — '+scLineLabel(line)+(cat!=='all'?' / '+cat:'')+' ('+sheets.length+' sheets)';
         var sub = document.getElementById('scActiveSubtitle');
         if (sub) sub.textContent = 'เริ่มโดย '+(currentUser?currentUser.username:'?')+' · '+pool.length+' รายการ จาก '+sheets.join(', ')+' · กำลังนับ';
         var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.remove('hidden');
@@ -8699,7 +8702,7 @@ function getIssueCartEntries() {
               '<p style="font-size:13px;font-weight:600;color:#a5b4fc;margin:0 0 4px">' +
                 (res.autoApproved ? '✅ ปรับ Stock ตามยอดที่นับได้แล้ว' : '📤 ส่งผลให้ Admin ตรวจสอบแล้ว') + '</p>' +
               '<p style="font-size:18px;font-weight:800;color:#fff;margin:0">' + res.sessionId + '</p>' +
-              '<p style="font-size:12px;color:#c7d2fe;margin:4px 0 0">' + sessionCopy.month + ' · ' + (sessionCopy.line==='all'?'ทุก Line':sessionCopy.line) + '</p>' +
+              '<p style="font-size:12px;color:#c7d2fe;margin:4px 0 0">' + escHtml(scFmtMonth(sessionCopy.month)) + ' · ' + escHtml(scLineLabel(sessionCopy.line)) + '</p>' +
             '</div>' +
             '<div style="padding:20px 24px;">' +
               // ผู้ที่นับแบบปิดยอดห้ามเห็น ตรงกัน/ไม่ตรง/ความแม่น — เป็นการเฉลยยอดระบบย้อนหลัง
@@ -8894,7 +8897,7 @@ function getIssueCartEntries() {
 
     function scSessionLabel() {
       if (!scSession) return '';
-      return scSession.month + ' — ' + (scSession.line==='all' ? 'ทุก Line' : scSession.line) +
+      return scFmtMonth(scSession.month) + ' — ' + scLineLabel(scSession.line) +
         (scSession.category && scSession.category!=='all' ? ' / ' + scSession.category : '');
     }
 
@@ -9122,6 +9125,8 @@ function getIssueCartEntries() {
     // localStorage ทำให้ Engineer ต้องมากดอนุมัติบนเครื่อง/เบราว์เซอร์เดียวกับที่ช่างกดส่งผล
     // เปิดคนละเครื่องจะเห็นคิวว่างเปล่า และผลนับหายถ้าล้าง browser data
     var scHistoryRows = [];
+    // ประวัติที่รวมเป็นรอบแล้ว — ปุ่มคัดลอกสรุปอ่านจากตรงนี้ ไม่ต้องรวมใหม่ทุกครั้งที่กด
+    var scHistoryGroups = [];
 
     // ปรับยอดสต็อกจากการเช็คสต็อก = งานของ Admin เท่านั้น
     // ห้ามใช้ hasPermission('manage_items') เด็ดขาด — role 'leader' ได้สิทธิ์นั้นติดมาโดยปริยาย
@@ -9166,7 +9171,7 @@ function getIssueCartEntries() {
       var counted = draft.session.items.filter(function(it){ return it.counted !== null && it.counted !== ''; }).length;
       showConfirmDialog({
         title: 'พบการนับที่ค้างอยู่',
-        message: draft.session.month + ' — ' + scLineLabel(draft.session.line) + ' · นับไปแล้ว ' + counted + '/' +
+        message: scFmtMonth(draft.session.month) + ' — ' + scLineLabel(draft.session.line) + ' · นับไปแล้ว ' + counted + '/' +
                  draft.session.items.length + ' รายการ (บันทึกไว้ ' + scFmtTime(draft.savedAt) + ') ต้องการนับต่อไหม?',
         okLabel: 'นับต่อ'
       }).then(function(ok) {
@@ -9249,6 +9254,33 @@ function getIssueCartEntries() {
       return String(line) === 'all' ? 'ทุก Line' : String(line || '-');
     }
 
+    var SC_THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+      'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+    // เดือนของ session ถูกส่งขึ้นชีทเป็น '2026-08' (ค่าจาก input[type=month]) แต่ Google Sheets
+    // แปลงเป็น Date ให้เอง แล้วส่งกลับมาเป็น ISO UTC ที่ถอยไปเป็นสิ้นเดือนก่อนหน้า
+    // ('2026-07-31T17:00:00.000Z' = 1 ส.ค. เวลาไทย) เดิมเอามาโชว์ดิบ ๆ เลยขึ้นเป็นเดือน 7
+    // ทั้งที่เป็นรอบเดือน 8 — ต้องอ่านที่โซนเวลาไทยถึงจะได้เดือนที่ถูก
+    function scFmtMonth(value) {
+      var raw = String(value === null || value === undefined ? '' : value).trim();
+      if (!raw) return '-';
+      var year, monthIdx;
+      var plain = raw.match(/^(\d{4})-(\d{1,2})$/);
+      if (plain) {
+        year = Number(plain[1]);
+        monthIdx = Number(plain[2]) - 1;
+      } else {
+        var d = new Date(raw);
+        if (isNaN(d.getTime())) return raw;
+        var bkk = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+        year = bkk.getUTCFullYear();
+        monthIdx = bkk.getUTCMonth();
+      }
+      if (monthIdx < 0 || monthIdx > 11) return raw;
+      // ใช้ พ.ศ. ให้ตรงกับเวลาที่โชว์ใต้บรรทัดเดียวกัน (toLocaleString('th-TH') ให้ พ.ศ. อยู่แล้ว)
+      return SC_THAI_MONTHS[monthIdx] + ' ' + (year + 543);
+    }
+
     // submitted_at จากชีทเป็นสตริง 'yyyy-MM-dd HH:mm:ss' ไม่ใช่ ISO — บางเบราว์เซอร์ parse ไม่ได้
     function scFmtTime(value) {
       if (!value) return '-';
@@ -9292,41 +9324,187 @@ function getIssueCartEntries() {
       return '<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">✅ อนุมัติแล้ว</span>';
     }
 
+    // รวมแถวประวัติเป็น "รอบนับ" — 1 รอบมีได้หลายคนนับ (นับซ้ำทาน) ถ้าโชว์ทีละแถวจะเห็นเดือน
+    // เดียวกันซ้ำหลายบรรทัดโดยไม่รู้ว่าเป็นรอบเดียวกัน · แถวเก่าที่ยังไม่มี count_group_id
+    // ให้เป็นกลุ่มของตัวเองตามเดิม
+    function scGroupHistoryRows(rows) {
+      var groups = [];
+      var byKey = {};
+      (rows || []).forEach(function(h) {
+        var gid = String(h.count_group_id || '').trim();
+        var key = gid || ('__legacy__' + h.session_id);
+        if (!byKey[key]) {
+          byKey[key] = { key: key, groupId: gid, rows: [] };
+          groups.push(byKey[key]);
+        }
+        byKey[key].rows.push(h);
+      });
+      groups.forEach(function(g) {
+        g.rows.sort(function(a, b){ return (Number(a.round_no)||0) - (Number(b.round_no)||0); });
+        var latest = g.rows[g.rows.length - 1];
+        g.month = latest.month;
+        g.line = latest.line;
+        g.category = latest.category;
+        g.status = latest.status;
+        g.is_pending = !!latest.is_pending;
+        g.approved_by = latest.approved_by;
+        g.approved_at = latest.approved_at;
+        g.submitted_at = latest.submitted_at;
+        g.total = Number(latest.total_items) || 0;
+        g.matched = Number(latest.matched) || 0;
+        g.diff = Number(latest.diff_count) || 0;
+        // adjusted_count ถูกประทับไว้ที่แถวเดียวของรอบ ไม่ใช่ทุกแถว — ต้องกวาดหาทั้งกลุ่ม
+        g.adjusted = g.rows.reduce(function(max, r) {
+          var v = Number(r.adjusted_count);
+          return isNaN(v) ? max : Math.max(max, v);
+        }, 0);
+        g.pct = g.total ? Math.round((g.matched / g.total) * 100) : 0;
+      });
+      return groups;
+    }
+
+    function scHistoryTitle(g) {
+      return scFmtMonth(g.month) + ' — ' + scLineLabel(g.line) +
+        (g.category && g.category !== 'all' ? ' / ' + g.category : '');
+    }
+
+    // ข้อความสรุปสำหรับก๊อปไปวางในกลุ่มแชท — ต้องอ่านรู้เรื่องโดยไม่ต้องเปิดระบบดูประกอบ
+    function scHistorySummaryText(g) {
+      var statusText = g.is_pending ? '⏳ รออนุมัติ'
+        : String(g.status) === 'rejected' ? '❌ ส่งคืนให้นับใหม่'
+        : String(g.status).indexOf('archived_') === 0 ? '📦 บันทึกย้อนหลัง'
+        : '✅ อนุมัติแล้ว';
+      var lines = [
+        '📦 สรุปเช็คสต็อกประจำเดือน',
+        '🗓 เดือน: ' + scFmtMonth(g.month),
+        '🏭 ไลน์: ' + scLineLabel(g.line) + (g.category && g.category !== 'all' ? ' / ' + g.category : ''),
+        '📌 สถานะ: ' + statusText,
+        '',
+        '👷 ผู้นับ:'
+      ];
+      g.rows.forEach(function(r) {
+        lines.push('   • รอบ ' + (Number(r.round_no) || 1) + ': ' + (r.created_by || '-') +
+          ' (ส่ง ' + scFmtTime(r.submitted_at) + ')');
+      });
+      lines.push('');
+      lines.push('📊 รายการทั้งหมด: ' + g.total + ' รายการ');
+      lines.push('✅ ตรงกับระบบ: ' + g.matched + ' รายการ');
+      lines.push('⚠️ ไม่ตรง: ' + g.diff + ' รายการ');
+      if (g.adjusted) lines.push('🔧 ปรับยอดแล้ว: ' + g.adjusted + ' รายการ');
+      lines.push('🎯 ความแม่นยำ: ' + g.pct + '%');
+      if (!g.is_pending && g.approved_by) {
+        lines.push('');
+        lines.push((String(g.status) === 'rejected' ? '↩ ส่งคืนโดย ' : '✔ อนุมัติโดย ') +
+          g.approved_by + ' · ' + scFmtTime(g.approved_at || g.submitted_at));
+      }
+      return lines.join('\n');
+    }
+
+    // สรุปรวมทุกไลน์ของ "เดือนล่าสุดที่มีข้อมูล" — สิ่งที่โพสต์ลงกลุ่มจริงคือภาพรวมทั้งโรงงาน
+    // ไม่ใช่รายไลน์ · ยึดเดือนของรอบล่าสุดเป็นตัวตั้ง แล้วเอาเฉพาะรอบที่อยู่เดือนเดียวกัน
+    function scHistoryMonthSummaryText(groups) {
+      var targetMonth = scFmtMonth(groups[0].month);
+      var inMonth = groups.filter(function(g){ return scFmtMonth(g.month) === targetMonth; });
+      var sum = function(pick) {
+        return inMonth.reduce(function(acc, g){ return acc + (Number(pick(g)) || 0); }, 0);
+      };
+      var total = sum(function(g){ return g.total; });
+      var matched = sum(function(g){ return g.matched; });
+      var pct = total ? Math.round((matched / total) * 100) : 0;
+      var lines = [
+        '📦 สรุปเช็คสต็อกประจำเดือน ' + targetMonth,
+        '─────────────────',
+        '📊 รวมทุกไลน์: ' + total + ' รายการ',
+        '✅ ตรงกับระบบ: ' + matched + ' รายการ',
+        '⚠️ ไม่ตรง: ' + sum(function(g){ return g.diff; }) + ' รายการ',
+        '🔧 ปรับยอดแล้ว: ' + sum(function(g){ return g.adjusted; }) + ' รายการ',
+        '🎯 ความแม่นยำรวม: ' + pct + '%',
+        '',
+        'แยกตามไลน์:'
+      ];
+      inMonth.forEach(function(g) {
+        var flag = g.is_pending ? ' ⏳รออนุมัติ' : String(g.status) === 'rejected' ? ' ❌ส่งคืน' : '';
+        lines.push('   • ' + scLineLabel(g.line) + (g.category && g.category !== 'all' ? ' / ' + g.category : '') +
+          ': ' + g.pct + '% (ตรง ' + g.matched + '/' + g.total + ', ไม่ตรง ' + g.diff + ')' + flag);
+      });
+      var counters = {};
+      inMonth.forEach(function(g) {
+        g.rows.forEach(function(r){ if (r.created_by) counters[r.created_by] = true; });
+      });
+      var names = Object.keys(counters);
+      if (names.length) {
+        lines.push('');
+        lines.push('👷 ผู้นับ: ' + names.join(', '));
+      }
+      return lines.join('\n');
+    }
+
     function scRenderHistory() {
       var list = document.getElementById('scHistoryList');
       if (!list) return;
+      var copyAllBtn = document.getElementById('scCopyAllHistoryBtn');
       if (!scHistoryRows.length) {
         list.innerHTML = '<div class="px-4 py-6 text-center text-slate-400 text-sm">ยังไม่มีประวัติ</div>';
+        if (copyAllBtn) copyAllBtn.classList.add('hidden');
         return;
       }
       // คนที่นับแบบปิดยอดต้องไม่เห็น "ตรง 52/74" ย้อนหลัง — เป็นการเฉลยว่านับพลาดกี่ตัว
       // และเพราะส่งซ้ำได้ (ทับผลของตัวเอง) ถ้าเห็นตัวเลขนี้ก็ย้อนไปแก้ให้ตรงระบบได้
       var showAccuracy = scCanApprove();
-      list.innerHTML = scHistoryRows.map(function(h) {
-        var total = Number(h.total_items) || 0;
-        var matched = Number(h.matched) || 0;
-        var pct = total ? Math.round((matched / total) * 100) : 0;
-        var color = pct >= 95 ? 'text-emerald-600' : pct >= 80 ? 'text-amber-600' : 'text-rose-600';
-        var approvedNote = (!h.is_pending && h.approved_by)
-          ? '<span class="text-slate-400"> · ' + (String(h.status) === 'rejected' ? 'ส่งคืนโดย ' : 'อนุมัติโดย ') + escHtml(h.approved_by) + '</span>'
+      var groups = scGroupHistoryRows(scHistoryRows);
+      scHistoryGroups = groups;
+      if (copyAllBtn) copyAllBtn.classList.toggle('hidden', !showAccuracy);
+
+      list.innerHTML = groups.map(function(g, gi) {
+        var color = g.pct >= 95 ? 'text-emerald-600' : g.pct >= 80 ? 'text-amber-600' : 'text-rose-600';
+        var counters = g.rows.map(function(r) {
+          return '<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">' +
+            'รอบ ' + (Number(r.round_no) || 1) + ': ' + escHtml(r.created_by || '-') + '</span>';
+        }).join(' ');
+        var decidedNote = (!g.is_pending && g.approved_by)
+          ? (String(g.status) === 'rejected' ? '↩ ส่งคืนโดย ' : '✔ อนุมัติโดย ') + escHtml(g.approved_by) +
+            ' · ' + escHtml(scFmtTime(g.approved_at || g.submitted_at))
           : '';
-        return '<div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">' +
-          '<div class="flex-1 min-w-0">' +
-            '<div class="flex items-center gap-2 flex-wrap">' +
-              '<p class="font-bold text-slate-900 text-sm">' + escHtml(h.month) + ' — ' + escHtml(scLineLabel(h.line)) + '</p>' +
-              scStatusBadge(h) +
+        return '<div class="px-4 py-3.5 hover:bg-slate-50 transition">' +
+          '<div class="flex items-start gap-3">' +
+            '<div class="min-w-0 flex-1">' +
+              '<div class="flex items-center gap-2 flex-wrap">' +
+                '<p class="font-bold text-slate-900 text-sm">' + escHtml(scHistoryTitle(g)) + '</p>' +
+                scStatusBadge(g) +
+                (g.rows.length >= 2
+                  ? '<span class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">🔁 นับทาน ' + g.rows.length + ' รอบ</span>'
+                  : '') +
+              '</div>' +
+              '<div class="mt-1.5 flex flex-wrap gap-1">' + counters + '</div>' +
+              (showAccuracy
+                ? '<div class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">' +
+                    '<span class="font-semibold text-slate-600">ทั้งหมด ' + g.total + '</span>' +
+                    '<span class="font-semibold text-emerald-700">✅ ตรง ' + g.matched + '</span>' +
+                    '<span class="font-semibold ' + (g.diff ? 'text-rose-600' : 'text-slate-400') + '">⚠️ ไม่ตรง ' + g.diff + '</span>' +
+                    (g.adjusted ? '<span class="font-semibold text-indigo-600">🔧 ปรับแล้ว ' + g.adjusted + '</span>' : '') +
+                  '</div>'
+                : '<p class="mt-1.5 text-[11px] font-semibold text-slate-600">ทั้งหมด ' + g.total + ' รายการ</p>') +
+              '<p class="mt-1 text-[11px] text-slate-400">ส่งล่าสุด ' + escHtml(scFmtTime(g.submitted_at)) +
+                (decidedNote ? ' · ' + decidedNote : '') + '</p>' +
             '</div>' +
-            '<p class="text-xs text-slate-500">โดย ' + escHtml(h.created_by) + ' · ' + escHtml(scFmtTime(h.submitted_at)) + approvedNote + '</p>' +
-          '</div>' +
-          '<div class="text-right shrink-0">' +
-            (showAccuracy
-              ? '<p class="font-black text-lg ' + color + '">' + pct + '%</p>' +
-                '<p class="text-[11px] text-slate-400">ตรง ' + matched + '/' + total + '</p>'
-              : '<p class="font-black text-lg text-slate-700">' + total + '</p>' +
-                '<p class="text-[11px] text-slate-400">รายการ</p>') +
+            '<div class="shrink-0 text-right">' +
+              (showAccuracy
+                ? '<p class="font-black text-lg ' + color + '">' + g.pct + '%</p>' +
+                  '<p class="text-[10px] text-slate-400">ความแม่นยำ</p>' +
+                  '<button type="button" data-sc-copy-summary="' + gi + '" class="mt-1.5 h-8 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 transition">📋 คัดลอกสรุป</button>'
+                : '<p class="font-black text-lg text-slate-700">' + g.total + '</p>' +
+                  '<p class="text-[10px] text-slate-400">รายการ</p>') +
+            '</div>' +
           '</div>' +
         '</div>';
       }).join('');
+
+      list.querySelectorAll('[data-sc-copy-summary]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var g = scHistoryGroups[Number(btn.getAttribute('data-sc-copy-summary'))];
+          if (g) copyTextToClipboard(scHistorySummaryText(g), 'คัดลอกสรุปแล้ว — วางในกลุ่มได้เลย');
+        });
+      });
     }
 
     function scRenderPending() {
@@ -9367,7 +9545,7 @@ function getIssueCartEntries() {
         return '<div class="px-4 py-4 bg-white">' +
           '<div class="flex items-center justify-between gap-3 flex-wrap">' +
             '<div class="min-w-0">' +
-              '<p class="font-bold text-slate-900">' + escHtml(g.month) + ' — ' + escHtml(scLineLabel(g.line)) + '</p>' +
+              '<p class="font-bold text-slate-900">' + escHtml(scFmtMonth(g.month)) + ' — ' + escHtml(scLineLabel(g.line)) + '</p>' +
               '<div class="mt-1 flex flex-wrap gap-1.5">' + counters + '</div>' +
               '<div class="mt-1.5 flex gap-3 text-xs flex-wrap">' +
                 '<span class="font-semibold text-slate-700">รายการทั้งหมด: ' + total + '</span>' +
@@ -9671,6 +9849,12 @@ function getIssueCartEntries() {
       if (filterEl) filterEl.addEventListener('change', scRenderTable);
       if (histBtn) histBtn.addEventListener('click', scLoadHistory);
       if (hideHistBtn) hideHistBtn.addEventListener('click', function(){ document.getElementById('scHistorySection').classList.add('hidden'); });
+      // สรุปรวมทุกไลน์ของเดือนล่าสุด — ที่โพสต์ลงกลุ่มจริงคือภาพรวมทั้งโรงงาน ไม่ใช่ทีละไลน์
+      var copyAllBtn = document.getElementById('scCopyAllHistoryBtn');
+      if (copyAllBtn) copyAllBtn.addEventListener('click', function() {
+        if (!scHistoryGroups.length) { showQuickToast('ยังไม่มีประวัติให้สรุป', 'warn'); return; }
+        copyTextToClipboard(scHistoryMonthSummaryText(scHistoryGroups), 'คัดลอกสรุปทุกไลน์แล้ว — วางในกลุ่มได้เลย');
+      });
       if (fillZeroBtn) fillZeroBtn.addEventListener('click', function(){
         if (!scSession) return;
         scSession.items.forEach(function(it){ if(it.counted===null||it.counted==='') it.counted=0; });
