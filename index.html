@@ -8395,7 +8395,7 @@ function getIssueCartEntries() {
           .then(function(adj) {
             // ยอดในระบบเพิ่งเปลี่ยน — ตารางสต็อกที่ค้างอยู่จะไม่ตรงถ้าไม่โหลดใหม่
             loadPartsData({ skipCache: true });
-            return { sessionId: sessionId, adjusted: Number(adj.adjusted || 0), failed: Number(adj.failed || 0), autoApproved: true };
+            return { sessionId: sessionId, adjusted: Number(adj.adjusted || 0), failed: Number(adj.failed || 0), results: adj.results || [], autoApproved: true };
           })
           .catch(function(err) {
             // ผลนับลงชีทไปแล้ว แค่ขั้นปรับ Stock ไม่ผ่าน — ตกไปเข้าคิวรออนุมัติแทน ข้อมูลไม่หาย
@@ -8461,7 +8461,7 @@ function getIssueCartEntries() {
                     '<p style="font-size:13px;font-weight:700;color:#166534;margin:0 0 4px">✅ ปรับ Stock แล้ว ' + res.adjusted + ' รายการ</p>' +
                     '<p style="font-size:12px;color:#15803d;margin:0">คุณมีสิทธิ์อนุมัติอยู่แล้ว ระบบจึงปรับยอดให้ทันทีโดยไม่ต้องรอใครตรวจ · ทุกรายการถูกบันทึกในชีท Log ไว้เป็นหลักฐาน' +
                     (res.failed ? ' · ⚠️ ปรับไม่สำเร็จ ' + res.failed + ' รายการ' : '') + '</p>' +
-                  '</div>'
+                  '</div>' + scFailedItemsListHtml(res.results)
                 : '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px;margin-bottom:14px;">' +
                     '<p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 4px">⏳ รอ Engineer / Admin อนุมัติ</p>' +
                     '<p style="font-size:12px;color:#78350f;margin:0">ผลถูกบันทึกลง Google Sheet แล้ว — Stock จะถูกปรับเมื่อ Engineer อนุมัติเท่านั้น</p>' +
@@ -9068,6 +9068,33 @@ function getIssueCartEntries() {
       });
     }
 
+    // แสดงชื่อ+เหตุผลของรายการที่ปรับ Stock ไม่สำเร็จ — เดิมมีแค่ตัวเลขรวม (เช่น "ไม่สำเร็จ 9
+    // รายการ") ไม่รู้ว่ารายการไหนบ้าง ต้องไปงมหาเองทีละชิ้น
+    function scFailedItemsListHtml(results) {
+      var failed = (results || []).filter(function(r) { return r && r.status === 'error'; });
+      if (!failed.length) return '';
+      return '<div style="background:#fff1f2;border:1px solid #fca5a5;border-radius:10px;padding:10px 12px;margin-bottom:14px;max-height:160px;overflow:auto;">' +
+        '<p style="font-size:12px;font-weight:700;color:#9f1239;margin:0 0 6px">⚠️ รายการที่ปรับไม่สำเร็จ (' + failed.length + ')</p>' +
+        failed.map(function(r) {
+          return '<p style="font-size:11.5px;color:#7f1d1d;margin:0 0 3px;line-height:1.4"><b>' + escHtml(r.name || '-') + '</b> — ' + escHtml(r.error || 'ไม่ทราบสาเหตุ') + '</p>';
+        }).join('') +
+      '</div>';
+    }
+
+    function scShowFailedItemsPopup(results) {
+      var listHtml = scFailedItemsListHtml(results);
+      if (!listHtml) return;
+      var ol = document.createElement('div');
+      ol.style.cssText = 'position:fixed;inset:0;z-index:10020;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;padding:16px;';
+      ol.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:420px;padding:18px;box-shadow:0 25px 60px rgba(0,0,0,0.3);">' +
+          '<p style="font-size:15px;font-weight:800;color:#1f2937;margin:0 0 10px">รายละเอียดรายการที่ปรับไม่สำเร็จ</p>' +
+          listHtml +
+          '<button id="_scFailedClose" style="width:100%;height:40px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;font-weight:700;font-size:13px;cursor:pointer;color:#374151;margin-top:4px;">ปิด</button>' +
+        '</div>';
+      document.body.appendChild(ol);
+      ol.querySelector('#_scFailedClose').addEventListener('click', function() { document.body.removeChild(ol); });
+    }
+
     function scDecide(btn) {
       var sessionId = btn.getAttribute('data-sc-session');
       var decision = btn.getAttribute('data-sc-decide');
@@ -9088,6 +9115,8 @@ function getIssueCartEntries() {
               var msg = '✅ ปรับ Stock ' + (res.adjusted || 0) + ' รายการแล้ว';
               if (res.failed) msg += ' · ไม่สำเร็จ ' + res.failed + ' รายการ';
               showQuickToast(msg, res.failed ? 'warn' : 'success');
+              // บอกแค่จำนวนไม่พอ ต้องรู้ว่ารายการไหนบ้างถึงจะตามไปแก้ได้
+              if (res.failed) scShowFailedItemsPopup(res.results);
               // ยอดในระบบเพิ่งเปลี่ยน — ตารางสต็อกที่ค้างอยู่จะไม่ตรงถ้าไม่โหลดใหม่
               loadPartsData({ skipCache: true });
             } else {
