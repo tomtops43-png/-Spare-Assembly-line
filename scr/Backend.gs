@@ -4602,6 +4602,9 @@ function doGet(e) {
     if (action === 'getStockCountHistory') return respond(getStockCountHistory(e.parameter), e);
     if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(e.parameter), e);
     if (action === 'approveStockCount') return respond(approveStockCount(e.parameter), e);
+    if (action === 'getStockCountGroupState') return respond(getStockCountGroupState(e.parameter), e);
+    if (action === 'getStockCountComparison') return respond(getStockCountComparison(e.parameter), e);
+    if (action === 'approveStockCountGroup') return respond(approveStockCountGroup(e.parameter), e);
     if (action === 'importLegacyStockCount') return respond(importLegacyStockCount(e.parameter), e);
     requirePermission(authPayload, 'view');
     if (action === 'transact') {
@@ -4867,6 +4870,9 @@ function doPost(e) {
     if (action === 'getStockCountHistory') return respond(getStockCountHistory(body), e);
     if (action === 'adjustStockFromCount') return respond(adjustStockFromCount(body), e);
     if (action === 'approveStockCount') return respond(approveStockCount(body), e);
+    if (action === 'getStockCountGroupState') return respond(getStockCountGroupState(body), e);
+    if (action === 'getStockCountComparison') return respond(getStockCountComparison(body), e);
+    if (action === 'approveStockCountGroup') return respond(approveStockCountGroup(body), e);
     if (action === 'importLegacyStockCount') return respond(importLegacyStockCount(body), e);
     if (action === 'createOrderRequest') return respond(createOrderRequest(body), e);
     if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(body), e);
@@ -4978,7 +4984,7 @@ function doPost(e) {
 // STOCK COUNT
 // =============================
 var STOCK_COUNT_SHEET_NAME = 'StockCount';
-var STOCK_COUNT_HEADERS = ['session_id','month','line','category','sheets','created_by','created_at','submitted_at','status','total_items','matched','diff_count','items_json','approved_by','approved_at','adjusted_count'];
+var STOCK_COUNT_HEADERS = ['session_id','month','line','category','sheets','created_by','created_at','submitted_at','status','total_items','matched','diff_count','items_json','approved_by','approved_at','adjusted_count','count_group_id','round_no'];
 // สถานะที่ถือว่ายังรออนุมัติ — 'submitted' คือค่าเก่าจากตอนที่คิวอนุมัติยังอยู่ใน localStorage
 // ของเครื่องช่าง แถวเก่าที่ค้างอยู่ต้องยังโผล่ในคิวให้ Engineer กดได้
 var STOCK_COUNT_PENDING_STATUSES = ['', 'submitted', 'pending_approval'];
@@ -5020,6 +5026,120 @@ function isStockCountPending(status) {
   return STOCK_COUNT_PENDING_STATUSES.indexOf(String(status || '').trim()) > -1;
 }
 
+// ── นับซ้ำทาน (double-count) ────────────────────────────────────────────────────
+// "รอบนับ" = เดือน + ไลน์ + หมวด เดียวกัน · แต่ละคนที่นับ = 1 แถวในชีท ไม่ยัดรวมกัน
+// เพราะ items_json ของ 75 รายการกินราว 15KB ต่อคน ถ้ารวมหลายคนไว้เซลล์เดียวจะชนเพดาน
+// 50,000 ตัวอักษรต่อเซลล์ของ Sheets (ยิ่งเลือก 'ทุกไลน์' ยิ่งพังเร็ว)
+function stockCountGroupId(month, line, category) {
+  var norm = function(v) { return String(v || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || 'ALL'; };
+  return 'SCG-' + norm(month) + '-' + norm(line) + '-' + norm(category);
+}
+
+// คีย์จับคู่อะไหล่ข้ามรอบนับ — ต้องตรงกับ scItemKey ฝั่งหน้าเว็บเป๊ะ ๆ ไม่งั้นรอบ 2
+// จะดึงยอดรอบแรกมาโชว์ไม่ได้ · ใส่ชีทต้นทางด้วยเพราะชื่ออะไหล่ซ้ำข้ามชีทได้
+function stockCountItemKey(name, model, sheet) {
+  var m = String(model === null || model === undefined ? '' : model).trim();
+  if (m === '-') m = '';
+  return [String(name || '').trim().toLowerCase(), m.toLowerCase(), String(sheet || '').trim().toLowerCase()].join('||');
+}
+
+// อ่านทุกแถวของรอบนับหนึ่ง ๆ เรียงตามลำดับการนับ
+function readStockCountGroupRows(data, idx, groupId) {
+  var rows = [];
+  for (var i = 1; i < data.length; i += 1) {
+    var rowGroup = idx.count_group_id !== undefined ? String(data[i][idx.count_group_id] || '').trim() : '';
+    if (rowGroup !== groupId) continue;
+    // แถวที่ยกมาจาก localStorage เก็บเป็นหลักฐานอย่างเดียว ห้ามเอามานับเป็นรอบทาน
+    if (String(data[i][idx.status] || '').indexOf('archived_') === 0) continue;
+    rows.push({ rowIndex: i, values: data[i] });
+  }
+  rows.sort(function(a, b) {
+    var ra = idx.round_no !== undefined ? Number(a.values[idx.round_no] || 0) : 0;
+    var rb = idx.round_no !== undefined ? Number(b.values[idx.round_no] || 0) : 0;
+    return ra - rb;
+  });
+  return rows;
+}
+
+function parseStockCountItems(raw) {
+  try {
+    var parsed = JSON.parse(String(raw || '[]'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) { return []; }
+}
+
+// ปรับยอดสต็อกจากการเช็คสต็อก = งานของ Admin เท่านั้น
+// ห้าม gate ด้วย 'manage_items' — role 'leader' ได้สิทธิ์นั้นติดมาโดยปริยาย
+// (ดู getRoleDefaultPermissions) ซึ่งจะทำให้ Leader ปรับยอดสต็อกได้ด้วย
+// ไม่เรียก requireAdminUser เพราะตัวนั้นบังคับ 'manage_users' ซึ่งเป็นสิทธิ์คนละเรื่องกัน
+function requireStockCountAdmin(payload) {
+  var session = getSessionUser(payload);
+  var user = findUserByUsername(session.user.username);
+  if (!user) throw new Error('ไม่พบผู้ใช้');
+  if (normalizeRole(user.role) !== 'admin') {
+    throw new Error('เฉพาะ Admin เท่านั้นที่ปรับยอดสต็อกจากการเช็คสต็อกได้');
+  }
+  return user;
+}
+
+// หน้าเว็บเรียกก่อนเปิด Session — บอกว่ารอบนี้มีใครนับไปแล้วบ้าง เราเป็นรอบที่เท่าไหร่
+// และส่งยอดของรอบก่อนหน้ากลับไปให้ "ทาน" (รอบแรกจะไม่ได้ยอดอะไรกลับไปเลย = นับแบบปิดยอด)
+function getStockCountGroupState(payload) {
+  var session = getSessionUser(payload);
+  requirePermission(payload, 'view_logs');
+  var groupId = stockCountGroupId(payload.month, payload.line, payload.category);
+  var sheet = getOrCreateStockCountSheet();
+  var data = sheet.getDataRange().getValues();
+  var empty = { status: 'success', group_id: groupId, next_round: 1, rounds: [], previous_counts: {}, previous_by: '', my_round: 0 };
+  if (data.length <= 1) return empty;
+  var idx = stockCountIndexMap(data[0]);
+  if (idx.count_group_id === undefined) return empty;
+
+  var rows = readStockCountGroupRows(data, idx, groupId);
+  if (!rows.length) return empty;
+
+  var me = String(session.user.username || '').trim().toLowerCase();
+  var rounds = [];
+  var myRound = 0;
+  rows.forEach(function(r) {
+    var by = String(r.values[idx.created_by] || '');
+    var roundNo = idx.round_no !== undefined ? Number(r.values[idx.round_no] || 0) : 0;
+    if (by.trim().toLowerCase() === me) myRound = roundNo;
+    rounds.push({
+      round_no: roundNo,
+      by: by,
+      submitted_at: String(r.values[idx.submitted_at] || ''),
+      status: String(r.values[idx.status] || ''),
+      total_items: Number(r.values[idx.total_items] || 0),
+      matched: Number(r.values[idx.matched] || 0),
+      diff_count: Number(r.values[idx.diff_count] || 0)
+    });
+  });
+
+  // ส่งซ้ำของคนเดิม = แก้ยอดของตัวเอง ไม่ใช่นับเป็นคนที่ 2 (นี่คือกติกา "ไม่ซ้ำ User")
+  var nextRound = myRound > 0 ? myRound : rows.length + 1;
+
+  // ยอดอ้างอิงมาจากรอบล่าสุดที่ "ไม่ใช่ของเราเอง" — ทานของคนอื่น ไม่ใช่ทานของตัวเอง
+  var refRow = null;
+  for (var j = rows.length - 1; j >= 0; j -= 1) {
+    if (String(rows[j].values[idx.created_by] || '').trim().toLowerCase() !== me) { refRow = rows[j]; break; }
+  }
+  var prevCounts = {};
+  var prevBy = '';
+  if (refRow) {
+    prevBy = String(refRow.values[idx.created_by] || '');
+    parseStockCountItems(refRow.values[idx.items_json]).forEach(function(it) {
+      if (!it || it.counted === null || it.counted === undefined || it.counted === '') return;
+      prevCounts[stockCountItemKey(it.name, it.model, it.sheet)] = Number(it.counted);
+    });
+  }
+
+  return {
+    status: 'success', group_id: groupId, next_round: nextRound, my_round: myRound,
+    rounds: rounds, previous_counts: prevCounts, previous_by: prevBy
+  };
+}
+
 function saveStockCountResult(payload) {
   var session = getSessionUser({ authToken: payload.authToken });
   requirePermission({ authToken: payload.authToken }, 'view_logs');
@@ -5027,25 +5147,78 @@ function saveStockCountResult(payload) {
   var sheet = getOrCreateStockCountSheet();
   var items = payload.items;
   if (typeof items === 'string') { try { items = JSON.parse(items); } catch(e) { items = []; } }
-  sheet.appendRow([
-    sessionId,
-    String(payload.month || ''),
-    String(payload.line || 'all'),
-    String(payload.category || 'all'),
-    String(payload.sheets || ''),
-    String(payload.created_by || session.user.username),
-    String(payload.created_at || ''),
-    Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
-    'pending_approval',
-    Number(payload.total_items || 0),
-    Number(payload.matched || 0),
-    Number(payload.diff_count || 0),
-    JSON.stringify(items || []),
-    '', // approved_by
-    '', // approved_at
-    ''  // adjusted_count
-  ]);
-  return { status: 'success', session_id: sessionId, message: 'บันทึกผลเช็คสต็อกแล้ว' };
+  var groupId = String(payload.count_group_id || '').trim() ||
+    stockCountGroupId(payload.month, payload.line, payload.category);
+  var countedBy = String(payload.created_by || session.user.username);
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+
+  var data = sheet.getDataRange().getValues();
+  var idx = data.length ? stockCountIndexMap(data[0]) : {};
+  var groupRows = data.length > 1 && idx.count_group_id !== undefined
+    ? readStockCountGroupRows(data, idx, groupId) : [];
+
+  // คนเดิมส่งซ้ำ = แก้ยอดของตัวเอง ต้องทับแถวเดิม ไม่ใช่แถวใหม่
+  // ("นับหลายครั้งโดยไม่ซ้ำ User" — 1 คน = 1 รอบเสมอ ไม่ว่าจะกดส่งกี่ครั้ง)
+  // ทับได้เฉพาะแถวที่ยังไม่ถูกตัดสิน — ที่อนุมัติ/ส่งคืนไปแล้วคือหลักฐาน ห้ามแก้ย้อนหลัง
+  var mine = null;
+  var meKey = countedBy.trim().toLowerCase();
+  groupRows.forEach(function(r) {
+    if (String(r.values[idx.created_by] || '').trim().toLowerCase() !== meKey) return;
+    if (!isStockCountPending(r.values[idx.status])) return;
+    mine = r;
+  });
+
+  if (mine) {
+    var keepId = String(mine.values[idx.session_id] || sessionId);
+    var keepRound = idx.round_no !== undefined ? Number(mine.values[idx.round_no] || 1) : 1;
+    var rowNumber = mine.rowIndex + 1;
+    var setCell = function(colKey, value) {
+      if (idx[colKey] === undefined) return;
+      sheet.getRange(rowNumber, idx[colKey] + 1).setValue(value);
+    };
+    setCell('submitted_at', now);
+    setCell('status', 'pending_approval');
+    setCell('total_items', Number(payload.total_items || 0));
+    setCell('matched', Number(payload.matched || 0));
+    setCell('diff_count', Number(payload.diff_count || 0));
+    setCell('items_json', JSON.stringify(items || []));
+    setCell('sheets', String(payload.sheets || ''));
+    return {
+      status: 'success', session_id: keepId, count_group_id: groupId,
+      round_no: keepRound, replaced: true, message: 'อัปเดตผลนับของคุณในรอบนี้แล้ว'
+    };
+  }
+
+  var roundNo = groupRows.length + 1;
+  var row = [];
+  // ประกอบแถวตามลำดับหัวจริงของชีท ไม่ใช่ลำดับตายตัว — ชีทเก่าเรียงคอลัมน์ไม่เหมือนกัน
+  var valueByHeader = {
+    session_id: sessionId,
+    month: String(payload.month || ''),
+    line: String(payload.line || 'all'),
+    category: String(payload.category || 'all'),
+    sheets: String(payload.sheets || ''),
+    created_by: countedBy,
+    created_at: String(payload.created_at || ''),
+    submitted_at: now,
+    status: 'pending_approval',
+    total_items: Number(payload.total_items || 0),
+    matched: Number(payload.matched || 0),
+    diff_count: Number(payload.diff_count || 0),
+    items_json: JSON.stringify(items || []),
+    approved_by: '',
+    approved_at: '',
+    adjusted_count: '',
+    count_group_id: groupId,
+    round_no: roundNo
+  };
+  var headers = data.length ? data[0].map(function(h){ return String(h || ''); }) : STOCK_COUNT_HEADERS;
+  headers.forEach(function(h) { row.push(valueByHeader[h] !== undefined ? valueByHeader[h] : ''); });
+  sheet.appendRow(row);
+  return {
+    status: 'success', session_id: sessionId, count_group_id: groupId,
+    round_no: roundNo, replaced: false, message: 'บันทึกผลเช็คสต็อกแล้ว'
+  };
 }
 
 function getStockCountHistory(payload) {
@@ -5123,8 +5296,151 @@ function importLegacyStockCount(payload) {
   return { status: 'success', session_id: sessionId, imported: true, archived_status: archivedStatus };
 }
 
+// Admin เปิดดูผลเทียบของรอบนับ — แต่ละอะไหล่ใครนับได้เท่าไหร่ ตรงกันไหม ตรงกับระบบไหม
+// ยอดในระบบเปิดเผยเฉพาะตรงนี้ (Admin เท่านั้น) ฝั่งช่างนับแบบปิดยอดเสมอ
+function getStockCountComparison(payload) {
+  requireStockCountAdmin(payload);
+  var groupId = String(payload.count_group_id || '').trim() ||
+    stockCountGroupId(payload.month, payload.line, payload.category);
+  var sheet = getOrCreateStockCountSheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) throw new Error('ยังไม่มีผลเช็คสต็อกในระบบ');
+  var idx = stockCountIndexMap(data[0]);
+  if (idx.count_group_id === undefined) throw new Error('ชีท ' + STOCK_COUNT_SHEET_NAME + ' ยังไม่มีคอลัมน์ count_group_id');
+  var rows = readStockCountGroupRows(data, idx, groupId);
+  if (!rows.length) throw new Error('ไม่พบรอบนับ: ' + groupId);
+
+  var counters = [];
+  var byKey = {};
+  rows.forEach(function(r) {
+    var by = String(r.values[idx.created_by] || '');
+    var roundNo = idx.round_no !== undefined ? Number(r.values[idx.round_no] || 0) : 0;
+    counters.push({
+      round_no: roundNo, by: by,
+      submitted_at: String(r.values[idx.submitted_at] || ''),
+      status: String(r.values[idx.status] || ''),
+      session_id: String(r.values[idx.session_id] || '')
+    });
+    parseStockCountItems(r.values[idx.items_json]).forEach(function(it) {
+      if (!it || !it.name) return;
+      var key = stockCountItemKey(it.name, it.model, it.sheet);
+      if (!byKey[key]) {
+        byKey[key] = {
+          key: key, id: it.id || '', name: it.name, model: it.model || '-', brand: it.brand || '-',
+          unit: it.unit || 'PCS', location: it.location || '-', sheet: it.sheet || '',
+          category: it.category || 'General', system_qty: Number(it.systemQty || 0), counts: []
+        };
+      }
+      if (it.counted === null || it.counted === undefined || it.counted === '') return;
+      byKey[key].counts.push({ round_no: roundNo, by: by, counted: Number(it.counted), reason: String(it.reason || '') });
+    });
+  });
+
+  var items = Object.keys(byKey).map(function(k) { return byKey[k]; });
+  items.forEach(function(it) {
+    var values = it.counts.map(function(c) { return c.counted; });
+    it.counted_by_count = values.length;
+    // ทุกคนที่นับให้ตัวเลขเดียวกันไหม
+    it.agree = values.length > 0 && values.every(function(v) { return v === values[0]; });
+    it.agreed_value = it.agree ? values[0] : null;
+    it.matches_system = it.agree && values[0] === it.system_qty;
+    // 3 ถัง: ตรงกันหมดและตรงระบบ / ตรงกันแต่ต่างจากระบบ (น่าเชื่อถือ ปรับได้) / นับไม่ตรงกันเอง
+    it.bucket = values.length === 0 ? 'uncounted'
+      : !it.agree ? 'conflict'
+      : it.matches_system ? 'ok'
+      : 'adjust';
+  });
+  items.sort(function(a, b) {
+    var order = { conflict: 0, adjust: 1, uncounted: 2, ok: 3 };
+    if (order[a.bucket] !== order[b.bucket]) return order[a.bucket] - order[b.bucket];
+    return String(a.name).localeCompare(String(b.name), 'th');
+  });
+
+  return {
+    status: 'success', count_group_id: groupId, counters: counters, items: items,
+    summary: {
+      total: items.length,
+      ok: items.filter(function(i){ return i.bucket === 'ok'; }).length,
+      adjust: items.filter(function(i){ return i.bucket === 'adjust'; }).length,
+      conflict: items.filter(function(i){ return i.bucket === 'conflict'; }).length,
+      uncounted: items.filter(function(i){ return i.bucket === 'uncounted'; }).length,
+      counter_count: counters.length
+    }
+  };
+}
+
+// Admin ตัดสินรอบนับทั้งรอบ: ส่ง resolutions = ยอดสุดท้ายที่เลือกไว้ต่อรายการ
+// ปรับสต็อกก่อน แล้วค่อยประทับสถานะทุกแถวของรอบ — ล้มกลางทางแถวยัง pending ให้กดซ้ำได้
+function approveStockCountGroup(payload) {
+  var user = requireStockCountAdmin(payload);
+  var groupId = String(payload.count_group_id || '').trim();
+  if (!groupId) throw new Error('ต้องระบุ count_group_id');
+  var decision = String(payload.decision || 'approved').trim();
+  if (decision !== 'approved' && decision !== 'rejected') throw new Error('decision ต้องเป็น approved หรือ rejected');
+
+  var sheet = getOrCreateStockCountSheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) throw new Error('ยังไม่มีผลเช็คสต็อกในระบบ');
+  var idx = stockCountIndexMap(data[0]);
+  if (idx.count_group_id === undefined) throw new Error('ชีท ' + STOCK_COUNT_SHEET_NAME + ' ยังไม่มีคอลัมน์ count_group_id');
+  var rows = readStockCountGroupRows(data, idx, groupId).filter(function(r) {
+    return isStockCountPending(r.values[idx.status]);
+  });
+  if (!rows.length) throw new Error('รอบนับนี้ถูกดำเนินการไปแล้ว หรือไม่พบรอบ: ' + groupId);
+
+  var adjustResult = { adjusted: 0, results: [] };
+  if (decision === 'approved') {
+    var resolutions = payload.resolutions;
+    if (typeof resolutions === 'string') { try { resolutions = JSON.parse(resolutions); } catch (e) { resolutions = []; } }
+    resolutions = Array.isArray(resolutions) ? resolutions : [];
+    var diffItems = resolutions.filter(function(r) {
+      return r && r.counted !== null && r.counted !== undefined && r.counted !== '' &&
+        Number(r.counted) !== Number(r.system_qty);
+    }).map(function(r) {
+      return {
+        id: r.id || '', name: r.name, model: r.model || '-', brand: r.brand || '-',
+        unit: r.unit || 'PCS', counted: Number(r.counted), system_qty: Number(r.system_qty),
+        reason: r.reason || ('อนุมัติโดย ' + user.username), line: String(payload.line || ''),
+        sheet: r.sheet || '', category: r.category || 'General'
+      };
+    });
+    adjustResult = adjustStockFromCount({
+      authToken: payload.authToken,
+      session_id: groupId,
+      line: String(payload.line || ''),
+      diff_items: diffItems
+    });
+  }
+
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  rows.forEach(function(r) {
+    var rowNumber = r.rowIndex + 1;
+    sheet.getRange(rowNumber, idx.status + 1).setValue(decision);
+    if (idx.approved_by !== undefined) sheet.getRange(rowNumber, idx.approved_by + 1).setValue(user.username);
+    if (idx.approved_at !== undefined) sheet.getRange(rowNumber, idx.approved_at + 1).setValue(now);
+  });
+  // จำนวนที่ปรับจริงเป็นของทั้งรอบ ประทับไว้ที่แถวสุดท้ายแถวเดียว กันนับซ้ำตอนอ่านย้อนหลัง
+  if (idx.adjusted_count !== undefined) {
+    sheet.getRange(rows[rows.length - 1].rowIndex + 1, idx.adjusted_count + 1)
+      .setValue(Number(adjustResult.adjusted || 0));
+  }
+
+  var failed = (adjustResult.results || []).filter(function(r){ return r.status === 'error'; });
+  return {
+    status: 'success', count_group_id: groupId, decision: decision,
+    rounds_closed: rows.length,
+    adjusted: Number(adjustResult.adjusted || 0),
+    failed: failed.length,
+    results: adjustResult.results || [],
+    message: decision === 'approved'
+      ? ('อนุมัติรอบนับแล้ว — ปรับ Stock ' + Number(adjustResult.adjusted || 0) + ' รายการ')
+      : 'ส่งคืนให้นับใหม่แล้ว'
+  };
+}
+
 function approveStockCount(payload) {
-  var user = requirePermission({ authToken: payload.authToken }, 'manage_items');
+  // Admin เท่านั้น — เดิม gate ด้วย 'manage_items' ซึ่ง role 'leader' ก็มีติดมาด้วย
+  var user = requireStockCountAdmin({ authToken: payload.authToken });
   var sessionId = String(payload.session_id || '').trim();
   if (!sessionId) throw new Error('ต้องระบุ session_id');
   var decision = String(payload.decision || 'approved').trim();
@@ -5197,9 +5513,9 @@ function approveStockCount(payload) {
 
 function adjustStockFromCount(payload) {
   var session = getSessionUser({ authToken: payload.authToken });
-  // ปรับ Stock จริง — ต้องเป็นคนที่อนุมัติได้เท่านั้น ('view_logs' คือสิทธิ์ของช่างที่แค่กรอกยอดนับ
-  // ซึ่งกว้างเกินไปสำหรับ endpoint ที่แก้ยอดสต็อกได้โดยตรง)
-  requirePermission({ authToken: payload.authToken }, 'manage_items');
+  // ปรับ Stock จริง — Admin เท่านั้น ('view_logs' คือสิทธิ์ของช่างที่แค่กรอกยอดนับ กว้างเกินไป
+  // ส่วน 'manage_items' ก็ยังกว้างไป เพราะ role 'leader' ได้ติดมาโดยปริยาย)
+  requireStockCountAdmin({ authToken: payload.authToken });
   var diffItems = payload.diff_items;
   if (typeof diffItems === 'string') { try { diffItems = JSON.parse(diffItems); } catch(e) { diffItems = []; } }
   if (!diffItems || !diffItems.length) return { status: 'success', adjusted: 0, results: [] };

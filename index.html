@@ -1905,9 +1905,9 @@
           </div>
           <div class="border-r border-white/10 px-4 py-3 text-center">
             <p class="text-2xl font-black text-emerald-400" id="scStatMatch">—</p>
-            <p class="text-[10px] font-semibold text-indigo-300 uppercase tracking-wide">✅ ตรงกัน</p>
+            <p class="text-[10px] font-semibold text-indigo-300 uppercase tracking-wide" id="scStatMatchLabel">✅ ตรงกัน</p>
           </div>
-          <div class="border-r border-white/10 px-4 py-3 text-center">
+          <div class="border-r border-white/10 px-4 py-3 text-center" id="scStatDiffTile">
             <p class="text-2xl font-black text-rose-400" id="scStatDiff">—</p>
             <p class="text-[10px] font-semibold text-indigo-300 uppercase tracking-wide">⚠️ ไม่ตรง</p>
           </div>
@@ -1963,12 +1963,15 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 ยกเลิก Session
               </button>
-              <button id="scSubmitBtn" type="button" style="background:#4f46e5;color:#ffffff;border:2px solid #3730a3;border-radius:12px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;">
+              <!-- บนมือถือซ่อนปุ่มนี้ แล้วใช้แถบส่งผลที่ติดขอบล่างจอแทน (#scMobileBar) -->
+              <button id="scSubmitBtn" type="button" class="hidden md:flex" style="background:#4f46e5;color:#ffffff;border:2px solid #3730a3;border-radius:12px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;align-items:center;gap:8px;white-space:nowrap;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#ffffff" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                 <span id="scSubmitLabel">ส่งผลให้ Engineer ตรวจสอบ</span>
               </button>
             </div>
           </div>
+          <!-- รอบการนับ + โหมดปิดยอด (นับซ้ำทาน) — รอบแรกนับโดยไม่เห็นยอดระบบ รอบ 2 เห็นยอดรอบแรก -->
+          <div id="scRoundBanner" class="hidden mt-3 rounded-xl px-3 py-2 text-xs font-semibold"></div>
           <!-- Progress bar -->
           <div class="mt-3">
             <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1">
@@ -1979,6 +1982,21 @@
               <div id="scProgressBar" class="h-2 rounded-full bg-indigo-500 transition-all duration-300" style="width:0%"></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- แถบส่งผลติดขอบล่างจอ (มือถือ) — นับ 75 รายการแล้วต้องเลื่อนกลับขึ้นไปหาปุ่มส่งบนสุดไม่ไหว -->
+      <div id="scMobileBar" class="hidden md:hidden fixed inset-x-0 bottom-0 z-[9970] border-t border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur" style="padding-bottom:calc(0.625rem + env(safe-area-inset-bottom));">
+        <div class="flex items-center gap-3">
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-[11px] font-semibold text-slate-500" id="scMobileBarProgress">0 / 0 รายการ</p>
+            <div class="mt-1 h-1.5 w-full rounded-full bg-slate-100">
+              <div id="scMobileBarFill" class="h-1.5 rounded-full bg-indigo-500 transition-all duration-300" style="width:0%"></div>
+            </div>
+          </div>
+          <button id="scSubmitBtnMobile" type="button" class="h-11 shrink-0 rounded-xl px-5 text-sm font-bold text-white shadow-sm" style="background:#4f46e5;">
+            <span id="scSubmitLabelMobile">ส่งผล</span>
+          </button>
         </div>
       </div>
 
@@ -1998,23 +2016,39 @@
           </select>
           <button id="scFillZeroBtn" type="button" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">ใส่ 0 ทุกรายการที่ยังไม่นับ</button>
           <button id="scFillSystemBtn" type="button" class="h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition">คัดลอกจำนวนจากระบบทั้งหมด</button>
-          <button id="scPrintSheetBtn" type="button" class="h-9 rounded-xl border-2 border-indigo-600 bg-indigo-600 px-3 text-xs font-bold text-white hover:bg-indigo-700 transition">🖨️ พิมพ์ใบนับ (มีรูป)</button>
-          <button id="scExportCsvBtn" type="button" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">⬇️ CSV</button>
-          <button id="scImportCsvBtn" type="button" class="h-9 rounded-xl border border-emerald-300 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition">⬆️ นำเข้า CSV</button>
+          <!-- ปุ่มเครื่องมือ: บนมือถือยุบไว้ใต้ปุ่ม "⋯ เครื่องมือ" เพราะงานพวกนี้ (ปริ้น/CSV) ทำบนคอม
+               ถ้าปล่อยไว้จะกินพื้นที่จอจนช่างต้องเลื่อนผ่านทุกครั้งกว่าจะถึงรายการที่ต้องนับ -->
+          <button id="scToolsToggleBtn" type="button" class="md:hidden h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600">⋯ เครื่องมือ</button>
+          <div id="scToolsRow" class="hidden w-full flex-wrap items-center gap-2 md:flex md:w-auto">
+            <button id="scPrintSheetBtn" type="button" class="h-9 rounded-xl border-2 border-indigo-600 bg-indigo-600 px-3 text-xs font-bold text-white hover:bg-indigo-700 transition">🖨️ พิมพ์ใบนับ (มีรูป)</button>
+            <button id="scExportCsvBtn" type="button" class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">⬇️ CSV</button>
+            <button id="scImportCsvBtn" type="button" class="h-9 rounded-xl border border-emerald-300 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition">⬆️ นำเข้า CSV</button>
+          </div>
           <input id="scImportCsvInput" type="file" accept=".csv,text/csv" class="hidden" />
         </div>
+        <!-- ชิปกรองสถานะสำหรับมือถือ — ตั้งค่าให้ #scFilterStatus แล้วยิง change ต่อ
+             เพื่อไม่ต้องมี logic กรองซ้อนอีกชุด -->
+        <div class="md:hidden flex gap-2 overflow-x-auto border-b border-slate-100 bg-white px-3 py-2">
+          <button type="button" data-sc-chip="all" class="sc-chip h-9 shrink-0 rounded-full border border-indigo-500 bg-indigo-500 px-4 text-xs font-bold text-white">ทั้งหมด</button>
+          <button type="button" data-sc-chip="pending" class="sc-chip h-9 shrink-0 rounded-full border border-slate-300 bg-white px-4 text-xs font-bold text-slate-600">⏳ ยังไม่นับ</button>
+          <button type="button" data-sc-chip="diff" class="sc-chip h-9 shrink-0 rounded-full border border-slate-300 bg-white px-4 text-xs font-bold text-slate-600">⚠️ ไม่ตรง</button>
+          <button type="button" data-sc-chip="match" class="sc-chip h-9 shrink-0 rounded-full border border-slate-300 bg-white px-4 text-xs font-bold text-slate-600">✅ ตรงกัน</button>
+        </div>
+        <!-- มือถือ: การ์ดต่อ 1 อะไหล่ (มีรูป กดดูเต็มจอได้) · คอม: ตารางเดิม -->
+        <div id="scCardList" class="md:hidden divide-y divide-slate-100"></div>
         <!-- Table header -->
-        <div class="overflow-x-auto">
+        <div class="hidden md:block overflow-x-auto">
           <table class="w-full text-sm min-w-[700px]">
             <thead class="bg-indigo-50 text-xs font-bold uppercase tracking-wide text-indigo-700">
               <tr>
                 <th class="px-3 py-3 text-left w-8">#</th>
+                <th class="px-3 py-3 text-left w-16">รูป</th>
                 <th class="px-3 py-3 text-left">ชื่ออะไหล่</th>
                 <th class="px-3 py-3 text-left hidden md:table-cell">รุ่น / แบรนด์</th>
                 <th class="px-3 py-3 text-center hidden sm:table-cell">ตำแหน่ง</th>
-                <th class="px-3 py-3 text-center">ในระบบ</th>
+                <th class="px-3 py-3 text-center sc-sys-col">ในระบบ</th>
                 <th class="px-3 py-3 text-center w-28">นับได้จริง</th>
-                <th class="px-3 py-3 text-center w-20">ส่วนต่าง</th>
+                <th class="px-3 py-3 text-center w-20 sc-sys-col">ส่วนต่าง</th>
                 <th class="px-3 py-3 text-left w-32 hidden lg:table-cell">เหตุผล</th>
               </tr>
             </thead>
@@ -8168,7 +8202,30 @@ function getIssueCartEntries() {
       return Number(item.counted) === Number(item.systemQty) ? 'match' : 'diff';
     }
 
+    // สถานะที่ "เอาไปแสดงผลได้" — ตอนนับรอบแรกห้ามระบายสีเขียว/แดงตามยอดระบบ เพราะสีนั้นบอก
+    // ยอดในระบบทางอ้อม (แดง = ไม่ตรงระบบ) ซึ่งทำลายจุดประสงค์ของการนับแบบปิดยอด
+    // scGetStatusClass ตัวเดิมยังใช้คำนวณสถิติ/ตอนส่งผลตามปกติ
+    function scGetDisplayStatus(item) {
+      var raw = scGetStatusClass(item);
+      if (!scIsBlind()) return raw;
+      if (raw === 'pending') return 'pending';
+      // รอบ 2 ขึ้นไป: เทียบกับยอดของรอบก่อนแทนยอดระบบ — ตรงกัน = ทานผ่าน, ไม่ตรง = ต้องให้ Admin ตัดสิน
+      if (item.prevCount !== null && item.prevCount !== undefined && item.prevCount !== '') {
+        return Number(item.counted) === Number(item.prevCount) ? 'match' : 'diff';
+      }
+      return 'done';
+    }
+
+    // ให้กรอกเหตุผลเฉพาะตอนที่มีอะไรให้อธิบายจริง ๆ — รอบแรกไม่มีตัวเทียบ ไม่ต้องถาม
+    function scNeedsReason(item) {
+      return scGetDisplayStatus(item) === 'diff';
+    }
+
     function scUpdateStats() {
+      // แถบส่งผลล่างจอต้องโผล่เฉพาะตอนมี session ค้างอยู่ — scUpdateStats ถูกเรียกทุกทางที่
+      // session เกิด/ดับ/เปลี่ยนยอด เลยคุมจากที่เดียวตรงนี้ ไม่ต้องไปไล่ toggle ทีละจุด
+      var mBar = document.getElementById('scMobileBar');
+      if (mBar) mBar.classList.toggle('hidden', !scSession);
       if (!scSession) {
         ['scStatTotal','scStatMatch','scStatDiff','scStatPending'].forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent='—'; });
         return;
@@ -8180,18 +8237,30 @@ function getIssueCartEntries() {
         if (s==='match') match++; else if (s==='diff') diff++; else pending++;
       });
       var el = function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
-      el('scStatTotal', total); el('scStatMatch', match); el('scStatDiff', diff); el('scStatPending', pending);
-      // Progress
       var counted = match + diff;
+      // นับรอบแรก (ปิดยอดระบบ) — ห้ามโชว์ ตรงกัน/ไม่ตรง เพราะเป็นการเฉลยยอดระบบกลาย ๆ
+      var blind = scIsBlind();
+      var matchLabel = document.getElementById('scStatMatchLabel');
+      var diffTile = document.getElementById('scStatDiffTile');
+      if (matchLabel) matchLabel.textContent = blind ? '📝 นับแล้ว' : '✅ ตรงกัน';
+      if (diffTile) diffTile.classList.toggle('hidden', blind);
+      el('scStatTotal', total);
+      el('scStatMatch', blind ? counted : match);
+      el('scStatDiff', diff);
+      el('scStatPending', pending);
+      // Progress
       var pct = total ? Math.round((counted/total)*100) : 0;
       var pb = document.getElementById('scProgressBar'); if(pb) pb.style.width = pct+'%';
       var pt = document.getElementById('scProgressText'); if(pt) pt.textContent = counted+' / '+total+' รายการ ('+pct+'%)';
+      var mbf = document.getElementById('scMobileBarFill'); if(mbf) mbf.style.width = pct+'%';
+      var mbp = document.getElementById('scMobileBarProgress');
+      if (mbp) mbp.textContent = counted+' / '+total+' รายการ ('+pct+'%)';
       // Discrepancy panel
       var diffItems = items.filter(function(it){ return scGetStatusClass(it)==='diff'; });
       var diffPanel = document.getElementById('scSummaryPanel');
       var diffList = document.getElementById('scDiffList');
       if (diffPanel && diffList) {
-        diffPanel.classList.toggle('hidden', diffItems.length===0);
+        diffPanel.classList.toggle('hidden', blind || diffItems.length===0);
         diffList.innerHTML = diffItems.map(function(it){
           var v = Number(it.counted)-Number(it.systemQty);
           var color = v<0 ? '#be123c':'#0369a1';
@@ -8207,31 +8276,176 @@ function getIssueCartEntries() {
       }
     }
 
+    // คีย์ระบุอะไหล่ 1 ตัวในรอบนับ — ต้องตรงกับ stockCountItemKey ฝั่ง Backend เป๊ะ ๆ
+    // ไม่งั้นยอดของรอบก่อนจะจับคู่ไม่เจอแล้วรอบ 2 จะกลายเป็นนับแบบปิดยอดไปด้วย
+    // ใส่ชีทต้นทางในคีย์เพราะชื่ออะไหล่ซ้ำกันข้ามชีทได้ (ห้ามจับคู่ข้ามไลน์ ตามกติกาเดิมของระบบ)
+    function scItemKey(name, model, sheet) {
+      var m = String(model === null || model === undefined ? '' : model).trim();
+      if (m === '-') m = '';
+      return [String(name||'').trim().toLowerCase(), m.toLowerCase(), String(sheet||'').trim().toLowerCase()].join('||');
+    }
+
+    // ป้ายบอกว่ากำลังนับรอบที่เท่าไหร่ และเห็น/ไม่เห็นยอดอะไรบ้าง
+    function scRenderRoundBanner() {
+      var el = document.getElementById('scRoundBanner');
+      if (!el) return;
+      if (!scSession) { el.classList.add('hidden'); return; }
+      el.classList.remove('hidden');
+      if (!scSession.blind) {
+        el.className = 'mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600';
+        el.textContent = '🔓 คุณเป็น Admin — เห็นยอดในระบบและปรับยอดได้เอง';
+        return;
+      }
+      if (scSession.roundNo <= 1) {
+        el.className = 'mt-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800';
+        el.textContent = '🔒 นับรอบที่ 1 — ปิดยอดในระบบไว้ ให้นับตามของจริงที่เห็นเท่านั้น';
+        return;
+      }
+      el.className = 'mt-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-800';
+      el.textContent = '🔁 นับทานรอบที่ ' + scSession.roundNo + ' — เทียบกับยอดที่ ' +
+        (scSession.prevBy ? scSession.prevBy + ' ' : 'รอบก่อน') + 'นับไว้ · ยอดในระบบยังปิดอยู่';
+    }
+
+    // นับซ้ำทาน: รอบแรกต้องนับโดยไม่เห็นยอดในระบบ (กันเผลอเออออตามตัวเลขเดิม)
+    // รอบ 2 ขึ้นไปเห็นยอดที่รอบก่อนหน้านับได้ เพื่อ "ทาน" ว่าตรงกันไหม
+    function scIsBlind() {
+      return !!(scSession && scSession.blind);
+    }
+
+    // มีตัวเลขอ้างอิงให้ผู้นับคนนี้เห็นไหม (ยอดระบบสำหรับ Admin / ยอดรอบก่อนสำหรับรอบ 2+)
+    function scHasRefQty(it) {
+      if (!scIsBlind()) return true;
+      return it.prevCount !== null && it.prevCount !== undefined && it.prevCount !== '';
+    }
+
+    // ค่าอ้างอิงที่ปุ่ม "=" จะเติมให้
+    function scRefQtyValue(it) {
+      return scIsBlind() ? Number(it.prevCount) : Number(it.systemQty);
+    }
+
+    // ยอดอ้างอิงที่ผู้นับคนนี้ควรเห็น: รอบแรก = ไม่เห็นอะไรเลย, รอบถัดไป = ยอดของรอบก่อน
+    function scRefQtyHtml(it) {
+      if (!scIsBlind()) return '<span class="font-bold text-slate-800">' + escHtml(String(it.systemQty)) + '</span>';
+      if (it.prevCount !== null && it.prevCount !== undefined && it.prevCount !== '') {
+        return '<span class="font-bold text-violet-700">' + escHtml(String(it.prevCount)) + '</span>' +
+          '<span class="ml-1 text-[10px] text-violet-400">รอบก่อน</span>';
+      }
+      return '<span class="font-semibold text-violet-400">🔒 ปิดยอดไว้</span>';
+    }
+
+    function scVarianceHtml(it) {
+      if (it.counted===null || it.counted==='' || it.counted===undefined) return '<span class="text-slate-300">—</span>';
+      // รอบแรกยังไม่ให้เห็นส่วนต่างจากระบบ — จะกลายเป็นการบอกยอดระบบทางอ้อม
+      if (scIsBlind()) {
+        if (it.prevCount === null || it.prevCount === undefined || it.prevCount === '') return '<span class="text-slate-300">—</span>';
+        var pv = Number(it.counted) - Number(it.prevCount);
+        return pv === 0 ? '<span class="font-bold text-emerald-600">✓ ตรงรอบก่อน</span>'
+          : '<span class="font-bold text-amber-600">' + (pv>0?'+':'') + pv + ' จากรอบก่อน</span>';
+      }
+      var varNum = Number(it.counted) - Number(it.systemQty);
+      return varNum===0 ? '<span class="font-bold text-emerald-600">✓</span>'
+        : '<span class="font-bold '+(varNum<0?'text-rose-600':'text-blue-600')+'">'+(varNum>0?'+':'')+varNum+'</span>';
+    }
+
+    // การ์ดสำหรับมือถือ — รูปกดดูเต็มจอได้ + ปุ่ม −/+ ที่นิ้วโป้งกดง่ายกว่าการจิ้มช่องตัวเลข
+    function scRenderCards() {
+      var list = document.getElementById('scCardList');
+      if (!list || !scSession) return;
+      var items = scGetFilteredItems();
+      if (!items.length) { list.innerHTML = '<div class="px-4 py-10 text-center text-slate-400 text-sm">ไม่พบรายการ</div>'; return; }
+      list.innerHTML = items.map(function(it) {
+        var s = scGetDisplayStatus(it);
+        var edge = s==='match' ? 'border-emerald-400' : s==='diff' ? 'border-rose-400' : s==='done' ? 'border-indigo-400' : 'border-transparent';
+        var bg = s==='match' ? 'bg-emerald-50/50' : s==='diff' ? 'bg-rose-50/50' : s==='done' ? 'bg-indigo-50/40' : 'bg-white';
+        var img = String(it.image||'');
+        var val = (it.counted!==null&&it.counted!==undefined&&it.counted!=='') ? String(it.counted) : '';
+        var inputBorder = s==='diff' ? 'border-rose-400 bg-rose-50' : s==='match' ? 'border-emerald-400 bg-emerald-50' : s==='done' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-300 bg-white';
+        return '<div class="border-l-4 ' + edge + ' ' + bg + ' px-3 py-3">' +
+          '<div class="flex gap-3">' +
+            // กดที่รูปเพื่อเปิดดูเต็มจอ (ใช้ lightbox ตัวเดียวกับหน้า Stock ซึ่ง pinch-zoom ได้อยู่แล้ว)
+            '<button type="button" ' + (img ? 'data-sc-img="' + escHtml(img) + '"' : 'disabled') +
+              ' class="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">' +
+              (img
+                ? '<img src="' + escHtml(img) + '" alt="" loading="lazy" decoding="async" class="h-full w-full object-contain bg-white" />' +
+                  '<span class="absolute bottom-0 right-0 rounded-tl-lg bg-slate-900/60 px-1 text-[9px] text-white">🔍</span>'
+                : '<span class="flex h-full w-full items-center justify-center text-[9px] text-slate-400">ไม่มีรูป</span>') +
+            '</button>' +
+            '<div class="min-w-0 flex-1">' +
+              '<p class="text-sm font-bold leading-tight text-slate-900">' + escHtml(it.name) + '</p>' +
+              '<p class="mt-0.5 text-[11px] text-slate-500">' + escHtml(it.model||'-') +
+                (it.brand && it.brand!=='-' ? ' · <span class="font-semibold text-indigo-500">' + escHtml(it.brand) + '</span>' : '') + '</p>' +
+              '<div class="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">' +
+                '<span class="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600">📍 ' + escHtml(it.location||'-') + '</span>' +
+                '<span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-slate-600">' + escHtml(it.unit||'PCS') + '</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="mt-2.5 flex items-center gap-2">' +
+            '<div class="shrink-0 rounded-lg bg-slate-50 px-2 py-1 text-[11px] text-slate-500">' +
+              // รอบแรกไม่มีตัวเลขอ้างอิงอะไรเลย อย่าขึ้นคำว่า "รอบก่อน:" ให้สับสน
+              (!scIsBlind() ? 'ในระบบ: ' : scHasRefQty(it) ? 'รอบก่อน: ' : '') + scRefQtyHtml(it) +
+            '</div>' +
+            '<div class="ml-auto flex items-center gap-1.5">' +
+              '<button type="button" data-sc-step="-1" data-sc-idx="' + it._idx + '" class="h-11 w-11 shrink-0 rounded-xl border-2 border-slate-300 bg-white text-lg font-black text-slate-600 active:bg-slate-100">−</button>' +
+              '<input type="number" inputmode="numeric" min="0" step="1" data-sc-idx="' + it._idx + '" data-sc-field="counted"' +
+                ' value="' + escHtml(val) + '" placeholder="—"' +
+                ' class="h-11 w-16 rounded-xl border-2 ' + inputBorder + ' px-1 text-center text-base font-black outline-none focus:border-indigo-500" />' +
+              '<button type="button" data-sc-step="1" data-sc-idx="' + it._idx + '" class="h-11 w-11 shrink-0 rounded-xl border-2 border-slate-300 bg-white text-lg font-black text-slate-600 active:bg-slate-100">+</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="mt-2 flex items-center gap-2">' +
+            '<span class="text-xs" data-sc-var="' + it._idx + '">' + scVarianceHtml(it) + '</span>' +
+            // ปุ่มลัดของเคสที่เจอบ่อยที่สุด: ยอดตรงกับตัวเลขอ้างอิงที่เห็นอยู่
+            // รอบแรกไม่มีให้กด เพราะยังไม่มีตัวเลขอะไรให้อ้างอิงเลย
+            (scHasRefQty(it)
+              ? '<button type="button" data-sc-same="' + it._idx + '" class="ml-auto h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-[11px] font-bold text-indigo-700 active:bg-indigo-100">= ' +
+                (scIsBlind() ? 'ตรงรอบก่อน' : 'ตรงกับระบบ') + '</button>'
+              : '') +
+          '</div>' +
+          '<div data-sc-reason-wrap="' + it._idx + '" class="' + (scNeedsReason(it) ? 'mt-2' : 'hidden') + '">' +
+            '<input type="text" data-sc-idx="' + it._idx + '" data-sc-field="reason" value="' + escHtml(it.reason||'') + '"' +
+              ' placeholder="ระบุเหตุผลที่ไม่ตรง..." class="h-10 w-full rounded-xl border border-slate-300 px-3 text-xs" />' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
     function scRenderTable() {
+      scSyncChips();
+      scRenderCards();
+      // ซ่อนคอลัมน์ "ในระบบ"/"ส่วนต่าง" ของตารางคอมตอนนับรอบแรก ให้ตรงกับการ์ดมือถือ
+      Array.prototype.forEach.call(document.querySelectorAll('#stockCountPage .sc-sys-col'), function(el) {
+        el.classList.toggle('hidden', scIsBlind());
+      });
       var tbody = document.getElementById('scTableBody');
       if (!tbody || !scSession) return;
       var items = scGetFilteredItems();
-      if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">ไม่พบรายการ</td></tr>'; return; }
+      if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">ไม่พบรายการ</td></tr>'; return; }
       tbody.innerHTML = items.map(function(it) {
         var s = scGetStatusClass(it);
-        var varNum = (it.counted!==null&&it.counted!==''&&it.counted!==undefined) ? Number(it.counted)-Number(it.systemQty) : null;
-        var varHtml = varNum===null ? '<span class="text-slate-300">—</span>'
-          : varNum===0 ? '<span class="font-bold text-emerald-600">✓</span>'
-          : '<span class="font-bold '+(varNum<0?'text-rose-600':'text-blue-600')+'">'+(varNum>0?'+':'')+varNum+'</span>';
+        var varHtml = scVarianceHtml(it);
         var rowBg = s==='match'?'bg-emerald-50/40':s==='diff'?'bg-rose-50/40':'bg-white';
         var borderL = s==='match'?'border-l-4 border-emerald-400':s==='diff'?'border-l-4 border-rose-400':'border-l-4 border-transparent';
+        var timg = String(it.image||'');
         return '<tr class="'+rowBg+' '+borderL+' hover:bg-indigo-50/30 transition">' +
           '<td class="px-3 py-2.5 text-xs text-slate-400 font-mono">'+(it._idx+1)+'</td>' +
+          '<td class="px-3 py-2.5">' +
+            '<button type="button" ' + (timg ? 'data-sc-img="' + escHtml(timg) + '"' : 'disabled') +
+              ' class="h-11 w-11 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">' +
+              (timg ? '<img src="' + escHtml(timg) + '" alt="" loading="lazy" decoding="async" class="h-full w-full object-contain bg-white" />'
+                    : '<span class="flex h-full w-full items-center justify-center text-[8px] text-slate-400">ไม่มีรูป</span>') +
+            '</button>' +
+          '</td>' +
           '<td class="px-3 py-2.5"><p class="font-semibold text-slate-900 text-sm leading-tight">'+it.name+'</p></td>' +
           '<td class="px-3 py-2.5 hidden md:table-cell text-xs text-slate-500">'+it.model+'<br/><span class="text-indigo-500 font-semibold">'+it.brand+'</span></td>' +
           '<td class="px-3 py-2.5 text-center hidden sm:table-cell"><span class="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-mono text-slate-600">'+it.location+'</span></td>' +
-          '<td class="px-3 py-2.5 text-center font-bold text-slate-800 text-base">'+it.systemQty+'</td>' +
+          '<td class="px-3 py-2.5 text-center text-base sc-sys-col' + (scIsBlind() ? ' hidden' : '') + '">' + scRefQtyHtml(it) + '</td>' +
           '<td class="px-3 py-2.5 text-center">' +
             '<input type="number" min="0" step="1" data-sc-idx="'+it._idx+'" data-sc-field="counted"' +
             ' value="'+(it.counted!==null&&it.counted!==undefined&&it.counted!==''?it.counted:'')+'"' +
             ' placeholder="—" class="h-9 w-20 rounded-xl border-2 '+(s==='diff'?'border-rose-400 bg-rose-50':s==='match'?'border-emerald-400 bg-emerald-50':'border-slate-300 bg-white')+' px-2 text-center text-sm font-bold outline-none focus:border-indigo-500 transition" />' +
           '</td>' +
-          '<td class="px-3 py-2.5 text-center text-lg">'+varHtml+'</td>' +
+          '<td class="px-3 py-2.5 text-center text-lg sc-sys-col' + (scIsBlind() ? ' hidden' : '') + '" data-sc-var="'+it._idx+'">'+varHtml+'</td>' +
           '<td class="px-3 py-2.5 hidden lg:table-cell">' +
             (s==='diff' ? '<input type="text" data-sc-idx="'+it._idx+'" data-sc-field="reason" value="'+(it.reason||'')+'" placeholder="ระบุเหตุผล..." class="h-8 w-full rounded-lg border border-slate-300 px-2 text-xs" />' : '<span class="text-slate-300 text-xs">—</span>') +
           '</td>' +
@@ -8260,6 +8474,16 @@ function getIssueCartEntries() {
       }
       var sheets = getSheetsForLine(line);
 
+      // ถามเซิร์ฟเวอร์ก่อนว่ารอบนับของ เดือน+ไลน์+หมวด นี้มีใครนับไปแล้วบ้าง เพื่อรู้ว่าเราเป็นรอบที่เท่าไหร่
+      // และดึงยอดของรอบก่อนหน้ามาโชว์ (รอบแรกจะไม่ได้อะไรกลับมา = นับแบบปิดยอด)
+      // ล้มเหลวไม่ควรบล็อกการนับ — ถือเป็นรอบแรกไปก่อน ดีกว่าเปิด session ไม่ได้เลย
+      var groupStatePromise = postJson(withAuthPayload({
+        action: 'getStockCountGroupState', month: month, line: line, category: cat
+      })).then(parseApiResponse).catch(function(err) {
+        console.warn('getStockCountGroupState failed', err);
+        return null;
+      });
+
       // โหลดทุก sheet แบบ parallel
       Promise.all(sheets.map(function(sheetName) {
         return loadJsonpWithFallback(function(base){
@@ -8278,6 +8502,10 @@ function getIssueCartEntries() {
         // normalizeRecordsInBatches may return promise or array
         return Promise.resolve(normalized);
       }).then(function(allRows) {
+        return groupStatePromise.then(function(gs) { return { allRows: allRows, groupState: gs }; });
+      }).then(function(bundle) {
+        var allRows = bundle.allRows;
+        var groupState = bundle.groupState || {};
         // dedup by name+model
         var seen = {};
         var pool = allRows.filter(function(p) {
@@ -8305,17 +8533,30 @@ function getIssueCartEntries() {
           return String(a.name||'').localeCompare(String(b.name||''), 'th');
         });
 
+        // ยอดของรอบก่อนหน้า map ด้วยคีย์เดียวกับที่ Backend ใช้จับคู่ (ชื่อ+รุ่น+ชีทต้นทาง)
+        var prevByKey = groupState.previous_counts || {};
+        var roundNo = Number(groupState.next_round || 1) || 1;
+
         scSession = {
           month: month, line: line, category: cat,
           sheets: sheets,
           createdBy: currentUser ? currentUser.username : 'Unknown',
           createdAt: new Date().toISOString(),
           status: 'counting',
+          groupId: groupState.group_id || '',
+          roundNo: roundNo,
+          prevBy: groupState.previous_by || '',
+          // Admin เป็นคนกระทบยอดจริง ต้องเห็นยอดระบบเพื่อกระทบยอด
+          // ส่วนช่าง/Leader นับแบบปิดยอดระบบเสมอ — รอบ 2 ขึ้นไปเห็นแค่ยอดที่รอบก่อนนับได้
+          blind: !isAdminUser(),
           items: pool.map(function(p){
+            var sheetName = p.__sourceSheet||'';
+            var prev = prevByKey[scItemKey(p.name, p.model||'-', sheetName)];
             return { id: p.id||p.no, name: p.name, model: p.model||'-', brand: p.brand||'-',
               location: p.location||'-', unit: p.unit||'PCS',
-              systemQty: Number(p.stock||0), counted: null, reason: '', sheet: p.__sourceSheet||'',
+              systemQty: Number(p.stock||0), counted: null, reason: '', sheet: sheetName,
               category: p.category||'General',
+              prevCount: (prev === undefined || prev === null) ? null : Number(prev),
               image: p.image_main_url || p.image_main || p.photo || '' };
           })
         };
@@ -8329,6 +8570,8 @@ function getIssueCartEntries() {
         if (sub) sub.textContent = 'เริ่มโดย '+(currentUser?currentUser.username:'?')+' · '+pool.length+' รายการ จาก '+sheets.join(', ')+' · กำลังนับ';
         var badge = document.getElementById('scActiveSessionBadge'); if(badge) badge.classList.remove('hidden');
         document.getElementById('scCountSheet').classList.remove('hidden');
+        scRenderRoundBanner();
+        scSyncSubmitLabel();
         scUpdateStats(); scRenderTable(); scSaveDraft();
         showQuickToast('✅ เปิด Session สำเร็จ — '+pool.length+' รายการ ('+sheets.length+' sheets)','success');
       }).catch(function(err) {
@@ -8341,12 +8584,15 @@ function getIssueCartEntries() {
     // คนที่มีสิทธิ์อนุมัติอยู่แล้ว (Admin / Engineer) ไม่ต้องส่งให้ใครตรวจ — ปรับ Stock ได้เลย
     // คนอื่นยังต้องเข้าคิว pending_approval ตามเดิม
     function scSubmitLabelText() {
-      return scCanApprove() ? 'ส่งผลและปรับ Stock ทันที' : 'ส่งผลให้ Engineer ตรวจสอบ';
+      return scCanApprove() ? 'ส่งผลและปรับ Stock ทันที' : 'ส่งผลให้ Admin ตรวจสอบ';
     }
 
     function scSyncSubmitLabel() {
       var el = document.getElementById('scSubmitLabel');
       if (el) el.textContent = scSubmitLabelText();
+      // ปุ่มบนแถบล่างจอมือถือแคบ ใช้ข้อความสั้นกว่า แต่ต้องสื่อผลลัพธ์เดียวกัน
+      var m = document.getElementById('scSubmitLabelMobile');
+      if (m) m.textContent = scCanApprove() ? 'ส่ง + ปรับ Stock' : 'ส่งผล';
     }
 
     function scSubmitSession() {
@@ -8382,6 +8628,10 @@ function getIssueCartEntries() {
         sheets: (scSession.sheets || []).join(', '),
         created_by: scSession.createdBy,
         created_at: scSession.createdAt,
+        // รอบนับซ้ำทาน — Backend ใช้ผูกว่าแถวนี้เป็นการนับครั้งที่เท่าไหร่ของรอบไหน
+        // และใช้กันไม่ให้คนเดิมถูกนับเป็น 2 คน (ส่งซ้ำ = ทับแถวของตัวเอง)
+        count_group_id: scSession.groupId || '',
+        round_no: scSession.roundNo || 1,
         total_items: items.length,
         matched: matched,
         diff_count: diffItems.length,
@@ -8423,6 +8673,10 @@ function getIssueCartEntries() {
 
         // ── STEP 3: สรุปผลและถามว่าจะ Export PDF ─────────────────
         var pct = items.length ? Math.round((matched/items.length)*100) : 0;
+        // ต้องอ่านโหมดปิดยอด "ก่อน" ล้าง scSession ทิ้ง ไม่งั้น scIsBlind() จะได้ false เสมอ
+        // แล้วกล่องสรุปจะเฉลย ตรงกัน/ไม่ตรง ให้ช่างที่นับแบบปิดยอดเห็น
+        var submitBlind = scIsBlind();
+        var uncountedCount = items.filter(function(it){ return scGetStatusClass(it) === 'pending'; }).length;
 
         // ปิด session ก่อน — ถึงตรงนี้แปลว่าบันทึกขึ้นชีทสำเร็จแล้ว ล้าง draft ได้
         scClearDraft();
@@ -8443,29 +8697,42 @@ function getIssueCartEntries() {
           ol.innerHTML = '<div style="background:#fff;border-radius:20px;width:100%;max-width:460px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.3);">' +
             '<div style="background:linear-gradient(135deg,#4f46e5,#3730a3);padding:20px 24px;">' +
               '<p style="font-size:13px;font-weight:600;color:#a5b4fc;margin:0 0 4px">' +
-                (res.autoApproved ? '✅ ปรับ Stock ตามยอดที่นับได้แล้ว' : '📤 ส่งผลให้ Engineer ตรวจสอบแล้ว') + '</p>' +
+                (res.autoApproved ? '✅ ปรับ Stock ตามยอดที่นับได้แล้ว' : '📤 ส่งผลให้ Admin ตรวจสอบแล้ว') + '</p>' +
               '<p style="font-size:18px;font-weight:800;color:#fff;margin:0">' + res.sessionId + '</p>' +
               '<p style="font-size:12px;color:#c7d2fe;margin:4px 0 0">' + sessionCopy.month + ' · ' + (sessionCopy.line==='all'?'ทุก Line':sessionCopy.line) + '</p>' +
             '</div>' +
             '<div style="padding:20px 24px;">' +
-              '<div style="display:flex;gap:10px;margin-bottom:14px;">' +
-                '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #e2e8f0;padding:10px">' +
-                  '<p style="font-size:24px;font-weight:900;color:#1d4ed8;margin:0">' + items.length + '</p>' +
-                  '<p style="font-size:11px;color:#64748b;margin:2px 0 0">ทั้งหมด</p>' +
-                '</div>' +
-                '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #bbf7d0;background:#f0fdf4;padding:10px">' +
-                  '<p style="font-size:24px;font-weight:900;color:#15803d;margin:0">' + matched + '</p>' +
-                  '<p style="font-size:11px;color:#166534;margin:2px 0 0">✅ ตรงกัน</p>' +
-                '</div>' +
-                '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #fca5a5;background:#fff1f2;padding:10px">' +
-                  '<p style="font-size:24px;font-weight:900;color:#dc2626;margin:0">' + diffItems.length + '</p>' +
-                  '<p style="font-size:11px;color:#9f1239;margin:2px 0 0">⚠️ ไม่ตรง</p>' +
-                '</div>' +
-                '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid;border-color:'+pctColor+';background:'+pctBg+';padding:10px">' +
-                  '<p style="font-size:24px;font-weight:900;margin:0;color:'+pctColor+'">' + pct + '%</p>' +
-                  '<p style="font-size:11px;margin:2px 0 0;color:'+pctColor+'">ความแม่น</p>' +
-                '</div>' +
-              '</div>' +
+              // ผู้ที่นับแบบปิดยอดห้ามเห็น ตรงกัน/ไม่ตรง/ความแม่น — เป็นการเฉลยยอดระบบย้อนหลัง
+              // และเพราะส่งซ้ำได้ (ทับของตัวเอง) ถ้าเห็นว่า "ไม่ตรง 21" ก็ย้อนกลับไปแก้ให้ตรงได้
+              (submitBlind
+                ? '<div style="display:flex;gap:10px;margin-bottom:14px;">' +
+                    '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #e2e8f0;padding:10px">' +
+                      '<p style="font-size:24px;font-weight:900;color:#1d4ed8;margin:0">' + items.length + '</p>' +
+                      '<p style="font-size:11px;color:#64748b;margin:2px 0 0">รายการทั้งหมด</p>' +
+                    '</div>' +
+                    '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #c4b5fd;background:#f5f3ff;padding:10px">' +
+                      '<p style="font-size:24px;font-weight:900;color:#6d28d9;margin:0">' + (items.length - uncountedCount) + '</p>' +
+                      '<p style="font-size:11px;color:#5b21b6;margin:2px 0 0">📝 นับแล้ว</p>' +
+                    '</div>' +
+                  '</div>'
+                : '<div style="display:flex;gap:10px;margin-bottom:14px;">' +
+                    '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #e2e8f0;padding:10px">' +
+                      '<p style="font-size:24px;font-weight:900;color:#1d4ed8;margin:0">' + items.length + '</p>' +
+                      '<p style="font-size:11px;color:#64748b;margin:2px 0 0">ทั้งหมด</p>' +
+                    '</div>' +
+                    '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #bbf7d0;background:#f0fdf4;padding:10px">' +
+                      '<p style="font-size:24px;font-weight:900;color:#15803d;margin:0">' + matched + '</p>' +
+                      '<p style="font-size:11px;color:#166534;margin:2px 0 0">✅ ตรงกัน</p>' +
+                    '</div>' +
+                    '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid #fca5a5;background:#fff1f2;padding:10px">' +
+                      '<p style="font-size:24px;font-weight:900;color:#dc2626;margin:0">' + diffItems.length + '</p>' +
+                      '<p style="font-size:11px;color:#9f1239;margin:2px 0 0">⚠️ ไม่ตรง</p>' +
+                    '</div>' +
+                    '<div style="flex:1;text-align:center;border-radius:10px;border:2px solid;border-color:'+pctColor+';background:'+pctBg+';padding:10px">' +
+                      '<p style="font-size:24px;font-weight:900;margin:0;color:'+pctColor+'">' + pct + '%</p>' +
+                      '<p style="font-size:11px;margin:2px 0 0;color:'+pctColor+'">ความแม่น</p>' +
+                    '</div>' +
+                  '</div>') +
               (res.autoApproved
                 ? '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px;margin-bottom:14px;">' +
                     '<p style="font-size:13px;font-weight:700;color:#166534;margin:0 0 4px">✅ ปรับ Stock แล้ว ' + res.adjusted + ' รายการ</p>' +
@@ -8473,18 +8740,22 @@ function getIssueCartEntries() {
                     (res.failed ? ' · ⚠️ ปรับไม่สำเร็จ ' + res.failed + ' รายการ' : '') + '</p>' +
                   '</div>' + scFailedItemsListHtml(res.results)
                 : '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px;margin-bottom:14px;">' +
-                    '<p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 4px">⏳ รอ Engineer / Admin อนุมัติ</p>' +
-                    '<p style="font-size:12px;color:#78350f;margin:0">ผลถูกบันทึกลง Google Sheet แล้ว — Stock จะถูกปรับเมื่อ Engineer อนุมัติเท่านั้น</p>' +
+                    '<p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 4px">⏳ รอ Admin ตรวจสอบ</p>' +
+                    '<p style="font-size:12px;color:#78350f;margin:0">ผลถูกบันทึกลง Google Sheet แล้ว — Stock จะถูกปรับเมื่อ Admin อนุมัติเท่านั้น</p>' +
                   '</div>') +
               '<div style="display:flex;gap:10px;">' +
                 '<button id="_scResultClose" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;font-weight:600;font-size:14px;cursor:pointer;color:#374151;">ปิด</button>' +
-                '<button id="_scResultPdf" style="flex:2;height:42px;border-radius:12px;border:none;background:linear-gradient(135deg,#4f46e5,#3730a3);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">📄 Export PDF รายงาน</button>' +
+                // รายงาน PDF เป็นเอกสารกระทบยอด (มีคอลัมน์ยอดระบบ + ส่วนต่าง) — ไม่ให้คนที่นับ
+                // แบบปิดยอดโหลด ไม่งั้นกดปุ่มเดียวก็เห็นยอดระบบทั้งไลน์ที่เพิ่งนับไป
+                (submitBlind ? '' :
+                  '<button id="_scResultPdf" style="flex:2;height:42px;border-radius:12px;border:none;background:linear-gradient(135deg,#4f46e5,#3730a3);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">📄 Export PDF รายงาน</button>') +
               '</div>' +
             '</div>' +
           '</div>';
           document.body.appendChild(ol);
           ol.querySelector('#_scResultClose').addEventListener('click', function(){ document.body.removeChild(ol); });
-          ol.querySelector('#_scResultPdf').addEventListener('click', function(){
+          var pdfBtn = ol.querySelector('#_scResultPdf');
+          if (pdfBtn) pdfBtn.addEventListener('click', function(){
             document.body.removeChild(ol);
             scExportPdf(sessionCopy, res.sessionId, matched, diffItems);
           });
@@ -8637,6 +8908,7 @@ function getIssueCartEntries() {
           .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       };
       var now = new Date().toLocaleString('th-TH');
+      var blindPrint = scIsBlind();
       var rows = '', lastLoc = null, n = 0;
       items.forEach(function(it) {
         var loc = String(it.location||'-');
@@ -8652,7 +8924,9 @@ function getIssueCartEntries() {
           '<td><span class="nm">' + esc(it.name) + '</span>' +
             '<span class="sub">' + esc(it.model||'-') + (it.brand && it.brand!=='-' ? ' · ' + esc(it.brand) : '') + '</span></td>' +
           '<td class="c unit">' + esc(it.unit||'PCS') + '</td>' +
-          '<td class="c sys">' + esc(it.systemQty) + '</td>' +
+          // ตอนนับแบบปิดยอด ห้ามให้ตัวเลขหลุดลงกระดาษ — ซ่อนด้วย CSS ไม่พอ ใครก็เปิด
+          // ดู source ของหน้าปริ้นได้ ต้องไม่พิมพ์ค่าลงไปตั้งแต่แรก
+          '<td class="c sys">' + (blindPrint ? '—' : esc(it.systemQty)) + '</td>' +
           '<td class="c"><div class="box"></div></td>' +
           '<td class="note"></td>' +
         '</tr>';
@@ -8761,9 +9035,12 @@ function getIssueCartEntries() {
       var head = ['#','ชื่ออะไหล่','รุ่น','แบรนด์','ตำแหน่ง','หน่วย','ยอดในระบบ','นับได้จริง','หมายเหตุ','ลิงก์รูป'];
       var q = function(v){ return '"' + String(v===null||v===undefined?'':v).replace(/"/g,'""') + '"'; };
       var lines = [head.map(q).join(',')];
+      // ตอนนับแบบปิดยอด คอลัมน์ "ยอดในระบบ" ต้องออกมาว่าง ไม่งั้นกด Export ทีเดียวก็เห็นยอดทั้งไลน์
+      // (คอลัมน์ยังต้องอยู่ครบ เพราะ scApplyImportedCsv หาคอลัมน์จากชื่อหัว ตัดออกแล้วนำเข้ากลับไม่ได้)
+      var blindCsv = scIsBlind();
       items.forEach(function(it, i) {
         lines.push([i+1, it.name, it.model||'-', it.brand||'-', it.location||'-', it.unit||'PCS',
-          it.systemQty, (it.counted===null||it.counted===undefined?'':it.counted), it.reason||'', it.image||''].map(q).join(','));
+          (blindCsv ? '' : it.systemQty), (it.counted===null||it.counted===undefined?'':it.counted), it.reason||'', it.image||''].map(q).join(','));
       });
       var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
       var a = document.createElement('a');
@@ -8846,8 +9123,12 @@ function getIssueCartEntries() {
     // เปิดคนละเครื่องจะเห็นคิวว่างเปล่า และผลนับหายถ้าล้าง browser data
     var scHistoryRows = [];
 
+    // ปรับยอดสต็อกจากการเช็คสต็อก = งานของ Admin เท่านั้น
+    // ห้ามใช้ hasPermission('manage_items') เด็ดขาด — role 'leader' ได้สิทธิ์นั้นติดมาโดยปริยาย
+    // (ดู getRoleDefaultPermissions ใน Backend.gs) ซึ่งจะทำให้ Leader ปรับยอดได้ด้วย
+    // ฝั่ง Backend gate ด้วย requireStockCountAdmin ซ้ำอีกชั้น — ตรงนี้แค่ไม่โชว์ปุ่มให้เปล่า ๆ
     function scCanApprove() {
-      return hasPermission('manage_items') || isAdminUser();
+      return isAdminUser();
     }
 
     // ── Draft: กันยอดที่นับไปแล้วหายตอนรีเฟรช/ปิดแท็บ/เน็ตหลุด ────────────────
@@ -8891,6 +9172,10 @@ function getIssueCartEntries() {
       }).then(function(ok) {
         if (!ok) return; // ไม่ลบ draft ทิ้ง — เผลอกดผิดจะได้ยังกู้ได้ตอนเปิดหน้าครั้งหน้า
         scSession = draft.session;
+        // คำนวณโหมดปิดยอดใหม่จากผู้ใช้ปัจจุบันเสมอ — draft ที่เซฟไว้ก่อนมีฟีเจอร์นี้ไม่มีฟิลด์ blind
+        // (undefined = เห็นยอดระบบ) และคนละคนอาจกู้ draft เดียวกันบนเครื่องที่ใช้ร่วมกัน
+        scSession.blind = !isAdminUser();
+        if (!scSession.roundNo) scSession.roundNo = 1;
         scResumeSessionUi();
         showQuickToast('กู้การนับที่ค้างไว้แล้ว — นับต่อได้เลย', 'success');
       });
@@ -8907,6 +9192,7 @@ function getIssueCartEntries() {
       document.getElementById('scActiveSession').classList.remove('hidden');
       document.getElementById('scCountSheet').classList.remove('hidden');
       var badge = document.getElementById('scActiveSessionBadge'); if (badge) badge.classList.remove('hidden');
+      scRenderRoundBanner();
       scSyncSubmitLabel();
       scUpdateStats(); scRenderTable();
     }
@@ -9013,6 +9299,9 @@ function getIssueCartEntries() {
         list.innerHTML = '<div class="px-4 py-6 text-center text-slate-400 text-sm">ยังไม่มีประวัติ</div>';
         return;
       }
+      // คนที่นับแบบปิดยอดต้องไม่เห็น "ตรง 52/74" ย้อนหลัง — เป็นการเฉลยว่านับพลาดกี่ตัว
+      // และเพราะส่งซ้ำได้ (ทับผลของตัวเอง) ถ้าเห็นตัวเลขนี้ก็ย้อนไปแก้ให้ตรงระบบได้
+      var showAccuracy = scCanApprove();
       list.innerHTML = scHistoryRows.map(function(h) {
         var total = Number(h.total_items) || 0;
         var matched = Number(h.matched) || 0;
@@ -9030,8 +9319,11 @@ function getIssueCartEntries() {
             '<p class="text-xs text-slate-500">โดย ' + escHtml(h.created_by) + ' · ' + escHtml(scFmtTime(h.submitted_at)) + approvedNote + '</p>' +
           '</div>' +
           '<div class="text-right shrink-0">' +
-            '<p class="font-black text-lg ' + color + '">' + pct + '%</p>' +
-            '<p class="text-[11px] text-slate-400">ตรง ' + matched + '/' + total + '</p>' +
+            (showAccuracy
+              ? '<p class="font-black text-lg ' + color + '">' + pct + '%</p>' +
+                '<p class="text-[11px] text-slate-400">ตรง ' + matched + '/' + total + '</p>'
+              : '<p class="font-black text-lg text-slate-700">' + total + '</p>' +
+                '<p class="text-[11px] text-slate-400">รายการ</p>') +
           '</div>' +
         '</div>';
       }).join('');
@@ -9044,30 +9336,51 @@ function getIssueCartEntries() {
       if (!pendingSec || !pendingList) return;
       var pending = scHistoryRows.filter(function(h){ return !!h.is_pending; });
       if (pendingBadge) pendingBadge.textContent = String(pending.length);
-      // ฝั่ง Backend gate ด้วย manage_items อยู่แล้ว ตรงนี้แค่ไม่ต้องโชว์ปุ่มให้ช่างเห็นเปล่าๆ
+      // ฝั่ง Backend gate ด้วย requireStockCountAdmin อยู่แล้ว ตรงนี้แค่ไม่ต้องโชว์ปุ่มให้ช่างเห็นเปล่าๆ
       if (!scCanApprove() || !pending.length) { pendingSec.classList.add('hidden'); return; }
       pendingSec.classList.remove('hidden');
-      pendingList.innerHTML = pending.map(function(h) {
-        var total = Number(h.total_items) || 0;
-        var matched = Number(h.matched) || 0;
-        var diffCount = Number(h.diff_count) || 0;
-        var pct = total ? Math.round((matched / total) * 100) : 0;
-        var sid = escHtml(h.session_id);
+
+      // จัดกลุ่มตามรอบนับ — 1 รอบมีได้หลายคนนับ (นับซ้ำทาน) ต้องอนุมัติทั้งรอบพร้อมกัน
+      // ไม่ใช่ทีละคน ไม่งั้นคนแรกอนุมัติไปแล้วยอดขยับ พอคนที่สองมาอนุมัติจะปรับซ้ำอีกรอบ
+      // แถวเก่าที่ยังไม่มี count_group_id (ส่งก่อนอัปเดตนี้) ให้แต่ละแถวเป็นกลุ่มของตัวเอง
+      var groups = [];
+      var byGroup = {};
+      pending.forEach(function(h) {
+        var gid = String(h.count_group_id || '').trim();
+        var key = gid || ('__legacy__' + h.session_id);
+        if (!byGroup[key]) {
+          byGroup[key] = { key: key, groupId: gid, rows: [], month: h.month, line: h.line, category: h.category };
+          groups.push(byGroup[key]);
+        }
+        byGroup[key].rows.push(h);
+      });
+
+      pendingList.innerHTML = groups.map(function(g) {
+        g.rows.sort(function(a, b){ return (Number(a.round_no)||0) - (Number(b.round_no)||0); });
+        var latest = g.rows[g.rows.length - 1];
+        var total = Number(latest.total_items) || 0;
+        var counters = g.rows.map(function(r) {
+          return '<span class="rounded-full bg-white border border-amber-300 px-2 py-0.5 text-[11px] font-semibold text-amber-800">' +
+            'รอบ ' + (Number(r.round_no)||1) + ': ' + escHtml(r.created_by) + '</span>';
+        }).join(' ');
+        var enough = g.rows.length >= 2;
         return '<div class="px-4 py-4 bg-white">' +
           '<div class="flex items-center justify-between gap-3 flex-wrap">' +
-            '<div>' +
-              '<p class="font-bold text-slate-900">' + escHtml(h.month) + ' — ' + escHtml(scLineLabel(h.line)) + '</p>' +
-              '<p class="text-xs text-slate-500 mt-0.5">ส่งโดย ' + escHtml(h.created_by) + ' · ' + escHtml(scFmtTime(h.submitted_at)) + '</p>' +
+            '<div class="min-w-0">' +
+              '<p class="font-bold text-slate-900">' + escHtml(g.month) + ' — ' + escHtml(scLineLabel(g.line)) + '</p>' +
+              '<div class="mt-1 flex flex-wrap gap-1.5">' + counters + '</div>' +
               '<div class="mt-1.5 flex gap-3 text-xs flex-wrap">' +
                 '<span class="font-semibold text-slate-700">รายการทั้งหมด: ' + total + '</span>' +
-                '<span class="font-semibold text-emerald-700">✅ ตรง: ' + matched + '</span>' +
-                (diffCount ? '<span class="font-bold text-rose-600">⚠️ ไม่ตรง: ' + diffCount + '</span>' : '') +
-                '<span class="font-bold" style="color:' + (pct>=95?'#15803d':pct>=80?'#b45309':'#be123c') + '">' + pct + '%</span>' +
+                '<span class="font-semibold ' + (enough ? 'text-emerald-700' : 'text-amber-700') + '">' +
+                  (enough ? '✅ นับทานแล้ว ' + g.rows.length + ' คน' : '⚠️ มีคนนับแค่ 1 คน (ยังไม่มีคนทาน)') + '</span>' +
+                '<span class="text-slate-400">ส่งล่าสุด ' + escHtml(scFmtTime(latest.submitted_at)) + '</span>' +
               '</div>' +
             '</div>' +
             '<div class="flex gap-2 shrink-0">' +
-              '<button data-sc-decide="rejected" data-sc-session="' + sid + '" class="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition">↩ ส่งคืนแก้ไข</button>' +
-              '<button data-sc-decide="approved" data-sc-session="' + sid + '" class="rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition" style="background:#059669;">✅ อนุมัติและปรับ Stock</button>' +
+              (g.groupId
+                ? '<button data-sc-compare="' + escHtml(g.groupId) + '" data-sc-line="' + escHtml(String(g.line||'')) + '" class="rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition" style="background:#4f46e5;">🔍 ดูผลเทียบ &amp; อนุมัติ</button>'
+                : '<button data-sc-decide="approved" data-sc-session="' + escHtml(latest.session_id) + '" class="rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition" style="background:#059669;">✅ อนุมัติและปรับ Stock</button>') +
+              '<button data-sc-decide="rejected" data-sc-session="' + escHtml(latest.session_id) + '" class="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition">↩ ส่งคืน</button>' +
             '</div>' +
           '</div>' +
         '</div>';
@@ -9075,6 +9388,189 @@ function getIssueCartEntries() {
 
       pendingList.querySelectorAll('[data-sc-decide]').forEach(function(btn) {
         btn.addEventListener('click', function() { scDecide(btn); });
+      });
+      pendingList.querySelectorAll('[data-sc-compare]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          scOpenComparison(btn.getAttribute('data-sc-compare'), btn.getAttribute('data-sc-line'));
+        });
+      });
+    }
+
+    // ── Admin: ผลเทียบของรอบนับซ้ำทาน ────────────────────────────────────────────
+    // ยอดในระบบถูกเปิดเผยเฉพาะตรงนี้ (Admin เท่านั้น) — ฝั่งช่างนับแบบปิดยอดเสมอ
+    var scCompareState = null;
+
+    function scOpenComparison(groupId, line) {
+      showQuickToast('กำลังโหลดผลเทียบ...', 'info');
+      postJson(withAuthPayload({ action: 'getStockCountComparison', count_group_id: groupId }))
+        .then(parseApiResponse)
+        .then(function(res) {
+          scCompareState = {
+            groupId: groupId,
+            line: line || '',
+            counters: res.counters || [],
+            summary: res.summary || {},
+            // ยอดสุดท้ายที่ Admin จะใช้ปรับ: ตรงกันหมด = ใช้เลยอัตโนมัติ · ขัดกัน = ต้องเลือกก่อน
+            items: (res.items || []).map(function(it) {
+              it.final = it.agree ? it.agreed_value : null;
+              return it;
+            })
+          };
+          scRenderComparison();
+        })
+        .catch(function(err) {
+          showQuickToast('โหลดผลเทียบไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        });
+    }
+
+    function scCompareBucketMeta(bucket) {
+      if (bucket === 'conflict') return { label: '❌ นับไม่ตรงกันเอง', cls: 'border-rose-300 bg-rose-50', note: 'ต้องเลือกว่าจะยึดยอดของใคร' };
+      if (bucket === 'adjust')  return { label: '⚠️ ตรงกันแต่ต่างจากระบบ', cls: 'border-amber-300 bg-amber-50', note: 'ทุกคนนับได้เท่ากัน — ยอดนี้น่าเชื่อถือ' };
+      if (bucket === 'uncounted') return { label: '⏳ ยังไม่มีใครนับ', cls: 'border-slate-200 bg-slate-50', note: 'จะไม่ถูกปรับยอด' };
+      return { label: '✅ ตรงกันและตรงระบบ', cls: 'border-emerald-200 bg-emerald-50', note: 'ไม่ต้องทำอะไร' };
+    }
+
+    function scRenderComparison() {
+      if (!scCompareState) return;
+      var st = scCompareState;
+      var existing = document.getElementById('scCompareModal');
+      if (existing) existing.parentNode.removeChild(existing);
+
+      var s = st.summary || {};
+      var needResolve = st.items.filter(function(i){ return i.bucket === 'conflict'; });
+      var unresolved = needResolve.filter(function(i){ return i.final === null || i.final === undefined; }).length;
+      var willAdjust = st.items.filter(function(i) {
+        return i.final !== null && i.final !== undefined && Number(i.final) !== Number(i.system_qty);
+      }).length;
+
+      var ol = document.createElement('div');
+      ol.id = 'scCompareModal';
+      ol.style.cssText = 'position:fixed;inset:0;z-index:10015;background:rgba(15,23,42,0.72);display:flex;align-items:flex-end;justify-content:center;';
+      ol.innerHTML =
+        '<div style="background:#fff;width:100%;max-width:820px;max-height:92vh;display:flex;flex-direction:column;border-radius:20px 20px 0 0;overflow:hidden;">' +
+          '<div style="background:linear-gradient(135deg,#4f46e5,#3730a3);padding:14px 18px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
+              '<div style="min-width:0">' +
+                '<p style="margin:0;font-size:15px;font-weight:800;color:#fff">🔍 ผลเทียบรอบนับซ้ำทาน</p>' +
+                '<p style="margin:3px 0 0;font-size:11px;color:#c7d2fe">' +
+                  escHtml(st.counters.map(function(c){ return 'รอบ ' + c.round_no + ': ' + c.by; }).join('  ·  ')) + '</p>' +
+              '</div>' +
+              '<button id="_scCmpClose" style="flex-shrink:0;height:34px;width:34px;border-radius:10px;border:0;background:rgba(255,255,255,0.18);color:#fff;font-size:17px;cursor:pointer">✕</button>' +
+            '</div>' +
+            '<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">' +
+              '<span style="border-radius:999px;background:#065f46;color:#d1fae5;padding:3px 10px;font-size:11px;font-weight:700">✅ ตรง+ตรงระบบ ' + (s.ok||0) + '</span>' +
+              '<span style="border-radius:999px;background:#92400e;color:#fef3c7;padding:3px 10px;font-size:11px;font-weight:700">⚠️ ต้องปรับ ' + (s.adjust||0) + '</span>' +
+              '<span style="border-radius:999px;background:#9f1239;color:#ffe4e6;padding:3px 10px;font-size:11px;font-weight:700">❌ ขัดกัน ' + (s.conflict||0) + '</span>' +
+              '<span style="border-radius:999px;background:#334155;color:#e2e8f0;padding:3px 10px;font-size:11px;font-weight:700">⏳ ยังไม่นับ ' + (s.uncounted||0) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div id="_scCmpBody" style="flex:1;overflow-y:auto;padding:12px 14px;background:#f8fafc;"></div>' +
+          '<div style="border-top:1px solid #e2e8f0;padding:12px 14px;background:#fff;">' +
+            (unresolved
+              ? '<p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#be123c">ยังมี ' + unresolved + ' รายการที่ยังไม่ได้เลือกว่าจะยึดยอดของใคร</p>'
+              : '<p style="margin:0 0 8px;font-size:12px;color:#475569">จะปรับยอด <b>' + willAdjust + '</b> รายการ · ที่เหลือตรงกับระบบอยู่แล้ว</p>') +
+            '<div style="display:flex;gap:8px">' +
+              '<button id="_scCmpReject" style="flex:1;height:44px;border-radius:12px;border:1.5px solid #fecdd3;background:#fff1f2;color:#be123c;font-weight:700;font-size:13px;cursor:pointer">↩ ส่งคืนให้นับใหม่</button>' +
+              '<button id="_scCmpApprove" ' + (unresolved ? 'disabled' : '') +
+                ' style="flex:2;height:44px;border-radius:12px;border:0;background:' + (unresolved ? '#cbd5e1' : '#059669') +
+                ';color:#fff;font-weight:800;font-size:14px;cursor:' + (unresolved ? 'not-allowed' : 'pointer') + '">✅ อนุมัติและปรับ Stock</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ol);
+
+      var body = ol.querySelector('#_scCmpBody');
+      body.innerHTML = st.items.map(function(it, i) {
+        var meta = scCompareBucketMeta(it.bucket);
+        var countChips = it.counts.map(function(c) {
+          var picked = it.final !== null && it.final !== undefined && Number(it.final) === Number(c.counted);
+          return '<button type="button" data-cmp-pick="' + i + '" data-cmp-val="' + c.counted + '"' +
+            ' style="border-radius:10px;border:2px solid ' + (picked ? '#4f46e5' : '#cbd5e1') + ';background:' + (picked ? '#eef2ff' : '#fff') +
+            ';padding:5px 10px;font-size:12px;cursor:pointer;text-align:left">' +
+            '<span style="display:block;font-size:10px;color:#64748b">' + escHtml(c.by) + ' (รอบ ' + c.round_no + ')</span>' +
+            '<b style="font-size:15px;color:#0f172a">' + c.counted + '</b></button>';
+        }).join('');
+        return '<div style="border:1.5px solid;border-radius:12px;padding:10px 12px;margin-bottom:8px" class="' + meta.cls + '">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+            '<div style="min-width:0;flex:1">' +
+              '<p style="margin:0;font-size:13px;font-weight:700;color:#0f172a">' + escHtml(it.name) + '</p>' +
+              '<p style="margin:2px 0 0;font-size:10.5px;color:#64748b">' + escHtml(it.model) + ' · ' + escHtml(it.sheet || '-') + '</p>' +
+            '</div>' +
+            '<div style="text-align:right;flex-shrink:0">' +
+              '<p style="margin:0;font-size:10px;color:#64748b">ในระบบ</p>' +
+              '<b style="font-size:16px;color:#0f172a">' + it.system_qty + '</b>' +
+            '</div>' +
+          '</div>' +
+          '<p style="margin:6px 0 0;font-size:10.5px;font-weight:700;color:#475569">' + meta.label + ' — ' + meta.note + '</p>' +
+          (it.counts.length
+            ? '<div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;align-items:center">' + countChips +
+              '<input type="number" min="0" data-cmp-manual="' + i + '" placeholder="กรอกเอง"' +
+              ' value="' + (it.final !== null && it.final !== undefined ? it.final : '') + '"' +
+              ' style="height:36px;width:92px;border-radius:10px;border:2px solid #cbd5e1;padding:0 8px;font-size:13px;font-weight:700;text-align:center" />' +
+              '</div>'
+            : '') +
+        '</div>';
+      }).join('');
+
+      body.querySelectorAll('[data-cmp-pick]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          st.items[Number(btn.getAttribute('data-cmp-pick'))].final = Number(btn.getAttribute('data-cmp-val'));
+          scRenderComparison();
+        });
+      });
+      body.querySelectorAll('[data-cmp-manual]').forEach(function(inp) {
+        inp.addEventListener('change', function() {
+          var it = st.items[Number(inp.getAttribute('data-cmp-manual'))];
+          it.final = inp.value === '' ? null : Number(inp.value);
+          scRenderComparison();
+        });
+      });
+      ol.querySelector('#_scCmpClose').addEventListener('click', function(){ document.body.removeChild(ol); });
+      ol.querySelector('#_scCmpReject').addEventListener('click', function(){ scSubmitComparison('rejected'); });
+      var okBtn = ol.querySelector('#_scCmpApprove');
+      if (okBtn && !unresolved) okBtn.addEventListener('click', function(){ scSubmitComparison('approved'); });
+    }
+
+    function scSubmitComparison(decision) {
+      if (!scCompareState) return;
+      var st = scCompareState;
+      var willAdjust = st.items.filter(function(i) {
+        return i.final !== null && i.final !== undefined && Number(i.final) !== Number(i.system_qty);
+      });
+      var dlg = decision === 'approved'
+        ? { title:'อนุมัติรอบนับ?', message:'ยอดในระบบของ ' + willAdjust.length + ' รายการจะถูกปรับตามที่ตัดสินไว้ทันที', okLabel:'อนุมัติและปรับ' }
+        : { title:'ส่งคืนให้นับใหม่?', message:'ผลนับของทุกคนในรอบนี้จะถูกตีกลับ ต้องเปิดรอบนับใหม่', okLabel:'ส่งคืน' };
+      showConfirmDialog(dlg).then(function(ok) {
+        if (!ok) return;
+        postJson(withAuthPayload({
+          action: 'approveStockCountGroup',
+          count_group_id: st.groupId,
+          line: st.line,
+          decision: decision,
+          // ส่งเฉพาะรายการที่ตัดสินยอดแล้ว — ที่ยังไม่มีใครนับต้องไม่ถูกแตะ
+          resolutions: JSON.stringify(st.items.filter(function(i) {
+            return i.final !== null && i.final !== undefined;
+          }).map(function(i) {
+            return { id: i.id, name: i.name, model: i.model, brand: i.brand, unit: i.unit,
+                     sheet: i.sheet, category: i.category, system_qty: i.system_qty, counted: i.final };
+          }))
+        })).then(parseApiResponse).then(function(res) {
+          var modal = document.getElementById('scCompareModal');
+          if (modal) document.body.removeChild(modal);
+          if (decision === 'approved') {
+            var msg = '✅ ปรับ Stock ' + (res.adjusted || 0) + ' รายการแล้ว';
+            if (res.failed) msg += ' · ไม่สำเร็จ ' + res.failed + ' รายการ';
+            showQuickToast(msg, res.failed ? 'warn' : 'success');
+            if (res.failed) scShowFailedItemsPopup(res.results);
+            loadPartsData({ skipCache: true });
+          } else {
+            showQuickToast('↩ ส่งคืนให้นับใหม่แล้ว', 'warn');
+          }
+          scCompareState = null;
+          return scRefresh();
+        }).catch(function(err) {
+          showQuickToast('ดำเนินการไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        });
       });
     }
 
@@ -9197,23 +9693,124 @@ function getIssueCartEntries() {
           if (file) scImportCountCsv(file);
         });
       }
-      if (tbody) tbody.addEventListener('input', function(e){
+      // ตาราง (คอม) กับการ์ด (มือถือ) แสดงรายการชุดเดียวกัน จึงใช้ handler ร่วมกัน
+      // ห้ามวาดใหม่ทั้งลิสต์ตอนพิมพ์ เพราะช่องที่กำลังพิมพ์อยู่จะหลุด focus กลางคัน
+      function scHandleItemInput(e) {
         var idx = e.target.getAttribute('data-sc-idx');
         var field = e.target.getAttribute('data-sc-field');
         if (idx===null || !field || !scSession) return;
         var item = scSession.items[Number(idx)];
         if (!item) return;
         item[field] = field==='counted' ? (e.target.value===''?null:Number(e.target.value)) : e.target.value;
-        // Re-style input
-        if (field==='counted') {
-          var s = scGetStatusClass(item);
-          e.target.className = e.target.className.replace(/border-\S+|bg-\S+/g,'').trim();
-          e.target.className += s==='match'?' border-emerald-400 bg-emerald-50':s==='diff'?' border-rose-400 bg-rose-50':' border-slate-300 bg-white';
-        }
+        if (field==='counted') scSyncItemVisual(Number(idx), e.target);
         scUpdateStats();
         scSaveDraftSoon();
+      }
+
+      // อัปเดตเฉพาะสีขอบ/ส่วนต่าง/ช่องเหตุผลของรายการเดียว (ทั้งฝั่งตารางและการ์ด)
+      function scSyncItemVisual(idx, inputEl) {
+        var item = scSession && scSession.items[idx];
+        if (!item) return;
+        var s = scGetDisplayStatus(item);
+        var cls = s==='match' ? ' border-emerald-400 bg-emerald-50'
+          : s==='diff' ? ' border-rose-400 bg-rose-50'
+          : s==='done' ? ' border-indigo-400 bg-indigo-50'
+          : ' border-slate-300 bg-white';
+        var inputs = inputEl ? [inputEl]
+          : Array.prototype.slice.call(document.querySelectorAll('#stockCountPage [data-sc-field="counted"][data-sc-idx="'+idx+'"]'));
+        inputs.forEach(function(el) {
+          el.className = el.className.replace(/border-\S+|bg-\S+/g,'').trim() + cls;
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('#stockCountPage [data-sc-var="'+idx+'"]'), function(el) {
+          el.innerHTML = scVarianceHtml(item);
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('#stockCountPage [data-sc-reason-wrap="'+idx+'"]'), function(el) {
+          el.classList.toggle('hidden', !scNeedsReason(item));
+          if (scNeedsReason(item)) el.classList.add('mt-2');
+        });
+      }
+
+      // ปุ่มบนการ์ด: ดูรูปเต็มจอ / −+ / เติมยอดอ้างอิง
+      function scHandleItemClick(e) {
+        var imgBtn = e.target.closest ? e.target.closest('[data-sc-img]') : null;
+        if (imgBtn) { openImageViewer(imgBtn.getAttribute('data-sc-img')); return; }
+        if (!scSession) return;
+        var stepBtn = e.target.closest ? e.target.closest('[data-sc-step]') : null;
+        if (stepBtn) {
+          var si = Number(stepBtn.getAttribute('data-sc-idx'));
+          var sItem = scSession.items[si];
+          if (!sItem) return;
+          var base = (sItem.counted===null||sItem.counted===undefined||sItem.counted==='') ? 0 : Number(sItem.counted);
+          sItem.counted = Math.max(0, base + Number(stepBtn.getAttribute('data-sc-step')));
+          var box = document.querySelector('#scCardList [data-sc-field="counted"][data-sc-idx="'+si+'"]');
+          if (box) box.value = String(sItem.counted);
+          scSyncItemVisual(si, null);
+          scUpdateStats(); scSaveDraftSoon();
+          return;
+        }
+        var sameBtn = e.target.closest ? e.target.closest('[data-sc-same]') : null;
+        if (sameBtn) {
+          var mi = Number(sameBtn.getAttribute('data-sc-same'));
+          var mItem = scSession.items[mi];
+          if (!mItem || !scHasRefQty(mItem)) return;
+          mItem.counted = scRefQtyValue(mItem);
+          mItem.reason = '';
+          var mBox = document.querySelector('#scCardList [data-sc-field="counted"][data-sc-idx="'+mi+'"]');
+          if (mBox) mBox.value = String(mItem.counted);
+          scSyncItemVisual(mi, null);
+          scUpdateStats(); scSaveDraftSoon();
+        }
+      }
+
+      var cardList = document.getElementById('scCardList');
+      [tbody, cardList].forEach(function(container) {
+        if (!container) return;
+        container.addEventListener('input', scHandleItemInput);
+        container.addEventListener('click', scHandleItemClick);
+      });
+
+      // มือถือ: ปุ่มส่งผลที่แถบล่างจอ ทำงานเหมือนปุ่มบนสุดทุกอย่าง
+      var submitBtnMobile = document.getElementById('scSubmitBtnMobile');
+      if (submitBtnMobile) submitBtnMobile.addEventListener('click', scSubmitSession);
+
+      // มือถือ: ยุบ/กางแถวปุ่มเครื่องมือ (คอมกางอยู่แล้วด้วย md:flex)
+      var toolsToggle = document.getElementById('scToolsToggleBtn');
+      var toolsRow = document.getElementById('scToolsRow');
+      if (toolsToggle && toolsRow) toolsToggle.addEventListener('click', function() {
+        var open = !toolsRow.classList.contains('hidden');
+        toolsRow.classList.toggle('hidden', open);
+        toolsRow.classList.toggle('flex', !open);
+      });
+
+      // มือถือ: ชิปกรอง — ตั้งค่าให้ select เดิมแล้วยิง change ต่อ ไม่มี logic กรองซ้อน
+      Array.prototype.forEach.call(document.querySelectorAll('#stockCountPage [data-sc-chip]'), function(chip) {
+        chip.addEventListener('click', function() {
+          if (filterEl) { filterEl.value = chip.getAttribute('data-sc-chip'); }
+          scSyncChips();
+          scRenderTable();
+        });
       });
     })();
+
+    // ไฮไลต์ชิปที่เลือกอยู่ + ซ่อนชิป ตรงกัน/ไม่ตรง ตอนนับรอบแรก (ยังไม่มีตัวเทียบให้กรอง)
+    function scSyncChips() {
+      var cur = String((document.getElementById('scFilterStatus')||{}).value || 'all');
+      var hideCompare = scIsBlind() && !scHasAnyPrevCount();
+      Array.prototype.forEach.call(document.querySelectorAll('#stockCountPage [data-sc-chip]'), function(chip) {
+        var key = chip.getAttribute('data-sc-chip');
+        var on = key === cur;
+        chip.className = 'sc-chip h-9 shrink-0 rounded-full border px-4 text-xs font-bold ' +
+          (on ? 'border-indigo-500 bg-indigo-500 text-white' : 'border-slate-300 bg-white text-slate-600');
+        if (key === 'match' || key === 'diff') chip.classList.toggle('hidden', hideCompare);
+      });
+    }
+
+    function scHasAnyPrevCount() {
+      if (!scSession) return false;
+      return (scSession.items||[]).some(function(it) {
+        return it.prevCount !== null && it.prevCount !== undefined && it.prevCount !== '';
+      });
+    }
 
     function switchToManagePage() {
       if (!hasPermission('manage_items')) return switchToStockPage();
