@@ -62,11 +62,26 @@ assert(adjustBlock.includes('var variance = Number(item.counted) - Number(item.s
 assert(adjustBlock.includes("type: variance > 0 ? 'Input' : 'Output'"));
 assert(adjustBlock.includes("reason: 'Stock Adjustment'"));
 
-// endpoint ที่แก้ยอดสต็อกได้ตรงๆ ต้องไม่เปิดให้ช่างที่มีแค่สิทธิ์กรอกยอดนับ
-assert(adjustBlock.includes("requirePermission({ authToken: payload.authToken }, 'manage_items')"),
-  'adjustStockFromCount ต้อง gate ด้วย manage_items');
-assert(!/requirePermission\(\{ authToken: payload\.authToken \}, 'view_logs'\)/.test(adjustBlock),
-  "adjustStockFromCount ต้องไม่ gate ด้วย 'view_logs' (กว้างเกินไป)");
+// endpoint ที่แก้ยอดสต็อกได้ตรงๆ = Admin เท่านั้น
+// 'view_logs' คือสิทธิ์ของช่างที่แค่กรอกยอดนับ ส่วน 'manage_items' ก็ยังกว้างไป เพราะ role
+// 'leader' ได้ติดมาโดยปริยาย (getRoleDefaultPermissions) ซึ่งจะทำให้ Leader ปรับยอดได้ด้วย
+assert(adjustBlock.includes("requireStockCountAdmin({ authToken: payload.authToken })"),
+  'adjustStockFromCount ต้อง gate ด้วย requireStockCountAdmin (Admin เท่านั้น)');
+assert(!/requirePermission\(\{ authToken: payload\.authToken \}, '(view_logs|manage_items)'\)/.test(adjustBlock),
+  "adjustStockFromCount ต้องไม่ gate ด้วย 'view_logs'/'manage_items' (กว้างเกินไป)");
+// ตัว gate เองต้องเช็ค role ตรง ๆ ไม่ใช่ยืม permission ของเรื่องอื่นมาใช้
+const adminGateBlock = slice(backendLf, 'function requireStockCountAdmin(payload)',
+  'function getStockCountGroupState(payload)', 'requireStockCountAdmin');
+assert(/normalizeRole\(user\.role\) !== 'admin'/.test(adminGateBlock),
+  'requireStockCountAdmin ต้องเช็ค role === admin ตรง ๆ');
+assert(!/manage_users/.test(adminGateBlock),
+  "ห้ามยืม requireAdminUser/'manage_users' มาใช้ — เป็นสิทธิ์คนละเรื่อง (จัดการผู้ใช้)");
+// ฝั่งหน้าเว็บต้องไม่เหลือ manage_items เป็นเงื่อนไขปุ่มอนุมัติ ไม่งั้น Leader ยังเห็นปุ่ม
+const canApproveBlock = slice(htmlLf, 'function scCanApprove()', 'var SC_DRAFT_KEY', 'scCanApprove');
+assert(/return isAdminUser\(\);/.test(canApproveBlock),
+  'scCanApprove ต้องเหลือแค่ isAdminUser()');
+assert(!/manage_items/.test(canApproveBlock),
+  "scCanApprove ห้ามใช้ hasPermission('manage_items') — role leader มีสิทธิ์นั้นติดมาด้วย");
 
 // ── Backend: คิวอนุมัติต้องอยู่บนชีท ไม่ใช่ localStorage ─────────────────────────
 assert(backend.includes('function approveStockCount(payload)'));
@@ -77,8 +92,10 @@ assert((backend.match(/action === 'getStockCountHistory'/g) || []).length === 2,
 
 const approveBlock = slice(backendLf, 'function approveStockCount(payload)',
   'function adjustStockFromCount(payload)', 'approveStockCount');
-assert(approveBlock.includes("requirePermission({ authToken: payload.authToken }, 'manage_items')"),
-  'approveStockCount ต้อง gate ด้วย manage_items');
+assert(approveBlock.includes('requireStockCountAdmin({ authToken: payload.authToken })'),
+  'approveStockCount ต้อง gate ด้วย requireStockCountAdmin (Admin เท่านั้น)');
+assert(!/requirePermission\([^)]*'manage_items'\)/.test(approveBlock),
+  "approveStockCount ห้าม gate ด้วย 'manage_items' — role leader มีสิทธิ์นั้นติดมาด้วย");
 // items ต้องอ่านจากชีท ไม่รับจาก client — กันแก้ตัวเลขที่นับได้ระหว่างทางก่อนอนุมัติ
 assert(approveBlock.includes('data[rowIndex][idx.items_json]'),
   'approveStockCount ต้องอ่าน items จากชีท');
@@ -97,8 +114,14 @@ assert(backend.includes("'approved_by','approved_at','adjusted_count'"),
   'STOCK_COUNT_HEADERS ต้องมีคอลัมน์ผู้อนุมัติ');
 assert(backend.includes("var STOCK_COUNT_PENDING_STATUSES = ['', 'submitted', 'pending_approval'];"),
   "แถวเก่าที่สถานะเป็น 'submitted' ต้องยังนับเป็นรออนุมัติ");
-assert(backendLf.includes("    'pending_approval',"),
-  'saveStockCountResult ต้องเขียนสถานะ pending_approval');
+const saveBlock = slice(backendLf, 'function saveStockCountResult(payload)',
+  'function getStockCountHistory(payload)', 'saveStockCountResult');
+assert(/status: 'pending_approval'/.test(saveBlock),
+  'saveStockCountResult ต้องเขียนสถานะ pending_approval ให้แถวใหม่');
+// ประกอบแถวตามลำดับหัวจริงของชีท ไม่ใช่ลำดับตายตัว — ชีทที่ถูกเติมคอลัมน์ต่อท้ายมาหลายรอบ
+// อาจเรียงไม่ตรงกับ STOCK_COUNT_HEADERS แล้ว ถ้า push ตามลำดับตายตัวข้อมูลจะลงผิดคอลัมน์
+assert(/headers\.forEach\(function\s*\(h\)\s*\{[\s\S]{0,160}valueByHeader\[h\]/.test(saveBlock),
+  'ต้องประกอบแถวตามหัวคอลัมน์จริงของชีท ไม่ใช่ลำดับตายตัว');
 // ชีทเก่ามี 13 คอลัมน์ — ต้องเติมหัวที่ขาด "ต่อท้าย" เท่านั้น ห้ามเขียนทับหัวเดิม
 assert(backend.includes('function ensureStockCountHeaders(sheet)'));
 const ensureBlock = slice(backendLf, 'function ensureStockCountHeaders(sheet)',
@@ -206,7 +229,8 @@ assert(adjustBlock.indexOf('ไม่รู้ว่าอะไหล่นี�
 
 // ชีทต้นทางต้องถูกส่งต่อครบทั้งสาย: เปิด session → บันทึกขึ้นชีท → อนุมัติ → ปรับยอด
 const startBlock = slice(htmlLf, 'function scStartSession()', 'function scSubmitLabelText()', 'scStartSession');
-assert(/sheet: p\.__sourceSheet/.test(startBlock), 'ตอนเปิด session ต้องเก็บชีทต้นทางของแต่ละรายการ');
+assert(/var sheetName = p\.__sourceSheet\s*\|\|\s*''/.test(startBlock) && /sheet: sheetName/.test(startBlock),
+  'ตอนเปิด session ต้องเก็บชีทต้นทางของแต่ละรายการลงในฟิลด์ sheet');
 // โหลดแยกทีละ sheet แล้วรวมพูล — ต้องแปะ __sourceSheet ให้แต่ละแถวตอนโหลด ก่อนรวม ไม่งั้นรวมแล้ว
 // แยกไม่ออกว่าแถวไหนมาจากชีทไหน (backend ไม่ได้ใส่ฟิลด์ sheet มาให้ในแถวเอง) ทำให้ p.__sourceSheet
 // ว่างเปล่าทุกแถว → ส่งผลนับได้ปกติ แต่ตอนอนุมัติแล้วปรับ Stock ล้มทุกรายการเพราะไม่รู้ชีทต้นทาง
