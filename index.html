@@ -1523,6 +1523,44 @@
             </div>
           </div>
         </div>
+        <!-- ค่าใช้จ่ายสิ้นเปลือง — ของซื้อนอกระบบอะไหล่ (น็อต/เครื่องมือ/วัสดุ/ค่าจ้างซ่อม)
+             ยอดพวกนี้ถูกรวมในกราฟ Cost Ratio ด้านบนอยู่แล้ว การ์ดนี้เจาะให้เห็นว่าหมดไปกับอะไร -->
+        <div class="fcc-card" id="fccMiscCard" style="margin-top:12px">
+          <div class="fcc-card-h">
+            <div>
+              <div class="fcc-card-t"><span class="ico">&#x1F9FE;</span>ค่าใช้จ่ายสิ้นเปลือง — ของซื้อนอกระบบอะไหล่</div>
+              <div class="fcc-card-sub" id="fccMiscSub">น็อตทั่วไป เครื่องมือช่าง วัสดุสิ้นเปลือง ค่าจ้างซ่อมภายนอก · ตัดเป็นค่าใช้จ่ายทันทีวันที่ซื้อ ไม่ผ่านสต็อก</div>
+            </div>
+            <div class="fcc-controls">
+              <select id="fccMiscLineFilter" class="fcc-select fcc-select-sm" aria-label="เลือกไลน์สำหรับค่าใช้จ่ายสิ้นเปลือง">
+                <option value="__all__">ทุกไลน์ (รวมส่วนกลาง)</option>
+                <option value="H9">H9</option>
+                <option value="Arc Chute">Arc Chute</option>
+                <option value="Coil Winding">Coil Winding</option>
+                <option value="Lug&Screw">Lug&amp;Screw</option>
+                <option value="ส่วนกลาง">ส่วนกลาง</option>
+              </select>
+              <select id="fccMiscRangeFilter" class="fcc-select fcc-select-sm" aria-label="เลือกช่วงเวลาสำหรับค่าใช้จ่ายสิ้นเปลือง">
+                <option value="6">6 เดือนล่าสุด</option>
+                <option value="12" selected>12 เดือนล่าสุด</option>
+                <option value="0">ทั้งหมด</option>
+              </select>
+            </div>
+          </div>
+          <div class="fcc-card-b">
+            <div id="fccMiscSummary" style="display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin-bottom:12px;"></div>
+            <div style="margin-bottom:6px; font-size:11px; color:#64748b; font-weight:600;">แนวโน้มรายเดือน — แยกสัดส่วนตามหมวดค่าใช้จ่าย</div>
+            <div style="position:relative; height:280px;"><canvas id="fccMiscTrendCanvas"></canvas></div>
+            <div id="fccMiscTable" style="margin-top:14px;"><div class="fcc-skel" style="height:150px"></div></div>
+            <div id="fccMiscBreakdown" style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); margin-top:14px;"></div>
+            <div id="fccMiscNote" style="margin-top:10px;"></div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0;">
+              <button id="fccMiscExportBtn" type="button" class="fcc-btn">📊 Export CSV</button>
+              <button id="fccMiscGoPageBtn" type="button" class="fcc-btn">🧾 ไปหน้าบันทึกค่าใช้จ่าย</button>
+              <span style="font-size:10.5px; color:#94a3b8;">💡 ยอดนี้ถูกบวกในกราฟ Cost Ratio และงบ PR ของไลน์นั้นแล้ว — "ส่วนกลาง" ไม่ถูกปันเข้าไลน์ใดไลน์หนึ่ง</span>
+            </div>
+          </div>
+        </div>
         <div id="fccExec" class="fcc-exec" style="margin-top:12px">
           <div class="fcc-card fcc-skel" style="min-height:92px"></div>
           <div class="fcc-card fcc-skel" style="min-height:92px"></div>
@@ -11050,6 +11088,9 @@ function inferRequestPriority(stock, min) {
           category: String(r.category || ''),
           itemName: String(r.item_name || ''),
           vendor: String(r.vendor || ''),
+          date: String(r.date || ''),
+          hasReceipt: !!String(r.receipt_url || '').trim(),
+          billId: String(r.bill_id || ''),
           source: 'misc'
         };
       }).filter(function(r) { return r !== null; });
@@ -11693,6 +11734,284 @@ function inferRequestPriority(stock, min) {
       showQuickToast('Export ค่าซ่อมเป็น CSV แล้ว', 'success');
     }
 
+    /* ── ค่าใช้จ่ายสิ้นเปลือง (ของซื้อนอกระบบอะไหล่) — มุมมองผู้จัดการแผนก ──────────
+       ยอดพวกนี้ถูกบวกในกราฟ Cost Ratio และงบ PR อยู่แล้ว (ผ่าน fccMiscExpenseRows)
+       การ์ดนี้ทำหน้าที่เจาะให้เห็นว่า "เงินหมดไปกับอะไร ที่ไหน หมวดไหน" ในหน้าเดียว   */
+    var fccMiscTrendChart = null; // Chart.js instance — ต้อง destroy ก่อน render ใหม่
+    var fccMiscExportRows = null; // ผลลัพธ์ล่าสุดไว้ให้ปุ่ม Export CSV ใช้ต่อ
+    // สีประจำหมวด — ผูกกับ "ตัวหมวด" ไม่ใช่อันดับ เพื่อให้สีไม่สลับเวลากรองข้อมูล
+    var FCC_MISC_CATEGORY_COLOR = {
+      'น็อต/สกรู/ฮาร์ดแวร์': '#2a78d6',
+      'เครื่องมือช่าง': '#eb6834',
+      'วัสดุสิ้นเปลือง': '#1baf7a',
+      'ค่าซ่อม/ค่าจ้างภายนอก': '#7c3aed',
+      'อื่นๆ': '#eda100'
+    };
+    function fccMiscColor(category, extraIndex) {
+      return FCC_MISC_CATEGORY_COLOR[category] || FCC_REPAIR_EXTRA_COLORS[Math.max(0, extraIndex) % FCC_REPAIR_EXTRA_COLORS.length];
+    }
+
+    function fccRenderMiscExpense() {
+      var tableEl = document.getElementById('fccMiscTable');
+      var sumEl = document.getElementById('fccMiscSummary');
+      var breakdownEl = document.getElementById('fccMiscBreakdown');
+      var noteEl = document.getElementById('fccMiscNote');
+      var subEl = document.getElementById('fccMiscSub');
+      if (!tableEl) return;
+      if (!Array.isArray(fccLast.Misc)) return; // ยังโหลดไม่เสร็จ — คง skeleton ไว้
+
+      var lineSel = document.getElementById('fccMiscLineFilter');
+      var rangeSel = document.getElementById('fccMiscRangeFilter');
+      var selLine = lineSel ? String(lineSel.value || '__all__') : '__all__';
+      var monthLimit = rangeSel ? Number(rangeSel.value || 12) : 12;
+      var all = fccMiscExpenseRows(fccLast.Misc);
+      var rows = selLine === '__all__' ? all : all.filter(function(r) { return r.line === selLine; });
+
+      var monthsAll = Array.from(new Set(rows.map(function(r) { return r.month; }))).sort();
+      var months = (monthLimit > 0 ? monthsAll.slice(-monthLimit) : monthsAll).slice().reverse(); // ใหม่ → เก่า
+      if (!months.length) {
+        tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีค่าใช้จ่ายสิ้นเปลืองในเงื่อนไขที่เลือก — บันทึกได้ที่เมนู จัดซื้อ → ค่าใช้จ่ายสิ้นเปลือง</div>';
+        if (sumEl) sumEl.innerHTML = '';
+        if (breakdownEl) breakdownEl.innerHTML = '';
+        if (noteEl) noteEl.innerHTML = '';
+        if (fccMiscTrendChart) { fccMiscTrendChart.destroy(); fccMiscTrendChart = null; }
+        fccMiscExportRows = null;
+        return;
+      }
+      var monthSet = {};
+      months.forEach(function(m) { monthSet[m] = true; });
+      var inScope = rows.filter(function(r) { return monthSet[r.month]; });
+
+      // pivot: cell[month][category] = { amount, count }
+      var cell = {}, catTotal = {}, monthTotal = {}, monthCount = {}, lineTotal = {}, grand = 0;
+      var catsSeen = {};
+      inScope.forEach(function(r) {
+        var cat = r.category || 'อื่นๆ';
+        catsSeen[cat] = true;
+        if (!cell[r.month]) cell[r.month] = {};
+        if (!cell[r.month][cat]) cell[r.month][cat] = { amount: 0, count: 0 };
+        cell[r.month][cat].amount += r.amount;
+        cell[r.month][cat].count += 1;
+        catTotal[cat] = (catTotal[cat] || 0) + r.amount;
+        monthTotal[r.month] = (monthTotal[r.month] || 0) + r.amount;
+        monthCount[r.month] = (monthCount[r.month] || 0) + 1;
+        lineTotal[r.line] = (lineTotal[r.line] || 0) + r.amount;
+        grand += r.amount;
+      });
+      var catCols = MISC_EXPENSE_CATEGORY_OPTIONS.filter(function(c) { return catsSeen[c]; })
+        .concat(Object.keys(catsSeen).filter(function(c) { return MISC_EXPENSE_CATEGORY_OPTIONS.indexOf(c) === -1; }).sort());
+
+      // ── การ์ดสรุปหัวการ์ด (ตัวเลขที่ผู้จัดการต้องเห็นก่อน) ──
+      var latestMonth = months[0];
+      var latestTotal = monthTotal[latestMonth] || 0;
+      var avgPerMonth = months.length ? grand / months.length : 0;
+      var diffPct = avgPerMonth > 0 ? ((latestTotal - avgPerMonth) / avgPerMonth * 100) : null;
+      var topCat = Object.keys(catTotal).sort(function(a, b) { return catTotal[b] - catTotal[a]; })[0] || '-';
+      // สัดส่วนเทียบรายจ่ายอะไหล่จริง (ยอดเบิก × ราคา) ในขอบเขตเดือน/ไลน์เดียวกัน
+      // ตอบคำถามผู้จัดการว่า "ของซื้อนอกระบบกินงบไปกี่ % ของรายจ่ายทั้งหมด"
+      var partsSpend = 0;
+      fccExpenseValidRows(fccLast.Logs || []).forEach(function(r) {
+        if (!monthSet[r.month]) return;
+        if (selLine !== '__all__' && r.line !== selLine) return;
+        partsSpend += r.amount;
+      });
+      var totalSpend = partsSpend + grand;
+      var sharePct = totalSpend > 0 ? (grand / totalSpend * 100) : null;
+      function miscCard(label, value, note, color) {
+        return '<div style="border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; background:#f8fafc;">' +
+          '<div style="font-size:10.5px; color:#64748b; font-weight:600;">' + fccEsc(label) + '</div>' +
+          '<div style="font-size:19px; font-weight:800; color:' + color + '; margin-top:2px;">' + value + '</div>' +
+          (note ? '<div style="font-size:10px; color:#94a3b8; margin-top:1px;">' + fccEsc(note) + '</div>' : '') +
+          '</div>';
+      }
+      if (sumEl) {
+        sumEl.innerHTML =
+          miscCard('รวมช่วงที่เลือก (' + (selLine === '__all__' ? 'ทุกไลน์' : selLine) + ')', '฿' + fccInt(grand),
+            inScope.length + ' รายการ · ' + months.length + ' เดือน', '#7c3aed') +
+          miscCard('เดือนล่าสุด — ' + fccMonthLabel(latestMonth), '฿' + fccInt(latestTotal),
+            (diffPct === null ? 'ยังเทียบไม่ได้' : (diffPct >= 0 ? '▲ สูงกว่า' : '▼ ต่ำกว่า') + 'ค่าเฉลี่ย ' + Math.abs(diffPct).toFixed(0) + '% (เฉลี่ย ฿' + fccInt(avgPerMonth) + '/เดือน)'),
+            diffPct !== null && diffPct > 0 ? '#dc2626' : '#16a34a') +
+          miscCard('สัดส่วนต่อรายจ่ายอะไหล่ทั้งหมด', sharePct === null ? '—' : sharePct.toFixed(1) + '%',
+            sharePct === null ? 'ยังไม่มียอดเบิกให้เทียบ' : 'ของซื้อนอกระบบ ฿' + fccInt(grand) + ' จากทั้งหมด ฿' + fccInt(totalSpend), '#0f172a') +
+          miscCard('หมวดที่ใช้เงินมากสุด', fccEsc(topCat),
+            topCat !== '-' ? '฿' + fccInt(catTotal[topCat] || 0) + (grand > 0 ? ' · ' + (catTotal[topCat] / grand * 100).toFixed(0) + '% ของทั้งหมด' : '') : '', '#d97706');
+      }
+
+      // ── กราฟแนวโน้มรายเดือน (เก่า → ใหม่) แยกสีตามหมวด ──
+      fccRenderMiscTrendChart(months.slice().reverse(), catCols, cell, monthTotal);
+
+      // ── ตาราง pivot เดือน × หมวด ──
+      var head = '<thead><tr style="border-bottom:2px solid #e2e8f0; color:#64748b; font-size:11px;">' +
+        '<th style="padding:6px 10px; text-align:left; position:sticky; left:0; background:#fff; z-index:1;">เดือน</th>' +
+        catCols.map(function(c) { return '<th style="padding:6px 10px; text-align:right; white-space:nowrap;">' + fccEsc(c) + '</th>'; }).join('') +
+        '<th style="padding:6px 10px; text-align:right; background:#f1f5f9; white-space:nowrap;">รวม</th>' +
+        '</tr></thead>';
+      var body = months.map(function(m) {
+        var tds = catCols.map(function(c) {
+          var cl = cell[m] && cell[m][c];
+          if (!cl || !cl.amount) return '<td style="padding:8px 10px; text-align:right; color:#cbd5e1;">—</td>';
+          return '<td style="padding:8px 10px; text-align:right;" title="' + fccEsc(c + ' · ' + fccMonthLabel(m) + ' · ' + cl.count + ' รายการ') + '">' +
+            '฿' + fccInt(cl.amount) + '<div style="font-size:9.5px; color:#94a3b8;">' + cl.count + ' รายการ</div></td>';
+        }).join('');
+        return '<tr style="border-bottom:1px solid #f1f5f9;">' +
+          '<td style="padding:8px 10px; font-weight:600; position:sticky; left:0; background:#fff;">' + fccEsc(fccMonthLabel(m)) + '</td>' + tds +
+          '<td style="padding:8px 10px; text-align:right; font-weight:800; background:#f8fafc;">฿' + fccInt(monthTotal[m] || 0) +
+          '<div style="font-size:9.5px; color:#94a3b8; font-weight:600;">' + (monthCount[m] || 0) + ' รายการ</div></td>' +
+          '</tr>';
+      }).join('');
+      var foot = '<tfoot><tr style="border-top:2px solid #cbd5e1; background:#f1f5f9;">' +
+        '<td style="padding:9px 10px; font-weight:800; position:sticky; left:0; background:#f1f5f9;">รวมทุกเดือน</td>' +
+        catCols.map(function(c) {
+          return '<td style="padding:9px 10px; text-align:right; font-weight:800;">฿' + fccInt(catTotal[c] || 0) +
+            (grand > 0 ? '<div style="font-size:9.5px; color:#94a3b8; font-weight:600;">' + (catTotal[c] / grand * 100).toFixed(0) + '%</div>' : '') + '</td>';
+        }).join('') +
+        '<td style="padding:9px 10px; text-align:right; font-weight:900; color:#7c3aed; background:#f3e8ff;">฿' + fccInt(grand) + '</td>' +
+        '</tr></tfoot>';
+      tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12.5px; min-width:520px;">' +
+        head + '<tbody>' + body + '</tbody>' + foot + '</table></div>';
+
+      // ── เจาะรายละเอียด: ไลน์ / ร้านค้า / รายการที่ใช้เงินสูงสุด ──
+      function rankList(title, entries, emptyText) {
+        var max = entries.length ? entries[0].amount : 0;
+        var rowsHtml = entries.length ? entries.map(function(e) {
+          var pct = max > 0 ? (e.amount / max * 100) : 0;
+          return '<div style="margin-bottom:7px;">' +
+            '<div style="display:flex; justify-content:space-between; gap:10px; font-size:11.5px;">' +
+              '<span style="color:#334155; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + fccEsc(e.label) + '">' + fccEsc(e.label) + '</span>' +
+              '<span style="color:#0f172a; font-weight:800; white-space:nowrap;">฿' + fccInt(e.amount) + '</span>' +
+            '</div>' +
+            '<div style="height:6px; border-radius:4px; background:#f1f5f9; margin-top:3px; overflow:hidden;"><i style="display:block; height:6px; width:' + pct.toFixed(1) + '%; background:' + e.color + ';"></i></div>' +
+            (e.note ? '<div style="font-size:9.5px; color:#94a3b8; margin-top:2px;">' + fccEsc(e.note) + '</div>' : '') +
+          '</div>';
+        }).join('') : '<div class="fcc-empty" style="padding:10px;">' + fccEsc(emptyText) + '</div>';
+        return '<div style="border:1px solid #e2e8f0; border-radius:12px; padding:11px 12px;">' +
+          '<div style="font-size:11px; font-weight:700; color:#475569; margin-bottom:8px;">' + fccEsc(title) + '</div>' + rowsHtml + '</div>';
+      }
+      var lineEntries = Object.keys(lineTotal).sort(function(a, b) { return lineTotal[b] - lineTotal[a]; }).map(function(l) {
+        return { label: l, amount: lineTotal[l], color: l === MISC_EXPENSE_SHARED_LINE_LABEL ? '#94a3b8' : '#2a78d6',
+                 note: grand > 0 ? (lineTotal[l] / grand * 100).toFixed(0) + '% ของทั้งหมด' : '' };
+      });
+      var vendorTotal = {};
+      inScope.forEach(function(r) { var v = String(r.vendor || '').trim() || 'ไม่ระบุร้าน'; vendorTotal[v] = (vendorTotal[v] || 0) + r.amount; });
+      var vendorEntries = Object.keys(vendorTotal).sort(function(a, b) { return vendorTotal[b] - vendorTotal[a]; }).slice(0, 6).map(function(v) {
+        return { label: v, amount: vendorTotal[v], color: '#eb6834', note: '' };
+      });
+      var itemEntries = inScope.slice().sort(function(a, b) { return b.amount - a.amount; }).slice(0, 6).map(function(r) {
+        return { label: r.itemName || '-', amount: r.amount, color: fccMiscColor(r.category, 0),
+                 note: (r.category || '') + (r.vendor ? ' · ' + r.vendor : '') + ' · ' + fccMonthLabel(r.month) };
+      });
+      if (breakdownEl) {
+        breakdownEl.innerHTML =
+          rankList('แยกตามไลน์', lineEntries, 'ไม่มีข้อมูล') +
+          rankList('ร้านค้าที่ซื้อบ่อย/สูงสุด', vendorEntries, 'ยังไม่ได้กรอกชื่อร้าน') +
+          rankList('รายการที่ใช้เงินสูงสุด', itemEntries, 'ไม่มีข้อมูล');
+      }
+
+      // ── หมายเหตุเชิงควบคุม: บิลที่ยังไม่แนบรูป + ยอดส่วนกลางที่ไม่ถูกปันเข้าไลน์ ──
+      if (noteEl) {
+        var noReceipt = inScope.filter(function(r) { return !r.hasReceipt; });
+        var noReceiptAmount = noReceipt.reduce(function(s, r) { return s + r.amount; }, 0);
+        var sharedAmount = lineTotal[MISC_EXPENSE_SHARED_LINE_LABEL] || 0;
+        var notes = '';
+        if (noReceipt.length) {
+          notes += '<div style="border:1px solid #fde68a; background:#fffbeb; border-radius:10px; padding:8px 11px; font-size:11px; color:#92400e; margin-bottom:6px;">' +
+            '⚠️ ยังไม่แนบรูปบิล ' + noReceipt.length + ' รายการ (฿' + fccInt(noReceiptAmount) + ') — ตรวจสอบย้อนหลังไม่ได้ถ้าไม่มีบิลแนบ</div>';
+        }
+        if (sharedAmount > 0 && selLine === '__all__') {
+          notes += '<div style="border:1px solid #e2e8f0; background:#f8fafc; border-radius:10px; padding:8px 11px; font-size:11px; color:#475569;">' +
+            'ℹ️ ในยอดนี้เป็นของ "ส่วนกลาง" ฿' + fccInt(sharedAmount) + ' (' + (grand > 0 ? (sharedAmount / grand * 100).toFixed(0) : 0) + '%) — ใช้ร่วมหลายไลน์ จึงไม่ถูกปันเข้าไลน์ใดไลน์หนึ่งและไม่ตัดงบ PR ของไลน์</div>';
+        }
+        noteEl.innerHTML = notes;
+      }
+
+      if (subEl) {
+        subEl.textContent = 'ของซื้อนอกระบบอะไหล่ · ' + (selLine === '__all__' ? 'ทุกไลน์ (รวมส่วนกลาง)' : selLine) +
+          ' · ' + months.length + ' เดือน · รวม ฿' + fccInt(grand) +
+          (sharePct !== null ? ' (' + sharePct.toFixed(1) + '% ของรายจ่ายอะไหล่ทั้งหมด)' : '');
+      }
+
+      fccMiscExportRows = { months: months, catCols: catCols, cell: cell, catTotal: catTotal, monthTotal: monthTotal, grand: grand, selLine: selLine };
+    }
+
+    // กราฟแท่งซ้อน: 1 แท่ง = 1 เดือน แบ่งสีตามหมวด — เห็นทั้งยอดรวมและสัดส่วนในภาพเดียว
+    function fccRenderMiscTrendChart(chartMonths, catCols, cell, monthTotal) {
+      var canvas = document.getElementById('fccMiscTrendCanvas');
+      if (!canvas) return;
+      if (typeof Chart === 'undefined') { setTimeout(function() { if (typeof Chart !== 'undefined') fccRenderMiscExpense(); }, 400); return; }
+      if (fccMiscTrendChart) { fccMiscTrendChart.destroy(); fccMiscTrendChart = null; }
+      var FONT = "'Prompt','Chakra Petch',sans-serif";
+      var extraIdx = -1;
+      var datasets = catCols.map(function(c) {
+        if (!FCC_MISC_CATEGORY_COLOR[c]) extraIdx += 1;
+        return {
+          label: c,
+          data: chartMonths.map(function(m) { var cl = cell[m] && cell[m][c]; return cl ? Math.round(cl.amount) : 0; }),
+          backgroundColor: fccMiscColor(c, extraIdx),
+          borderColor: '#ffffff', borderWidth: 2, borderRadius: 3, borderSkipped: false,
+          categoryPercentage: 0.68, barPercentage: 0.9
+        };
+      });
+      fccMiscTrendChart = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: { labels: chartMonths.map(function(m) { return fccMonthLabel(m); }), datasets: datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: { stacked: true, grid: { display: false }, ticks: { font: { family: FONT, size: 10.5 }, color: '#64748b' } },
+            y: { stacked: true, beginAtZero: true, grid: { color: '#E5E7EB' },
+                 ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return '฿' + fccMoney(v); } } }
+          },
+          plugins: {
+            legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 12, font: { family: FONT, size: 10.5 }, color: '#475569' } },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) { return ctx.dataset.label + ': ฿' + fccInt(ctx.raw); },
+                footer: function(items) {
+                  if (!items || !items.length) return '';
+                  var m = chartMonths[items[0].dataIndex];
+                  return 'รวมเดือนนี้ ฿' + fccInt(monthTotal[m] || 0);
+                }
+              },
+              bodyFont: { family: FONT }, titleFont: { family: FONT }, footerFont: { family: FONT }
+            }
+          }
+        }
+      });
+    }
+
+    function fccExportMiscExpenseCsv() {
+      var d = fccMiscExportRows;
+      if (!d || !d.months.length) { showQuickToast('ยังไม่มีข้อมูลค่าใช้จ่ายสิ้นเปลืองให้ Export', 'warn'); return; }
+      var esc = function(v) { return '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"'; };
+      var lines = [];
+      // บรรทัดแรกบอกขอบเขตที่กรองไว้ เพื่อให้ไฟล์อธิบายตัวเองได้เวลาเปิดย้อนหลัง
+      lines.push([('ค่าใช้จ่ายสิ้นเปลือง (ของซื้อนอกระบบอะไหล่) — ' + (d.selLine === '__all__' ? 'ทุกไลน์ (รวมส่วนกลาง)' : 'ไลน์ ' + d.selLine))].map(esc).join(','));
+      lines.push('');
+      lines.push(['เดือน'].concat(d.catCols).concat(['รวม']).map(esc).join(','));
+      d.months.forEach(function(m) {
+        var row = [fccMonthLabel(m)];
+        d.catCols.forEach(function(c) {
+          var cl = d.cell[m] && d.cell[m][c];
+          row.push(cl && cl.amount ? Math.round(cl.amount) : 0);
+        });
+        row.push(Math.round(d.monthTotal[m] || 0));
+        lines.push(row.map(esc).join(','));
+      });
+      var totalRow = ['รวมทุกเดือน'];
+      d.catCols.forEach(function(c) { totalRow.push(Math.round(d.catTotal[c] || 0)); });
+      totalRow.push(Math.round(d.grand));
+      lines.push(totalRow.map(esc).join(','));
+      // BOM ให้ Excel อ่านภาษาไทยถูกต้อง
+      var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'misc-expense-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showQuickToast('Export ค่าใช้จ่ายสิ้นเปลืองเป็น CSV แล้ว', 'success');
+    }
+
     /* ── Cost Ratio (รายจ่ายอะไหล่ / มูลค่าผลิต) ──────────────────────── */
     function fccRenderCostRatio() {
       var tableEl = document.getElementById('fccCostRatioTable');
@@ -12197,6 +12516,7 @@ function inferRequestPriority(stock, min) {
       if (fccPerm('request_order_create')) items.push(['nav:request', '&#x1F6D2;', 'สร้างคำขอซื้อ']);
       if (fccPerm('view_logs')) items.push(['nav:log', '&#x1F558;', 'ประวัติการเคลื่อนไหว']);
       items.push(['csv', '&#x1F4BE;', 'Export รายการต้องซื้อ']);
+      items.push(['scroll:fccMiscCard', '&#x1F9FE;', 'ค่าใช้จ่ายสิ้นเปลือง']);
       items.push(['top', '&#x2B06;&#xFE0F;', 'กลับขึ้นบนสุด']);
       dock.innerHTML =
         '<button type="button" class="fcc-dock-main" data-fcc-act="dock" aria-label="เมนูด่วน">' +
@@ -12247,7 +12567,8 @@ function inferRequestPriority(stock, min) {
           txn: typeof switchToTxnPage === 'function' ? switchToTxnPage : null,
           request: typeof switchToRequestOrderPage === 'function' ? switchToRequestOrderPage : null,
           log: typeof switchToLogPage === 'function' ? switchToLogPage : null,
-          history: typeof switchToPurchaseHistoryPage === 'function' ? switchToPurchaseHistoryPage : null
+          history: typeof switchToPurchaseHistoryPage === 'function' ? switchToPurchaseHistoryPage : null,
+          misc: typeof switchToMiscExpensePage === 'function' ? switchToMiscExpensePage : null
         };
         if (map[arg]) map[arg]();
       } else if (kind === 'scroll') {
@@ -12399,6 +12720,7 @@ function inferRequestPriority(stock, min) {
         fccLast.Misc = A.misc;
         fccRenderCostRatio();
         fccRenderRepairCost();
+        fccRenderMiscExpense();
       });
     }
 
@@ -18405,6 +18727,15 @@ function inferRequestPriority(stock, min) {
     });
     var fccRepairExportBtnEl = document.getElementById('fccRepairExportBtn');
     if (fccRepairExportBtnEl) fccRepairExportBtnEl.addEventListener('click', fccExportRepairCostCsv);
+    // ── ค่าใช้จ่ายสิ้นเปลือง: เปลี่ยนตัวกรองแล้วคำนวณใหม่จากข้อมูลที่โหลดไว้แล้ว ไม่ยิง API ซ้ำ ──
+    ['fccMiscLineFilter', 'fccMiscRangeFilter'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('change', fccRenderMiscExpense);
+    });
+    var fccMiscExportBtnEl = document.getElementById('fccMiscExportBtn');
+    if (fccMiscExportBtnEl) fccMiscExportBtnEl.addEventListener('click', fccExportMiscExpenseCsv);
+    var fccMiscGoPageBtnEl = document.getElementById('fccMiscGoPageBtn');
+    if (fccMiscGoPageBtnEl) fccMiscGoPageBtnEl.addEventListener('click', function() { switchToMiscExpensePage(); });
     var fccCostRatioSaveConfigBtn = document.getElementById('fccCostRatioSaveConfigBtn');
     if (fccCostRatioSaveConfigBtn) fccCostRatioSaveConfigBtn.addEventListener('click', function() {
       var sel = fccCostRatioLineFilterEl ? String(fccCostRatioLineFilterEl.value || '__all__') : '__all__';
