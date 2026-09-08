@@ -73,7 +73,7 @@ var PRODUCTION_VOLUME_HEADERS = ['Month', 'Line', 'Actual Qty', 'Updated By', 'U
 var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updated By', 'Updated At'];
 // ค่าใช้จ่ายสิ้นเปลือง (ซื้อนอกระบบอะไหล่) — เก็บ Total Amount เป็นค่าหลักที่คนกรอกจริง
 // (บนบิลร้านค้ามีแต่ยอดรวม ไม่ได้แยกราคาต่อหน่วยเสมอ) ส่วน Unit Price คิดย้อนจาก Total/Qty
-var MISC_EXPENSE_HEADERS = ['Expense ID', 'Date', 'Month', 'Line', 'Category', 'Item Name', 'Qty', 'Unit', 'Unit Price', 'Total Amount', 'Vendor', 'Receipt No', 'Receipt URL', 'Paid By', 'Remark', 'Deleted', 'Created By', 'Created At', 'Updated By', 'Updated At'];
+var MISC_EXPENSE_HEADERS = ['Expense ID', 'Date', 'Month', 'Line', 'Category', 'Item Name', 'Qty', 'Unit', 'Unit Price', 'Total Amount', 'Vendor', 'Receipt No', 'Receipt URL', 'Paid By', 'Remark', 'Deleted', 'Created By', 'Created At', 'Updated By', 'Updated At', 'Bill ID'];
 var MISC_EXPENSE_AUDIT_HEADERS = ['Date Time', 'User', 'Expense ID', 'Action Type', 'Old Value', 'New Value', 'Reason'];
 var MISC_EXPENSE_CATEGORIES = ['น็อต/สกรู/ฮาร์ดแวร์', 'เครื่องมือช่าง', 'วัสดุสิ้นเปลือง', 'ค่าซ่อม/ค่าจ้างภายนอก', 'อื่นๆ'];
 // 'ส่วนกลาง' = ของที่ใช้ร่วมหลายไลน์ ไม่เฉลี่ยเข้าไลน์ไหน (จะเห็นเฉพาะมุมมอง "ทุกไลน์ (รวม)")
@@ -1822,7 +1822,14 @@ function addManualPurchaseHistory(payload) {
 function getMiscExpenseSheet() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.miscExpenseSheetName);
-  if (sheet.getLastRow() === 0) sheet.appendRow(MISC_EXPENSE_HEADERS);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(MISC_EXPENSE_HEADERS);
+    return sheet;
+  }
+  // คอลัมน์ใหม่ถูกเพิ่มต่อท้ายเสมอ ตำแหน่งคอลัมน์เดิมจึงไม่ขยับ — เติมเฉพาะหัวที่ยังขาด
+  if (sheet.getLastColumn() < MISC_EXPENSE_HEADERS.length) {
+    sheet.getRange(1, 1, 1, MISC_EXPENSE_HEADERS.length).setValues([MISC_EXPENSE_HEADERS]);
+  }
   return sheet;
 }
 
@@ -1848,7 +1855,7 @@ function miscExpenseRowToObject(row) {
     vendor: String(row[10] || ''), receipt_no: String(row[11] || ''), receipt_url: String(row[12] || ''),
     paid_by: String(row[13] || ''), remark: String(row[14] || ''), deleted: toBoolean(row[15], false),
     created_by: String(row[16] || ''), created_at: formatPurchaseHistoryDate(row[17], true),
-    updated_by: String(row[18] || ''), updated_at: formatPurchaseHistoryDate(row[19], true)
+    updated_by: String(row[18] || ''), updated_at: formatPurchaseHistoryDate(row[19], true), bill_id: String(row[20] || '')
   };
 }
 
@@ -1940,7 +1947,7 @@ function addMiscExpense(payload) {
   var row = [
     expenseId, f.date, f.date.slice(0, 7), f.line, f.category, f.itemName, f.qty, f.unit, f.unitPrice, f.total,
     f.vendor, f.receiptNo, f.receiptUrl, f.paidBy || user.username || '', f.remark, false,
-    user.username || '', timestamp, user.username || '', timestamp
+    user.username || '', timestamp, user.username || '', timestamp, 'MEB-' + Utilities.getUuid()
   ];
   getMiscExpenseSheet().appendRow(row);
   appendMiscExpenseAudit(user.username, expenseId, 'CREATE', {}, miscExpenseRowToObject(row), '');
@@ -1978,11 +1985,57 @@ function updateMiscExpense(payload) {
   var row = [
     expenseId, merged.date, merged.date.slice(0, 7), merged.line, merged.category, merged.itemName, merged.qty, merged.unit,
     merged.unitPrice, merged.total, merged.vendor, merged.receiptNo, merged.receiptUrl, merged.paidBy, merged.remark, false,
-    existing[16] || '', existing[17] || timestamp, user.username || '', timestamp
+    existing[16] || '', existing[17] || timestamp, user.username || '', timestamp, existing[20] || ''
   ];
   sheet.getRange(rowIndex + 1, 1, 1, MISC_EXPENSE_HEADERS.length).setValues([row]);
   appendMiscExpenseAudit(user.username, expenseId, 'UPDATE', oldObject, miscExpenseRowToObject(row), reason);
   return { status: 'success', expense: miscExpenseRowToObject(row) };
+}
+
+// 1 บิลจากร้านค้ามีหลายรายการหลายหมวด — บันทึกรวดเดียวเป็นชุด แล้วแตกเป็น 1 แถวต่อ 1 รายการ
+// (เก็บรายแถวเพื่อให้แยกหมวดและรวมยอดต่อหมวดได้ ส่วน Bill ID ผูกให้รู้ว่ามาจากบิลใบเดียวกัน)
+function addMiscExpenseBatch(payload) {
+  var user = requireMiscExpenseEditor({ authToken: payload.authToken });
+  var rawItems = payload.items;
+  if (typeof rawItems === 'string') {
+    try { rawItems = JSON.parse(rawItems); } catch (err) { throw new Error('รูปแบบรายการไม่ถูกต้อง'); }
+  }
+  if (!rawItems || !rawItems.length) throw new Error('ต้องมีอย่างน้อย 1 รายการ');
+  if (rawItems.length > 50) throw new Error('บันทึกได้สูงสุด 50 รายการต่อ 1 บิล');
+  var shared = {
+    date: payload.date, line: payload.line, vendor: payload.vendor,
+    receipt_no: payload.receipt_no || payload.receiptNo, receipt_url: payload.receipt_url || payload.receiptUrl,
+    paid_by: payload.paid_by || payload.paidBy, remark: payload.remark
+  };
+  // ตรวจทุกแถวให้ผ่านก่อน แล้วค่อยเขียนทีเดียว — กันเคสเขียนไปครึ่งบิลแล้วเจอแถวเสียตรงกลาง
+  var fields = rawItems.map(function(item, index) {
+    try {
+      return buildMiscExpenseFields({
+        date: shared.date, line: shared.line, vendor: shared.vendor,
+        receipt_no: shared.receipt_no, receipt_url: shared.receipt_url,
+        paid_by: shared.paid_by, remark: item.remark !== undefined ? item.remark : shared.remark,
+        category: item.category, item_name: item.item_name || item.itemName,
+        qty: item.qty, unit: item.unit,
+        total_amount: item.total_amount !== undefined ? item.total_amount : item.totalAmount
+      });
+    } catch (err) {
+      throw new Error('รายการที่ ' + (index + 1) + ': ' + (err && err.message ? err.message : err));
+    }
+  });
+  var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var billId = 'MEB-' + Utilities.getUuid();
+  var rows = fields.map(function(f) {
+    return [
+      'ME-' + Utilities.getUuid(), f.date, f.date.slice(0, 7), f.line, f.category, f.itemName, f.qty, f.unit, f.unitPrice, f.total,
+      f.vendor, f.receiptNo, f.receiptUrl, f.paidBy || user.username || '', f.remark, false,
+      user.username || '', timestamp, user.username || '', timestamp, billId
+    ];
+  });
+  var sheet = getMiscExpenseSheet();
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, MISC_EXPENSE_HEADERS.length).setValues(rows);
+  var grandTotal = rows.reduce(function(sum, row) { return sum + Number(row[9] || 0); }, 0);
+  appendMiscExpenseAudit(user.username, billId, 'CREATE_BILL', {}, { items: rows.length, total_amount: grandTotal, vendor: rows[0][10], receipt_no: rows[0][11] }, '');
+  return { status: 'success', bill_id: billId, count: rows.length, total_amount: grandTotal, expenses: rows.map(miscExpenseRowToObject) };
 }
 
 // ลบแบบ soft delete — เก็บแถวไว้ในชีตเสมอ (เงินที่จ่ายไปแล้วต้องตามรอยย้อนหลังได้)
@@ -4809,6 +4862,7 @@ function doGet(e) {
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(e.parameter), e);
     if (action === 'getMiscExpenses') return respond(getMiscExpenses(e.parameter), e);
     if (action === 'addMiscExpense') return respond(addMiscExpense(e.parameter), e);
+    if (action === 'addMiscExpenseBatch') return respond(addMiscExpenseBatch(e.parameter), e);
     if (action === 'updateMiscExpense') return respond(updateMiscExpense(e.parameter), e);
     if (action === 'deleteMiscExpense') return respond(deleteMiscExpense(e.parameter), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(e.parameter), e);
@@ -5118,6 +5172,7 @@ function doPost(e) {
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(body), e);
     if (action === 'getMiscExpenses') return respond(getMiscExpenses(body), e);
     if (action === 'addMiscExpense') return respond(addMiscExpense(body), e);
+    if (action === 'addMiscExpenseBatch') return respond(addMiscExpenseBatch(body), e);
     if (action === 'updateMiscExpense') return respond(updateMiscExpense(body), e);
     if (action === 'deleteMiscExpense') return respond(deleteMiscExpense(body), e);
     if (action === 'uploadMiscExpenseReceipt') return respond(uploadMiscExpenseReceipt(body), e);

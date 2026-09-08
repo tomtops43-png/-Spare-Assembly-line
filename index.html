@@ -2617,31 +2617,6 @@
             </select>
           </label>
         </div>
-        <label class="block text-sm font-semibold text-slate-700">หมวดค่าใช้จ่าย <span class="text-rose-500">*</span>
-          <select id="miscExpenseCategory" required class="mt-1 h-11 w-full rounded-lg border border-slate-300 bg-white px-3">
-            <option value="">-- เลือกหมวด --</option>
-            <option value="น็อต/สกรู/ฮาร์ดแวร์">น็อต/สกรู/ฮาร์ดแวร์</option>
-            <option value="เครื่องมือช่าง">เครื่องมือช่าง</option>
-            <option value="วัสดุสิ้นเปลือง">วัสดุสิ้นเปลือง</option>
-            <option value="ค่าซ่อม/ค่าจ้างภายนอก">ค่าซ่อม/ค่าจ้างภายนอก</option>
-            <option value="อื่นๆ">อื่นๆ</option>
-          </select>
-        </label>
-        <label class="block text-sm font-semibold text-slate-700">รายการที่ซื้อ <span class="text-rose-500">*</span>
-          <input id="miscExpenseItemName" required class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="เช่น น็อต M8 x 30 สแตนเลส" />
-        </label>
-        <div class="grid grid-cols-3 gap-3">
-          <label class="text-sm font-semibold text-slate-700">จำนวน
-            <input id="miscExpenseQty" type="number" min="0.001" step="any" value="1" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" />
-          </label>
-          <label class="text-sm font-semibold text-slate-700">หน่วย
-            <input id="miscExpenseUnit" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="ชิ้น" />
-          </label>
-          <label class="text-sm font-semibold text-slate-700">ยอดรวม (บาท) <span class="text-rose-500">*</span>
-            <input id="miscExpenseTotal" type="number" min="0" step="any" required inputmode="decimal" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3 font-bold" placeholder="0.00" />
-          </label>
-        </div>
-        <p id="miscExpenseUnitHint" class="-mt-1 text-xs text-slate-400"></p>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label class="text-sm font-semibold text-slate-700">ร้านค้า
             <input id="miscExpenseVendor" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="เช่น ร้านไทยวัสดุ" />
@@ -2649,6 +2624,21 @@
           <label class="text-sm font-semibold text-slate-700">เลขที่บิล
             <input id="miscExpenseReceiptNo" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="ถ้ามี" />
           </label>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-bold text-slate-800">รายการในบิล <span class="text-rose-500">*</span></p>
+            <span id="miscExpenseRowCount" class="text-xs font-semibold text-slate-500"></span>
+          </div>
+          <div id="miscExpenseRows" class="mt-2 space-y-2"></div>
+          <button id="miscExpenseAddRow" type="button" class="mt-2 h-10 w-full rounded-lg border border-dashed border-emerald-400 bg-white text-sm font-bold text-emerald-700 hover:bg-emerald-50">+ เพิ่มรายการ</button>
+          <div class="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2">
+            <div>
+              <p class="text-sm font-bold text-slate-800">ยอดรวมทั้งบิล</p>
+              <p class="text-[10px] text-slate-400">คิดจากทุกแถวรวมกัน แก้ไม่ได้</p>
+            </div>
+            <output id="miscExpenseGrandTotal" class="text-xl font-extrabold text-slate-900">฿0</output>
+          </div>
         </div>
         <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
           <div class="flex flex-wrap items-center gap-2">
@@ -13284,6 +13274,8 @@ function inferRequestPriority(stock, min) {
       var byCat = {};
       rows.forEach(function(r) { var k = String(r.category || 'อื่นๆ'); byCat[k] = (byCat[k] || 0) + (Number(r.total_amount) || 0); });
       var topCat = Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; })[0];
+      var billCounts = {};
+      miscExpenseCache.forEach(function(r) { var b = String(r.bill_id || ''); if (b) billCounts[b] = (billCounts[b] || 0) + 1; });
       var summaryEl = mxEl('miscExpenseSummary');
       if (summaryEl) {
         var cards = [
@@ -13304,6 +13296,8 @@ function inferRequestPriority(stock, min) {
           ? '<a href="' + escHtml(r.receipt_url) + '" target="_blank" rel="noopener" class="text-xs font-semibold text-blue-600 underline">ดูรูปบิล</a>'
           : '<span class="text-xs text-amber-600">⚠︎ ไม่มีรูปบิล</span>';
         var isShared = String(r.line || '') === MISC_EXPENSE_SHARED_LINE_LABEL;
+        var billCount = billCounts[String(r.bill_id || '')] || 0;
+        var billBadge = billCount > 1 ? '<div class="text-[10px] font-semibold text-violet-600">🧾 บิลเดียวกัน ' + billCount + ' รายการ</div>' : '';
         return '<tr class="border-t border-slate-100 ' + (index % 2 ? 'bg-slate-50/60' : 'bg-white') + '">' +
           '<td class="px-3 py-3 whitespace-nowrap">' + escHtml(mxDateLabel(r.date)) + '</td>' +
           '<td class="px-3 py-3"><span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold ' + (isShared ? 'bg-slate-200 text-slate-700' : 'bg-indigo-100 text-indigo-800') + '">' + escHtml(r.line || '-') + '</span></td>' +
@@ -13311,7 +13305,7 @@ function inferRequestPriority(stock, min) {
           '<td class="px-3 py-3 font-semibold text-slate-800">' + escHtml(r.item_name || '-') + (r.remark ? '<div class="text-[10px] font-normal text-slate-400">' + escHtml(r.remark) + '</div>' : '') + '</td>' +
           '<td class="px-3 py-3 text-right whitespace-nowrap">' + (Number(r.qty) || 0).toLocaleString('th-TH') + ' ' + escHtml(r.unit || '') + '</td>' +
           '<td class="px-3 py-3 text-right font-bold text-slate-900 whitespace-nowrap">' + escHtml(mxMoney(r.total_amount)) + '</td>' +
-          '<td class="px-3 py-3 hidden md:table-cell">' + escHtml(r.vendor || '-') + (r.receipt_no ? '<div class="text-[10px] text-slate-400">บิล ' + escHtml(r.receipt_no) + '</div>' : '') + '<div class="mt-0.5">' + receipt + '</div></td>' +
+          '<td class="px-3 py-3 hidden md:table-cell">' + escHtml(r.vendor || '-') + (r.receipt_no ? '<div class="text-[10px] text-slate-400">บิล ' + escHtml(r.receipt_no) + '</div>' : '') + billBadge + '<div class="mt-0.5">' + receipt + '</div></td>' +
           '<td class="px-3 py-3 hidden lg:table-cell text-xs text-slate-500">' + escHtml(r.created_by || '-') + '</td>' +
           '<td class="px-3 py-3">' + actions + '</td></tr>';
       }).join('') : '<tr><td colspan="9" class="px-3 py-8 text-center text-slate-400">ยังไม่มีรายการค่าใช้จ่ายสิ้นเปลือง</td></tr>';
@@ -13363,13 +13357,114 @@ function inferRequestPriority(stock, min) {
       if (clearBtn) clearBtn.classList.toggle('hidden', !url);
     }
 
-    // ราคาต่อหน่วยเป็นค่าที่คิดย้อนจากยอดรวม โชว์ให้เห็นตอนกรอกเพื่อจับพลาดตัวเลขหลักผิด
-    function updateMiscExpenseUnitHint() {
-      var hint = mxEl('miscExpenseUnitHint');
-      if (!hint) return;
-      var qty = Number(mxEl('miscExpenseQty') ? mxEl('miscExpenseQty').value : 0);
-      var total = Number(mxEl('miscExpenseTotal') ? mxEl('miscExpenseTotal').value : 0);
-      hint.textContent = (qty > 0 && total > 0) ? ('≈ ' + (total / qty).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + ' บาท/' + (mxEl('miscExpenseUnit').value || 'ชิ้น')) : '';
+    // ── 1 บิล = หลายรายการหลายหมวด ─────────────────────────────────────────────
+    // บิลจากร้านค้าใบเดียวมีหลายรายการ (ท่อหด/เคเบิ้ลไทร์/น็อต) ให้กรอกรวดเดียวจบ
+    // ไม่ต้องเข้าออกทีละชิ้น · ยอดรวมทั้งบิลคิดจากทุกแถวและแก้เองไม่ได้ กันยอดในระบบเพี้ยนจากบิลจริง
+    var mxRowState = [];
+    var mxRowSeq = 0;
+
+    function mxNewRow(data) {
+      data = data || {};
+      mxRowSeq += 1;
+      return {
+        uid: 'mxr' + mxRowSeq,
+        category: data.category || '',
+        item_name: data.item_name || '',
+        qty: (data.qty === undefined || data.qty === '') ? 1 : data.qty,
+        unit: data.unit || 'ชิ้น',
+        unit_price: (data.unit_price === undefined || data.unit_price === null) ? '' : data.unit_price
+      };
+    }
+
+    // ราคา/หน่วย × จำนวน = เป็นเงินของแถวนั้น (เหมือนบิลร้านค้า) ปัดทศนิยม 2 ตำแหน่ง
+    function mxRowAmount(row) {
+      var qty = Number(row.qty), price = Number(row.unit_price);
+      if (!isFinite(qty) || !isFinite(price) || qty <= 0 || price < 0) return 0;
+      return Math.round(qty * price * 100) / 100;
+    }
+
+    function mxIsBlankRow(row) {
+      return !String(row.item_name || '').trim() && !String(row.unit_price || '').trim() && !String(row.category || '').trim();
+    }
+
+    function mxEditMode() { return !!String(mxEl('miscExpenseId') ? mxEl('miscExpenseId').value : '').trim(); }
+
+    function mxRecalcTotals() {
+      var wrap = mxEl('miscExpenseRows');
+      if (!wrap) return;
+      var grand = 0;
+      mxRowState.forEach(function(row) {
+        var amount = mxRowAmount(row);
+        grand += amount;
+        var host = wrap.querySelector('[data-mx-row="' + row.uid + '"]');
+        var out = host ? host.querySelector('[data-mx-amount]') : null;
+        if (out) out.textContent = '฿' + amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      });
+      var totalEl = mxEl('miscExpenseGrandTotal');
+      if (totalEl) totalEl.textContent = '฿' + grand.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      var countEl = mxEl('miscExpenseRowCount');
+      var filled = mxRowState.filter(function(r) { return !mxIsBlankRow(r); }).length;
+      if (countEl) countEl.textContent = filled + ' รายการ';
+    }
+
+    // วาดใหม่เฉพาะตอนเพิ่ม/ลบแถวเท่านั้น — ระหว่างพิมพ์ใช้ mxRecalcTotals() อย่างเดียว
+    // ไม่งั้น innerHTML ใหม่ทุกคีย์จะทำให้เคอร์เซอร์เด้งออกจากช่องที่กำลังพิมพ์
+    function mxRenderRows() {
+      var wrap = mxEl('miscExpenseRows');
+      if (!wrap) return;
+      var single = mxEditMode();
+      wrap.innerHTML = mxRowState.map(function(row, index) {
+        var options = ['<option value="">-- หมวด --</option>'].concat(MISC_EXPENSE_CATEGORY_OPTIONS.map(function(c) {
+          return '<option value="' + escHtml(c) + '"' + (row.category === c ? ' selected' : '') + '>' + escHtml(c) + '</option>';
+        })).join('');
+        return '<div class="rounded-lg border border-slate-200 bg-white p-2" data-mx-row="' + escHtml(row.uid) + '">' +
+          '<div class="flex items-center justify-between gap-2">' +
+            '<span class="text-[11px] font-bold text-slate-400">#' + (index + 1) + '</span>' +
+            (single ? '' : '<button type="button" data-mx-row-remove="' + escHtml(row.uid) + '" class="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-600">ลบแถว</button>') +
+          '</div>' +
+          '<div class="mt-1 grid grid-cols-12 gap-2">' +
+            '<label class="col-span-12 sm:col-span-5 text-[11px] font-semibold text-slate-500">หมวด<select data-mx-field="category" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm">' + options + '</select></label>' +
+            '<label class="col-span-12 sm:col-span-7 text-[11px] font-semibold text-slate-500">รายการที่ซื้อ<input data-mx-field="item_name" value="' + escHtml(row.item_name) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="เช่น ท่อหดสายไฟ 4.0มม" /></label>' +
+            '<label class="col-span-3 text-[11px] font-semibold text-slate-500">จำนวน<input data-mx-field="qty" type="number" min="0.001" step="any" inputmode="decimal" value="' + escHtml(String(row.qty)) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" /></label>' +
+            '<label class="col-span-3 text-[11px] font-semibold text-slate-500">หน่วย<input data-mx-field="unit" value="' + escHtml(row.unit) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="ชิ้น" /></label>' +
+            '<label class="col-span-3 text-[11px] font-semibold text-slate-500">ราคา/หน่วย<input data-mx-field="unit_price" type="number" min="0" step="any" inputmode="decimal" value="' + escHtml(String(row.unit_price)) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="0.00" /></label>' +
+            '<label class="col-span-3 text-[11px] font-semibold text-slate-500">เป็นเงิน<output data-mx-amount class="mt-0.5 flex h-10 w-full items-center justify-end rounded-lg border border-slate-200 bg-slate-100 px-2 text-sm font-bold text-slate-800">฿0.00</output></label>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      var addBtn = mxEl('miscExpenseAddRow');
+      if (addBtn) addBtn.classList.toggle('hidden', single);
+      mxRecalcTotals();
+    }
+
+    function mxOnRowInput(e) {
+      var target = e.target;
+      var field = target && target.getAttribute ? target.getAttribute('data-mx-field') : null;
+      if (!field) return;
+      var host = target.closest ? target.closest('[data-mx-row]') : null;
+      if (!host) return;
+      var uid = host.getAttribute('data-mx-row');
+      var row = mxRowState.filter(function(r) { return r.uid === uid; })[0];
+      if (!row) return;
+      row[field] = target.value;
+      mxRecalcTotals();
+    }
+
+    function mxAddRow() {
+      // แถวใหม่ใช้หน่วยเดิมของแถวล่าสุด — ซื้อของร้านเดียวกันมักหน่วยเดียวกัน พิมพ์ซ้ำน้อยลง
+      var last = mxRowState[mxRowState.length - 1];
+      mxRowState.push(mxNewRow({ unit: last ? last.unit : 'ชิ้น' }));
+      mxRenderRows();
+      var wrap = mxEl('miscExpenseRows');
+      var lastHost = wrap ? wrap.lastElementChild : null;
+      var firstInput = lastHost ? lastHost.querySelector('[data-mx-field="item_name"]') : null;
+      if (firstInput) firstInput.focus();
+    }
+
+    function mxRemoveRow(uid) {
+      mxRowState = mxRowState.filter(function(r) { return r.uid !== uid; });
+      if (!mxRowState.length) mxRowState = [mxNewRow()];
+      mxRenderRows();
     }
 
     function openMiscExpenseModal(expense) {
@@ -13381,28 +13476,27 @@ function inferRequestPriority(stock, min) {
       setMiscExpenseFormMessage('');
       setMiscExpenseReceipt('');
       mxEl('miscExpenseId').value = expense ? (expense.expense_id || '') : '';
-      mxEl('miscExpenseModalTitle').textContent = expense ? 'แก้ไขค่าใช้จ่ายสิ้นเปลือง' : 'บันทึกค่าใช้จ่ายสิ้นเปลือง';
+      mxEl('miscExpenseModalTitle').textContent = expense ? 'แก้ไขรายการค่าใช้จ่าย' : 'บันทึกค่าใช้จ่ายสิ้นเปลือง (1 บิล)';
       mxEl('miscExpenseReasonWrap').classList.toggle('hidden', !expense);
       mxEl('miscExpenseReason').value = '';
       if (expense) {
+        // แก้ไขทีละแถว (แถวหนึ่ง = รายการหนึ่งในบิล) จึงล็อกให้เหลือแถวเดียว ซ่อนปุ่มเพิ่มรายการ
         mxEl('miscExpenseDate').value = String(expense.date || '').slice(0, 10);
         mxEl('miscExpenseLine').value = expense.line || '';
-        mxEl('miscExpenseCategory').value = expense.category || '';
-        mxEl('miscExpenseItemName').value = expense.item_name || '';
-        mxEl('miscExpenseQty').value = expense.qty || 1;
-        mxEl('miscExpenseUnit').value = expense.unit || '';
-        mxEl('miscExpenseTotal').value = expense.total_amount || '';
         mxEl('miscExpenseVendor').value = expense.vendor || '';
         mxEl('miscExpenseReceiptNo').value = expense.receipt_no || '';
         mxEl('miscExpenseRemark').value = expense.remark || '';
         setMiscExpenseReceipt(expense.receipt_url || '');
+        mxRowState = [mxNewRow({
+          category: expense.category, item_name: expense.item_name, qty: expense.qty,
+          unit: expense.unit, unit_price: expense.unit_price
+        })];
       } else {
         var today = new Date();
         mxEl('miscExpenseDate').value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-        mxEl('miscExpenseQty').value = 1;
-        mxEl('miscExpenseUnit').value = 'ชิ้น';
+        mxRowState = [mxNewRow()];
       }
-      updateMiscExpenseUnitHint();
+      mxRenderRows();
       mxEl('miscExpenseSubmit').disabled = false;
       mxEl('miscExpenseSubmit').textContent = 'บันทึก';
       modal.classList.remove('hidden');
@@ -13417,30 +13511,48 @@ function inferRequestPriority(stock, min) {
       unlockBodyScroll();
     }
 
+    function mxCollectItems() {
+      return mxRowState.filter(function(row) { return !mxIsBlankRow(row); }).map(function(row) {
+        return {
+          category: row.category,
+          item_name: String(row.item_name || '').trim(),
+          qty: row.qty,
+          unit: row.unit,
+          total_amount: mxRowAmount(row)
+        };
+      });
+    }
+
     function submitMiscExpenseForm() {
       var expenseId = String(mxEl('miscExpenseId').value || '').trim();
-      var payload = {
-        action: expenseId ? 'updateMiscExpense' : 'addMiscExpense',
-        expense_id: expenseId,
+      var items = mxCollectItems();
+      if (!items.length) { setMiscExpenseFormMessage('ต้องมีอย่างน้อย 1 รายการในบิล', 'error'); return Promise.resolve(); }
+      for (var i = 0; i < items.length; i += 1) {
+        var it = items[i];
+        if (!it.category) { setMiscExpenseFormMessage('รายการที่ ' + (i + 1) + ': ยังไม่ได้เลือกหมวด', 'error'); return Promise.resolve(); }
+        if (!it.item_name) { setMiscExpenseFormMessage('รายการที่ ' + (i + 1) + ': ยังไม่ได้กรอกชื่อรายการ', 'error'); return Promise.resolve(); }
+        if (!(Number(it.qty) > 0)) { setMiscExpenseFormMessage('รายการที่ ' + (i + 1) + ': จำนวนต้องมากกว่า 0', 'error'); return Promise.resolve(); }
+      }
+      var base = {
         date: mxEl('miscExpenseDate').value,
         line: mxEl('miscExpenseLine').value,
-        category: mxEl('miscExpenseCategory').value,
-        item_name: mxEl('miscExpenseItemName').value,
-        qty: mxEl('miscExpenseQty').value,
-        unit: mxEl('miscExpenseUnit').value,
-        total_amount: mxEl('miscExpenseTotal').value,
         vendor: mxEl('miscExpenseVendor').value,
         receipt_no: mxEl('miscExpenseReceiptNo').value,
         receipt_url: mxEl('miscExpenseReceiptUrl').value,
-        remark: mxEl('miscExpenseRemark').value,
-        reason: mxEl('miscExpenseReason').value
+        remark: mxEl('miscExpenseRemark').value
       };
+      var payload = expenseId
+        ? Object.assign({ action: 'updateMiscExpense', expense_id: expenseId, reason: mxEl('miscExpenseReason').value,
+            category: items[0].category, item_name: items[0].item_name, qty: items[0].qty, unit: items[0].unit,
+            total_amount: items[0].total_amount }, base)
+        : Object.assign({ action: 'addMiscExpenseBatch', items: items }, base);
+      var grand = items.reduce(function(sum, it) { return sum + Number(it.total_amount || 0); }, 0);
       var submitBtn = mxEl('miscExpenseSubmit');
       submitBtn.disabled = true;
       submitBtn.textContent = 'กำลังบันทึก...';
       setMiscExpenseFormMessage('กำลังบันทึก...', 'muted');
       return postJson(withAuthPayload(payload)).then(parseApiResponse).then(function() {
-        showQuickToast(expenseId ? 'แก้ไขค่าใช้จ่ายแล้ว' : 'บันทึกค่าใช้จ่ายแล้ว', 'success');
+        showQuickToast(expenseId ? 'แก้ไขรายการแล้ว' : ('บันทึกแล้ว ' + items.length + ' รายการ · รวม ' + mxMoney(grand)), 'success');
         closeMiscExpenseModal();
         // ยอดพวกนี้ไปโผล่ในกราฟ % ต้นทุน/งบ PR ด้วย ต้องล้าง cache ของ Dashboard ไม่งั้นค้างตัวเลขเก่า 90 วินาที
         if (typeof fccInvalidateAsyncCache === 'function') fccInvalidateAsyncCache();
@@ -13452,12 +13564,19 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    // ลบได้ทีละรายการเท่านั้น — ถ้าแถวนี้อยู่ในบิลที่มีหลายรายการต้องบอกให้รู้ก่อนกดยืนยัน
+    function mxSameBillNote(item) {
+      var billId = String(item && item.bill_id || '');
+      if (!billId) return '';
+      var count = miscExpenseCache.filter(function(r) { return String(r.bill_id || '') === billId; }).length;
+      return count > 1 ? (' · บิลนี้มี ' + count + ' รายการ จะลบเฉพาะรายการนี้รายการเดียว') : '';
+    }
     function deleteMiscExpenseRow(expenseId) {
       var item = miscExpenseCache.filter(function(r) { return r.expense_id === expenseId; })[0];
       if (!item) return;
       showConfirmDialog({
         title: 'ลบรายการค่าใช้จ่าย',
-        message: (item.item_name || '-') + ' • ' + mxMoney(item.total_amount) + ' — ลบแล้วยอดจะหายจากกราฟ % ต้นทุนและงบ PR',
+        message: (item.item_name || '-') + ' • ' + mxMoney(item.total_amount) + ' — ลบแล้วยอดจะหายจากกราฟ % ต้นทุนและงบ PR' + mxSameBillNote(item),
         okLabel: 'ลบรายการ'
       }).then(function(ok) {
         if (!ok) return;
@@ -13504,10 +13623,17 @@ function inferRequestPriority(stock, min) {
       });
       var searchEl = mxEl('miscExpenseSearch');
       if (searchEl) searchEl.addEventListener('input', renderMiscExpenses);
-      ['miscExpenseQty', 'miscExpenseTotal', 'miscExpenseUnit'].forEach(function(id) {
-        var el = mxEl(id);
-        if (el) el.addEventListener('input', updateMiscExpenseUnitHint);
-      });
+      var addRowBtn = mxEl('miscExpenseAddRow');
+      if (addRowBtn) addRowBtn.addEventListener('click', mxAddRow);
+      var rowsWrap = mxEl('miscExpenseRows');
+      if (rowsWrap) {
+        rowsWrap.addEventListener('input', mxOnRowInput);
+        rowsWrap.addEventListener('change', mxOnRowInput);
+        rowsWrap.addEventListener('click', function(e) {
+          var btn = e.target.closest ? e.target.closest('[data-mx-row-remove]') : null;
+          if (btn) mxRemoveRow(btn.getAttribute('data-mx-row-remove'));
+        });
+      }
       ['miscExpenseClose', 'miscExpenseCancel'].forEach(function(id) {
         var el = mxEl(id);
         if (el) el.addEventListener('click', closeMiscExpenseModal);
