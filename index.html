@@ -820,6 +820,10 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                 <span>Purchase History</span>
               </button>
+              <button id="tabMiscExpense" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+                <span>ค่าใช้จ่ายสิ้นเปลือง</span>
+              </button>
             </div>
           </div>
 
@@ -2425,6 +2429,42 @@
       </div>
     </section>
 
+    <!-- ค่าใช้จ่ายสิ้นเปลือง — ของจิปาถะที่ซื้อนอกระบบอะไหล่ (น็อต/เครื่องมือ/วัสดุ)
+         ตัดเป็นค่าใช้จ่ายทันทีวันที่ซื้อ ไม่เข้าสต็อก แล้วไหลเข้ากราฟ % ต้นทุน + งบ PR -->
+    <section id="miscExpensePage" class="hidden space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm panel-shadow md:p-6">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">🧾 ค่าใช้จ่ายสิ้นเปลือง</h2>
+          <p class="text-sm text-slate-500">ของที่ซื้อนอกระบบอะไหล่ — น็อตทั่วไป เครื่องมือช่าง วัสดุสิ้นเปลือง ค่าจ้างซ่อมภายนอก · ตัดเป็นค่าใช้จ่ายทันทีวันที่ซื้อ ไม่เข้าสต็อก</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="miscExpenseCopyBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700">📋 คัดลอกสรุป</button>
+          <button id="miscExpenseRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
+          <button id="miscExpenseAddBtn" type="button" class="h-11 rounded-lg bg-green-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-green-700"><span class="hidden sm:inline">+ บันทึกค่าใช้จ่าย</span><span class="sm:hidden">+ บันทึก</span></button>
+        </div>
+      </div>
+      <div id="miscExpenseSummary" class="grid grid-cols-2 gap-3 xl:grid-cols-4"></div>
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <select id="miscExpenseMonthFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุกเดือน</option></select>
+        <select id="miscExpenseLineFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุก Line</option></select>
+        <select id="miscExpenseCategoryFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุกหมวด</option></select>
+        <input id="miscExpenseSearch" type="search" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm" placeholder="ค้นหา รายการ / ร้านค้า / เลขที่บิล" />
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full min-w-[720px] text-sm">
+          <thead class="bg-slate-100 text-left text-xs uppercase text-slate-500">
+            <tr>
+              <th class="px-3 py-2">วันที่</th><th class="px-3 py-2">Line</th><th class="px-3 py-2">หมวด</th>
+              <th class="px-3 py-2">รายการ</th><th class="px-3 py-2 text-right">จำนวน</th><th class="px-3 py-2 text-right">ยอดรวม</th>
+              <th class="px-3 py-2 hidden md:table-cell">ร้าน / บิล</th><th class="px-3 py-2 hidden lg:table-cell">ผู้บันทึก</th><th class="px-3 py-2">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="miscExpenseTable"></tbody>
+        </table>
+      </div>
+      <p id="miscExpenseMessage" class="text-sm text-slate-500"></p>
+    </section>
+
     <!-- Datalists for PDF import autocomplete (populated from partsData at runtime) -->
     <datalist id="phPartNameList"></datalist>
     <datalist id="phBrandList"></datalist>
@@ -2549,6 +2589,87 @@
         <div class="flex justify-end gap-2 pt-1">
           <button id="phManualCancel" type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">ยกเลิก</button>
           <button id="phManualSubmit" type="submit" class="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700">บันทึก</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ฟอร์มบันทึกค่าใช้จ่ายสิ้นเปลือง — ใช้ทั้งเพิ่มใหม่และแก้ไข (Admin เท่านั้นที่แก้ได้)
+         กรอก "ยอดรวม" เป็นหลักเพราะบิลร้านค้ามีแต่ยอดรวม ระบบคิดราคาต่อหน่วยย้อนให้เอง -->
+    <div id="miscExpenseModal" class="fixed inset-0 z-[125] hidden overflow-y-auto bg-slate-900/60 p-4">
+      <form id="miscExpenseForm" class="mx-auto w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl md:my-8">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div><h3 id="miscExpenseModalTitle" class="text-lg font-bold text-slate-900">บันทึกค่าใช้จ่ายสิ้นเปลือง</h3><p class="text-xs text-slate-500 mt-0.5">ของที่ซื้อนอกระบบอะไหล่ — ตัดเป็นค่าใช้จ่ายทันที ไม่เข้าสต็อก</p></div>
+          <button id="miscExpenseClose" type="button" class="h-9 w-9 rounded-full border border-slate-300 text-slate-500 text-lg leading-none">×</button>
+        </div>
+        <input type="hidden" id="miscExpenseId" />
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="text-sm font-semibold text-slate-700">วันที่ซื้อ <span class="text-rose-500">*</span>
+            <input id="miscExpenseDate" type="date" required class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" />
+          </label>
+          <label class="text-sm font-semibold text-slate-700">Line <span class="text-rose-500">*</span>
+            <select id="miscExpenseLine" required class="mt-1 h-11 w-full rounded-lg border border-slate-300 bg-white px-3">
+              <option value="">-- เลือก Line --</option>
+              <option value="H9">H9</option>
+              <option value="Arc Chute">Arc Chute</option>
+              <option value="Coil Winding">Coil Winding</option>
+              <option value="Lug&amp;Screw">Lug&amp;Screw</option>
+              <option value="ส่วนกลาง">ส่วนกลาง (ใช้ร่วมหลายไลน์)</option>
+            </select>
+          </label>
+        </div>
+        <label class="block text-sm font-semibold text-slate-700">หมวดค่าใช้จ่าย <span class="text-rose-500">*</span>
+          <select id="miscExpenseCategory" required class="mt-1 h-11 w-full rounded-lg border border-slate-300 bg-white px-3">
+            <option value="">-- เลือกหมวด --</option>
+            <option value="น็อต/สกรู/ฮาร์ดแวร์">น็อต/สกรู/ฮาร์ดแวร์</option>
+            <option value="เครื่องมือช่าง">เครื่องมือช่าง</option>
+            <option value="วัสดุสิ้นเปลือง">วัสดุสิ้นเปลือง</option>
+            <option value="ค่าซ่อม/ค่าจ้างภายนอก">ค่าซ่อม/ค่าจ้างภายนอก</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
+        </label>
+        <label class="block text-sm font-semibold text-slate-700">รายการที่ซื้อ <span class="text-rose-500">*</span>
+          <input id="miscExpenseItemName" required class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="เช่น น็อต M8 x 30 สแตนเลส" />
+        </label>
+        <div class="grid grid-cols-3 gap-3">
+          <label class="text-sm font-semibold text-slate-700">จำนวน
+            <input id="miscExpenseQty" type="number" min="0.001" step="any" value="1" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" />
+          </label>
+          <label class="text-sm font-semibold text-slate-700">หน่วย
+            <input id="miscExpenseUnit" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="ชิ้น" />
+          </label>
+          <label class="text-sm font-semibold text-slate-700">ยอดรวม (บาท) <span class="text-rose-500">*</span>
+            <input id="miscExpenseTotal" type="number" min="0" step="any" required inputmode="decimal" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3 font-bold" placeholder="0.00" />
+          </label>
+        </div>
+        <p id="miscExpenseUnitHint" class="-mt-1 text-xs text-slate-400"></p>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="text-sm font-semibold text-slate-700">ร้านค้า
+            <input id="miscExpenseVendor" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="เช่น ร้านไทยวัสดุ" />
+          </label>
+          <label class="text-sm font-semibold text-slate-700">เลขที่บิล
+            <input id="miscExpenseReceiptNo" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="ถ้ามี" />
+          </label>
+        </div>
+        <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="miscExpenseReceiptFile" type="file" accept="image/*" capture="environment" class="sr-only" />
+            <label for="miscExpenseReceiptFile" class="inline-flex h-11 cursor-pointer items-center rounded-lg bg-blue-600 px-4 text-sm font-bold text-white">📷 ถ่ายรูปบิล</label>
+            <span id="miscExpenseReceiptStatus" class="text-xs font-semibold text-slate-500">ยังไม่ได้แนบรูปบิล (ไม่บังคับ)</span>
+            <button id="miscExpenseReceiptClear" type="button" class="hidden rounded-lg border border-rose-200 bg-white px-2 py-1 text-xs font-semibold text-rose-600">ลบรูป</button>
+          </div>
+          <input type="hidden" id="miscExpenseReceiptUrl" />
+          <img id="miscExpenseReceiptPreview" alt="รูปบิล" class="mt-2 hidden max-h-40 rounded-lg border border-slate-200" />
+        </div>
+        <label class="block text-sm font-semibold text-slate-700">หมายเหตุ
+          <textarea id="miscExpenseRemark" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
+        </label>
+        <label id="miscExpenseReasonWrap" class="hidden block text-sm font-semibold text-slate-700">เหตุผลที่แก้ไข <span class="text-rose-500">*</span>
+          <input id="miscExpenseReason" class="mt-1 h-11 w-full rounded-lg border border-slate-300 px-3" placeholder="ระบุเหตุผล เก็บไว้ใน MiscExpenseLog" />
+        </label>
+        <p id="miscExpenseFormMessage" class="text-sm"></p>
+        <div class="flex justify-end gap-2 pt-1">
+          <button id="miscExpenseCancel" type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">ยกเลิก</button>
+          <button id="miscExpenseSubmit" type="submit" class="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700">บันทึก</button>
         </div>
       </form>
     </div>
@@ -8064,6 +8185,8 @@ function getIssueCartEntries() {
       tabLog.className = tabBaseClass;
       tabPrReport.className = tabBaseClass;
       if (tabPurchaseHistory) tabPurchaseHistory.className = tabBaseClass;
+      var tabMiscExpenseEl = document.getElementById('tabMiscExpense');
+      if (tabMiscExpenseEl) tabMiscExpenseEl.className = tabBaseClass;
       if (tabRequestOrder) tabRequestOrder.className = tabBaseClass;
       if (tabStockCount) { tabStockCount.className = tabBaseClass; tabStockCount.style.cssText = ''; }
       tabManage.className = tabManageBase;
@@ -8075,6 +8198,7 @@ function getIssueCartEntries() {
       if (active === 'log') tabLog.className = tabActiveClass;
       if (active === 'pr') tabPrReport.className = tabActiveClass;
       if (active === 'purchase-history' && tabPurchaseHistory) tabPurchaseHistory.className = tabActiveClass;
+      if (active === 'misc-expense' && tabMiscExpenseEl) tabMiscExpenseEl.className = tabActiveClass;
       if (active === 'request-order' && tabRequestOrder) tabRequestOrder.className = tabActiveClass;
       if (active === 'stock-count' && tabStockCount) { tabStockCount.className = tabBaseClass; tabStockCount.style.cssText = 'background:#4f46e5;color:#fff;border:1px solid #3730a3;'; }
       if (tabRequestOrder) tabRequestOrder.classList.add('request-order-nav-btn');
@@ -8084,6 +8208,7 @@ function getIssueCartEntries() {
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
       tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
       if (tabPurchaseHistory) tabPurchaseHistory.classList.toggle('hidden', !hasPermission('view'));
+      if (tabMiscExpenseEl) tabMiscExpenseEl.classList.toggle('hidden', !hasPermission('view'));
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       if (tabStockCount) tabStockCount.classList.toggle('hidden', !hasPermission('view_logs'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
@@ -8105,6 +8230,7 @@ function getIssueCartEntries() {
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('stock');
@@ -8119,6 +8245,7 @@ function getIssueCartEntries() {
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('txn');
@@ -8153,6 +8280,7 @@ function getIssueCartEntries() {
       logPage.classList.remove('hidden');
       prReportPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('log');
@@ -8171,6 +8299,7 @@ function getIssueCartEntries() {
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       if (stockCountPage) stockCountPage.classList.remove('hidden');
@@ -10004,6 +10133,7 @@ function getIssueCartEntries() {
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
@@ -10418,9 +10548,9 @@ function inferRequestPriority(stock, min) {
     var fccUid = 0;
     var fccTopsMode = 'usage';
     var fccQExp = {};
-    var fccLast = { P: null, PAll: null, L: null, R: null, Hist: null, ProdVolume: null, ProdConfig: null, queue: [] };
+    var fccLast = { P: null, PAll: null, L: null, R: null, Hist: null, ProdVolume: null, ProdConfig: null, Misc: null, queue: [] };
     var fccCostRatioChart = null; // Chart.js instance ของกราฟ Cost Ratio (combo) — ต้อง destroy ก่อน render ใหม่
-    var fccAsyncCache = { requests: null, logs: null, hist: null, prodVolume: null, prodConfig: null, at: 0, pending: null };
+    var fccAsyncCache = { requests: null, logs: null, hist: null, prodVolume: null, prodConfig: null, misc: null, at: 0, pending: null };
     var fccClockTimer = null;
     var fccRenderToken = 0;
     var FCC_TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -10914,6 +11044,27 @@ function inferRequestPriority(stock, min) {
       }
       return key || '-';
     }
+    // แปลงค่าใช้จ่ายสิ้นเปลืองให้อยู่รูปเดียวกับแถวรายจ่ายจากยอดเบิก (fccExpenseValidRows)
+    // จุดเดียวนี้ทำให้ทั้งกราฟ % ต้นทุน และระบบคุมงบ PR รวมของซื้อนอกระบบเข้าไปด้วยพร้อมกัน
+    // ของสิ้นเปลืองไม่มีทางไปโผล่ใน Log เบิก (ไม่ได้อยู่ในสต็อก) จึงไม่มีความเสี่ยงนับซ้ำ
+    function fccMiscExpenseRows(list) {
+      return (Array.isArray(list) ? list : []).map(function(r) {
+        var month = fccMonthKey(r.month || r.date);
+        var amount = fccN(r.total_amount);
+        if (!month || !(amount > 0)) return null;
+        return {
+          month: month,
+          // 'ส่วนกลาง' ไม่ match ไลน์ไหน fccLineOf จึงคืนค่าเดิม → เห็นเฉพาะมุมมอง "ทุกไลน์ (รวม)"
+          line: fccLineOf(r.line),
+          amount: amount,
+          category: String(r.category || ''),
+          itemName: String(r.item_name || ''),
+          vendor: String(r.vendor || ''),
+          source: 'misc'
+        };
+      }).filter(function(r) { return r !== null; });
+    }
+
     function fccExpenseValidRows(logs) {
       var priceMap = {};
       var partsList = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
@@ -11042,13 +11193,16 @@ function inferRequestPriority(stock, min) {
             { type: 'line', label: 'ยอดขาย', data: perMonth.map(function(d) { return d.sales; }),
               borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true,
               yAxisID: 'yBahtSales', borderWidth: 2, pointRadius: 1.5, pointHoverRadius: 4, order: 2 },
-            { type: 'bar', label: 'งบ Spare part', data: perMonth.map(function(d) { return d.budget; }),
+            { type: 'bar', label: 'งบ Spare part', data: perMonth.map(function(d) { return d.budget; }), stack: 'budget',
               backgroundColor: '#CBD5E1', hoverBackgroundColor: '#94A3B8',
               yAxisID: 'yBahtSpend', borderRadius: 4, order: 4, categoryPercentage: 0.64, barPercentage: 0.94 },
-            { type: 'bar', label: 'ค่าใช้จ่ายอะไหล่', data: perMonth.map(function(d) { return d.expense; }),
+            { type: 'bar', label: 'ค่าใช้จ่ายอะไหล่', data: perMonth.map(function(d) { return d.expenseParts; }), stack: 'spend',
               backgroundColor: function(c) { var d = perMonth[c.dataIndex]; return (d && d.budget != null && d.expense > d.budget) ? '#EF4444' : '#F59E0B'; },
               hoverBackgroundColor: function(c) { var d = perMonth[c.dataIndex]; return (d && d.budget != null && d.expense > d.budget) ? '#DC2626' : '#D97706'; },
               yAxisID: 'yBahtSpend', borderRadius: 4, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
+            { type: 'bar', label: 'ของสิ้นเปลือง (ซื้อนอกระบบ)', data: perMonth.map(function(d) { return d.expenseMisc; }),
+              backgroundColor: '#8B5CF6', hoverBackgroundColor: '#7C3AED',
+              yAxisID: 'yBahtSpend', stack: 'spend', borderRadius: 4, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
             { type: 'line', label: 'อัตราต้นทุน (%)', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#111827', backgroundColor: '#111827', yAxisID: 'yPct', cubicInterpolationMode: 'monotone', borderWidth: 2.2, order: 1, spanGaps: true,
               pointRadius: function(c) { return c.raw != null ? 3 : 0; }, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
               pointBackgroundColor: function(c) { var v = c.raw; return (v != null && tgt != null && v > tgt) ? '#EF4444' : '#22C55E'; } },
@@ -11061,8 +11215,8 @@ function inferRequestPriority(stock, min) {
           animation: { duration: 700, easing: 'easeOutQuart' },
           interaction: { mode: 'index', intersect: false },
           scales: {
-            x: { grid: { display: false }, ticks: { font: { family: FONT, size: 11 }, color: '#64748b', padding: 10 } },
-            yBahtSpend: { position: 'left', beginAtZero: true, title: { display: true, text: 'รายจ่าย / งบประมาณ (บาท)', font: { family: FONT, size: 11 }, color: '#475569' }, grid: { color: '#E5E7EB' }, ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return '฿' + fccMoney(v); } } },
+            x: { stacked: true, grid: { display: false }, ticks: { font: { family: FONT, size: 11 }, color: '#64748b', padding: 10 } },
+            yBahtSpend: { stacked: true, position: 'left', beginAtZero: true, title: { display: true, text: 'รายจ่าย / งบประมาณ (บาท)', font: { family: FONT, size: 11 }, color: '#475569' }, grid: { color: '#E5E7EB' }, ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return '฿' + fccMoney(v); } } },
             yBahtSales: { position: 'right', beginAtZero: true, display: false, grid: { drawOnChartArea: false } },
             yPct: { position: 'right', beginAtZero: true, title: { display: true, text: 'สัดส่วนต้นทุน (%)', font: { family: FONT, size: 11 }, color: '#111827' }, grid: { drawOnChartArea: false }, ticks: { font: { family: FONT, size: 10 }, color: '#111827', callback: function(v) { return v + '%'; } } }
           },
@@ -11088,6 +11242,7 @@ function inferRequestPriority(stock, min) {
                 html += row('ยอดขาย', '฿' + fccInt(d.sales), '#3B82F6');
                 if (d.budget != null) html += row('งบ Spare part', '฿' + fccInt(d.budget), '#64748b');
                 html += row('ค่าใช้จ่ายอะไหล่', '฿' + fccInt(d.expense), (d.budget != null && d.expense > d.budget) ? '#EF4444' : '#F59E0B');
+                if (d.expenseMisc > 0) html += row('• ของซื้อนอกระบบ', '฿' + fccInt(d.expenseMisc), '#8B5CF6');
                 if (d.ratio != null) html += row('อัตราต้นทุน', d.ratio.toFixed(1) + '%', '#111827');
                 if (d.ratio != null && tgt != null) {
                   var over = d.ratio > tgt;
@@ -11554,6 +11709,7 @@ function inferRequestPriority(stock, min) {
       var sub = document.getElementById('fccCostRatioSub');
       if (!tableEl) return;
       var hist = fccLast.Hist, prodVolume = fccLast.ProdVolume, prodConfig = fccLast.ProdConfig, logs = fccLast.Logs;
+      var miscRows = fccMiscExpenseRows(fccLast.Misc);
       if (!Array.isArray(hist) || !Array.isArray(prodVolume) || !Array.isArray(prodConfig)) return; // ยังโหลดไม่เสร็จ — คง skeleton ไว้
       var lineSelEl = document.getElementById('fccCostRatioLineFilter');
       var targetPctEl = document.getElementById('fccCostRatioTargetPct');
@@ -11578,6 +11734,16 @@ function inferRequestPriority(stock, min) {
           var mKey = String(r.model || '').trim() || String(r.partName || '').trim() || 'Unknown';
           unpricedWithdrawModels[mKey] = (unpricedWithdrawModels[mKey] || 0) + r.qty;
         }
+      });
+
+      // ค่าใช้จ่ายสิ้นเปลือง (ของซื้อนอกระบบอะไหล่) — บวกเข้ายอดรายจ่ายของเดือนนั้นตรงๆ
+      // เพราะตัดจ่ายทันทีวันที่ซื้อ ไม่มีขั้นตอนเบิกออกให้ไปนับซ้ำ
+      // ไลน์ 'ส่วนกลาง' ไม่ตรงกับไลน์ไหน จึงถูกนับเฉพาะมุมมอง "ทุกไลน์ (รวม)" ตามที่ตั้งใจ
+      var miscByMonth = {}, miscCountByMonth = {};
+      miscRows.filter(function(r) { return isAll ? true : r.line === line; }).forEach(function(r) {
+        miscByMonth[r.month] = (miscByMonth[r.month] || 0) + r.amount;
+        miscCountByMonth[r.month] = (miscCountByMonth[r.month] || 0) + 1;
+        spendByMonth[r.month] = (spendByMonth[r.month] || 0) + r.amount;
       });
 
       // มูลค่าผลิต (production_value) คำนวณจาก backend แล้ว = ผลรวม (ยอดแต่ละรุ่น × ราคาที่จับคู่ได้)
@@ -11627,7 +11793,8 @@ function inferRequestPriority(stock, min) {
         var ratio = sales > 0 ? (expense / sales * 100) : null; // Cost Ratio %
         // งบ Spare part: มุมมอง "รวม" ใช้ผลรวมงบของแต่ละไลน์ (ตามเป้าหมาย % ของไลน์นั้นๆ) ส่วนมุมมองไลน์เดียวคูณตรงจากเป้าหมายที่ตั้งไว้
         var budget = isAll ? (budgetByMonth[m] !== undefined ? budgetByMonth[m] : null) : ((targetPct > 0 && sales > 0) ? sales * targetPct / 100 : null);
-        return { label: fccMonthLabel(m), sales: sales, expense: expense, ratio: ratio, budget: budget };
+        var expenseMisc = miscByMonth[m] || 0;
+        return { label: fccMonthLabel(m), sales: sales, expense: expense, expenseMisc: expenseMisc, expenseParts: Math.max(0, expense - expenseMisc), ratio: ratio, budget: budget };
       });
       fccRenderCostRatioCombo(perMonth, targetPct);
       var rowsHtml = months.map(function(m) {
@@ -11650,12 +11817,13 @@ function inferRequestPriority(stock, min) {
         var unpSpendTip = unpricedWithdrawQtyByMonth[m] ? '<span title="อะไหล่ที่เบิกแต่ไม่มีราคา ไม่รวมในยอดรายจ่าย" style="margin-left:4px;font-size:9px;color:#dc2626;cursor:help;">⚠︎ ' + fccInt(unpricedWithdrawQtyByMonth[m]) + ' ชิ้นไม่มีราคา</span>' : '';
         var budgetDetail = isAll && budgetDetailByMonth[m] ? Object.keys(budgetDetailByMonth[m]).map(function(ln) { return ln + ': ฿' + fccInt(budgetDetailByMonth[m][ln]); }).join(' | ') : '';
         var budgetTitle = budgetDetail ? ' title="แยกตามไลน์: ' + fccEsc(budgetDetail) + '"' : '';
+        var miscTip = miscByMonth[m] ? '<div title="ของซื้อนอกระบบอะไหล่ (น็อต/เครื่องมือ/วัสดุสิ้นเปลือง)" style="font-size:9px;color:#7c3aed;">รวมของสิ้นเปลือง ฿' + fccInt(miscByMonth[m]) + ' (' + miscCountByMonth[m] + ' รายการ)</div>' : '';
         return '<tr style="border-bottom:1px solid #f1f5f9;">' +
           '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccMonthLabel(m)) + srcBadge + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + fccInt(qty) + ' ชิ้น' + unpTip + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(value) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;"' + budgetTitle + '>' + (budgetCap !== null ? '฿' + fccInt(budgetCap) : '<span style="color:#94a3b8;">—</span>') + '</td>' +
-          '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(spend) + unpSpendTip + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(spend) + unpSpendTip + miscTip + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + statusHtml + '</td>' +
           '</tr>';
       }).join('');
@@ -11673,7 +11841,7 @@ function inferRequestPriority(stock, min) {
       if (unpWithdrawKeys.length) {
         tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:11px;color:#991b1b;">⚠︎ ' + unpWithdrawKeys.length + ' รุ่นที่ถูกเบิกยังไม่มีราคา (ไม่รวมในรายจ่ายจริง): ' + unpWithdrawKeys.slice(0, 12).map(function(m) { return fccEsc(m) + ' (' + fccInt(unpricedWithdrawModels[m]) + ' ชิ้น)'; }).join(', ') + (unpWithdrawKeys.length > 12 ? ' …' : '') + '</div>';
       }
-      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + '📦 รายจ่ายคำนวณจากยอดเบิกจริง · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + '📦 รายจ่าย = ยอดเบิกจริง + ของสิ้นเปลืองที่ซื้อนอกระบบ · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
     }
     function fccRenderTops(P, L) {
       var el = document.getElementById('fccTops');
@@ -12179,12 +12347,19 @@ function inferRequestPriority(stock, min) {
           return Array.isArray(rows) ? rows : [];
         })
         .catch(function() { return fccAsyncCache.prodConfig || []; });
-      fccAsyncCache.pending = Promise.all([pReq, pLog, pHist, pProdVolume, pProdConfig]).then(function(res) {
+      var pMisc = requestApi(withAuthPayload({ action: 'getMiscExpenses' }))
+        .then(function(rows) {
+          if (rows && rows.status === 'error') throw new Error(rows.message || 'error');
+          return Array.isArray(rows) ? rows : [];
+        })
+        .catch(function() { return fccAsyncCache.misc || []; });
+      fccAsyncCache.pending = Promise.all([pReq, pLog, pHist, pProdVolume, pProdConfig, pMisc]).then(function(res) {
         fccAsyncCache.requests = res[0];
         fccAsyncCache.logs = res[1];
         fccAsyncCache.hist = res[2];
         fccAsyncCache.prodVolume = res[3];
         fccAsyncCache.prodConfig = res[4];
+        fccAsyncCache.misc = res[5];
         fccAsyncCache.at = Date.now();
         fccAsyncCache.pending = null;
         return fccAsyncCache;
@@ -12231,6 +12406,7 @@ function inferRequestPriority(stock, min) {
         fccLast.Logs = A.logs;
         fccLast.ProdVolume = A.prodVolume;
         fccLast.ProdConfig = A.prodConfig;
+        fccLast.Misc = A.misc;
         fccRenderCostRatio();
         fccRenderRepairCost();
       });
@@ -12264,6 +12440,7 @@ function inferRequestPriority(stock, min) {
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       setTabStyles('dashboard');
@@ -12278,6 +12455,7 @@ function inferRequestPriority(stock, min) {
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
@@ -13019,6 +13197,353 @@ function inferRequestPriority(stock, min) {
     }
 
 
+    /* ── ค่าใช้จ่ายสิ้นเปลือง (Misc Expenses) ────────────────────────────────────
+       ของจิปาถะที่ซื้อนอกระบบอะไหล่ (น็อตทั่วไป เครื่องมือช่าง วัสดุสิ้นเปลือง ค่าจ้างซ่อม)
+       ตัดเป็นค่าใช้จ่ายทันทีวันที่ซื้อ ไม่เข้าสต็อก จึงไม่มีทางไปซ้ำกับยอดเบิกที่ Dashboard
+       คิดจาก Log — ยอดพวกนี้ไหลเข้ากราฟ % ต้นทุน และงบ PR ผ่าน fccMiscExpenseRows()   */
+    var MISC_EXPENSE_CATEGORY_OPTIONS = ['น็อต/สกรู/ฮาร์ดแวร์', 'เครื่องมือช่าง', 'วัสดุสิ้นเปลือง', 'ค่าซ่อม/ค่าจ้างภายนอก', 'อื่นๆ'];
+    var MISC_EXPENSE_SHARED_LINE_LABEL = 'ส่วนกลาง';
+    var miscExpenseCache = [];
+    var miscExpenseLoaded = false;
+
+    function mxEl(id) { return document.getElementById(id); }
+    // Leader บันทึกได้ (คนซื้อของคือหน้างาน) — แต่แก้/ลบ Admin เท่านั้น ตรงกับฝั่ง Backend
+    function canAddMiscExpense() {
+      var role = String(currentUser && currentUser.role || '').toLowerCase();
+      return role === 'admin' || role === 'leader';
+    }
+    function canManageMiscExpense() {
+      return String(currentUser && currentUser.role || '').toLowerCase() === 'admin';
+    }
+    function mxMoney(n) { return '฿' + Math.round(Number(n) || 0).toLocaleString('th-TH'); }
+    function mxDateLabel(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return '-';
+      var parts = raw.slice(0, 10).split('-');
+      return parts.length === 3 ? (parts[2] + '/' + parts[1] + '/' + parts[0]) : raw;
+    }
+    function mxHidePage() {
+      var el = mxEl('miscExpensePage');
+      if (el) el.classList.add('hidden');
+    }
+
+    function loadMiscExpenses(forceRefresh) {
+      if (miscExpenseLoaded && !forceRefresh) { renderMiscExpenses(); return Promise.resolve(miscExpenseCache); }
+      var msgEl = mxEl('miscExpenseMessage');
+      if (msgEl) msgEl.textContent = 'กำลังโหลดค่าใช้จ่ายสิ้นเปลือง...';
+      return requestApi(withAuthPayload({ action: 'getMiscExpenses' })).then(parseApiResponse).then(function(rows) {
+        miscExpenseCache = Array.isArray(rows) ? rows : [];
+        miscExpenseLoaded = true;
+        populateMiscExpenseFilters();
+        renderMiscExpenses();
+        return miscExpenseCache;
+      }).catch(function(err) {
+        if (msgEl) msgEl.textContent = 'โหลดค่าใช้จ่ายสิ้นเปลืองไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+        throw err;
+      });
+    }
+
+    function populateMiscExpenseFilters() {
+      var monthSel = mxEl('miscExpenseMonthFilter'), lineSel = mxEl('miscExpenseLineFilter'), catSel = mxEl('miscExpenseCategoryFilter');
+      if (!monthSel || !lineSel || !catSel) return;
+      var keep = { month: monthSel.value || 'all', line: lineSel.value || 'all', category: catSel.value || 'all' };
+      var months = Array.from(new Set(miscExpenseCache.map(function(r) { return fccMonthKey(r.month || r.date); }).filter(Boolean))).sort().reverse();
+      var lines = Array.from(new Set(miscExpenseCache.map(function(r) { return String(r.line || ''); }).filter(Boolean))).sort();
+      var cats = Array.from(new Set(miscExpenseCache.map(function(r) { return String(r.category || ''); }).filter(Boolean))).sort();
+      monthSel.innerHTML = '<option value="all">ทุกเดือน</option>' + months.map(function(m) { return '<option value="' + escHtml(m) + '">' + escHtml(fccMonthLabel(m)) + '</option>'; }).join('');
+      lineSel.innerHTML = '<option value="all">ทุก Line</option>' + lines.map(function(l) { return '<option value="' + escHtml(l) + '">' + escHtml(l) + '</option>'; }).join('');
+      catSel.innerHTML = '<option value="all">ทุกหมวด</option>' + cats.map(function(c) { return '<option value="' + escHtml(c) + '">' + escHtml(c) + '</option>'; }).join('');
+      if (months.indexOf(keep.month) > -1) monthSel.value = keep.month;
+      if (lines.indexOf(keep.line) > -1) lineSel.value = keep.line;
+      if (cats.indexOf(keep.category) > -1) catSel.value = keep.category;
+    }
+
+    function getFilteredMiscExpenses() {
+      var month = mxEl('miscExpenseMonthFilter') ? mxEl('miscExpenseMonthFilter').value : 'all';
+      var line = mxEl('miscExpenseLineFilter') ? mxEl('miscExpenseLineFilter').value : 'all';
+      var category = mxEl('miscExpenseCategoryFilter') ? mxEl('miscExpenseCategoryFilter').value : 'all';
+      var query = mxEl('miscExpenseSearch') ? String(mxEl('miscExpenseSearch').value || '').trim().toLowerCase() : '';
+      return miscExpenseCache.filter(function(r) {
+        if (month !== 'all' && fccMonthKey(r.month || r.date) !== month) return false;
+        if (line !== 'all' && String(r.line || '') !== line) return false;
+        if (category !== 'all' && String(r.category || '') !== category) return false;
+        if (query && [r.item_name, r.vendor, r.receipt_no, r.remark].join(' ').toLowerCase().indexOf(query) === -1) return false;
+        return true;
+      });
+    }
+
+    function renderMiscExpenses() {
+      var tbody = mxEl('miscExpenseTable');
+      if (!tbody) return;
+      // ซ่อนปุ่มบันทึกไปเลยถ้าไม่มีสิทธิ์ — ดีกว่าให้กดแล้วค่อยเด้งว่าไม่มีสิทธิ์
+      var addBtn = mxEl('miscExpenseAddBtn');
+      if (addBtn) addBtn.classList.toggle('hidden', !canAddMiscExpense());
+      var rows = getFilteredMiscExpenses();
+      var total = rows.reduce(function(s, r) { return s + (Number(r.total_amount) || 0); }, 0);
+      var noReceipt = rows.filter(function(r) { return !String(r.receipt_url || '').trim(); }).length;
+      var byCat = {};
+      rows.forEach(function(r) { var k = String(r.category || 'อื่นๆ'); byCat[k] = (byCat[k] || 0) + (Number(r.total_amount) || 0); });
+      var topCat = Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; })[0];
+      var summaryEl = mxEl('miscExpenseSummary');
+      if (summaryEl) {
+        var cards = [
+          ['ยอดรวมที่กรอง', mxMoney(total)],
+          ['จำนวนรายการ', rows.length.toLocaleString('th-TH') + ' รายการ'],
+          ['หมวดที่ใช้เงินมากสุด', topCat ? topCat + ' • ' + mxMoney(byCat[topCat]) : '-'],
+          ['ยังไม่แนบรูปบิล', noReceipt + ' รายการ']
+        ];
+        summaryEl.innerHTML = cards.map(function(c) {
+          return '<article class="rounded-xl border border-slate-200 bg-slate-50 p-3"><p class="text-xs font-semibold text-slate-500">' + escHtml(c[0]) + '</p><p class="mt-1 text-base font-bold text-slate-900">' + escHtml(c[1]) + '</p></article>';
+        }).join('');
+      }
+      tbody.innerHTML = rows.length ? rows.map(function(r, index) {
+        var actions = canManageMiscExpense()
+          ? '<div class="flex gap-1"><button type="button" data-mx-edit="' + escHtml(r.expense_id) + '" class="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">แก้ไข</button><button type="button" data-mx-delete="' + escHtml(r.expense_id) + '" class="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">ลบ</button></div>'
+          : '<span class="text-xs text-slate-400">-</span>';
+        var receipt = String(r.receipt_url || '').trim()
+          ? '<a href="' + escHtml(r.receipt_url) + '" target="_blank" rel="noopener" class="text-xs font-semibold text-blue-600 underline">ดูรูปบิล</a>'
+          : '<span class="text-xs text-amber-600">⚠︎ ไม่มีรูปบิล</span>';
+        var isShared = String(r.line || '') === MISC_EXPENSE_SHARED_LINE_LABEL;
+        return '<tr class="border-t border-slate-100 ' + (index % 2 ? 'bg-slate-50/60' : 'bg-white') + '">' +
+          '<td class="px-3 py-3 whitespace-nowrap">' + escHtml(mxDateLabel(r.date)) + '</td>' +
+          '<td class="px-3 py-3"><span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold ' + (isShared ? 'bg-slate-200 text-slate-700' : 'bg-indigo-100 text-indigo-800') + '">' + escHtml(r.line || '-') + '</span></td>' +
+          '<td class="px-3 py-3 text-xs text-slate-600">' + escHtml(r.category || '-') + '</td>' +
+          '<td class="px-3 py-3 font-semibold text-slate-800">' + escHtml(r.item_name || '-') + (r.remark ? '<div class="text-[10px] font-normal text-slate-400">' + escHtml(r.remark) + '</div>' : '') + '</td>' +
+          '<td class="px-3 py-3 text-right whitespace-nowrap">' + (Number(r.qty) || 0).toLocaleString('th-TH') + ' ' + escHtml(r.unit || '') + '</td>' +
+          '<td class="px-3 py-3 text-right font-bold text-slate-900 whitespace-nowrap">' + escHtml(mxMoney(r.total_amount)) + '</td>' +
+          '<td class="px-3 py-3 hidden md:table-cell">' + escHtml(r.vendor || '-') + (r.receipt_no ? '<div class="text-[10px] text-slate-400">บิล ' + escHtml(r.receipt_no) + '</div>' : '') + '<div class="mt-0.5">' + receipt + '</div></td>' +
+          '<td class="px-3 py-3 hidden lg:table-cell text-xs text-slate-500">' + escHtml(r.created_by || '-') + '</td>' +
+          '<td class="px-3 py-3">' + actions + '</td></tr>';
+      }).join('') : '<tr><td colspan="9" class="px-3 py-8 text-center text-slate-400">ยังไม่มีรายการค่าใช้จ่ายสิ้นเปลือง</td></tr>';
+      var msgEl = mxEl('miscExpenseMessage');
+      if (msgEl) msgEl.textContent = 'แสดง ' + rows.length + ' รายการ · ยอดรวม ' + mxMoney(total) + (noReceipt ? ' · ยังไม่แนบรูปบิล ' + noReceipt + ' รายการ' : '');
+    }
+
+    // ข้อความสรุปสำหรับวางในกลุ่มไลน์ — รูปแบบเดียวกับสรุปเช็คสต็อก (อ่านจบในแชท ไม่ต้องเปิดเว็บ)
+    function miscExpenseSummaryText() {
+      var rows = getFilteredMiscExpenses();
+      if (!rows.length) return '';
+      var monthSel = mxEl('miscExpenseMonthFilter'), lineSel = mxEl('miscExpenseLineFilter');
+      var monthTxt = (monthSel && monthSel.value !== 'all') ? fccMonthLabel(monthSel.value) : 'ทุกเดือน';
+      var lineTxt = (lineSel && lineSel.value !== 'all') ? lineSel.value : 'ทุก Line';
+      var total = rows.reduce(function(s, r) { return s + (Number(r.total_amount) || 0); }, 0);
+      var byCat = {};
+      rows.forEach(function(r) { var k = String(r.category || 'อื่นๆ'); byCat[k] = (byCat[k] || 0) + (Number(r.total_amount) || 0); });
+      var lines = ['🧾 สรุปค่าใช้จ่ายสิ้นเปลือง — ' + monthTxt + ' / ' + lineTxt,
+        'รวม ' + mxMoney(total) + ' (' + rows.length + ' รายการ)', ''];
+      Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).forEach(function(c) {
+        lines.push('• ' + c + ': ' + mxMoney(byCat[c]));
+      });
+      var top = rows.slice().sort(function(a, b) { return (Number(b.total_amount) || 0) - (Number(a.total_amount) || 0); }).slice(0, 5);
+      if (top.length) {
+        lines.push('', 'รายการที่ใช้เงินสูงสุด:');
+        top.forEach(function(r, i) { lines.push((i + 1) + '. ' + (r.item_name || '-') + ' — ' + mxMoney(r.total_amount) + (r.vendor ? ' (' + r.vendor + ')' : '')); });
+      }
+      var noReceipt = rows.filter(function(r) { return !String(r.receipt_url || '').trim(); }).length;
+      if (noReceipt) lines.push('', '⚠️ ยังไม่แนบรูปบิล ' + noReceipt + ' รายการ');
+      return lines.join('\n');
+    }
+
+    function setMiscExpenseFormMessage(text, tone) {
+      var el = mxEl('miscExpenseFormMessage');
+      if (!el) return;
+      el.textContent = text || '';
+      el.className = 'text-sm ' + (tone === 'error' ? 'text-rose-600' : tone === 'success' ? 'text-emerald-600' : 'text-slate-500');
+    }
+
+    function setMiscExpenseReceipt(url) {
+      var hidden = mxEl('miscExpenseReceiptUrl'), preview = mxEl('miscExpenseReceiptPreview');
+      var status = mxEl('miscExpenseReceiptStatus'), clearBtn = mxEl('miscExpenseReceiptClear');
+      if (hidden) hidden.value = url || '';
+      if (preview) {
+        preview.classList.toggle('hidden', !url);
+        if (url) preview.src = url;
+      }
+      if (status) status.textContent = url ? '✅ แนบรูปบิลแล้ว' : 'ยังไม่ได้แนบรูปบิล (ไม่บังคับ)';
+      if (clearBtn) clearBtn.classList.toggle('hidden', !url);
+    }
+
+    // ราคาต่อหน่วยเป็นค่าที่คิดย้อนจากยอดรวม โชว์ให้เห็นตอนกรอกเพื่อจับพลาดตัวเลขหลักผิด
+    function updateMiscExpenseUnitHint() {
+      var hint = mxEl('miscExpenseUnitHint');
+      if (!hint) return;
+      var qty = Number(mxEl('miscExpenseQty') ? mxEl('miscExpenseQty').value : 0);
+      var total = Number(mxEl('miscExpenseTotal') ? mxEl('miscExpenseTotal').value : 0);
+      hint.textContent = (qty > 0 && total > 0) ? ('≈ ' + (total / qty).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + ' บาท/' + (mxEl('miscExpenseUnit').value || 'ชิ้น')) : '';
+    }
+
+    function openMiscExpenseModal(expense) {
+      var modal = mxEl('miscExpenseModal'), form = mxEl('miscExpenseForm');
+      if (!modal || !form) return;
+      if (expense && !canManageMiscExpense()) { showQuickToast('เฉพาะ Admin เท่านั้นที่แก้ไขได้', 'warn'); return; }
+      if (!expense && !canAddMiscExpense()) { showQuickToast('เฉพาะ Admin / Leader เท่านั้นที่บันทึกค่าใช้จ่ายได้', 'warn'); return; }
+      form.reset();
+      setMiscExpenseFormMessage('');
+      setMiscExpenseReceipt('');
+      mxEl('miscExpenseId').value = expense ? (expense.expense_id || '') : '';
+      mxEl('miscExpenseModalTitle').textContent = expense ? 'แก้ไขค่าใช้จ่ายสิ้นเปลือง' : 'บันทึกค่าใช้จ่ายสิ้นเปลือง';
+      mxEl('miscExpenseReasonWrap').classList.toggle('hidden', !expense);
+      mxEl('miscExpenseReason').value = '';
+      if (expense) {
+        mxEl('miscExpenseDate').value = String(expense.date || '').slice(0, 10);
+        mxEl('miscExpenseLine').value = expense.line || '';
+        mxEl('miscExpenseCategory').value = expense.category || '';
+        mxEl('miscExpenseItemName').value = expense.item_name || '';
+        mxEl('miscExpenseQty').value = expense.qty || 1;
+        mxEl('miscExpenseUnit').value = expense.unit || '';
+        mxEl('miscExpenseTotal').value = expense.total_amount || '';
+        mxEl('miscExpenseVendor').value = expense.vendor || '';
+        mxEl('miscExpenseReceiptNo').value = expense.receipt_no || '';
+        mxEl('miscExpenseRemark').value = expense.remark || '';
+        setMiscExpenseReceipt(expense.receipt_url || '');
+      } else {
+        var today = new Date();
+        mxEl('miscExpenseDate').value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+        mxEl('miscExpenseQty').value = 1;
+        mxEl('miscExpenseUnit').value = 'ชิ้น';
+      }
+      updateMiscExpenseUnitHint();
+      mxEl('miscExpenseSubmit').disabled = false;
+      mxEl('miscExpenseSubmit').textContent = 'บันทึก';
+      modal.classList.remove('hidden');
+      modal.scrollTop = 0;
+      lockBodyScroll();
+    }
+
+    function closeMiscExpenseModal() {
+      var modal = mxEl('miscExpenseModal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      unlockBodyScroll();
+    }
+
+    function submitMiscExpenseForm() {
+      var expenseId = String(mxEl('miscExpenseId').value || '').trim();
+      var payload = {
+        action: expenseId ? 'updateMiscExpense' : 'addMiscExpense',
+        expense_id: expenseId,
+        date: mxEl('miscExpenseDate').value,
+        line: mxEl('miscExpenseLine').value,
+        category: mxEl('miscExpenseCategory').value,
+        item_name: mxEl('miscExpenseItemName').value,
+        qty: mxEl('miscExpenseQty').value,
+        unit: mxEl('miscExpenseUnit').value,
+        total_amount: mxEl('miscExpenseTotal').value,
+        vendor: mxEl('miscExpenseVendor').value,
+        receipt_no: mxEl('miscExpenseReceiptNo').value,
+        receipt_url: mxEl('miscExpenseReceiptUrl').value,
+        remark: mxEl('miscExpenseRemark').value,
+        reason: mxEl('miscExpenseReason').value
+      };
+      var submitBtn = mxEl('miscExpenseSubmit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'กำลังบันทึก...';
+      setMiscExpenseFormMessage('กำลังบันทึก...', 'muted');
+      return postJson(withAuthPayload(payload)).then(parseApiResponse).then(function() {
+        showQuickToast(expenseId ? 'แก้ไขค่าใช้จ่ายแล้ว' : 'บันทึกค่าใช้จ่ายแล้ว', 'success');
+        closeMiscExpenseModal();
+        // ยอดพวกนี้ไปโผล่ในกราฟ % ต้นทุน/งบ PR ด้วย ต้องล้าง cache ของ Dashboard ไม่งั้นค้างตัวเลขเก่า 90 วินาที
+        if (typeof fccInvalidateAsyncCache === 'function') fccInvalidateAsyncCache();
+        return loadMiscExpenses(true);
+      }).catch(function(err) {
+        setMiscExpenseFormMessage('บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'บันทึก';
+      });
+    }
+
+    function deleteMiscExpenseRow(expenseId) {
+      var item = miscExpenseCache.filter(function(r) { return r.expense_id === expenseId; })[0];
+      if (!item) return;
+      showConfirmDialog({
+        title: 'ลบรายการค่าใช้จ่าย',
+        message: (item.item_name || '-') + ' • ' + mxMoney(item.total_amount) + ' — ลบแล้วยอดจะหายจากกราฟ % ต้นทุนและงบ PR',
+        okLabel: 'ลบรายการ'
+      }).then(function(ok) {
+        if (!ok) return;
+        var reason = window.prompt('เหตุผลที่ลบ (บันทึกไว้ใน MiscExpenseLog)');
+        if (!reason || !String(reason).trim()) { showQuickToast('ต้องระบุเหตุผลก่อนลบ', 'warn'); return; }
+        postJson(withAuthPayload({ action: 'deleteMiscExpense', expense_id: expenseId, reason: String(reason).trim() }))
+          .then(parseApiResponse).then(function() {
+            showQuickToast('ลบรายการแล้ว', 'success');
+            if (typeof fccInvalidateAsyncCache === 'function') fccInvalidateAsyncCache();
+            return loadMiscExpenses(true);
+          }).catch(function(err) { showQuickToast('ลบไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error'); });
+      });
+    }
+
+    function switchToMiscExpensePage() {
+      if (!hasPermission('view')) return switchToStockPage();
+      stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      var page = mxEl('miscExpensePage');
+      if (page) page.classList.remove('hidden');
+      setTabStyles('misc-expense');
+      loadMiscExpenses(false).catch(function() {});
+    }
+
+    (function initMiscExpensePage() {
+      var tabBtn = mxEl('tabMiscExpense');
+      if (tabBtn) tabBtn.addEventListener('click', switchToMiscExpensePage);
+      var addBtn = mxEl('miscExpenseAddBtn');
+      if (addBtn) addBtn.addEventListener('click', function() { openMiscExpenseModal(null); });
+      var refreshBtn = mxEl('miscExpenseRefreshBtn');
+      if (refreshBtn) refreshBtn.addEventListener('click', function() { loadMiscExpenses(true).catch(function() {}); });
+      var copyBtn = mxEl('miscExpenseCopyBtn');
+      if (copyBtn) copyBtn.addEventListener('click', function() { copyTextToClipboard(miscExpenseSummaryText(), 'คัดลอกสรุปแล้ว วางในกลุ่มได้เลย'); });
+      ['miscExpenseMonthFilter', 'miscExpenseLineFilter', 'miscExpenseCategoryFilter'].forEach(function(id) {
+        var el = mxEl(id);
+        if (el) el.addEventListener('change', renderMiscExpenses);
+      });
+      var searchEl = mxEl('miscExpenseSearch');
+      if (searchEl) searchEl.addEventListener('input', renderMiscExpenses);
+      ['miscExpenseQty', 'miscExpenseTotal', 'miscExpenseUnit'].forEach(function(id) {
+        var el = mxEl(id);
+        if (el) el.addEventListener('input', updateMiscExpenseUnitHint);
+      });
+      ['miscExpenseClose', 'miscExpenseCancel'].forEach(function(id) {
+        var el = mxEl(id);
+        if (el) el.addEventListener('click', closeMiscExpenseModal);
+      });
+      var modal = mxEl('miscExpenseModal');
+      if (modal && typeof bindBackdropClose === 'function') bindBackdropClose(modal, closeMiscExpenseModal);
+      var form = mxEl('miscExpenseForm');
+      if (form) form.addEventListener('submit', function(e) { e.preventDefault(); submitMiscExpenseForm(); });
+      var table = mxEl('miscExpenseTable');
+      if (table) table.addEventListener('click', function(e) {
+        var editBtn = e.target.closest ? e.target.closest('[data-mx-edit]') : null;
+        if (editBtn) { openMiscExpenseModal(miscExpenseCache.filter(function(r) { return r.expense_id === editBtn.getAttribute('data-mx-edit'); })[0]); return; }
+        var delBtn = e.target.closest ? e.target.closest('[data-mx-delete]') : null;
+        if (delBtn) deleteMiscExpenseRow(delBtn.getAttribute('data-mx-delete'));
+      });
+      var clearReceipt = mxEl('miscExpenseReceiptClear');
+      if (clearReceipt) clearReceipt.addEventListener('click', function() { setMiscExpenseReceipt(''); var f = mxEl('miscExpenseReceiptFile'); if (f) f.value = ''; });
+      var receiptFile = mxEl('miscExpenseReceiptFile');
+      if (receiptFile) receiptFile.addEventListener('change', function() {
+        var file = receiptFile.files && receiptFile.files[0];
+        if (!file) return;
+        var status = mxEl('miscExpenseReceiptStatus');
+        if (status) status.textContent = '⏳ กำลังอัปโหลดรูปบิล...';
+        // ย่อรูปก่อนส่งเสมอ — รูปจากมือถือ 4-8MB ส่งตรงไป Apps Script จะ timeout ที่หน้างาน
+        resizeImageForAi(file, 1400).then(function(dataUrl) {
+          return postJson(withAuthPayload({ action: 'uploadMiscExpenseReceipt', dataUrl: dataUrl, month: String(mxEl('miscExpenseDate').value || '').slice(0, 7) }));
+        }).then(parseApiResponse).then(function(res) {
+          setMiscExpenseReceipt((res && res.receipt_url) || '');
+          showQuickToast('แนบรูปบิลแล้ว', 'success');
+        }).catch(function(err) {
+          if (status) status.textContent = '⚠️ อัปโหลดรูปไม่สำเร็จ';
+          showQuickToast('อัปโหลดรูปบิลไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        }).finally(function() { receiptFile.value = ''; });
+      });
+    })();
+
     function switchToPurchaseHistoryPage() {
       if (!hasPermission('view')) return switchToStockPage();
       stockPage.classList.add('hidden');
@@ -13030,6 +13555,7 @@ function inferRequestPriority(stock, min) {
       adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.remove('hidden');
+      mxHidePage();
       setTabStyles('purchase-history');
       loadPurchaseHistory(false).catch(function() {});
     }
@@ -13123,6 +13649,7 @@ function inferRequestPriority(stock, min) {
       logPage.classList.add('hidden');
       prReportPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
       managePage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       adminPage.classList.remove('hidden');
@@ -13146,6 +13673,7 @@ function inferRequestPriority(stock, min) {
       adminPage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
       prReportPage.classList.remove('hidden');
       setTabStyles('pr');
     }
@@ -13699,6 +14227,11 @@ function inferRequestPriority(stock, min) {
           (salesBML[m] = salesBML[m] || {}); salesBML[m][ln] = (salesBML[m][ln] || 0) + fccN(v.production_value);
         });
         fccExpenseValidRows(A.logs).forEach(function(r) {
+          (spentBML[r.month] = spentBML[r.month] || {}); spentBML[r.month][r.line] = (spentBML[r.month][r.line] || 0) + r.amount;
+        });
+        // ค่าใช้จ่ายสิ้นเปลืองก็กินงบเดือนนั้นของไลน์ด้วย — ไลน์ 'ส่วนกลาง' จะกลายเป็น key ที่ไม่มีงบ
+        // จึงถูกกรองทิ้งตอนแสดงผล (prBudgetRows กรองด้วย hasBudget) ไม่ไปตัดงบของไลน์ใดไลน์หนึ่ง
+        fccMiscExpenseRows(A.misc).forEach(function(r) {
           (spentBML[r.month] = spentBML[r.month] || {}); spentBML[r.month][r.line] = (spentBML[r.month][r.line] || 0) + r.amount;
         });
         var monthSet = {}; monthSet[monthKey] = true;
@@ -16670,6 +17203,7 @@ function inferRequestPriority(stock, min) {
       else if (!logPage.classList.contains('hidden')) setTabStyles('log');
       else if (!prReportPage.classList.contains('hidden')) setTabStyles('pr');
       else if (purchaseHistoryPage && !purchaseHistoryPage.classList.contains('hidden')) setTabStyles('purchase-history');
+      else if (document.getElementById('miscExpensePage') && !document.getElementById('miscExpensePage').classList.contains('hidden')) setTabStyles('misc-expense');
       else if (!managePage.classList.contains('hidden')) setTabStyles('manage');
       else if (!adminPage.classList.contains('hidden')) setTabStyles('admin');
     }));
@@ -17354,7 +17888,7 @@ function inferRequestPriority(stock, min) {
     // ============ แท็บเมนูจัดกลุ่มเป็น dropdown ============
     var NAV_GROUP_OF_ACTIVE = {
       'txn': 'warehouse', 'stock-count': 'warehouse', 'log': 'warehouse',
-      'request-order': 'procure', 'pr': 'procure', 'purchase-history': 'procure',
+      'request-order': 'procure', 'pr': 'procure', 'purchase-history': 'procure', 'misc-expense': 'procure',
       'manage': 'manage', 'admin': 'manage'
     };
     function closeAllNavGroups() {
