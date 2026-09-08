@@ -56,8 +56,9 @@ assert(htmlLf.includes('return d.expenseParts;'), 'แท่งอะไหล�
 assert(htmlLf.includes('id="miscExpensePage"') && htmlLf.includes('id="tabMiscExpense"'));
 assert(/<button id="tabMiscExpense"[\s\S]{0,600}?>ค่าใช้จ่ายสิ้นเปลือง<\/span>/.test(htmlLf), 'ต้องมีปุ่มเมนูในกลุ่มจัดซื้อ');
 assert(htmlLf.includes("'misc-expense': 'procure'"), 'ต้องไฮไลต์กลุ่ม "จัดซื้อ" ตอนอยู่หน้านี้');
-// ยอดรวมคือช่องที่คนกรอกจริง (บิลร้านค้ามีแต่ยอดรวม) ราคาต่อหน่วยให้ระบบคิดย้อนเอง
-assert(htmlLf.includes('id="miscExpenseTotal"') && htmlLf.includes('ยอดรวม (บาท)'));
+// 1 บิลกรอกได้หลายรายการหลายหมวด — ยอดรวมทั้งบิลคิดเองจากทุกแถวและห้ามแก้
+assert(htmlLf.includes('id="miscExpenseRows"') && htmlLf.includes('id="miscExpenseAddRow"'), 'ต้องมีที่เพิ่มรายการหลายแถว');
+assert(/<output id="miscExpenseGrandTotal"/.test(htmlLf), 'ยอดรวมทั้งบิลต้องเป็น output ที่แก้เองไม่ได้ ไม่ใช่ input');
 assert(htmlLf.includes('id="miscExpenseReceiptFile"') && htmlLf.includes('capture="environment"'), 'ต้องถ่ายรูปบิลจากมือถือได้');
 assert(htmlLf.includes('<option value="ส่วนกลาง">'), 'ต้องเลือก "ส่วนกลาง" ได้สำหรับของที่ใช้ร่วมหลายไลน์');
 // ต้องซ่อนหน้านี้ทุกครั้งที่สลับไปหน้าอื่น ไม่งั้นหน้าซ้อนกัน
@@ -72,7 +73,7 @@ assert(backend.includes("var user = requireMiscExpenseAdmin({ authToken: payload
 
 // ── Backend: ชีต + routing ───────────────────────────────────────────────────
 assert(backend.includes("SPARE_APP_CONFIG.miscExpenseSheetName = SPARE_APP_CONFIG.miscExpenseSheetName || 'MiscExpenses'"));
-assert(backend.includes("var MISC_EXPENSE_HEADERS = ['Expense ID', 'Date', 'Month', 'Line', 'Category', 'Item Name', 'Qty', 'Unit', 'Unit Price', 'Total Amount', 'Vendor', 'Receipt No', 'Receipt URL', 'Paid By', 'Remark', 'Deleted', 'Created By', 'Created At', 'Updated By', 'Updated At'];"));
+assert(backend.includes("var MISC_EXPENSE_HEADERS = ['Expense ID', 'Date', 'Month', 'Line', 'Category', 'Item Name', 'Qty', 'Unit', 'Unit Price', 'Total Amount', 'Vendor', 'Receipt No', 'Receipt URL', 'Paid By', 'Remark', 'Deleted', 'Created By', 'Created At', 'Updated By', 'Updated At', 'Bill ID'];"));
 ['getMiscExpenses', 'addMiscExpense', 'updateMiscExpense', 'deleteMiscExpense'].forEach(function(action) {
   assert(backend.includes("if (action === '" + action + "') return respond(" + action + "(e.parameter), e);"), action + ' ต้องเรียกผ่าน GET ได้');
   assert(backend.includes("if (action === '" + action + "') return respond(" + action + "(body), e);"), action + ' ต้องเรียกผ่าน POST ได้');
@@ -86,3 +87,56 @@ assert(backend.includes("if (!reason) throw new Error('กรุณาระบ�
 assert(backend.includes("throw new Error('บันทึกวันที่ล่วงหน้าไม่ได้');"));
 
 console.log('Misc expense ledger checks passed');
+
+// ── 1 บิล = หลายรายการหลายหมวด (กรอกรวดเดียว ไม่ต้องเข้าออกทีละชิ้น) ──────────
+const rowSrc = [
+  grab(/^ {4}function mxRowAmount\(row\) \{[\s\S]*?\n {4}\}/m, 'mxRowAmount'),
+  grab(/^ {4}function mxIsBlankRow\(row\) \{[\s\S]*?\n {4}\}/m, 'mxIsBlankRow')
+].join('\n');
+const mxRowAmount = new Function(rowSrc + '\nreturn mxRowAmount;')();
+const mxIsBlankRow = new Function(rowSrc + '\nreturn mxIsBlankRow;')();
+
+// เป็นเงินของแต่ละแถว = จำนวน × ราคา/หน่วย เหมือนบิลร้านค้า (5 เมตร × 14 = 70)
+assert.strictEqual(mxRowAmount({ qty: 5, unit_price: 14 }), 70);
+assert.strictEqual(mxRowAmount({ qty: 3, unit_price: 9 }), 27);
+assert.strictEqual(mxRowAmount({ qty: '1', unit_price: '16' }), 16, 'ค่าจาก input เป็น string ต้องคิดได้');
+assert.strictEqual(mxRowAmount({ qty: 3, unit_price: 0.335 }), 1.01, 'ต้องปัดเป็น 2 ตำแหน่ง ไม่ปล่อยทศนิยมลอย');
+assert.strictEqual(mxRowAmount({ qty: 1, unit_price: '' }), 0, 'ยังไม่กรอกราคา = 0 ไม่ใช่ NaN');
+assert.strictEqual(mxRowAmount({ qty: 0, unit_price: 50 }), 0, 'จำนวน 0 ต้องไม่กลายเป็นยอดติดลบ/NaN');
+// รวมทั้งบิลตามตัวอย่างจริง: 70 + 75 + 27 + 16 + 16 + 16 = 220
+const billRows = [
+  { qty: 5, unit_price: 14 }, { qty: 5, unit_price: 15 }, { qty: 3, unit_price: 9 },
+  { qty: 1, unit_price: 16 }, { qty: 1, unit_price: 16 }, { qty: 1, unit_price: 16 }
+];
+assert.strictEqual(billRows.reduce((s, r) => s + mxRowAmount(r), 0), 220);
+// แถวที่เผลอกดเพิ่มแล้วไม่ได้กรอกอะไรเลย ต้องถูกทิ้ง ไม่ใช่เด้ง error ให้ลบเอง
+assert.strictEqual(mxIsBlankRow({ item_name: '', unit_price: '', category: '' }), true);
+assert.strictEqual(mxIsBlankRow({ item_name: 'น็อต M8', unit_price: '', category: '' }), false);
+
+// ยอดรวมทั้งบิลต้องคำนวณจากทุกแถว ไม่ใช่ให้พิมพ์เอง
+assert(/function mxRecalcTotals\(\)[\s\S]{0,900}grand \+= amount;/.test(htmlLf));
+assert(/mxCollectItems\(\)[\s\S]{0,400}total_amount: mxRowAmount\(row\)/.test(htmlLf), 'ยอดที่ส่งขึ้นเซิร์ฟเวอร์ต้องมาจาก mxRowAmount ของแถวนั้น');
+assert(htmlLf.includes("action: 'addMiscExpenseBatch', items: items"), 'บันทึกทั้งบิลต้องส่งเป็นชุดครั้งเดียว');
+// วาดแถวใหม่ทุกคีย์ = เคอร์เซอร์เด้ง ต้องอัปเดตแค่ยอดระหว่างพิมพ์
+assert(/function mxOnRowInput\(e\)[\s\S]{0,700}mxRecalcTotals\(\);/.test(htmlLf));
+assert(!/function mxOnRowInput\(e\)[\s\S]{0,700}mxRenderRows\(\);/.test(htmlLf), 'ห้าม re-render ระหว่างพิมพ์');
+// แก้ไขทีละรายการ (แถวเดียว) — ต้องซ่อนปุ่มเพิ่มแถวไม่ให้แตกบิลตอนแก้
+assert(/var addBtn = mxEl\('miscExpenseAddRow'\);[\s\S]{0,140}classList\.toggle\('hidden', single\)/.test(htmlLf));
+
+// ── Backend: บันทึกเป็นชุด 1 บิล ────────────────────────────────────────────
+assert(backend.includes("if (action === 'addMiscExpenseBatch') return respond(addMiscExpenseBatch(e.parameter), e);"));
+assert(backend.includes("if (action === 'addMiscExpenseBatch') return respond(addMiscExpenseBatch(body), e);"));
+assert(/function addMiscExpenseBatch\(payload\)[\s\S]{0,600}requireMiscExpenseEditor/.test(backend), 'บันทึกทั้งบิลต้องผ่าน gate เดียวกับบันทึกเดี่ยว');
+// ตรวจครบทุกแถวก่อนค่อยเขียน — กันบิลเข้าไปครึ่งใบแล้วเจอแถวเสียตรงกลาง
+assert(/var fields = rawItems\.map\(function\(item, index\) \{[\s\S]{0,900}throw new Error\('รายการที่ ' \+ \(index \+ 1\)/.test(backend));
+assert(/var rows = fields\.map[\s\S]{0,700}sheet\.getRange\(sheet\.getLastRow\(\) \+ 1, 1, rows\.length, MISC_EXPENSE_HEADERS\.length\)\.setValues\(rows\);/.test(backend),
+  'ต้องเขียนทีเดียวทั้งบิล ไม่ใช่ appendRow ทีละแถว');
+assert(backend.includes("throw new Error('ต้องมีอย่างน้อย 1 รายการ');") && backend.includes('บันทึกได้สูงสุด 50 รายการต่อ 1 บิล'));
+// ทุกแถวในบิลเดียวกันต้องได้ Bill ID เดียวกัน และแก้ไขภายหลังต้องไม่ทำ Bill ID หาย
+assert(/var billId = 'MEB-' \+ Utilities\.getUuid\(\);/.test(backend));
+assert(/appendMiscExpenseAudit\(user\.username, billId, 'CREATE_BILL'/.test(backend));
+assert(backend.includes("user.username || '', timestamp, existing[20] || ''"), 'แก้ไขแถวเดิมต้องคง Bill ID ไว้');
+// ชีตที่สร้างไปก่อนมีคอลัมน์ Bill ID ต้องเติมหัวคอลัมน์ให้เอง ไม่ใช่ migrate ทั้งชีต
+assert(/if \(sheet\.getLastColumn\(\) < MISC_EXPENSE_HEADERS\.length\) \{/.test(backend));
+
+console.log('Misc expense multi-item bill checks passed');
