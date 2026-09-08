@@ -140,3 +140,33 @@ assert(backend.includes("user.username || '', timestamp, existing[20] || ''"), '
 assert(/if \(sheet\.getLastColumn\(\) < MISC_EXPENSE_HEADERS\.length\) \{/.test(backend));
 
 console.log('Misc expense multi-item bill checks passed');
+
+// ── การ์ดบน Dashboard (มุมมองผู้จัดการแผนก) ──────────────────────────────────
+// ค่าใช้จ่ายพวกนี้ถูกบวกในกราฟ Cost Ratio อยู่แล้ว แต่ผู้จัดการต้องเห็นด้วยว่า
+// "เงินหมดไปกับหมวดไหน ไลน์ไหน ร้านไหน" ไม่ใช่เห็นแค่ยอดรวมก้อนเดียว
+assert(htmlLf.includes('id="fccMiscCard"') && htmlLf.includes('id="fccMiscSummary"') && htmlLf.includes('id="fccMiscTable"'),
+  'ต้องมีการ์ดค่าใช้จ่ายสิ้นเปลืองบน Dashboard');
+assert(htmlLf.includes('id="fccMiscTrendCanvas"') && htmlLf.includes('id="fccMiscBreakdown"'));
+assert(htmlLf.includes('id="fccMiscLineFilter"') && htmlLf.includes('id="fccMiscRangeFilter"'), 'ต้องกรองตามไลน์และช่วงเวลาได้');
+assert(/fccRenderRepairCost\(\);\r?\n\s+fccRenderMiscExpense\(\);/.test(htmlLf), 'ต้องถูกเรียกตอน render Dashboard');
+assert(/\['fccMiscLineFilter', 'fccMiscRangeFilter'\]\.forEach\(function\(id\) \{[\s\S]{0,200}addEventListener\('change', fccRenderMiscExpense\)/.test(htmlLf),
+  'เปลี่ยนตัวกรองต้องคำนวณใหม่จากข้อมูลที่โหลดไว้ ไม่ยิง API ซ้ำ');
+// ข้อมูลยังโหลดไม่เสร็จต้องคง skeleton ไว้ ไม่ใช่วาดการ์ดเปล่า
+assert(/function fccRenderMiscExpense\(\)[\s\S]{0,900}if \(!Array\.isArray\(fccLast\.Misc\)\) return;/.test(htmlLf));
+// Chart.js instance ต้อง destroy ก่อนวาดใหม่ ไม่งั้น canvas ซ้อนกันจน hover เพี้ยน
+assert(/if \(fccMiscTrendChart\) \{ fccMiscTrendChart\.destroy\(\); fccMiscTrendChart = null; \}/.test(htmlLf));
+// KPI ที่ผู้จัดการใช้ตัดสินใจ: สัดส่วนของซื้อนอกระบบเทียบรายจ่ายอะไหล่จริงในขอบเขตเดียวกัน
+assert(/partsSpend \+= r\.amount;[\s\S]{0,300}var sharePct = totalSpend > 0 \? \(grand \/ totalSpend \* 100\) : null;/.test(htmlLf));
+assert(htmlLf.includes("miscCard('สัดส่วนต่อรายจ่ายอะไหล่ทั้งหมด'"));
+// แถวข้อมูลต้องมีสถานะรูปบิล เพื่อเตือนว่ายอดไหนตรวจย้อนหลังไม่ได้
+assert(/hasReceipt: !!String\(r\.receipt_url \|\| ''\)\.trim\(\),/.test(htmlLf));
+assert(htmlLf.includes('⚠️ ยังไม่แนบรูปบิล '), 'ต้องเตือนรายการที่ไม่มีบิลแนบ');
+// "ส่วนกลาง" ต้องอธิบายในการ์ดว่าทำไมไม่ถูกปันเข้าไลน์ ไม่ใช่ปล่อยให้เดาเอง
+assert(htmlLf.includes('ไม่ถูกปันเข้าไลน์ใดไลน์หนึ่งและไม่ตัดงบ PR ของไลน์'));
+// Export CSV ต้องมี BOM ไม่งั้น Excel อ่านภาษาไทยเป็นตัวยึกยือ
+assert(/function fccExportMiscExpenseCsv\(\)/.test(htmlLf) && htmlLf.indexOf("misc-expense-' + new Date().toISOString()") > -1,
+  'ต้อง Export CSV ของค่าใช้จ่ายสิ้นเปลืองได้');
+assert(htmlLf.indexOf("new Blob(['" + String.fromCharCode(92) + "ufeff' + lines.join") > -1, 'CSV ต้องมี BOM ไม่งั้น Excel อ่านภาษาไทยเป็นตัวยึกยือ');
+assert(htmlLf.includes("items.push(['scroll:fccMiscCard'"), 'ต้องมีปุ่มลัดในเมนูลอยให้เลื่อนไปการ์ดนี้');
+
+console.log('Misc expense dashboard card checks passed');
