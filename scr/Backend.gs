@@ -12,6 +12,11 @@ SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHi
 SPARE_APP_CONFIG.productionVolumeSheetName = SPARE_APP_CONFIG.productionVolumeSheetName || 'ProductionVolume';
 SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCostConfigSheetName || 'ProductionCostConfig';
 SPARE_APP_CONFIG.machinesSheetName = SPARE_APP_CONFIG.machinesSheetName || 'Machines';
+// ค่าใช้จ่ายสิ้นเปลือง — ของจิปาถะที่ซื้อนอกระบบอะไหล่ (น็อตทั่วไป เครื่องมือช่าง วัสดุสิ้นเปลือง)
+// ตัดเป็นค่าใช้จ่ายทันทีวันที่ซื้อ ไม่เข้าสต็อก ไม่มี flow รับเข้า/เบิกออก จึงไม่ซ้ำกับยอดเบิก
+// ที่ Dashboard คำนวณจาก Log — ดู getMiscExpenses() และ fccMiscExpenseRows() ฝั่งเว็บ
+SPARE_APP_CONFIG.miscExpenseSheetName = SPARE_APP_CONFIG.miscExpenseSheetName || 'MiscExpenses';
+SPARE_APP_CONFIG.miscExpenseAuditSheetName = SPARE_APP_CONFIG.miscExpenseAuditSheetName || 'MiscExpenseLog';
 // ทะเบียนชิ้น (Part Tag) — ตอนเบิกออก ระบบออก "เลขประจำชิ้น" วิ่งให้อัตโนมัติ 1 เลขต่อ 1 ชิ้น
 // เพื่อให้ตามได้ว่าชิ้นนั้นออกไปวันไหน ใครเบิก ใส่เครื่องไหน และตอนนี้สถานะอะไร
 // PartTagConfig = ตั้งค่าว่า Category ไหนต้องออกเลข (บังคับเฉพาะบางประเภท) และใช้ prefix อะไร
@@ -66,6 +71,15 @@ var PURCHASE_HISTORY_SOURCES = ['Purchase Request', 'PR Report', 'Manual', 'Auto
 var PRODUCTION_VOLUME_HEADERS = ['Month', 'Line', 'Actual Qty', 'Updated By', 'Updated At'];
 // ราคาต่อหน่วย (บาท/ชิ้น) และเป้าหมาย % ที่ต้องการควบคุมรายจ่ายอะไหล่ให้อยู่ในกรอบ ต่อไลน์
 var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updated By', 'Updated At'];
+// ค่าใช้จ่ายสิ้นเปลือง (ซื้อนอกระบบอะไหล่) — เก็บ Total Amount เป็นค่าหลักที่คนกรอกจริง
+// (บนบิลร้านค้ามีแต่ยอดรวม ไม่ได้แยกราคาต่อหน่วยเสมอ) ส่วน Unit Price คิดย้อนจาก Total/Qty
+var MISC_EXPENSE_HEADERS = ['Expense ID', 'Date', 'Month', 'Line', 'Category', 'Item Name', 'Qty', 'Unit', 'Unit Price', 'Total Amount', 'Vendor', 'Receipt No', 'Receipt URL', 'Paid By', 'Remark', 'Deleted', 'Created By', 'Created At', 'Updated By', 'Updated At'];
+var MISC_EXPENSE_AUDIT_HEADERS = ['Date Time', 'User', 'Expense ID', 'Action Type', 'Old Value', 'New Value', 'Reason'];
+var MISC_EXPENSE_CATEGORIES = ['น็อต/สกรู/ฮาร์ดแวร์', 'เครื่องมือช่าง', 'วัสดุสิ้นเปลือง', 'ค่าซ่อม/ค่าจ้างภายนอก', 'อื่นๆ'];
+// 'ส่วนกลาง' = ของที่ใช้ร่วมหลายไลน์ ไม่เฉลี่ยเข้าไลน์ไหน (จะเห็นเฉพาะมุมมอง "ทุกไลน์ (รวม)")
+// เจตนา: ไม่ปันส่วนอัตโนมัติ เพราะตัวเลขที่เฉลี่ยเองอธิบายกับหน้างานไม่ได้ว่ามาจากไหน
+var MISC_EXPENSE_LINES = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw', 'ส่วนกลาง'];
+var MISC_EXPENSE_SHARED_LINE = 'ส่วนกลาง';
 // เครื่องจักรของแต่ละไลน์ (master list ให้ Admin กรอกเอง) — อะไหล่แต่ละชิ้นผูกได้หลายเครื่องจักร
 // โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
 var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
@@ -1799,6 +1813,218 @@ function addManualPurchaseHistory(payload) {
     force_status: true
   });
   return { status: 'success', history: result };
+}
+
+// =============================
+// MISC EXPENSES — ค่าใช้จ่ายสิ้นเปลือง (ของซื้อนอกระบบอะไหล่)
+// =============================
+
+function getMiscExpenseSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.miscExpenseSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(MISC_EXPENSE_HEADERS);
+  return sheet;
+}
+
+function getMiscExpenseAuditSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.miscExpenseAuditSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(MISC_EXPENSE_AUDIT_HEADERS);
+  return sheet;
+}
+
+function appendMiscExpenseAudit(user, expenseId, actionType, oldValue, newValue, reason) {
+  getMiscExpenseAuditSheet().appendRow([
+    Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'), user || '', expenseId || '', actionType || '',
+    JSON.stringify(oldValue || {}), JSON.stringify(newValue || {}), reason || ''
+  ]);
+}
+
+function miscExpenseRowToObject(row) {
+  return {
+    expense_id: String(row[0] || ''), date: formatPurchaseHistoryDate(row[1], false), month: formatPurchaseHistoryMonth(row[2]),
+    line: String(row[3] || ''), category: String(row[4] || ''), item_name: String(row[5] || ''),
+    qty: Number(row[6] || 0), unit: String(row[7] || ''), unit_price: Number(row[8] || 0), total_amount: Number(row[9] || 0),
+    vendor: String(row[10] || ''), receipt_no: String(row[11] || ''), receipt_url: String(row[12] || ''),
+    paid_by: String(row[13] || ''), remark: String(row[14] || ''), deleted: toBoolean(row[15], false),
+    created_by: String(row[16] || ''), created_at: formatPurchaseHistoryDate(row[17], true),
+    updated_by: String(row[18] || ''), updated_at: formatPurchaseHistoryDate(row[19], true)
+  };
+}
+
+// Leader กรอกได้ (คนซื้อของจริงคือหน้างาน ถ้าล็อกเป็น Admin อย่างเดียวจะไม่มีใครกรอก
+// แล้วตัวเลขค่าใช้จ่ายจะว่างเปล่าไปเลย) — แต่แก้/ลบต้อง Admin ดู requireMiscExpenseAdmin
+function requireMiscExpenseEditor(payload) {
+  var session = getSessionUser(payload);
+  var user = findUserByUsername(session.user.username);
+  var role = normalizeRole(user && user.role);
+  if (role !== 'admin' && role !== 'leader') throw new Error('เฉพาะ Admin / Leader เท่านั้นที่บันทึกค่าใช้จ่ายสิ้นเปลืองได้');
+  return user;
+}
+
+function requireMiscExpenseAdmin(payload) {
+  var session = getSessionUser(payload);
+  var user = findUserByUsername(session.user.username);
+  if (normalizeRole(user && user.role) !== 'admin') throw new Error('เฉพาะ Admin เท่านั้นที่แก้ไข/ลบค่าใช้จ่ายสิ้นเปลืองได้');
+  return user;
+}
+
+function normalizeMiscExpenseLine(value) {
+  var raw = String(value || '').trim();
+  for (var i = 0; i < MISC_EXPENSE_LINES.length; i += 1) {
+    if (MISC_EXPENSE_LINES[i].toLowerCase() === raw.toLowerCase()) return MISC_EXPENSE_LINES[i];
+  }
+  return '';
+}
+
+function normalizeMiscExpenseCategory(value) {
+  var raw = String(value || '').trim();
+  for (var i = 0; i < MISC_EXPENSE_CATEGORIES.length; i += 1) {
+    if (MISC_EXPENSE_CATEGORIES[i] === raw) return MISC_EXPENSE_CATEGORIES[i];
+  }
+  return '';
+}
+
+// รับได้ทั้ง 'yyyy-MM-dd' (จาก input[type=date]) และ Date — คืน 'yyyy-MM-dd' เสมอ
+// ห้ามรับวันที่อนาคต (พิมพ์ปีผิดแล้วยอดไปโผล่เดือนที่ยังมาไม่ถึง หาไม่เจอ)
+function normalizeMiscExpenseDate(value) {
+  var raw = String(value || '').trim();
+  var date = raw ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw + 'T00:00:00+07:00' : raw) : new Date();
+  if (isNaN(date.getTime())) throw new Error('วันที่ไม่ถูกต้อง');
+  if (date.getTime() > Date.now() + 24 * 60 * 60 * 1000) throw new Error('บันทึกวันที่ล่วงหน้าไม่ได้');
+  return Utilities.formatDate(date, 'Asia/Bangkok', 'yyyy-MM-dd');
+}
+
+function buildMiscExpenseFields(payload) {
+  var line = normalizeMiscExpenseLine(payload.line);
+  if (!line) throw new Error('กรุณาเลือก Line (หรือ ' + MISC_EXPENSE_SHARED_LINE + ')');
+  var category = normalizeMiscExpenseCategory(payload.category);
+  if (!category) throw new Error('กรุณาเลือกหมวดค่าใช้จ่าย');
+  var itemName = String(payload.item_name || payload.itemName || '').trim();
+  if (!itemName) throw new Error('กรุณาระบุรายการที่ซื้อ');
+  var qty = Number(payload.qty === undefined || payload.qty === '' ? 1 : payload.qty);
+  if (!isFinite(qty) || qty <= 0) throw new Error('จำนวนต้องมากกว่า 0');
+  var total = Number(payload.total_amount !== undefined ? payload.total_amount : payload.totalAmount);
+  if (!isFinite(total) || total < 0) throw new Error('ยอดรวมต้องเป็นตัวเลขไม่ติดลบ');
+  return {
+    date: normalizeMiscExpenseDate(payload.date),
+    line: line,
+    category: category,
+    itemName: itemName,
+    qty: qty,
+    unit: String(payload.unit || '').trim() || 'ชิ้น',
+    unitPrice: Math.round((total / qty) * 100) / 100,
+    total: Math.round(total * 100) / 100,
+    vendor: String(payload.vendor || '').trim(),
+    receiptNo: String(payload.receipt_no || payload.receiptNo || '').trim(),
+    receiptUrl: String(payload.receipt_url || payload.receiptUrl || '').trim(),
+    paidBy: String(payload.paid_by || payload.paidBy || '').trim(),
+    remark: String(payload.remark || '').trim()
+  };
+}
+
+function getMiscExpenses(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var values = getMiscExpenseSheet().getDataRange().getValues();
+  if (values.length <= 1) return [];
+  return values.slice(1).map(miscExpenseRowToObject)
+    .filter(function(item) { return item.expense_id && !item.deleted; })
+    .sort(function(a, b) { return String(b.date).localeCompare(String(a.date)) || String(b.created_at).localeCompare(String(a.created_at)); });
+}
+
+function addMiscExpense(payload) {
+  var user = requireMiscExpenseEditor({ authToken: payload.authToken });
+  var f = buildMiscExpenseFields(payload);
+  var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var expenseId = 'ME-' + Utilities.getUuid();
+  var row = [
+    expenseId, f.date, f.date.slice(0, 7), f.line, f.category, f.itemName, f.qty, f.unit, f.unitPrice, f.total,
+    f.vendor, f.receiptNo, f.receiptUrl, f.paidBy || user.username || '', f.remark, false,
+    user.username || '', timestamp, user.username || '', timestamp
+  ];
+  getMiscExpenseSheet().appendRow(row);
+  appendMiscExpenseAudit(user.username, expenseId, 'CREATE', {}, miscExpenseRowToObject(row), '');
+  return { status: 'success', expense: miscExpenseRowToObject(row) };
+}
+
+function findMiscExpenseRowIndex(values, expenseId) {
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '') === expenseId && !toBoolean(values[i][15], false)) return i;
+  }
+  return -1;
+}
+
+function updateMiscExpense(payload) {
+  var user = requireMiscExpenseAdmin({ authToken: payload.authToken });
+  var expenseId = String(payload.expense_id || payload.expenseId || '').trim();
+  if (!expenseId) throw new Error('ไม่พบ Expense ID');
+  var reason = String(payload.reason || '').trim();
+  if (!reason) throw new Error('กรุณาระบุเหตุผลการแก้ไข');
+  var sheet = getMiscExpenseSheet();
+  var values = sheet.getDataRange().getValues();
+  var rowIndex = findMiscExpenseRowIndex(values, expenseId);
+  if (rowIndex === -1) throw new Error('ไม่พบรายการค่าใช้จ่ายนี้');
+  var existing = values[rowIndex];
+  var oldObject = miscExpenseRowToObject(existing);
+  var pick = function(key, fallback) { return payload[key] !== undefined && payload[key] !== null ? payload[key] : fallback; };
+  var merged = buildMiscExpenseFields({
+    date: pick('date', oldObject.date), line: pick('line', oldObject.line), category: pick('category', oldObject.category),
+    item_name: pick('item_name', oldObject.item_name), qty: pick('qty', oldObject.qty), unit: pick('unit', oldObject.unit),
+    total_amount: pick('total_amount', oldObject.total_amount), vendor: pick('vendor', oldObject.vendor),
+    receipt_no: pick('receipt_no', oldObject.receipt_no), receipt_url: pick('receipt_url', oldObject.receipt_url),
+    paid_by: pick('paid_by', oldObject.paid_by), remark: pick('remark', oldObject.remark)
+  });
+  var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var row = [
+    expenseId, merged.date, merged.date.slice(0, 7), merged.line, merged.category, merged.itemName, merged.qty, merged.unit,
+    merged.unitPrice, merged.total, merged.vendor, merged.receiptNo, merged.receiptUrl, merged.paidBy, merged.remark, false,
+    existing[16] || '', existing[17] || timestamp, user.username || '', timestamp
+  ];
+  sheet.getRange(rowIndex + 1, 1, 1, MISC_EXPENSE_HEADERS.length).setValues([row]);
+  appendMiscExpenseAudit(user.username, expenseId, 'UPDATE', oldObject, miscExpenseRowToObject(row), reason);
+  return { status: 'success', expense: miscExpenseRowToObject(row) };
+}
+
+// ลบแบบ soft delete — เก็บแถวไว้ในชีตเสมอ (เงินที่จ่ายไปแล้วต้องตามรอยย้อนหลังได้)
+function deleteMiscExpense(payload) {
+  var user = requireMiscExpenseAdmin({ authToken: payload.authToken });
+  var expenseId = String(payload.expense_id || payload.expenseId || '').trim();
+  if (!expenseId) throw new Error('ไม่พบ Expense ID');
+  var reason = String(payload.reason || '').trim();
+  if (!reason) throw new Error('กรุณาระบุเหตุผลการลบ');
+  var sheet = getMiscExpenseSheet();
+  var values = sheet.getDataRange().getValues();
+  var rowIndex = findMiscExpenseRowIndex(values, expenseId);
+  if (rowIndex === -1) throw new Error('ไม่พบรายการค่าใช้จ่ายนี้');
+  var oldObject = miscExpenseRowToObject(values[rowIndex]);
+  var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  sheet.getRange(rowIndex + 1, 16).setValue(true);
+  sheet.getRange(rowIndex + 1, 19, 1, 2).setValues([[user.username || '', timestamp]]);
+  appendMiscExpenseAudit(user.username, expenseId, 'DELETE', oldObject, {}, reason);
+  return { status: 'success', expense_id: expenseId };
+}
+
+// รูปบิล — เก็บใน Drive โฟลเดอร์เดียวกับไฟล์แนบอื่น แยกโฟลเดอร์ย่อยตามเดือนไว้หาย้อนหลังตอนปิดบัญชี
+function uploadMiscExpenseReceipt(payload) {
+  var user = requireMiscExpenseEditor({ authToken: payload.authToken });
+  var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
+  if (!dataUrl) throw new Error('ไม่พบข้อมูลรูปภาพ');
+  var mimeType = getDataUrlMimeType(dataUrl);
+  var allowed = { 'image/jpeg': true, 'image/png': true, 'image/webp': true };
+  if (!mimeType || !allowed[mimeType]) throw new Error('รูปบิลรองรับเฉพาะ jpg, png, webp');
+  var month = String(payload.month || '').trim() || Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM');
+  var root = DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID);
+  var monthFolder = getOrCreateChildFolder(getOrCreateChildFolder(root, 'misc-expenses'), month);
+  var ext = mimeType === 'image/png' ? 'png' : (mimeType === 'image/webp' ? 'webp' : 'jpg');
+  var fileName = 'RECEIPT-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + (user.username || 'user') + '.' + ext;
+  var blob = Utilities.newBlob(Utilities.base64Decode(dataUrl.split(',')[1] || ''), mimeType, fileName);
+  var file = monthFolder.createFile(blob);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    Logger.log('uploadMiscExpenseReceipt setSharing warning: ' + (err && err.message ? err.message : err));
+  }
+  return { status: 'success', receipt_url: 'https://drive.google.com/uc?export=view&id=' + file.getId(), file_id: file.getId() };
 }
 
 function syncPurchaseHistoryForRequest(requestRow, status, updatedBy, remark, preserveExistingQty) {
@@ -4581,6 +4807,10 @@ function doGet(e) {
     if (action === 'upsertProductionCostConfig') return respond(upsertProductionCostConfig(e.parameter), e);
     if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(e.parameter), e);
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(e.parameter), e);
+    if (action === 'getMiscExpenses') return respond(getMiscExpenses(e.parameter), e);
+    if (action === 'addMiscExpense') return respond(addMiscExpense(e.parameter), e);
+    if (action === 'updateMiscExpense') return respond(updateMiscExpense(e.parameter), e);
+    if (action === 'deleteMiscExpense') return respond(deleteMiscExpense(e.parameter), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(e.parameter), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
@@ -4886,6 +5116,11 @@ function doPost(e) {
     if (action === 'upsertProductionCostConfig') return respond(upsertProductionCostConfig(body), e);
     if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(body), e);
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(body), e);
+    if (action === 'getMiscExpenses') return respond(getMiscExpenses(body), e);
+    if (action === 'addMiscExpense') return respond(addMiscExpense(body), e);
+    if (action === 'updateMiscExpense') return respond(updateMiscExpense(body), e);
+    if (action === 'deleteMiscExpense') return respond(deleteMiscExpense(body), e);
+    if (action === 'uploadMiscExpenseReceipt') return respond(uploadMiscExpenseReceipt(body), e);
     if (action === 'importPurchaseHistoryPdfBatch') return respond(importPurchaseHistoryPdfBatch(body), e);
     if (action === 'createPurchaseHistoryBatch') return respond(createPurchaseHistoryBatch(body), e);
     if (action === 'reconcilePurchaseHistory') return respond(reconcilePurchaseHistory(body), e);
