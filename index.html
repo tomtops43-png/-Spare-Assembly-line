@@ -2784,6 +2784,42 @@
         <div id="partTagGroupList" class="space-y-1.5"></div>
       </section>
 
+      <!-- ทะเบียนการแก้ไขข้อมูลอะไหล่ — ปิดช่องที่เคยแก้ Min/ราคา/ยอดคงเหลือได้แบบไม่มีร่องรอย -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">🛡️ ประวัติการแก้ไขข้อมูลอะไหล่</h3>
+            <p class="text-xs text-slate-500 mt-0.5">ใครแก้ Min/Max · ราคา · ยอดคงเหลือ · เพิ่ม/ลบรายการ — บันทึกทุกครั้งลงชีต ItemAudit</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="itemAuditSearch" type="search" class="h-9 w-full min-w-[180px] rounded-xl border border-slate-200 bg-white px-3 text-sm sm:w-56" placeholder="ค้นหา NO / ชื่อ / ผู้แก้ไข" />
+            <select id="itemAuditActionFilter" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm">
+              <option value="all">ทุกประเภท</option>
+              <option value="STOCK_EDIT">⚠️ แก้ยอดคงเหลือ</option>
+              <option value="UPDATE">แก้ข้อมูล</option>
+              <option value="CREATE">เพิ่มรายการ</option>
+              <option value="DELETE">ลบรายการ</option>
+            </select>
+            <button id="itemAuditRefreshBtn" type="button" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">รีเฟรช</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full min-w-[720px] text-sm">
+            <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr class="border-b border-slate-100">
+                <th class="px-3 py-2 text-left">เวลา</th>
+                <th class="px-3 py-2 text-left">ผู้แก้ไข</th>
+                <th class="px-3 py-2 text-left hidden md:table-cell">ไลน์ / ชีต</th>
+                <th class="px-3 py-2 text-left">รายการ</th>
+                <th class="px-3 py-2 text-left">ประเภท</th>
+                <th class="px-3 py-2 text-left">สิ่งที่เปลี่ยน</th>
+              </tr>
+            </thead>
+            <tbody id="itemAuditTable"></tbody>
+          </table>
+        </div>
+        <p id="itemAuditMessage" class="mt-2 text-xs text-slate-500"></p>
+      </section>
       <div class="grid gap-4 lg:grid-cols-[1fr_420px]">
         <!-- User List -->
         <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -3128,7 +3164,7 @@
             <div><label class="text-xs font-medium text-slate-500">Max</label><input id="eMax" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
             <div><label class="text-xs font-medium text-slate-500">Min</label><input id="eMin" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
             <div><label class="text-xs font-medium text-slate-500">Unit</label><input id="eUnit" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
-            <div><label class="text-xs font-medium text-slate-500">Qty / Stock</label><input id="eStock" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Qty / Stock</label><input id="eStock" type="number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /><p id="eStockHint" class="mt-1 hidden text-[10px] font-semibold text-amber-600">🔒 ปรับยอดได้เฉพาะ Admin — ใช้ รับเข้า/เบิกออก หรือ ตรวจนับสต็อก แทน</p></div>
           </div>
         </section>
 
@@ -7766,7 +7802,11 @@ function getIssueCartEntries() {
           });
         });
       }
-      return runManageCandidate(0);
+      return runManageCandidate(0).then(function(res) {
+        // backend ปฏิเสธการแก้ยอดคงเหลือ (ไม่ใช่ error แต่ต้องรู้ว่าไม่ได้เปลี่ยนให้)
+        if (res && res.warning && typeof showQuickToast === 'function') showQuickToast('⚠️ ' + res.warning, 'warn');
+        return res;
+      });
     }
 
     function pad2(n) { return (n < 10 ? '0' : '') + n; }
@@ -14026,6 +14066,94 @@ function inferRequestPriority(stock, min) {
       loadPurchaseHistory(false).catch(function() {});
     }
 
+    /* ── ทะเบียนการแก้ไขข้อมูลอะไหล่ (ItemAudit) ────────────────────────────────
+       เดิมการแก้ Min/Max/ราคา/ยอดคงเหลือ เขียนทับชีตเงียบๆ ไม่มีร่องรอย
+       ตอนนี้ backend ลงทะเบียนทุกครั้ง ส่วนตรงนี้คือหน้าจออ่านย้อนหลังของ Admin    */
+    var itemAuditCache = [];
+    var itemAuditLoaded = false;
+
+    var ITEM_AUDIT_ACTION_STYLE = {
+      CREATE: { label: '➕ เพิ่มรายการ', css: 'bg-emerald-100 text-emerald-800' },
+      UPDATE: { label: '✏️ แก้ข้อมูล', css: 'bg-blue-100 text-blue-800' },
+      STOCK_EDIT: { label: '⚠️ แก้ยอดคงเหลือ', css: 'bg-rose-100 text-rose-800' },
+      DELETE: { label: '🗑️ ลบรายการ', css: 'bg-slate-800 text-white' }
+    };
+
+    function loadItemAudit(forceRefresh) {
+      if (itemAuditLoaded && !forceRefresh) { renderItemAudit(); return Promise.resolve(itemAuditCache); }
+      var msgEl = document.getElementById('itemAuditMessage');
+      if (msgEl) msgEl.textContent = 'กำลังโหลดประวัติการแก้ไข...';
+      return requestApi(withAuthPayload({ action: 'getItemAudit', limit: 300 })).then(parseApiResponse).then(function(rows) {
+        itemAuditCache = Array.isArray(rows) ? rows : [];
+        itemAuditLoaded = true;
+        renderItemAudit();
+        return itemAuditCache;
+      }).catch(function(err) {
+        if (msgEl) msgEl.textContent = 'โหลดประวัติไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+        throw err;
+      });
+    }
+
+    // แสดงค่าที่เปลี่ยนเป็น "ฟิลด์: เก่า → ใหม่" ให้อ่านออกโดยไม่ต้องเปิดชีต
+    function itemAuditChangeHtml(row) {
+      var oldValues = row.old_values || {}, newValues = row.new_values || {};
+      var keys = Object.keys(newValues).length ? Object.keys(newValues) : Object.keys(oldValues);
+      if (!keys.length) return '<span class="text-slate-400">-</span>';
+      return keys.slice(0, 6).map(function(key) {
+        var label = ITEM_AUDIT_FIELD_LABELS_UI[key] || key;
+        var oldText = String(oldValues[key] === undefined || oldValues[key] === null || oldValues[key] === '' ? '(ว่าง)' : oldValues[key]);
+        var newText = String(newValues[key] === undefined || newValues[key] === null || newValues[key] === '' ? '(ว่าง)' : newValues[key]);
+        var highlight = key === 'stock' || key === 'min' || key === 'max' || key === 'unit_price';
+        return '<div class="whitespace-nowrap text-xs ' + (highlight ? 'font-semibold text-slate-800' : 'text-slate-600') + '">' +
+          escHtml(label) + ': <span class="text-slate-400 line-through">' + escHtml(oldText.slice(0, 40)) + '</span> → <span class="' + (highlight ? 'text-rose-600' : 'text-slate-700') + '">' + escHtml(newText.slice(0, 40)) + '</span></div>';
+      }).join('') + (keys.length > 6 ? '<div class="text-[10px] text-slate-400">และอีก ' + (keys.length - 6) + ' ฟิลด์</div>' : '');
+    }
+    var ITEM_AUDIT_FIELD_LABELS_UI = {
+      name: 'ชื่อรายการ', model: 'รุ่น/Part No.', line: 'ไลน์', location: 'ตำแหน่งเก็บ', category: 'หมวด',
+      brand: 'ยี่ห้อ', unit: 'หน่วย', min: 'Min', max: 'Max', stock: 'ยอดคงเหลือ', unit_price: 'ราคาต่อหน่วย',
+      currency: 'สกุลเงิน', supplier: 'ผู้ขาย', price_remark: 'หมายเหตุราคา', coil_size: 'Coil Size',
+      machines: 'เครื่องจักร', drawing_status: 'สถานะ Drawing', drawing_revision: 'Drawing Rev'
+    };
+
+    function renderItemAudit() {
+      var tbody = document.getElementById('itemAuditTable');
+      if (!tbody) return;
+      var searchEl = document.getElementById('itemAuditSearch');
+      var actionEl = document.getElementById('itemAuditActionFilter');
+      var query = searchEl ? String(searchEl.value || '').trim().toLowerCase() : '';
+      var actionFilter = actionEl ? String(actionEl.value || 'all') : 'all';
+      var rows = itemAuditCache.filter(function(r) {
+        if (actionFilter !== 'all' && String(r.action || '') !== actionFilter) return false;
+        if (query && [r.no, r.part_name, r.model, r.user, r.sheet_name, r.changed_fields].join(' ').toLowerCase().indexOf(query) === -1) return false;
+        return true;
+      });
+      tbody.innerHTML = rows.length ? rows.map(function(r, index) {
+        var style = ITEM_AUDIT_ACTION_STYLE[r.action] || { label: r.action || '-', css: 'bg-slate-100 text-slate-700' };
+        return '<tr class="border-b border-slate-100 ' + (index % 2 ? 'bg-slate-50/60' : 'bg-white') + '">' +
+          '<td class="px-3 py-2 whitespace-nowrap text-xs text-slate-500">' + escHtml(r.timestamp) + '</td>' +
+          '<td class="px-3 py-2 whitespace-nowrap text-xs font-semibold text-slate-700">' + escHtml(r.user || '-') + (r.role ? '<div class="text-[10px] font-normal text-slate-400">' + escHtml(r.role) + '</div>' : '') + '</td>' +
+          '<td class="px-3 py-2 hidden md:table-cell text-xs text-slate-500">' + escHtml(r.sheet_name || '-') + '</td>' +
+          '<td class="px-3 py-2 text-xs"><span class="font-semibold text-slate-800">' + escHtml(r.part_name || '-') + '</span><div class="text-[10px] text-slate-400">NO ' + escHtml(r.no || '-') + (r.model ? ' · ' + escHtml(r.model) : '') + '</div></td>' +
+          '<td class="px-3 py-2 whitespace-nowrap"><span class="inline-flex rounded-full px-2 py-1 text-[10px] font-bold ' + style.css + '">' + escHtml(style.label) + '</span></td>' +
+          '<td class="px-3 py-2">' + itemAuditChangeHtml(r) + '</td></tr>';
+      }).join('') : '<tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">ยังไม่มีประวัติการแก้ไข</td></tr>';
+      var msgEl = document.getElementById('itemAuditMessage');
+      if (msgEl) {
+        var stockEdits = itemAuditCache.filter(function(r) { return r.action === 'STOCK_EDIT'; }).length;
+        msgEl.textContent = 'แสดง ' + rows.length + ' จาก ' + itemAuditCache.length + ' รายการล่าสุด' +
+          (stockEdits ? ' · ⚠️ มีการแก้ยอดคงเหลือโดยตรง ' + stockEdits + ' ครั้ง' : '');
+      }
+    }
+
+    (function initItemAudit() {
+      var refreshBtn = document.getElementById('itemAuditRefreshBtn');
+      if (refreshBtn) refreshBtn.addEventListener('click', function() { loadItemAudit(true).catch(function() {}); });
+      var searchEl = document.getElementById('itemAuditSearch');
+      if (searchEl) searchEl.addEventListener('input', renderItemAudit);
+      var actionEl = document.getElementById('itemAuditActionFilter');
+      if (actionEl) actionEl.addEventListener('change', renderItemAudit);
+    })();
+
     function renderMachineManageList(list) {
       var container = document.getElementById('machineManageList');
       if (!container) return;
@@ -14120,6 +14248,7 @@ function inferRequestPriority(stock, min) {
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       adminPage.classList.remove('hidden');
       setTabStyles('admin');
+      loadItemAudit(false).catch(function() {});
       loadUsers().catch(function(err) {
         userManageMessage.className = 'text-sm mb-2 text-rose-600';
         userManageMessage.textContent = err && err.message ? err.message : 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ';
@@ -16260,6 +16389,17 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eMin').value = item.min != null ? item.min : '';
       document.getElementById('eUnit').value = item.unit || '';
       document.getElementById('eStock').value = item.stock != null ? item.stock : '';
+      // ยอดคงเหลือเป็นตัวเลขที่ต้องมีที่มา — แก้ตรงนี้ได้เฉพาะ Admin คนอื่นต้องผ่าน
+      // รับเข้า/เบิกออก หรือการตรวจนับสต็อก (ฝั่ง Backend ปฏิเสธซ้ำอีกชั้นอยู่แล้ว)
+      var eStockEl = document.getElementById('eStock');
+      var eStockLocked = !isAdminUser();
+      if (eStockEl) {
+        eStockEl.readOnly = eStockLocked;
+        eStockEl.classList.toggle('bg-slate-100', eStockLocked);
+        eStockEl.classList.toggle('text-slate-500', eStockLocked);
+      }
+      var eStockHintEl = document.getElementById('eStockHint');
+      if (eStockHintEl) eStockHintEl.classList.toggle('hidden', !eStockLocked);
       document.getElementById('eUnitPrice').value = item.unit_price != null ? item.unit_price : '';
       document.getElementById('eCurrency').value = item.currency || 'THB';
       document.getElementById('eSupplier').value = item.supplier || '';

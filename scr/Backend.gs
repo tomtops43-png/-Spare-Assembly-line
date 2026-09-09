@@ -12,6 +12,10 @@ SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHi
 SPARE_APP_CONFIG.productionVolumeSheetName = SPARE_APP_CONFIG.productionVolumeSheetName || 'ProductionVolume';
 SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCostConfigSheetName || 'ProductionCostConfig';
 SPARE_APP_CONFIG.machinesSheetName = SPARE_APP_CONFIG.machinesSheetName || 'Machines';
+// ทะเบียนการแก้ไขข้อมูลอะไหล่ — เดิมการแก้ Min/Max/ราคา/ยอดคงเหลือ เขียนทับชีตเงียบๆ
+// ไม่มีร่องรอยเลย (ต่างจาก PR / Purchase History / นับสต็อก ที่มี audit ครบ)
+// ใครลด Min จาก 10 เหลือ 2 แล้วของไม่เคยขึ้นเตือนอีก ก็ไล่ไม่ได้ว่าใครทำเมื่อไหร่
+SPARE_APP_CONFIG.itemAuditSheetName = SPARE_APP_CONFIG.itemAuditSheetName || 'ItemAudit';
 // ค่าใช้จ่ายสิ้นเปลือง — ของจิปาถะที่ซื้อนอกระบบอะไหล่ (น็อตทั่วไป เครื่องมือช่าง วัสดุสิ้นเปลือง)
 // ตัดเป็นค่าใช้จ่ายทันทีวันที่ซื้อ ไม่เข้าสต็อก ไม่มี flow รับเข้า/เบิกออก จึงไม่ซ้ำกับยอดเบิก
 // ที่ Dashboard คำนวณจาก Log — ดู getMiscExpenses() และ fccMiscExpenseRows() ฝั่งเว็บ
@@ -83,6 +87,16 @@ var MISC_EXPENSE_SHARED_LINE = 'ส่วนกลาง';
 // เครื่องจักรของแต่ละไลน์ (master list ให้ Admin กรอกเอง) — อะไหล่แต่ละชิ้นผูกได้หลายเครื่องจักร
 // โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
 var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
+var ITEM_AUDIT_HEADERS = ['Date Time', 'User', 'Role', 'Sheet Name', 'NO', 'Part Name', 'Model', 'Action Type', 'Changed Fields', 'Old Values', 'New Values'];
+// เก็บเฉพาะฟิลด์ที่มีผลต่อการควบคุม (ตัวเลข/ข้อมูลที่ใช้ตัดสินใจสั่งซื้อ) — ไม่เก็บ URL รูป/ไฟล์แนบ
+// เพราะพวกนั้นตามรอยได้จาก Drive อยู่แล้ว และจะทำให้ log รกจนอ่านของสำคัญไม่เจอ
+var ITEM_AUDIT_FIELDS = ['name', 'model', 'line', 'location', 'category', 'brand', 'unit', 'min', 'max', 'stock', 'unit_price', 'currency', 'supplier', 'price_remark', 'coil_size', 'machines', 'drawing_status', 'drawing_revision'];
+var ITEM_AUDIT_FIELD_LABELS = {
+  name: 'ชื่อรายการ', model: 'รุ่น/Part No.', line: 'ไลน์', location: 'ตำแหน่งเก็บ', category: 'หมวด',
+  brand: 'ยี่ห้อ', unit: 'หน่วย', min: 'Min', max: 'Max', stock: 'ยอดคงเหลือ', unit_price: 'ราคาต่อหน่วย',
+  currency: 'สกุลเงิน', supplier: 'ผู้ขาย', price_remark: 'หมายเหตุราคา', coil_size: 'Coil Size',
+  machines: 'เครื่องจักร', drawing_status: 'สถานะ Drawing', drawing_revision: 'Drawing Rev'
+};
 // Log Ref = timestamp ของแถว Log ที่ออกเลขนี้ ใช้ผูกกลับเพื่อลบเลขทิ้งตอน "คืนรายการ"
 var PART_TAG_HEADERS = ['Tag No', 'Part No', 'Part Name', 'Model', 'Category', 'Line', 'Sheet Name', 'Unit', 'Machine', 'Reason', 'Issued At', 'Issued By', 'Status', 'Status At', 'Status By', 'Remark', 'Installed At', 'Removed At', 'Log Ref'];
 var PART_TAG_GROUP_HEADERS = ['Group ID', 'Group Name', 'Prefix', 'Start Number', 'Digits', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
@@ -4478,6 +4492,100 @@ function getNextNoBySheet(sheetName) {
   };
 }
 
+// =============================
+// ITEM AUDIT — ทะเบียนการแก้ไขข้อมูลอะไหล่
+// =============================
+
+function getItemAuditSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.itemAuditSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(ITEM_AUDIT_HEADERS);
+  return sheet;
+}
+
+// changes = { field: { old: ..., new: ... } } — เก็บเฉพาะฟิลด์ที่เปลี่ยนจริง
+// ห้าม throw ออกไป: การบันทึกประวัติพังต้องไม่ทำให้การแก้ข้อมูลที่สำเร็จแล้วกลายเป็น error
+function appendItemAudit(entry) {
+  try {
+    var changes = entry.changes || {};
+    var fields = Object.keys(changes);
+    if (!fields.length && entry.action === 'UPDATE') return;
+    var oldValues = {}, newValues = {};
+    fields.forEach(function(f) { oldValues[f] = changes[f].old; newValues[f] = changes[f].new; });
+    getItemAuditSheet().appendRow([
+      Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
+      entry.user || '', entry.role || '', entry.sheetName || '', entry.no || '',
+      entry.name || '', entry.model || '', entry.action || '',
+      fields.map(function(f) { return ITEM_AUDIT_FIELD_LABELS[f] || f; }).join(', '),
+      JSON.stringify(oldValues), JSON.stringify(newValues)
+    ]);
+  } catch (err) {
+    Logger.log('appendItemAudit warning: ' + (err && err.message ? err.message : err));
+  }
+}
+
+function itemAuditRowToObject(row) {
+  function parse(raw) {
+    try { return JSON.parse(String(raw || '{}')); } catch (err) { return {}; }
+  }
+  return {
+    timestamp: String(row[0] || ''), user: String(row[1] || ''), role: String(row[2] || ''),
+    sheet_name: String(row[3] || ''), no: String(row[4] || ''), part_name: String(row[5] || ''),
+    model: String(row[6] || ''), action: String(row[7] || ''), changed_fields: String(row[8] || ''),
+    old_values: parse(row[9]), new_values: parse(row[10])
+  };
+}
+
+function getItemAudit(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  var sheet = getItemAuditSheet();
+  var values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return [];
+  var limit = Number(payload.limit || 300);
+  if (!isFinite(limit) || limit <= 0) limit = 300;
+  // อ่านจากล่างขึ้นบน (ใหม่สุดก่อน) แล้วตัดตาม limit — ชีตนี้โตเรื่อยๆ ไม่ควรส่งทั้งก้อนกลับไป
+  var rows = [];
+  for (var i = values.length - 1; i >= 1 && rows.length < limit; i -= 1) {
+    if (!String(values[i][0] || '').trim()) continue;
+    rows.push(itemAuditRowToObject(values[i]));
+  }
+  return rows;
+}
+
+// เทียบค่าแบบ "ความหมายเท่ากันถือว่าไม่เปลี่ยน" — ตัวเลขจากชีตเป็น number แต่จากฟอร์มเป็น string
+// ('10' กับ 10 คือค่าเดียวกัน) ถ้าเทียบ String ตรงๆ จะได้ log ปลอมทุกครั้งที่กดบันทึก
+function itemAuditValueEquals(a, b) {
+  var sa = String(a === undefined || a === null ? '' : a).trim();
+  var sb = String(b === undefined || b === null ? '' : b).trim();
+  if (sa === sb) return true;
+  var na = Number(sa), nb = Number(sb);
+  if (sa !== '' && sb !== '' && isFinite(na) && isFinite(nb)) return na === nb;
+  return false;
+}
+
+// อ่านค่าที่ต้องเก็บเข้า audit จากแถวดิบของชีต (ใช้ตอนลบ ซึ่งไม่มี fieldCols ให้ใช้)
+function itemAuditSnapshotFromRow(ctx, row) {
+  var aliasMap = {
+    name: ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'],
+    model: ['model', 'codeno', 'jrcodeno'],
+    line: ['mainline', 'line', 'process'],
+    location: ['location', 'jrlocation'],
+    category: ['category'], brand: ['brand'], unit: ['unit'],
+    min: ['min', 'qtymin'], max: ['max', 'qtymax'],
+    stock: ['stockqty', 'qtystock', 'qoh', 'stock', 'initialstock'],
+    unit_price: ['unitprice', 'unit_price'], supplier: ['supplier']
+  };
+  var out = {};
+  Object.keys(aliasMap).forEach(function(key) {
+    var aliases = aliasMap[key];
+    for (var i = 0; i < aliases.length; i += 1) {
+      var col = ctx.map[aliases[i]];
+      if (col !== undefined) { out[key] = row[col]; return; }
+    }
+  });
+  return out;
+}
+
 function upsertMainItem(payload) {
   var sheetName = resolveReadSheetName({ sheet: payload.sheetName });
   var ctx = getMainSheetContext(sheetName);
@@ -4647,6 +4755,7 @@ function upsertMainItem(payload) {
 
   if (targetIndex > -1) {
     var sheetRow = ctx.headerRowIndex + 2 + targetIndex;
+    var oldRow = ctx.rows[targetIndex] || [];
     var imageValueKeys = {
       photo: true,
       image_main: true,
@@ -4670,17 +4779,48 @@ function upsertMainItem(payload) {
       datasheet_url: true,
       quotation_url: true
     };
+    // ── ประตูหลังของยอดคงเหลือ ──
+    // ฟอร์มแก้ไขอะไหล่ส่ง stock มาด้วยเสมอ ถ้าเขียนทับตรงๆ = ปรับยอดได้โดยไม่ลง Log
+    // ไม่ต้องนับสต็อก ไม่ต้องมีเหตุผล ซึ่งขัดกับกติกา "ปรับยอดได้เฉพาะ Admin ผ่านการนับ"
+    // กติกาที่ใช้: ค่าเท่าเดิม/ว่าง = ไม่เขียน · ไม่ใช่ Admin = ไม่เขียนแต่เตือนกลับไป
+    //             Admin = เขียนได้แต่ลงทะเบียนเป็น STOCK_EDIT ให้เห็นชัด
+    var actorRole = normalizeRole(payload.actorRole);
+    var stockLocked = false;
+    var stockWarning = '';
+    if (fieldCols.stock !== undefined) {
+      var oldStockValue = oldRow[fieldCols.stock];
+      var nextStockText = String(values.stock === undefined || values.stock === null ? '' : values.stock).trim();
+      if (nextStockText === '' || itemAuditValueEquals(oldStockValue, nextStockText)) {
+        stockLocked = true;
+      } else if (actorRole !== 'admin') {
+        stockLocked = true;
+        stockWarning = 'ยอดคงเหลือยังเป็น ' + String(oldStockValue === undefined || oldStockValue === null ? 0 : oldStockValue) +
+          ' ตามเดิม — ปรับยอดต้องผ่าน รับเข้า/เบิกออก หรือการตรวจนับสต็อก (Admin เท่านั้น)';
+      }
+    }
+    var auditChanges = {};
     for (var key in fieldCols) {
       if (fieldCols[key] !== undefined) {
         var nextValue = values[key];
+        if (key === 'stock' && stockLocked) continue;
         if (key === 'coil_size' && String(nextValue || '').trim() === '') continue;
         if (imageValueKeys[key] && String(nextValue || '').trim() === '') continue;
         if (detailValueKeys[key] && String(nextValue || '').trim() === '') continue;
+        if (ITEM_AUDIT_FIELDS.indexOf(key) > -1 && !itemAuditValueEquals(oldRow[fieldCols[key]], nextValue)) {
+          auditChanges[key] = { old: oldRow[fieldCols[key]], new: nextValue };
+        }
         ctx.sheet.getRange(sheetRow, fieldCols[key] + 1).setValue(nextValue);
       }
     }
+    appendItemAudit({
+      user: payload.actor, role: actorRole, sheetName: sheetName, no: noValue,
+      name: values.name || (fieldCols.name !== undefined ? oldRow[fieldCols.name] : ''),
+      model: values.model || (fieldCols.model !== undefined ? oldRow[fieldCols.model] : ''),
+      action: auditChanges.stock ? 'STOCK_EDIT' : 'UPDATE',
+      changes: auditChanges
+    });
     invalidateSparePartsLiteCache(sheetName);
-    return { status: 'success', mode: 'update', no: noValue, sheet: sheetName, location: values.location };
+    return { status: 'success', mode: 'update', no: noValue, sheet: sheetName, location: values.location, warning: stockWarning, changed: Object.keys(auditChanges).length };
   }
 
   var newRow = new Array(ctx.headers.length);
@@ -4689,6 +4829,14 @@ function upsertMainItem(payload) {
     if (fieldCols[k] !== undefined) newRow[fieldCols[k]] = values[k];
   }
   ctx.sheet.appendRow(newRow);
+  var createChanges = {};
+  ITEM_AUDIT_FIELDS.forEach(function(f) {
+    if (fieldCols[f] === undefined) return;
+    if (String(values[f] === undefined || values[f] === null ? '' : values[f]).trim() === '') return;
+    createChanges[f] = { old: '', new: values[f] };
+  });
+  appendItemAudit({ user: payload.actor, role: normalizeRole(payload.actorRole), sheetName: sheetName, no: noValue,
+    name: values.name, model: values.model, action: 'CREATE', changes: createChanges });
   invalidateSparePartsLiteCache(sheetName);
   return { status: 'success', mode: 'create', no: noValue, sheet: sheetName, location: values.location };
 }
@@ -4704,6 +4852,14 @@ function deleteMainItem(payload) {
   for (var i = 0; i < ctx.rows.length; i += 1) {
     if (String(ctx.rows[i][noCol]) === noValue) {
       var rowNumber = ctx.headerRowIndex + 2 + i;
+      var snapshot = itemAuditSnapshotFromRow(ctx, ctx.rows[i]);
+      var deleteChanges = {};
+      Object.keys(snapshot).forEach(function(f) {
+        if (String(snapshot[f] === undefined || snapshot[f] === null ? '' : snapshot[f]).trim() === '') return;
+        deleteChanges[f] = { old: snapshot[f], new: '' };
+      });
+      appendItemAudit({ user: payload.actor, role: normalizeRole(payload.actorRole), sheetName: sheetName, no: noValue,
+        name: snapshot.name, model: snapshot.model, action: 'DELETE', changes: deleteChanges });
       ctx.sheet.deleteRow(rowNumber);
       setLocationOverride(sheetName, noValue, '');
       invalidateSparePartsLiteCache(sheetName);
@@ -4877,6 +5033,7 @@ function doGet(e) {
     if (action === 'getPartTags') return respond(getPartTags(e.parameter), e);
     if (action === 'updatePartTagStatus') return respond(updatePartTagStatus(e.parameter), e);
     if (action === 'getMachines') return respond(getMachines(e.parameter), e);
+    if (action === 'getItemAudit') return respond(getItemAudit(e.parameter), e);
     if (action === 'addMachine') return respond(addMachine(e.parameter), e);
     if (action === 'updateMachine') return respond(updateMachine(e.parameter), e);
     if (action === 'deleteMachine') return respond(deleteMachine(e.parameter), e);
@@ -4956,8 +5113,10 @@ function doGet(e) {
     }
     if (action === 'authorizeDrive') return respond(authorizeGoogleDriveAccess(), e);
     if (action === 'upsertItem') {
-      requirePermission(authPayload, 'manage_items');
+      var itemActor = requirePermission(authPayload, 'manage_items');
       return respond(upsertMainItem({
+        actor: itemActor.username,
+        actorRole: normalizeRole(itemActor.role),
       sheetName: e.parameter.sheet,
       no: e.parameter.no,
       name: e.parameter.name,
@@ -4993,8 +5152,8 @@ function doGet(e) {
     }), e);
     }
     if (action === 'deleteItem') {
-      requirePermission(authPayload, 'delete_items');
-      return respond(deleteMainItem({ sheetName: e.parameter.sheet, no: e.parameter.no }), e);
+      var delActor = requirePermission(authPayload, 'delete_items');
+      return respond(deleteMainItem({ sheetName: e.parameter.sheet, no: e.parameter.no, actor: delActor.username, actorRole: normalizeRole(delActor.role) }), e);
     }
     if (action === 'getSparePartsLite') e.parameter.lite = '1';
     if (action === 'getSparePartDetail') e.parameter.lite = '';
@@ -5172,6 +5331,7 @@ function doPost(e) {
       return respond(getPendingPrUsage(body), e);
     }
     if (action === 'getMachines') return respond(getMachines(body), e);
+    if (action === 'getItemAudit') return respond(getItemAudit(body), e);
     if (action === 'addMachine') return respond(addMachine(body), e);
     if (action === 'updateMachine') return respond(updateMachine(body), e);
     if (action === 'deleteMachine') return respond(deleteMachine(body), e);
@@ -5244,8 +5404,10 @@ function doPost(e) {
     if (action === 'getPrApprovers') return respond(getPrApprovers(body), e);
     requirePermission(authPayload, 'view');
     if (action === 'upsertItem') {
-      requirePermission(authPayload, 'manage_items');
+      var itemActor = requirePermission(authPayload, 'manage_items');
       return respond(upsertMainItem({
+        actor: itemActor.username,
+        actorRole: normalizeRole(itemActor.role),
         sheetName: body.sheet || body.sheetName,
         no: body.no,
         name: body.name,
@@ -5296,10 +5458,12 @@ function doPost(e) {
       return respond(authorizeGoogleDriveAccess(), e);
     }
     if (action === 'deleteItem') {
-      requirePermission(authPayload, 'delete_items');
+      var delActorPost = requirePermission(authPayload, 'delete_items');
       return respond(deleteMainItem({
         sheetName: body.sheet || body.sheetName,
-        no: body.no
+        no: body.no,
+        actor: delActorPost.username,
+        actorRole: normalizeRole(delActorPost.role)
       }), e);
     }
     requirePermission(authPayload, 'transact');
