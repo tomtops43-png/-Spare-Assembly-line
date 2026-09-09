@@ -5044,6 +5044,8 @@ function doGet(e) {
     if (action === 'getMachines') return respond(getMachines(e.parameter), e);
     if (action === 'getItemAudit') return respond(getItemAudit(e.parameter), e);
     if (action === 'getLineStatus') return respond(getLineStatus(e.parameter), e);
+    if (action === 'getBackupStatus') return respond(getBackupStatus(e.parameter), e);
+    if (action === 'runBackupNow') return respond(runBackupNow(e.parameter), e);
     if (action === 'sendLineTestMessage') return respond(sendLineTestMessage(e.parameter), e);
     if (action === 'addMachine') return respond(addMachine(e.parameter), e);
     if (action === 'updateMachine') return respond(updateMachine(e.parameter), e);
@@ -5344,6 +5346,8 @@ function doPost(e) {
     if (action === 'getMachines') return respond(getMachines(body), e);
     if (action === 'getItemAudit') return respond(getItemAudit(body), e);
     if (action === 'getLineStatus') return respond(getLineStatus(body), e);
+    if (action === 'getBackupStatus') return respond(getBackupStatus(body), e);
+    if (action === 'runBackupNow') return respond(runBackupNow(body), e);
     if (action === 'sendLineTestMessage') return respond(sendLineTestMessage(body), e);
     if (action === 'addMachine') return respond(addMachine(body), e);
     if (action === 'updateMachine') return respond(updateMachine(body), e);
@@ -6494,6 +6498,15 @@ function buildDailyLineDigest(jobResults) {
   var anomaly = jobResults.anomaly;
   if (anomaly && anomaly.flagged) lines.push('🔍 พบการเบิกผิดปกติ ' + anomaly.flagged + ' รายการ');
 
+  // เตือนถ้าไฟล์สำรองล่าสุดเก่าเกินไป — backup ที่พังเงียบๆ อันตรายกว่าไม่มี backup
+  // เพราะทุกคนคิดว่ามีอยู่ ตรวจตอนเช้าทุกวันจะได้รู้ตัวภายในวันเดียว
+  try {
+    var backupState = readBackupState();
+    if (backupState.age_days < 0) lines.push('⚠️ ยังไม่มีไฟล์สำรองข้อมูลเลย');
+    else if (backupState.age_days >= 2) lines.push('⚠️ ไม่ได้สำรองข้อมูลมา ' + backupState.age_days + ' วัน (ล่าสุด ' + backupState.latest_date + ')');
+  } catch (errBackup) {
+    Logger.log('digest backup check warning: ' + (errBackup && errBackup.message ? errBackup.message : errBackup));
+  }
   if (outItems.length === 0 && lowItems.length === 0 && !pending.count) lines.push('');
   return lines.join('\n') + lineFooter();
 }
@@ -6538,12 +6551,100 @@ function getLineStatus(payload) {
   };
 }
 
+// =============================
+// BACKUP — สำรองสเปรดชีตอัตโนมัติทุกวัน
+// =============================
+// สเปรดชีตไฟล์เดียวคือจุดตายจุดเดียวของทั้งระบบ (ข้อมูลอะไหล่ ประวัติเบิก ประวัติซื้อ
+// ทะเบียนชิ้น ค่าใช้จ่าย อยู่ในไฟล์เดียวกันหมด) ใครลบแถวผิดหรือสคริปต์เขียนพลาด
+// แล้วรู้ตัวช้า version history ของ Google ก็ไล่กลับไปหาจุดที่ยังดีได้ยาก
+// เก็บสำเนาเป็นไฟล์แยกวันละชุด ใน Drive โฟลเดอร์ backups/
+
+function getBackupFolder() {
+  return getOrCreateChildFolder(DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID), 'backups');
+}
+
+function backupFileNameFor(date) {
+  return 'SpareParts-Backup-' + Utilities.formatDate(date, 'Asia/Bangkok', 'yyyy-MM-dd');
+}
+
+// เก็บรายวัน 30 วัน + เก็บของวันที่ 1 ของเดือนไว้ 1 ปี (ไว้ไล่ย้อนแบบรายเดือน)
+// ใช้ setTrashed แทนการลบถาวร — กู้จากถังขยะได้อีก 30 วันถ้าตัดสินใจผิด
+function pruneOldBackups(folder) {
+  var now = Date.now();
+  var files = folder.getFiles();
+  var removed = [];
+  while (files.hasNext()) {
+    var file = files.next();
+    var matched = String(file.getName()).match(/(\d{4})-(\d{2})-(\d{2})$/);
+    if (!matched) continue;
+    var ts = new Date(matched[1] + '-' + matched[2] + '-' + matched[3] + 'T00:00:00+07:00').getTime();
+    if (isNaN(ts)) continue;
+    var ageDays = (now - ts) / 86400000;
+    var isMonthly = Number(matched[3]) === 1;
+    if (ageDays <= (isMonthly ? 365 : 30)) continue;
+    try {
+      file.setTrashed(true);
+      removed.push(file.getName());
+    } catch (err) {
+      Logger.log('pruneOldBackups warning: ' + (err && err.message ? err.message : err));
+    }
+  }
+  return removed;
+}
+
+function runDailyBackup() {
+  var folder = getBackupFolder();
+  var name = backupFileNameFor(new Date());
+  // รันซ้ำวันเดียวกันต้องไม่ได้สำเนาซ้ำ (กดปุ่มสำรองเดี๋ยวนี้หลัง trigger ทำไปแล้ว)
+  if (folder.getFilesByName(name).hasNext()) {
+    return { status: 'success', skipped: true, name: name, pruned: [], message: 'มีไฟล์สำรองของวันนี้อยู่แล้ว' };
+  }
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var copied = DriveApp.getFileById(spreadsheet.getId()).makeCopy(name, folder);
+  var pruned = pruneOldBackups(folder);
+  return { status: 'success', skipped: false, name: name, file_id: copied.getId(), url: copied.getUrl(), pruned: pruned };
+}
+
+// อ่านสถานะไฟล์สำรองทั้งหมด — ใช้ทั้งหน้า Admin และเตือนใน LINE ตอนเช้า
+function readBackupState() {
+  var folder = getBackupFolder();
+  var files = folder.getFiles();
+  var count = 0, latestName = '', latestTs = 0;
+  while (files.hasNext()) {
+    var file = files.next();
+    var matched = String(file.getName()).match(/(\d{4})-(\d{2})-(\d{2})$/);
+    if (!matched) continue;
+    count += 1;
+    var ts = new Date(matched[1] + '-' + matched[2] + '-' + matched[3] + 'T00:00:00+07:00').getTime();
+    if (!isNaN(ts) && ts > latestTs) { latestTs = ts; latestName = file.getName(); }
+  }
+  var ageDays = latestTs ? Math.floor((Date.now() - latestTs) / 86400000) : -1;
+  return { count: count, latest_name: latestName, latest_date: latestTs ? Utilities.formatDate(new Date(latestTs), 'Asia/Bangkok', 'yyyy-MM-dd') : '', age_days: ageDays, folder_url: folder.getUrl() };
+}
+
+function getBackupStatus(payload) {
+  requireAdminUser({ authToken: payload.authToken });
+  var state = readBackupState();
+  state.status = 'success';
+  return state;
+}
+
+function runBackupNow(payload) {
+  requireAdminUser({ authToken: payload.authToken });
+  var result = runDailyBackup();
+  result.state = readBackupState();
+  return result;
+}
+
 function setupAutomation() {
   ScriptApp.getProjectTriggers().forEach(function(t) {
-    if (t.getHandlerFunction() === 'runDailyAutoJobs') ScriptApp.deleteTrigger(t);
+    var fn = t.getHandlerFunction();
+    if (fn === 'runDailyAutoJobs' || fn === 'runDailyBackup') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('runDailyAutoJobs').timeBased().everyDays(1).atHour(7).create();
-  Logger.log('ติดตั้ง trigger รายวัน 07:00 สำเร็จ — ระบบจะสร้าง Auto-PR และสแกนการเบิกผิดปกติทุกเช้า');
+  // สำรองข้อมูลตอนตี 1 — ก่อนงานเช้าและก่อนคนเริ่มทำงาน สำเนาจะได้เป็นภาพของสิ้นวันก่อนหน้า
+  ScriptApp.newTrigger('runDailyBackup').timeBased().everyDays(1).atHour(1).create();
+  Logger.log('ติดตั้ง trigger สำเร็จ — สำรองข้อมูล 01:00 และสร้าง Auto-PR + สแกนการเบิกผิดปกติ + สรุปเข้า LINE ทุกเช้า 07:00');
   return 'OK';
 }
 
