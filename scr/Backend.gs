@@ -2833,6 +2833,15 @@ function createPRUnlocked(payload) {
     if (overInfo) bypassDetail += ' | ' + overInfo;
     appendPrAudit(prId, 'BUDGET_BYPASS', user.username, headerLine, '', '', bypassDetail);
   }
+  // PR ส่งอนุมัติ = งานที่รอคนกด ต้องรู้ทันที ไม่ใช่รอสรุปเช้าวันถัดไป
+  if (isLineConfigured()) {
+    notifyLine([
+      '📋 PR ใหม่รออนุมัติ',
+      prId + ' · ไลน์ ' + (headerLine || '-'),
+      lines.length + ' รายการ · รวม ฿' + Math.round(totalAmount).toLocaleString('en-US'),
+      'ผู้ขอ: ' + (user.username || '-') + (assignedTo ? ' → ' + assignedTo : '')
+    ].join('\n') + lineFooter());
+  }
   return { status: 'success', pr_id: prId, pr_status: 'PENDING', item_count: lines.length, total_amount: totalAmount };
 }
 
@@ -5034,6 +5043,8 @@ function doGet(e) {
     if (action === 'updatePartTagStatus') return respond(updatePartTagStatus(e.parameter), e);
     if (action === 'getMachines') return respond(getMachines(e.parameter), e);
     if (action === 'getItemAudit') return respond(getItemAudit(e.parameter), e);
+    if (action === 'getLineStatus') return respond(getLineStatus(e.parameter), e);
+    if (action === 'sendLineTestMessage') return respond(sendLineTestMessage(e.parameter), e);
     if (action === 'addMachine') return respond(addMachine(e.parameter), e);
     if (action === 'updateMachine') return respond(updateMachine(e.parameter), e);
     if (action === 'deleteMachine') return respond(deleteMachine(e.parameter), e);
@@ -5332,6 +5343,8 @@ function doPost(e) {
     }
     if (action === 'getMachines') return respond(getMachines(body), e);
     if (action === 'getItemAudit') return respond(getItemAudit(body), e);
+    if (action === 'getLineStatus') return respond(getLineStatus(body), e);
+    if (action === 'sendLineTestMessage') return respond(sendLineTestMessage(body), e);
     if (action === 'addMachine') return respond(addMachine(body), e);
     if (action === 'updateMachine') return respond(updateMachine(body), e);
     if (action === 'deleteMachine') return respond(deleteMachine(body), e);
@@ -6384,6 +6397,147 @@ function acknowledgeIssueAnomaly(payload) {
 }
 
 // ── ตัวติดตั้ง trigger รายวัน — รันครั้งเดียวจาก Apps Script editor ──
+// =============================
+// LINE NOTIFY — แจ้งเตือนออกนอกระบบ
+// =============================
+// เดิม runDailyAutoJobs สร้าง Auto-PR และสแกนการเบิกผิดปกติทุกเช้า แต่ผลลัพธ์นอนอยู่ใน
+// ระบบเฉยๆ ไม่มีใครรู้จนกว่าจะเปิดเว็บ ของหมด/PR ค้างอนุมัติก็เงียบเหมือนกัน
+// ใช้ LINE Messaging API (push) ไม่ใช่ LINE Notify เพราะ LINE Notify ปิดบริการไปแล้ว
+//
+// ตั้งค่าที่ Apps Script > Project Settings > Script Properties:
+//   LINE_CHANNEL_TOKEN = Channel access token ของ Messaging API channel
+//   LINE_TARGET_ID     = userId / groupId / roomId ที่จะให้ส่งเข้า
+//   APP_WEB_URL        = (ไม่บังคับ) ลิงก์เว็บระบบ ใส่ท้ายข้อความให้กดเปิดได้เลย
+
+function getLineConfig() {
+  var props = PropertiesService.getScriptProperties();
+  return {
+    token: String(props.getProperty('LINE_CHANNEL_TOKEN') || '').trim(),
+    target: String(props.getProperty('LINE_TARGET_ID') || '').trim(),
+    webUrl: String(props.getProperty('APP_WEB_URL') || '').trim()
+  };
+}
+
+function isLineConfigured() {
+  var cfg = getLineConfig();
+  return !!(cfg.token && cfg.target);
+}
+
+// ส่งจริง — คืนผลลัพธ์เสมอ ไม่ throw เพื่อให้ผู้เรียกตัดสินใจเองว่าจะสนใจหรือไม่
+function sendLineMessage(text) {
+  var cfg = getLineConfig();
+  if (!cfg.token || !cfg.target) return { ok: false, reason: 'NOT_CONFIGURED', message: 'ยังไม่ได้ตั้งค่า LINE_CHANNEL_TOKEN / LINE_TARGET_ID ใน Script Properties' };
+  var body = String(text || '').trim();
+  if (!body) return { ok: false, reason: 'EMPTY', message: 'ไม่มีข้อความให้ส่ง' };
+  // LINE จำกัดข้อความละ 5,000 ตัวอักษร — ตัดกันพลาดแทนที่จะให้ API ตีกลับทั้งก้อน
+  if (body.length > 4900) body = body.slice(0, 4900) + '\n… (ตัดข้อความ)';
+  try {
+    var res = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + cfg.token },
+      payload: JSON.stringify({ to: cfg.target, messages: [{ type: 'text', text: body }] }),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    if (code >= 200 && code < 300) return { ok: true, code: code };
+    return { ok: false, reason: 'HTTP_' + code, message: String(res.getContentText() || '').slice(0, 300) };
+  } catch (err) {
+    return { ok: false, reason: 'FETCH_ERROR', message: String(err && err.message ? err.message : err) };
+  }
+}
+
+// ใช้ในโฟลว์ปกติ — แจ้งเตือนพังห้ามทำให้งานหลัก (สร้าง PR / งานเช้า) ล้มตาม
+function notifyLine(text) {
+  try {
+    var result = sendLineMessage(text);
+    if (!result.ok && result.reason !== 'NOT_CONFIGURED') {
+      Logger.log('notifyLine warning: ' + result.reason + ' ' + (result.message || ''));
+    }
+    return result;
+  } catch (err) {
+    Logger.log('notifyLine error: ' + (err && err.message ? err.message : err));
+    return { ok: false, reason: 'ERROR' };
+  }
+}
+
+function lineFooter() {
+  var cfg = getLineConfig();
+  return cfg.webUrl ? ('\n\n🔗 ' + cfg.webUrl) : '';
+}
+
+// สรุปประจำวัน — ตอบให้ครบว่า "วันนี้ต้องทำอะไรบ้าง" ในข้อความเดียว ไม่ต้องเปิดเว็บก่อน
+// รับผลของงานเช้าที่รันไปแล้วมาใช้ต่อ (ไม่คำนวณซ้ำ) — jobResults = { autoPr, anomaly }
+function buildDailyLineDigest(jobResults) {
+  jobResults = jobResults || {};
+  var lines = ['🏭 สรุปคลังอะไหล่ประจำวัน ' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'dd/MM/yyyy')];
+  var items = readAllStockItemsLean();
+  var outItems = items.filter(function(it) { return it.min > 0 && it.stock <= 0; });
+  var lowItems = items.filter(function(it) { return it.min > 0 && it.stock > 0 && it.stock < it.min; });
+  lines.push('');
+  lines.push(outItems.length ? ('🚨 หมดสต็อก ' + outItems.length + ' รายการ') : '✅ ไม่มีรายการหมดสต็อก');
+  // โชว์ชื่อของที่หมดจริงๆ 5 ตัวแรก — ตัวเลขเฉยๆ ไม่พอให้ตัดสินใจว่าด่วนแค่ไหน
+  outItems.slice(0, 5).forEach(function(it) {
+    lines.push('   • ' + it.name + (it.model && it.model !== '-' ? ' (' + it.model + ')' : '') + ' — ' + (it.line || it.sheet));
+  });
+  if (outItems.length > 5) lines.push('   • … และอีก ' + (outItems.length - 5) + ' รายการ');
+  if (lowItems.length) lines.push('⚠️ ต่ำกว่า Min ' + lowItems.length + ' รายการ');
+
+  var pending = listPendingPrSummary();
+  if (pending.count) {
+    lines.push('📋 PR รออนุมัติ ' + pending.count + ' ใบ' + (pending.oldestDays > 0 ? ' (ค้างนานสุด ' + pending.oldestDays + ' วัน)' : ''));
+  }
+  var autoPr = jobResults.autoPr;
+  if (autoPr && autoPr.created && autoPr.created.length) {
+    lines.push('🛒 Auto-PR เช้านี้ ' + autoPr.created.length + ' ใบ (' + (autoPr.itemCount || 0) + ' รายการ) — รออนุมัติ');
+  }
+  var anomaly = jobResults.anomaly;
+  if (anomaly && anomaly.flagged) lines.push('🔍 พบการเบิกผิดปกติ ' + anomaly.flagged + ' รายการ');
+
+  if (outItems.length === 0 && lowItems.length === 0 && !pending.count) lines.push('');
+  return lines.join('\n') + lineFooter();
+}
+
+// PR ที่ยังรออนุมัติ + ค้างมานานสุดกี่วัน (ใช้ทั้งใน digest และหน้าอื่นได้)
+function listPendingPrSummary() {
+  try {
+    var data = getPrHeaderSheet().getDataRange().getValues();
+    if (data.length <= 1) return { count: 0, oldestDays: 0 };
+    var hIdx = prIndexMap(data[0]);
+    var count = 0, oldestMs = 0, now = Date.now();
+    for (var i = 1; i < data.length; i += 1) {
+      if (String(data[i][hIdx.status]) !== 'PENDING') continue;
+      count += 1;
+      var ts = new Date(String(data[i][hIdx.created_at] || '').replace(' ', 'T') + '+07:00').getTime();
+      if (!isNaN(ts) && (oldestMs === 0 || ts < oldestMs)) oldestMs = ts;
+    }
+    return { count: count, oldestDays: oldestMs ? Math.floor((now - oldestMs) / 86400000) : 0 };
+  } catch (err) {
+    Logger.log('listPendingPrSummary warning: ' + (err && err.message ? err.message : err));
+    return { count: 0, oldestDays: 0 };
+  }
+}
+
+function sendLineTestMessage(payload) {
+  requireAdminUser({ authToken: payload.authToken });
+  var result = sendLineMessage('✅ ทดสอบการแจ้งเตือนจากระบบ Spare Part\nถ้าเห็นข้อความนี้แปลว่าตั้งค่าถูกต้องแล้ว' + lineFooter());
+  if (!result.ok) throw new Error(result.message || ('ส่งไม่สำเร็จ (' + result.reason + ')'));
+  return { status: 'success', message: 'ส่งข้อความทดสอบเข้า LINE แล้ว' };
+}
+
+// ไม่คืนค่า token ออกไปเด็ดขาด — บอกแค่ว่าตั้งค่าครบหรือยัง
+function getLineStatus(payload) {
+  requireAdminUser({ authToken: payload.authToken });
+  var cfg = getLineConfig();
+  return {
+    status: 'success',
+    configured: !!(cfg.token && cfg.target),
+    has_token: !!cfg.token,
+    has_target: !!cfg.target,
+    has_web_url: !!cfg.webUrl
+  };
+}
+
 function setupAutomation() {
   ScriptApp.getProjectTriggers().forEach(function(t) {
     if (t.getHandlerFunction() === 'runDailyAutoJobs') ScriptApp.deleteTrigger(t);
@@ -6397,6 +6551,10 @@ function runDailyAutoJobs() {
   var results = {};
   try { results.autoPr = runAutoPrJob(); } catch (e1) { results.autoPr = { error: String(e1 && e1.message || e1) }; }
   try { results.anomaly = runIssueAnomalyScan(); } catch (e2) { results.anomaly = { error: String(e2 && e2.message || e2) }; }
+  // สรุปเข้า LINE ปิดท้าย — ผลงานเช้าจะได้ไม่นอนอยู่ในระบบจนกว่าจะมีคนเปิดเว็บ
+  try {
+    if (isLineConfigured()) results.line = notifyLine(buildDailyLineDigest(results));
+  } catch (e3) { results.line = { error: String(e3 && e3.message || e3) }; }
   Logger.log(JSON.stringify(results));
   return results;
 }
