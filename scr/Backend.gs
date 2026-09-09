@@ -61,7 +61,7 @@ var USER_HEADERS = ['username', 'password', 'role', 'is_active', 'permissions_js
 // ใช้เช็คว่าคำขอใบนี้เคยบันทึกไปแล้วหรือยัง (เคสเน็ตหลุดตอนรับคำตอบ แต่ของเข้าชีตแล้ว)
 var ORDER_REQUEST_HEADERS = ['request_id', 'requested_date', 'requested_by', 'requester_role', 'item_id', 'item_name', 'model', 'brand', 'category', 'line', 'current_stock', 'min', 'max', 'request_qty', 'priority', 'reason', 'expected_use_date', 'remark', 'attachment_url', 'status', 'admin_comment', 'approved_by', 'approved_date', 'converted_pr_id', 'updated_at', 'unit', 'unit_price', 'currency', 'client_uid'];
 var ORDER_REQUEST_STATUSES = ['Pending', 'Approved', 'Rejected', 'On Hold', 'Converted to PR', 'Purchased', 'Received', 'Closed'];
-var PURCHASE_HISTORY_HEADERS = ['History ID', 'Request ID', 'Source', 'Requested Date', 'Month', 'Line', 'Part ID', 'Part Name', 'Brand', 'Model / Part No.', 'Qty Ordered', 'Unit', 'Unit Price', 'Currency', 'Total Amount', 'Requested By', 'Status', 'Ordered Date', 'Received Date', 'Received Qty', 'Updated By', 'Remark', 'Deleted', 'Created At', 'Updated At', 'Import Batch ID', 'Source File Name', 'Source File Hash', 'Price Status', 'Created By', 'Request Period'];
+var PURCHASE_HISTORY_HEADERS = ['History ID', 'Request ID', 'Source', 'Requested Date', 'Month', 'Line', 'Part ID', 'Part Name', 'Brand', 'Model / Part No.', 'Qty Ordered', 'Unit', 'Unit Price', 'Currency', 'Total Amount', 'Requested By', 'Status', 'Ordered Date', 'Received Date', 'Received Qty', 'Updated By', 'Remark', 'Deleted', 'Created At', 'Updated At', 'Import Batch ID', 'Source File Name', 'Source File Hash', 'Price Status', 'Created By', 'Request Period', 'Attachment URL', 'Attachment Name'];
 var PURCHASE_HISTORY_AUDIT_HEADERS = ['Date Time', 'User', 'History ID', 'Action Type', 'Old Value', 'New Value', 'Reason'];
 var PURCHASE_HISTORY_IMPORT_LOG_HEADERS = ['Import Batch ID', 'File Name', 'Imported By', 'Imported At', 'Total Rows Detected', 'Imported Rows', 'Skipped Duplicate Rows', 'Review Required Rows'];
 var PURCHASE_HISTORY_STATUSES = ['Requested', 'PR Created', 'Ordered', 'Partial Received', 'Received', 'Cancelled'];
@@ -501,7 +501,8 @@ function migratePurchaseHistoryRows(rows, oldHeaders) {
       formatPurchaseHistoryDate(getPurchaseHistoryCell(row, oldMap, ['Updated At'], ''), true),
       getPurchaseHistoryCell(row, oldMap, ['Import Batch ID'], ''), getPurchaseHistoryCell(row, oldMap, ['Source File Name'], ''),
       getPurchaseHistoryCell(row, oldMap, ['Source File Hash'], ''), getPurchaseHistoryCell(row, oldMap, ['Price Status'], unitPrice === '' ? 'TBC' : 'Confirmed'),
-      getPurchaseHistoryCell(row, oldMap, ['Created By'], ''), getPurchaseHistoryCell(row, oldMap, ['Request Period'], '')
+      getPurchaseHistoryCell(row, oldMap, ['Created By'], ''), getPurchaseHistoryCell(row, oldMap, ['Request Period'], ''),
+      getPurchaseHistoryCell(row, oldMap, ['Attachment URL', 'attachment_url'], ''), getPurchaseHistoryCell(row, oldMap, ['Attachment Name', 'attachment_name'], '')
     ];
   });
 }
@@ -626,7 +627,8 @@ function upsertPurchaseHistoryRecordUnlocked(payload) {
       payload.deleted !== undefined ? toBoolean(payload.deleted, false) : toBoolean(existing[22], false), existing[23] || timestamp, timestamp,
       payload.import_batch_id !== undefined ? payload.import_batch_id : existing[25], payload.source_file_name !== undefined ? payload.source_file_name : existing[26],
       payload.source_file_hash !== undefined ? payload.source_file_hash : existing[27], payload.price_status !== undefined ? payload.price_status : existing[28],
-      existing[29] || payload.created_by || payload.requested_by || payload.requestedBy || '', payload.request_period !== undefined ? payload.request_period : existing[30]
+      existing[29] || payload.created_by || payload.requested_by || payload.requestedBy || '', payload.request_period !== undefined ? payload.request_period : existing[30],
+      payload.attachment_url !== undefined ? payload.attachment_url : (existing[31] || ''), payload.attachment_name !== undefined ? payload.attachment_name : (existing[32] || '')
     ];
     sheet.getRange(rowIndex + 1, 1, 1, PURCHASE_HISTORY_HEADERS.length).setValues([merged]);
     return { history_id: merged[0], mode: 'update', row: merged };
@@ -641,7 +643,8 @@ function upsertPurchaseHistoryRecordUnlocked(payload) {
     payload.requested_by || payload.requestedBy || '', status, orderedDate, receivedDate,
     Number(payload.received_qty || payload.receivedQty || 0), payload.updated_by || payload.updatedBy || '', payload.remark || '', false, timestamp, timestamp,
     payload.import_batch_id || '', payload.source_file_name || '', payload.source_file_hash || '',
-    payload.price_status || (String(unitPrice).trim() ? 'Confirmed' : 'TBC'), payload.created_by || payload.requested_by || payload.requestedBy || '', payload.request_period || ''
+    payload.price_status || (String(unitPrice).trim() ? 'Confirmed' : 'TBC'), payload.created_by || payload.requested_by || payload.requestedBy || '', payload.request_period || '',
+    payload.attachment_url || payload.attachmentUrl || '', payload.attachment_name || payload.attachmentName || ''
   ];
   sheet.appendRow(row);
   return { history_id: row[0], mode: 'insert', row: row };
@@ -657,7 +660,8 @@ function purchaseHistoryRowToObject(row) {
     updated_by: String(row[20] || ''), remark: String(row[21] || ''), deleted: toBoolean(row[22], false),
     created_at: formatPurchaseHistoryDate(row[23], true), updated_at: formatPurchaseHistoryDate(row[24], true),
     import_batch_id: String(row[25] || ''), source_file_name: String(row[26] || ''), source_file_hash: String(row[27] || ''),
-    price_status: String(row[28] || (String(row[12] || '').trim() ? 'Confirmed' : 'TBC')), created_by: String(row[29] || ''), request_period: String(row[30] || '')
+    price_status: String(row[28] || (String(row[12] || '').trim() ? 'Confirmed' : 'TBC')), created_by: String(row[29] || ''), request_period: String(row[30] || ''),
+    attachment_url: String(row[31] || ''), attachment_name: String(row[32] || '')
   };
 }
 
@@ -1810,6 +1814,8 @@ function addManualPurchaseHistory(payload) {
     requested_by: String(payload.requested_by || session.user.username || '').trim(),
     updated_by: session.user.username,
     remark: payload.remark || '',
+    attachment_url: String(payload.attachment_url || payload.attachmentUrl || '').trim(),
+    attachment_name: String(payload.attachment_name || payload.attachmentName || '').trim(),
     force_status: true
   });
   return { status: 'success', history: result };
@@ -2078,6 +2084,42 @@ function uploadMiscExpenseReceipt(payload) {
     Logger.log('uploadMiscExpenseReceipt setSharing warning: ' + (err && err.message ? err.message : err));
   }
   return { status: 'success', receipt_url: 'https://drive.google.com/uc?export=view&id=' + file.getId(), file_id: file.getId() };
+}
+
+// ไฟล์แนบของ Purchase History (รูปบิล/ใบเสนอราคา/ใบส่งของ) — เก็บใน Drive แยกโฟลเดอร์ของตัวเอง
+// purchase-history/<yyyy-MM>/ เพื่อให้ไล่หาย้อนหลังตอนปิดบัญชีได้ ไม่ปนกับไฟล์แนบของงานอื่น
+function uploadPurchaseHistoryAttachment(payload) {
+  var session = getSessionUser({ authToken: payload.authToken });
+  var user = requirePermission({ authToken: payload.authToken }, 'view_logs');
+  var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
+  if (!dataUrl) throw new Error('ไม่พบข้อมูลไฟล์');
+  var mimeType = getDataUrlMimeType(dataUrl);
+  var allowed = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf'
+  };
+  if (!mimeType || !allowed[mimeType]) throw new Error('ไฟล์แนบรองรับเฉพาะ jpg, png, webp, pdf');
+  var base64Content = dataUrl.split(',')[1] || '';
+  if (!base64Content) throw new Error('ไฟล์แนบเสียหาย');
+  var month = String(payload.month || '').trim();
+  if (!/^\d{4}-\d{2}$/.test(month)) month = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM');
+  var root = DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID);
+  var monthFolder = getOrCreateChildFolder(getOrCreateChildFolder(root, 'purchase-history'), month);
+  // ตั้งชื่อไฟล์ให้เดาได้ว่าเป็นของใคร รายการไหน วันไหน — เปิดใน Drive แล้วรู้เรื่องโดยไม่ต้องเปิดไฟล์
+  var stamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss');
+  var label = String(payload.partName || payload.part_name || '').trim().replace(/[\/:*?"<>|]/g, ' ').slice(0, 40);
+  var fileName = 'PH-' + stamp + (label ? '-' + label : '') + '-' + (user.username || session.user.username || 'user') + '.' + allowed[mimeType];
+  var blob = Utilities.newBlob(Utilities.base64Decode(base64Content), mimeType, fileName);
+  var file = monthFolder.createFile(blob);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    Logger.log('uploadPurchaseHistoryAttachment setSharing warning: ' + (err && err.message ? err.message : err));
+  }
+  // รูปใช้ลิงก์ uc เพื่อให้ <img> โหลดได้ตรงๆ ส่วน PDF ใช้ลิงก์ /view ที่เปิดอ่านในเบราว์เซอร์ได้เลย
+  var url = mimeType === 'application/pdf'
+    ? 'https://drive.google.com/file/d/' + file.getId() + '/view'
+    : 'https://drive.google.com/uc?export=view&id=' + file.getId();
+  return { status: 'success', attachment_url: url, attachment_name: fileName, file_id: file.getId(), mime_type: mimeType };
 }
 
 function syncPurchaseHistoryForRequest(requestRow, status, updatedBy, remark, preserveExistingQty) {
@@ -5170,6 +5212,7 @@ function doPost(e) {
     if (action === 'upsertProductionCostConfig') return respond(upsertProductionCostConfig(body), e);
     if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(body), e);
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(body), e);
+    if (action === 'uploadPurchaseHistoryAttachment') return respond(uploadPurchaseHistoryAttachment(body), e);
     if (action === 'getMiscExpenses') return respond(getMiscExpenses(body), e);
     if (action === 'addMiscExpense') return respond(addMiscExpense(body), e);
     if (action === 'addMiscExpenseBatch') return respond(addMiscExpenseBatch(body), e);
