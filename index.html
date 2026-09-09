@@ -2784,6 +2784,21 @@
         <div id="partTagGroupList" class="space-y-1.5"></div>
       </section>
 
+      <!-- สำรองข้อมูล — สเปรดชีตไฟล์เดียวคือจุดตายจุดเดียวของทั้งระบบ -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">💾 สำรองข้อมูลอัตโนมัติ</h3>
+            <p class="text-xs text-slate-500 mt-0.5">คัดลอกสเปรดชีตทั้งไฟล์เข้า Drive โฟลเดอร์ backups ทุกวันตี 1 · เก็บรายวัน 30 วัน + ของวันที่ 1 ของเดือนไว้ 1 ปี</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="backupStatusBadge" class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">กำลังตรวจสอบ...</span>
+            <a id="backupFolderLink" href="#" target="_blank" rel="noopener" class="hidden h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-blue-600 hover:bg-slate-50 inline-flex">เปิดโฟลเดอร์</a>
+            <button id="backupRunNowBtn" type="button" class="h-9 rounded-xl bg-slate-800 px-4 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-40">สำรองเดี๋ยวนี้</button>
+          </div>
+        </div>
+        <p id="backupStatusMessage" class="text-xs text-slate-500"></p>
+      </section>
       <!-- แจ้งเตือนเข้า LINE — งานเช้าและ PR รออนุมัติต้องเด้งออกไปหาคน ไม่ใช่รอคนเปิดเว็บ -->
       <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -14093,6 +14108,66 @@ function inferRequestPriority(stock, min) {
       loadPurchaseHistory(false).catch(function() {});
     }
 
+    /* ── สำรองข้อมูล (สถานะ + สั่งสำรองเดี๋ยวนี้) ───────────────────────────────
+       ไฟล์สำรองที่พังเงียบๆ อันตรายกว่าไม่มีเลย เพราะทุกคนคิดว่ามีอยู่
+       การ์ดนี้จึงบอก "ล่าสุดเมื่อไหร่ / กี่วันมาแล้ว" ไม่ใช่แค่ว่าเปิดใช้งานอยู่       */
+    function renderBackupStatus(state) {
+      var badge = document.getElementById('backupStatusBadge');
+      var msg = document.getElementById('backupStatusMessage');
+      var link = document.getElementById('backupFolderLink');
+      if (!badge) return;
+      var age = state ? Number(state.age_days) : -1;
+      var stale = !state || age < 0 || age >= 2;
+      badge.textContent = !state ? 'ตรวจสอบไม่ได้' : (age < 0 ? '⛔ ยังไม่มีไฟล์สำรอง' : (age === 0 ? '✅ สำรองแล้ววันนี้' : (age === 1 ? '✅ สำรองล่าสุดเมื่อวาน' : '⚠️ ค้างมา ' + age + ' วัน')));
+      badge.className = 'inline-flex rounded-full px-3 py-1 text-xs font-bold ' +
+        (stale ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700');
+      if (link) {
+        link.classList.toggle('hidden', !(state && state.folder_url));
+        if (state && state.folder_url) link.href = state.folder_url;
+      }
+      if (msg && state) {
+        msg.textContent = 'ไฟล์สำรองทั้งหมด ' + (state.count || 0) + ' ไฟล์' +
+          (state.latest_date ? ' · ล่าสุด ' + state.latest_date : '') +
+          (age >= 2 ? ' — ตรวจว่า trigger รายวันยังทำงานอยู่หรือไม่ (รัน setupAutomation ใน Apps Script อีกครั้ง)' : '');
+        msg.className = 'text-xs ' + (stale ? 'text-amber-600' : 'text-slate-500');
+      }
+    }
+
+    function loadBackupStatus() {
+      if (!isAdminUser()) return Promise.resolve(null);
+      return requestApi(withAuthPayload({ action: 'getBackupStatus' })).then(parseApiResponse).then(function(res) {
+        renderBackupStatus(res);
+        return res;
+      }).catch(function(err) {
+        var msg = document.getElementById('backupStatusMessage');
+        if (msg) {
+          msg.textContent = 'ตรวจสอบสถานะไม่ได้: ' + (err && err.message ? err.message : err);
+          msg.className = 'text-xs text-rose-600';
+        }
+        renderBackupStatus(null);
+        return null;
+      });
+    }
+
+    (function initBackupPanel() {
+      var btn = document.getElementById('backupRunNowBtn');
+      if (!btn) return;
+      btn.addEventListener('click', function() {
+        btn.disabled = true;
+        btn.textContent = 'กำลังสำรอง...';
+        // คัดลอกทั้งไฟล์ใช้เวลาหลายวินาที ต้องบอกให้รอ ไม่ใช่ปล่อยให้กดซ้ำ
+        postJson(withAuthPayload({ action: 'runBackupNow' })).then(parseApiResponse).then(function(res) {
+          showQuickToast(res && res.skipped ? 'มีไฟล์สำรองของวันนี้อยู่แล้ว' : 'สำรองข้อมูลเรียบร้อย', 'success');
+          if (res && res.state) renderBackupStatus(res.state);
+        }).catch(function(err) {
+          showQuickToast('สำรองไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        }).finally(function() {
+          btn.disabled = false;
+          btn.textContent = 'สำรองเดี๋ยวนี้';
+        });
+      });
+    })();
+
     /* ── แจ้งเตือนเข้า LINE (สถานะ + ปุ่มทดสอบ) ────────────────────────────────
        token/groupId เก็บที่ Script Properties ฝั่ง Apps Script — หน้านี้ไม่เคยเห็นค่าจริง
        ได้แค่คำตอบว่า "ตั้งค่าครบหรือยัง" เพื่อไม่ให้ token หลุดมาอยู่ในหน้าเว็บ           */
@@ -14337,6 +14412,7 @@ function inferRequestPriority(stock, min) {
       setTabStyles('admin');
       loadItemAudit(false).catch(function() {});
       loadLineNotifyStatus();
+      loadBackupStatus();
       loadUsers().catch(function(err) {
         userManageMessage.className = 'text-sm mb-2 text-rose-600';
         userManageMessage.textContent = err && err.message ? err.message : 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ';
