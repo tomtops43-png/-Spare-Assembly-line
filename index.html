@@ -2784,6 +2784,33 @@
         <div id="partTagGroupList" class="space-y-1.5"></div>
       </section>
 
+      <!-- แจ้งเตือนเข้า LINE — งานเช้าและ PR รออนุมัติต้องเด้งออกไปหาคน ไม่ใช่รอคนเปิดเว็บ -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">🔔 แจ้งเตือนเข้า LINE</h3>
+            <p class="text-xs text-slate-500 mt-0.5">สรุปคลังทุกเช้า 07:00 (ของหมด · ต่ำกว่า Min · PR ค้าง · Auto-PR · การเบิกผิดปกติ) + แจ้งทันทีเมื่อมี PR ใหม่รออนุมัติ</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="lineNotifyStatusBadge" class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">กำลังตรวจสอบ...</span>
+            <button id="lineNotifyTestBtn" type="button" class="h-9 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40">ส่งข้อความทดสอบ</button>
+          </div>
+        </div>
+        <p id="lineNotifyMessage" class="text-xs text-slate-500"></p>
+        <details class="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <summary class="cursor-pointer text-xs font-bold text-slate-700">วิธีตั้งค่า (ทำครั้งเดียว)</summary>
+          <ol class="mt-2 list-decimal space-y-1 pl-5 text-xs text-slate-600">
+            <li>สร้าง Messaging API channel ที่ <span class="font-mono">developers.line.biz</span> แล้วคัดลอก <span class="font-mono">Channel access token</span></li>
+            <li>เชิญบอทเข้ากลุ่ม LINE ที่ต้องการให้แจ้งเตือน แล้วหา <span class="font-mono">groupId</span> ของกลุ่มนั้น</li>
+            <li>เปิด Apps Script &gt; Project Settings &gt; Script Properties เพิ่ม 2 ค่า:
+              <div class="mt-1 font-mono text-[11px] text-slate-500">LINE_CHANNEL_TOKEN = &lt;token&gt;<br/>LINE_TARGET_ID = &lt;groupId&gt;</div>
+            </li>
+            <li>เพิ่ม <span class="font-mono">APP_WEB_URL</span> ด้วยก็ได้ (ไม่บังคับ) ระบบจะแนบลิงก์เว็บท้ายข้อความให้กดเปิดได้เลย</li>
+            <li>กลับมากด "ส่งข้อความทดสอบ" เพื่อยืนยันว่าตั้งค่าถูก</li>
+          </ol>
+          <p class="mt-2 text-[11px] text-amber-600">⚠️ ใช้ LINE Messaging API ไม่ใช่ LINE Notify (LINE Notify ปิดบริการไปแล้ว)</p>
+        </details>
+      </section>
       <!-- ทะเบียนการแก้ไขข้อมูลอะไหล่ — ปิดช่องที่เคยแก้ Min/ราคา/ยอดคงเหลือได้แบบไม่มีร่องรอย -->
       <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -14066,6 +14093,66 @@ function inferRequestPriority(stock, min) {
       loadPurchaseHistory(false).catch(function() {});
     }
 
+    /* ── แจ้งเตือนเข้า LINE (สถานะ + ปุ่มทดสอบ) ────────────────────────────────
+       token/groupId เก็บที่ Script Properties ฝั่ง Apps Script — หน้านี้ไม่เคยเห็นค่าจริง
+       ได้แค่คำตอบว่า "ตั้งค่าครบหรือยัง" เพื่อไม่ให้ token หลุดมาอยู่ในหน้าเว็บ           */
+    function renderLineNotifyStatus(status) {
+      var badge = document.getElementById('lineNotifyStatusBadge');
+      var msg = document.getElementById('lineNotifyMessage');
+      var testBtn = document.getElementById('lineNotifyTestBtn');
+      if (!badge) return;
+      var configured = !!(status && status.configured);
+      badge.textContent = configured ? '✅ พร้อมใช้งาน' : '⛔ ยังไม่ได้ตั้งค่า';
+      badge.className = 'inline-flex rounded-full px-3 py-1 text-xs font-bold ' +
+        (configured ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700');
+      if (testBtn) testBtn.disabled = !configured;
+      if (msg) {
+        if (configured) {
+          msg.textContent = 'ตั้งค่าครบแล้ว' + (status.has_web_url ? ' · แนบลิงก์เว็บท้ายข้อความให้ด้วย' : ' · ยังไม่ได้ตั้ง APP_WEB_URL (ข้อความจะไม่มีลิงก์เว็บ)');
+          msg.className = 'text-xs text-emerald-600';
+        } else {
+          var missing = [];
+          if (status && !status.has_token) missing.push('LINE_CHANNEL_TOKEN');
+          if (status && !status.has_target) missing.push('LINE_TARGET_ID');
+          msg.textContent = 'ยังขาด: ' + (missing.join(' และ ') || 'การตั้งค่า') + ' — ดูวิธีตั้งค่าด้านล่าง';
+          msg.className = 'text-xs text-amber-600';
+        }
+      }
+    }
+
+    function loadLineNotifyStatus() {
+      if (!isAdminUser()) return Promise.resolve(null);
+      return requestApi(withAuthPayload({ action: 'getLineStatus' })).then(parseApiResponse).then(function(res) {
+        renderLineNotifyStatus(res);
+        return res;
+      }).catch(function(err) {
+        var msg = document.getElementById('lineNotifyMessage');
+        if (msg) {
+          // ยังไม่ deploy Backend ตัวใหม่ = ไม่รู้จัก action นี้ ต้องบอกให้ตรงสาเหตุ
+          msg.textContent = 'ตรวจสอบสถานะไม่ได้: ' + (err && err.message ? err.message : err);
+          msg.className = 'text-xs text-rose-600';
+        }
+        return null;
+      });
+    }
+
+    (function initLineNotify() {
+      var testBtn = document.getElementById('lineNotifyTestBtn');
+      if (!testBtn) return;
+      testBtn.addEventListener('click', function() {
+        testBtn.disabled = true;
+        testBtn.textContent = 'กำลังส่ง...';
+        postJson(withAuthPayload({ action: 'sendLineTestMessage' })).then(parseApiResponse).then(function() {
+          showQuickToast('ส่งข้อความทดสอบเข้า LINE แล้ว — ลองเช็คในกลุ่ม', 'success');
+        }).catch(function(err) {
+          showQuickToast('ส่งไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        }).finally(function() {
+          testBtn.disabled = false;
+          testBtn.textContent = 'ส่งข้อความทดสอบ';
+        });
+      });
+    })();
+
     /* ── ทะเบียนการแก้ไขข้อมูลอะไหล่ (ItemAudit) ────────────────────────────────
        เดิมการแก้ Min/Max/ราคา/ยอดคงเหลือ เขียนทับชีตเงียบๆ ไม่มีร่องรอย
        ตอนนี้ backend ลงทะเบียนทุกครั้ง ส่วนตรงนี้คือหน้าจออ่านย้อนหลังของ Admin    */
@@ -14249,6 +14336,7 @@ function inferRequestPriority(stock, min) {
       adminPage.classList.remove('hidden');
       setTabStyles('admin');
       loadItemAudit(false).catch(function() {});
+      loadLineNotifyStatus();
       loadUsers().catch(function(err) {
         userManageMessage.className = 'text-sm mb-2 text-rose-600';
         userManageMessage.textContent = err && err.message ? err.message : 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ';
