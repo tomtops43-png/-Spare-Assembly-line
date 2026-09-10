@@ -3208,6 +3208,12 @@
                     <p class="text-[10px] text-slate-400 leading-relaxed">ดูสต็อกอย่างเดียว • ห้ามเบิก/ขอซื้อ</p>
                     <span class="mt-0.5 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600">Read-only</span>
                   </button>
+                  <!-- Viewer ระดับผู้บริหาร -->
+                  <button type="button" data-role-preset="viewer_exec" class="role-preset-btn flex flex-col items-start gap-1.5 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50">
+                    <div class="flex items-center gap-1.5"><span class="text-lg">&#x1F453;</span><span class="text-xs font-bold text-slate-800">ผู้บริหาร</span></div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">ดู Dashboard • Log • Export ได้ทุกไลน์ • ห้ามแก้ไข</p>
+                    <span class="mt-0.5 rounded-full bg-indigo-100 px-2 py-0.5 text-[9px] font-bold text-indigo-700">Read-only+</span>
+                  </button>
                   <!-- Leader PD -->
                   <button type="button" data-role-preset="leader_pd" class="role-preset-btn flex flex-col items-start gap-1.5 rounded-xl border-2 border-slate-200 bg-white p-3 text-left transition hover:border-orange-300 hover:bg-orange-50">
                     <div class="flex items-center gap-1.5"><span class="text-lg">📋</span><span class="text-xs font-bold text-slate-800">Leader PD</span></div>
@@ -7139,17 +7145,46 @@ function getIssueCartEntries() {
       }
       return false;
     }
+    // อ่าน deny list ที่บันทึกไว้จริงใน permissions_json ของผู้ใช้
+    // แยกจาก currentUser.permissions ที่ merge แล้ว เพราะ merge แล้วดูไม่ออกว่า false นั้น
+    // มาจาก "ปิดไว้ตั้งใจ" หรือ "role default ไม่ได้เปิด" — cache ตามสตริง json กัน parse ซ้ำ
+    var denySetCacheKey = null;
+    var denySetCache = {};
+    function isPermissionDeniedExplicitly(permissionName) {
+      if (!currentUser) return false;
+      var raw = String(currentUser.permissionsJson || '');
+      if (raw !== denySetCacheKey) {
+        denySetCacheKey = raw;
+        denySetCache = {};
+        parsePermissionsJsonSafe(raw).deny.forEach(function(k) { denySetCache[k] = true; });
+      }
+      return !!denySetCache[permissionName];
+    }
+
     function hasPermission(permissionName) {
       if (!(currentUser && currentUser.permissions)) return false;
       var aliases = PERMISSION_ALIASES[permissionName] || [permissionName];
       for (var i = 0; i < aliases.length; i += 1) {
         if (currentUser.permissions[aliases[i]]) return true;
       }
-      if (permissionName.indexOf('request_order_') === 0) return hasRequestOrderRoleFallback(permissionName);
+      // ปิดสิทธิ์ไว้ชัดๆ ต้องชนะ role fallback — เดิม fallback ยึดแค่ role ทำให้บัญชีที่
+      // ตั้งใจให้ดูอย่างเดียว (role 'user') ยังเห็นปุ่ม "ขอซื้อ" ทั้งที่ปิดสิทธิ์แล้ว
+      // (ฝั่งเซิร์ฟเวอร์กันอยู่แล้ว แต่ปุ่มที่กดแล้ว error คือ UI ที่โกหกผู้ใช้)
+      if (permissionName.indexOf('request_order_') === 0) {
+        if (isPermissionDeniedExplicitly(permissionName)) return false;
+        return hasRequestOrderRoleFallback(permissionName);
+      }
       return false;
     }
     function canIssuePart() { return hasPermission('issue_part'); }
     function canReceivePart() { return hasPermission('receive_part'); }
+
+    // สะท้อนด่าน requireWarehouseWriter ฝั่งเซิร์ฟเวอร์ — ใช้ซ่อนหน้า/ปุ่มที่บันทึกข้อมูล
+    // ไม่ให้โผล่กับบัญชีดูอย่างเดียว (กดแล้ว error คือ UI ที่โกหกผู้ใช้)
+    function canWriteWarehouse() {
+      if (isAdminUser()) return true;
+      return hasPermission('receive_part') || hasPermission('issue_part') || hasPermission('manage_items');
+    }
 
     function isAdminUser() {
       return !!(currentUser && String(currentUser.role || '').toLowerCase() === 'admin');
@@ -7508,6 +7543,29 @@ function getIssueCartEntries() {
       syncPermissionsJsonFromUI();
     }
 
+    // สิทธิ์บางตัวไม่มี checkbox บนหน้าจอ (pr_create / pr_view_all / view_purchase_history)
+    // แต่ preset ต้องสั่งเปิด/ปิดได้ เพราะ role default ของฝั่งเซิร์ฟเวอร์เปิดบางตัวให้เอง
+    // เก็บแยกไว้เพื่อให้ค่าไม่หลุดตอน admin ไปติ๊ก checkbox อื่นแล้ว sync ใหม่
+    var presetExtraAllow = [];
+    var presetExtraDeny = [];
+    // คีย์ที่หน้าจอคุมเองอยู่แล้ว = checkbox + alias ที่ขยายจาก checkbox + สิทธิ์ไลน์
+    // ใช้แยกว่า entry ไหนใน permissions_json เป็นของที่ "ไม่มีช่องติ๊ก" จริงๆ
+    // (ถ้าเผลอเก็บ alias อย่าง manage_items ไว้ใน extraAllow พอ admin ติ๊ก edit_item ออก
+    //  สิทธิ์จะยังค้างอยู่เพราะ extraAllow ทับ — จึงต้องกันตรงนี้)
+    function getManagedPermissionKeyMap() {
+      var map = {};
+      Array.prototype.slice.call(document.querySelectorAll('[data-permission-key]')).forEach(function(input) {
+        var key = input.getAttribute('data-permission-key');
+        map[key] = true;
+        (PERMISSION_COMPAT_MAP[key] || []).forEach(function(alias) { map[alias] = true; });
+      });
+      LINE_OPTIONS.forEach(function(line) {
+        map['view_' + line.key] = true;
+        map['manage_' + line.key] = true;
+      });
+      return map;
+    }
+
     function syncPermissionsJsonFromUI() {
       var selected = getSelectedPermissionsFromUI();
       var lineAccess = getSelectedLineAccessFromUI();
@@ -7535,6 +7593,10 @@ function getIssueCartEntries() {
       Object.keys(expandedAllowMap).forEach(function(key) {
         delete expandedDenyMap[key];
       });
+
+      // สิทธิ์ที่ preset สั่งไว้แต่ไม่มี checkbox — allow ชนะ deny เสมอ
+      presetExtraAllow.forEach(function(key) { expandedAllowMap[key] = true; delete expandedDenyMap[key]; });
+      presetExtraDeny.forEach(function(key) { if (!expandedAllowMap[key]) expandedDenyMap[key] = true; });
 
       var jsonValue = JSON.stringify({ allow: Object.keys(expandedAllowMap), deny: Object.keys(expandedDenyMap) });
       document.getElementById('uPermissionsJson').value = jsonValue;
@@ -7588,6 +7650,10 @@ function getIssueCartEntries() {
       var uLineEl = document.getElementById('uLine');
       if (uLineEl) uLineEl.value = user ? (user.line || '') : '';
       var parsedPermissions = parsePermissionsJsonSafe(user ? user.permissionsJson : '');
+      // คงสิทธิ์ที่ไม่มี checkbox ของผู้ใช้เดิมไว้ ไม่งั้นเปิดมาแก้แล้วกดบันทึก สิทธิ์พวกนั้นหลุดหมด
+      var managedKeyMap = getManagedPermissionKeyMap();
+      presetExtraAllow = parsedPermissions.allow.filter(function(k) { return !managedKeyMap[k]; });
+      presetExtraDeny = parsedPermissions.deny.filter(function(k) { return !managedKeyMap[k]; });
       setPermissionUIFromAllowList(parsedPermissions.allow);
       setLineAccessUIFromAllowList(parsedPermissions.allow);
       if (!user) applyRolePreset(document.getElementById('uRole').value);
@@ -8597,7 +8663,9 @@ function getIssueCartEntries() {
       if (tabPurchaseHistory) tabPurchaseHistory.classList.toggle('hidden', !hasPermission('view'));
       if (tabMiscExpenseEl) tabMiscExpenseEl.classList.toggle('hidden', !hasPermission('view'));
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
-      if (tabStockCount) tabStockCount.classList.toggle('hidden', !hasPermission('view_logs'));
+      // หน้าเช็คสต็อกเป็นงานที่ "บันทึกข้อมูล" ไม่ใช่หน้าดู — ต้องมีสิทธิ์ทำงานคลังจริงด้วย
+      // ตรงกับด่าน requireWarehouseWriter ฝั่งเซิร์ฟเวอร์ (บัญชีดูอย่างเดียวบันทึกไม่ได้)
+      if (tabStockCount) tabStockCount.classList.toggle('hidden', !(hasPermission('view_logs') && canWriteWarehouse()));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
       // แท็บ Export โผล่เมื่อมีสิทธิ์ export_data (หรือ view_logs / admin ตามเกณฑ์ xpCanExport)
       if (tabExportEl) tabExportEl.classList.toggle('hidden', !(typeof xpCanExport === 'function' && xpCanExport()));
@@ -20881,6 +20949,12 @@ if (dashboardPage) {
           if (!ok) return;
           prPrintBtn.disabled = true;
           var oldHtml = prPrintBtn.innerHTML; prPrintBtn.textContent = '⏳ กำลังส่ง...';
+          // บัญชีดูอย่างเดียวเปิดหน้า PR Report ได้ (ต้องดูรายงานได้) แต่ต้องสร้าง PR ไม่ได้
+          // role default ของ 'user' เปิด pr_create ให้เอง จึงต้องเช็คที่นี่ด้วย ไม่ใช่พึ่ง role
+          if (!hasPermission('pr_create')) {
+            showQuickToast('บัญชีนี้ไม่มีสิทธิ์สร้าง PR (ดูรายงานได้อย่างเดียว)', 'warn');
+            return Promise.resolve(null);
+          }
           var payload = { action: 'createPR', pr_id: prNumber, line: headerLine, lines_json: JSON.stringify(lines) };
           if (assignTo) payload.assign_to = assignTo;
           if (gate.bypass) { payload.budget_bypass = 'true'; payload.bypass_reason = gate.reason; payload.budget_over_detail = gate.overDetail; }
@@ -21618,6 +21692,31 @@ if (dashboardPage) {
         ]
       },
 
+      // ระดับ 0.2: ผู้บริหาร — ดูได้ทุกอย่างทุกไลน์ (Dashboard/Log/Export/PR) แต่แตะระบบไม่ได้เลย
+      // ต่างจาก Viewer ธรรมดาที่เห็นแค่หน้า Stock — ระดับนี้เอาไว้ให้ผู้บริหารดูตัวเลขและ
+      // ดึงรายงานไปเสนอ โดยไม่ต้องกลัวว่าจะเผลอกดอะไรที่เปลี่ยนข้อมูล
+      //
+      // extraDeny จำเป็นเพราะ role default ของ 'user' เปิด pr_create ให้เอง และคีย์พวกนี้
+      // ไม่มี checkbox บนหน้าจอ จึงไม่ถูกใส่ deny อัตโนมัติเหมือนสิทธิ์ที่มีช่องติ๊ก
+      viewer_exec: {
+        role: 'user',
+        label: '👓 ผู้บริหาร / Executive Viewer',
+        detail: 'ดู Dashboard · Log · Purchase History · PR · Export รายงาน — ทุกไลน์ · ห้ามเบิก/รับเข้า/ขอซื้อ/แก้ไขอะไรทั้งสิ้น',
+        borderColor: '#4f46e5', bg: '#eef2ff',
+        lines: 'view',
+        permissions: [
+          'view_stock', 'view_detail', 'view_alerts',
+          'view_logs', 'view_dashboard', 'export_data',
+          'request_order_view_all'
+          // ❌ ไม่มี issue_part / receive_part / use_issue_cart (การติ๊กออกทำให้ transact ถูก deny ด้วย)
+          // ❌ ไม่มี create_item / edit_item / delete_item / manage_minmax / manage_item_image
+          // ❌ ไม่มี request_order_create / approve / reject / convert_pr / close / edit
+          // ❌ ไม่มี delete_logs / manage_users
+        ],
+        extraAllow: ['view_purchase_history', 'pr_view_all'],
+        extraDeny: ['pr_create', 'pr_approve', 'transact', 'manage_items', 'delete_items']
+      },
+
       // ระดับ 0.5: Leader PD — ดูสต็อก + ขอซื้อได้ แต่ห้ามเบิก
       leader_pd: {
         role: 'user',
@@ -21712,6 +21811,8 @@ if (dashboardPage) {
       if (uRole) uRole.value = preset.role;
       // check/uncheck all permission checkboxes (ต้องใช้ data-permission-key ให้ตรงกับ renderPermissionControls)
       var allPerms = preset.permissions;
+      presetExtraAllow = (preset.extraAllow || []).slice();
+      presetExtraDeny = (preset.extraDeny || []).slice();
       document.querySelectorAll('[data-permission-key]').forEach(function(cb) {
         cb.checked = allPerms.indexOf(cb.getAttribute('data-permission-key')) !== -1;
       });

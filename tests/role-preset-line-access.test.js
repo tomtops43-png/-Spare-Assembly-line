@@ -21,6 +21,7 @@ const presetsSrc = script.match(/var ROLE_PRESETS = \{[\s\S]*?\n {4}\};/)[0];
 const ROLE_PRESETS = vm.runInNewContext('(' + presetsSrc.replace(/^var ROLE_PRESETS = /, '').replace(/;$/, '') + ')');
 const expectedLines = {
   viewer: 'view',
+  viewer_exec: 'view',
   leader_pd: 'view',
   user: 'view',
   leader_basic: 'managed',
