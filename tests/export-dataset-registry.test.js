@@ -97,7 +97,7 @@ XP_DATASETS.forEach(function(d) {
   'xpProgressWrap', 'xpProgressBar', 'xpProgressText', 'xpProgressLog',
   'xpSelectAllBtn', 'xpSelectNoneBtn', 'xpSelectCoreBtn', 'xpSelectedCount',
   'xpManifestBadge', 'xpRefreshManifestBtn', 'xpAuditCard', 'xpAuditRefreshBtn',
-  'xpAuditTableWrap', 'tabExport', 'xpDashboardBtn', 'xpLangFilter'
+  'xpAuditTableWrap', 'tabExport', 'xpDashboardBtn', 'xpLangFilter', 'xpIncludeImages'
 ].forEach(function(id) {
   assert(html.indexOf('id="' + id + '"') > -1, 'ไม่พบ element id="' + id + '" ใน index.html');
 });

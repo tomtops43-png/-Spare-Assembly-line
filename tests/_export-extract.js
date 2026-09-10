@@ -59,6 +59,15 @@ function grabVar(name, source) {
   throw new Error('หาวงเล็บปิดของ ' + name + ' ไม่เจอ');
 }
 
+// ดึง `var NAME = <ค่าตัวเลข/ข้อความ>;` บรรทัดเดียว (ค่าคงที่ธรรมดา ไม่ใช่ literal ที่มีวงเล็บ)
+function grabScalar(name, source) {
+  const src = source || html;
+  const re = new RegExp('var ' + name + ' = ([^;\\n]+);');
+  const m = src.match(re);
+  assert(m, 'ต้องหาค่าคงที่ ' + name + ' เจอ');
+  return 'var ' + name + ' = ' + m[1] + ';';
+}
+
 // ประกอบชิ้นส่วนเป็นโมดูลเดียวแล้วคืนค่าที่ขอ
 function buildModule(pieces, returnExpr) {
   const src = pieces.join('\n') + '\nreturn (' + returnExpr + ');';
@@ -74,4 +83,4 @@ function baseHelpers(extra) {
   return pieces;
 }
 
-module.exports = { html, backend, grabFn, grabVar, buildModule, baseHelpers, assert };
+module.exports = { html, backend, grabFn, grabVar, grabScalar, buildModule, baseHelpers, assert };

@@ -5125,6 +5125,7 @@ function doGet(e) {
     if (action === 'exportAuditTrails') return respond(exportAuditTrails(e.parameter), e);
     if (action === 'exportUserRoster') return respond(exportUserRoster(e.parameter), e);
     if (action === 'exportRawSheets') return respond(exportRawSheets(e.parameter), e);
+    if (action === 'exportPartImages') return respond(exportPartImages(e.parameter), e);
     if (action === 'logExportEvent') return respond(logExportEvent(e.parameter), e);
     requirePermission(authPayload, 'view');
     if (action === 'transact') {
@@ -5406,6 +5407,7 @@ function doPost(e) {
     if (action === 'exportAuditTrails') return respond(exportAuditTrails(body), e);
     if (action === 'exportUserRoster') return respond(exportUserRoster(body), e);
     if (action === 'exportRawSheets') return respond(exportRawSheets(body), e);
+    if (action === 'exportPartImages') return respond(exportPartImages(body), e);
     if (action === 'logExportEvent') return respond(logExportEvent(body), e);
     if (action === 'createOrderRequest') return respond(createOrderRequest(body), e);
     if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(body), e);
@@ -7072,6 +7074,70 @@ function exportRawSheets(payload) {
     });
   });
   return out;
+}
+// รูปย่อของอะไหล่สำหรับฝังลงไฟล์ Excel — คืนเป็น base64 ให้ฝั่งเว็บเอาไปใส่ชีตได้ตรงๆ
+//
+// ทำไมต้องมีฝั่งเซิร์ฟเวอร์: รูปเก็บที่ Google Drive และฝั่งเว็บอ่าน "ไบต์" ของรูปไม่ได้เสมอ
+// เพราะ drive.google.com/thumbnail redirect ไป lh3.googleusercontent.com ซึ่งอาจไม่ส่ง
+// CORS header กลับมา ทำให้ canvas ที่วาดรูปนั้นกลายเป็น tainted แล้ว toDataURL() โยน
+// SecurityError — ฝั่งเว็บจะลองทางนั้นก่อน (เร็ว ไม่ต้องยิงเซิร์ฟเวอร์) ถ้าไม่ได้จึงมาที่นี่
+//
+// ขอทีละไม่เกิน 30 ไอดี: Apps Script มีเพดานเวลา 6 นาทีต่อการเรียก และ payload ที่ใหญ่เกิน
+// จะโหลดผ่าน JSONP ไม่จบ — ฝั่งเว็บแบ่งก้อนเองแล้วโชว์ความคืบหน้า
+var EXPORT_IMAGE_MAX_IDS = 30;
+var EXPORT_IMAGE_MAX_SIZE = 400;
+
+function exportPartImages(payload) {
+  requireExportAccess(payload);
+  var raw = String((payload && payload.ids) || '').split(',');
+  var ids = [];
+  for (var i = 0; i < raw.length && ids.length < EXPORT_IMAGE_MAX_IDS; i += 1) {
+    var id = String(raw[i] || '').trim();
+    // รับเฉพาะรูปแบบ Drive file id จริงๆ — กันการยัด URL อื่นเข้ามาให้เซิร์ฟเวอร์ไปดึงแทน
+    if (/^[A-Za-z0-9_-]{20,}$/.test(id) && ids.indexOf(id) === -1) ids.push(id);
+  }
+  var size = Math.min(EXPORT_IMAGE_MAX_SIZE, Math.max(48, Number((payload && payload.size) || 160)));
+  var images = {};
+  var failed = {};
+  ids.forEach(function(id) {
+    try {
+      images[id] = fetchDriveThumbnailBase64(id, size);
+      if (!images[id]) {
+        delete images[id];
+        failed[id] = 'ไม่มีรูปย่อ';
+      }
+    } catch (err) {
+      failed[id] = err && err.message ? String(err.message).slice(0, 200) : 'อ่านรูปไม่สำเร็จ';
+    }
+  });
+  return { status: 'success', images: images, failed: failed, size: size };
+}
+
+// คืน data URL ('data:image/...;base64,...') ของรูปย่อ หรือ '' ถ้าไม่มี
+// ลอง getThumbnail() ก่อนเพราะไม่ต้องยิง HTTP (เร็วและไม่กิน quota) แต่ Drive ไม่ได้ทำ
+// รูปย่อให้ทุกไฟล์ — ถ้าไม่มีจึงขอผ่าน endpoint thumbnail ที่ระบุขนาดได้เอง
+// ห้ามใช้ file.getBlob() แทน: ไฟล์รูปต้นฉบับใหญ่หลาย MB ฝังลง Excel แล้วไฟล์บวมจนเปิดไม่ไหว
+function fetchDriveThumbnailBase64(fileId, size) {
+  var thumb = null;
+  try {
+    var file = DriveApp.getFileById(fileId);
+    if (file && typeof file.getThumbnail === 'function') thumb = file.getThumbnail();
+  } catch (err) {
+    Logger.log('getThumbnail warning [' + fileId + ']: ' + (err && err.message ? err.message : err));
+  }
+  if (!thumb) {
+    var url = 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(fileId) + '&sz=w' + size;
+    var res = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }
+    });
+    if (res.getResponseCode() !== 200) return '';
+    thumb = res.getBlob();
+  }
+  var type = String(thumb.getContentType() || 'image/png');
+  if (type.indexOf('image/') !== 0) return '';
+  return 'data:' + type + ';base64,' + Utilities.base64Encode(thumb.getBytes());
 }
 
 function getExportLogSheet() {
