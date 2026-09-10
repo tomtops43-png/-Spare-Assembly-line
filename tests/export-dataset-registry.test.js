@@ -16,7 +16,7 @@ const required = [
   'partTagGroupItems', 'orderRequests', 'prHeaders', 'prLines', 'prAudit', 'purchaseHistory',
   'purchaseHistoryLog', 'purchaseImportLog', 'miscExpenses', 'miscExpenseLog',
   'productionVolume', 'productionCostConfig', 'stockCount', 'stockCountItems',
-  'anomalies', 'userRoster', 'exportLog'
+  'anomalies', 'dashboardKpi', 'userRoster', 'exportLog'
 ];
 required.forEach(function(k) {
   assert(keys.indexOf(k) > -1, 'ขาดชุดข้อมูล: ' + k);
@@ -43,7 +43,7 @@ XP_DATASETS.forEach(function(d) {
 
 // ── ชุดหลักต้องถูกติ๊กไว้ให้ตั้งแต่เปิดหน้า (กดปุ่มเดียวได้ของที่จำเป็น) ──
 const core = XP_DATASETS.filter(function(d) { return d.core; }).map(function(d) { return d.key; });
-['stockMaster', 'logs', 'orderRequests', 'purchaseHistory', 'miscExpenses', 'stockCount'].forEach(function(k) {
+['stockMaster', 'logs', 'orderRequests', 'purchaseHistory', 'miscExpenses', 'stockCount', 'dashboardKpi'].forEach(function(k) {
   assert(core.indexOf(k) > -1, k + ' ควรเป็นชุดหลัก (core) เพราะเป็นข้อมูลที่ผู้จัดการถามหาเสมอ');
 });
 
@@ -97,7 +97,7 @@ XP_DATASETS.forEach(function(d) {
   'xpProgressWrap', 'xpProgressBar', 'xpProgressText', 'xpProgressLog',
   'xpSelectAllBtn', 'xpSelectNoneBtn', 'xpSelectCoreBtn', 'xpSelectedCount',
   'xpManifestBadge', 'xpRefreshManifestBtn', 'xpAuditCard', 'xpAuditRefreshBtn',
-  'xpAuditTableWrap', 'tabExport'
+  'xpAuditTableWrap', 'tabExport', 'xpDashboardBtn', 'xpLangFilter'
 ].forEach(function(id) {
   assert(html.indexOf('id="' + id + '"') > -1, 'ไม่พบ element id="' + id + '" ใน index.html');
 });

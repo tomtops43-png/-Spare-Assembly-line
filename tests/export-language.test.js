@@ -12,6 +12,22 @@ const THAI = /[฀-๿]/;
 const XP_LANG_EN = buildModule([grabVar('XP_LANG_EN')], 'XP_LANG_EN');
 const XP_DICTIONARY = buildModule([grabVar('XP_DICTIONARY')], 'XP_DICTIONARY');
 
+// ── ห้ามมีคีย์ซ้ำในตารางแปล ──────────────────────────────────────────
+// object literal ที่มีคีย์ซ้ำ ตัวหลังทับตัวหน้าแบบเงียบๆ ไม่มี error ใดๆ
+// เคยเกิดจริง: เพิ่มป้ายการ์ด KPI 'มูลค่าคงคลัง' ทับคำแปลของหัวคอลัมน์ชื่อเดียวกัน
+// ทำให้ 'Inventory Value' กลายเป็น 'Inventory value' แล้วการแปลกลับหาคำอธิบายไม่เจอ
+const langSrc = grabVar('XP_LANG_EN');
+const seenKeys = {};
+const dupKeys = [];
+langSrc.split('\n').forEach(function(line) {
+  const m = line.match(/^\s+'(.*?)':\s/);
+  if (!m) return;
+  if (seenKeys[m[1]]) dupKeys.push(m[1]);
+  else seenKeys[m[1]] = true;
+});
+assert.strictEqual(dupKeys.length, 0,
+  'ตารางแปลมีคีย์ซ้ำ ' + dupKeys.length + ' ตัว (ตัวหลังทับตัวหน้าเงียบๆ): ' + dupKeys.join(', '));
+
 // ── โครงสร้างตารางแปล ───────────────────────────────────────────────
 const langKeys = Object.keys(XP_LANG_EN);
 assert(langKeys.length > 250, 'ตารางแปลควรมีอย่างน้อย 250 รายการ แต่มี ' + langKeys.length);
@@ -54,6 +70,17 @@ requireTranslation(scan(/meta: '([^']*)'/g), 'meta');
 requireTranslation(scan(/desc: '([^']*)'/g), 'desc');
 // ทุกข้อความที่ส่งเข้า xpT() ต้องมีคำแปล ไม่งั้นเรียกไปก็ได้ไทยกลับมา
 requireTranslation(scan(/xpT\('([^']*)'/g), 'xpT()');
+// อาร์เรย์ที่ส่งเข้า .map(xpT) — ตารางที่สร้างหัวคอลัมน์เองไม่ผ่าน xpTable ใช้แบบนี้
+// (เคยหลุดจริง: หัวคอลัมน์ 'คำอธิบาย' ของตารางคะแนนสุขภาพ)
+const arrRe = /\[([^[\]]*?)\]\.map\(xpT\)/g;
+let arrMatch;
+while ((arrMatch = arrRe.exec(region))) {
+  const inner = [];
+  const strRe = /'([^']*)'/g;
+  let sm;
+  while ((sm = strRe.exec(arrMatch[1]))) inner.push(sm[1]);
+  requireTranslation(inner, 'map(xpT) array');
+}
 // ป้ายและหน่วยของ KPI (ส่งผ่าน add(group, label, value, unit, note))
 requireTranslation(scan(/\badd\('([^']*)'/g), 'KPI group');
 requireTranslation(scan(/\badd\('[^']*', '([^']*)'/g), 'KPI label');
