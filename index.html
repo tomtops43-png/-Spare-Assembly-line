@@ -699,6 +699,11 @@
     .xp-btn-primary:hover,.xp-btn-secondary:hover,.xp-btn-ghost:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,.22); }
     .xp-btn-primary:disabled,.xp-btn-secondary:disabled,.xp-btn-ghost:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
     .xp-btn-primary { background:linear-gradient(135deg,#059669,#047857); color:#fff; }
+    .xp-btn-dash { display:flex; align-items:center; gap:11px; padding:14px 16px; border-radius:14px; border:none; font-size:14px; text-align:left; cursor:pointer; transition:transform .12s, box-shadow .12s; background:linear-gradient(135deg,#0891b2,#0e7490); color:#fff; }
+    .xp-btn-dash:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,.22); }
+    .xp-btn-dash:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+    .xp-btn-dash b { display:block; font-weight:800; }
+    .xp-btn-dash small { display:block; font-size:11px; opacity:.85; font-weight:500; margin-top:2px; }
     .xp-btn-secondary { background:linear-gradient(135deg,#4f46e5,#3730a3); color:#fff; }
     .xp-btn-ghost { background:rgba(255,255,255,.1); color:#e2e8f0; border:1px solid #475569; }
     .xp-card:not(.xp-card-hero) .xp-btn-ghost { background:#fff; color:#475569; border:1px solid #cbd5e1; }
@@ -2899,6 +2904,10 @@
           <button id="xpPdfBtn" type="button" class="xp-btn-secondary">
             <span class="xp-btn-ico">&#x1F4C4;</span>
             <span><b>Executive Report</b><small>PDF มีกราฟ พร้อมพรินต์เข้าเล่ม</small></span>
+          </button>
+          <button id="xpDashboardBtn" type="button" class="xp-btn-dash">
+            <span class="xp-btn-ico">&#x1F4C8;</span>
+            <span><b>Dashboard Snapshot</b><small>ภาพรวมโรงงานหน้าเดียว การ์ด KPI + กราฟ</small></span>
           </button>
           <button id="xpJsonBundleBtn" type="button" class="xp-btn-ghost">
             <span class="xp-btn-ico">&#x1F5C3;&#xFE0F;</span>
@@ -22137,6 +22146,59 @@ if (dashboardPage) {
       'กราฟไม่ถูกฝังในไฟล์นี้ (โหลดไลบรารีจัดรูปแบบไม่สำเร็จ) — ดูกราฟได้บนหน้าเว็บหรือในไฟล์ PDF': 'Charts are not embedded in this file (the formatting library failed to load) — view them on the web page or in the PDF report',
       'รายงานนี้ยังไม่มีข้อมูลพอจะวาดกราฟ — ดูตารางด้านล่าง': 'Not enough data in this report to draw a chart — see the table below',
       '04 กราฟสรุป': '04 Summary Charts',
+      // ── Dashboard Snapshot ──
+      'Dashboard KPI (Factory Command Center)': 'Dashboard KPI (Factory Command Center)',
+      'Dashboard KPI': 'Dashboard KPI',
+      'การ์ด KPI + คะแนนสุขภาพคลัง ตัวเลขตรงกับหน้า Dashboard เป๊ะ': 'KPI cards + inventory health score — figures match the Dashboard exactly',
+      '05 Dashboard KPI': '05 Dashboard KPI',
+      '06 คะแนนสุขภาพคลัง': '06 Inventory Health Score',
+      '07 เคลื่อนไหว 14 วัน': '07 Movement Last 14 Days',
+      '08 Dashboard ตามไลน์': '08 Dashboard by Line',
+      '09 หมวดที่มีของเสี่ยง': '09 Categories at Risk',
+      '10 สถานะคำขอซื้อ': '10 Purchase Request Status',
+      'การ์ด': 'Card',
+      'อะไหล่ทั้งหมด': 'Total spare parts',
+      'หมดสต็อก': 'Out of stock',
+      'Need PO': 'Need PO',
+      'PR รอดำเนินการ': 'PR pending',
+      'เบิกวันนี้': 'Issued today',
+      'รับเข้าวันนี้': 'Received today',
+      'Factory Health Score': 'Factory Health Score',
+      'ชิ้นในคลัง': 'pcs in stock',
+      'ต้องจัดการทันที': 'Needs immediate action',
+      'ไม่มีรายการหมด': 'Nothing out of stock',
+      'ควรเติมสต็อก': 'Should be replenished',
+      'ระดับสต็อกปกติ': 'Stock levels normal',
+      'รายการที่ต้องสั่งซื้อ': 'Items to purchase',
+      'รออนุมัติ': 'Awaiting approval',
+      'ค้างเกิน 7 วัน {n} คำขอ': '{n} request(s) pending over 7 days',
+      'สัปดาห์นี้ {n} ชิ้น': '{n} pcs this week',
+      'จาก {n} รายการที่มีราคา': 'from {n} items with a price',
+      'คะแนนสุขภาพคลัง': 'Inventory Health Score',
+      'เต็ม 100 หักตามปัญหาที่พบจริง': 'Out of 100, reduced by the problems actually found',
+      'ระดับ': 'Grade',
+      'คำอธิบาย': 'Description',
+      'EXCELLENT 90+ · GOOD 75+ · WATCH 60+ · CRITICAL ต่ำกว่า 60': 'EXCELLENT 90+ · GOOD 75+ · WATCH 60+ · CRITICAL below 60',
+      'หักจากของหมดสต็อก': 'Deducted for out-of-stock items',
+      'หักจากของต่ำกว่า Min': 'Deducted for items below Min',
+      'หักจาก PR ที่ค้างอยู่': 'Deducted for pending PRs',
+      'หมดสต็อก {n} รายการ': '{n} item(s) out of stock',
+      'ต่ำกว่า Min {n} รายการ': '{n} item(s) below Min',
+      'PR รออนุมัติ {n} คำขอ': '{n} PR(s) awaiting approval',
+      'รายการเสี่ยง': 'Items at Risk',
+      'แยกตามไลน์': 'By Line',
+      'สถานะคำขอซื้อ': 'Purchase Request Status',
+      'เบิกออก 14 วันล่าสุด (ชิ้น)': 'Issued — Last 14 Days (pcs)',
+      'รับเข้า 14 วันล่าสุด (ชิ้น)': 'Received — Last 14 Days (pcs)',
+      'มูลค่าคงคลังตามไลน์': 'Inventory Value by Line',
+      'รายการที่ต้องสั่งซื้อตามไลน์': 'Items to Purchase by Line',
+      'หมวดที่มีของเสี่ยงมากสุด': 'Categories With the Most At-Risk Items',
+      'กราฟภาพรวม': 'Overview Charts',
+      'เริ่มสร้าง Dashboard Snapshot': 'Building Dashboard Snapshot',
+      'เปิด Dashboard Snapshot ในแท็บใหม่': 'Opened Dashboard Snapshot in a new tab',
+      'พร้อม': 'ready',
+      'ภาพรวมสถานะโรงงาน ณ เวลาที่สร้างไฟล์ — ไม่ใช่ยอดของช่วงวันที่ที่เลือกไว้ในหน้า Export': 'Factory status as of the moment this file was generated — not the totals for the date range selected on the Export page',
+      'ตัวเลขทุกช่องคำนวณด้วยสูตรชุดเดียวกับหน้า Dashboard ของระบบ จึงตรงกับที่เห็นบนหน้าจอ': 'Every figure is calculated with the same formulas as the system Dashboard, so it matches what is shown on screen',
       'กราฟสรุปจากข้อมูลจริงในช่วงที่เลือก': 'Summary charts from actual data for the selected period',
       'ยอดเบิกออกตามช่วงเวลา': 'Quantity Issued Over Time',
       'ยอดรับเข้าตามช่วงเวลา': 'Quantity Received Over Time',
@@ -23134,6 +23196,15 @@ if (dashboardPage) {
         }
       },
       {
+        // การ์ด KPI ของหน้า Dashboard — คำนวณด้วยสูตรเดียวกับหน้าจอ (fccCrunch*)
+        // เป็นสถานะ ณ ปัจจุบัน จึงไม่ขึ้นกับช่วงวันที่ที่เลือก (ดู xpFetchLogsSnapshot)
+        key: 'dashboardKpi', group: 'การควบคุมและตรวจสอบ', core: true,
+        name: 'Dashboard KPI (Factory Command Center)', sheetName: 'Dashboard KPI',
+        meta: 'การ์ด KPI + คะแนนสุขภาพคลัง ตัวเลขตรงกับหน้า Dashboard เป๊ะ',
+        countSheets: [],
+        fetch: function() { return xpDashboardData().then(xpDashKpiTable); }
+      },
+      {
         key: 'userRoster', group: 'การควบคุมและตรวจสอบ', adminOnly: true, phaseB: true,
         name: 'ผู้ใช้และสิทธิ์ (ไม่มีรหัสผ่าน)', sheetName: 'ผู้ใช้และสิทธิ์',
         meta: 'รายชื่อผู้ใช้ + สิทธิ์ที่เปิด — password/token ถูกตัดที่เซิร์ฟเวอร์',
@@ -23347,7 +23418,7 @@ if (dashboardPage) {
     }
     function xpSetBusy(busy) {
       xpBusy = busy;
-      ['xpWorkbookBtn', 'xpPdfBtn', 'xpJsonBundleBtn', 'xpExportXlsxBtn', 'xpExportCsvBtn', 'xpExportJsonBtn'].forEach(function(id) {
+      ['xpWorkbookBtn', 'xpPdfBtn', 'xpDashboardBtn', 'xpJsonBundleBtn', 'xpExportXlsxBtn', 'xpExportCsvBtn', 'xpExportJsonBtn'].forEach(function(id) {
         var el = xpEl(id);
         if (el) el.disabled = busy;
       });
@@ -24232,6 +24303,8 @@ if (dashboardPage) {
         var kpis = xpBuildKpis(ctx);
         var trend = xpBuildTrend(ctx);
         var lineSummary = xpBuildLineSummary(ctx);
+        // Dashboard เป็นสถานะ ณ ปัจจุบัน (ไม่ผูกช่วงวันที่) จึงดึงแยกด้วย xpDashboardData()
+        // ถ้าดึงไม่ได้ให้ข้ามชีต Dashboard ไป ไม่ล้มทั้งไฟล์
         // สองรายงานนี้คำนวณไว้เพื่อทำกราฟในชีต 04 (คำนวณจาก ctx ชุดเดียวกัน ไม่ยิงข้อมูลเพิ่ม)
         var chartTopIssue = XP_REPORTS[0].build(ctx);
         var chartCostReport = null;
@@ -24240,6 +24313,14 @@ if (dashboardPage) {
             if (XP_REPORTS[ci].key === 'costVsProduction') chartCostReport = XP_REPORTS[ci].build(ctx);
           }
         }
+        var wantDash = keys.indexOf('dashboardKpi') > -1;
+        return (wantDash ? xpDashboardData() : Promise.resolve(null)).then(function(dash) {
+          if (dash) xpProgressLog(xpT('Dashboard KPI') + ' — ' + xpT('พร้อม'), 'ok');
+          return dash;
+        }).catch(function(err) {
+          xpProgressLog(xpT('Dashboard KPI') + ' — ' + (err && err.message ? err.message : err), 'fail');
+          return null;
+        }).then(function(dash) {
         return xpFetchDatasetsSequential(keys, 46, 92).then(function(results) {
           xpProgressSet(94, 'กำลังประกอบไฟล์ Excel...');
           var sheets = [];
@@ -24249,6 +24330,7 @@ if (dashboardPage) {
           sheets.push({ name: xpT('03 สรุปตามไลน์'), table: lineSummary });
           // ชีตกราฟ — ผู้บริหารเปิดไฟล์แล้วเห็นภาพก่อน ไม่ต้องไล่อ่านตัวเลขเอง
           var chartSpecs = xpSummaryChartSeries(trend, lineSummary, chartTopIssue, chartCostReport);
+          if (dash) chartSpecs = chartSpecs.concat(xpDashChartSeries(dash));
           var chartImages = [];
           chartSpecs.forEach(function(c) {
             var png = xpChartToPng(c.series, c.title, 960, c.series.spec.type === 'hbar' ? 420 : 340);
@@ -24262,7 +24344,10 @@ if (dashboardPage) {
               images: chartImages
             });
           }
+          if (dash) xpDashSheets(dash).forEach(function(sh) { sheets.push(sh); });
           results.forEach(function(r) {
+            // ชุด dashboardKpi ถูกใส่เป็นชีต 05 ไปแล้ว ไม่ต้องซ้ำอีกใบ
+            if (dash && r.ds && r.ds.key === 'dashboardKpi') return;
             if (!r.table) {
               sheets.push({ name: xpT(r.ds.sheetName || r.ds.name), table: { headers: [xpT('สถานะ')], rows: [[xpT('ดึงข้อมูลชุดนี้ไม่สำเร็จ: {msg}', { msg: r.error })]], numeric: [false] } });
               return;
@@ -24280,6 +24365,7 @@ if (dashboardPage) {
             showQuickToast('สร้าง Executive Workbook สำเร็จ ' + sheets.length + ' ชีต', 'success');
             xpLogExport('executive-workbook', keys, total, 'xlsx');
           });
+        });
         });
       }).catch(function(err) {
         xpProgressLog('ล้มเหลว: ' + (err && err.message ? err.message : err), 'fail');
@@ -24870,6 +24956,322 @@ if (dashboardPage) {
       }).then(function() { xpSetBusy(false); });
     }
 
+
+    // ── Dashboard Snapshot (Factory Command Center) ────────────────────
+    // ผู้จัดการชอบหน้า Dashboard เพราะอ่านจบในหน้าเดียว มีแต่กราฟ จึงต้องเอาไปอยู่ใน
+    // ไฟล์ที่ส่งออกด้วย ไม่ใช่ให้เปิดเว็บดูเท่านั้น
+    //
+    // ใช้ฟังก์ชันคำนวณตัวเดียวกับหน้า Dashboard เป๊ะ (fccCrunchParts / fccCrunchLogs /
+    // fccCrunchRequests / fccHealth) — ตัวเลขในไฟล์จึงตรงกับที่เห็นบนจอทุกช่อง
+    // ห้ามเขียนสูตรใหม่เอง เพราะสูตรที่เขียนซ้ำจะเพี้ยนจากหน้าจอวันใดวันหนึ่งแน่นอน
+    // แล้วไม่มีใครรู้ว่าเลขไหนถูก
+    //
+    // สำคัญ: การ์ด KPI ของ Dashboard เป็น "สถานะ ณ ปัจจุบัน" (เบิกวันนี้ / สัปดาห์นี้ /
+    // PR ที่ค้างอยู่ตอนนี้) ไม่ใช่ยอดของช่วงวันที่ที่เลือกไว้ด้านบน จึงต้องดึง Log และคำขอ
+    // แบบไม่กรองวันที่ ไม่งั้นเลือก "เดือนก่อน" แล้ว "เบิกวันนี้" จะขึ้น 0 ทั้งที่วันนี้มีเบิกจริง
+    // (ตัวกรองไลน์ยังมีผลตามปกติ เพราะ Dashboard ก็มีตัวเลือกไลน์ของตัวเอง)
+    function xpFetchLogsSnapshot() {
+      return xpCached('logsSnapshot', function() {
+        return xpApi({ action: 'logs', line: xpFilters.line }).then(function(rows) {
+          var list = Array.isArray(rows) ? rows : [];
+          return list.filter(function(l) { return xpLineMatches(l.process); });
+        });
+      });
+    }
+    function xpFetchOrderRequestsSnapshot() {
+      return xpCached('orderRequestsSnapshot', function() {
+        return xpApi({ action: 'getOrderRequests' }).then(function(rows) {
+          return (Array.isArray(rows) ? rows : []).filter(function(r) { return xpLineMatches(r.line); });
+        });
+      });
+    }
+
+    // คืนก้อนเดียวที่ทุกตาราง/กราฟของ Dashboard ใช้ร่วมกัน
+    function xpDashboardData() {
+      return xpCached('dashboardSnapshot', function() {
+        // ต้องมีฟังก์ชันของ Dashboard อยู่จริงถึงจะทำ snapshot ได้ — ถ้าไม่มีให้บอกตรงๆ
+        // ไม่ใช่คำนวณเองแบบมั่วๆ แล้วได้เลขที่ไม่ตรงกับหน้าจอ
+        if (typeof fccCrunchParts !== 'function' || typeof fccCrunchLogs !== 'function' ||
+            typeof fccCrunchRequests !== 'function' || typeof fccHealth !== 'function') {
+          return Promise.reject(new Error('ไม่พบตัวคำนวณของหน้า Dashboard (fccCrunch*) — เปิดหน้า Dashboard หนึ่งครั้งแล้วลองอีกที'));
+        }
+        return Promise.all([xpFetchMaster(), xpFetchLogsSnapshot(), xpFetchOrderRequestsSnapshot()])
+          .then(function(res) {
+            // ctx ถูกกรองไลน์มาแล้ว จึงส่ง 'all' ให้ fccCrunch* ไม่ให้กรองซ้ำสองชั้น
+            var P = fccCrunchParts(res[0] || []);
+            var L = fccCrunchLogs(res[1] || [], 'all');
+            var R = fccCrunchRequests(res[2] || [], 'all');
+            return { P: P, L: L, R: R, H: fccHealth(P, R) };
+          });
+      });
+    }
+
+    // การ์ด KPI 9 ใบบนหน้า Dashboard — ป้ายและหน่วยตรงกับที่เห็นบนจอ
+    function xpDashKpiRows(S) {
+      var P = S.P, L = S.L, R = S.R, H = S.H;
+      var rows = [
+        ['อะไหล่ทั้งหมด', P.total, 'รายการ', xpFmtInt(P.stockQty) + ' ' + xpT('ชิ้นในคลัง')],
+        ['หมดสต็อก', P.out, 'รายการ', P.out > 0 ? xpT('ต้องจัดการทันที') : xpT('ไม่มีรายการหมด')],
+        ['ต่ำกว่า Min', P.low, 'รายการ', P.low > 0 ? xpT('ควรเติมสต็อก') : xpT('ระดับสต็อกปกติ')],
+        ['Need PO', P.need, 'รายการ', xpT('รายการที่ต้องสั่งซื้อ')],
+        ['PR รอดำเนินการ', R.counts['Pending'], 'คำขอ', R.over7 > 0 ? xpT('ค้างเกิน 7 วัน {n} คำขอ', { n: R.over7 }) : xpT('รออนุมัติ')],
+        ['เบิกวันนี้', L.outToday, 'ชิ้น', xpT('สัปดาห์นี้ {n} ชิ้น', { n: xpFmtInt(L.out7) })],
+        ['รับเข้าวันนี้', L.inToday, 'ชิ้น', xpT('สัปดาห์นี้ {n} ชิ้น', { n: xpFmtInt(L.in7) })],
+        ['Factory Health Score', H.score, '%', H.tone.g]
+      ];
+      // มูลค่าคงคลังเป็นข้อมูลราคา — โหมดลูกค้าต้องไม่มีในไฟล์
+      if (!xpFilters.customerMode) {
+        rows.splice(1, 0, ['มูลค่าคงคลัง', Math.round(P.value), 'บาท', xpT('จาก {n} รายการที่มีราคา', { n: xpFmtInt(P.pricedCount) })]);
+      }
+      return rows;
+    }
+    function xpDashKpiTable(S) {
+      return {
+        headers: ['การ์ด', 'ค่า', 'หน่วย', 'รายละเอียด'].map(xpT),
+        rows: xpDashKpiRows(S).map(function(r) { return [xpT(r[0]), r[1], xpT(r[2]), r[3]]; }),
+        numeric: [false, true, false, false]
+      };
+    }
+    // ที่มาของคะแนนสุขภาพ — ต้องอธิบายได้ว่าคะแนนหายไปกับอะไร ไม่ใช่โชว์เลขลอยๆ
+    function xpDashHealthTable(S) {
+      var H = S.H, P = S.P;
+      return {
+        headers: ['หัวข้อ', 'ค่า', 'คำอธิบาย'].map(xpT),
+        rows: [
+          [xpT('คะแนนสุขภาพคลัง'), H.score, xpT('เต็ม 100 หักตามปัญหาที่พบจริง')],
+          [xpT('ระดับ'), H.tone.g, xpT('EXCELLENT 90+ · GOOD 75+ · WATCH 60+ · CRITICAL ต่ำกว่า 60')],
+          [xpT('หักจากของหมดสต็อก'), -H.dOut, xpT('หมดสต็อก {n} รายการ', { n: xpFmtInt(P.out) })],
+          [xpT('หักจากของต่ำกว่า Min'), -H.dLow, xpT('ต่ำกว่า Min {n} รายการ', { n: xpFmtInt(P.low) })],
+          [xpT('หักจาก PR ที่ค้างอยู่'), -H.dPr, xpT('PR รออนุมัติ {n} คำขอ', { n: xpFmtInt(H.pending) })]
+        ],
+        numeric: [false, true, false]
+      };
+    }
+    // กราฟ 14 วันบน Dashboard — ตารางคู่กับกราฟให้ตรวจเลขได้
+    function xpDashMovementTable(S) {
+      return {
+        headers: ['วัน', 'เบิกออก (ชิ้น)', 'รับเข้า (ชิ้น)'].map(xpT),
+        rows: (S.L.days || []).map(function(d) { return [d.label, d.out, d.in]; }),
+        numeric: [false, true, true]
+      };
+    }
+    function xpDashLineTable(S) {
+      var lines = S.P.lines || {};
+      var cols = [
+        { label: 'ไลน์', key: 'name' },
+        { label: 'จำนวน SKU', key: 'total', type: 'num' },
+        { label: 'ชิ้นในคลัง', key: 'stockQty', type: 'num' },
+        { label: 'มูลค่าคงคลัง', type: 'money', sensitive: true, get: function(o) { return Math.round(o.value); } },
+        { label: 'หมดสต็อก', key: 'out', type: 'num' },
+        { label: 'ต่ำกว่า Min', key: 'low', type: 'num' },
+        { label: 'Need PO', type: 'num', get: function(o) { return o.out + o.low; } }
+      ];
+      return xpTable(cols, Object.keys(lines).sort().map(function(k) { return lines[k]; }));
+    }
+    // หมวดที่มีของเสี่ยง (หมด/ต่ำกว่า Min) — ตัวเดียวกับ heatmap บน Dashboard
+    function xpDashCategoryTable(S) {
+      var cats = S.P.cats || {};
+      var rows = Object.keys(cats).map(function(k) {
+        var c = cats[k];
+        var byLine = Object.keys(c.byLine || {}).sort().map(function(l) { return l + ' ' + c.byLine[l]; }).join(', ');
+        return [c.name, c.risk, byLine];
+      }).filter(function(r) { return r[1] > 0; }).sort(function(a, b) { return b[1] - a[1]; });
+      return {
+        headers: ['หมวด', 'รายการเสี่ยง', 'แยกตามไลน์'].map(xpT),
+        rows: rows,
+        numeric: [false, true, false]
+      };
+    }
+    function xpDashRequestTable(S) {
+      var c = S.R.counts || {};
+      return {
+        headers: ['สถานะคำขอซื้อ', 'จำนวน'].map(xpT),
+        rows: Object.keys(c).map(function(k) { return [k, c[k]]; }),
+        numeric: [false, true]
+      };
+    }
+
+    // ── กราฟของ Dashboard ────────────────────────────────────────────
+    // สร้างชุดกราฟจากรายการ (label, value) ตรงๆ — ใช้กับข้อมูลที่ไม่ได้มาจากตาราง
+    function xpSeriesFromItems(items, valueLabel, type, color) {
+      var list = (items || []).filter(function(it) { return it && it.label !== '' && it.value !== '' && it.value !== null && it.value !== undefined; });
+      if (!list.length) return null;
+      return {
+        spec: { type: type || 'bar', labelCols: [], valueCols: [] },
+        items: list.map(function(it) { return { label: xpS(it.label), value: xpN(it.value), target: null }; }),
+        valueLabel: valueLabel || '',
+        color: color || null
+      };
+    }
+    function xpDashChartSeries(S) {
+      var out = [];
+      function push(title, series) { if (series) out.push({ title: title, series: series }); }
+      push(xpT('เบิกออก 14 วันล่าสุด (ชิ้น)'), xpSeriesFromItems(
+        (S.L.days || []).map(function(d) { return { label: d.label, value: d.out }; }), xpT('เบิกออก (ชิ้น)'), 'bar', '#2563eb'));
+      push(xpT('รับเข้า 14 วันล่าสุด (ชิ้น)'), xpSeriesFromItems(
+        (S.L.days || []).map(function(d) { return { label: d.label, value: d.in }; }), xpT('รับเข้า (ชิ้น)'), 'bar', '#059669'));
+      var lines = S.P.lines || {};
+      var lineKeys = Object.keys(lines).sort();
+      if (!xpFilters.customerMode) {
+        push(xpT('มูลค่าคงคลังตามไลน์'), xpSeriesFromItems(
+          lineKeys.map(function(k) { return { label: k, value: Math.round(lines[k].value) }; }), xpT('มูลค่าคงคลัง'), 'bar', '#0891b2'));
+      }
+      push(xpT('รายการที่ต้องสั่งซื้อตามไลน์'), xpSeriesFromItems(
+        lineKeys.map(function(k) { return { label: k, value: lines[k].out + lines[k].low }; }), xpT('Need PO'), 'bar', '#d97706'));
+      var cats = S.P.cats || {};
+      var catItems = Object.keys(cats).map(function(k) { return { label: cats[k].name, value: cats[k].risk }; })
+        .filter(function(it) { return it.value > 0; }).sort(function(a, b) { return b.value - a.value; }).slice(0, 12);
+      push(xpT('หมวดที่มีของเสี่ยงมากสุด'), xpSeriesFromItems(catItems, xpT('รายการเสี่ยง'), 'hbar', '#e11d48'));
+      var rc = S.R.counts || {};
+      var reqItems = Object.keys(rc).map(function(k) { return { label: k, value: rc[k] }; }).filter(function(it) { return it.value > 0; });
+      push(xpT('สถานะคำขอซื้อ'), xpSeriesFromItems(reqItems, xpT('จำนวน'), 'doughnut'));
+      return out;
+    }
+
+    // ── ชีต Dashboard สำหรับ Executive Workbook ───────────────────────
+    function xpDashSheets(S) {
+      return [
+        { name: xpT('05 Dashboard KPI'), table: xpDashKpiTable(S) },
+        { name: xpT('06 คะแนนสุขภาพคลัง'), table: xpDashHealthTable(S) },
+        { name: xpT('07 เคลื่อนไหว 14 วัน'), table: xpDashMovementTable(S) },
+        { name: xpT('08 Dashboard ตามไลน์'), table: xpDashLineTable(S) },
+        { name: xpT('09 หมวดที่มีของเสี่ยง'), table: xpDashCategoryTable(S) },
+        { name: xpT('10 สถานะคำขอซื้อ'), table: xpDashRequestTable(S) }
+      ];
+    }
+
+    // ── Dashboard Snapshot เป็นหน้าพรินต์ (เหมือนหน้าจอ แต่เอาไปเสนอได้) ──
+    // ทำหน้าตาให้ใกล้ Factory Command Center: การ์ด KPI + เกจคะแนน + กราฟ
+    // ใช้ inline SVG ทั้งหมดเหมือน Executive Report เพราะ canvas พรินต์ไม่ติดในบางเบราว์เซอร์
+    function xpRunDashboardSnapshot() {
+      if (xpBusy) return;
+      xpSetBusy(true);
+      xpProgressShow(true);
+      xpProgressLog(xpT('เริ่มสร้าง Dashboard Snapshot'));
+      xpProgressSet(10, 'กำลังดึงข้อมูลสถานะปัจจุบัน...');
+      xpDashboardData().then(function(S) {
+        xpProgressSet(75, 'กำลังจัดหน้า Dashboard...');
+        var win = window.open('', '_blank');
+        if (!win) throw new Error('เบราว์เซอร์บล็อก popup — อนุญาต popup ของเว็บนี้แล้วลองอีกครั้ง');
+
+        var H = S.H;
+        var kpiRows = xpDashKpiRows(S);
+        var accent = ['#2563eb', '#059669', '#e11d48', '#d97706', '#7c3aed', '#0891b2', '#2563eb', '#059669', '#0f172a'];
+        var kpiCards = kpiRows.map(function(r, i) {
+          var isMoney = r[2] === 'บาท';
+          var val = isMoney ? '฿' + xpFmtInt(r[1]) : xpFmtInt(r[1]);
+          return '<div class="dcard" style="--ac:' + accent[i % accent.length] + '">' +
+            '<div class="dlb">' + xpEscHtml(xpT(r[0])) + '</div>' +
+            '<div class="dval">' + xpEscHtml(val) + '<span class="du">' + xpEscHtml(xpT(r[2])) + '</span></div>' +
+            '<div class="dsub">' + xpEscHtml(r[3]) + '</div>' +
+          '</div>';
+        }).join('');
+
+        // เกจคะแนนสุขภาพ (วาดใหม่เป็น SVG นิ่ง ไม่พึ่ง CSS animation ของหน้าเว็บ)
+        var R = 62, C = 2 * Math.PI * R;
+        var off = C * (1 - Math.max(0, Math.min(100, H.score)) / 100);
+        var gauge = '<svg viewBox="0 0 160 160" width="150" height="150">' +
+          '<circle cx="80" cy="80" r="' + R + '" fill="none" stroke="#e2e8f0" stroke-width="13"/>' +
+          '<circle cx="80" cy="80" r="' + R + '" fill="none" stroke="' + H.tone.c1 + '" stroke-width="13" stroke-linecap="round"' +
+          ' stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 80 80)"/>' +
+          '<text x="80" y="86" text-anchor="middle" font-size="34" font-weight="700" fill="' + H.tone.c1 + '">' + H.score + '%</text>' +
+          '<text x="80" y="104" text-anchor="middle" font-size="10" fill="#64748b" letter-spacing="1.5">' + xpEscHtml(H.tone.g) + '</text>' +
+        '</svg>';
+
+        var days = S.L.days || [];
+        var lines = S.P.lines || {};
+        var lineKeys = Object.keys(lines).sort();
+        var charts = [
+          { title: xpT('เบิกออก 14 วันล่าสุด (ชิ้น)'), svg: xpSvgBarChart(days.map(function(d) { return { label: d.label, value: d.out }; }), { color: '#2563eb', height: 210 }) },
+          { title: xpT('รับเข้า 14 วันล่าสุด (ชิ้น)'), svg: xpSvgBarChart(days.map(function(d) { return { label: d.label, value: d.in }; }), { color: '#059669', height: 210 }) }
+        ];
+        if (!xpFilters.customerMode) {
+          charts.push({ title: xpT('มูลค่าคงคลังตามไลน์'), svg: xpSvgHBarChart(lineKeys.map(function(k) { return { label: k, value: Math.round(lines[k].value) }; }), { color: '#0891b2', labelWidth: 150 }) });
+        }
+        charts.push({ title: xpT('รายการที่ต้องสั่งซื้อตามไลน์'), svg: xpSvgHBarChart(lineKeys.map(function(k) { return { label: k, value: lines[k].out + lines[k].low }; }), { color: '#d97706', labelWidth: 150 }) });
+        var catItems = Object.keys(S.P.cats || {}).map(function(k) { return { label: S.P.cats[k].name, value: S.P.cats[k].risk }; })
+          .filter(function(it) { return it.value > 0; }).sort(function(a, b) { return b.value - a.value; }).slice(0, 12);
+        charts.push({ title: xpT('หมวดที่มีของเสี่ยงมากสุด'), svg: xpSvgHBarChart(catItems, { color: '#e11d48' }) });
+
+        var css = [
+          '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap");',
+          '@page { size: A4 landscape; margin: 10mm; }',
+          'body { font-family:"Noto Sans Thai",system-ui,sans-serif; color:#0f172a; margin:0; }',
+          '.hero { background:linear-gradient(120deg,#0f172a,#1e293b 55%,#1d4ed8); color:#fff; border-radius:14px; padding:18px 22px; margin-bottom:14px; }',
+          '.hero .eyebrow { font-size:9.5px; letter-spacing:.28em; color:#93c5fd; font-weight:700; }',
+          '.hero h1 { font-size:26px; margin:4px 0 6px; }',
+          '.hero .meta { font-size:11px; color:#cbd5e1; line-height:1.8; }',
+          '.hero .meta b { color:#f8fafc; }',
+          '.grid { display:grid; grid-template-columns:repeat(5,1fr); gap:9px; margin-bottom:14px; }',
+          '.dcard { border:1px solid #e2e8f0; border-left:4px solid var(--ac); border-radius:11px; padding:9px 11px; background:#fbfdff; }',
+          '.dlb { font-size:9.5px; color:#64748b; font-weight:700; min-height:24px; }',
+          '.dval { font-size:22px; font-weight:700; color:var(--ac); line-height:1.15; }',
+          '.dval .du { font-size:9.5px; color:#94a3b8; font-weight:600; margin-left:3px; }',
+          '.dsub { font-size:9px; color:#94a3b8; margin-top:3px; line-height:1.4; min-height:22px; }',
+          '.healthrow { display:flex; gap:20px; align-items:center; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; margin-bottom:14px; background:#fff; }',
+          '.healthrow table { border-collapse:collapse; font-size:10.5px; }',
+          '.healthrow td { padding:3px 10px 3px 0; }',
+          '.healthrow td.n { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }',
+          '.page { page-break-before: always; }',
+          'h3.sec { font-size:14px; margin:0 0 8px; padding-bottom:5px; border-bottom:2px solid #1e293b; }',
+          '.chartbox { border:1px solid #e2e8f0; border-radius:11px; padding:10px 12px; margin-bottom:12px; background:#fff; }',
+          '.chartbox h4 { font-size:11.5px; margin:0 0 4px; color:#334155; }',
+          'table.rpt { width:100%; border-collapse:collapse; font-size:9.5px; margin-top:6px; }',
+          'table.rpt th { background:#1e293b; color:#fff; padding:5px 6px; text-align:left; }',
+          'table.rpt td { padding:4px 6px; border-bottom:1px solid #eef2f7; }',
+          'table.rpt td.num, table.rpt th.num { text-align:right; }',
+          'table.rpt tbody tr:nth-child(even) td { background:#f8fafc; }',
+          'p.more { font-size:9px; color:#94a3b8; font-style:italic; }',
+          '.footnote { margin-top:10px; font-size:9px; color:#64748b; border-left:3px solid #cbd5e1; padding-left:8px; line-height:1.6; }',
+          '@media print { .noprint { display:none !important; } }',
+          '.noprint { position:fixed; top:10px; right:10px; z-index:99; }',
+          '.noprint button { padding:9px 16px; border-radius:9px; border:none; background:#1d4ed8; color:#fff; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; }'
+        ].join('\n');
+
+        var html = [
+          '<div class="noprint"><button onclick="window.print()">🖨️ ' + xpEscHtml(xpT('พรินต์ / บันทึกเป็น PDF')) + '</button></div>',
+          '<div class="hero">',
+          '<div class="eyebrow">JR · SPARE PARTS OPERATIONS</div>',
+          '<h1>Factory Command Center</h1>',
+          '<div class="meta">',
+          '<div><b>' + xpEscHtml(xpT('ไลน์')) + ':</b> ' + xpEscHtml(xpFilters.line || xpT('ทุกไลน์ (รวม)')) +
+            ' &nbsp;·&nbsp; <b>' + xpEscHtml(xpT('วันเวลาที่สร้างไฟล์')) + ':</b> ' + xpEscHtml(xpLocaleStamp()) +
+            ' &nbsp;·&nbsp; <b>' + xpEscHtml(xpT('ผู้จัดทำ')) + ':</b> ' + xpEscHtml((currentUser && (currentUser.name || currentUser.username)) || '-') + '</div>',
+          '<div>' + xpEscHtml(xpT('ภาพรวมสถานะโรงงาน ณ เวลาที่สร้างไฟล์ — ไม่ใช่ยอดของช่วงวันที่ที่เลือกไว้ในหน้า Export')) + '</div>',
+          '</div></div>',
+          '<div class="grid">' + kpiCards + '</div>',
+          '<div class="healthrow">',
+          gauge,
+          '<div><h3 class="sec">' + xpEscHtml(xpT('คะแนนสุขภาพคลัง')) + '</h3>' + xpHtmlTable(xpDashHealthTable(S)) + '</div>',
+          '</div>',
+
+          '<div class="page">',
+          '<h3 class="sec">' + xpEscHtml(xpT('กราฟภาพรวม')) + '</h3>',
+          charts.map(function(c) { return '<div class="chartbox"><h4>' + xpEscHtml(c.title) + '</h4>' + c.svg + '</div>'; }).join(''),
+          '</div>',
+
+          '<div class="page">',
+          '<h3 class="sec">' + xpEscHtml(xpT('08 Dashboard ตามไลน์')) + '</h3>',
+          xpHtmlTable(xpDashLineTable(S)),
+          '<h3 class="sec" style="margin-top:14px">' + xpEscHtml(xpT('09 หมวดที่มีของเสี่ยง')) + '</h3>',
+          xpHtmlTable(xpDashCategoryTable(S), 30),
+          '<h3 class="sec" style="margin-top:14px">' + xpEscHtml(xpT('07 เคลื่อนไหว 14 วัน')) + '</h3>',
+          xpHtmlTable(xpDashMovementTable(S)),
+          '<div class="footnote">' + xpEscHtml(xpT('ตัวเลขทุกช่องคำนวณด้วยสูตรชุดเดียวกับหน้า Dashboard ของระบบ จึงตรงกับที่เห็นบนหน้าจอ')) + '</div>',
+          '</div>'
+        ].join('\n');
+
+        win.document.write('<html lang="' + (xpIsEn() ? 'en' : 'th') + '"><head><meta charset="utf-8"/><title>Factory Command Center — ' + xpEscHtml(xpLocaleStamp()) + '</title><style>' + css + '</style></head><body>' + html + '</body></html>');
+        win.document.close();
+        xpProgressSet(100, 'เปิด Dashboard Snapshot แล้ว — กดปุ่มพรินต์เพื่อบันทึกเป็น PDF');
+        xpProgressLog(xpT('เปิด Dashboard Snapshot ในแท็บใหม่'), 'ok');
+        showQuickToast('เปิด Dashboard Snapshot แล้ว — กด "พรินต์ / บันทึกเป็น PDF" ในแท็บใหม่', 'success');
+        xpLogExport('dashboard-snapshot', ['dashboardKpi'], kpiRows.length, 'pdf');
+      }).catch(function(err) {
+        xpProgressLog('ล้มเหลว: ' + (err && err.message ? err.message : err), 'fail');
+        showQuickToast('สร้าง Dashboard Snapshot ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      }).then(function() { xpSetBusy(false); });
+    }
     // ── ระดับ 3: แสดงรายงานบนจอ + ดาวน์โหลด ──────────────────────────
     function xpRunReport(key) {
       if (xpBusy) return;
@@ -25261,6 +25663,8 @@ if (dashboardPage) {
       if (wbBtn) wbBtn.addEventListener('click', xpRunWorkbook);
       var pdfBtn = xpEl('xpPdfBtn');
       if (pdfBtn) pdfBtn.addEventListener('click', xpRunPdfReport);
+      var dashBtn = xpEl('xpDashboardBtn');
+      if (dashBtn) dashBtn.addEventListener('click', xpRunDashboardSnapshot);
       var jsonBtn = xpEl('xpJsonBundleBtn');
       if (jsonBtn) jsonBtn.addEventListener('click', xpRunJsonBundle);
       var xlsxBtn = xpEl('xpExportXlsxBtn');
