@@ -117,12 +117,35 @@ assert(/img\.crossOrigin = 'anonymous'/.test(loadSrc), "ต้องขอรู
 assert(/err\.xpTainted = true/.test(loadSrc), 'ต้องแยกได้ว่า error เป็นเพราะ CORS (tainted canvas) หรือโหลดรูปไม่สำเร็จ');
 assert(/setTimeout/.test(loadSrc), 'ต้องมี timeout — รูปที่ค้าง pending จะทำให้งานไม่จบ');
 
+// ตัวตรวจต้องแยกสองอาการที่สาเหตุเดียวกันได้: ใส่ crossOrigin แล้ว onerror (ไม่มี CORS header)
+// กับ onload ผ่านแต่ canvas tainted — เคยพลาดจริงเพราะดักไว้แค่กรณี tainted
+const probeSrc = grabFn('xpProbeImageAccess');
+assert(/err && err\.xpTainted/.test(probeSrc), 'ต้องดักกรณี canvas tainted');
+assert(/xpLoadImagePlain\(url\)/.test(probeSrc),
+  'กรณีใส่ crossOrigin แล้วโหลดไม่ผ่านเลย ต้องลองโหลดแบบไม่ใส่ crossOrigin เพื่อแยกว่าเป็น CORS หรือรูปเสียเอง');
+assert(/return 'server'/.test(probeSrc) && /return 'client'/.test(probeSrc), 'ต้องตอบได้ว่าใช้ทางไหน');
+const plainSrc = grabFn('xpLoadImagePlain');
+assert(!/crossOrigin/.test(plainSrc), 'ตัวโหลดแบบธรรมดาต้องไม่ใส่ crossOrigin (นั่นคือประเด็นของการตรวจ)');
+
 const fetchSrc = grabFn('xpFetchPartImages');
-assert(/if \(err && err\.xpTainted\) \{ tainted = true; return; \}/.test(fetchSrc), 'เจอ tainted ต้องสลับไปทางเซิร์ฟเวอร์');
+assert(/xpProbeImageAccess\(targets\[0\]\.url\)/.test(fetchSrc), 'ต้องตรวจด้วยรูปแรกก่อนแล้วเลือกทางเดียวทั้งก้อน');
+assert(/if \(mode === 'server'\)/.test(fetchSrc), "ตรวจได้ว่าอ่านฝั่งเว็บไม่ได้ ต้องไปทางเซิร์ฟเวอร์ทันที ไม่ต้องลองทีละใบ");
 assert(/xpLoadImagesViaServer/.test(fetchSrc), 'ต้องมีทางถอยไปขอรูปจากเซิร์ฟเวอร์');
-assert(/if \(!tainted\)/.test(fetchSrc), 'ถ้าอ่านฝั่งเว็บได้ต้องไม่ยิงเซิร์ฟเวอร์เลย (เร็วกว่าและไม่กิน quota)');
+assert(/if \(err && err\.xpTainted\) \{ tainted = true; return; \}/.test(fetchSrc), 'เจอ tainted กลางทางก็ต้องสลับไปเซิร์ฟเวอร์');
+// ตาข่ายกันพลาด — ตัวตรวจอาจไปเจอรูปแรกที่เสียพอดี
+assert(/if \(tainted \|\| !Object\.keys\(byId\)\.length\)/.test(fetchSrc),
+  'ได้ 0 รูปทั้งที่มีรายการให้ดึง ต้องถอยไปเซิร์ฟเวอร์ ไม่ใช่ยอมแพ้เงียบๆ');
 assert(/XP_IMAGE_MAX/.test(fetchSrc), 'ต้องมีเพดานจำนวนรูปต่อไฟล์');
 assert(/t\.id === id/.test(fetchSrc), 'รูปเดียวกันต้องดึงครั้งเดียว');
+
+// Apps Script รุ่นเก่าจะตกไปทางอ่านชีตอะไหล่แล้วคืน array กลับมา ต้องจับให้ได้
+// ไม่ใช่นับว่า "ไม่มีรูป" แล้วเงียบ — ผู้ใช้จะไม่รู้ว่าต้อง deploy
+const srvChunkSrc = grabFn('xpLoadImagesViaServer');
+assert(/Array\.isArray\(res\)/.test(srvChunkSrc), 'ต้องจับกรณี backend คืน array (action ที่ยังไม่ deploy)');
+assert(/typeof res\.images !== 'object'/.test(srvChunkSrc), 'ต้องเช็คว่าคำตอบมีก้อน images จริง');
+assert(/ต้อง deploy Backend\.gs รุ่นใหม่ก่อน/.test(srvChunkSrc), 'ต้องบอกผู้ใช้ตรงๆ ว่าต้อง deploy อะไร');
+assert(/if \(!Object\.keys\(out\)\.length && lastError\) throw lastError;/.test(srvChunkSrc),
+  'พังทุกก้อนและไม่ได้รูปเลย ต้องโยนสาเหตุออกไป ไม่ใช่คืนของว่างเงียบๆ');
 // เพดานต้องสมเหตุสมผล
 const MAX = buildModule([grabScalar('XP_IMAGE_MAX')], 'XP_IMAGE_MAX');
 assert(MAX >= 100 && MAX <= 1000, 'เพดานรูปควรอยู่ 100-1000 แต่ตั้งไว้ ' + MAX);

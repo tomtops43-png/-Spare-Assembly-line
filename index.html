@@ -22167,6 +22167,9 @@ if (dashboardPage) {
       'ไม่มีรายการที่มีรูป — ข้ามชีตรูปอะไหล่': 'No items have photos — skipping the part photo sheet',
       'ดึงรูปอะไหล่ไม่ได้เลย — ไฟล์ออกครบทุกชีตแต่ไม่มีชีตรูป': 'No part photos could be fetched — the file still contains every data sheet, just no photo sheet',
       'แนบรูปอะไหล่ไม่สำเร็จ': 'Could not embed part photos',
+      'อ่านไฟล์รูปฝั่งเบราว์เซอร์ไม่ได้ — ขอรูปจากเซิร์ฟเวอร์แทน': 'The browser could not read the image files — requesting the photos from the server instead',
+      'Apps Script ที่ deploy อยู่ยังไม่รองรับการดึงรูป — ต้อง deploy Backend.gs รุ่นใหม่ก่อน': 'The deployed Apps Script does not support photo fetching yet — deploy the new Backend.gs first',
+      'ได้รูปเป็น base64 จากเซิร์ฟเวอร์': 'Photos received as base64 from the server',
       'เบราว์เซอร์อ่านไฟล์รูปข้ามโดเมนไม่ได้ — ขอรูปจากเซิร์ฟเวอร์แทน': 'The browser cannot read cross-origin image data — requesting the photos from the server instead',
       'รูปไม่ถูกฝังในไฟล์นี้ (โหลดไลบรารีจัดรูปแบบไม่สำเร็จ) — ใช้คอลัมน์ "ลิงก์รูป" เปิดดูได้': 'Photos are not embedded in this file (the formatting library failed to load) — use the "Photo Link" column to open them',
       // ── Dashboard Snapshot ──
@@ -23455,6 +23458,7 @@ if (dashboardPage) {
           xpProgressLog(xpT('ดึงรูปอะไหล่ไม่ได้เลย — ไฟล์ออกครบทุกชีตแต่ไม่มีชีตรูป'), 'fail');
           return null;
         }
+        if (imgRes.method === 'server') xpProgressLog(xpT('ได้รูปเป็น base64 จากเซิร์ฟเวอร์'), 'ok');
         var photo = xpBuildPartPhotoSheet(items, imgRes);
         if (!photo.table.rows.length) return null;
         sheets.push({
@@ -25124,6 +25128,32 @@ if (dashboardPage) {
       });
     }
 
+    // โหลดรูปแบบไม่ใส่ crossOrigin — ใช้แค่ตรวจว่า "รูปนั้นมีอยู่จริงและโหลดได้"
+    // (โหลดแบบนี้อ่านไบต์ไม่ได้ แต่บอกได้ว่าที่โหลดไม่ผ่านเมื่อกี้เป็นเพราะ CORS ไม่ใช่รูปเสีย)
+    function xpLoadImagePlain(url) {
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        var done = false;
+        var timer = setTimeout(function() { if (!done) { done = true; reject(new Error('timeout')); } }, 15000);
+        img.onload = function() { if (!done) { done = true; clearTimeout(timer); resolve(true); } };
+        img.onerror = function() { if (!done) { done = true; clearTimeout(timer); reject(new Error('load failed')); } };
+        img.src = url;
+      });
+    }
+
+    // ตรวจครั้งเดียวด้วยรูปแรกว่า origin นี้อ่าน "ไบต์" ของรูปจาก Drive ได้หรือไม่
+    // มีสองอาการที่หน้าตาต่างกันแต่สาเหตุเดียวกัน (อ่านฝั่งเว็บไม่ได้ ต้องไปทางเซิร์ฟเวอร์):
+    //   ก) ใส่ crossOrigin แล้ว onerror เลย — Drive ไม่ส่ง CORS header กลับมา
+    //      เบราว์เซอร์จึงถือว่าโหลดไม่ผ่านตั้งแต่ต้น ไม่ไปถึงขั้น canvas (อาการที่เจอจริง)
+    //   ข) ใส่ crossOrigin แล้ว onload ผ่าน แต่ toDataURL โยน SecurityError — canvas tainted
+    // ถ้าโหลดแบบไม่ใส่ crossOrigin ก็ยังไม่ผ่าน = รูปนั้นเสีย/ไม่มีสิทธิ์เอง ไม่ใช่เรื่อง CORS
+    function xpProbeImageAccess(url) {
+      return xpLoadImageViaCanvas(url).then(function() { return 'client'; }).catch(function(err) {
+        if (err && err.xpTainted) return 'server';
+        return xpLoadImagePlain(url).then(function() { return 'server'; }).catch(function() { return 'unknown'; });
+      });
+    }
+
     // ขอรูปเป็น base64 จาก Apps Script ทีละก้อน
     function xpLoadImagesViaServer(fileIds, onProgress) {
       var out = {};
@@ -25132,18 +25162,29 @@ if (dashboardPage) {
         chunks.push(fileIds.slice(i, i + XP_IMAGE_SERVER_CHUNK));
       }
       var idx = 0;
+      var lastError = null;
       function next() {
-        if (idx >= chunks.length) return Promise.resolve(out);
+        if (idx >= chunks.length) {
+          // พังทุกก้อนและไม่ได้รูปเลย = ต้องบอกสาเหตุออกไป ไม่ใช่คืนของว่างเงียบๆ
+          if (!Object.keys(out).length && lastError) throw lastError;
+          return Promise.resolve(out);
+        }
         var chunk = chunks[idx];
         idx += 1;
         return xpApi({ action: 'exportPartImages', ids: chunk.join(','), size: XP_IMAGE_BOX * 2 })
           .then(function(res) {
-            var got = (res && res.images) || {};
+            // Apps Script รุ่นที่ deploy อยู่ยังไม่รู้จัก action นี้ — doGet จะตกไปทางอ่าน
+            // ชีตอะไหล่แล้วคืน "array ของอะไหล่" กลับมาแทน ต้องจับให้ได้ ไม่ใช่นับว่าไม่มีรูป
+            if (!res || Array.isArray(res) || !res.images || typeof res.images !== 'object') {
+              throw new Error(xpT('Apps Script ที่ deploy อยู่ยังไม่รองรับการดึงรูป — ต้อง deploy Backend.gs รุ่นใหม่ก่อน'));
+            }
+            var got = res.images;
             Object.keys(got).forEach(function(id) { if (got[id]) out[id] = { dataUrl: got[id], width: 0, height: 0 }; });
             if (onProgress) onProgress(Math.min(fileIds.length, idx * XP_IMAGE_SERVER_CHUNK), fileIds.length);
           })
           .catch(function(err) {
             // ก้อนไหนพังก็ข้ามไป รูปที่เหลือยังได้ — ดีกว่าไม่ได้รูปเลยทั้งไฟล์
+            lastError = err;
             console.warn('exportPartImages chunk failed', err);
           })
           .then(next);
@@ -25169,50 +25210,59 @@ if (dashboardPage) {
       }
       if (!targets.length) return Promise.resolve({ byId: {}, method: 'none', failed: 0, capped: false, total: 0 });
 
-      var byId = {};
-      var failed = 0;
-      var tainted = false;
-      var pos = 0;
-      var doneCount = 0;
-
-      function worker() {
-        if (tainted || pos >= targets.length) return Promise.resolve();
-        var t = targets[pos];
-        pos += 1;
-        return xpLoadImageViaCanvas(t.url).then(function(res) {
-          byId[t.id] = res;
-        }).catch(function(err) {
-          if (err && err.xpTainted) { tainted = true; return; }
-          failed += 1;
-        }).then(function() {
-          doneCount += 1;
-          if (onProgress) onProgress(doneCount, targets.length, 'client');
-          return worker();
-        });
-      }
-      var workers = [];
-      for (var w = 0; w < Math.min(XP_IMAGE_CONCURRENCY, targets.length); w += 1) workers.push(worker());
-
-      return Promise.all(workers).then(function() {
-        if (!tainted) {
-          return { byId: byId, method: 'client', failed: failed, capped: capped, total: targets.length };
-        }
-        // เบราว์เซอร์อ่านไบต์รูปข้าม origin ไม่ได้ → ให้เซิร์ฟเวอร์อ่านจาก Drive ให้
-        byId = {};
-        failed = 0;
-        xpProgressLog(xpT('เบราว์เซอร์อ่านไฟล์รูปข้ามโดเมนไม่ได้ — ขอรูปจากเซิร์ฟเวอร์แทน'));
+      // ให้เซิร์ฟเวอร์อ่าน Drive แล้วส่งกลับเป็น base64 (ไม่ติด CORS)
+      function viaServer(reasonText) {
+        if (reasonText) xpProgressLog(reasonText);
         return xpLoadImagesViaServer(targets.map(function(t) { return t.id; }), function(done, total) {
           if (onProgress) onProgress(done, total, 'server');
-        }).then(function(res) {
-          var got = res || {};
-          Object.keys(got).forEach(function(id) { byId[id] = got[id]; });
+        }).then(function(map) {
+          var got = map || {};
           return {
-            byId: byId,
+            byId: got,
             method: 'server',
-            failed: Math.max(0, targets.length - Object.keys(byId).length),
+            failed: Math.max(0, targets.length - Object.keys(got).length),
             capped: capped,
             total: targets.length
           };
+        });
+      }
+
+      // ตรวจด้วยรูปแรกก่อนว่าทางไหนใช้ได้ แล้วไปทางเดียวทั้งก้อน — ถ้า origin นี้อ่านไม่ได้
+      // ก็อ่านไม่ได้ทุกรูป ลองซ้ำทีละใบเสียเวลาเปล่า
+      return xpProbeImageAccess(targets[0].url).then(function(mode) {
+        if (mode === 'server') {
+          return viaServer(xpT('เบราว์เซอร์อ่านไฟล์รูปข้ามโดเมนไม่ได้ — ขอรูปจากเซิร์ฟเวอร์แทน'));
+        }
+        // 'client' = อ่านได้ · 'unknown' = รูปแรกอาจเสียเอง ยังคุ้มที่จะลองทั้งก้อน
+        var byId = {};
+        var failed = 0;
+        var tainted = false;
+        var pos = 0;
+        var doneCount = 0;
+        function worker() {
+          if (tainted || pos >= targets.length) return Promise.resolve();
+          var t = targets[pos];
+          pos += 1;
+          return xpLoadImageViaCanvas(t.url).then(function(res) {
+            byId[t.id] = res;
+          }).catch(function(err) {
+            if (err && err.xpTainted) { tainted = true; return; }
+            failed += 1;
+          }).then(function() {
+            doneCount += 1;
+            if (onProgress) onProgress(doneCount, targets.length, 'client');
+            return worker();
+          });
+        }
+        var workers = [];
+        for (var w = 0; w < Math.min(XP_IMAGE_CONCURRENCY, targets.length); w += 1) workers.push(worker());
+        return Promise.all(workers).then(function() {
+          // ตาข่ายกันพลาด: ได้ 0 รูปทั้งที่มีรายการให้ดึง = อ่านฝั่งเว็บไม่ได้จริง
+          // (ตัวตรวจอาจไปเจอรูปแรกที่เสียพอดีแล้วตอบ 'unknown')
+          if (tainted || !Object.keys(byId).length) {
+            return viaServer(xpT('อ่านไฟล์รูปฝั่งเบราว์เซอร์ไม่ได้ — ขอรูปจากเซิร์ฟเวอร์แทน'));
+          }
+          return { byId: byId, method: 'client', failed: failed, capped: capped, total: targets.length };
         });
       });
     }
