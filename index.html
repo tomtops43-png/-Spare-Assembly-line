@@ -666,6 +666,95 @@
     @media (prefers-reduced-motion: reduce){
       #dashboardPage.fcc *, #dashboardPage.fcc *::before, #dashboardPage.fcc *::after{ animation-duration:.001s !important; transition-duration:.001s !important; }
     }
+  <!-- Export Center — ศูนย์ส่งออกข้อมูล (prefix xp- ทั้งหมด กันชนกับ fcc-/mx- ของหน้าอื่น) -->
+  <style id="xpStyles">
+    #exportPage { font-family: inherit; }
+    .xp-filterbar { border:1px solid #cbd5e1; border-radius:18px; background:linear-gradient(180deg,#ffffff,#f8fafc); padding:14px 16px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+    .xp-filter-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+    .xp-filter-row + .xp-filter-row { margin-top:10px; }
+    .xp-quick { display:flex; flex-wrap:wrap; gap:6px; }
+    .xp-chip { height:36px; padding:0 14px; border-radius:999px; border:1px solid #cbd5e1; background:#fff; color:#475569; font-size:13px; font-weight:700; cursor:pointer; transition:all .15s; white-space:nowrap; }
+    .xp-chip:hover { background:#f1f5f9; }
+    .xp-chip-active { background:#2563eb; border-color:#1d4ed8; color:#fff; box-shadow:0 2px 6px rgba(37,99,235,.3); }
+    .xp-dates { display:flex; align-items:center; gap:8px; }
+    .xp-input { height:36px; border:1px solid #cbd5e1; border-radius:10px; padding:0 10px; font-size:13px; color:#334155; background:#fff; }
+    .xp-search-btn { height:36px; width:44px; border-radius:10px; border:1px solid #1d4ed8; background:#2563eb; color:#fff; font-size:15px; cursor:pointer; }
+    .xp-search-btn:hover { background:#1d4ed8; }
+    .xp-select { height:36px; min-width:150px; border:1px solid #cbd5e1; border-radius:10px; padding:0 10px; font-size:13px; color:#334155; background:#fff; }
+    .xp-toggle { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 12px; border-radius:10px; border:1px dashed #f59e0b; background:#fffbeb; font-size:12.5px; font-weight:700; color:#92400e; cursor:pointer; }
+    .xp-toggle input { width:16px; height:16px; accent-color:#d97706; }
+    .xp-filter-summary { margin-top:9px; font-size:12px; color:#64748b; font-weight:600; }
+
+    .xp-card { border:1px solid #e2e8f0; border-radius:18px; background:#fff; padding:16px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+    .xp-card-hero { background:linear-gradient(135deg,#0f172a,#1e293b); border-color:#334155; color:#e2e8f0; }
+    .xp-card-hero .xp-card-title { color:#f8fafc; }
+    .xp-card-hero .xp-card-sub { color:#94a3b8; }
+    .xp-card-head { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
+    .xp-card-title { font-size:15px; font-weight:800; color:#1e293b; }
+    .xp-card-sub { font-size:12px; color:#64748b; margin-top:3px; }
+
+    .xp-hero-actions { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:11px; }
+    .xp-btn-primary,.xp-btn-secondary,.xp-btn-ghost { display:flex; align-items:center; gap:11px; padding:14px 16px; border-radius:14px; border:none; font-size:14px; text-align:left; cursor:pointer; transition:transform .12s, box-shadow .12s; }
+    .xp-btn-primary:hover,.xp-btn-secondary:hover,.xp-btn-ghost:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,.22); }
+    .xp-btn-primary:disabled,.xp-btn-secondary:disabled,.xp-btn-ghost:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+    .xp-btn-primary { background:linear-gradient(135deg,#059669,#047857); color:#fff; }
+    .xp-btn-secondary { background:linear-gradient(135deg,#4f46e5,#3730a3); color:#fff; }
+    .xp-btn-ghost { background:rgba(255,255,255,.1); color:#e2e8f0; border:1px solid #475569; }
+    .xp-card:not(.xp-card-hero) .xp-btn-ghost { background:#fff; color:#475569; border:1px solid #cbd5e1; }
+    .xp-btn-ico { font-size:22px; line-height:1; flex-shrink:0; }
+    .xp-btn-primary b,.xp-btn-secondary b,.xp-btn-ghost b { display:block; font-weight:800; }
+    .xp-btn-primary small,.xp-btn-secondary small,.xp-btn-ghost small { display:block; font-size:11px; opacity:.85; font-weight:500; margin-top:2px; }
+    .xp-btn-sm { padding:10px 14px; font-size:13px; font-weight:700; }
+    .xp-btn-mini { height:32px; padding:0 12px; border-radius:9px; border:1px solid #cbd5e1; background:#fff; font-size:11.5px; font-weight:700; color:#475569; cursor:pointer; }
+    .xp-btn-mini:hover { background:#f1f5f9; }
+
+    .xp-progress-wrap { margin-top:14px; padding-top:14px; border-top:1px solid #334155; }
+    .xp-progress-track { height:9px; border-radius:999px; background:rgba(255,255,255,.14); overflow:hidden; }
+    .xp-progress-bar { height:100%; width:0%; border-radius:999px; background:linear-gradient(90deg,#22d3ee,#34d399); transition:width .25s; }
+    .xp-progress-text { margin-top:8px; font-size:12.5px; font-weight:700; color:#e2e8f0; }
+    .xp-progress-log { margin-top:7px; max-height:150px; overflow-y:auto; font-size:11.5px; color:#94a3b8; list-style:none; padding:0; }
+    .xp-progress-log li { padding:2px 0; border-bottom:1px solid rgba(148,163,184,.14); }
+    .xp-progress-log li.xp-ok::before { content:'\2713 '; color:#34d399; }
+    .xp-progress-log li.xp-fail::before { content:'\2717 '; color:#f87171; }
+
+    .xp-dataset-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(255px,1fr)); gap:9px; }
+    .xp-ds { display:flex; align-items:flex-start; gap:9px; padding:10px 11px; border:1px solid #e2e8f0; border-radius:12px; background:#fcfdff; cursor:pointer; transition:all .13s; }
+    .xp-ds:hover { border-color:#93c5fd; background:#f0f7ff; }
+    .xp-ds.xp-ds-on { border-color:#2563eb; background:#eff6ff; box-shadow:inset 0 0 0 1px #2563eb; }
+    .xp-ds input { margin-top:2px; width:16px; height:16px; accent-color:#2563eb; flex-shrink:0; }
+    .xp-ds-body { min-width:0; flex:1; }
+    .xp-ds-name { font-size:12.5px; font-weight:800; color:#1e293b; }
+    .xp-ds-meta { font-size:10.5px; color:#64748b; margin-top:2px; line-height:1.45; }
+    .xp-ds-rows { display:inline-block; margin-top:4px; padding:1px 7px; border-radius:999px; background:#e2e8f0; font-size:10px; font-weight:800; color:#475569; }
+    .xp-ds-new { background:#dcfce7; color:#15803d; }
+    .xp-ds-locked { opacity:.45; cursor:not-allowed; }
+    .xp-dataset-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; padding-top:13px; border-top:1px dashed #cbd5e1; }
+
+    .xp-report-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:9px; }
+    .xp-rp { text-align:left; padding:12px 13px; border:1px solid #e2e8f0; border-radius:12px; background:#fff; cursor:pointer; transition:all .13s; }
+    .xp-rp:hover { border-color:#6366f1; background:#f5f3ff; transform:translateY(-1px); }
+    .xp-rp-name { font-size:12.5px; font-weight:800; color:#1e293b; }
+    .xp-rp-desc { font-size:10.5px; color:#64748b; margin-top:3px; line-height:1.45; }
+    .xp-report-preview { margin-top:14px; padding-top:13px; border-top:1px dashed #cbd5e1; }
+    .xp-report-preview table { width:100%; border-collapse:collapse; font-size:11.5px; }
+    .xp-report-preview th { background:#1e293b; color:#fff; padding:7px 9px; text-align:left; font-weight:700; position:sticky; top:0; white-space:nowrap; }
+    .xp-report-preview td { padding:6px 9px; border-bottom:1px solid #eef2f7; color:#334155; white-space:nowrap; }
+    .xp-report-preview tbody tr:nth-child(even) { background:#f8fafc; }
+    .xp-report-scroll { max-height:430px; overflow:auto; border:1px solid #e2e8f0; border-radius:11px; }
+    .xp-num { text-align:right; font-variant-numeric:tabular-nums; }
+    .xp-audit-table { width:100%; border-collapse:collapse; font-size:11.5px; }
+    .xp-audit-table th { background:#f1f5f9; padding:7px 9px; text-align:left; color:#475569; font-weight:700; white-space:nowrap; }
+    .xp-audit-table td { padding:6px 9px; border-bottom:1px solid #eef2f7; color:#334155; }
+
+    @media (max-width: 640px) {
+      .xp-quick { width:100%; }
+      .xp-chip { flex:1 1 auto; padding:0 10px; font-size:12px; }
+      .xp-dates { width:100%; }
+      .xp-input { flex:1 1 0; min-width:0; }
+      .xp-select { flex:1 1 140px; min-width:0; }
+      .xp-hero-actions { grid-template-columns:1fr; }
+    }
+  </style>
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800">
@@ -844,6 +933,10 @@
               <button id="tabManage" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-amber-400 bg-amber-50 px-2.5 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 md:px-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                 <span class="hidden sm:inline">เพิ่มรายการ</span>
+              </button>
+              <button id="tabExport" class="eng-tab shrink-0 hidden items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-2.5 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 md:px-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-5l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Export</span>
               </button>
               <button id="tabAdmin" class="eng-tab shrink-0 hidden items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 md:px-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -2719,6 +2812,146 @@
       </form>
     </div>
 
+    <!-- ==========================================================
+         EXPORT CENTER — ศูนย์ส่งออกข้อมูล
+         ทุกชุดข้อมูลในระบบ (20 ชุด) ออกเป็น Excel/CSV/JSON/PDF ได้จากที่เดียว
+         ตัวกรองด้านบนใช้ร่วมกันทั้ง 3 ระดับ: เลือกวัน/ช่วง/ไลน์แล้วมีผลกับทุกปุ่มด้านล่าง
+         ========================================================== -->
+    <section id="exportPage" class="hidden space-y-4 p-2 md:p-0 mb-6">
+
+      <!-- Header -->
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm panel-shadow">
+        <div class="flex items-center gap-3">
+          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-blue-700 text-xl text-white shadow">&#x1F4E6;</div>
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">Export Center &mdash; ศูนย์ส่งออกข้อมูล</h2>
+            <p class="text-xs text-slate-500">ดึงข้อมูลทุกระบบออกเป็นไฟล์เดียว พร้อมนำเสนอลูกค้า/ผู้บริหาร</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="xpManifestBadge" class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">ยังไม่ได้นับจำนวนแถว</span>
+          <button id="xpRefreshManifestBtn" type="button" class="h-10 rounded-xl border border-slate-300 bg-white px-4 text-xs font-bold text-slate-600 hover:bg-slate-50 transition">&#x21BB; นับจำนวนแถวใหม่</button>
+        </div>
+      </div>
+
+      <!-- ── ตัวกรองร่วม (มีผลกับทุกปุ่มด้านล่าง) ───────────────────── -->
+      <div class="xp-filterbar">
+        <div class="xp-filter-row">
+          <div class="xp-quick" id="xpQuickRange">
+            <button type="button" class="xp-chip" data-xp-range="today">วันนี้</button>
+            <button type="button" class="xp-chip" data-xp-range="7d">7 วัน</button>
+            <button type="button" class="xp-chip" data-xp-range="month">เดือนนี้</button>
+            <button type="button" class="xp-chip" data-xp-range="prevmonth">เดือนก่อน</button>
+            <button type="button" class="xp-chip" data-xp-range="quarter">ไตรมาสนี้</button>
+            <button type="button" class="xp-chip" data-xp-range="year">ปีนี้</button>
+            <button type="button" class="xp-chip xp-chip-active" data-xp-range="all">ทั้งหมด</button>
+          </div>
+          <div class="xp-dates">
+            <input id="xpDateFrom" type="date" class="xp-input" aria-label="วันที่เริ่ม" />
+            <span class="text-slate-400">&rarr;</span>
+            <input id="xpDateTo" type="date" class="xp-input" aria-label="วันที่สิ้นสุด" />
+            <button id="xpApplyBtn" type="button" class="xp-search-btn" title="ใช้ตัวกรอง">&#x1F50D;</button>
+          </div>
+        </div>
+        <div class="xp-filter-row">
+          <select id="xpLineFilter" class="xp-select" aria-label="ไลน์"><option value="">ทุกไลน์ (รวม)</option></select>
+          <select id="xpCategoryFilter" class="xp-select" aria-label="หมวด"><option value="">ทุกหมวด</option></select>
+          <select id="xpTxnTypeFilter" class="xp-select" aria-label="ประเภทธุรกรรม">
+            <option value="">รับเข้า + เบิกออก</option>
+            <option value="Input">รับเข้าเท่านั้น</option>
+            <option value="Output">เบิกออกเท่านั้น</option>
+          </select>
+          <select id="xpGroupBy" class="xp-select" aria-label="รวมตาม">
+            <option value="month">รวมตามเดือน</option>
+            <option value="week">รวมตามสัปดาห์</option>
+            <option value="day">รวมตามวัน</option>
+          </select>
+          <label class="xp-toggle" title="ซ่อนราคาต้นทุน ผู้ขาย และค่าใช้จ่ายทั้งหมด สำหรับไฟล์ที่ส่งให้ลูกค้า">
+            <input id="xpCustomerMode" type="checkbox" />
+            <span>&#x1F576;&#xFE0F; โหมดลูกค้า (ซ่อนราคา/ผู้ขาย)</span>
+          </label>
+        </div>
+        <p id="xpFilterSummary" class="xp-filter-summary">ช่วงข้อมูล: ทั้งหมดที่มีในระบบ &middot; ทุกไลน์</p>
+      </div>
+
+      <!-- ── ระดับ 1: แพ็กเกจนำเสนอ ─────────────────────────────── -->
+      <div class="xp-card xp-card-hero">
+        <div class="xp-card-head">
+          <div>
+            <h3 class="xp-card-title">&#x2B50; ระดับ 1 &mdash; แพ็กเกจนำเสนอ (กดปุ่มเดียวได้ครบ)</h3>
+            <p class="xp-card-sub">รวมทุกชุดข้อมูลที่เลือกไว้ + สรุปผู้บริหาร + เทรนด์ + พจนานุกรมข้อมูล ในไฟล์เดียว</p>
+          </div>
+        </div>
+        <div class="xp-hero-actions">
+          <button id="xpWorkbookBtn" type="button" class="xp-btn-primary">
+            <span class="xp-btn-ico">&#x1F4D8;</span>
+            <span><b>Executive Workbook</b><small>Excel หลายชีต จัดรูปแบบครบ</small></span>
+          </button>
+          <button id="xpPdfBtn" type="button" class="xp-btn-secondary">
+            <span class="xp-btn-ico">&#x1F4C4;</span>
+            <span><b>Executive Report</b><small>PDF มีกราฟ พร้อมพรินต์เข้าเล่ม</small></span>
+          </button>
+          <button id="xpJsonBundleBtn" type="button" class="xp-btn-ghost">
+            <span class="xp-btn-ico">&#x1F5C3;&#xFE0F;</span>
+            <span><b>Full JSON Backup</b><small>ข้อมูลดิบทุกชุด สำหรับย้ายระบบ</small></span>
+          </button>
+        </div>
+        <div id="xpProgressWrap" class="xp-progress-wrap hidden">
+          <div class="xp-progress-track"><div id="xpProgressBar" class="xp-progress-bar"></div></div>
+          <p id="xpProgressText" class="xp-progress-text">กำลังเตรียม...</p>
+          <ul id="xpProgressLog" class="xp-progress-log"></ul>
+        </div>
+      </div>
+
+      <!-- ── ระดับ 2: เลือกชุดข้อมูลเอง ──────────────────────────── -->
+      <div class="xp-card">
+        <div class="xp-card-head">
+          <div>
+            <h3 class="xp-card-title">&#x1F5C2;&#xFE0F; ระดับ 2 &mdash; เลือกชุดข้อมูลเอง</h3>
+            <p class="xp-card-sub">ติ๊กเฉพาะที่ต้องการ แล้วเลือกรูปแบบไฟล์ &middot; ตัวกรองด้านบนมีผลกับทุกชุด</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="xpSelectAllBtn" type="button" class="xp-btn-mini">เลือกทั้งหมด</button>
+            <button id="xpSelectNoneBtn" type="button" class="xp-btn-mini">ล้างที่เลือก</button>
+            <button id="xpSelectCoreBtn" type="button" class="xp-btn-mini">เฉพาะชุดหลัก</button>
+          </div>
+        </div>
+        <div id="xpDatasetGrid" class="xp-dataset-grid"></div>
+        <div class="xp-dataset-actions">
+          <span id="xpSelectedCount" class="text-xs font-semibold text-slate-500">เลือกไว้ 0 ชุด</span>
+          <div class="flex flex-wrap gap-2">
+            <button id="xpExportXlsxBtn" type="button" class="xp-btn-primary xp-btn-sm">&#x1F4D7; ดาวน์โหลด .xlsx</button>
+            <button id="xpExportCsvBtn" type="button" class="xp-btn-secondary xp-btn-sm">&#x1F4C4; ดาวน์โหลด .csv (แยกไฟล์)</button>
+            <button id="xpExportJsonBtn" type="button" class="xp-btn-ghost xp-btn-sm">&#x7B;&#x7D; ดาวน์โหลด .json</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ระดับ 3: รายงานวิเคราะห์สำเร็จรูป ───────────────────── -->
+      <div class="xp-card">
+        <div class="xp-card-head">
+          <div>
+            <h3 class="xp-card-title">&#x1F4CA; ระดับ 3 &mdash; รายงานวิเคราะห์สำเร็จรูป</h3>
+            <p class="xp-card-sub">คำนวณจากข้อมูลจริงในระบบทั้งหมด ไม่มีตัวเลขสมมติ &middot; กดดูบนจอก่อนแล้วค่อยดาวน์โหลด</p>
+          </div>
+        </div>
+        <div id="xpReportGrid" class="xp-report-grid"></div>
+        <div id="xpReportPreview" class="xp-report-preview hidden"></div>
+      </div>
+
+      <!-- ── ทะเบียนการ Export (เฉพาะ Admin) ─────────────────────── -->
+      <div id="xpAuditCard" class="xp-card hidden">
+        <div class="xp-card-head">
+          <div>
+            <h3 class="xp-card-title">&#x1F6E1;&#xFE0F; ทะเบียนการส่งออกข้อมูล</h3>
+            <p class="xp-card-sub">ไฟล์ที่ออกจากระบบไปอยู่นอกองค์กร ต้องรู้ว่าใครดึงอะไรไปเมื่อไหร่</p>
+          </div>
+          <button id="xpAuditRefreshBtn" type="button" class="xp-btn-mini">&#x21BB; โหลดทะเบียน</button>
+        </div>
+        <div id="xpAuditTableWrap" class="overflow-x-auto"><p class="text-xs text-slate-400">กด "โหลดทะเบียน" เพื่อดูรายการล่าสุด</p></div>
+      </div>
+
+    </section>
     <section id="adminPage" class="hidden space-y-4 p-2 md:p-0">
       <!-- Header -->
       <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -8319,6 +8552,8 @@ function getIssueCartEntries() {
       tabManage.className = tabManageBase;
       tabManage.style.cssText = 'background:#fef3c7;color:#b45309;border:1px solid #fcd34d;';
       tabAdmin.className = tabBaseClass;
+      var tabExportEl = document.getElementById('tabExport');
+      if (tabExportEl) { tabExportEl.className = tabBaseClass; tabExportEl.style.cssText = 'background:#eef2ff;color:#4338ca;border:1px solid #a5b4fc;'; }
       if (active === 'stock') tabStock.className = tabActiveClass;
       if (active === 'dashboard' && tabDashboard) tabDashboard.className = tabActiveClass;
       if (active === 'txn') tabTxn.className = tabActiveClass;
@@ -8331,6 +8566,7 @@ function getIssueCartEntries() {
       if (tabRequestOrder) tabRequestOrder.classList.add('request-order-nav-btn');
       if (active === 'manage') { tabManage.className = tabManageActive; tabManage.style.cssText = 'background:#d97706;color:#ffffff;border:1px solid #b45309;'; }
       if (active === 'admin') tabAdmin.className = tabActiveClass;
+      if (active === 'export' && tabExportEl) { tabExportEl.className = tabActiveClass; tabExportEl.style.cssText = 'background:#4338ca;color:#fff;border:1px solid #3730a3;'; }
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
       tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
@@ -8339,6 +8575,8 @@ function getIssueCartEntries() {
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       if (tabStockCount) tabStockCount.classList.toggle('hidden', !hasPermission('view_logs'));
       tabAdmin.classList.toggle('hidden', !(isAdminUser() && hasPermission('manage_users')));
+      // แท็บ Export โผล่เมื่อมีสิทธิ์ export_data (หรือ view_logs / admin ตามเกณฑ์ xpCanExport)
+      if (tabExportEl) tabExportEl.classList.toggle('hidden', !(typeof xpCanExport === 'function' && xpCanExport()));
       var tabInboxEl = document.getElementById('tabInbox');
       if (tabInboxEl) tabInboxEl.classList.toggle('hidden', !(hasPermission('pr_approve') || hasPermission('pr_view_all') || hasPermission('pr_view_own')));
       tabTxn.classList.toggle('hidden', !canReceivePart() || window.innerWidth < 768);
@@ -8360,6 +8598,7 @@ function getIssueCartEntries() {
       mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       setTabStyles('stock');
       normalizeMobileHeaderCartUi();
     }
@@ -8375,6 +8614,7 @@ function getIssueCartEntries() {
       mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       setTabStyles('txn');
       syncReceiveFormAutoFields(getSelectedTxnItem());
       if (txnInStockOnly) txnInStockOnly.checked = false;
@@ -8410,6 +8650,7 @@ function getIssueCartEntries() {
       mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       setTabStyles('log');
       loadLogData();
     }
@@ -8429,6 +8670,7 @@ function getIssueCartEntries() {
       mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       if (stockCountPage) stockCountPage.classList.remove('hidden');
       setTabStyles('stock-count');
       scInitPage();
@@ -10263,6 +10505,7 @@ function getIssueCartEntries() {
       mxHidePage();
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       setTabStyles('manage');
       populateManageLineOptions(true);
@@ -12854,6 +13097,7 @@ function inferRequestPriority(stock, min) {
       mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       setTabStyles('dashboard');
       loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1);
       if (dashboardPage) dashboardPage.scrollTop = 0;
@@ -12869,6 +13113,7 @@ function inferRequestPriority(stock, min) {
       mxHidePage();
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
       window.__roActiveGroupIdx = undefined;
       closeRequestOrderDetailModal();
@@ -14022,6 +14267,7 @@ function inferRequestPriority(stock, min) {
       prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       var page = mxEl('miscExpensePage');
@@ -14101,6 +14347,7 @@ function inferRequestPriority(stock, min) {
       prReportPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.remove('hidden');
       mxHidePage();
@@ -14406,6 +14653,7 @@ function inferRequestPriority(stock, min) {
       prReportPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       mxHidePage();
+      xpHidePage();
       managePage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       adminPage.classList.remove('hidden');
@@ -14430,6 +14678,7 @@ function inferRequestPriority(stock, min) {
       logPage.classList.add('hidden');
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
+      xpHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       mxHidePage();
@@ -18659,7 +18908,7 @@ function inferRequestPriority(stock, min) {
     var NAV_GROUP_OF_ACTIVE = {
       'txn': 'warehouse', 'stock-count': 'warehouse', 'log': 'warehouse',
       'request-order': 'procure', 'pr': 'procure', 'purchase-history': 'procure', 'misc-expense': 'procure',
-      'manage': 'manage', 'admin': 'manage'
+      'manage': 'manage', 'admin': 'manage', 'export': 'manage'
     };
     function closeAllNavGroups() {
       document.querySelectorAll('.nav-dropdown-panel').forEach(function(p) { p.classList.add('hidden'); });
@@ -21565,6 +21814,2593 @@ if (dashboardPage) {
         setTimeout(function(){ appSplash.classList.add('hidden'); }, 500);
       }, wait);
     }
+    // ==========================================================
+    // EXPORT CENTER — เครื่องยนต์ส่งออกข้อมูลทั้งระบบ (prefix xp*)
+    // ==========================================================
+    // เดิม Export กระจาย 6 จุด และทุกจุดคือ "เซฟสิ่งที่เห็นบนจอ" — ดึงข้อมูลทั้งระบบไป
+    // เสนอลูกค้าไม่ได้เลย ตรงนี้รวมทุกชุดข้อมูล (20 ชุด) มาที่เดียว ใช้ตัวกรองชุดเดียวกันหมด
+    //
+    // หลักการสำคัญ 3 ข้อ:
+    // 1) ตัวเลขทุกตัวมาจากข้อมูลจริงในระบบเท่านั้น (ชีตอะไหล่ / Log / PR / Purchase History /
+    //    MiscExpenses / ProductionVolume) — ห้ามสร้างตัวเลขสมมติแม้แต่ช่องเดียว
+    //    ชุดไหนดึงไม่สำเร็จให้ขึ้นว่า "ดึงไม่ได้" ไม่ใช่เติมศูนย์แทน
+    // 2) โหมดลูกค้า ตัดคอลัมน์ราคา/ผู้ขาย/มูลค่าออกจริง ไม่ใช่แค่ซ่อนด้วย CSS
+    // 3) ทุกครั้งที่ดาวน์โหลดจะยิง logExportEvent ขึ้นทะเบียนฝั่งเซิร์ฟเวอร์
+    //    (ไฟล์พวกนี้ออกไปอยู่นอกองค์กรจริง ต้องตามรอยได้)
+    var xpFilters = {
+      rangeKey: 'all',
+      from: '',
+      to: '',
+      line: '',
+      category: '',
+      txnType: '',
+      groupBy: 'month',
+      customerMode: false
+    };
+    var xpCache = {};          // ผลการดึงข้อมูล cache ตามลายเซ็นตัวกรอง
+    var xpManifest = null;     // จำนวนแถวต่อชีต (จาก exportManifest)
+    var xpBusy = false;
+    var xpLastReport = null;   // รายงานระดับ 3 ที่กำลังแสดงบนจอ ไว้ให้ปุ่มดาวน์โหลดใช้ต่อ
+
+    function xpEl(id) { return document.getElementById(id); }
+    function xpN(v) { var n = Number(String(v === undefined || v === null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : 0; }
+    function xpS(v) { return v === undefined || v === null ? '' : String(v); }
+    function xpFmtInt(v) { return xpN(v).toLocaleString('en-US', { maximumFractionDigits: 0 }); }
+    function xpFmtMoney(v) { return xpN(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+    // 'yyyy-MM-dd' ของวันนี้ตามเวลาเครื่อง (ไม่ใช้ toISOString เพราะมันเป็น UTC —
+    // ตอนเช้าเวลาไทยจะได้วันย้อนหลังไป 1 วัน)
+    function xpDateStr(d) {
+      var t = d || new Date();
+      return t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2);
+    }
+    // คีย์เดือน 'yyyy-MM' จากค่าที่อาจเป็น '2026-09-10 08:00:00' / Date / '10/9/2026'
+    function xpMonthKey(raw) {
+      var s = xpS(raw).trim();
+      if (!s) return '';
+      var m = s.match(/^(\d{4})-(\d{2})/);
+      if (m) return m[1] + '-' + m[2];
+      var slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (slash) return slash[3] + '-' + ('0' + slash[2]).slice(-2);
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+      return '';
+    }
+    function xpDayKey(raw) {
+      var s = xpS(raw).trim();
+      var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) return m[1] + '-' + m[2] + '-' + m[3];
+      var slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (slash) return slash[3] + '-' + ('0' + slash[2]).slice(-2) + '-' + ('0' + slash[1]).slice(-2);
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) return xpDateStr(d);
+      return '';
+    }
+    // สัปดาห์แบบ ISO (yyyy-Www) — ใช้ตอนเลือก "รวมตามสัปดาห์"
+    function xpWeekKey(raw) {
+      var day = xpDayKey(raw);
+      if (!day) return '';
+      var d = new Date(day + 'T00:00:00');
+      if (isNaN(d.getTime())) return '';
+      var target = new Date(d.getTime());
+      var dayNum = (d.getDay() + 6) % 7;
+      target.setDate(target.getDate() - dayNum + 3);
+      var firstThursday = new Date(target.getFullYear(), 0, 4);
+      var diff = target - firstThursday;
+      var week = 1 + Math.round((diff / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
+      return target.getFullYear() + '-W' + ('0' + week).slice(-2);
+    }
+    function xpBucketKey(raw) {
+      if (xpFilters.groupBy === 'day') return xpDayKey(raw);
+      if (xpFilters.groupBy === 'week') return xpWeekKey(raw);
+      return xpMonthKey(raw);
+    }
+    function xpInRange(raw) {
+      if (!xpFilters.from && !xpFilters.to) return true;
+      var day = xpDayKey(raw);
+      if (!day) return true; // ไม่รู้วันที่ = ไม่ตัดทิ้งเงียบๆ ปล่อยผ่านให้เห็นในไฟล์
+      if (xpFilters.from && day < xpFilters.from) return false;
+      if (xpFilters.to && day > xpFilters.to) return false;
+      return true;
+    }
+    // จับไลน์จากข้อความอิสระ (Process ใน Log / Line ใน PR) ให้ตรงกับ LINE_OPTIONS
+    function xpLineMatches(raw) {
+      if (!xpFilters.line) return true;
+      var want = xpFilters.line.toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
+      var got = xpS(raw).toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
+      if (!got) return true;
+      return got.indexOf(want) > -1 || want.indexOf(got) > -1;
+    }
+    function xpSheetsForLine() {
+      var all = [];
+      Object.keys(LINE_SHEET_OPTIONS || {}).forEach(function(lineKey) {
+        if (xpFilters.line && lineKey !== xpFilters.line) return;
+        (LINE_SHEET_OPTIONS[lineKey] || []).forEach(function(s) { all.push(s); });
+      });
+      return Array.from(new Set(all));
+    }
+
+    // คอลัมน์ที่ถือว่า "ข้อมูลราคา/ต้นทุน" — โหมดลูกค้าจะตัดออกจากไฟล์จริง
+    // จับที่ชื่อหัวคอลัมน์เพราะชุดข้อมูลดิบ (dumpSheetForExport) ส่งหัวจากชีตมาตรงๆ
+    var XP_SENSITIVE_PATTERNS = ['ราคา', 'มูลค่า', 'ยอดเงิน', 'ผู้ขาย', 'งบ', 'ต้นทุน', 'price', 'amount', 'vendor', 'supplier', 'cost', 'budget', 'total'];
+    function xpIsSensitiveHeader(label) {
+      var l = xpS(label).toLowerCase();
+      for (var i = 0; i < XP_SENSITIVE_PATTERNS.length; i += 1) {
+        if (l.indexOf(XP_SENSITIVE_PATTERNS[i]) > -1) return true;
+      }
+      return false;
+    }
+
+    // แปลง array ของ object เป็นตาราง { headers, rows, numeric } ตามสเปกคอลัมน์
+    // cols = [{ label, key | get(o), type: 'num'|'money'|'text', sensitive: true }]
+    function xpTable(cols, list) {
+      var visible = cols.filter(function(c) { return !(c.sensitive && xpFilters.customerMode); });
+      return {
+        headers: visible.map(function(c) { return c.label; }),
+        rows: (list || []).map(function(o) {
+          return visible.map(function(c) {
+            var v = c.get ? c.get(o) : o[c.key];
+            if (c.type === 'num' || c.type === 'money') {
+              // ค่าว่างต้องออกมาว่าง ห้ามกลายเป็น 0 — "ไม่รู้" กับ "ศูนย์" คนละความหมายกัน
+              // (เช่น % ต้นทุนของเดือนที่ไม่มีมูลค่าผลิตให้เทียบ ถ้าโชว์ 0% คนอ่านจะเข้าใจว่าไม่มีค่าใช้จ่าย)
+              if (v === '' || v === null || v === undefined) return '';
+              return xpN(v);
+            }
+            return v === undefined || v === null ? '' : v;
+          });
+        }),
+        numeric: visible.map(function(c) { return c.type === 'num' || c.type === 'money'; }),
+        money: visible.map(function(c) { return c.type === 'money'; })
+      };
+    }
+    // ตารางจากชีตดิบฝั่งเซิร์ฟเวอร์ — ตัดคอลัมน์ราคาออกถ้าอยู่โหมดลูกค้า
+    function xpTableFromDump(dump) {
+      var d = dump || {};
+      var headers = (d.headers || []).map(xpS);
+      var keep = [];
+      headers.forEach(function(h, i) { if (!(xpFilters.customerMode && xpIsSensitiveHeader(h))) keep.push(i); });
+      var rows = (d.rows || []).map(function(r) { return keep.map(function(i) { return r[i] === undefined || r[i] === null ? '' : r[i]; }); });
+      // เดาว่าคอลัมน์ไหนเป็นตัวเลข: ดูจากค่าจริง 30 แถวแรก ต้องเป็นตัวเลขทุกค่าที่ไม่ว่าง
+      var numeric = keep.map(function(i) {
+        var seen = 0;
+        for (var r = 0; r < Math.min(rows.length, 30); r += 1) {
+          var v = rows[r][keep.indexOf(i)];
+          if (v === '' || v === null || v === undefined) continue;
+          seen += 1;
+          if (typeof v !== 'number' && !/^-?\d+(\.\d+)?$/.test(xpS(v))) return false;
+        }
+        return seen > 0;
+      });
+      return { headers: keep.map(function(i) { return headers[i]; }), rows: rows, numeric: numeric, money: numeric.map(function() { return false; }) };
+    }
+
+    function xpSig() {
+      return [xpFilters.from, xpFilters.to, xpFilters.line, xpFilters.category, xpFilters.txnType, xpFilters.customerMode ? 'c' : 'f'].join('|');
+    }
+    function xpCached(key, fn) {
+      var k = key + '::' + xpSig();
+      if (xpCache[k]) return xpCache[k];
+      var p = fn();
+      xpCache[k] = p;
+      p.catch(function() { delete xpCache[k]; });
+      return p;
+    }
+    function xpClearCache() { xpCache = {}; }
+
+    function xpApi(payload) {
+      return requestApi(withAuthPayload(payload)).then(parseApiResponse);
+    }
+
+    // ── ตัวดึงข้อมูลดิบ (แชร์กันระหว่างหลายชุด จึงต้อง cache) ─────────────
+    function xpFetchMaster() {
+      return xpCached('master', function() {
+        var sheets = xpSheetsForLine();
+        if (!sheets.length) return Promise.resolve([]);
+        return Promise.all(sheets.map(function(name) {
+          return loadJsonpWithFallback(function(base) { return base + appendAuthToQuery('?sheet=' + encodeURIComponent(name)); })
+            .then(function(rows) {
+              return (Array.isArray(rows) ? rows : []).map(function(r) {
+                var copy = Object.assign({}, r);
+                copy.__sheet = name;
+                return copy;
+              });
+            });
+        })).then(function(sets) {
+          var merged = [];
+          sets.forEach(function(s) { merged = merged.concat(s); });
+          if (xpFilters.category) {
+            merged = merged.filter(function(it) { return xpS(it.category).trim() === xpFilters.category; });
+          }
+          return merged;
+        });
+      });
+    }
+    // ราคาต่อหน่วยล่าสุดต่ออะไหล่ — ใช้ตีมูลค่าของยอดเบิก/รับใน Log
+    // (ชีต Log ไม่เคยเก็บราคาไว้ในแถว จึงต้องจับคู่กับ master ตอน export)
+    // คีย์ = ชื่อ+รุ่น เท่านั้น ห้ามข้ามไลน์ตามกฎเดิมของ Dashboard
+    function xpPriceMap(master) {
+      var map = {};
+      (master || []).forEach(function(it) {
+        var price = xpN(it.unit_price);
+        if (!price) return;
+        var k = (xpS(it.name).trim() + '||' + xpS(it.model).trim()).toLowerCase();
+        if (!map[k]) map[k] = price;
+        var byNo = 'no::' + xpS(it.no).trim() + '::' + xpS(it.__sheet);
+        if (!map[byNo]) map[byNo] = price;
+      });
+      return map;
+    }
+    function xpLookupPrice(map, name, model, partNo, sheet) {
+      var k = (xpS(name).trim() + '||' + xpS(model).trim()).toLowerCase();
+      if (map[k]) return map[k];
+      var byNo = 'no::' + xpS(partNo).trim() + '::' + xpS(sheet);
+      return map[byNo] || 0;
+    }
+
+    function xpFetchLogs() {
+      return xpCached('logs', function() {
+        return xpApi({
+          action: 'logs',
+          from: xpFilters.from, to: xpFilters.to,
+          line: xpFilters.line, logType: xpFilters.txnType
+        }).then(function(rows) {
+          var list = Array.isArray(rows) ? rows : [];
+          // กรองซ้ำฝั่งเว็บด้วย: Apps Script รุ่นที่ยัง deploy ไม่ทันจะไม่รู้จัก from/to
+          // แล้วส่งทั้งชีตกลับมา ถ้าไม่กรองซ้ำไฟล์จะมีข้อมูลนอกช่วงที่ผู้ใช้เลือกไว้
+          return list.filter(function(l) {
+            if (!xpInRange(l.timestamp)) return false;
+            if (!xpLineMatches(l.process)) return false;
+            if (xpFilters.txnType && xpS(l.type).toLowerCase().indexOf(xpFilters.txnType.toLowerCase()) === -1) return false;
+            if (xpFilters.category && xpS(l.category).trim() !== xpFilters.category) return false;
+            return true;
+          });
+        });
+      });
+    }
+    function xpFetchOrderRequests() {
+      return xpCached('orderRequests', function() {
+        return xpApi({ action: 'getOrderRequests' }).then(function(rows) {
+          return (Array.isArray(rows) ? rows : []).filter(function(r) {
+            return xpInRange(r.requested_date) && xpLineMatches(r.line);
+          });
+        });
+      });
+    }
+    function xpFetchPurchaseHistory() {
+      return xpCached('purchaseHistory', function() {
+        return xpApi({ action: 'getPurchaseHistory' }).then(function(res) {
+          var rows = Array.isArray(res) ? res : (res && res.rows) || [];
+          return rows.filter(function(r) {
+            var d = r['Requested Date'] || r.requested_date || r.requestedDate || r['Ordered Date'] || '';
+            return xpInRange(d) && xpLineMatches(r.Line || r.line);
+          });
+        });
+      });
+    }
+    function xpFetchMiscExpenses() {
+      return xpCached('miscExpenses', function() {
+        return xpApi({ action: 'getMiscExpenses' }).then(function(res) {
+          var rows = Array.isArray(res) ? res : (res && res.expenses) || [];
+          return rows.filter(function(r) {
+            if (!xpInRange(r.date || r.month)) return false;
+            // 'ส่วนกลาง' ไม่เฉลี่ยเข้าไลน์ไหน — เลือกไลน์เดียวจะไม่เห็น ตรงกับนโยบายเดิมของ Dashboard
+            return xpLineMatches(r.line);
+          });
+        });
+      });
+    }
+    function xpFetchPrBundle() {
+      return xpCached('prBundle', function() {
+        return xpApi({ action: 'exportPrBundle', from: xpFilters.from, to: xpFilters.to, line: xpFilters.line });
+      });
+    }
+    function xpFetchAuditTrails() {
+      return xpCached('auditTrails', function() {
+        return xpApi({ action: 'exportAuditTrails', from: xpFilters.from, to: xpFilters.to });
+      });
+    }
+    function xpFetchRawSheets(names) {
+      return xpCached('raw::' + names.join(','), function() {
+        return xpApi({ action: 'exportRawSheets', sheets: names.join(','), line: xpFilters.line });
+      });
+    }
+    function xpFetchStockCount() {
+      return xpCached('stockCount', function() {
+        return xpApi({ action: 'getStockCountHistory', includeItems: '1' }).then(function(rows) {
+          return (Array.isArray(rows) ? rows : []).filter(function(r) {
+            return xpInRange(r.submitted_at || r.created_at) && xpLineMatches(r.line);
+          });
+        });
+      });
+    }
+    function xpFetchProductionVolume() {
+      return xpCached('productionVolume', function() {
+        return xpApi({ action: 'getProductionVolume' }).then(function(rows) {
+          return (Array.isArray(rows) ? rows : []).filter(function(r) {
+            if (xpFilters.from && xpS(r.month) < xpFilters.from.slice(0, 7)) return false;
+            if (xpFilters.to && xpS(r.month) > xpFilters.to.slice(0, 7)) return false;
+            return xpLineMatches(r.line);
+          });
+        });
+      });
+    }
+    function xpFetchProductionCostConfig() {
+      return xpCached('productionCostConfig', function() {
+        return xpApi({ action: 'getProductionCostConfig' }).then(function(rows) {
+          return (Array.isArray(rows) ? rows : []).filter(function(r) { return xpLineMatches(r.line); });
+        });
+      });
+    }
+    function xpFetchPartTags() {
+      return xpCached('partTags', function() {
+        return xpApi({ action: 'getPartTags', limit: 0 }).then(function(res) {
+          var tags = (res && res.tags) || [];
+          return tags.filter(function(t) { return xpInRange(t.issued_at) && xpLineMatches(t.line); });
+        });
+      });
+    }
+    function xpFetchMachines() {
+      return xpCached('machines', function() {
+        return xpApi({ action: 'getMachines', includeInactive: '1' }).then(function(rows) {
+          return (Array.isArray(rows) ? rows : []).filter(function(m) { return xpLineMatches(m.line); });
+        });
+      });
+    }
+    function xpFetchAnomalies() {
+      return xpCached('anomalies', function() {
+        return xpApi({ action: 'getIssueAnomalies', all: '1' }).then(function(res) {
+          var list = (res && res.anomalies) || [];
+          return list.filter(function(a) { return xpInRange(a.detected_at); });
+        });
+      });
+    }
+
+    // ── ทะเบียนชุดข้อมูล 20 ชุด ───────────────────────────────────────
+    // ทุกชุดคืน { headers, rows, numeric } ให้ตัวเขียนไฟล์ใช้ต่อได้เหมือนกันหมด
+    var XP_DATASETS = [
+      {
+        key: 'stockMaster', group: 'คลังอะไหล่', core: true,
+        name: 'Master อะไหล่ (ทุกไลน์)', sheetName: 'Master อะไหล่',
+        meta: 'ชีตอะไหล่ 9 ชีต + มูลค่าคงคลัง + สถานะ Min/Max',
+        countSheets: ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'],
+        fetch: function() {
+          return xpFetchMaster().then(function(list) {
+            return xpTable([
+              { label: 'ชีตต้นทาง', key: '__sheet' },
+              { label: 'NO', key: 'no' },
+              { label: 'ชื่อรายการ', key: 'name' },
+              { label: 'รุ่น / Part No.', key: 'model' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'ตำแหน่งเก็บ', key: 'location' },
+              { label: 'หมวด', key: 'category' },
+              { label: 'ยี่ห้อ', key: 'brand' },
+              { label: 'คงเหลือ', key: 'stock', type: 'num' },
+              { label: 'Min', key: 'min', type: 'num' },
+              { label: 'Max', key: 'max', type: 'num' },
+              { label: 'ต้องซื้อ', key: 'needToPO', type: 'num' },
+              { label: 'หน่วย', key: 'unit' },
+              { label: 'ราคาต่อหน่วย', key: 'unit_price', type: 'money', sensitive: true },
+              { label: 'สกุลเงิน', key: 'currency', sensitive: true },
+              { label: 'มูลค่าคงคลัง', type: 'money', sensitive: true, get: function(o) { return xpN(o.stock) * xpN(o.unit_price); } },
+              { label: 'ผู้ขาย', key: 'supplier', sensitive: true },
+              { label: 'Coil Size', key: 'coil_size' },
+              { label: 'เครื่องจักรที่ใช้ได้', key: 'machines' },
+              { label: 'สถานะ Drawing', key: 'drawing_status' },
+              { label: 'Drawing Rev', key: 'drawing_revision' },
+              { label: 'ลิงก์ Drawing', key: 'drawing_url' },
+              { label: 'ลิงก์ Datasheet', key: 'datasheet_url' },
+              { label: 'ลิงก์ใบเสนอราคา', key: 'quotation_url', sensitive: true },
+              { label: 'รูปอะไหล่', key: 'image_main_url' },
+              { label: 'รับเข้าล่าสุด', key: 'last_received_at' },
+              { label: 'สถานะสต็อก', get: function(o) {
+                var st = xpN(o.stock), mn = xpN(o.min), mx = xpN(o.max);
+                if (st <= 0) return 'หมด';
+                if (st < mn) return 'ต่ำกว่า Min';   // strict < ตามกฎธุรกิจเดิม (คอมมิต 1cd2ea1)
+                if (mx > 0 && st > mx) return 'เกิน Max';
+                return 'ปกติ';
+              } }
+            ], list);
+          });
+        }
+      },
+      {
+        key: 'logs', group: 'คลังอะไหล่', core: true,
+        name: 'รับเข้า / เบิกออก (Log)', sheetName: 'Log รับเข้า-เบิกออก',
+        meta: 'ทุกธุรกรรม + ยอดก่อน/หลัง + มูลค่าที่ตีจากราคา master',
+        countSheets: ['Log'],
+        fetch: function() {
+          return Promise.all([xpFetchLogs(), xpFetchMaster()]).then(function(res) {
+            var logs = res[0], priceMap = xpPriceMap(res[1]);
+            return xpTable([
+              { label: 'วันเวลา', key: 'timestamp' },
+              { label: 'ประเภท', key: 'type' },
+              { label: 'ไลน์ / Process', key: 'process' },
+              { label: 'หมวด', key: 'category' },
+              { label: 'Part No', key: 'partNo' },
+              { label: 'ชื่ออะไหล่', key: 'partName' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ยี่ห้อ', key: 'brand' },
+              { label: 'จำนวน', key: 'qty', type: 'num' },
+              { label: 'หน่วย', key: 'unit' },
+              { label: 'ราคาต่อหน่วย', type: 'money', sensitive: true, get: function(o) { return xpLookupPrice(priceMap, o.partName, o.model, o.partNo, ''); } },
+              { label: 'มูลค่ารายการ', type: 'money', sensitive: true, get: function(o) { return xpN(o.qty) * xpLookupPrice(priceMap, o.partName, o.model, o.partNo, ''); } },
+              { label: 'ยอดก่อน', key: 'stockBefore', type: 'num' },
+              { label: 'ยอดหลัง', key: 'stockAfter', type: 'num' },
+              { label: 'ผู้ทำรายการ', key: 'by' },
+              { label: 'เครื่องจักร', key: 'machine' },
+              { label: 'เหตุผล', key: 'reason' },
+              { label: 'หมายเหตุเหตุผล', key: 'reasonRemark' }
+            ], logs);
+          });
+        }
+      },
+      {
+        key: 'partTags', group: 'คลังอะไหล่',
+        name: 'ทะเบียนชิ้น (Part Tag)', sheetName: 'ทะเบียนชิ้น',
+        meta: 'เลขประจำชิ้น + เครื่องที่ติดตั้ง + อายุใช้งานที่คำนวณให้',
+        countSheets: ['PartTags'],
+        fetch: function() {
+          return xpFetchPartTags().then(function(list) {
+            return xpTable([
+              { label: 'Tag No', key: 'tag_no' },
+              { label: 'Part No', key: 'part_no' },
+              { label: 'ชื่ออะไหล่', key: 'part_name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'หมวด', key: 'category' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'ชีตต้นทาง', key: 'sheet_name' },
+              { label: 'หน่วย', key: 'unit' },
+              { label: 'เครื่องจักร', key: 'machine' },
+              { label: 'เหตุผลที่เบิก', key: 'reason' },
+              { label: 'เบิกเมื่อ', key: 'issued_at' },
+              { label: 'ผู้เบิก', key: 'issued_by' },
+              { label: 'สถานะ', key: 'status' },
+              { label: 'ติดตั้งเมื่อ', key: 'installed_at' },
+              { label: 'ถอดเมื่อ', key: 'removed_at' },
+              { label: 'อายุใช้งาน (วัน)', type: 'num', get: function(o) {
+                // นับเฉพาะชิ้นที่มีทั้งวันติดตั้งและวันถอด — ชิ้นที่ยังอยู่ในเครื่องยังไม่รู้อายุจริง
+                var a = xpDayKey(o.installed_at), b = xpDayKey(o.removed_at);
+                if (!a || !b) return '';
+                var d = (new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000;
+                return d >= 0 ? Math.round(d) : '';
+              } },
+              { label: 'หมายเหตุ', key: 'remark' }
+            ], list);
+          });
+        }
+      },
+      {
+        // แยกกลุ่มแท็กกับสมาชิกกลุ่มเป็นสองชุด ไม่ยัดชีตเดียว — สองชีตคอลัมน์ไม่เหมือนกัน
+        // ถ้ารวมกันจะได้ตารางที่จำนวนช่องแต่ละแถวไม่เท่ากัน ซึ่งพอ export เป็น CSV แล้วอ่านไม่ได้
+        key: 'partTagGroups', group: 'คลังอะไหล่',
+        name: 'กลุ่มแท็ก (PartTagGroups)', sheetName: 'กลุ่มแท็ก',
+        meta: 'ตั้งค่า prefix / เลขเริ่ม ของแต่ละกลุ่มที่ต้องออกเลขประจำชิ้น',
+        countSheets: ['PartTagGroups'],
+        fetch: function() {
+          return xpFetchRawSheets(['PartTagGroups', 'PartTagGroupItems'])
+            .then(function(res) { return xpTableFromDump(res.sheets && res.sheets['PartTagGroups']); });
+        }
+      },
+      {
+        key: 'partTagGroupItems', group: 'คลังอะไหล่',
+        name: 'สมาชิกกลุ่มแท็ก (PartTagGroupItems)', sheetName: 'สมาชิกกลุ่มแท็ก',
+        meta: 'อะไหล่ชิ้นไหนอยู่กลุ่มไหน — ตัวกำหนดว่าเบิกแล้วต้องออกเลขประจำชิ้น',
+        countSheets: ['PartTagGroupItems'],
+        fetch: function() {
+          // ใช้คำขอเดียวกับชุดกลุ่มแท็ก (xpCached จับคู่จาก key เดิม) จึงไม่ยิงซ้ำ
+          return xpFetchRawSheets(['PartTagGroups', 'PartTagGroupItems'])
+            .then(function(res) { return xpTableFromDump(res.sheets && res.sheets['PartTagGroupItems']); });
+        }
+      },
+      {
+        key: 'machines', group: 'คลังอะไหล่',
+        name: 'เครื่องจักร (Master)', sheetName: 'เครื่องจักร',
+        meta: 'ทะเบียนเครื่องจักรทุกไลน์ + จำนวนอะไหล่ที่ผูกไว้',
+        countSheets: ['Machines'],
+        fetch: function() {
+          return Promise.all([xpFetchMachines(), xpFetchMaster()]).then(function(res) {
+            var machines = res[0], master = res[1];
+            // นับว่าเครื่องนี้มีอะไหล่ผูกไว้กี่รายการ — คอลัมน์ Machines ในชีตอะไหล่เก็บเป็น
+            // comma-separated ต้องแยกแล้วเทียบชื่อแบบตัดช่องว่าง
+            var countByMachine = {};
+            master.forEach(function(it) {
+              xpS(it.machines).split(',').forEach(function(m) {
+                var k = m.trim().toLowerCase();
+                if (!k) return;
+                countByMachine[k] = (countByMachine[k] || 0) + 1;
+              });
+            });
+            return xpTable([
+              { label: 'Machine ID', key: 'machine_id' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'ชื่อเครื่องจักร', key: 'machine_name' },
+              { label: 'ใช้งาน', get: function(o) { return o.active ? 'ใช้งาน' : 'ปิด'; } },
+              { label: 'อะไหล่ที่ผูกไว้ (รายการ)', type: 'num', get: function(o) { return countByMachine[xpS(o.machine_name).trim().toLowerCase()] || 0; } },
+              { label: 'สร้างโดย', key: 'created_by' },
+              { label: 'สร้างเมื่อ', key: 'created_at' },
+              { label: 'แก้ล่าสุดโดย', key: 'updated_by' },
+              { label: 'แก้ล่าสุดเมื่อ', key: 'updated_at' }
+            ], machines);
+          });
+        }
+      },
+      {
+        key: 'itemAudit', group: 'คลังอะไหล่',
+        name: 'ทะเบียนแก้ไขข้อมูลอะไหล่', sheetName: 'ทะเบียนแก้ไขอะไหล่',
+        meta: 'ItemAudit — ใครแก้ Min/Max/ราคา/ยอดคงเหลือ ค่าก่อน-หลัง',
+        countSheets: ['ItemAudit'],
+        fetch: function() {
+          return xpFetchAuditTrails().then(function(res) { return xpTableFromDump(res.itemAudit); });
+        }
+      },
+      {
+        key: 'orderRequests', group: 'การสั่งซื้อ', core: true,
+        name: 'คำขอซื้อ (Order Requests)', sheetName: 'คำขอซื้อ',
+        meta: 'วงจรขออนุมัติซื้อ 29 คอลัมน์ + ระยะเวลารออนุมัติ',
+        countSheets: ['OrderRequests'],
+        fetch: function() {
+          return xpFetchOrderRequests().then(function(list) {
+            return xpTable([
+              { label: 'Request ID', key: 'request_id' },
+              { label: 'วันที่ขอ', key: 'requested_date' },
+              { label: 'ผู้ขอ', key: 'requested_by' },
+              { label: 'ตำแหน่งผู้ขอ', key: 'requester_role' },
+              { label: 'Part ID', key: 'item_id' },
+              { label: 'ชื่ออะไหล่', key: 'item_name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ยี่ห้อ', key: 'brand' },
+              { label: 'หมวด', key: 'category' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'คงเหลือตอนขอ', key: 'current_stock', type: 'num' },
+              { label: 'Min', key: 'min', type: 'num' },
+              { label: 'Max', key: 'max', type: 'num' },
+              { label: 'จำนวนที่ขอ', key: 'request_qty', type: 'num' },
+              { label: 'หน่วย', key: 'unit' },
+              { label: 'ราคาต่อหน่วย', key: 'unit_price', type: 'money', sensitive: true },
+              { label: 'สกุลเงิน', key: 'currency', sensitive: true },
+              { label: 'มูลค่ารวม', type: 'money', sensitive: true, get: function(o) { return xpN(o.request_qty) * xpN(o.unit_price); } },
+              { label: 'ความเร่งด่วน', key: 'priority' },
+              { label: 'เหตุผล', key: 'reason' },
+              { label: 'วันที่ต้องใช้', key: 'expected_use_date' },
+              { label: 'หมายเหตุ', key: 'remark' },
+              { label: 'ไฟล์แนบ', key: 'attachment_url' },
+              { label: 'สถานะ', key: 'status' },
+              { label: 'ความเห็น Admin', key: 'admin_comment' },
+              { label: 'อนุมัติโดย', key: 'approved_by' },
+              { label: 'อนุมัติเมื่อ', key: 'approved_date' },
+              { label: 'PR ที่แปลงไป', key: 'converted_pr_id' },
+              { label: 'รออนุมัติ (วัน)', type: 'num', get: function(o) {
+                var a = xpDayKey(o.requested_date), b = xpDayKey(o.approved_date);
+                if (!a || !b) return '';
+                var d = (new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000;
+                return d >= 0 ? Math.round(d) : '';
+              } },
+              { label: 'อัปเดตล่าสุด', key: 'updated_at' }
+            ], list);
+          });
+        }
+      },
+      {
+        key: 'prHeaders', group: 'การสั่งซื้อ', core: true, phaseB: true,
+        name: 'PR หัวใบ (PRHeaders)', sheetName: 'PR หัวใบ',
+        meta: 'ใบขอซื้อทุกใบ + สถานะอนุมัติ + ยอดรวม',
+        countSheets: ['PRHeaders'],
+        fetch: function() { return xpFetchPrBundle().then(function(res) { return xpTableFromDump(res.prHeaders); }); }
+      },
+      {
+        key: 'prLines', group: 'การสั่งซื้อ', core: true, phaseB: true,
+        name: 'PR รายการในใบ (PRLines)', sheetName: 'PR รายการในใบ',
+        meta: 'รายการอะไหล่ในแต่ละใบ PR + จำนวนที่ขอ vs ที่อนุมัติ',
+        countSheets: ['PRLines'],
+        fetch: function() { return xpFetchPrBundle().then(function(res) { return xpTableFromDump(res.prLines); }); }
+      },
+      {
+        key: 'prAudit', group: 'การสั่งซื้อ', phaseB: true,
+        name: 'PR audit (ใครแก้จำนวน)', sheetName: 'PR audit',
+        meta: 'PRAudit — หัวหน้าแก้จำนวนจากเท่าไหร่เป็นเท่าไหร่ ใครกดอนุมัติ',
+        countSheets: ['PRAudit'],
+        fetch: function() { return xpFetchPrBundle().then(function(res) { return xpTableFromDump(res.prAudit); }); }
+      },
+      {
+        key: 'purchaseHistory', group: 'การสั่งซื้อ', core: true,
+        name: 'Purchase History', sheetName: 'Purchase History',
+        meta: 'ประวัติสั่งซื้อจริง 33 คอลัมน์ + ราคาย้อนหลัง',
+        countSheets: ['PurchaseHistory'],
+        fetch: function() {
+          return xpFetchPurchaseHistory().then(function(list) {
+            var cols = [];
+            var seen = {};
+            // ชุดนี้ฝั่งเซิร์ฟเวอร์คืน object ที่คีย์ = ชื่อหัวคอลัมน์ในชีตตรงๆ
+            // เอาคอลัมน์ตามลำดับที่เจอในแถวแรกๆ ไม่ hardcode เพื่อไม่ให้พลาดคอลัมน์ที่เพิ่มใหม่
+            list.slice(0, 50).forEach(function(r) {
+              Object.keys(r).forEach(function(k) {
+                if (seen[k] || k.indexOf('__') === 0) return;
+                seen[k] = true;
+                var lower = k.toLowerCase();
+                var isNum = lower.indexOf('qty') > -1 || lower.indexOf('price') > -1 || lower.indexOf('amount') > -1;
+                cols.push({ label: k, key: k, type: isNum ? 'money' : 'text', sensitive: xpIsSensitiveHeader(k) });
+              });
+            });
+            if (!cols.length) cols.push({ label: 'History ID', key: 'History ID' });
+            return xpTable(cols, list);
+          });
+        }
+      },
+      {
+        key: 'purchaseHistoryLog', group: 'การสั่งซื้อ', phaseB: true,
+        name: 'Purchase History audit', sheetName: 'Purchase History audit',
+        meta: 'PurchaseHistoryLog — ใครแก้/ลบรายการซื้อ พร้อมเหตุผล',
+        countSheets: ['PurchaseHistoryLog'],
+        fetch: function() { return xpFetchAuditTrails().then(function(res) { return xpTableFromDump(res.purchaseHistoryLog); }); }
+      },
+      {
+        key: 'purchaseImportLog', group: 'การสั่งซื้อ', phaseB: true,
+        name: 'ประวัตินำเข้าไฟล์ PR', sheetName: 'ประวัตินำเข้า PR',
+        meta: 'PurchaseHistoryImportLog — ไฟล์ PDF ที่นำเข้า/แถวซ้ำที่ข้าม',
+        countSheets: ['PurchaseHistoryImportLog'],
+        fetch: function() { return xpFetchAuditTrails().then(function(res) { return xpTableFromDump(res.purchaseImportLog); }); }
+      },
+      {
+        key: 'miscExpenses', group: 'ต้นทุนและการผลิต', core: true,
+        name: 'ค่าใช้จ่ายสิ้นเปลือง', sheetName: 'ค่าใช้จ่ายสิ้นเปลือง',
+        meta: 'ของซื้อนอกระบบอะไหล่ แยกหมวด/ไลน์ (ส่วนกลางไม่เฉลี่ยเข้าไลน์)',
+        countSheets: ['MiscExpenses'], sensitiveSet: true,
+        fetch: function() {
+          return xpFetchMiscExpenses().then(function(list) {
+            return xpTable([
+              { label: 'Expense ID', key: 'expense_id' },
+              { label: 'วันที่', key: 'date' },
+              { label: 'เดือน', key: 'month' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'หมวด', key: 'category' },
+              { label: 'รายการ', key: 'item_name' },
+              { label: 'จำนวน', key: 'qty', type: 'num' },
+              { label: 'หน่วย', key: 'unit' },
+              { label: 'ราคาต่อหน่วย', key: 'unit_price', type: 'money', sensitive: true },
+              { label: 'ยอดรวม', key: 'total_amount', type: 'money', sensitive: true },
+              { label: 'ร้าน/ผู้ขาย', key: 'vendor', sensitive: true },
+              { label: 'เลขที่บิล', key: 'receipt_no' },
+              { label: 'ลิงก์บิล', key: 'receipt_url' },
+              { label: 'ผู้จ่าย', key: 'paid_by' },
+              { label: 'หมายเหตุ', key: 'remark' },
+              { label: 'บันทึกโดย', key: 'created_by' },
+              { label: 'บันทึกเมื่อ', key: 'created_at' },
+              { label: 'แก้ล่าสุดโดย', key: 'updated_by' },
+              { label: 'แก้ล่าสุดเมื่อ', key: 'updated_at' }
+            ], list);
+          });
+        }
+      },
+      {
+        key: 'miscExpenseLog', group: 'ต้นทุนและการผลิต', phaseB: true,
+        name: 'ค่าสิ้นเปลือง audit', sheetName: 'ค่าสิ้นเปลือง audit',
+        meta: 'MiscExpenseLog — ใครแก้/ลบค่าใช้จ่าย พร้อมเหตุผล',
+        countSheets: ['MiscExpenseLog'],
+        fetch: function() { return xpFetchAuditTrails().then(function(res) { return xpTableFromDump(res.miscExpenseLog); }); }
+      },
+      {
+        key: 'productionVolume', group: 'ต้นทุนและการผลิต', core: true,
+        name: 'ยอดผลิตรายเดือน', sheetName: 'ยอดผลิตรายเดือน',
+        meta: 'ProductionVolume + ยอดจริงจากชีตผลิตของแต่ละไลน์ + มูลค่าผลิต',
+        countSheets: ['ProductionVolume'],
+        fetch: function() {
+          return xpFetchProductionVolume().then(function(list) {
+            return xpTable([
+              { label: 'เดือน', key: 'month' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'ยอดผลิตจริง (ชิ้น)', key: 'actual_qty', type: 'num' },
+              { label: 'มูลค่าผลิต', key: 'production_value', type: 'money', sensitive: true },
+              { label: 'ยอดที่ยังไม่มีราคารุ่น', key: 'unpriced_qty', type: 'num', sensitive: true },
+              { label: 'ที่มาข้อมูล', get: function(o) { return o.source === 'auto' ? 'ชีตผลิตจริง (auto)' : 'กรอกมือ'; } },
+              { label: 'อัปเดตโดย', key: 'updated_by' },
+              { label: 'อัปเดตเมื่อ', key: 'updated_at' }
+            ], list);
+          });
+        }
+      },
+      {
+        key: 'productionCostConfig', group: 'ต้นทุนและการผลิต',
+        name: 'ราคาต่อชิ้น + เป้า %', sheetName: 'ราคาต่อชิ้นและเป้า',
+        meta: 'ProductionCostConfig — ราคาต่อหน่วยและเป้า % ค่าอะไหล่ต่อไลน์',
+        countSheets: ['ProductionCostConfig'], sensitiveSet: true,
+        fetch: function() {
+          return xpFetchProductionCostConfig().then(function(list) {
+            return xpTable([
+              { label: 'ไลน์', key: 'line' },
+              { label: 'ราคาต่อหน่วย', key: 'unit_price', type: 'money', sensitive: true },
+              { label: 'เป้า % ค่าอะไหล่', key: 'target_pct', type: 'num' },
+              { label: 'อัปเดตโดย', key: 'updated_by' },
+              { label: 'อัปเดตเมื่อ', key: 'updated_at' }
+            ], list);
+          });
+        }
+      },
+      {
+        key: 'stockCount', group: 'การควบคุมและตรวจสอบ', core: true,
+        name: 'ผลนับสต็อก (ทุกรอบ)', sheetName: 'ผลนับสต็อก',
+        meta: 'StockCount ทุก session + ผลต่าง + ใครอนุมัติ',
+        countSheets: ['StockCount'],
+        fetch: function() {
+          return xpFetchStockCount().then(function(list) {
+            return xpTable([
+              { label: 'Session ID', key: 'session_id' },
+              { label: 'เดือน', key: 'month' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'หมวด', key: 'category' },
+              { label: 'ชีตที่นับ', key: 'sheets' },
+              { label: 'รอบที่', key: 'round_no', type: 'num' },
+              { label: 'กลุ่มการนับ', key: 'count_group_id' },
+              { label: 'รายการที่นับ', key: 'total_items', type: 'num' },
+              { label: 'ตรงกับระบบ', key: 'matched', type: 'num' },
+              { label: 'ไม่ตรง', key: 'diff_count', type: 'num' },
+              { label: 'ความแม่น (%)', type: 'num', get: function(o) {
+                var t = xpN(o.total_items);
+                return t > 0 ? Math.round((xpN(o.matched) / t) * 1000) / 10 : '';
+              } },
+              { label: 'สถานะ', key: 'status' },
+              { label: 'นับโดย', key: 'created_by' },
+              { label: 'เริ่มนับ', key: 'created_at' },
+              { label: 'ส่งผลเมื่อ', key: 'submitted_at' },
+              { label: 'อนุมัติโดย', key: 'approved_by' },
+              { label: 'อนุมัติเมื่อ', key: 'approved_at' },
+              { label: 'ปรับยอดแล้ว (รายการ)', key: 'adjusted_count', type: 'num' }
+            ], list);
+          });
+        }
+      },
+      {
+        key: 'stockCountItems', group: 'การควบคุมและตรวจสอบ', phaseB: true,
+        name: 'ผลนับสต็อกรายชิ้น', sheetName: 'ผลนับรายชิ้น',
+        meta: 'แตก items_json ของทุกรอบออกเป็นรายชิ้น — ยอดนับ vs ยอดระบบ',
+        countSheets: [],
+        fetch: function() {
+          return xpFetchStockCount().then(function(list) {
+            var rows = [];
+            list.forEach(function(s) {
+              var items = [];
+              try { items = JSON.parse(xpS(s.items_json) || '[]'); } catch (err) { items = []; }
+              if (!Array.isArray(items)) items = [];
+              items.forEach(function(it) {
+                var sys = xpN(it.systemQty !== undefined ? it.systemQty : it.stock);
+                var counted = xpN(it.countedQty !== undefined ? it.countedQty : it.counted);
+                rows.push([
+                  xpS(s.session_id), xpS(s.month), xpS(s.line), xpS(s.status),
+                  xpS(it.name || it.partName), xpS(it.model), xpS(it.sheet || it.sheetName),
+                  sys, counted, counted - sys,
+                  Math.abs(counted - sys) === 0 ? 'ตรง' : (counted > sys ? 'เกิน' : 'ขาด'),
+                  xpS(it.remark || '')
+                ]);
+              });
+            });
+            return {
+              headers: ['Session ID', 'เดือน', 'ไลน์', 'สถานะรอบ', 'ชื่ออะไหล่', 'รุ่น', 'ชีต', 'ยอดในระบบ', 'ยอดที่นับได้', 'ผลต่าง', 'ผลการนับ', 'หมายเหตุ'],
+              rows: rows,
+              numeric: [false, false, false, false, false, false, false, true, true, true, false, false]
+            };
+          });
+        }
+      },
+      {
+        key: 'anomalies', group: 'การควบคุมและตรวจสอบ', phaseB: true,
+        name: 'เตือนเบิกผิดปกติ', sheetName: 'เตือนเบิกผิดปกติ',
+        meta: 'AnomalyAlerts ย้อนหลังทั้งหมด (ปกติหน้าเว็บเห็นแค่ 14 วัน)',
+        countSheets: ['AnomalyAlerts'],
+        fetch: function() {
+          return xpFetchAnomalies().then(function(list) {
+            return xpTable([
+              { label: 'ตรวจพบเมื่อ', key: 'detected_at' },
+              { label: 'ชื่ออะไหล่', key: 'part_name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ยอดเบิก 7 วัน', key: 'qty_7d', type: 'num' },
+              { label: 'ค่าเฉลี่ยต่อสัปดาห์', key: 'weekly_avg', type: 'num' },
+              { label: 'สูงกว่าปกติ (เท่า)', key: 'ratio', type: 'num' },
+              { label: 'ผู้เบิกมากสุด', key: 'top_user' },
+              { label: 'ยอดของผู้เบิกนั้น', key: 'top_user_qty', type: 'num' },
+              { label: 'สถานะ', key: 'status' },
+              { label: 'รายละเอียด', key: 'detail' }
+            ], list);
+          });
+        }
+      },
+      {
+        key: 'userRoster', group: 'การควบคุมและตรวจสอบ', adminOnly: true, phaseB: true,
+        name: 'ผู้ใช้และสิทธิ์ (ไม่มีรหัสผ่าน)', sheetName: 'ผู้ใช้และสิทธิ์',
+        meta: 'รายชื่อผู้ใช้ + สิทธิ์ที่เปิด — password/token ถูกตัดที่เซิร์ฟเวอร์',
+        countSheets: [],
+        fetch: function() {
+          return xpApi({ action: 'exportUserRoster' }).then(function(res) {
+            return xpTableFromDump({ headers: res.headers, rows: res.rows });
+          });
+        }
+      },
+      {
+        key: 'exportLog', group: 'การควบคุมและตรวจสอบ', adminOnly: true, phaseB: true,
+        name: 'ทะเบียนการส่งออกข้อมูล', sheetName: 'ทะเบียนการส่งออก',
+        meta: 'ExportLog — ใครดึงข้อมูลชุดไหนออกไปเมื่อไหร่',
+        countSheets: ['ExportLog'],
+        fetch: function() { return xpFetchAuditTrails().then(function(res) { return xpTableFromDump(res.exportLog); }); }
+      }
+    ];
+
+    function xpDatasetByKey(key) {
+      for (var i = 0; i < XP_DATASETS.length; i += 1) if (XP_DATASETS[i].key === key) return XP_DATASETS[i];
+      return null;
+    }
+    function xpVisibleDatasets() {
+      return XP_DATASETS.filter(function(d) {
+        if (d.adminOnly && !isAdminUser()) return false;
+        // โหมดลูกค้า: ชุดที่เนื้อหาทั้งชุดเป็นเรื่องเงิน ตัดออกทั้งชุดเลย ซ่อนคอลัมน์ไม่พอ
+        if (xpFilters.customerMode && d.sensitiveSet) return false;
+        return true;
+      });
+    }
+    function xpSelectedKeys() {
+      return Array.prototype.slice.call(document.querySelectorAll('#xpDatasetGrid input[data-xp-ds]:checked'))
+        .map(function(cb) { return cb.getAttribute('data-xp-ds'); });
+    }
+
+    // ── ตัวช่วยดาวน์โหลด / เขียนไฟล์ ──────────────────────────────────
+    function xpDownloadBlob(blob, filename) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 4000);
+    }
+    function xpCsvCell(v) {
+      var t = xpS(v).replace(/"/g, '""');
+      return '"' + t + '"';
+    }
+    function xpTableToCsv(table) {
+      var lines = [(table.headers || []).map(xpCsvCell).join(',')];
+      (table.rows || []).forEach(function(r) { lines.push(r.map(xpCsvCell).join(',')); });
+      // BOM บังคับ — ไม่มีแล้ว Excel เปิดไฟล์ภาษาไทยเป็นตัวยึกยือ
+      return '﻿' + lines.join('\r\n');
+    }
+    function xpSafeSheetName(name, used) {
+      var clean = xpS(name).replace(/[\[\]\*\/\\\?:]/g, ' ').trim().slice(0, 28) || 'Sheet';
+      var final = clean, n = 2;
+      while (used[final]) { final = clean.slice(0, 25) + ' ' + n; n += 1; }
+      used[final] = true;
+      return final;
+    }
+    function xpFileStamp() {
+      var d = new Date();
+      return xpDateStr(d) + '_' + ('0' + d.getHours()).slice(-2) + ('0' + d.getMinutes()).slice(-2);
+    }
+    function xpFileSuffix() {
+      var parts = [];
+      if (xpFilters.line) parts.push(xpFilters.line.replace(/[^A-Za-z0-9]+/g, '-'));
+      if (xpFilters.from || xpFilters.to) parts.push((xpFilters.from || 'เริ่มต้น') + '_ถึง_' + (xpFilters.to || 'ล่าสุด'));
+      if (xpFilters.customerMode) parts.push('customer');
+      return parts.length ? '-' + parts.join('-') : '';
+    }
+
+    // ExcelJS โหลดตอนกดใช้เท่านั้น (~270KB) — ไม่ผูกไว้ตอนเปิดเว็บเพราะคนส่วนใหญ่
+    // ไม่ได้เข้าหน้านี้ทุกวัน ถ้าโหลดไม่ได้จะถอยไปใช้ SheetJS ที่มีอยู่แล้ว (ได้ไฟล์ครบแต่ไม่มีสี)
+    var xpExcelJsPromise = null;
+    function xpLoadExcelJs() {
+      if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+      if (xpExcelJsPromise) return xpExcelJsPromise;
+      xpExcelJsPromise = new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+        s.onload = function() { window.ExcelJS ? resolve(window.ExcelJS) : reject(new Error('ExcelJS โหลดแล้วแต่ไม่พบตัวไลบรารี')); };
+        s.onerror = function() { xpExcelJsPromise = null; reject(new Error('โหลด ExcelJS ไม่สำเร็จ')); };
+        document.head.appendChild(s);
+      });
+      return xpExcelJsPromise;
+    }
+
+    // เขียน .xlsx แบบจัดรูปแบบ: หัวสีเข้ม ตรึงแถวหัว auto-filter ตัวเลขมี comma
+    // ชีตที่ใหญ่กว่า 5,000 แถวจะไม่ลงลายเส้นทีละเซลล์ (ช้าและไฟล์บวมโดยไม่ได้ประโยชน์)
+    function xpWriteXlsxStyled(sheets, filename) {
+      return xpLoadExcelJs().then(function(ExcelJS) {
+        var wb = new ExcelJS.Workbook();
+        wb.creator = 'JR Spare Parts System';
+        wb.created = new Date();
+        var used = {};
+        sheets.forEach(function(spec) {
+          var table = spec.table || { headers: [], rows: [] };
+          var ws = wb.addWorksheet(xpSafeSheetName(spec.name, used), {
+            views: [{ state: 'frozen', ySplit: 1 }]
+          });
+          var headers = (table.headers || []).map(xpS);
+          if (!headers.length) headers = ['(ไม่มีข้อมูล)'];
+          ws.addRow(headers);
+          (table.rows || []).forEach(function(r) { ws.addRow(r); });
+
+          var headRow = ws.getRow(1);
+          headRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+          headRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+          headRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          headRow.height = 26;
+
+          var rowCount = (table.rows || []).length;
+          if (rowCount) {
+            ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+          }
+          headers.forEach(function(h, i) {
+            var col = ws.getColumn(i + 1);
+            var maxLen = xpS(h).length;
+            var sampleMax = Math.min(rowCount, 200);
+            for (var r = 0; r < sampleMax; r += 1) {
+              var len = xpS(table.rows[r][i]).length;
+              if (len > maxLen) maxLen = len;
+            }
+            col.width = Math.max(9, Math.min(46, maxLen + 3));
+            if (table.numeric && table.numeric[i]) {
+              col.numFmt = (table.money && table.money[i]) ? '#,##0.00' : '#,##0';
+              col.alignment = { horizontal: 'right' };
+            }
+          });
+          if (rowCount && rowCount <= 5000) {
+            for (var r = 2; r <= rowCount + 1; r += 1) {
+              if (r % 2 === 0) continue;
+              ws.getRow(r).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF6F8FB' } };
+            }
+          }
+        });
+        return wb.xlsx.writeBuffer().then(function(buf) {
+          xpDownloadBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename);
+          return { styled: true };
+        });
+      }).catch(function(err) {
+        // ถอยไป SheetJS: ได้ไฟล์ครบทุกชีตเหมือนกัน แค่ไม่มีสี/ตัวกรอง ดีกว่าไม่ได้ไฟล์เลย
+        console.warn('ExcelJS ใช้ไม่ได้ ใช้ SheetJS แทน', err);
+        if (!window.XLSX) throw new Error('สร้างไฟล์ Excel ไม่ได้: โหลดไลบรารีไม่สำเร็จทั้งสองตัว');
+        var wb = window.XLSX.utils.book_new();
+        var used2 = {};
+        sheets.forEach(function(spec) {
+          var table = spec.table || { headers: [], rows: [] };
+          var aoa = [(table.headers || []).length ? table.headers : ['(ไม่มีข้อมูล)']].concat(table.rows || []);
+          window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.aoa_to_sheet(aoa), xpSafeSheetName(spec.name, used2));
+        });
+        window.XLSX.writeFile(wb, filename);
+        return { styled: false };
+      });
+    }
+
+    // ── แถบความคืบหน้า ────────────────────────────────────────────────
+    function xpProgressShow(show) {
+      var wrap = xpEl('xpProgressWrap');
+      if (!wrap) return;
+      wrap.classList.toggle('hidden', !show);
+      if (show) {
+        var log = xpEl('xpProgressLog');
+        if (log) log.innerHTML = '';
+        xpProgressSet(0, 'กำลังเตรียม...');
+      }
+    }
+    function xpProgressSet(pct, text) {
+      var bar = xpEl('xpProgressBar');
+      var t = xpEl('xpProgressText');
+      if (bar) bar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+      if (t && text) t.textContent = text;
+    }
+    function xpProgressLog(msg, state) {
+      var log = xpEl('xpProgressLog');
+      if (!log) return;
+      var li = document.createElement('li');
+      if (state === 'ok') li.className = 'xp-ok';
+      if (state === 'fail') li.className = 'xp-fail';
+      li.textContent = msg;
+      log.appendChild(li);
+      log.scrollTop = log.scrollHeight;
+    }
+    function xpSetBusy(busy) {
+      xpBusy = busy;
+      ['xpWorkbookBtn', 'xpPdfBtn', 'xpJsonBundleBtn', 'xpExportXlsxBtn', 'xpExportCsvBtn', 'xpExportJsonBtn'].forEach(function(id) {
+        var el = xpEl(id);
+        if (el) el.disabled = busy;
+      });
+    }
+
+    // ดึงหลายชุดเรียงทีละชุด (ไม่ยิงขนานทั้งหมด) — Apps Script มี timeout 30 วินาที
+    // ต่อคำขอ และมีลิมิตคำขอพร้อมกัน ยิงรวบ 20 ชุดทีเดียวจะพังเป็นบางชุดแบบสุ่ม
+    // ชุดที่พังจะถูกบันทึกว่า failed แล้วไปต่อ ไม่ล้มทั้งงาน
+    function xpFetchDatasetsSequential(keys, startPct, endPct) {
+      var results = [];
+      var total = keys.length;
+      var idx = 0;
+      var lo = startPct === undefined ? 0 : startPct;
+      var hi = endPct === undefined ? 92 : endPct;
+      function next() {
+        if (idx >= total) return Promise.resolve(results);
+        var key = keys[idx];
+        var ds = xpDatasetByKey(key);
+        idx += 1;
+        if (!ds) return next();
+        xpProgressSet(lo + Math.round(((idx - 1) / total) * (hi - lo)), 'กำลังดึง: ' + ds.name + ' (' + idx + '/' + total + ')');
+        return ds.fetch().then(function(table) {
+          results.push({ ds: ds, table: table, rowCount: (table.rows || []).length });
+          xpProgressLog(ds.name + ' — ' + xpFmtInt((table.rows || []).length) + ' แถว', 'ok');
+        }).catch(function(err) {
+          results.push({ ds: ds, table: null, error: err && err.message ? err.message : String(err) });
+          xpProgressLog(ds.name + ' — ดึงไม่ได้: ' + (err && err.message ? err.message : err), 'fail');
+        }).then(next);
+      }
+      return next();
+    }
+
+    // แจ้งเซิร์ฟเวอร์ว่ามีการดาวน์โหลดออกไป — ล้มเหลวก็ไม่กระทบไฟล์ที่ผู้ใช้ได้ไปแล้ว
+    function xpLogExport(scope, datasets, rowCount, format) {
+      return xpApi({
+        action: 'logExportEvent',
+        scope: scope,
+        datasets: datasets.join(', '),
+        rowCount: rowCount,
+        format: format,
+        from: xpFilters.from, to: xpFilters.to,
+        line: xpFilters.line || 'ทุกไลน์',
+        customerMode: xpFilters.customerMode ? '1' : '0'
+      }).catch(function(err) { console.warn('logExportEvent failed', err); });
+    }
+
+    // ── บริบทข้อมูลสำหรับรายงานวิเคราะห์และแพ็กเกจนำเสนอ ──────────────
+    // ดึงเรียงทีละชุดพร้อมรายงานความคืบหน้า แล้วเก็บไว้ใน xpCache ให้รายงานอื่นใช้ต่อ
+    // ไม่ยิงขนานเพราะ Apps Script จะทิ้งคำขอบางส่วนเมื่อยิงรวบทีเดียว
+    var XP_RAW_FETCHERS = {
+      master: { label: 'Master อะไหล่', fn: xpFetchMaster },
+      logs: { label: 'Log รับเข้า/เบิกออก', fn: xpFetchLogs },
+      orderRequests: { label: 'คำขอซื้อ', fn: xpFetchOrderRequests },
+      purchaseHistory: { label: 'Purchase History', fn: xpFetchPurchaseHistory },
+      miscExpenses: { label: 'ค่าใช้จ่ายสิ้นเปลือง', fn: xpFetchMiscExpenses },
+      productionVolume: { label: 'ยอดผลิต', fn: xpFetchProductionVolume },
+      costConfig: { label: 'ราคาต่อชิ้น + เป้า %', fn: xpFetchProductionCostConfig },
+      stockCount: { label: 'ผลนับสต็อก', fn: xpFetchStockCount },
+      partTags: { label: 'ทะเบียนชิ้น', fn: xpFetchPartTags },
+      machines: { label: 'เครื่องจักร', fn: xpFetchMachines },
+      prBundle: { label: 'PR เต็มวงจร', fn: xpFetchPrBundle }
+    };
+    function xpContext(keys, startPct, endPct) {
+      var ctx = { failed: {} };
+      var total = keys.length;
+      var idx = 0;
+      var lo = startPct === undefined ? 0 : startPct;
+      var hi = endPct === undefined ? 90 : endPct;
+      function next() {
+        if (idx >= total) return Promise.resolve(ctx);
+        var key = keys[idx];
+        var spec = XP_RAW_FETCHERS[key];
+        idx += 1;
+        if (!spec) return next();
+        xpProgressSet(lo + Math.round(((idx - 1) / total) * (hi - lo)), 'กำลังดึง: ' + spec.label + ' (' + idx + '/' + total + ')');
+        return spec.fn().then(function(data) {
+          ctx[key] = data;
+          var n = Array.isArray(data) ? data.length : 1;
+          xpProgressLog(spec.label + ' — ' + xpFmtInt(n) + (Array.isArray(data) ? ' แถว' : ' ชุด'), 'ok');
+        }).catch(function(err) {
+          ctx[key] = Array.isArray(ctx[key]) ? ctx[key] : [];
+          ctx.failed[key] = err && err.message ? err.message : String(err);
+          xpProgressLog(spec.label + ' — ดึงไม่ได้: ' + ctx.failed[key], 'fail');
+        }).then(next);
+      }
+      return next();
+    }
+
+    function xpIsOutput(type) { return xpS(type).toLowerCase().indexOf('output') > -1; }
+    function xpIsInput(type) { return xpS(type).toLowerCase().indexOf('input') > -1; }
+    function xpPartKey(name, model) { return (xpS(name).trim() + '||' + xpS(model).trim()).toLowerCase(); }
+
+    // ── KPI สรุปผู้บริหาร — ทุกตัวคำนวณจากข้อมูลจริง ────────────────────
+    // ชุดไหนดึงไม่สำเร็จจะขึ้น 'ดึงข้อมูลไม่ได้' ไม่ใช่ 0 (ศูนย์ปลอมทำให้คนอ่านเข้าใจผิด
+    // ว่าเดือนนั้นไม่มีรายการ ซึ่งต่างจาก "ไม่รู้" อย่างสิ้นเชิง)
+    function xpBuildKpis(ctx) {
+      var master = ctx.master || [];
+      var logs = ctx.logs || [];
+      var priceMap = xpPriceMap(master);
+      var out = [];
+      function add(group, label, value, unit, note) {
+        out.push({ group: group, label: label, value: value, unit: unit || '', note: note || '' });
+      }
+      function na(key) { return ctx.failed[key] ? 'ดึงข้อมูลไม่ได้' : null; }
+
+      var stockValue = 0, belowMin = 0, outOfStock = 0, noPrice = 0;
+      master.forEach(function(it) {
+        stockValue += xpN(it.stock) * xpN(it.unit_price);
+        if (xpN(it.stock) < xpN(it.min)) belowMin += 1;
+        if (xpN(it.stock) <= 0) outOfStock += 1;
+        if (!xpN(it.unit_price)) noPrice += 1;
+      });
+      add('คลังอะไหล่', 'จำนวนรายการอะไหล่ (SKU)', na('master') || master.length, 'รายการ');
+      if (!xpFilters.customerMode) add('คลังอะไหล่', 'มูลค่าคงคลังรวม', na('master') || Math.round(stockValue), 'บาท', 'คงเหลือ × ราคาต่อหน่วยล่าสุด');
+      add('คลังอะไหล่', 'ต่ำกว่า Min', na('master') || belowMin, 'รายการ', 'นับแบบ คงเหลือ < Min');
+      add('คลังอะไหล่', 'ของหมด (คงเหลือ 0)', na('master') || outOfStock, 'รายการ');
+      if (!xpFilters.customerMode) add('คลังอะไหล่', 'ยังไม่ได้ลงราคา', na('master') || noPrice, 'รายการ', 'มูลค่าคงคลังจริงจะสูงกว่าที่คำนวณได้');
+
+      var issueQty = 0, issueValue = 0, receiveQty = 0, receiveValue = 0;
+      var issuedKeys = {};
+      logs.forEach(function(l) {
+        var price = xpLookupPrice(priceMap, l.partName, l.model, l.partNo, '');
+        if (xpIsOutput(l.type)) {
+          issueQty += xpN(l.qty);
+          issueValue += xpN(l.qty) * price;
+          issuedKeys[xpPartKey(l.partName, l.model)] = true;
+        } else if (xpIsInput(l.type)) {
+          receiveQty += xpN(l.qty);
+          receiveValue += xpN(l.qty) * price;
+        }
+      });
+      add('การเคลื่อนไหว', 'จำนวนธุรกรรมทั้งหมด', na('logs') || logs.length, 'รายการ');
+      add('การเคลื่อนไหว', 'ยอดเบิกออกรวม', na('logs') || issueQty, 'ชิ้น');
+      if (!xpFilters.customerMode) add('การเคลื่อนไหว', 'มูลค่าเบิกออกรวม', na('logs') || Math.round(issueValue), 'บาท', 'ตีราคาจากราคาต่อหน่วยล่าสุดใน Master');
+      add('การเคลื่อนไหว', 'ยอดรับเข้ารวม', na('logs') || receiveQty, 'ชิ้น');
+      if (!xpFilters.customerMode) add('การเคลื่อนไหว', 'มูลค่ารับเข้ารวม', na('logs') || Math.round(receiveValue), 'บาท');
+
+      var deadCount = 0, deadValue = 0;
+      if (!ctx.failed.master && !ctx.failed.logs) {
+        master.forEach(function(it) {
+          if (issuedKeys[xpPartKey(it.name, it.model)]) return;
+          if (xpN(it.stock) <= 0) return;
+          deadCount += 1;
+          deadValue += xpN(it.stock) * xpN(it.unit_price);
+        });
+      }
+      add('คลังอะไหล่', 'ไม่มีการเบิกในช่วงนี้ (Dead stock)', (ctx.failed.master || ctx.failed.logs) ? 'ดึงข้อมูลไม่ได้' : deadCount, 'รายการ');
+      if (!xpFilters.customerMode) add('คลังอะไหล่', 'มูลค่าที่จมใน Dead stock', (ctx.failed.master || ctx.failed.logs) ? 'ดึงข้อมูลไม่ได้' : Math.round(deadValue), 'บาท');
+
+      var reqs = ctx.orderRequests || [];
+      var pending = reqs.filter(function(r) { return xpS(r.status) === 'Pending'; }).length;
+      var approved = reqs.filter(function(r) { return ['Approved', 'Converted to PR', 'Purchased', 'Received', 'Closed'].indexOf(xpS(r.status)) > -1; }).length;
+      add('การสั่งซื้อ', 'คำขอซื้อทั้งหมด', na('orderRequests') || reqs.length, 'คำขอ');
+      add('การสั่งซื้อ', 'คำขอที่รออนุมัติ', na('orderRequests') || pending, 'คำขอ');
+      add('การสั่งซื้อ', 'คำขอที่อนุมัติแล้ว', na('orderRequests') || approved, 'คำขอ');
+
+      var prRows = (ctx.prBundle && ctx.prBundle.prHeaders && ctx.prBundle.prHeaders.rows) || [];
+      var prHeadersArr = (ctx.prBundle && ctx.prBundle.prHeaders && ctx.prBundle.prHeaders.headers) || [];
+      var prStatusIdx = prHeadersArr.indexOf('status');
+      var prAmountIdx = prHeadersArr.indexOf('total_amount');
+      var prPending = 0, prAmount = 0;
+      prRows.forEach(function(r) {
+        if (prStatusIdx > -1 && xpS(r[prStatusIdx]) === 'PENDING') prPending += 1;
+        if (prAmountIdx > -1) prAmount += xpN(r[prAmountIdx]);
+      });
+      add('การสั่งซื้อ', 'ใบ PR ทั้งหมด', na('prBundle') || prRows.length, 'ใบ');
+      add('การสั่งซื้อ', 'ใบ PR ที่รออนุมัติ', na('prBundle') || prPending, 'ใบ');
+      if (!xpFilters.customerMode) add('การสั่งซื้อ', 'มูลค่ารวมในใบ PR', na('prBundle') || Math.round(prAmount), 'บาท');
+
+      var ph = ctx.purchaseHistory || [];
+      var phTotal = 0;
+      ph.forEach(function(r) { phTotal += xpN(r['Total Amount'] || r.total_amount); });
+      add('การสั่งซื้อ', 'รายการสั่งซื้อที่บันทึกไว้', na('purchaseHistory') || ph.length, 'รายการ');
+      if (!xpFilters.customerMode) add('การสั่งซื้อ', 'ยอดสั่งซื้อรวม', na('purchaseHistory') || Math.round(phTotal), 'บาท');
+
+      var misc = ctx.miscExpenses || [];
+      var miscTotal = 0;
+      misc.forEach(function(r) { miscTotal += xpN(r.total_amount); });
+      if (!xpFilters.customerMode) {
+        add('ต้นทุน', 'ค่าใช้จ่ายสิ้นเปลืองรวม', na('miscExpenses') || Math.round(miscTotal), 'บาท', 'ของซื้อนอกระบบอะไหล่ ไม่ซ้ำกับยอดเบิก');
+      }
+
+      var pv = ctx.productionVolume || [];
+      var prodQty = 0, prodValue = 0;
+      pv.forEach(function(r) { prodQty += xpN(r.actual_qty); prodValue += xpN(r.production_value); });
+      add('การผลิต', 'ยอดผลิตรวม', na('productionVolume') || prodQty, 'ชิ้น');
+      if (!xpFilters.customerMode) {
+        add('การผลิต', 'มูลค่าผลิตรวม', na('productionVolume') || Math.round(prodValue), 'บาท', 'เฉพาะรุ่นที่จับคู่ราคาได้');
+        var pct = prodValue > 0 ? Math.round(((issueValue + miscTotal) / prodValue) * 10000) / 100 : '';
+        add('การผลิต', 'ค่าอะไหล่ + สิ้นเปลือง ต่อมูลค่าผลิต', pct === '' ? 'ไม่มีมูลค่าผลิตให้เทียบ' : pct, pct === '' ? '' : '%');
+      }
+
+      var sc = ctx.stockCount || [];
+      var scTotal = 0, scMatched = 0;
+      sc.forEach(function(s) { scTotal += xpN(s.total_items); scMatched += xpN(s.matched); });
+      add('การควบคุม', 'รอบนับสต็อกที่ทำ', na('stockCount') || sc.length, 'รอบ');
+      add('การควบคุม', 'ความแม่นยำการนับเฉลี่ย', ctx.failed.stockCount ? 'ดึงข้อมูลไม่ได้' : (scTotal > 0 ? Math.round((scMatched / scTotal) * 1000) / 10 : 'ยังไม่มีรอบนับ'), scTotal > 0 ? '%' : '');
+
+      var tags = ctx.partTags || [];
+      add('การควบคุม', 'ทะเบียนชิ้นที่ออกเลขแล้ว', na('partTags') || tags.length, 'ชิ้น');
+      add('การควบคุม', 'ชิ้นที่ถอดออกแล้ว', na('partTags') || tags.filter(function(t) { return xpS(t.status) === 'ถอดแล้ว'; }).length, 'ชิ้น');
+      add('การควบคุม', 'เครื่องจักรที่ลงทะเบียน', na('machines') || (ctx.machines || []).length, 'เครื่อง');
+      return out;
+    }
+    function xpKpiTable(kpis) {
+      return {
+        headers: ['กลุ่ม', 'ตัวชี้วัด', 'ค่า', 'หน่วย', 'หมายเหตุ'],
+        rows: kpis.map(function(k) { return [k.group, k.label, k.value, k.unit, k.note]; }),
+        numeric: [false, false, false, false, false]
+      };
+    }
+
+    // เทรนด์ตามช่วงเวลาที่เลือก (เดือน/สัปดาห์/วัน) — ทุกคอลัมน์มาจากชุดข้อมูลจริงคนละชุด
+    function xpBuildTrend(ctx) {
+      var priceMap = xpPriceMap(ctx.master || []);
+      var buckets = {};
+      function bucket(k) {
+        if (!k) return null;
+        if (!buckets[k]) buckets[k] = { key: k, inQty: 0, inValue: 0, outQty: 0, outValue: 0, txn: 0, purchase: 0, misc: 0, prodQty: 0, prodValue: 0 };
+        return buckets[k];
+      }
+      (ctx.logs || []).forEach(function(l) {
+        var b = bucket(xpBucketKey(l.timestamp));
+        if (!b) return;
+        b.txn += 1;
+        var value = xpN(l.qty) * xpLookupPrice(priceMap, l.partName, l.model, l.partNo, '');
+        if (xpIsOutput(l.type)) { b.outQty += xpN(l.qty); b.outValue += value; }
+        else if (xpIsInput(l.type)) { b.inQty += xpN(l.qty); b.inValue += value; }
+      });
+      (ctx.purchaseHistory || []).forEach(function(r) {
+        var b = bucket(xpBucketKey(r['Requested Date'] || r['Ordered Date'] || r.Month));
+        if (b) b.purchase += xpN(r['Total Amount'] || r.total_amount);
+      });
+      (ctx.miscExpenses || []).forEach(function(r) {
+        var b = bucket(xpBucketKey(r.date || r.month));
+        if (b) b.misc += xpN(r.total_amount);
+      });
+      (ctx.productionVolume || []).forEach(function(r) {
+        // ยอดผลิตเก็บเป็นรายเดือนเท่านั้น ถ้าผู้ใช้เลือกรวมตามวัน/สัปดาห์จะจับคู่ช่องไม่ได้
+        // จึงลงเฉพาะตอนรวมตามเดือน (ดีกว่าเกลี่ยเองซึ่งอธิบายที่มาไม่ได้)
+        if (xpFilters.groupBy !== 'month') return;
+        var b = bucket(xpS(r.month));
+        if (b) { b.prodQty += xpN(r.actual_qty); b.prodValue += xpN(r.production_value); }
+      });
+      var keys = Object.keys(buckets).filter(Boolean).sort();
+      var cols = [
+        { label: xpFilters.groupBy === 'day' ? 'วัน' : (xpFilters.groupBy === 'week' ? 'สัปดาห์' : 'เดือน'), get: function(b) { return b.key; } },
+        { label: 'ธุรกรรม (รายการ)', type: 'num', get: function(b) { return b.txn; } },
+        { label: 'รับเข้า (ชิ้น)', type: 'num', get: function(b) { return b.inQty; } },
+        { label: 'เบิกออก (ชิ้น)', type: 'num', get: function(b) { return b.outQty; } },
+        { label: 'มูลค่ารับเข้า', type: 'money', sensitive: true, get: function(b) { return Math.round(b.inValue); } },
+        { label: 'มูลค่าเบิกออก', type: 'money', sensitive: true, get: function(b) { return Math.round(b.outValue); } },
+        { label: 'ยอดสั่งซื้อ', type: 'money', sensitive: true, get: function(b) { return Math.round(b.purchase); } },
+        { label: 'ค่าสิ้นเปลือง', type: 'money', sensitive: true, get: function(b) { return Math.round(b.misc); } },
+        { label: 'ยอดผลิต (ชิ้น)', type: 'num', get: function(b) { return b.prodQty; } },
+        { label: 'มูลค่าผลิต', type: 'money', sensitive: true, get: function(b) { return Math.round(b.prodValue); } },
+        { label: '% ค่าอะไหล่ต่อมูลค่าผลิต', type: 'num', sensitive: true, get: function(b) {
+          return b.prodValue > 0 ? Math.round(((b.outValue + b.misc) / b.prodValue) * 10000) / 100 : '';
+        } }
+      ];
+      return { table: xpTable(cols, keys.map(function(k) { return buckets[k]; })), buckets: keys.map(function(k) { return buckets[k]; }) };
+    }
+
+    // สรุปตามไลน์ — ไลน์คือหน่วยที่ผู้จัดการใช้ตัดสินใจ จึงต้องมีแถวต่อไลน์ครบทุกตัวชี้วัด
+    function xpBuildLineSummary(ctx) {
+      var priceMap = xpPriceMap(ctx.master || []);
+      var lines = {};
+      function row(name) {
+        var k = xpS(name).trim() || '(ไม่ระบุไลน์)';
+        if (!lines[k]) lines[k] = { line: k, skus: 0, stockValue: 0, belowMin: 0, outQty: 0, outValue: 0, inQty: 0, reqs: 0, purchase: 0, misc: 0, prodQty: 0, prodValue: 0, target: '' };
+        return lines[k];
+      }
+      (ctx.master || []).forEach(function(it) {
+        var r = row(it.line);
+        r.skus += 1;
+        r.stockValue += xpN(it.stock) * xpN(it.unit_price);
+        if (xpN(it.stock) < xpN(it.min)) r.belowMin += 1;
+      });
+      (ctx.logs || []).forEach(function(l) {
+        var r = row(l.process);
+        var v = xpN(l.qty) * xpLookupPrice(priceMap, l.partName, l.model, l.partNo, '');
+        if (xpIsOutput(l.type)) { r.outQty += xpN(l.qty); r.outValue += v; }
+        else if (xpIsInput(l.type)) { r.inQty += xpN(l.qty); }
+      });
+      (ctx.orderRequests || []).forEach(function(q) { row(q.line).reqs += 1; });
+      (ctx.purchaseHistory || []).forEach(function(p) { row(p.Line || p.line).purchase += xpN(p['Total Amount'] || p.total_amount); });
+      (ctx.miscExpenses || []).forEach(function(m) { row(m.line).misc += xpN(m.total_amount); });
+      (ctx.productionVolume || []).forEach(function(p) { var r = row(p.line); r.prodQty += xpN(p.actual_qty); r.prodValue += xpN(p.production_value); });
+      (ctx.costConfig || []).forEach(function(c) { row(c.line).target = xpN(c.target_pct); });
+      var list = Object.keys(lines).sort().map(function(k) { return lines[k]; });
+      return xpTable([
+        { label: 'ไลน์', key: 'line' },
+        { label: 'จำนวน SKU', key: 'skus', type: 'num' },
+        { label: 'มูลค่าคงคลัง', key: 'stockValue', type: 'money', sensitive: true, get: function(o) { return Math.round(o.stockValue); } },
+        { label: 'ต่ำกว่า Min', key: 'belowMin', type: 'num' },
+        { label: 'เบิกออก (ชิ้น)', key: 'outQty', type: 'num' },
+        { label: 'มูลค่าเบิกออก', type: 'money', sensitive: true, get: function(o) { return Math.round(o.outValue); } },
+        { label: 'รับเข้า (ชิ้น)', key: 'inQty', type: 'num' },
+        { label: 'คำขอซื้อ', key: 'reqs', type: 'num' },
+        { label: 'ยอดสั่งซื้อ', type: 'money', sensitive: true, get: function(o) { return Math.round(o.purchase); } },
+        { label: 'ค่าสิ้นเปลือง', type: 'money', sensitive: true, get: function(o) { return Math.round(o.misc); } },
+        { label: 'ยอดผลิต (ชิ้น)', key: 'prodQty', type: 'num' },
+        { label: 'มูลค่าผลิต', type: 'money', sensitive: true, get: function(o) { return Math.round(o.prodValue); } },
+        { label: '% ค่าอะไหล่จริง', type: 'num', sensitive: true, get: function(o) {
+          return o.prodValue > 0 ? Math.round(((o.outValue + o.misc) / o.prodValue) * 10000) / 100 : '';
+        } },
+        { label: 'เป้า %', key: 'target', type: 'num', sensitive: true },
+        { label: 'ผลเทียบเป้า', sensitive: true, get: function(o) {
+          if (!(o.prodValue > 0) || o.target === '' || !xpN(o.target)) return 'ยังไม่ตั้งเป้า/ไม่มีมูลค่าผลิต';
+          var actual = ((o.outValue + o.misc) / o.prodValue) * 100;
+          return actual <= xpN(o.target) ? 'อยู่ในเป้า' : 'เกินเป้า';
+        } }
+      ], list);
+    }
+
+    // ── รายงานวิเคราะห์สำเร็จรูป 10 ตัว ───────────────────────────────
+    var XP_REPORTS = [
+      {
+        key: 'topIssue', name: 'Top 50 อะไหล่ที่เบิกเยอะสุด',
+        desc: 'จัดอันดับตามจำนวนและมูลค่า พร้อมจำนวนครั้งที่เบิกและเครื่องที่ใช้',
+        needs: ['logs', 'master'],
+        build: function(ctx) {
+          var priceMap = xpPriceMap(ctx.master || []);
+          var agg = {};
+          (ctx.logs || []).forEach(function(l) {
+            if (!xpIsOutput(l.type)) return;
+            var k = xpS(l.process).trim() + '||' + xpPartKey(l.partName, l.model);
+            if (!agg[k]) agg[k] = { line: l.process, name: l.partName, model: l.model, category: l.category, qty: 0, times: 0, machines: {}, users: {} };
+            agg[k].qty += xpN(l.qty);
+            agg[k].times += 1;
+            if (xpS(l.machine).trim()) agg[k].machines[xpS(l.machine).trim()] = true;
+            if (xpS(l.by).trim()) agg[k].users[xpS(l.by).trim()] = true;
+          });
+          var list = Object.keys(agg).map(function(k) {
+            var a = agg[k];
+            a.price = xpLookupPrice(priceMap, a.name, a.model, '', '');
+            a.value = a.qty * a.price;
+            return a;
+          });
+          list.sort(function(a, b) { return (b.value - a.value) || (b.qty - a.qty); });
+          list = list.slice(0, 50);
+          return {
+            table: xpTable([
+              { label: 'อันดับ', type: 'num', get: function(o) { return list.indexOf(o) + 1; } },
+              { label: 'ชื่ออะไหล่', key: 'name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'หมวด', key: 'category' },
+              { label: 'ยอดเบิก (ชิ้น)', key: 'qty', type: 'num' },
+              { label: 'จำนวนครั้งที่เบิก', key: 'times', type: 'num' },
+              { label: 'ราคาต่อหน่วย', key: 'price', type: 'money', sensitive: true },
+              { label: 'มูลค่ารวม', key: 'value', type: 'money', sensitive: true, get: function(o) { return Math.round(o.value); } },
+              { label: 'เครื่องที่ใช้', get: function(o) { return Object.keys(o.machines).join(', '); } },
+              { label: 'ผู้เบิก', get: function(o) { return Object.keys(o.users).join(', '); } }
+            ], list),
+            note: 'เรียงตามมูลค่ารวม (ยอดเบิก × ราคาต่อหน่วยล่าสุด) — รายการที่ยังไม่ลงราคาจะมีมูลค่า 0 แต่ยอดชิ้นถูกต้อง'
+          };
+        }
+      },
+      {
+        key: 'deadStock', name: 'Dead Stock — ของที่ไม่มีการเบิก',
+        desc: 'อะไหล่ที่ยังมีของแต่ไม่มีการเบิกในช่วงที่เลือก + มูลค่าที่จมอยู่',
+        needs: ['master', 'logs'],
+        build: function(ctx) {
+          var issued = {};
+          (ctx.logs || []).forEach(function(l) { if (xpIsOutput(l.type)) issued[xpPartKey(l.partName, l.model)] = true; });
+          var list = (ctx.master || []).filter(function(it) {
+            return xpN(it.stock) > 0 && !issued[xpPartKey(it.name, it.model)];
+          }).map(function(it) {
+            var copy = Object.assign({}, it);
+            copy.__value = xpN(it.stock) * xpN(it.unit_price);
+            return copy;
+          });
+          list.sort(function(a, b) { return b.__value - a.__value; });
+          return {
+            table: xpTable([
+              { label: 'ชื่ออะไหล่', key: 'name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'หมวด', key: 'category' },
+              { label: 'ตำแหน่งเก็บ', key: 'location' },
+              { label: 'คงเหลือ', key: 'stock', type: 'num' },
+              { label: 'หน่วย', key: 'unit' },
+              { label: 'Min', key: 'min', type: 'num' },
+              { label: 'ราคาต่อหน่วย', key: 'unit_price', type: 'money', sensitive: true },
+              { label: 'มูลค่าที่จม', key: '__value', type: 'money', sensitive: true, get: function(o) { return Math.round(o.__value); } },
+              { label: 'รับเข้าล่าสุด', key: 'last_received_at' }
+            ], list),
+            note: 'นับจากช่วงวันที่ที่เลือกด้านบนเท่านั้น — ถ้าเลือก "ทั้งหมด" หมายถึงไม่มีประวัติเบิกใน Log เลย'
+          };
+        }
+      },
+      {
+        key: 'abc', name: 'ABC Analysis — จัดชั้นความสำคัญ',
+        desc: 'แบ่งชั้น A/B/C ตามมูลค่าเบิกสะสม 80/15/5 เพื่อรู้ว่าควรคุมของกลุ่มไหนก่อน',
+        needs: ['logs', 'master'],
+        build: function(ctx) {
+          var priceMap = xpPriceMap(ctx.master || []);
+          var agg = {};
+          (ctx.logs || []).forEach(function(l) {
+            if (!xpIsOutput(l.type)) return;
+            var k = xpPartKey(l.partName, l.model);
+            if (!agg[k]) agg[k] = { name: l.partName, model: l.model, line: l.process, qty: 0 };
+            agg[k].qty += xpN(l.qty);
+          });
+          var list = Object.keys(agg).map(function(k) {
+            var a = agg[k];
+            a.value = a.qty * xpLookupPrice(priceMap, a.name, a.model, '', '');
+            return a;
+          }).filter(function(a) { return a.value > 0; });
+          list.sort(function(a, b) { return b.value - a.value; });
+          var total = list.reduce(function(s, a) { return s + a.value; }, 0);
+          var cum = 0;
+          list.forEach(function(a) {
+            cum += a.value;
+            a.cumPct = total > 0 ? (cum / total) * 100 : 0;
+            a.grade = a.cumPct <= 80 ? 'A' : (a.cumPct <= 95 ? 'B' : 'C');
+          });
+          return {
+            table: xpTable([
+              { label: 'ชั้น', key: 'grade' },
+              { label: 'ชื่ออะไหล่', key: 'name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'ยอดเบิก (ชิ้น)', key: 'qty', type: 'num' },
+              { label: 'มูลค่าเบิก', key: 'value', type: 'money', sensitive: true, get: function(o) { return Math.round(o.value); } },
+              { label: '% ของมูลค่ารวม', type: 'num', sensitive: true, get: function(o) { return total > 0 ? Math.round((o.value / total) * 10000) / 100 : 0; } },
+              { label: '% สะสม', type: 'num', sensitive: true, get: function(o) { return Math.round(o.cumPct * 100) / 100; } }
+            ], list),
+            note: 'ต้องมีราคาต่อหน่วยจึงจัดชั้นได้ — รายการที่ยังไม่ลงราคาไม่ปรากฏในรายงานนี้ (' + xpFmtInt(Object.keys(agg).length - list.length) + ' รายการ)'
+          };
+        }
+      },
+      {
+        key: 'turnover', name: 'Stock Turnover — รอบหมุนของอะไหล่',
+        desc: 'ยอดเบิกเทียบยอดคงเหลือปัจจุบัน บอกว่าของหมุนเร็ว/ช้าแค่ไหน',
+        needs: ['logs', 'master'],
+        build: function(ctx) {
+          var out = {};
+          (ctx.logs || []).forEach(function(l) {
+            if (!xpIsOutput(l.type)) return;
+            out[xpPartKey(l.partName, l.model)] = (out[xpPartKey(l.partName, l.model)] || 0) + xpN(l.qty);
+          });
+          var list = (ctx.master || []).map(function(it) {
+            var copy = Object.assign({}, it);
+            copy.__out = out[xpPartKey(it.name, it.model)] || 0;
+            var stock = xpN(it.stock);
+            copy.__turns = stock > 0 ? copy.__out / stock : (copy.__out > 0 ? '' : 0);
+            return copy;
+          }).filter(function(o) { return o.__out > 0 || xpN(o.stock) > 0; });
+          list.sort(function(a, b) { return xpN(b.__turns) - xpN(a.__turns); });
+          return {
+            table: xpTable([
+              { label: 'ชื่ออะไหล่', key: 'name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'ยอดเบิกในช่วง (ชิ้น)', key: '__out', type: 'num' },
+              { label: 'คงเหลือปัจจุบัน', key: 'stock', type: 'num' },
+              { label: 'รอบหมุน (เท่า)', type: 'num', get: function(o) { return o.__turns === '' ? '' : Math.round(xpN(o.__turns) * 100) / 100; } },
+              { label: 'ประเมิน', get: function(o) {
+                if (o.__out === 0) return 'ไม่เคยเบิก';
+                if (xpN(o.stock) === 0) return 'ของหมด (เบิกแล้วไม่เติม)';
+                var t = xpN(o.__turns);
+                if (t >= 3) return 'หมุนเร็ว';
+                if (t >= 1) return 'หมุนปกติ';
+                return 'หมุนช้า (เก็บมากกว่าที่ใช้)';
+              } }
+            ], list),
+            note: 'ตัวหารคือยอดคงเหลือ ณ ปัจจุบัน ไม่ใช่ค่าเฉลี่ยคงคลัง — ระบบไม่ได้เก็บ snapshot ยอดคงเหลือรายวัน จึงคำนวณค่าเฉลี่ยจริงไม่ได้'
+          };
+        }
+      },
+      {
+        key: 'minmax', name: 'Min/Max Health — ค่าที่ตั้งไว้เหมาะหรือยัง',
+        desc: 'หาของที่ Min ต่ำเกินจริง (ขาดบ่อย) และ Min/Max สูงเกินจริง (จมทุน)',
+        needs: ['logs', 'master'],
+        build: function(ctx) {
+          var below = {}, outQty = {};
+          (ctx.logs || []).forEach(function(l) {
+            var k = xpPartKey(l.partName, l.model);
+            if (xpIsOutput(l.type)) outQty[k] = (outQty[k] || 0) + xpN(l.qty);
+            // แถวไหนที่เบิกแล้วยอดคงเหลือหลังทำรายการตกใต้ Min ของตัวเอง = เคยเข้าเขตขาด
+            // ใช้ stockAfter ที่บันทึกไว้ตอนทำรายการ ไม่ใช่ยอดปัจจุบัน (ยอดปัจจุบันบอกอดีตไม่ได้)
+            if (xpIsOutput(l.type)) below[k] = below[k] || { hits: 0, low: null };
+          });
+          var minByKey = {};
+          (ctx.master || []).forEach(function(it) { minByKey[xpPartKey(it.name, it.model)] = xpN(it.min); });
+          (ctx.logs || []).forEach(function(l) {
+            if (!xpIsOutput(l.type)) return;
+            var k = xpPartKey(l.partName, l.model);
+            var mn = minByKey[k];
+            if (mn === undefined || !mn) return;
+            if (xpN(l.stockAfter) < mn) {
+              below[k] = below[k] || { hits: 0, low: null };
+              below[k].hits += 1;
+              if (below[k].low === null || xpN(l.stockAfter) < below[k].low) below[k].low = xpN(l.stockAfter);
+            }
+          });
+          var list = (ctx.master || []).map(function(it) {
+            var k = xpPartKey(it.name, it.model);
+            var copy = Object.assign({}, it);
+            copy.__hits = (below[k] && below[k].hits) || 0;
+            copy.__low = below[k] && below[k].low !== null && below[k].low !== undefined ? below[k].low : '';
+            copy.__out = outQty[k] || 0;
+            return copy;
+          }).filter(function(o) { return o.__hits > 0 || (xpN(o.min) > 0 && o.__out === 0) || (xpN(o.max) > 0 && xpN(o.stock) > xpN(o.max)); });
+          list.sort(function(a, b) { return b.__hits - a.__hits; });
+          return {
+            table: xpTable([
+              { label: 'ชื่ออะไหล่', key: 'name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'Min', key: 'min', type: 'num' },
+              { label: 'Max', key: 'max', type: 'num' },
+              { label: 'คงเหลือ', key: 'stock', type: 'num' },
+              { label: 'ยอดเบิกในช่วง', key: '__out', type: 'num' },
+              { label: 'ครั้งที่ตกใต้ Min', key: '__hits', type: 'num' },
+              { label: 'ยอดต่ำสุดที่เคยเหลือ', key: '__low', type: 'num' },
+              { label: 'ข้อเสนอ', get: function(o) {
+                if (o.__hits >= 3) return 'Min ต่ำเกินจริง — ขาดบ่อย ควรพิจารณาเพิ่ม Min';
+                if (xpN(o.min) > 0 && o.__out === 0) return 'ตั้ง Min ไว้แต่ไม่เคยเบิกในช่วงนี้ — อาจตั้งสูงเกินจำเป็น';
+                if (xpN(o.max) > 0 && xpN(o.stock) > xpN(o.max)) return 'คงเหลือเกิน Max — ของจมเกินกรอบที่ตั้งไว้';
+                return 'เคยตกใต้ Min ' + o.__hits + ' ครั้ง';
+              } }
+            ], list),
+            note: 'นับ "ตกใต้ Min" จากคอลัมน์ Stock After ในชีต Log ตอนทำรายการจริง จึงเป็นเหตุการณ์ในอดีตที่เกิดขึ้นจริง ไม่ใช่ประเมินจากยอดปัจจุบัน'
+          };
+        }
+      },
+      {
+        key: 'costVsProduction', name: 'ต้นทุนอะไหล่ต่อมูลค่าผลิต',
+        desc: 'รายเดือน × ไลน์ เทียบกับเป้า % ที่ตั้งไว้ ใช้คุมงบสั่งซื้อ',
+        needs: ['logs', 'master', 'miscExpenses', 'productionVolume', 'costConfig'],
+        build: function(ctx) {
+          var priceMap = xpPriceMap(ctx.master || []);
+          var cells = {};
+          function cell(month, line) {
+            var k = month + '||' + line;
+            if (!cells[k]) cells[k] = { month: month, line: line, spare: 0, misc: 0, prodQty: 0, prodValue: 0 };
+            return cells[k];
+          }
+          (ctx.logs || []).forEach(function(l) {
+            if (!xpIsOutput(l.type)) return;
+            var m = xpMonthKey(l.timestamp);
+            if (!m) return;
+            cell(m, xpS(l.process).trim() || '(ไม่ระบุ)').spare += xpN(l.qty) * xpLookupPrice(priceMap, l.partName, l.model, l.partNo, '');
+          });
+          (ctx.miscExpenses || []).forEach(function(e) {
+            var m = xpMonthKey(e.month || e.date);
+            if (!m) return;
+            cell(m, xpS(e.line).trim() || '(ไม่ระบุ)').misc += xpN(e.total_amount);
+          });
+          (ctx.productionVolume || []).forEach(function(p) {
+            var c = cell(xpS(p.month), xpS(p.line).trim() || '(ไม่ระบุ)');
+            c.prodQty += xpN(p.actual_qty);
+            c.prodValue += xpN(p.production_value);
+          });
+          var targets = {};
+          (ctx.costConfig || []).forEach(function(c) { targets[xpS(c.line).trim()] = xpN(c.target_pct); });
+          var list = Object.keys(cells).sort().map(function(k) { return cells[k]; });
+          return {
+            table: xpTable([
+              { label: 'เดือน', key: 'month' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'ค่าอะไหล่ (เบิกออก)', key: 'spare', type: 'money', sensitive: true, get: function(o) { return Math.round(o.spare); } },
+              { label: 'ค่าสิ้นเปลือง', key: 'misc', type: 'money', sensitive: true, get: function(o) { return Math.round(o.misc); } },
+              { label: 'รวมค่าใช้จ่าย', type: 'money', sensitive: true, get: function(o) { return Math.round(o.spare + o.misc); } },
+              { label: 'ยอดผลิต (ชิ้น)', key: 'prodQty', type: 'num' },
+              { label: 'มูลค่าผลิต', key: 'prodValue', type: 'money', sensitive: true, get: function(o) { return Math.round(o.prodValue); } },
+              { label: '% จริง', type: 'num', sensitive: true, get: function(o) { return o.prodValue > 0 ? Math.round(((o.spare + o.misc) / o.prodValue) * 10000) / 100 : ''; } },
+              { label: 'เป้า %', type: 'num', sensitive: true, get: function(o) { return targets[o.line] === undefined ? '' : targets[o.line]; } },
+              { label: 'ผล', sensitive: true, get: function(o) {
+                var t = targets[o.line];
+                if (!(o.prodValue > 0)) return 'ไม่มีมูลค่าผลิตในเดือนนี้';
+                if (t === undefined || !t) return 'ยังไม่ตั้งเป้าไลน์นี้';
+                var actual = ((o.spare + o.misc) / o.prodValue) * 100;
+                return actual <= t ? 'อยู่ในเป้า' : 'เกินเป้า ' + (Math.round((actual - t) * 100) / 100) + ' จุด';
+              } }
+            ], list),
+            note: 'ค่าอะไหล่มาจากยอดเบิกออกใน Log ตีราคาด้วยราคาต่อหน่วยล่าสุด ไม่ใช่ยอดที่สั่งซื้อ (ของที่ซื้อแล้วยังไม่เบิกยังไม่ถือเป็นต้นทุนของเดือนนั้น)'
+          };
+        }
+      },
+      {
+        key: 'leadTime', name: 'Purchase Lead Time — วงจรจัดซื้อใช้เวลาเท่าไหร่',
+        desc: 'ขอ → อนุมัติ → PR → สั่ง → รับ วัดเป็นวันต่อใบ พร้อมใบที่ช้าสุด',
+        needs: ['orderRequests', 'purchaseHistory'],
+        build: function(ctx) {
+          function days(a, b) {
+            var x = xpDayKey(a), y = xpDayKey(b);
+            if (!x || !y) return '';
+            var d = (new Date(y + 'T00:00:00') - new Date(x + 'T00:00:00')) / 86400000;
+            return d >= 0 ? Math.round(d) : '';
+          }
+          var rows = (ctx.orderRequests || []).map(function(r) {
+            return {
+              id: r.request_id, line: r.line, item: r.item_name, status: r.status,
+              requested: r.requested_date, approved: r.approved_date, pr: r.converted_pr_id,
+              waitApprove: days(r.requested_date, r.approved_date), qty: r.request_qty
+            };
+          });
+          var phRows = (ctx.purchaseHistory || []).map(function(p) {
+            return {
+              id: p['History ID'] || p['Request ID'], line: p.Line || p.line, item: p['Part Name'],
+              status: p.Status, requested: p['Requested Date'], ordered: p['Ordered Date'], received: p['Received Date'],
+              reqToOrder: days(p['Requested Date'], p['Ordered Date']),
+              orderToReceive: days(p['Ordered Date'], p['Received Date']),
+              total: days(p['Requested Date'], p['Received Date'])
+            };
+          });
+          var waits = rows.map(function(r) { return r.waitApprove; }).filter(function(v) { return v !== ''; });
+          var totals = phRows.map(function(r) { return r.total; }).filter(function(v) { return v !== ''; });
+          function median(arr) {
+            if (!arr.length) return '';
+            var s = arr.slice().sort(function(a, b) { return a - b; });
+            var mid = Math.floor(s.length / 2);
+            return s.length % 2 ? s[mid] : Math.round(((s[mid - 1] + s[mid]) / 2) * 10) / 10;
+          }
+          var summary = [
+            ['จำนวนคำขอที่วัดเวลารออนุมัติได้', waits.length, 'คำขอ'],
+            ['เวลารออนุมัติ — ค่ากลาง', median(waits), 'วัน'],
+            ['เวลารออนุมัติ — นานสุด', waits.length ? Math.max.apply(null, waits) : '', 'วัน'],
+            ['จำนวนรายการที่วัดวงจรซื้อครบได้', totals.length, 'รายการ'],
+            ['ขอ → รับของ — ค่ากลาง', median(totals), 'วัน'],
+            ['ขอ → รับของ — นานสุด', totals.length ? Math.max.apply(null, totals) : '', 'วัน'],
+            ['สั่ง → รับของ — ค่ากลาง', median(phRows.map(function(r) { return r.orderToReceive; }).filter(function(v) { return v !== ''; })), 'วัน']
+          ];
+          var detail = phRows.slice().sort(function(a, b) { return xpN(b.total) - xpN(a.total); });
+          return {
+            table: {
+              headers: ['ตัวชี้วัด', 'ค่า', 'หน่วย'],
+              rows: summary,
+              numeric: [false, true, false]
+            },
+            extraSheets: [{
+              name: 'Lead Time รายรายการ',
+              table: xpTable([
+                { label: 'อ้างอิง', key: 'id' },
+                { label: 'ไลน์', key: 'line' },
+                { label: 'รายการ', key: 'item' },
+                { label: 'สถานะ', key: 'status' },
+                { label: 'วันที่ขอ', key: 'requested' },
+                { label: 'วันที่สั่ง', key: 'ordered' },
+                { label: 'วันที่รับ', key: 'received' },
+                { label: 'ขอ → สั่ง (วัน)', key: 'reqToOrder', type: 'num' },
+                { label: 'สั่ง → รับ (วัน)', key: 'orderToReceive', type: 'num' },
+                { label: 'ขอ → รับ (วัน)', key: 'total', type: 'num' }
+              ], detail)
+            }],
+            note: 'วัดได้เฉพาะใบที่มีวันที่ครบทั้งสองฝั่ง — ใบที่ยังไม่ได้รับของหรือไม่ได้กรอกวันที่จะไม่ถูกนับ (ไม่เดาแทน)'
+          };
+        }
+      },
+      {
+        key: 'priceVariance', name: 'Price Variance — ราคาซื้อของชิ้นเดียวกันต่างกันแค่ไหน',
+        desc: 'ราคาต่ำสุด/สูงสุด/เฉลี่ยย้อนหลังต่ออะไหล่ + ส่วนต่างเป็น %',
+        needs: ['purchaseHistory'], hiddenInCustomerMode: true,
+        build: function(ctx) {
+          var agg = {};
+          (ctx.purchaseHistory || []).forEach(function(p) {
+            var price = xpN(p['Unit Price'] || p.unit_price);
+            if (!price) return;
+            var name = xpS(p['Part Name']);
+            var model = xpS(p['Model / Part No.'] || p.model);
+            var k = xpPartKey(name, model);
+            if (!agg[k]) agg[k] = { name: name, model: model, line: p.Line || p.line, prices: [], vendors: {}, qty: 0, total: 0 };
+            agg[k].prices.push(price);
+            agg[k].qty += xpN(p['Qty Ordered']);
+            agg[k].total += xpN(p['Total Amount']);
+            var v = xpS(p.Brand || p.Vendor || '').trim();
+            if (v) agg[k].vendors[v] = true;
+          });
+          var list = Object.keys(agg).map(function(k) { return agg[k]; }).filter(function(a) { return a.prices.length >= 2; });
+          list.forEach(function(a) {
+            a.min = Math.min.apply(null, a.prices);
+            a.max = Math.max.apply(null, a.prices);
+            a.avg = a.prices.reduce(function(s, v) { return s + v; }, 0) / a.prices.length;
+            a.spread = a.min > 0 ? ((a.max - a.min) / a.min) * 100 : 0;
+          });
+          list.sort(function(a, b) { return b.spread - a.spread; });
+          return {
+            table: xpTable([
+              { label: 'ชื่ออะไหล่', key: 'name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'จำนวนครั้งที่ซื้อ', type: 'num', get: function(o) { return o.prices.length; } },
+              { label: 'ราคาต่ำสุด', key: 'min', type: 'money' },
+              { label: 'ราคาสูงสุด', key: 'max', type: 'money' },
+              { label: 'ราคาเฉลี่ย', type: 'money', get: function(o) { return Math.round(o.avg * 100) / 100; } },
+              { label: 'ส่วนต่าง (%)', type: 'num', get: function(o) { return Math.round(o.spread * 100) / 100; } },
+              { label: 'จำนวนที่ซื้อรวม', key: 'qty', type: 'num' },
+              { label: 'ยอดซื้อรวม', key: 'total', type: 'money', get: function(o) { return Math.round(o.total); } },
+              { label: 'ยี่ห้อ/ผู้ขายที่พบ', get: function(o) { return Object.keys(o.vendors).join(', '); } }
+            ], list),
+            note: 'นับเฉพาะอะไหล่ที่ซื้อตั้งแต่ 2 ครั้งขึ้นไปและมีราคาต่อหน่วยบันทึกไว้ — ส่วนต่างสูงอาจมาจากยี่ห้อ/สเปกต่างกัน ควรตรวจก่อนสรุปว่าซื้อแพง'
+          };
+        }
+      },
+      {
+        key: 'countAccuracy', name: 'ความแม่นยำการนับสต็อก',
+        desc: 'ทุกรอบนับ: ตรงกี่ %, ผลต่างกี่รายการ, ไลน์ไหนเพี้ยนบ่อย',
+        needs: ['stockCount'],
+        build: function(ctx) {
+          var byLine = {};
+          (ctx.stockCount || []).forEach(function(s) {
+            var k = xpS(s.line).trim() || '(ไม่ระบุ)';
+            if (!byLine[k]) byLine[k] = { line: k, rounds: 0, items: 0, matched: 0, diff: 0, adjusted: 0 };
+            byLine[k].rounds += 1;
+            byLine[k].items += xpN(s.total_items);
+            byLine[k].matched += xpN(s.matched);
+            byLine[k].diff += xpN(s.diff_count);
+            byLine[k].adjusted += xpN(s.adjusted_count);
+          });
+          var list = Object.keys(byLine).sort().map(function(k) { return byLine[k]; });
+          return {
+            table: xpTable([
+              { label: 'ไลน์', key: 'line' },
+              { label: 'จำนวนรอบที่นับ', key: 'rounds', type: 'num' },
+              { label: 'รายการที่นับรวม', key: 'items', type: 'num' },
+              { label: 'ตรงกับระบบ', key: 'matched', type: 'num' },
+              { label: 'ไม่ตรง', key: 'diff', type: 'num' },
+              { label: 'ความแม่น (%)', type: 'num', get: function(o) { return o.items > 0 ? Math.round((o.matched / o.items) * 1000) / 10 : ''; } },
+              { label: 'ปรับยอดตามผลนับ (รายการ)', key: 'adjusted', type: 'num' }
+            ], list),
+            extraSheets: [{
+              name: 'ผลนับรายรอบ',
+              table: xpTable([
+                { label: 'Session ID', key: 'session_id' },
+                { label: 'เดือน', key: 'month' },
+                { label: 'ไลน์', key: 'line' },
+                { label: 'รอบที่', key: 'round_no', type: 'num' },
+                { label: 'รายการที่นับ', key: 'total_items', type: 'num' },
+                { label: 'ตรง', key: 'matched', type: 'num' },
+                { label: 'ไม่ตรง', key: 'diff_count', type: 'num' },
+                { label: 'ความแม่น (%)', type: 'num', get: function(o) { var t = xpN(o.total_items); return t > 0 ? Math.round((xpN(o.matched) / t) * 1000) / 10 : ''; } },
+                { label: 'สถานะ', key: 'status' },
+                { label: 'นับโดย', key: 'created_by' },
+                { label: 'อนุมัติโดย', key: 'approved_by' }
+              ], ctx.stockCount || [])
+            }],
+            note: 'ความแม่น = รายการที่นับตรงกับยอดระบบ ÷ รายการที่นับทั้งหมด ในรอบนั้น'
+          };
+        }
+      },
+      {
+        key: 'partLife', name: 'อายุอะไหล่จากทะเบียนชิ้น (Part Tag)',
+        desc: 'ชิ้นเดียวกันอยู่ในเครื่องได้กี่วัน แยกตามรุ่นและเครื่องจักร',
+        needs: ['partTags'],
+        build: function(ctx) {
+          var agg = {};
+          (ctx.partTags || []).forEach(function(t) {
+            var a = xpDayKey(t.installed_at), b = xpDayKey(t.removed_at);
+            if (!a || !b) return; // ชิ้นที่ยังอยู่ในเครื่อง ยังไม่รู้อายุจริง ไม่นับ
+            var life = (new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000;
+            if (!(life >= 0)) return;
+            var k = xpPartKey(t.part_name, t.model) + '||' + xpS(t.machine).trim();
+            if (!agg[k]) agg[k] = { name: t.part_name, model: t.model, line: t.line, machine: t.machine, lives: [] };
+            agg[k].lives.push(Math.round(life));
+          });
+          var list = Object.keys(agg).map(function(k) {
+            var a = agg[k];
+            a.count = a.lives.length;
+            a.avg = a.lives.reduce(function(s, v) { return s + v; }, 0) / a.count;
+            a.min = Math.min.apply(null, a.lives);
+            a.max = Math.max.apply(null, a.lives);
+            return a;
+          });
+          list.sort(function(a, b) { return b.count - a.count || a.avg - b.avg; });
+          return {
+            table: xpTable([
+              { label: 'ชื่ออะไหล่', key: 'name' },
+              { label: 'รุ่น', key: 'model' },
+              { label: 'ไลน์', key: 'line' },
+              { label: 'เครื่องจักร', key: 'machine' },
+              { label: 'จำนวนชิ้นที่วัดได้', key: 'count', type: 'num' },
+              { label: 'อายุเฉลี่ย (วัน)', type: 'num', get: function(o) { return Math.round(o.avg * 10) / 10; } },
+              { label: 'สั้นสุด (วัน)', key: 'min', type: 'num' },
+              { label: 'นานสุด (วัน)', key: 'max', type: 'num' }
+            ], list),
+            note: 'นับเฉพาะชิ้นที่มีทั้งวันติดตั้งและวันถอดในทะเบียน — ชิ้นที่ยังอยู่ในเครื่องไม่ถูกนับ เพราะยังไม่รู้อายุจริง (' + xpFmtInt((ctx.partTags || []).length) + ' ชิ้นในทะเบียนทั้งหมด)'
+          };
+        }
+      }
+    ];
+
+    // ── พจนานุกรมข้อมูล — อธิบายทุกคอลัมน์ที่อยู่ในไฟล์ ────────────────
+    // ใส่ไปในไฟล์ที่ส่งลูกค้าด้วย เพราะไฟล์ที่มีคอลัมน์ 290 ช่องแต่ไม่มีคำอธิบาย
+    // คนรับไปอ่านไม่รู้ว่าคอลัมน์ไหนหมายถึงอะไร
+    var XP_DICTIONARY = {
+      'คงเหลือ': 'ยอดคงเหลือปัจจุบันในชีตอะไหล่ (อัปเดตทุกครั้งที่รับเข้า/เบิกออก)',
+      'Min': 'จุดสั่งซื้อ — ระบบเตือนเมื่อคงเหลือน้อยกว่าค่านี้ (เทียบแบบน้อยกว่าเท่านั้น ไม่รวมเท่ากับ)',
+      'Max': 'ยอดเก็บสูงสุดที่ตั้งไว้ ใช้คำนวณจำนวนที่ควรสั่ง',
+      'ต้องซื้อ': 'Min ลบ คงเหลือ (ถ้าติดลบถือเป็น 0)',
+      'มูลค่าคงคลัง': 'คงเหลือ × ราคาต่อหน่วยล่าสุด — รายการที่ยังไม่ลงราคาจะได้ 0',
+      'สถานะสต็อก': 'หมด / ต่ำกว่า Min / เกิน Max / ปกติ คำนวณจากคงเหลือเทียบ Min-Max',
+      'ยอดก่อน': 'ยอดคงเหลือก่อนทำรายการนั้น (บันทึกไว้ตอนทำรายการ)',
+      'ยอดหลัง': 'ยอดคงเหลือหลังทำรายการนั้น — ใช้ตรวจย้อนหลังว่ายอดเดินถูกต่อเนื่องหรือไม่',
+      'ประเภท': 'Input = รับเข้า, Output = เบิกออก',
+      'ไลน์ / Process': 'ไลน์ผลิตที่ทำรายการ เก็บในคอลัมน์ Process ของชีต Log',
+      'มูลค่ารายการ': 'จำนวน × ราคาต่อหน่วยล่าสุดใน Master — ชีต Log ไม่ได้เก็บราคาไว้ในแถว จึงจับคู่ตอนส่งออก',
+      'อายุใช้งาน (วัน)': 'วันถอด ลบ วันติดตั้ง — ว่างหมายถึงชิ้นนั้นยังอยู่ในเครื่อง หรือไม่ได้กรอกวันไว้',
+      'รออนุมัติ (วัน)': 'วันอนุมัติ ลบ วันที่ขอ — ว่างหมายถึงยังไม่ได้อนุมัติ',
+      'ความแม่น (%)': 'รายการที่นับตรงกับยอดระบบ ÷ รายการที่นับทั้งหมดในรอบนั้น × 100',
+      '% ค่าอะไหล่ต่อมูลค่าผลิต': '(มูลค่าเบิกออก + ค่าสิ้นเปลือง) ÷ มูลค่าผลิต × 100',
+      '% จริง': '(ค่าอะไหล่ + ค่าสิ้นเปลือง) ÷ มูลค่าผลิต × 100 ของเดือน/ไลน์นั้น',
+      'เป้า %': 'เป้าที่ตั้งไว้ในชีต ProductionCostConfig ต่อไลน์',
+      'มูลค่าผลิต': 'ผลรวม (ยอดผลิตแต่ละรุ่น × ราคาต่อชิ้นที่จับคู่ได้) — รุ่นที่จับคู่ราคาไม่ได้จะไม่ถูกนับ',
+      'ที่มาข้อมูล': 'ชีตผลิตจริง (auto) = ดึงจากไฟล์ผลิตของไลน์นั้นอัตโนมัติ, กรอกมือ = คนกรอกเอง',
+      'สถานะ Drawing': 'Available / Missing / Not Required / Access Required',
+      'ชั้น': 'ABC — A คือกลุ่มที่กินมูลค่าเบิกสะสม 80% แรก, B ถึง 95%, C ที่เหลือ',
+      'รอบหมุน (เท่า)': 'ยอดเบิกในช่วง ÷ ยอดคงเหลือปัจจุบัน',
+      'ครั้งที่ตกใต้ Min': 'จำนวนครั้งที่ยอดหลังทำรายการต่ำกว่า Min ของตัวเอง (เหตุการณ์จริงจาก Log)',
+      'ส่วนต่าง (%)': '(ราคาสูงสุด − ราคาต่ำสุด) ÷ ราคาต่ำสุด × 100 ของอะไหล่ชิ้นเดียวกัน'
+    };
+    function xpBuildDictionary(sheets) {
+      var rows = [];
+      var seen = {};
+      sheets.forEach(function(spec) {
+        var table = spec.table || {};
+        (table.headers || []).forEach(function(h) {
+          var key = spec.name + '||' + h;
+          if (seen[key]) return;
+          seen[key] = true;
+          rows.push([spec.name, h, XP_DICTIONARY[h] || 'คอลัมน์ตรงจากชีตต้นทางของระบบ']);
+        });
+      });
+      return { headers: ['ชีตในไฟล์นี้', 'ชื่อคอลัมน์', 'คำอธิบาย / วิธีคำนวณ'], rows: rows, numeric: [false, false, false] };
+    }
+
+    // ── หน้าปกรายงาน ─────────────────────────────────────────────────
+    function xpBuildCover(results, meta) {
+      var rows = [];
+      rows.push(['รายงานข้อมูลระบบคลังอะไหล่', '']);
+      rows.push(['ผู้จัดทำ', (currentUser && (currentUser.name || currentUser.username)) || '-']);
+      rows.push(['ตำแหน่ง', (currentUser && currentUser.role) || '-']);
+      rows.push(['สร้างเมื่อ', new Date().toLocaleString('th-TH')]);
+      rows.push(['ช่วงข้อมูล', (xpFilters.from || 'ตั้งแต่เริ่มระบบ') + '  ถึง  ' + (xpFilters.to || 'ล่าสุด')]);
+      rows.push(['ไลน์', xpFilters.line || 'ทุกไลน์ (รวม)']);
+      rows.push(['หมวด', xpFilters.category || 'ทุกหมวด']);
+      rows.push(['ประเภทธุรกรรม', xpFilters.txnType === 'Input' ? 'รับเข้าเท่านั้น' : (xpFilters.txnType === 'Output' ? 'เบิกออกเท่านั้น' : 'รับเข้า + เบิกออก')]);
+      rows.push(['โหมดลูกค้า', xpFilters.customerMode ? 'เปิด — ตัดคอลัมน์ราคา/ผู้ขาย/มูลค่าออกจากไฟล์นี้' : 'ปิด — มีข้อมูลราคาครบ']);
+      rows.push(['ที่มาข้อมูล', 'Google Sheets ของระบบคลังอะไหล่ ดึงสดตอนสร้างไฟล์ ไม่มีตัวเลขที่สร้างขึ้นเอง']);
+      rows.push(['', '']);
+      rows.push(['ชีตในไฟล์นี้', 'จำนวนแถว']);
+      results.forEach(function(r) {
+        rows.push([r.ds ? r.ds.sheetName || r.ds.name : r.name, r.error ? 'ดึงข้อมูลไม่ได้: ' + r.error : xpFmtInt((r.table && r.table.rows || []).length)]);
+      });
+      var failed = results.filter(function(r) { return r.error; });
+      rows.push(['', '']);
+      rows.push(['ความครบถ้วนของข้อมูล', failed.length ? ('มี ' + failed.length + ' ชุดที่ดึงไม่สำเร็จ — ดูรายละเอียดในตารางด้านบน') : 'ดึงครบทุกชุดที่เลือก']);
+      if (meta && meta.note) rows.push(['หมายเหตุ', meta.note]);
+      return { headers: ['หัวข้อ', 'รายละเอียด'], rows: rows, numeric: [false, false] };
+    }
+
+    // ── Executive Workbook ───────────────────────────────────────────
+    function xpRunWorkbook() {
+      if (xpBusy) return;
+      var keys = xpSelectedKeys();
+      if (!keys.length) { showQuickToast('ยังไม่ได้เลือกชุดข้อมูลในระดับ 2 — ติ๊กที่ต้องการก่อน', 'warn'); return; }
+      xpSetBusy(true);
+      xpProgressShow(true);
+      xpProgressLog('เริ่มสร้าง Executive Workbook (' + keys.length + ' ชุดข้อมูล)');
+      // ดึงข้อมูลสรุปก่อน (ชุดที่ KPI/เทรนด์ต้องใช้) แล้วค่อยดึงชุดที่ผู้ใช้เลือกเพิ่ม
+      var ctxKeys = ['master', 'logs', 'orderRequests', 'purchaseHistory', 'miscExpenses', 'productionVolume', 'costConfig', 'stockCount', 'partTags', 'machines', 'prBundle'];
+      xpContext(ctxKeys, 0, 45).then(function(ctx) {
+        xpProgressSet(46, 'กำลังคำนวณสรุปผู้บริหาร...');
+        var kpis = xpBuildKpis(ctx);
+        var trend = xpBuildTrend(ctx);
+        var lineSummary = xpBuildLineSummary(ctx);
+        return xpFetchDatasetsSequential(keys, 46, 92).then(function(results) {
+          xpProgressSet(94, 'กำลังประกอบไฟล์ Excel...');
+          var sheets = [];
+          sheets.push({ name: '00 ปกรายงาน', table: xpBuildCover(results) });
+          sheets.push({ name: '01 สรุปผู้บริหาร', table: xpKpiTable(kpis) });
+          sheets.push({ name: '02 เทรนด์ตามช่วงเวลา', table: trend.table });
+          sheets.push({ name: '03 สรุปตามไลน์', table: lineSummary });
+          results.forEach(function(r) {
+            if (!r.table) {
+              sheets.push({ name: (r.ds.sheetName || r.ds.name), table: { headers: ['สถานะ'], rows: [['ดึงข้อมูลชุดนี้ไม่สำเร็จ: ' + r.error]], numeric: [false] } });
+              return;
+            }
+            sheets.push({ name: (r.ds.sheetName || r.ds.name), table: r.table });
+          });
+          var attach = xpBuildAttachmentSheet(ctx, results);
+          if (attach.rows.length) sheets.push({ name: '98 ลิงก์ไฟล์แนบ', table: attach });
+          sheets.push({ name: '99 พจนานุกรมข้อมูล', table: xpBuildDictionary(sheets) });
+          var total = sheets.reduce(function(s, sh) { return s + (sh.table.rows || []).length; }, 0);
+          var filename = 'JR-Executive-Workbook-' + xpFileStamp() + xpFileSuffix() + '.xlsx';
+          return xpWriteXlsxStyled(sheets, filename).then(function(res) {
+            xpProgressSet(100, 'เสร็จแล้ว — ดาวน์โหลด ' + filename);
+            xpProgressLog('รวม ' + sheets.length + ' ชีต ' + xpFmtInt(total) + ' แถว' + (res.styled ? '' : ' (ไม่มีการจัดรูปแบบ: ExcelJS โหลดไม่สำเร็จ)'), 'ok');
+            showQuickToast('สร้าง Executive Workbook สำเร็จ ' + sheets.length + ' ชีต', 'success');
+            xpLogExport('executive-workbook', keys, total, 'xlsx');
+          });
+        });
+      }).catch(function(err) {
+        xpProgressLog('ล้มเหลว: ' + (err && err.message ? err.message : err), 'fail');
+        showQuickToast('สร้างไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      }).then(function() { xpSetBusy(false); });
+    }
+
+    // รวมทุก URL ไฟล์แนบไว้ชีตเดียว — .xlsx ฝังไฟล์ไบนารีไม่ได้ ต้องให้ลิงก์ไป Drive
+    function xpBuildAttachmentSheet(ctx, results) {
+      var rows = [];
+      (ctx.master || []).forEach(function(it) {
+        [['รูปอะไหล่', it.image_main_url], ['รูปตอนติดตั้ง', it.image_install_url], ['Drawing', it.drawing_url], ['Datasheet', it.datasheet_url], ['ใบเสนอราคา', it.quotation_url]].forEach(function(pair) {
+          if (!xpS(pair[1]).trim()) return;
+          if (xpFilters.customerMode && pair[0] === 'ใบเสนอราคา') return;
+          rows.push(['Master อะไหล่', xpS(it.__sheet), xpS(it.no), xpS(it.name), xpS(it.model), pair[0], xpS(pair[1])]);
+        });
+      });
+      (ctx.orderRequests || []).forEach(function(r) {
+        if (xpS(r.attachment_url).trim()) rows.push(['คำขอซื้อ', '', xpS(r.request_id), xpS(r.item_name), xpS(r.model), 'ไฟล์แนบคำขอ', xpS(r.attachment_url)]);
+      });
+      if (!xpFilters.customerMode) {
+        (ctx.miscExpenses || []).forEach(function(e) {
+          if (xpS(e.receipt_url).trim()) rows.push(['ค่าสิ้นเปลือง', '', xpS(e.expense_id), xpS(e.item_name), '', 'บิล/ใบเสร็จ', xpS(e.receipt_url)]);
+        });
+        (ctx.purchaseHistory || []).forEach(function(p) {
+          var url = xpS(p['Attachment URL']);
+          if (url.trim()) rows.push(['Purchase History', '', xpS(p['History ID']), xpS(p['Part Name']), xpS(p['Model / Part No.']), 'ไฟล์แนบบิล', url]);
+        });
+      }
+      return { headers: ['มาจากชุดข้อมูล', 'ชีต', 'รหัสอ้างอิง', 'ชื่อรายการ', 'รุ่น', 'ประเภทไฟล์', 'ลิงก์'], rows: rows, numeric: [false, false, false, false, false, false, false] };
+    }
+
+    // ── ระดับ 2: ดาวน์โหลดชุดที่เลือก ────────────────────────────────
+    function xpRunSelectedExport(format) {
+      if (xpBusy) return;
+      var keys = xpSelectedKeys();
+      if (!keys.length) { showQuickToast('ยังไม่ได้เลือกชุดข้อมูล', 'warn'); return; }
+      xpSetBusy(true);
+      xpProgressShow(true);
+      xpProgressLog('ดึง ' + keys.length + ' ชุดข้อมูล เพื่อออกเป็น ' + format.toUpperCase());
+      xpFetchDatasetsSequential(keys).then(function(results) {
+        var ok = results.filter(function(r) { return r.table; });
+        if (!ok.length) throw new Error('ดึงข้อมูลไม่สำเร็จทุกชุด');
+        var total = ok.reduce(function(s, r) { return s + (r.table.rows || []).length; }, 0);
+        var stamp = xpFileStamp() + xpFileSuffix();
+        if (format === 'csv') {
+          xpProgressSet(96, 'กำลังสร้างไฟล์ CSV...');
+          ok.forEach(function(r, i) {
+            // แยกไฟล์ต่อชุด: CSV ไฟล์เดียวใส่หลายตารางแล้วเปิดใน Excel จะอ่านคอลัมน์ไม่ตรง
+            setTimeout(function() {
+              xpDownloadBlob(new Blob([xpTableToCsv(r.table)], { type: 'text/csv;charset=utf-8;' }), 'JR-' + r.ds.key + '-' + stamp + '.csv');
+            }, i * 350); // หน่วงเล็กน้อย เบราว์เซอร์บล็อกการดาวน์โหลดรวดเดียวหลายไฟล์
+          });
+          xpProgressSet(100, 'ดาวน์โหลด ' + ok.length + ' ไฟล์ CSV');
+          showQuickToast('ดาวน์โหลด ' + ok.length + ' ไฟล์ CSV (เบราว์เซอร์อาจถามยืนยันหลายไฟล์)', 'success');
+          xpLogExport('dataset-csv', keys, total, 'csv');
+          return;
+        }
+        if (format === 'json') {
+          xpProgressSet(96, 'กำลังสร้างไฟล์ JSON...');
+          var payload = {
+            meta: {
+              generatedAt: new Date().toISOString(),
+              generatedBy: (currentUser && currentUser.username) || '',
+              filters: JSON.parse(JSON.stringify(xpFilters)),
+              datasets: ok.map(function(r) { return r.ds.key; }),
+              failed: results.filter(function(r) { return r.error; }).map(function(r) { return { key: r.ds.key, error: r.error }; })
+            },
+            data: {}
+          };
+          ok.forEach(function(r) {
+            payload.data[r.ds.key] = {
+              name: r.ds.name,
+              headers: r.table.headers,
+              rows: r.table.rows
+            };
+          });
+          xpDownloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' }), 'JR-data-' + stamp + '.json');
+          xpProgressSet(100, 'ดาวน์โหลดไฟล์ JSON แล้ว');
+          showQuickToast('ดาวน์โหลด JSON ' + xpFmtInt(total) + ' แถว', 'success');
+          xpLogExport('dataset-json', keys, total, 'json');
+          return;
+        }
+        xpProgressSet(96, 'กำลังประกอบไฟล์ Excel...');
+        var sheets = [{ name: '00 ปกรายงาน', table: xpBuildCover(results) }];
+        results.forEach(function(r) {
+          sheets.push({
+            name: r.ds.sheetName || r.ds.name,
+            table: r.table || { headers: ['สถานะ'], rows: [['ดึงข้อมูลชุดนี้ไม่สำเร็จ: ' + r.error]], numeric: [false] }
+          });
+        });
+        sheets.push({ name: '99 พจนานุกรมข้อมูล', table: xpBuildDictionary(sheets) });
+        var filename = 'JR-data-' + stamp + '.xlsx';
+        return xpWriteXlsxStyled(sheets, filename).then(function(res) {
+          xpProgressSet(100, 'เสร็จแล้ว — ดาวน์โหลด ' + filename);
+          showQuickToast('ดาวน์โหลด Excel ' + sheets.length + ' ชีต' + (res.styled ? '' : ' (ไม่มีการจัดรูปแบบ)'), 'success');
+          xpLogExport('dataset-xlsx', keys, total, 'xlsx');
+        });
+      }).catch(function(err) {
+        xpProgressLog('ล้มเหลว: ' + (err && err.message ? err.message : err), 'fail');
+        showQuickToast('ดาวน์โหลดไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      }).then(function() { xpSetBusy(false); });
+    }
+
+    // JSON สำรองทุกชุด — ใช้ตอนย้ายระบบ/เก็บ snapshot ไม่ผ่านการจัดรูปแบบใดๆ
+    function xpRunJsonBundle() {
+      var boxes = document.querySelectorAll('#xpDatasetGrid input[data-xp-ds]');
+      Array.prototype.forEach.call(boxes, function(cb) { if (!cb.disabled) cb.checked = true; });
+      xpSyncDatasetUi();
+      xpRunSelectedExport('json');
+    }
+
+    // ── Executive PDF ────────────────────────────────────────────────
+    // ใช้ popup + window.print() แบบเดียวกับ PDF ของ PR Report / ใบนับสต็อก
+    // (ไม่โหลด jsPDF เพิ่ม — เอนจินพรินต์ของเบราว์เซอร์รองรับฟอนต์ไทยดีกว่า
+    //  และไฟล์ที่ได้เลือกขนาดกระดาษ/ขอบได้จากกล่องพรินต์เอง)
+    function xpEscHtml(s) {
+      return xpS(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    // กราฟแท่งเป็น inline SVG — ไม่พึ่งไลบรารีกราฟ เพราะ Chart.js วาดบน canvas
+    // แล้วบางเบราว์เซอร์พรินต์ canvas ออกมาเป็นช่องว่าง
+    function xpSvgBarChart(items, opts) {
+      var o = opts || {};
+      var w = o.width || 980, h = o.height || 240;
+      var padL = 58, padR = 14, padT = 14, padB = 46;
+      var innerW = w - padL - padR, innerH = h - padT - padB;
+      var max = 0;
+      items.forEach(function(it) { if (xpN(it.value) > max) max = xpN(it.value); });
+      if (max <= 0) return '<p style="color:#64748b;font-size:12px">ไม่มีข้อมูลในช่วงที่เลือก</p>';
+      var n = items.length || 1;
+      var slot = innerW / n;
+      var barW = Math.max(4, Math.min(46, slot * 0.62));
+      var bars = items.map(function(it, i) {
+        var v = xpN(it.value);
+        var bh = Math.max(1, (v / max) * innerH);
+        var x = padL + slot * i + (slot - barW) / 2;
+        var y = padT + innerH - bh;
+        return '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" fill="' + (o.color || '#2563eb') + '"/>' +
+          '<text x="' + (x + barW / 2).toFixed(1) + '" y="' + (y - 4).toFixed(1) + '" font-size="9" fill="#334155" text-anchor="middle">' + xpEscHtml(xpFmtInt(v)) + '</text>' +
+          '<text x="' + (x + barW / 2).toFixed(1) + '" y="' + (padT + innerH + 14).toFixed(1) + '" font-size="9" fill="#64748b" text-anchor="middle" transform="rotate(35 ' + (x + barW / 2).toFixed(1) + ' ' + (padT + innerH + 14).toFixed(1) + ')">' + xpEscHtml(it.label) + '</text>';
+      }).join('');
+      var grid = [0, 0.25, 0.5, 0.75, 1].map(function(f) {
+        var y = padT + innerH - innerH * f;
+        return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#e2e8f0" stroke-width="1"/>' +
+          '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1) + '" font-size="9" fill="#94a3b8" text-anchor="end">' + xpEscHtml(xpFmtInt(max * f)) + '</text>';
+      }).join('');
+      return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" xmlns="http://www.w3.org/2000/svg">' + grid + bars + '</svg>';
+    }
+    function xpHtmlTable(table, limit) {
+      var rows = (table.rows || []).slice(0, limit || 9999);
+      return '<table class="rpt"><thead><tr>' +
+        (table.headers || []).map(function(h) { return '<th>' + xpEscHtml(h) + '</th>'; }).join('') +
+        '</tr></thead><tbody>' +
+        rows.map(function(r) {
+          return '<tr>' + r.map(function(c, i) {
+            var num = table.numeric && table.numeric[i];
+            var text = num && typeof c === 'number'
+              ? (table.money && table.money[i] ? xpFmtMoney(c) : xpFmtInt(c))
+              : xpS(c);
+            return '<td' + (num ? ' class="num"' : '') + '>' + xpEscHtml(text) + '</td>';
+          }).join('') + '</tr>';
+        }).join('') +
+        '</tbody></table>' +
+        ((table.rows || []).length > rows.length ? '<p class="more">แสดง ' + xpFmtInt(rows.length) + ' แถวแรกจากทั้งหมด ' + xpFmtInt(table.rows.length) + ' แถว — ดูครบในไฟล์ Excel</p>' : '');
+    }
+
+    function xpRunPdfReport() {
+      if (xpBusy) return;
+      xpSetBusy(true);
+      xpProgressShow(true);
+      xpProgressLog('เริ่มสร้าง Executive Report (PDF)');
+      var ctxKeys = ['master', 'logs', 'orderRequests', 'purchaseHistory', 'miscExpenses', 'productionVolume', 'costConfig', 'stockCount', 'partTags', 'machines', 'prBundle'];
+      xpContext(ctxKeys, 0, 82).then(function(ctx) {
+        xpProgressSet(85, 'กำลังคำนวณและจัดหน้ารายงาน...');
+        var kpis = xpBuildKpis(ctx);
+        var trend = xpBuildTrend(ctx);
+        var lineSummary = xpBuildLineSummary(ctx);
+        var topIssue = XP_REPORTS[0].build(ctx);
+        var deadStock = XP_REPORTS[1].build(ctx);
+        var costReport = null;
+        if (!xpFilters.customerMode) {
+          for (var i = 0; i < XP_REPORTS.length; i += 1) if (XP_REPORTS[i].key === 'costVsProduction') costReport = XP_REPORTS[i].build(ctx);
+        }
+
+        var win = window.open('', '_blank');
+        if (!win) { throw new Error('เบราว์เซอร์บล็อก popup — อนุญาต popup ของเว็บนี้แล้วลองอีกครั้ง'); }
+
+        var css = [
+          // @import ต้องมาก่อนกฎอื่นทุกข้อ ไม่งั้นเบราว์เซอร์ทิ้งทั้งบรรทัดแล้วฟอนต์ไทยไม่โหลด
+          '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap");',
+          '@page { size: A4 landscape; margin: 12mm; }',
+          'body { font-family:"Noto Sans Thai",system-ui,sans-serif; color:#0f172a; margin:0; }',
+          '.page { page-break-after: always; padding-bottom:6mm; }',
+          '.page:last-child { page-break-after: auto; }',
+          '.cover { display:flex; flex-direction:column; justify-content:center; min-height:170mm; text-align:center; }',
+          '.cover h1 { font-size:34px; margin:0 0 6px; letter-spacing:-.5px; }',
+          '.cover h2 { font-size:17px; font-weight:600; color:#475569; margin:0 0 26px; }',
+          '.cover .meta { display:inline-block; text-align:left; border:1px solid #cbd5e1; border-radius:12px; padding:16px 22px; font-size:12.5px; line-height:2; }',
+          '.cover .meta b { display:inline-block; min-width:150px; color:#475569; }',
+          '.brandbar { height:6px; background:linear-gradient(90deg,#1d4ed8,#059669); border-radius:99px; margin-bottom:18px; }',
+          'h3.sec { font-size:16px; margin:0 0 4px; padding-bottom:6px; border-bottom:2px solid #1e293b; }',
+          'p.sub { font-size:11px; color:#64748b; margin:4px 0 12px; }',
+          '.kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; }',
+          '.kpi { border:1px solid #e2e8f0; border-radius:11px; padding:10px 12px; background:#fbfdff; }',
+          '.kpi .g { font-size:8.5px; text-transform:uppercase; letter-spacing:.08em; color:#94a3b8; font-weight:700; }',
+          '.kpi .l { font-size:10.5px; color:#475569; margin-top:2px; min-height:26px; }',
+          '.kpi .v { font-size:21px; font-weight:700; color:#1d4ed8; margin-top:3px; }',
+          '.kpi .v small { font-size:10px; color:#64748b; font-weight:600; margin-left:3px; }',
+          '.kpi .n { font-size:8.5px; color:#94a3b8; margin-top:3px; line-height:1.4; }',
+          'table.rpt { width:100%; border-collapse:collapse; font-size:9.5px; margin-top:6px; }',
+          'table.rpt th { background:#1e293b; color:#fff; padding:5px 6px; text-align:left; font-weight:700; }',
+          'table.rpt td { padding:4px 6px; border-bottom:1px solid #eef2f7; }',
+          'table.rpt tbody tr:nth-child(even) td { background:#f8fafc; }',
+          'table.rpt td.num, table.rpt th.num { text-align:right; }',
+          'p.more { font-size:9px; color:#94a3b8; margin-top:4px; font-style:italic; }',
+          '.footnote { margin-top:10px; font-size:9px; color:#64748b; border-left:3px solid #cbd5e1; padding-left:8px; line-height:1.6; }',
+          '.signrow { display:flex; gap:40px; margin-top:34px; font-size:11px; }',
+          '.signbox { flex:1; border-top:1px dashed #94a3b8; padding-top:6px; text-align:center; color:#64748b; }',
+          '@media print { .noprint { display:none !important; } }',
+          '.noprint { position:fixed; top:10px; right:10px; z-index:99; }',
+          '.noprint button { padding:9px 16px; border-radius:9px; border:none; background:#1d4ed8; color:#fff; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit; }'
+        ].join('\n');
+
+        var kpiGroups = {};
+        kpis.forEach(function(k) { (kpiGroups[k.group] = kpiGroups[k.group] || []).push(k); });
+        var kpiHtml = Object.keys(kpiGroups).map(function(g) {
+          return '<div style="margin-bottom:11px"><p style="font-size:11px;font-weight:700;color:#1e293b;margin:0 0 5px">' + xpEscHtml(g) + '</p><div class="kpis">' +
+            kpiGroups[g].map(function(k) {
+              var val = typeof k.value === 'number' ? xpFmtInt(k.value) : xpEscHtml(k.value);
+              return '<div class="kpi"><div class="g">' + xpEscHtml(g) + '</div><div class="l">' + xpEscHtml(k.label) + '</div>' +
+                '<div class="v">' + val + (k.unit ? '<small>' + xpEscHtml(k.unit) + '</small>' : '') + '</div>' +
+                (k.note ? '<div class="n">' + xpEscHtml(k.note) + '</div>' : '') + '</div>';
+            }).join('') + '</div></div>';
+        }).join('');
+
+        var trendBuckets = trend.buckets || [];
+        var outChart = xpSvgBarChart(trendBuckets.map(function(b) { return { label: b.key, value: b.outQty }; }), { color: '#dc2626' });
+        var inChart = xpSvgBarChart(trendBuckets.map(function(b) { return { label: b.key, value: b.inQty }; }), { color: '#059669' });
+        var valueChart = xpFilters.customerMode ? '' :
+          '<h3 class="sec" style="margin-top:16px">มูลค่าเบิกออกตามช่วงเวลา (บาท)</h3>' +
+          xpSvgBarChart(trendBuckets.map(function(b) { return { label: b.key, value: Math.round(b.outValue) }; }), { color: '#4f46e5' });
+
+        var rangeText = (xpFilters.from || 'ตั้งแต่เริ่มระบบ') + '  ถึง  ' + (xpFilters.to || 'ล่าสุด');
+        var failedList = Object.keys(ctx.failed || {});
+        var html = [
+          '<div class="noprint"><button onclick="window.print()">🖨️ พรินต์ / บันทึกเป็น PDF</button></div>',
+
+          '<div class="page cover">',
+          '<div class="brandbar"></div>',
+          '<h1>รายงานข้อมูลระบบคลังอะไหล่</h1>',
+          '<h2>Spare Parts Management System — Executive Report</h2>',
+          '<div class="meta">',
+          '<div><b>ช่วงข้อมูล</b> ' + xpEscHtml(rangeText) + '</div>',
+          '<div><b>ไลน์</b> ' + xpEscHtml(xpFilters.line || 'ทุกไลน์ (รวม)') + '</div>',
+          '<div><b>หมวด</b> ' + xpEscHtml(xpFilters.category || 'ทุกหมวด') + '</div>',
+          '<div><b>รวมข้อมูลตาม</b> ' + xpEscHtml(xpFilters.groupBy === 'day' ? 'รายวัน' : (xpFilters.groupBy === 'week' ? 'รายสัปดาห์' : 'รายเดือน')) + '</div>',
+          '<div><b>ผู้จัดทำ</b> ' + xpEscHtml((currentUser && (currentUser.name || currentUser.username)) || '-') + '</div>',
+          '<div><b>สร้างเมื่อ</b> ' + xpEscHtml(new Date().toLocaleString('th-TH')) + '</div>',
+          xpFilters.customerMode ? '<div><b>โหมดลูกค้า</b> เปิด — ไม่แสดงราคาต้นทุน ผู้ขาย และค่าใช้จ่าย</div>' : '',
+          '</div>',
+          '<p style="font-size:10px;color:#94a3b8;margin-top:22px">ตัวเลขทุกตัวในรายงานนี้คำนวณจากข้อมูลจริงในระบบ ณ เวลาที่สร้างไฟล์</p>',
+          '</div>',
+
+          '<div class="page">',
+          '<h3 class="sec">สรุปผู้บริหาร</h3>',
+          '<p class="sub">ช่วงข้อมูล ' + xpEscHtml(rangeText) + ' · ' + xpEscHtml(xpFilters.line || 'ทุกไลน์') + '</p>',
+          kpiHtml,
+          failedList.length ? '<div class="footnote">ชุดข้อมูลที่ดึงไม่สำเร็จในรอบนี้: ' + xpEscHtml(failedList.join(', ')) + ' — ตัวชี้วัดที่เกี่ยวข้องจะขึ้นว่า "ดึงข้อมูลไม่ได้" ไม่ได้แทนด้วยศูนย์</div>' : '',
+          '</div>',
+
+          '<div class="page">',
+          '<h3 class="sec">เทรนด์การเคลื่อนไหวของอะไหล่</h3>',
+          '<p class="sub">ยอดเบิกออก (ชิ้น) ต่อช่วงเวลา</p>',
+          outChart,
+          '<h3 class="sec" style="margin-top:16px">ยอดรับเข้า (ชิ้น)</h3>',
+          inChart,
+          valueChart,
+          '</div>',
+
+          '<div class="page">',
+          '<h3 class="sec">สรุปตามไลน์ผลิต</h3>',
+          '<p class="sub">ทุกตัวเลขเป็นของช่วง ' + xpEscHtml(rangeText) + '</p>',
+          xpHtmlTable(lineSummary),
+          '</div>',
+
+          '<div class="page">',
+          '<h3 class="sec">Top 20 อะไหล่ที่เบิกมากที่สุด</h3>',
+          '<p class="sub">' + xpEscHtml(topIssue.note) + '</p>',
+          xpHtmlTable(topIssue.table, 20),
+          '</div>',
+
+          '<div class="page">',
+          '<h3 class="sec">อะไหล่ที่ไม่มีการเบิกในช่วงนี้ (Top 25 ตามมูลค่า)</h3>',
+          '<p class="sub">' + xpEscHtml(deadStock.note) + '</p>',
+          xpHtmlTable(deadStock.table, 25),
+          '</div>',
+
+          costReport ? [
+            '<div class="page">',
+            '<h3 class="sec">ต้นทุนอะไหล่ต่อมูลค่าผลิต เทียบเป้า</h3>',
+            '<p class="sub">' + xpEscHtml(costReport.note) + '</p>',
+            xpHtmlTable(costReport.table, 40),
+            '</div>'
+          ].join('') : '',
+
+          '<div class="page">',
+          '<h3 class="sec">เทรนด์ตามช่วงเวลา (ตารางเต็ม)</h3>',
+          xpHtmlTable(trend.table),
+          '<div class="footnote">',
+          'ที่มาข้อมูล: ชีตอะไหล่ทุกไลน์, ชีต Log (รับเข้า/เบิกออก), OrderRequests, PRHeaders/PRLines, PurchaseHistory, MiscExpenses, ProductionVolume, StockCount, PartTags ของระบบคลังอะไหล่<br/>',
+          'มูลค่าเบิกออก/รับเข้า ตีจากราคาต่อหน่วยล่าสุดใน Master เพราะชีต Log ไม่ได้เก็บราคาไว้ในแถว · รายการที่ยังไม่ลงราคาจะนับมูลค่าเป็น 0 แต่จำนวนชิ้นถูกต้อง',
+          '</div>',
+          '<div class="signrow">',
+          '<div class="signbox">ผู้จัดทำ</div><div class="signbox">ผู้ตรวจสอบ</div><div class="signbox">ผู้อนุมัติ</div>',
+          '</div>',
+          '</div>'
+        ].join('\n');
+
+        win.document.write('<html lang="th"><head><meta charset="utf-8"/><title>Executive Report — ' + xpEscHtml(rangeText) + '</title><style>' + css + '</style></head><body>' + html + '</body></html>');
+        win.document.close();
+        xpProgressSet(100, 'เปิดหน้ารายงานแล้ว — กดปุ่มพรินต์เพื่อบันทึกเป็น PDF');
+        xpProgressLog('เปิด Executive Report ในแท็บใหม่', 'ok');
+        showQuickToast('เปิดรายงานแล้ว — กด "พรินต์ / บันทึกเป็น PDF" ในแท็บใหม่', 'success');
+        xpLogExport('executive-pdf', ['kpi', 'trend', 'lineSummary', 'topIssue', 'deadStock'], kpis.length, 'pdf');
+      }).catch(function(err) {
+        xpProgressLog('ล้มเหลว: ' + (err && err.message ? err.message : err), 'fail');
+        showQuickToast('สร้างรายงานไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      }).then(function() { xpSetBusy(false); });
+    }
+
+    // ── ระดับ 3: แสดงรายงานบนจอ + ดาวน์โหลด ──────────────────────────
+    function xpRunReport(key) {
+      if (xpBusy) return;
+      var rp = null;
+      for (var i = 0; i < XP_REPORTS.length; i += 1) if (XP_REPORTS[i].key === key) rp = XP_REPORTS[i];
+      if (!rp) return;
+      xpSetBusy(true);
+      xpProgressShow(true);
+      xpProgressLog('สร้างรายงาน: ' + rp.name);
+      xpContext(rp.needs, 0, 88).then(function(ctx) {
+        xpProgressSet(92, 'กำลังคำนวณ...');
+        var built = rp.build(ctx);
+        xpLastReport = { rp: rp, built: built };
+        xpRenderReportPreview(rp, built, ctx);
+        xpProgressSet(100, 'เสร็จแล้ว — ' + xpFmtInt((built.table.rows || []).length) + ' แถว');
+        xpProgressLog(rp.name + ' — ' + xpFmtInt((built.table.rows || []).length) + ' แถว', 'ok');
+      }).catch(function(err) {
+        xpProgressLog('ล้มเหลว: ' + (err && err.message ? err.message : err), 'fail');
+        showQuickToast('สร้างรายงานไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      }).then(function() { xpSetBusy(false); });
+    }
+    function xpRenderReportPreview(rp, built, ctx) {
+      var wrap = xpEl('xpReportPreview');
+      if (!wrap) return;
+      var table = built.table || { headers: [], rows: [] };
+      var rows = (table.rows || []).slice(0, 200);
+      var failedNote = Object.keys(ctx.failed || {}).length
+        ? '<p style="font-size:11px;color:#b91c1c;font-weight:700;margin-bottom:8px">⚠ ดึงข้อมูลบางชุดไม่สำเร็จ (' + Object.keys(ctx.failed).join(', ') + ') ตัวเลขในรายงานนี้จึงยังไม่ครบ</p>'
+        : '';
+      wrap.innerHTML =
+        '<div class="flex flex-wrap items-start justify-between gap-3 mb-3">' +
+          '<div><h4 style="font-size:14px;font-weight:800;color:#1e293b">' + xpEscHtml(rp.name) + '</h4>' +
+          '<p style="font-size:11px;color:#64748b;margin-top:2px">' + xpEscHtml(rp.desc) + '</p></div>' +
+          '<div class="flex gap-2">' +
+            '<button id="xpReportXlsxBtn" type="button" class="xp-btn-primary xp-btn-sm">📗 ดาวน์โหลด .xlsx</button>' +
+            '<button id="xpReportCsvBtn" type="button" class="xp-btn-secondary xp-btn-sm">📄 .csv</button>' +
+            '<button id="xpReportCloseBtn" type="button" class="xp-btn-mini">ปิด</button>' +
+          '</div>' +
+        '</div>' +
+        failedNote +
+        '<p style="font-size:11px;color:#475569;font-weight:600;margin-bottom:6px">' +
+          xpFmtInt((table.rows || []).length) + ' แถว · ช่วง ' + xpEscHtml((xpFilters.from || 'ทั้งหมด') + ' → ' + (xpFilters.to || 'ล่าสุด')) +
+          ' · ' + xpEscHtml(xpFilters.line || 'ทุกไลน์') +
+        '</p>' +
+        '<div class="xp-report-scroll">' + xpHtmlTable({ headers: table.headers, rows: rows, numeric: table.numeric, money: table.money }) + '</div>' +
+        (built.note ? '<p style="font-size:10.5px;color:#64748b;margin-top:8px;border-left:3px solid #cbd5e1;padding-left:8px;line-height:1.6">' + xpEscHtml(built.note) + '</p>' : '') +
+        ((table.rows || []).length > rows.length ? '<p style="font-size:10.5px;color:#94a3b8;margin-top:6px">แสดง 200 แถวแรกบนหน้าจอ — ไฟล์ที่ดาวน์โหลดมีครบทุกแถว</p>' : '');
+      wrap.classList.remove('hidden');
+      var xb = xpEl('xpReportXlsxBtn');
+      if (xb) xb.addEventListener('click', function() { xpDownloadReport('xlsx'); });
+      var cb = xpEl('xpReportCsvBtn');
+      if (cb) cb.addEventListener('click', function() { xpDownloadReport('csv'); });
+      var cl = xpEl('xpReportCloseBtn');
+      if (cl) cl.addEventListener('click', function() { wrap.classList.add('hidden'); });
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function xpDownloadReport(format) {
+      if (!xpLastReport) return;
+      var rp = xpLastReport.rp, built = xpLastReport.built;
+      var stamp = xpFileStamp() + xpFileSuffix();
+      var total = (built.table.rows || []).length;
+      if (format === 'csv') {
+        xpDownloadBlob(new Blob([xpTableToCsv(built.table)], { type: 'text/csv;charset=utf-8;' }), 'JR-report-' + rp.key + '-' + stamp + '.csv');
+        showQuickToast('ดาวน์โหลดรายงาน CSV แล้ว', 'success');
+        xpLogExport('report-csv', [rp.key], total, 'csv');
+        return;
+      }
+      var sheets = [{ name: '00 ปกรายงาน', table: xpBuildCover([{ name: rp.name, table: built.table }], { note: built.note || '' }) }];
+      sheets.push({ name: rp.name, table: built.table });
+      (built.extraSheets || []).forEach(function(s) { sheets.push(s); });
+      sheets.push({ name: '99 พจนานุกรมข้อมูล', table: xpBuildDictionary(sheets) });
+      xpWriteXlsxStyled(sheets, 'JR-report-' + rp.key + '-' + stamp + '.xlsx').then(function() {
+        showQuickToast('ดาวน์โหลดรายงาน Excel แล้ว', 'success');
+        xpLogExport('report-xlsx', [rp.key], total, 'xlsx');
+      }).catch(function(err) {
+        showQuickToast('ดาวน์โหลดไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      });
+    }
+
+    // ── UI: ตัวกรอง ──────────────────────────────────────────────────
+    function xpApplyQuickRange(key) {
+      var now = new Date();
+      var from = '', to = xpDateStr(now);
+      if (key === 'today') { from = xpDateStr(now); }
+      else if (key === '7d') { var d7 = new Date(now.getTime() - 6 * 86400000); from = xpDateStr(d7); }
+      else if (key === 'month') { from = xpDateStr(new Date(now.getFullYear(), now.getMonth(), 1)); }
+      else if (key === 'prevmonth') {
+        from = xpDateStr(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+        to = xpDateStr(new Date(now.getFullYear(), now.getMonth(), 0));
+      }
+      else if (key === 'quarter') { from = xpDateStr(new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)); }
+      else if (key === 'year') { from = xpDateStr(new Date(now.getFullYear(), 0, 1)); }
+      else { from = ''; to = ''; } // all
+      xpFilters.rangeKey = key;
+      xpFilters.from = from;
+      xpFilters.to = to;
+      var f = xpEl('xpDateFrom'), t = xpEl('xpDateTo');
+      if (f) f.value = from;
+      if (t) t.value = to;
+      document.querySelectorAll('#xpQuickRange .xp-chip').forEach(function(c) {
+        c.classList.toggle('xp-chip-active', c.getAttribute('data-xp-range') === key);
+      });
+      xpAfterFilterChange();
+    }
+    function xpReadFilterInputs() {
+      var f = xpEl('xpDateFrom'), t = xpEl('xpDateTo');
+      xpFilters.from = f ? f.value : '';
+      xpFilters.to = t ? t.value : '';
+      // แก้ช่วงกลับหัวให้เอง (คนกรอกสลับ from/to บ่อย) — ดีกว่าคืนไฟล์ว่างแล้วไม่บอกทำไม
+      if (xpFilters.from && xpFilters.to && xpFilters.from > xpFilters.to) {
+        var tmp = xpFilters.from;
+        xpFilters.from = xpFilters.to;
+        xpFilters.to = tmp;
+        if (f) f.value = xpFilters.from;
+        if (t) t.value = xpFilters.to;
+        showQuickToast('สลับวันเริ่ม/สิ้นสุดให้แล้ว (กรอกกลับหัว)', 'info');
+      }
+      var l = xpEl('xpLineFilter'); xpFilters.line = l ? l.value : '';
+      var c = xpEl('xpCategoryFilter'); xpFilters.category = c ? c.value : '';
+      var tt = xpEl('xpTxnTypeFilter'); xpFilters.txnType = tt ? tt.value : '';
+      var g = xpEl('xpGroupBy'); xpFilters.groupBy = g ? g.value : 'month';
+      var cm = xpEl('xpCustomerMode'); xpFilters.customerMode = !!(cm && cm.checked);
+      if (xpFilters.from || xpFilters.to) {
+        xpFilters.rangeKey = 'custom';
+        document.querySelectorAll('#xpQuickRange .xp-chip').forEach(function(ch) { ch.classList.remove('xp-chip-active'); });
+      }
+      xpAfterFilterChange();
+    }
+    function xpAfterFilterChange() {
+      xpClearCache(); // ตัวกรองเปลี่ยน = ข้อมูลที่ cache ไว้ใช้ไม่ได้แล้ว ต้องดึงใหม่
+      xpRenderFilterSummary();
+      xpRenderDatasetGrid();
+      xpRenderReportGrid();
+      var prev = xpEl('xpReportPreview');
+      if (prev) prev.classList.add('hidden');
+      xpLastReport = null;
+    }
+    function xpRenderFilterSummary() {
+      var el = xpEl('xpFilterSummary');
+      if (!el) return;
+      var parts = [];
+      parts.push('ช่วงข้อมูล: ' + (xpFilters.from || xpFilters.to ? ((xpFilters.from || 'เริ่มระบบ') + ' → ' + (xpFilters.to || 'ล่าสุด')) : 'ทั้งหมดที่มีในระบบ'));
+      parts.push(xpFilters.line || 'ทุกไลน์');
+      if (xpFilters.category) parts.push('หมวด ' + xpFilters.category);
+      if (xpFilters.txnType) parts.push(xpFilters.txnType === 'Input' ? 'รับเข้าเท่านั้น' : 'เบิกออกเท่านั้น');
+      parts.push('รวมตาม' + (xpFilters.groupBy === 'day' ? 'วัน' : (xpFilters.groupBy === 'week' ? 'สัปดาห์' : 'เดือน')));
+      if (xpFilters.customerMode) parts.push('🕶️ โหมดลูกค้า: ตัดคอลัมน์ราคา/ผู้ขาย/มูลค่าออกจากไฟล์');
+      el.textContent = parts.join(' · ');
+      el.style.color = xpFilters.customerMode ? '#92400e' : '#64748b';
+    }
+    function xpPopulateFilterOptions() {
+      var l = xpEl('xpLineFilter');
+      if (l && l.options.length <= 1) {
+        Object.keys(LINE_SHEET_OPTIONS || {}).forEach(function(key) {
+          var opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = key;
+          l.appendChild(opt);
+        });
+      }
+      // หมวดต้องรู้จากข้อมูลจริง — เติมหลังโหลด master สำเร็จครั้งแรก
+      var c = xpEl('xpCategoryFilter');
+      if (c && c.options.length <= 1) {
+        var source = (typeof dashboardAllPartsData !== 'undefined' && dashboardAllPartsData && dashboardAllPartsData.length)
+          ? dashboardAllPartsData : (partsData || []);
+        var cats = {};
+        source.forEach(function(it) { var k = xpS(it.category).trim(); if (k && k !== '-') cats[k] = true; });
+        Object.keys(cats).sort().forEach(function(k) {
+          var opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = k;
+          c.appendChild(opt);
+        });
+      }
+    }
+
+    // ── UI: ตารางชุดข้อมูล ───────────────────────────────────────────
+    function xpRowCountFor(ds) {
+      if (!xpManifest || !ds.countSheets || !ds.countSheets.length) return null;
+      var total = 0, known = false;
+      ds.countSheets.forEach(function(name) {
+        var v = xpManifest[name];
+        if (v === undefined || v === null || v < 0) return;
+        known = true;
+        total += v;
+      });
+      return known ? total : null;
+    }
+    function xpRenderDatasetGrid() {
+      var grid = xpEl('xpDatasetGrid');
+      if (!grid) return;
+      var checked = {};
+      Array.prototype.forEach.call(grid.querySelectorAll('input[data-xp-ds]'), function(cb) {
+        checked[cb.getAttribute('data-xp-ds')] = cb.checked;
+      });
+      var first = !grid.children.length;
+      var groups = {};
+      xpVisibleDatasets().forEach(function(d) { (groups[d.group] = groups[d.group] || []).push(d); });
+      var html = '';
+      Object.keys(groups).forEach(function(g) {
+        html += '<div style="grid-column:1/-1;font-size:11px;font-weight:800;color:#475569;margin-top:6px;letter-spacing:.02em">' + xpEscHtml(g) + '</div>';
+        groups[g].forEach(function(d) {
+          var count = xpRowCountFor(d);
+          var isOn = first ? !!d.core : !!checked[d.key];
+          html += '<label class="xp-ds' + (isOn ? ' xp-ds-on' : '') + '" data-xp-ds-row="' + d.key + '">' +
+            '<input type="checkbox" data-xp-ds="' + d.key + '"' + (isOn ? ' checked' : '') + ' />' +
+            '<span class="xp-ds-body">' +
+              '<span class="xp-ds-name">' + xpEscHtml(d.name) + (d.adminOnly ? ' 🔒' : '') + '</span>' +
+              '<span class="xp-ds-meta">' + xpEscHtml(d.meta) + '</span>' +
+              (count !== null ? '<span class="xp-ds-rows">' + xpFmtInt(count) + ' แถวในชีต</span>' : '') +
+            '</span>' +
+          '</label>';
+        });
+      });
+      grid.innerHTML = html;
+      xpSyncDatasetUi();
+    }
+    function xpSyncDatasetUi() {
+      var grid = xpEl('xpDatasetGrid');
+      if (!grid) return;
+      var n = 0;
+      Array.prototype.forEach.call(grid.querySelectorAll('input[data-xp-ds]'), function(cb) {
+        var row = cb.closest('.xp-ds');
+        if (row) row.classList.toggle('xp-ds-on', cb.checked);
+        if (cb.checked) n += 1;
+      });
+      var lbl = xpEl('xpSelectedCount');
+      if (lbl) lbl.textContent = 'เลือกไว้ ' + n + ' ชุด' + (n ? '' : ' — ติ๊กอย่างน้อย 1 ชุดก่อนดาวน์โหลด');
+    }
+    function xpRenderReportGrid() {
+      var grid = xpEl('xpReportGrid');
+      if (!grid) return;
+      grid.innerHTML = XP_REPORTS.filter(function(r) {
+        return !(xpFilters.customerMode && r.hiddenInCustomerMode);
+      }).map(function(r) {
+        return '<button type="button" class="xp-rp" data-xp-report="' + r.key + '">' +
+          '<span class="xp-rp-name">' + xpEscHtml(r.name) + '</span>' +
+          '<span class="xp-rp-desc">' + xpEscHtml(r.desc) + '</span>' +
+        '</button>';
+      }).join('');
+    }
+    function xpLoadManifest(force) {
+      var badge = xpEl('xpManifestBadge');
+      if (xpManifest && !force) { xpRenderDatasetGrid(); return Promise.resolve(xpManifest); }
+      if (badge) badge.textContent = 'กำลังนับจำนวนแถว...';
+      return xpApi({ action: 'exportManifest' }).then(function(res) {
+        xpManifest = (res && res.counts) || {};
+        var totalRows = 0;
+        Object.keys(xpManifest).forEach(function(k) { if (xpManifest[k] > 0) totalRows += xpManifest[k]; });
+        if (badge) badge.textContent = 'ข้อมูลในระบบรวม ' + xpFmtInt(totalRows) + ' แถว · นับเมื่อ ' + xpS(res.generatedAt);
+        xpRenderDatasetGrid();
+        return xpManifest;
+      }).catch(function(err) {
+        // ยังใช้งานได้ปกติถ้านับไม่ได้ — แค่ไม่มีป้ายบอกจำนวนแถวข้าง checkbox
+        if (badge) badge.textContent = 'นับจำนวนแถวไม่ได้ (ยังส่งออกได้ปกติ)';
+        console.warn('exportManifest failed', err);
+      });
+    }
+
+    function xpHidePage() {
+      var el = xpEl('exportPage');
+      if (el) el.classList.add('hidden');
+    }
+    function switchToExportPage() {
+      if (!xpCanExport()) { showQuickToast('ไม่มีสิทธิ์ส่งออกข้อมูล (export_data)', 'warn'); return switchToStockPage(); }
+      stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      mxHidePage();
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
+      xpHidePage();
+      var page = xpEl('exportPage');
+      if (page) page.classList.remove('hidden');
+      setTabStyles('export');
+      var auditCard = xpEl('xpAuditCard');
+      if (auditCard) auditCard.classList.toggle('hidden', !isAdminUser());
+      xpPopulateFilterOptions();
+      xpRenderFilterSummary();
+      xpRenderDatasetGrid();
+      xpRenderReportGrid();
+      xpLoadManifest(false);
+    }
+    // เกณฑ์เดียวกับฝั่งเซิร์ฟเวอร์ (requireExportAccess) — ยอมรับ view_logs / admin ด้วย
+    // เพราะผู้ใช้ที่สร้างไว้ก่อนฟีเจอร์นี้ไม่มีคีย์ export_data ใน permissions_json
+    function xpCanExport() {
+      return hasPermission('export_data') || hasPermission('view_logs') || isAdminUser();
+    }
+
+    function xpRenderAuditTable(dump) {
+      var wrap = xpEl('xpAuditTableWrap');
+      if (!wrap) return;
+      var headers = (dump && dump.headers) || [];
+      var rows = ((dump && dump.rows) || []).slice(0, 100);
+      if (!rows.length) {
+        wrap.innerHTML = '<p class="text-xs text-slate-400">ยังไม่มีการส่งออกข้อมูลบันทึกไว้</p>';
+        return;
+      }
+      wrap.innerHTML = '<table class="xp-audit-table"><thead><tr>' +
+        headers.map(function(h) { return '<th>' + xpEscHtml(h) + '</th>'; }).join('') +
+        '</tr></thead><tbody>' +
+        rows.map(function(r) { return '<tr>' + r.map(function(c) { return '<td>' + xpEscHtml(c) + '</td>'; }).join('') + '</tr>'; }).join('') +
+        '</tbody></table>' +
+        '<p class="mt-2 text-xs text-slate-400">แสดง ' + rows.length + ' รายการล่าสุด</p>';
+    }
+
+    (function initExportCenter() {
+      var tabBtn = xpEl('tabExport');
+      if (tabBtn) tabBtn.addEventListener('click', switchToExportPage);
+
+      document.querySelectorAll('#xpQuickRange .xp-chip').forEach(function(chip) {
+        chip.addEventListener('click', function() { xpApplyQuickRange(chip.getAttribute('data-xp-range')); });
+      });
+      ['xpDateFrom', 'xpDateTo', 'xpLineFilter', 'xpCategoryFilter', 'xpTxnTypeFilter', 'xpGroupBy', 'xpCustomerMode'].forEach(function(id) {
+        var el = xpEl(id);
+        if (el) el.addEventListener('change', xpReadFilterInputs);
+      });
+      var applyBtn = xpEl('xpApplyBtn');
+      if (applyBtn) applyBtn.addEventListener('click', function() {
+        xpReadFilterInputs();
+        showQuickToast('ใช้ตัวกรองแล้ว — ' + (xpEl('xpFilterSummary') ? xpEl('xpFilterSummary').textContent : ''), 'info');
+      });
+
+      var grid = xpEl('xpDatasetGrid');
+      if (grid) grid.addEventListener('change', function(e) {
+        if (e.target && e.target.getAttribute && e.target.getAttribute('data-xp-ds')) xpSyncDatasetUi();
+      });
+      var selAll = xpEl('xpSelectAllBtn');
+      if (selAll) selAll.addEventListener('click', function() {
+        Array.prototype.forEach.call(document.querySelectorAll('#xpDatasetGrid input[data-xp-ds]'), function(cb) { cb.checked = true; });
+        xpSyncDatasetUi();
+      });
+      var selNone = xpEl('xpSelectNoneBtn');
+      if (selNone) selNone.addEventListener('click', function() {
+        Array.prototype.forEach.call(document.querySelectorAll('#xpDatasetGrid input[data-xp-ds]'), function(cb) { cb.checked = false; });
+        xpSyncDatasetUi();
+      });
+      var selCore = xpEl('xpSelectCoreBtn');
+      if (selCore) selCore.addEventListener('click', function() {
+        Array.prototype.forEach.call(document.querySelectorAll('#xpDatasetGrid input[data-xp-ds]'), function(cb) {
+          var ds = xpDatasetByKey(cb.getAttribute('data-xp-ds'));
+          cb.checked = !!(ds && ds.core);
+        });
+        xpSyncDatasetUi();
+      });
+
+      var wbBtn = xpEl('xpWorkbookBtn');
+      if (wbBtn) wbBtn.addEventListener('click', xpRunWorkbook);
+      var pdfBtn = xpEl('xpPdfBtn');
+      if (pdfBtn) pdfBtn.addEventListener('click', xpRunPdfReport);
+      var jsonBtn = xpEl('xpJsonBundleBtn');
+      if (jsonBtn) jsonBtn.addEventListener('click', xpRunJsonBundle);
+      var xlsxBtn = xpEl('xpExportXlsxBtn');
+      if (xlsxBtn) xlsxBtn.addEventListener('click', function() { xpRunSelectedExport('xlsx'); });
+      var csvBtn = xpEl('xpExportCsvBtn');
+      if (csvBtn) csvBtn.addEventListener('click', function() { xpRunSelectedExport('csv'); });
+      var jsBtn = xpEl('xpExportJsonBtn');
+      if (jsBtn) jsBtn.addEventListener('click', function() { xpRunSelectedExport('json'); });
+
+      var reportGrid = xpEl('xpReportGrid');
+      if (reportGrid) reportGrid.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest ? e.target.closest('[data-xp-report]') : null;
+        if (btn) xpRunReport(btn.getAttribute('data-xp-report'));
+      });
+
+      var manifestBtn = xpEl('xpRefreshManifestBtn');
+      if (manifestBtn) manifestBtn.addEventListener('click', function() { xpClearCache(); xpLoadManifest(true); });
+
+      var auditBtn = xpEl('xpAuditRefreshBtn');
+      if (auditBtn) auditBtn.addEventListener('click', function() {
+        var wrap = xpEl('xpAuditTableWrap');
+        if (wrap) wrap.innerHTML = '<p class="text-xs text-slate-400">กำลังโหลด...</p>';
+        xpApi({ action: 'exportAuditTrails', sets: 'exportLog' }).then(function(res) {
+          xpRenderAuditTable(res.exportLog);
+        }).catch(function(err) {
+          if (wrap) wrap.innerHTML = '<p class="text-xs text-rose-600">โหลดทะเบียนไม่ได้: ' + xpEscHtml(err && err.message ? err.message : err) + '</p>';
+        });
+      });
+    })();
     checkSession().then(function() {
       setAuthScreen(true);
       loadPartsData();
