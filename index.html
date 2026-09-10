@@ -12504,7 +12504,10 @@ function inferRequestPriority(stock, min) {
           var pv = fccN(v.production_value);
           valueByMonth[key] = (valueByMonth[key] || 0) + pv;
           if (isAll) {
-            var lineTp = lineTargetPct[vLine] || 0;
+            // ถ้าตั้งเป้าหมายรวม (ใต้ line 'ALL') ไว้ ให้ใช้ % นั้นคูมกับมูลค่าผลิตทุกไลน์ตรงๆ
+            // (คนแก้ "เป้าหมายควบคุม" ตอนอยู่มุมมอง "ทุกไลน์ (รวม)" ต้องเห็นงบ Spare part ขยับตาม)
+            // ถ้ายังไม่เคยตั้งเป้าหมายรวม ค่อย fallback ไปรวมงบจากเป้าหมาย % ของแต่ละไลน์เอง
+            var lineTp = targetPct > 0 ? targetPct : (lineTargetPct[vLine] || 0);
             if (lineTp > 0) {
               budgetByMonth[key] = (budgetByMonth[key] || 0) + pv * lineTp / 100;
               if (!budgetDetailByMonth[key]) budgetDetailByMonth[key] = {};
