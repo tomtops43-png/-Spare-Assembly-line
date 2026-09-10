@@ -66,9 +66,10 @@ function buildModule(pieces, returnExpr) {
 }
 
 // ชุดฟังก์ชันพื้นฐานที่รายงาน/ตัวกรองแทบทุกตัวต้องใช้
+// รวมชั้นภาษา (XP_LANG_EN + xpT) ด้วย เพราะทุกตารางที่ผ่าน xpTable ต้องแปลหัวคอลัมน์
 function baseHelpers(extra) {
-  const names = ['xpN', 'xpS', 'xpFmtInt', 'xpFmtMoney', 'xpDateStr', 'xpMonthKey', 'xpDayKey', 'xpWeekKey', 'xpBucketKey', 'xpInRange', 'xpLineMatches', 'xpIsSensitiveHeader', 'xpTable', 'xpTableFromDump', 'xpPartKey', 'xpPriceMap', 'xpLookupPrice', 'xpIsOutput', 'xpIsInput', 'xpEscHtml'];
-  const pieces = [grabVar('XP_SENSITIVE_PATTERNS')];
+  const names = ['xpN', 'xpS', 'xpFmtInt', 'xpFmtMoney', 'xpDateStr', 'xpMonthKey', 'xpDayKey', 'xpWeekKey', 'xpBucketKey', 'xpInRange', 'xpLineMatches', 'xpIsSensitiveHeader', 'xpT', 'xpIsEn', 'xpLocaleStamp', 'xpDictKeyOf', 'xpTable', 'xpTableFromDump', 'xpPartKey', 'xpPriceMap', 'xpLookupPrice', 'xpIsOutput', 'xpIsInput', 'xpEscHtml'];
+  const pieces = [grabVar('XP_SENSITIVE_PATTERNS'), grabVar('XP_LANG_EN'), 'var xpLangReverse = null;'];
   names.concat(extra || []).forEach(function(n) { pieces.push(grabFn(n)); });
   return pieces;
 }
