@@ -3188,7 +3188,8 @@ function getRoleDefaultPermissions(role) {
     request_order_create: true, request_order_view_own: true, request_order_view_all: true,
     request_order_approve: true, request_order_reject: true, request_order_convert_pr: true, request_order_close: true,
     request_order_edit: true, delete_logs: true,
-    pr_create: true, pr_view_own: true, pr_view_all: true, pr_approve: true
+    pr_create: true, pr_view_own: true, pr_view_all: true, pr_approve: true,
+    view_logs: true, view_dashboard: true, export_data: true
   };
   if (normalized === 'leader') return {
     view: true, transact: true, manage_items: true, delete_items: true,
@@ -3196,7 +3197,8 @@ function getRoleDefaultPermissions(role) {
     request_order_create: true, request_order_view_own: true, request_order_view_all: false,
     request_order_approve: false, request_order_reject: false, request_order_convert_pr: false, request_order_close: false,
     request_order_edit: false, delete_logs: false,
-    pr_create: true, pr_view_own: true, pr_view_all: false, pr_approve: true
+    pr_create: true, pr_view_own: true, pr_view_all: false, pr_approve: true,
+    view_logs: true, view_dashboard: true, export_data: true
   };
   return {
     view: true, transact: true, manage_items: false, delete_items: false,
@@ -3628,7 +3630,10 @@ function parseTransactionPayloadFromGet(e) {
   };
 }
 
-function getLogRows() {
+// options (ไม่ส่งก็ได้) = { from, to, line, type } — Export Center ต้องดึง Log เป็นช่วงเดือน
+// เพราะชีตนี้โตเรื่อยๆ ดึงทั้งก้อนทีเดียวจะชน timeout 30 วินาทีของ Apps Script
+// ผู้เรียกเดิมทั้ง 4 จุด (reconcile / autoPR / anomaly / digest) เรียกแบบไม่ส่ง options = ได้ทั้งชีตเหมือนเดิม
+function getLogRows(options) {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var historySheet = getOrCreateSheet(spreadsheet, SPARE_APP_CONFIG.writeSheetName);
   ensureLogSheetHeaders(historySheet);
@@ -3644,6 +3649,12 @@ function getLogRows() {
     }
     return fallback;
   }
+
+  var opts = options || {};
+  var rangeFrom = normalizeExportDateInput(opts.from);
+  var rangeTo = normalizeExportDateInput(opts.to);
+  var lineFilter = String(opts.line || '').trim().toLowerCase();
+  var typeFilter = String(opts.type || '').trim().toLowerCase();
 
   return data.slice(1).map(function (row, idx) {
     return {
@@ -3665,6 +3676,12 @@ function getLogRows() {
       stockBefore: pick(row, ['stockbefore'], 0),
       stockAfter: pick(row, ['stockafter'], 0)
     };
+  }).filter(function (entry) {
+    if (!exportInDateRange(entry.timestamp, rangeFrom, rangeTo)) return false;
+    // Process ในชีต Log คือชื่อไลน์ (ดู partTagLineFromProcess) — กรองไลน์ที่นี่
+    if (lineFilter && String(entry.process || '').trim().toLowerCase().indexOf(lineFilter) === -1) return false;
+    if (typeFilter && String(entry.type || '').toLowerCase().indexOf(typeFilter) === -1) return false;
+    return true;
   }).reverse();
 }
 
@@ -5102,6 +5119,13 @@ function doGet(e) {
     if (action === 'getStockCountComparison') return respond(getStockCountComparison(e.parameter), e);
     if (action === 'approveStockCountGroup') return respond(approveStockCountGroup(e.parameter), e);
     if (action === 'importLegacyStockCount') return respond(importLegacyStockCount(e.parameter), e);
+    // ── Export Center ────────────────────────────────────────────
+    if (action === 'exportManifest') return respond(exportManifest(e.parameter), e);
+    if (action === 'exportPrBundle') return respond(exportPrBundle(e.parameter), e);
+    if (action === 'exportAuditTrails') return respond(exportAuditTrails(e.parameter), e);
+    if (action === 'exportUserRoster') return respond(exportUserRoster(e.parameter), e);
+    if (action === 'exportRawSheets') return respond(exportRawSheets(e.parameter), e);
+    if (action === 'logExportEvent') return respond(logExportEvent(e.parameter), e);
     requirePermission(authPayload, 'view');
     if (action === 'transact') {
       requirePermission(authPayload, 'transact');
@@ -5111,7 +5135,7 @@ function doGet(e) {
       if (txnType.indexOf('Output') > -1) requirePermission(authPayload, 'issue_part');
       return respond(processTransaction(txnPayload), e);
     }
-    if (action === 'logs') return respond(getLogRows(), e);
+    if (action === 'logs') return respond(getLogRows({ from: e.parameter.from, to: e.parameter.to, line: e.parameter.line, type: e.parameter.logType }), e);
     if (action === 'deleteLogEntry') return respond(deleteLogEntry(e.parameter), e);
     if (action === 'returnLogEntry') return respond(returnLogEntry(e.parameter), e);
     if (action === 'nextNo') {
@@ -5377,6 +5401,12 @@ function doPost(e) {
     if (action === 'getStockCountComparison') return respond(getStockCountComparison(body), e);
     if (action === 'approveStockCountGroup') return respond(approveStockCountGroup(body), e);
     if (action === 'importLegacyStockCount') return respond(importLegacyStockCount(body), e);
+    if (action === 'exportManifest') return respond(exportManifest(body), e);
+    if (action === 'exportPrBundle') return respond(exportPrBundle(body), e);
+    if (action === 'exportAuditTrails') return respond(exportAuditTrails(body), e);
+    if (action === 'exportUserRoster') return respond(exportUserRoster(body), e);
+    if (action === 'exportRawSheets') return respond(exportRawSheets(body), e);
+    if (action === 'logExportEvent') return respond(logExportEvent(body), e);
     if (action === 'createOrderRequest') return respond(createOrderRequest(body), e);
     if (action === 'uploadRequestAttachment') return respond(uploadRequestAttachment(body), e);
     if (action === 'getOrderRequests') return respond(getOrderRequests(body), e);
@@ -5746,7 +5776,9 @@ function getStockCountHistory(payload) {
     var obj = {};
     headers.forEach(function(h, i) { obj[String(h)] = row[i]; });
     obj.is_pending = isStockCountPending(obj.status);
-    obj.items_json = undefined; // ไม่ส่ง items ทั้งหมด (ใหญ่เกิน)
+    // ปกติไม่ส่ง items ทั้งหมด (ใหญ่เกินสำหรับหน้าประวัติ) — ยกเว้น Export Center ที่ขอมาตรงๆ
+    // ด้วย includeItems=1 เพราะรายงานความแม่นการนับต้องเทียบยอดนับ vs ยอดระบบทีละชิ้น
+    if (String(payload.includeItems || '') !== '1') obj.items_json = undefined;
     return obj;
   }).reverse();
 }
@@ -6369,11 +6401,14 @@ function getIssueAnomalies(payload) {
   var idx = prIndexMap(data[0]);
   var now = Date.now();
   var out = [];
+  // all=1 = เอาทั้งทะเบียนไม่จำกัดสถานะ/อายุ (Export Center ต้องได้ประวัติย้อนหลังทั้งหมด)
+  // ค่าปกติยังเป็น "เฉพาะ NEW ใน 14 วัน" เหมือนเดิม เพราะการ์ดเตือนบนหน้าเว็บต้องการแค่ของสด
+  var includeAll = String((payload && payload.all) || '') === '1';
   for (var i = 1; i < data.length; i += 1) {
     var row = data[i];
-    if (String(row[idx.status]) !== 'NEW') continue;
+    if (!includeAll && String(row[idx.status]) !== 'NEW') continue;
     var ts = new Date(String(row[idx.detected_at] || '').replace(' ', 'T') + '+07:00').getTime();
-    if (isNaN(ts) || now - ts > 14 * 86400000) continue;
+    if (!includeAll && (isNaN(ts) || now - ts > 14 * 86400000)) continue;
     out.push({
       rowNumber: i + 1,
       detected_at: String(row[idx.detected_at] || ''),
@@ -6383,7 +6418,9 @@ function getIssueAnomalies(payload) {
       weekly_avg: Number(row[idx.weekly_avg] || 0),
       ratio: Number(row[idx.ratio] || 0),
       top_user: String(row[idx.top_user] || ''),
-      detail: String(row[idx.detail] || '')
+      detail: String(row[idx.detail] || ''),
+      status: String(row[idx.status] || ''),
+      top_user_qty: Number(row[idx.top_user_qty] || 0)
     });
   }
   out.sort(function(a, b) { return b.ratio - a.ratio; });
@@ -6766,6 +6803,313 @@ function aiReadNameplate(payload) {
     category: String(parsed.category || ''),
     specs: String(parsed.specs || '')
   };
+}
+
+// =============================
+// EXPORT CENTER — ศูนย์ส่งออกข้อมูลทั้งระบบ
+// =============================
+// ฝั่งเว็บมีปุ่ม Export กระจายอยู่ 6 จุด แต่ทุกปุ่มคือ "เซฟสิ่งที่เห็นบนจอ" ไม่มีทางดึงข้อมูล
+// ทั้งระบบออกไปเสนอลูกค้าได้ ส่วนใหญ่ของ 20 ชุดข้อมูลมี action อ่านอยู่แล้ว (ฝั่งเว็บเรียกเอง
+// ได้เลย) ที่เพิ่มในนี้คือชุดที่ "ยังไม่มีทางอ่าน" — PR เต็มวงจร (3 ชีตต่อกัน), ชีต audit
+// ที่ไม่เคยมี getter, ผลนับพร้อม items_json, anomaly ย้อนหลัง — บวกทะเบียนว่าใคร export อะไรไป
+//
+// เจตนา: ไฟล์ที่ออกจากตรงนี้ออกไปอยู่นอกองค์กร (มือลูกค้า) จึงต้องตามรอยได้ว่าใครดึงไปเมื่อไหร่
+// และต้องกันคอลัมน์ที่ห้ามหลุด (password / session_token) ตั้งแต่ฝั่ง server ไม่ใช่ซ่อนบน UI
+SPARE_APP_CONFIG.exportLogSheetName = SPARE_APP_CONFIG.exportLogSheetName || 'ExportLog';
+var EXPORT_LOG_HEADERS = ['Timestamp', 'User', 'Role', 'Scope', 'Datasets', 'Row Count', 'Format', 'Date From', 'Date To', 'Line', 'Customer Mode', 'Note'];
+
+// สิทธิ์ export: ใช้ 'export_data' เป็นหลัก แต่ยอมรับ view_logs / role=admin ด้วย
+// เพราะ getRoleDefaultPermissions() ไม่เคยมี export_data มาก่อน — ผู้ใช้ที่สร้างไว้ก่อนฟีเจอร์นี้
+// จะไม่มีคีย์นี้ใน permissions_json เลย ถ้าเช็คเข้มตัวเดียวคือ Admin ปัจจุบันใช้ไม่ได้ทั้งที่ควรได้
+function requireExportAccess(payload) {
+  var session = getSessionUser({ authToken: payload && payload.authToken });
+  var user = findUserByUsername(session.user.username);
+  if (!user) throw new Error('ไม่พบผู้ใช้');
+  if (hasPermissionForUser(user, 'export_data')) return user;
+  if (hasPermissionForUser(user, 'view_logs')) return user;
+  if (normalizeRole(user.role) === 'admin') return user;
+  throw new Error('ไม่มีสิทธิ์ใช้งานฟังก์ชันนี้ (export_data)');
+}
+
+// ไลน์ที่ผู้ใช้คนนี้ export ได้ — คนที่ถูกจำกัดไลน์ต้องได้เฉพาะไลน์ตัวเอง
+// บังคับที่ server ไม่ใช่ที่ UI: ถ้าเช็คแค่ฝั่งเว็บ ใครก็ยิง URL ตรงเอาข้อมูลไลน์อื่นได้
+function exportAllowedLine(user) {
+  var line = String((user && user.line) || '').trim();
+  if (!line || line.toLowerCase() === 'all') return '';
+  return line;
+}
+
+// 'yyyy-MM-dd' จากค่าที่อาจเป็น string ('2026-09-10 14:30:00') หรือ Date object
+// (Google Sheets ชอบแปลงคอลัมน์ที่หน้าตาเป็นวันที่ให้เอง) — อ่านที่โซนเวลาไทยเสมอ
+// ไม่งั้น 31 ส.ค. 17:00Z จะกลายเป็นเดือนสิงหาคมทั้งที่เวลาไทยคือ 1 ก.ย.
+function exportDateKey(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    if (isNaN(value.getTime())) return '';
+    return Utilities.formatDate(value, 'Asia/Bangkok', 'yyyy-MM-dd');
+  }
+  var raw = String(value).trim();
+  var m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  var slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // d/M/yyyy จากไฟล์นำเข้าเก่า
+  if (slash) {
+    return slash[3] + '-' + ('0' + slash[2]).slice(-2) + '-' + ('0' + slash[1]).slice(-2);
+  }
+  var parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) return Utilities.formatDate(parsed, 'Asia/Bangkok', 'yyyy-MM-dd');
+  return '';
+}
+
+// เทียบช่วงวันที่แบบ string ('yyyy-MM-dd' เรียงลำดับได้ตรงๆ) — ไม่ต้องแปลงเป็น timestamp
+// ค่าว่างในคอลัมน์วันที่ = ไม่รู้ว่าอยู่ในช่วงไหน ให้ผ่าน (ดีกว่าตกหายไปเงียบๆ)
+function exportInDateRange(value, from, to) {
+  if (!from && !to) return true;
+  var key = exportDateKey(value);
+  if (!key) return true;
+  if (from && key < from) return false;
+  if (to && key > to) return false;
+  return true;
+}
+
+function normalizeExportDateInput(raw) {
+  var key = exportDateKey(raw);
+  return key || '';
+}
+
+// ดึงทั้งชีตออกมาเป็น { headers, rows } — รูปแบบนี้เอาไปทำ .xlsx ได้ตรงๆ ไม่ต้องแปลงอีก
+// (array-of-objects จะบวมกว่าเยอะเมื่อชีตมีหลายหมื่นแถว และเสียลำดับคอลัมน์เดิมของชีต)
+// dropColumns = ชื่อคอลัมน์ที่ห้ามส่งออกไปเด็ดขาด (ตัดที่นี่ ไม่ใช่ให้ฝั่งเว็บซ่อน)
+function dumpSheetForExport(sheetName, opts) {
+  var options = opts || {};
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return { sheet: sheetName, headers: [], rows: [], missing: true };
+  var values = sheet.getDataRange().getValues();
+  if (!values.length) return { sheet: sheetName, headers: [], rows: [] };
+  var rawHeaders = (values[0] || []).map(function(h) { return String(h === undefined || h === null ? '' : h); });
+  var drop = {};
+  (options.dropColumns || []).forEach(function(name) { drop[normalizeHeaderName(name)] = true; });
+  var keepIdx = [];
+  rawHeaders.forEach(function(h, i) { if (!drop[normalizeHeaderName(h)]) keepIdx.push(i); });
+  var headers = keepIdx.map(function(i) { return rawHeaders[i]; });
+
+  var dateColIdx = -1;
+  if (options.dateColumn) {
+    for (var c = 0; c < rawHeaders.length; c += 1) {
+      if (normalizeHeaderName(rawHeaders[c]) === normalizeHeaderName(options.dateColumn)) { dateColIdx = c; break; }
+    }
+  }
+  var lineColIdx = -1;
+  if (options.lineColumn) {
+    for (var lc = 0; lc < rawHeaders.length; lc += 1) {
+      if (normalizeHeaderName(rawHeaders[lc]) === normalizeHeaderName(options.lineColumn)) { lineColIdx = lc; break; }
+    }
+  }
+  var lineFilter = String(options.line || '').trim().toLowerCase();
+
+  var out = [];
+  for (var r = 1; r < values.length; r += 1) {
+    var row = values[r];
+    var blank = true;
+    for (var b = 0; b < row.length; b += 1) {
+      if (String(row[b] === undefined || row[b] === null ? '' : row[b]).trim() !== '') { blank = false; break; }
+    }
+    if (blank) continue;
+    if (dateColIdx > -1 && !exportInDateRange(row[dateColIdx], options.from, options.to)) continue;
+    if (lineColIdx > -1 && lineFilter && String(row[lineColIdx] || '').trim().toLowerCase() !== lineFilter) continue;
+    var picked = [];
+    for (var k = 0; k < keepIdx.length; k += 1) {
+      var v = row[keepIdx[k]];
+      // Date object ผ่าน JSON.stringify จะกลายเป็น UTC ISO แล้วฝั่งเว็บอ่านวันเพี้ยนไป 1 วัน
+      // แปลงเป็นข้อความโซนเวลาไทยตั้งแต่ตรงนี้เลย
+      if (Object.prototype.toString.call(v) === '[object Date]') {
+        picked.push(isNaN(v.getTime()) ? '' : Utilities.formatDate(v, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'));
+      } else {
+        picked.push(v === undefined || v === null ? '' : v);
+      }
+    }
+    out.push(picked);
+  }
+  if (options.newestFirst) out.reverse();
+  var limit = Number(options.limit || 0);
+  if (limit > 0 && out.length > limit) out = out.slice(0, limit);
+  return { sheet: sheetName, headers: headers, rows: out };
+}
+
+// PR เต็มวงจร 3 ชีตต่อกัน — getPRForApproval() อ่านได้ทีละใบ, getInbox() ให้แค่การ์ดสรุป
+// ไม่มีทางไหนได้ทั้งประวัติ ทำให้ export "ประวัติการอนุมัติทั้งปี" ไม่ได้เลย
+// กรอง PRLines/PRAudit ตาม pr_id ที่เหลือจากการกรองหัวใบ ไม่ใช่กรองวันที่ซ้ำอีกชั้น
+// (บรรทัดในใบไม่มีคอลัมน์วันที่ของตัวเอง ถ้ากรองด้วยวันจะได้ใบที่หัวมีแต่ไม่มีรายการ)
+function exportPrBundle(payload) {
+  var user = requireExportAccess(payload);
+  var from = normalizeExportDateInput(payload && payload.from);
+  var to = normalizeExportDateInput(payload && payload.to);
+  var line = String((payload && payload.line) || '').trim();
+  var forcedLine = exportAllowedLine(user);
+  if (forcedLine) line = forcedLine;
+
+  var headersDump = dumpSheetForExport(SPARE_APP_CONFIG.prHeaderSheetName, {
+    dateColumn: 'created_at', from: from, to: to, lineColumn: 'line', line: line
+  });
+  var keepIds = {};
+  var idIdx = -1;
+  headersDump.headers.forEach(function(h, i) { if (normalizeHeaderName(h) === 'prid') idIdx = i; });
+  if (idIdx > -1) headersDump.rows.forEach(function(r) { keepIds[String(r[idIdx] || '').trim()] = true; });
+
+  function filterByPrId(dump) {
+    var col = -1;
+    dump.headers.forEach(function(h, i) { if (normalizeHeaderName(h) === 'prid') col = i; });
+    if (col < 0 || idIdx < 0) return dump;
+    dump.rows = dump.rows.filter(function(r) { return keepIds[String(r[col] || '').trim()]; });
+    return dump;
+  }
+
+  return {
+    status: 'success',
+    prHeaders: headersDump,
+    prLines: filterByPrId(dumpSheetForExport(SPARE_APP_CONFIG.prLinesSheetName, {})),
+    prAudit: filterByPrId(dumpSheetForExport(SPARE_APP_CONFIG.prAuditSheetName, {})),
+    range: { from: from, to: to, line: line }
+  };
+}
+
+// ชีต audit หลายตัวที่ไม่เคยมี getter — เป็นหลักฐานว่าใครแก้อะไร เป็นของที่ลูกค้าถามหาเวลา
+// ตรวจสอบระบบ ("แก้ราคาย้อนหลังได้ไหม / ตามรอยได้ไหม") จึงต้อง export ได้
+function exportAuditTrails(payload) {
+  var user = requireExportAccess(payload);
+  var from = normalizeExportDateInput(payload && payload.from);
+  var to = normalizeExportDateInput(payload && payload.to);
+  var want = String((payload && payload.sets) || '').trim();
+  function wanted(key) { return !want || want.indexOf(key) > -1; }
+  var out = { status: 'success', range: { from: from, to: to } };
+  if (wanted('itemAudit')) {
+    out.itemAudit = dumpSheetForExport(SPARE_APP_CONFIG.itemAuditSheetName, { dateColumn: 'Date Time', from: from, to: to, newestFirst: true });
+  }
+  if (wanted('purchaseHistoryLog')) {
+    out.purchaseHistoryLog = dumpSheetForExport(SPARE_APP_CONFIG.purchaseHistoryAuditSheetName, { dateColumn: 'Date Time', from: from, to: to, newestFirst: true });
+  }
+  if (wanted('purchaseImportLog')) {
+    out.purchaseImportLog = dumpSheetForExport(SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName, { dateColumn: 'Imported At', from: from, to: to, newestFirst: true });
+  }
+  if (wanted('miscExpenseLog')) {
+    out.miscExpenseLog = dumpSheetForExport(SPARE_APP_CONFIG.miscExpenseAuditSheetName, { dateColumn: 'Date Time', from: from, to: to, newestFirst: true });
+  }
+  if (wanted('prAudit')) {
+    out.prAudit = dumpSheetForExport(SPARE_APP_CONFIG.prAuditSheetName, { dateColumn: 'timestamp', from: from, to: to, newestFirst: true });
+  }
+  if (wanted('exportLog') && normalizeRole(user.role) === 'admin') {
+    out.exportLog = dumpSheetForExport(SPARE_APP_CONFIG.exportLogSheetName, { dateColumn: 'Timestamp', from: from, to: to, newestFirst: true });
+  }
+  return out;
+}
+
+// รายชื่อผู้ใช้แบบปลอดภัย — password / session_token ถูกตัดที่ server
+// ไม่ใช่ให้ฝั่งเว็บเลือกไม่แสดง (ถ้าตัดบน UI ข้อมูลก็ยังวิ่งผ่านเน็ตและอยู่ใน devtools)
+function exportUserRoster(payload) {
+  requireAdminUser({ authToken: payload && payload.authToken });
+  var users = getAllUsers();
+  return {
+    status: 'success',
+    headers: ['Username', 'Role', 'Active', 'Line', 'สิทธิ์ที่เปิด', 'จำนวนสิทธิ์'],
+    rows: users.map(function(u) {
+      var allowed = Object.keys(u.permissions || {}).filter(function(k) { return u.permissions[k]; });
+      return [u.username, u.role, u.isActive ? 'ใช้งาน' : 'ปิด', u.line || 'ทุกไลน์', allowed.sort().join(', '), allowed.length];
+    })
+  };
+}
+
+// นับจำนวนแถวของทุกชุดข้อมูลแบบเร็ว (getLastRow ไม่ต้องอ่านค่าทั้งชีต) — หน้า Export Center
+// เอาไปโชว์ข้าง checkbox ว่าชุดนี้มีกี่แถว ก่อนกดโหลดจริง คนกดจะรู้ตัวว่ากำลังจะดึงของหนัก
+function exportManifest(payload) {
+  requireExportAccess(payload);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var names = [
+    SPARE_APP_CONFIG.writeSheetName, SPARE_APP_CONFIG.requestSheetName,
+    SPARE_APP_CONFIG.prHeaderSheetName, SPARE_APP_CONFIG.prLinesSheetName, SPARE_APP_CONFIG.prAuditSheetName,
+    SPARE_APP_CONFIG.purchaseHistorySheetName, SPARE_APP_CONFIG.purchaseHistoryAuditSheetName,
+    SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName, SPARE_APP_CONFIG.miscExpenseSheetName,
+    SPARE_APP_CONFIG.miscExpenseAuditSheetName, SPARE_APP_CONFIG.productionVolumeSheetName,
+    SPARE_APP_CONFIG.productionCostConfigSheetName, SPARE_APP_CONFIG.machinesSheetName,
+    SPARE_APP_CONFIG.itemAuditSheetName, SPARE_APP_CONFIG.partTagsSheetName,
+    SPARE_APP_CONFIG.partTagGroupsSheetName, SPARE_APP_CONFIG.partTagGroupItemsSheetName,
+    STOCK_COUNT_SHEET_NAME, ANOMALY_SHEET_NAME, SPARE_APP_CONFIG.exportLogSheetName
+  ].concat(STOCK_LOCATION_SHEETS);
+  var counts = {};
+  Array.from(new Set(names)).forEach(function(name) {
+    if (!name) return;
+    try {
+      var sh = ss.getSheetByName(name);
+      counts[name] = sh ? Math.max(0, sh.getLastRow() - 1) : -1; // -1 = ยังไม่มีชีตนี้
+    } catch (err) {
+      counts[name] = -1;
+    }
+  });
+  return { status: 'success', counts: counts, generatedAt: Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss') };
+}
+
+// ดึงชีตดิบตามชื่อ — จำกัดด้วย whitelist เท่านั้น (ห้ามเปิดให้ระบุชีตอิสระ ไม่งั้นกลายเป็น
+// ช่องอ่านชีต Users ที่มีรหัสผ่านผ่าน query string) ใช้กับชีตที่ getter เดิมบังคับต้องมี id
+// เช่น PartTagGroupItems ที่ getPartTagGroupItems() ต้องส่ง group_id มาทุกครั้ง
+var EXPORT_RAW_SHEET_WHITELIST = [
+  'PartTagGroups', 'PartTagGroupItems', 'Machines', 'ProductionVolume', 'ProductionCostConfig',
+  'AnomalyAlerts', 'StockCount', 'OrderRequests', 'PurchaseHistory', 'MiscExpenses', 'PartTags'
+];
+function exportRawSheets(payload) {
+  var user = requireExportAccess(payload);
+  var requested = String((payload && payload.sheets) || '').split(',').map(function(n) { return n.trim(); }).filter(Boolean);
+  var from = normalizeExportDateInput(payload && payload.from);
+  var to = normalizeExportDateInput(payload && payload.to);
+  var line = exportAllowedLine(user) || String((payload && payload.line) || '').trim();
+  var out = { status: 'success', sheets: {} };
+  requested.forEach(function(name) {
+    if (EXPORT_RAW_SHEET_WHITELIST.indexOf(name) === -1) {
+      out.sheets[name] = { sheet: name, headers: [], rows: [], denied: true };
+      return;
+    }
+    out.sheets[name] = dumpSheetForExport(name, {
+      dateColumn: String((payload && payload.dateColumn) || '') || '',
+      from: from, to: to, lineColumn: 'Line', line: line
+    });
+  });
+  return out;
+}
+
+function getExportLogSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SPARE_APP_CONFIG.exportLogSheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(SPARE_APP_CONFIG.exportLogSheetName);
+    sheet.appendRow(EXPORT_LOG_HEADERS);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, EXPORT_LOG_HEADERS.length).setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
+  }
+  return sheet;
+}
+
+// ทะเบียนว่าใคร export อะไรออกไป — ไฟล์นี้ออกไปนอกองค์กรจริง (มือลูกค้า/ผู้จัดการ)
+// ถ้าวันหลังมีคำถามว่าข้อมูลชุดไหนหลุดไปทางไหน ต้องมีที่ให้ไล่
+// ห้าม throw ถ้าเขียนไม่ได้ — การบันทึกร่องรอยล้มเหลวไม่ควรทำให้ export ที่ทำสำเร็จแล้วพัง
+function logExportEvent(payload) {
+  try {
+    var user = requireExportAccess(payload);
+    getExportLogSheet().appendRow([
+      Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'),
+      user.username, normalizeRole(user.role),
+      String((payload && payload.scope) || ''),
+      String((payload && payload.datasets) || '').slice(0, 2000),
+      Number((payload && payload.rowCount) || 0),
+      String((payload && payload.format) || ''),
+      normalizeExportDateInput(payload && payload.from),
+      normalizeExportDateInput(payload && payload.to),
+      String((payload && payload.line) || 'ทุกไลน์'),
+      String((payload && payload.customerMode) || '') === '1' ? 'ใช่' : 'ไม่',
+      String((payload && payload.note) || '').slice(0, 500)
+    ]);
+    return { status: 'success' };
+  } catch (err) {
+    Logger.log('logExportEvent warning: ' + (err && err.message ? err.message : err));
+    return { status: 'success', logged: false };
+  }
 }
 
 // =============================
