@@ -682,6 +682,8 @@
     .xp-search-btn:hover { background:#1d4ed8; }
     .xp-select { height:36px; min-width:150px; border:1px solid #cbd5e1; border-radius:10px; padding:0 10px; font-size:13px; color:#334155; background:#fff; }
     .xp-select-lang { border-color:#6366f1; background:#eef2ff; color:#3730a3; font-weight:700; }
+    .xp-toggle-img { border-style:dashed; border-color:#0891b2; background:#ecfeff; color:#0e7490; }
+    .xp-toggle-img input { accent-color:#0891b2; }
     .xp-toggle { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 12px; border-radius:10px; border:1px dashed #f59e0b; background:#fffbeb; font-size:12.5px; font-weight:700; color:#92400e; cursor:pointer; }
     .xp-toggle input { width:16px; height:16px; accent-color:#d97706; }
     .xp-filter-summary { margin-top:9px; font-size:12px; color:#64748b; font-weight:600; }
@@ -2880,6 +2882,10 @@
             <option value="th">&#x1F1F9;&#x1F1ED; ไฟล์ภาษาไทย</option>
             <option value="en">&#x1F1EC;&#x1F1E7; English file</option>
           </select>
+          <label class="xp-toggle xp-toggle-img" title="แนบรูปอะไหล่เป็นชีตแยกในไฟล์ Excel (รูปย่อ ไม่ทำให้ไฟล์ใหญ่)">
+            <input id="xpIncludeImages" type="checkbox" checked />
+            <span>&#x1F5BC;&#xFE0F; แนบรูปอะไหล่ใน Excel</span>
+          </label>
           <label class="xp-toggle" title="ซ่อนราคาต้นทุน ผู้ขาย และค่าใช้จ่ายทั้งหมด สำหรับไฟล์ที่ส่งให้ลูกค้า">
             <input id="xpCustomerMode" type="checkbox" />
             <span>&#x1F576;&#xFE0F; โหมดลูกค้า (ซ่อนราคา/ผู้ขาย)</span>
@@ -21854,7 +21860,8 @@ if (dashboardPage) {
       txnType: '',
       groupBy: 'month',
       customerMode: false,
-      lang: 'th' // ภาษาของ "ไฟล์ที่ส่งออก" ไม่ใช่ภาษาของหน้าจอ
+      lang: 'th', // ภาษาของ "ไฟล์ที่ส่งออก" ไม่ใช่ภาษาของหน้าจอ
+      includeImages: true // แนบรูปอะไหล่เป็นชีตแยกในไฟล์ Excel
     };
     var xpCache = {};          // ผลการดึงข้อมูล cache ตามลายเซ็นตัวกรอง
     var xpManifest = null;     // จำนวนแถวต่อชีต (จาก exportManifest)
@@ -22146,6 +22153,22 @@ if (dashboardPage) {
       'กราฟไม่ถูกฝังในไฟล์นี้ (โหลดไลบรารีจัดรูปแบบไม่สำเร็จ) — ดูกราฟได้บนหน้าเว็บหรือในไฟล์ PDF': 'Charts are not embedded in this file (the formatting library failed to load) — view them on the web page or in the PDF report',
       'รายงานนี้ยังไม่มีข้อมูลพอจะวาดกราฟ — ดูตารางด้านล่าง': 'Not enough data in this report to draw a chart — see the table below',
       '04 กราฟสรุป': '04 Summary Charts',
+      // ── รูปอะไหล่ในไฟล์ Excel ──
+      '11 รูปอะไหล่': '11 Part Photos',
+      'รูป': 'Photo',
+      'ลิงก์รูป': 'Photo Link',
+      'รูปย่อของอะไหล่ที่ฝังมาในไฟล์ (ย่อจากรูปต้นฉบับใน Google Drive ให้ไฟล์ไม่บวม)': 'Thumbnail of the part embedded in this file (downscaled from the original in Google Drive to keep the file small)',
+      'ลิงก์รูปต้นฉบับใน Google Drive — เปิดดูขนาดเต็มได้': 'Link to the original photo in Google Drive — open it to see full size',
+      'กำลังดึงรูปอะไหล่...': 'Fetching part photos...',
+      'กำลังดึงรูปอะไหล่ {done}/{total}': 'Fetching part photos {done}/{total}',
+      'แนบรูปอะไหล่ {n} รูป': '{n} part photo(s) embedded',
+      'ดึงไม่ได้ {n} รูป': '{n} photo(s) could not be fetched',
+      'จำกัดที่ {n} รูปต่อไฟล์': 'capped at {n} photos per file',
+      'ไม่มีรายการที่มีรูป — ข้ามชีตรูปอะไหล่': 'No items have photos — skipping the part photo sheet',
+      'ดึงรูปอะไหล่ไม่ได้เลย — ไฟล์ออกครบทุกชีตแต่ไม่มีชีตรูป': 'No part photos could be fetched — the file still contains every data sheet, just no photo sheet',
+      'แนบรูปอะไหล่ไม่สำเร็จ': 'Could not embed part photos',
+      'เบราว์เซอร์อ่านไฟล์รูปข้ามโดเมนไม่ได้ — ขอรูปจากเซิร์ฟเวอร์แทน': 'The browser cannot read cross-origin image data — requesting the photos from the server instead',
+      'รูปไม่ถูกฝังในไฟล์นี้ (โหลดไลบรารีจัดรูปแบบไม่สำเร็จ) — ใช้คอลัมน์ "ลิงก์รูป" เปิดดูได้': 'Photos are not embedded in this file (the formatting library failed to load) — use the "Photo Link" column to open them',
       // ── Dashboard Snapshot ──
       'Dashboard KPI (Factory Command Center)': 'Dashboard KPI (Factory Command Center)',
       'Dashboard KPI': 'Dashboard KPI',
@@ -23326,6 +23349,24 @@ if (dashboardPage) {
           if (rowCount) {
             ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
           }
+          // รูปต่อแถว (ชีตรูปอะไหล่) — ต้องขยายความสูงแถวและความกว้างคอลัมน์แรกก่อนวางรูป
+          // ไม่งั้นรูปจะล้นทับแถวถัดไปแล้วอ่านตารางไม่ออก
+          if ((spec.rowImages || []).length) {
+            var cellPx = spec.imageCell || 62;
+            ws.getColumn(1).width = Math.round(cellPx / 7) + 2;
+            for (var rh = 2; rh <= rowCount + 1; rh += 1) ws.getRow(rh).height = Math.round(cellPx * 0.78);
+            spec.rowImages.forEach(function(im) {
+              if (!im || !im.dataUrl) return;
+              // คงสัดส่วนรูปไว้ในกรอบ cellPx (รูปอะไหล่ที่ถูกยืดดูไม่ออกว่าชิ้นไหน)
+              var w = im.width || cellPx, h = im.height || cellPx;
+              var k = Math.min(cellPx / w, cellPx / h, 1);
+              var imgId2 = wb.addImage({ base64: im.dataUrl, extension: 'jpeg' });
+              ws.addImage(imgId2, {
+                tl: { col: 0.12, row: im.rowIndex + 1.08 },
+                ext: { width: Math.max(18, Math.round(w * k)), height: Math.max(18, Math.round(h * k)) }
+              });
+            });
+          }
           headers.forEach(function(h, i) {
             var col = ws.getColumn(i + 1);
             var maxLen = xpS(h).length;
@@ -23377,6 +23418,10 @@ if (dashboardPage) {
           var table = spec.table || { headers: [], rows: [] };
           var aoa = [(table.headers || []).length ? table.headers : ['(ไม่มีข้อมูล)']].concat(table.rows || []);
           // SheetJS ฝังรูปไม่ได้ — ชีตกราฟจะว่าง ต้องบอกเหตุผลไว้ในชีต ไม่ปล่อยให้คนเปิดไฟล์งง
+          if ((spec.rowImages || []).length) {
+            aoa.push([]);
+            aoa.push([xpT('รูปไม่ถูกฝังในไฟล์นี้ (โหลดไลบรารีจัดรูปแบบไม่สำเร็จ) — ใช้คอลัมน์ "ลิงก์รูป" เปิดดูได้')]);
+          }
           if ((spec.images || []).length) {
             aoa.push([]);
             aoa.push([xpT('กราฟไม่ถูกฝังในไฟล์นี้ (โหลดไลบรารีจัดรูปแบบไม่สำเร็จ) — ดูกราฟได้บนหน้าเว็บหรือในไฟล์ PDF')]);
@@ -23386,6 +23431,45 @@ if (dashboardPage) {
         });
         window.XLSX.writeFile(wb, filename);
         return { styled: false };
+      });
+    }
+
+    // ดึงรูปอะไหล่แล้วต่อชีต "รูปอะไหล่" เข้าไปในรายการชีตที่จะเขียนลงไฟล์
+    // ไม่ throw ออกไปข้างนอก: รูปเป็นของแถม ไฟล์ข้อมูลต้องออกได้เสมอ
+    function xpAppendPhotoSheet(sheets, master) {
+      if (!xpFilters.includeImages) return Promise.resolve(null);
+      var items = (master || []).filter(function(it) {
+        return xpS(it.image_main_url || it.photo || '').trim() || xpS(it.image_main_file_id).trim();
+      });
+      if (!items.length) {
+        xpProgressLog(xpT('ไม่มีรายการที่มีรูป — ข้ามชีตรูปอะไหล่'));
+        return Promise.resolve(null);
+      }
+      xpProgressSet(95, xpT('กำลังดึงรูปอะไหล่...'));
+      return xpFetchPartImages(items, function(done, total, method) {
+        xpProgressSet(95 + Math.round((done / Math.max(1, total)) * 4),
+          xpT('กำลังดึงรูปอะไหล่ {done}/{total}', { done: done, total: total }) + (method === 'server' ? ' (server)' : ''));
+      }).then(function(imgRes) {
+        var got = Object.keys(imgRes.byId).length;
+        if (!got) {
+          xpProgressLog(xpT('ดึงรูปอะไหล่ไม่ได้เลย — ไฟล์ออกครบทุกชีตแต่ไม่มีชีตรูป'), 'fail');
+          return null;
+        }
+        var photo = xpBuildPartPhotoSheet(items, imgRes);
+        if (!photo.table.rows.length) return null;
+        sheets.push({
+          name: xpT('11 รูปอะไหล่'),
+          table: photo.table,
+          rowImages: photo.rowImages,
+          imageCell: XP_IMAGE_CELL
+        });
+        xpProgressLog(xpT('แนบรูปอะไหล่ {n} รูป', { n: photo.rowImages.length }) +
+          (imgRes.failed ? ' · ' + xpT('ดึงไม่ได้ {n} รูป', { n: imgRes.failed }) : '') +
+          (imgRes.capped ? ' · ' + xpT('จำกัดที่ {n} รูปต่อไฟล์', { n: XP_IMAGE_MAX }) : ''), 'ok');
+        return photo;
+      }).catch(function(err) {
+        xpProgressLog(xpT('แนบรูปอะไหล่ไม่สำเร็จ') + ': ' + (err && err.message ? err.message : err), 'fail');
+        return null;
       });
     }
 
@@ -24238,7 +24322,9 @@ if (dashboardPage) {
       'ชั้น': 'ABC — A คือกลุ่มที่กินมูลค่าเบิกสะสม 80% แรก, B ถึง 95%, C ที่เหลือ',
       'รอบหมุน (เท่า)': 'ยอดเบิกในช่วง ÷ ยอดคงเหลือปัจจุบัน',
       'ครั้งที่ตกใต้ Min': 'จำนวนครั้งที่ยอดหลังทำรายการต่ำกว่า Min ของตัวเอง (เหตุการณ์จริงจาก Log)',
-      'ส่วนต่าง (%)': '(ราคาสูงสุด − ราคาต่ำสุด) ÷ ราคาต่ำสุด × 100 ของอะไหล่ชิ้นเดียวกัน'
+      'ส่วนต่าง (%)': '(ราคาสูงสุด − ราคาต่ำสุด) ÷ ราคาต่ำสุด × 100 ของอะไหล่ชิ้นเดียวกัน',
+      'รูป': 'รูปย่อของอะไหล่ที่ฝังมาในไฟล์ (ย่อจากรูปต้นฉบับใน Google Drive ให้ไฟล์ไม่บวม)',
+      'ลิงก์รูป': 'ลิงก์รูปต้นฉบับใน Google Drive — เปิดดูขนาดเต็มได้'
     };
     function xpBuildDictionary(sheets) {
       var rows = [];
@@ -24354,16 +24440,20 @@ if (dashboardPage) {
             }
             sheets.push({ name: xpT(r.ds.sheetName || r.ds.name), table: r.table });
           });
+          var filename = 'JR-Executive-Workbook-' + xpFileStamp() + xpFileSuffix() + '.xlsx';
+          // รูปอะไหล่ดึงก่อนใส่ชีต 98/99 เพื่อให้ลำดับชีตในไฟล์เรียงถูก และให้พจนานุกรม
+          // ข้อมูลครอบคลุมคอลัมน์ของชีตรูปด้วย — ถ้าดึงรูปไม่ได้ ไฟล์ยังออกครบทุกชีต
+          return xpAppendPhotoSheet(sheets, ctx.master || []).then(function() {
           var attach = xpBuildAttachmentSheet(ctx, results);
           if (attach.rows.length) sheets.push({ name: xpT('98 ลิงก์ไฟล์แนบ'), table: attach });
           sheets.push({ name: xpT('99 พจนานุกรมข้อมูล'), table: xpBuildDictionary(sheets) });
           var total = sheets.reduce(function(s, sh) { return s + (sh.table.rows || []).length; }, 0);
-          var filename = 'JR-Executive-Workbook-' + xpFileStamp() + xpFileSuffix() + '.xlsx';
           return xpWriteXlsxStyled(sheets, filename).then(function(res) {
             xpProgressSet(100, 'เสร็จแล้ว — ดาวน์โหลด ' + filename);
             xpProgressLog('รวม ' + sheets.length + ' ชีต ' + xpFmtInt(total) + ' แถว' + (res.styled ? '' : ' (ไม่มีการจัดรูปแบบ: ExcelJS โหลดไม่สำเร็จ)'), 'ok');
             showQuickToast('สร้าง Executive Workbook สำเร็จ ' + sheets.length + ' ชีต', 'success');
             xpLogExport('executive-workbook', keys, total, 'xlsx');
+          });
           });
         });
         });
@@ -24457,12 +24547,18 @@ if (dashboardPage) {
             table: r.table || { headers: [xpT('สถานะ')], rows: [[xpT('ดึงข้อมูลชุดนี้ไม่สำเร็จ: {msg}', { msg: r.error })]], numeric: [false] }
           });
         });
-        sheets.push({ name: xpT('99 พจนานุกรมข้อมูล'), table: xpBuildDictionary(sheets) });
         var filename = 'JR-data-' + stamp + '.xlsx';
+        // แนบชีตรูปเฉพาะเมื่อผู้ใช้เลือกชุด Master อะไหล่ไว้ (รูปผูกกับรายการอะไหล่)
+        var masterPromise = keys.indexOf('stockMaster') > -1 ? xpFetchMaster() : Promise.resolve([]);
+        return masterPromise.then(function(master) {
+          return xpAppendPhotoSheet(sheets, master);
+        }).then(function() {
+        sheets.push({ name: xpT('99 พจนานุกรมข้อมูล'), table: xpBuildDictionary(sheets) });
         return xpWriteXlsxStyled(sheets, filename).then(function(res) {
           xpProgressSet(100, 'เสร็จแล้ว — ดาวน์โหลด ' + filename);
           showQuickToast('ดาวน์โหลด Excel ' + sheets.length + ' ชีต' + (res.styled ? '' : ' (ไม่มีการจัดรูปแบบ)'), 'success');
           xpLogExport('dataset-xlsx', keys, total, 'xlsx');
+        });
         });
       }).catch(function(err) {
         xpProgressLog('ล้มเหลว: ' + (err && err.message ? err.message : err), 'fail');
@@ -24957,6 +25053,199 @@ if (dashboardPage) {
     }
 
 
+
+    // ── รูปอะไหล่ในไฟล์ Excel ──────────────────────────────────────────
+    // ผู้จัดการเอาไฟล์ Excel ไปใช้ต่อ (กรอง/pivot) แต่ขอเห็นรูปของด้วย
+    // จึงทำเป็นชีตแยก "รูปอะไหล่" — ชีต Master ยังสะอาดไว้ใช้กรอง/pivot ตามเดิม
+    // (ถ้าเอารูปไปแปะในชีต Master ทุกแถวจะสูง 50px แล้วใช้เป็นตารางข้อมูลไม่สะดวก)
+    //
+    // การอ่าน "ไบต์" ของรูปมีสองทาง ลองทางที่ไม่ต้อง deploy อะไรก่อน:
+    //   1) โหลดรูปเข้า <img crossOrigin="anonymous"> แล้ววาดลง canvas → toDataURL
+    //      เร็วและไม่ยิงเซิร์ฟเวอร์ แต่ถ้า Drive ไม่ส่ง CORS header กลับมา canvas จะ
+    //      กลายเป็น tainted แล้ว toDataURL() โยน SecurityError
+    //   2) ขอจาก Apps Script (exportPartImages) ซึ่งอ่าน Drive ได้ตรงๆ ไม่ติด CORS
+    // เจอ SecurityError ครั้งแรกจะสลับไปทาง 2 ทั้งก้อนเลย ไม่ลองทาง 1 ซ้ำทุกรูป
+    // (ถ้า origin นี้อ่านไม่ได้ ก็อ่านไม่ได้ทุกรูป ลองซ้ำ 261 ครั้งเสียเวลาเปล่า)
+    var XP_IMAGE_BOX = 96;        // ขนาดกล่องรูปที่ย่อเก็บ (px) — เล็กพอให้ไฟล์ไม่บวม
+    var XP_IMAGE_CELL = 62;       // ขนาดที่วางในเซลล์ Excel
+    var XP_IMAGE_MAX = 400;       // เพดานจำนวนรูปต่อไฟล์ กันไฟล์ใหญ่/รอนานเกินไป
+    var XP_IMAGE_CONCURRENCY = 6; // โหลดพร้อมกันกี่รูป
+    var XP_IMAGE_SERVER_CHUNK = 25;
+
+    // ย่อรูปลง canvas แล้วคืน JPEG คุณภาพ 0.72 — ขนาดไฟล์ต่อรูปเหลือ ~4-8KB
+    // คงสัดส่วนเดิมไว้ ไม่ยืดรูป (รูปอะไหล่ที่ยืดแล้วดูไม่ออกว่าชิ้นไหน)
+    function xpShrinkImage(img) {
+      var w = img.naturalWidth || img.width;
+      var h = img.naturalHeight || img.height;
+      if (!w || !h) return null;
+      var scale = Math.min(1, XP_IMAGE_BOX / Math.max(w, h));
+      var cw = Math.max(1, Math.round(w * scale));
+      var ch = Math.max(1, Math.round(h * scale));
+      var canvas = document.createElement('canvas');
+      canvas.width = cw;
+      canvas.height = ch;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(img, 0, 0, cw, ch);
+      // toDataURL โยน SecurityError ถ้า canvas ถูก taint จากรูปข้าม origin ที่ไม่มี CORS
+      return { dataUrl: canvas.toDataURL('image/jpeg', 0.72), width: cw, height: ch };
+    }
+    function xpLoadImageViaCanvas(url) {
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        var done = false;
+        var timer = setTimeout(function() {
+          if (done) return;
+          done = true;
+          reject(new Error('timeout'));
+        }, 15000);
+        img.onload = function() {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          try {
+            var shrunk = xpShrinkImage(img);
+            shrunk ? resolve(shrunk) : reject(new Error('empty image'));
+          } catch (err) {
+            // ทำเครื่องหมายว่าเป็นปัญหา CORS เพื่อให้ตัวเรียกสลับไปใช้ฝั่งเซิร์ฟเวอร์
+            err.xpTainted = true;
+            reject(err);
+          }
+        };
+        img.onerror = function() {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          reject(new Error('load failed'));
+        };
+        img.src = url;
+      });
+    }
+
+    // ขอรูปเป็น base64 จาก Apps Script ทีละก้อน
+    function xpLoadImagesViaServer(fileIds, onProgress) {
+      var out = {};
+      var chunks = [];
+      for (var i = 0; i < fileIds.length; i += XP_IMAGE_SERVER_CHUNK) {
+        chunks.push(fileIds.slice(i, i + XP_IMAGE_SERVER_CHUNK));
+      }
+      var idx = 0;
+      function next() {
+        if (idx >= chunks.length) return Promise.resolve(out);
+        var chunk = chunks[idx];
+        idx += 1;
+        return xpApi({ action: 'exportPartImages', ids: chunk.join(','), size: XP_IMAGE_BOX * 2 })
+          .then(function(res) {
+            var got = (res && res.images) || {};
+            Object.keys(got).forEach(function(id) { if (got[id]) out[id] = { dataUrl: got[id], width: 0, height: 0 }; });
+            if (onProgress) onProgress(Math.min(fileIds.length, idx * XP_IMAGE_SERVER_CHUNK), fileIds.length);
+          })
+          .catch(function(err) {
+            // ก้อนไหนพังก็ข้ามไป รูปที่เหลือยังได้ — ดีกว่าไม่ได้รูปเลยทั้งไฟล์
+            console.warn('exportPartImages chunk failed', err);
+          })
+          .then(next);
+      }
+      return next();
+    }
+
+    // ดึงรูปของรายการที่ส่งมา คืน { byId, method, failed, capped }
+    // items = แถวจาก master ที่มีรูป (ใช้ image_main_url เป็นหลัก)
+    function xpFetchPartImages(items, onProgress) {
+      var targets = [];
+      (items || []).forEach(function(it) {
+        var url = xpS(it.image_main_url || it.photo || '').trim();
+        var id = extractDriveFileId(url) || xpS(it.image_main_file_id).trim();
+        if (!id) return;
+        if (targets.some(function(t) { return t.id === id; })) return; // รูปเดียวกันใช้ซ้ำได้ ดึงครั้งเดียว
+        targets.push({ id: id, url: buildDriveThumbnailUrl(id, XP_IMAGE_BOX * 2) });
+      });
+      var capped = false;
+      if (targets.length > XP_IMAGE_MAX) {
+        targets = targets.slice(0, XP_IMAGE_MAX);
+        capped = true;
+      }
+      if (!targets.length) return Promise.resolve({ byId: {}, method: 'none', failed: 0, capped: false, total: 0 });
+
+      var byId = {};
+      var failed = 0;
+      var tainted = false;
+      var pos = 0;
+      var doneCount = 0;
+
+      function worker() {
+        if (tainted || pos >= targets.length) return Promise.resolve();
+        var t = targets[pos];
+        pos += 1;
+        return xpLoadImageViaCanvas(t.url).then(function(res) {
+          byId[t.id] = res;
+        }).catch(function(err) {
+          if (err && err.xpTainted) { tainted = true; return; }
+          failed += 1;
+        }).then(function() {
+          doneCount += 1;
+          if (onProgress) onProgress(doneCount, targets.length, 'client');
+          return worker();
+        });
+      }
+      var workers = [];
+      for (var w = 0; w < Math.min(XP_IMAGE_CONCURRENCY, targets.length); w += 1) workers.push(worker());
+
+      return Promise.all(workers).then(function() {
+        if (!tainted) {
+          return { byId: byId, method: 'client', failed: failed, capped: capped, total: targets.length };
+        }
+        // เบราว์เซอร์อ่านไบต์รูปข้าม origin ไม่ได้ → ให้เซิร์ฟเวอร์อ่านจาก Drive ให้
+        byId = {};
+        failed = 0;
+        xpProgressLog(xpT('เบราว์เซอร์อ่านไฟล์รูปข้ามโดเมนไม่ได้ — ขอรูปจากเซิร์ฟเวอร์แทน'));
+        return xpLoadImagesViaServer(targets.map(function(t) { return t.id; }), function(done, total) {
+          if (onProgress) onProgress(done, total, 'server');
+        }).then(function(res) {
+          var got = res || {};
+          Object.keys(got).forEach(function(id) { byId[id] = got[id]; });
+          return {
+            byId: byId,
+            method: 'server',
+            failed: Math.max(0, targets.length - Object.keys(byId).length),
+            capped: capped,
+            total: targets.length
+          };
+        });
+      });
+    }
+
+    // ชีต "รูปอะไหล่" — หนึ่งแถวต่อหนึ่งรายการที่มีรูป
+    // ใส่คอลัมน์อ้างอิงพอให้จับคู่กลับไปที่ชีต Master ได้ (ชีต / NO / ชื่อ / รุ่น)
+    function xpBuildPartPhotoSheet(items, imgRes) {
+      var cols = [
+        { label: 'รูป', get: function() { return ''; } }, // ช่องว่างไว้วางรูป
+        { label: 'ชีตต้นทาง', key: '__sheet' },
+        { label: 'NO', key: 'no' },
+        { label: 'ชื่อรายการ', key: 'name' },
+        { label: 'รุ่น / Part No.', key: 'model' },
+        { label: 'ไลน์', key: 'line' },
+        { label: 'หมวด', key: 'category' },
+        { label: 'ตำแหน่งเก็บ', key: 'location' },
+        { label: 'คงเหลือ', key: 'stock', type: 'num' },
+        { label: 'หน่วย', key: 'unit' },
+        { label: 'ลิงก์รูป', key: 'image_main_url' }
+      ];
+      var withImg = [];
+      var rowImages = [];
+      (items || []).forEach(function(it) {
+        var url = xpS(it.image_main_url || it.photo || '').trim();
+        var id = extractDriveFileId(url) || xpS(it.image_main_file_id).trim();
+        var img = id ? imgRes.byId[id] : null;
+        if (!img || !img.dataUrl) return;
+        rowImages.push({ dataUrl: img.dataUrl, rowIndex: withImg.length, width: img.width, height: img.height });
+        withImg.push(it);
+      });
+      var table = xpTable(cols, withImg);
+      return { table: table, rowImages: rowImages };
+    }
     // ── Dashboard Snapshot (Factory Command Center) ────────────────────
     // ผู้จัดการชอบหน้า Dashboard เพราะอ่านจบในหน้าเดียว มีแต่กราฟ จึงต้องเอาไปอยู่ใน
     // ไฟล์ที่ส่งออกด้วย ไม่ใช่ให้เปิดเว็บดูเท่านั้น
@@ -25429,6 +25718,7 @@ if (dashboardPage) {
       var g = xpEl('xpGroupBy'); xpFilters.groupBy = g ? g.value : 'month';
       var cm = xpEl('xpCustomerMode'); xpFilters.customerMode = !!(cm && cm.checked);
       var lg = xpEl('xpLangFilter'); xpFilters.lang = (lg && lg.value === 'en') ? 'en' : 'th';
+      var im = xpEl('xpIncludeImages'); xpFilters.includeImages = !im || !!im.checked;
       if (xpFilters.from || xpFilters.to) {
         xpFilters.rangeKey = 'custom';
         document.querySelectorAll('#xpQuickRange .xp-chip').forEach(function(ch) { ch.classList.remove('xp-chip-active'); });
@@ -25455,6 +25745,7 @@ if (dashboardPage) {
       if (xpFilters.txnType) parts.push(xpFilters.txnType === 'Input' ? 'รับเข้าเท่านั้น' : 'เบิกออกเท่านั้น');
       parts.push('รวมตาม' + (xpFilters.groupBy === 'day' ? 'วัน' : (xpFilters.groupBy === 'week' ? 'สัปดาห์' : 'เดือน')));
       parts.push(xpIsEn() ? '🇬🇧 ไฟล์ที่ดาวน์โหลดเป็นภาษาอังกฤษ' : '🇹🇭 ไฟล์ที่ดาวน์โหลดเป็นภาษาไทย');
+      if (xpFilters.includeImages) parts.push('🖼️ แนบรูปอะไหล่เป็นชีตแยกใน Excel');
       if (xpFilters.customerMode) parts.push('🕶️ โหมดลูกค้า: ตัดคอลัมน์ราคา/ผู้ขาย/มูลค่าออกจากไฟล์');
       el.textContent = parts.join(' · ');
       el.style.color = xpFilters.customerMode ? '#92400e' : '#64748b';
@@ -25626,7 +25917,7 @@ if (dashboardPage) {
       document.querySelectorAll('#xpQuickRange .xp-chip').forEach(function(chip) {
         chip.addEventListener('click', function() { xpApplyQuickRange(chip.getAttribute('data-xp-range')); });
       });
-      ['xpDateFrom', 'xpDateTo', 'xpLineFilter', 'xpCategoryFilter', 'xpTxnTypeFilter', 'xpGroupBy', 'xpCustomerMode', 'xpLangFilter'].forEach(function(id) {
+      ['xpDateFrom', 'xpDateTo', 'xpLineFilter', 'xpCategoryFilter', 'xpTxnTypeFilter', 'xpGroupBy', 'xpCustomerMode', 'xpLangFilter', 'xpIncludeImages'].forEach(function(id) {
         var el = xpEl(id);
         if (el) el.addEventListener('change', xpReadFilterInputs);
       });
