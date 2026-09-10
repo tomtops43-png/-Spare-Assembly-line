@@ -681,6 +681,7 @@
     .xp-search-btn { height:36px; width:44px; border-radius:10px; border:1px solid #1d4ed8; background:#2563eb; color:#fff; font-size:15px; cursor:pointer; }
     .xp-search-btn:hover { background:#1d4ed8; }
     .xp-select { height:36px; min-width:150px; border:1px solid #cbd5e1; border-radius:10px; padding:0 10px; font-size:13px; color:#334155; background:#fff; }
+    .xp-select-lang { border-color:#6366f1; background:#eef2ff; color:#3730a3; font-weight:700; }
     .xp-toggle { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 12px; border-radius:10px; border:1px dashed #f59e0b; background:#fffbeb; font-size:12.5px; font-weight:700; color:#92400e; cursor:pointer; }
     .xp-toggle input { width:16px; height:16px; accent-color:#d97706; }
     .xp-filter-summary { margin-top:9px; font-size:12px; color:#64748b; font-weight:600; }
@@ -735,6 +736,9 @@
     .xp-rp:hover { border-color:#6366f1; background:#f5f3ff; transform:translateY(-1px); }
     .xp-rp-name { font-size:12.5px; font-weight:800; color:#1e293b; }
     .xp-rp-desc { font-size:10.5px; color:#64748b; margin-top:3px; line-height:1.45; }
+    .xp-chart-box { position:relative; width:100%; border:1px solid #e2e8f0; border-radius:12px; background:#fff; padding:10px 12px 6px; }
+    .xp-chart-box canvas { display:block; width:100% !important; height:100% !important; }
+    .xp-chart-wrap { margin-bottom:12px; }
     .xp-report-preview { margin-top:14px; padding-top:13px; border-top:1px dashed #cbd5e1; }
     .xp-report-preview table { width:100%; border-collapse:collapse; font-size:11.5px; }
     .xp-report-preview th { background:#1e293b; color:#fff; padding:7px 9px; text-align:left; font-weight:700; position:sticky; top:0; white-space:nowrap; }
@@ -2865,6 +2869,11 @@
             <option value="month">รวมตามเดือน</option>
             <option value="week">รวมตามสัปดาห์</option>
             <option value="day">รวมตามวัน</option>
+          </select>
+          <!-- ภาษาของ "ไฟล์ที่ส่งออก" ไม่ใช่ภาษาของหน้าจอ — ผู้บริหารต้องเอาไปเสนอลูกค้าเป็นอังกฤษ -->
+          <select id="xpLangFilter" class="xp-select xp-select-lang" aria-label="ภาษาของไฟล์" title="ภาษาของไฟล์ที่ดาวน์โหลด (หัวคอลัมน์ ชื่อชีต ตัวชี้วัด รายงาน)">
+            <option value="th">&#x1F1F9;&#x1F1ED; ไฟล์ภาษาไทย</option>
+            <option value="en">&#x1F1EC;&#x1F1E7; English file</option>
           </select>
           <label class="xp-toggle" title="ซ่อนราคาต้นทุน ผู้ขาย และค่าใช้จ่ายทั้งหมด สำหรับไฟล์ที่ส่งให้ลูกค้า">
             <input id="xpCustomerMode" type="checkbox" />
@@ -21835,7 +21844,8 @@ if (dashboardPage) {
       category: '',
       txnType: '',
       groupBy: 'month',
-      customerMode: false
+      customerMode: false,
+      lang: 'th' // ภาษาของ "ไฟล์ที่ส่งออก" ไม่ใช่ภาษาของหน้าจอ
     };
     var xpCache = {};          // ผลการดึงข้อมูล cache ตามลายเซ็นตัวกรอง
     var xpManifest = null;     // จำนวนแถวต่อชีต (จาก exportManifest)
@@ -21931,12 +21941,533 @@ if (dashboardPage) {
       return false;
     }
 
+
+    // ── ภาษาของไฟล์ที่ส่งออก (ไทย / อังกฤษ) ────────────────────────────
+    // ผู้บริหารต้องเอาไฟล์ไปเสนอลูกค้าเป็นภาษาอังกฤษ จึงต้องแปล "ทุกอย่างที่ลงไปในไฟล์"
+    // ไม่ใช่แค่ป้ายบนหน้าจอ — หัวคอลัมน์ ชื่อชีต ตัวชี้วัด ชื่อรายงาน หมายเหตุ หน้าปก
+    // พจนานุกรมข้อมูล และค่าในเซลล์ที่ระบบเขียนเองเป็นภาษาไทย (เช่น "ต่ำกว่า Min")
+    //
+    // ไฟล์ที่แปลครึ่งเดียวแย่กว่าไฟล์ภาษาไทยล้วน เพราะเปิดในที่ประชุมแล้วดูไม่จบ
+    // จึงมีเทสต์ export-language.test.js บังคับว่าทุกข้อความที่ไหลลงไฟล์ต้องมีคำแปล
+    //
+    // ค่าที่ยังไม่มีคำแปล xpT() จะคืนข้อความไทยเดิม (ไม่คืนค่าว่าง) — ผิดแบบเห็นได้
+    // ดีกว่าผิดแบบช่องหาย
+    var XP_LANG_EN = {
+      // ── หัวคอลัมน์: อะไหล่และคลัง ──
+      'ชีตต้นทาง': 'Source Sheet',
+      'ชื่อรายการ': 'Item Name',
+      'ชื่ออะไหล่': 'Part Name',
+      'รุ่น / Part No.': 'Model / Part No.',
+      'รุ่น': 'Model',
+      'ไลน์': 'Line',
+      'ไลน์ / Process': 'Line / Process',
+      'ตำแหน่งเก็บ': 'Storage Location',
+      'หมวด': 'Category',
+      'ยี่ห้อ': 'Brand',
+      'คงเหลือ': 'On Hand',
+      'คงเหลือปัจจุบัน': 'Current On Hand',
+      'ต้องซื้อ': 'To Order',
+      'หน่วย': 'Unit',
+      'ราคาต่อหน่วย': 'Unit Price',
+      'สกุลเงิน': 'Currency',
+      'มูลค่าคงคลัง': 'Inventory Value',
+      'ผู้ขาย': 'Supplier',
+      'เครื่องจักรที่ใช้ได้': 'Compatible Machines',
+      'สถานะ Drawing': 'Drawing Status',
+      'ลิงก์ Drawing': 'Drawing Link',
+      'ลิงก์ Datasheet': 'Datasheet Link',
+      'ลิงก์ใบเสนอราคา': 'Quotation Link',
+      'รูปอะไหล่': 'Part Photo',
+      'รับเข้าล่าสุด': 'Last Received',
+      'สถานะสต็อก': 'Stock Status',
+      'จำนวน SKU': 'SKU Count',
+      'ต่ำกว่า Min': 'Below Min',
+      // ── หัวคอลัมน์: การเคลื่อนไหว ──
+      'วันเวลา': 'Date / Time',
+      'ประเภท': 'Type',
+      'จำนวน': 'Quantity',
+      'มูลค่ารายการ': 'Line Value',
+      'ยอดก่อน': 'Stock Before',
+      'ยอดหลัง': 'Stock After',
+      'ผู้ทำรายการ': 'Performed By',
+      'เครื่องจักร': 'Machine',
+      'เหตุผล': 'Reason',
+      'หมายเหตุเหตุผล': 'Reason Remark',
+      'ธุรกรรม (รายการ)': 'Transactions',
+      'รับเข้า (ชิ้น)': 'Received (pcs)',
+      'เบิกออก (ชิ้น)': 'Issued (pcs)',
+      'มูลค่ารับเข้า': 'Received Value',
+      'มูลค่าเบิกออก': 'Issued Value',
+      // ── หัวคอลัมน์: ทะเบียนชิ้น ──
+      'เหตุผลที่เบิก': 'Issue Reason',
+      'เบิกเมื่อ': 'Issued At',
+      'ผู้เบิก': 'Issued By',
+      'สถานะ': 'Status',
+      'ติดตั้งเมื่อ': 'Installed At',
+      'ถอดเมื่อ': 'Removed At',
+      'อายุใช้งาน (วัน)': 'Service Life (days)',
+      'หมายเหตุ': 'Remark',
+      'จำนวนชิ้นที่วัดได้': 'Measured Pieces',
+      'อายุเฉลี่ย (วัน)': 'Average Life (days)',
+      'สั้นสุด (วัน)': 'Shortest (days)',
+      'นานสุด (วัน)': 'Longest (days)',
+      // ── หัวคอลัมน์: เครื่องจักร ──
+      'ชื่อเครื่องจักร': 'Machine Name',
+      'ใช้งาน': 'Active',
+      'อะไหล่ที่ผูกไว้ (รายการ)': 'Linked Parts',
+      'สร้างโดย': 'Created By',
+      'สร้างเมื่อ': 'Created At',
+      'แก้ล่าสุดโดย': 'Updated By',
+      'แก้ล่าสุดเมื่อ': 'Updated At',
+      'อัปเดตโดย': 'Updated By',
+      'อัปเดตเมื่อ': 'Updated At',
+      'อัปเดตล่าสุด': 'Last Updated',
+      // ── หัวคอลัมน์: การสั่งซื้อ ──
+      'วันที่ขอ': 'Requested Date',
+      'ผู้ขอ': 'Requested By',
+      'ตำแหน่งผู้ขอ': 'Requester Role',
+      'คงเหลือตอนขอ': 'On Hand At Request',
+      'จำนวนที่ขอ': 'Qty Requested',
+      'มูลค่ารวม': 'Total Value',
+      'ความเร่งด่วน': 'Priority',
+      'วันที่ต้องใช้': 'Required By',
+      'ไฟล์แนบ': 'Attachment',
+      'ความเห็น Admin': 'Admin Comment',
+      'อนุมัติโดย': 'Approved By',
+      'อนุมัติเมื่อ': 'Approved At',
+      'PR ที่แปลงไป': 'Converted PR',
+      'รออนุมัติ (วัน)': 'Approval Wait (days)',
+      'ยอดสั่งซื้อ': 'Purchase Amount',
+      'อ้างอิง': 'Reference',
+      'วันที่สั่ง': 'Ordered Date',
+      'วันที่รับ': 'Received Date',
+      'ขอ → สั่ง (วัน)': 'Request to Order (days)',
+      'สั่ง → รับ (วัน)': 'Order to Receipt (days)',
+      'ขอ → รับ (วัน)': 'Request to Receipt (days)',
+      'จำนวนครั้งที่ซื้อ': 'Times Purchased',
+      'ราคาต่ำสุด': 'Lowest Price',
+      'ราคาสูงสุด': 'Highest Price',
+      'ราคาเฉลี่ย': 'Average Price',
+      'ส่วนต่าง (%)': 'Spread (%)',
+      'จำนวนที่ซื้อรวม': 'Total Qty Purchased',
+      'ยอดซื้อรวม': 'Total Purchase Amount',
+      'ยี่ห้อ/ผู้ขายที่พบ': 'Brands / Suppliers Found',
+      // ── หัวคอลัมน์: ต้นทุนและการผลิต ──
+      'วันที่': 'Date',
+      'เดือน': 'Month',
+      'วัน': 'Day',
+      'สัปดาห์': 'Week',
+      'รายการ': 'items', // ใช้เป็นหน่วยนับของ KPI — ส่วนหัวคอลัมน์ใช้ 'ชื่อรายการ' แทน
+      'ธุรกรรม': 'transactions',
+      'ยอดรวม': 'Total Amount',
+      'ร้าน/ผู้ขาย': 'Vendor',
+      'เลขที่บิล': 'Receipt No.',
+      'ลิงก์บิล': 'Receipt Link',
+      'ผู้จ่าย': 'Paid By',
+      'บันทึกโดย': 'Recorded By',
+      'บันทึกเมื่อ': 'Recorded At',
+      'ค่าสิ้นเปลือง': 'Consumables Cost',
+      'ยอดผลิตจริง (ชิ้น)': 'Actual Output (pcs)',
+      'ยอดผลิต (ชิ้น)': 'Output (pcs)',
+      'มูลค่าผลิต': 'Production Value',
+      'ยอดที่ยังไม่มีราคารุ่น': 'Output Without Model Price',
+      'ที่มาข้อมูล': 'Data Source',
+      'เป้า % ค่าอะไหล่': 'Spare Cost Target (%)',
+      'เป้า %': 'Target (%)',
+      '% ค่าอะไหล่ต่อมูลค่าผลิต': 'Spare Cost as % of Production Value',
+      '% ค่าอะไหล่จริง': 'Actual Spare Cost (%)',
+      '% จริง': 'Actual (%)',
+      'ผลเทียบเป้า': 'vs Target',
+      'ผล': 'Result',
+      'ค่าอะไหล่ (เบิกออก)': 'Spare Cost (Issued)',
+      'รวมค่าใช้จ่าย': 'Total Cost',
+      // ── หัวคอลัมน์: การนับสต็อก ──
+      'ชีตที่นับ': 'Sheets Counted',
+      'รอบที่': 'Round',
+      'กลุ่มการนับ': 'Count Group',
+      'รายการที่นับ': 'Items Counted',
+      'รายการที่นับรวม': 'Total Items Counted',
+      'ตรงกับระบบ': 'Matched System',
+      'ไม่ตรง': 'Mismatched',
+      'ความแม่น (%)': 'Accuracy (%)',
+      'นับโดย': 'Counted By',
+      'เริ่มนับ': 'Count Started',
+      'ส่งผลเมื่อ': 'Submitted At',
+      'ปรับยอดแล้ว (รายการ)': 'Adjusted Items',
+      'ปรับยอดตามผลนับ (รายการ)': 'Adjusted From Count',
+      'จำนวนรอบที่นับ': 'Count Rounds',
+      'ยอดในระบบ': 'System Qty',
+      'ยอดที่นับได้': 'Counted Qty',
+      'ผลต่าง': 'Variance',
+      'ผลการนับ': 'Count Result',
+      'สถานะรอบ': 'Round Status',
+      'ชีต': 'Sheet',
+      // ── หัวคอลัมน์: เตือนผิดปกติ ──
+      'ตรวจพบเมื่อ': 'Detected At',
+      'ยอดเบิก 7 วัน': 'Issued Last 7 Days',
+      'ค่าเฉลี่ยต่อสัปดาห์': 'Weekly Average',
+      'สูงกว่าปกติ (เท่า)': 'Above Normal (x)',
+      'ผู้เบิกมากสุด': 'Top Requester',
+      'ยอดของผู้เบิกนั้น': 'Top Requester Qty',
+      'รายละเอียด': 'Detail',
+      // ── หัวคอลัมน์: รายงานวิเคราะห์ ──
+      'อันดับ': 'Rank',
+      'ยอดเบิก (ชิ้น)': 'Issued (pcs)',
+      'ยอดเบิกในช่วง (ชิ้น)': 'Issued in Period (pcs)',
+      'ยอดเบิกในช่วง': 'Issued in Period',
+      'จำนวนครั้งที่เบิก': 'Issue Count',
+      'เครื่องที่ใช้': 'Machines Used',
+      'มูลค่าที่จม': 'Value Tied Up',
+      'ชั้น': 'Class',
+      'มูลค่าเบิก': 'Issued Value',
+      '% ของมูลค่ารวม': '% of Total Value',
+      '% สะสม': 'Cumulative %',
+      'รอบหมุน (เท่า)': 'Turnover (x)',
+      'ประเมิน': 'Assessment',
+      'ครั้งที่ตกใต้ Min': 'Times Below Min',
+      'ยอดต่ำสุดที่เคยเหลือ': 'Lowest Level Reached',
+      'ข้อเสนอ': 'Recommendation',
+      'กลุ่ม': 'Group',
+      'ตัวชี้วัด': 'Metric',
+      // ── กราฟ ──
+      'ตารางข้อมูล': 'Data Table',
+      'ซ่อนตาราง': 'Hide table',
+      'แสดงตาราง': 'Show table',
+      'กราฟ': 'Chart',
+      'กราฟไม่ถูกฝังในไฟล์นี้ (โหลดไลบรารีจัดรูปแบบไม่สำเร็จ) — ดูกราฟได้บนหน้าเว็บหรือในไฟล์ PDF': 'Charts are not embedded in this file (the formatting library failed to load) — view them on the web page or in the PDF report',
+      'รายงานนี้ยังไม่มีข้อมูลพอจะวาดกราฟ — ดูตารางด้านล่าง': 'Not enough data in this report to draw a chart — see the table below',
+      '04 กราฟสรุป': '04 Summary Charts',
+      'กราฟสรุปจากข้อมูลจริงในช่วงที่เลือก': 'Summary charts from actual data for the selected period',
+      'ยอดเบิกออกตามช่วงเวลา': 'Quantity Issued Over Time',
+      'ยอดรับเข้าตามช่วงเวลา': 'Quantity Received Over Time',
+      'มูลค่าเบิกออกตามช่วงเวลา': 'Issued Value Over Time',
+      'เปรียบเทียบยอดเบิกตามไลน์': 'Issued Comparison by Line',
+      'รายการต่ำกว่า Min ตามไลน์': 'Items Below Min by Line',
+      'Top 12 อะไหล่ที่เบิกมากที่สุด': 'Top 12 Most Issued Parts',
+      'ค่า': 'Value',
+      // ── ป้ายในรายงาน Lead Time (ตารางสร้างแถวเอง) ──
+      'จำนวนคำขอที่วัดเวลารออนุมัติได้': 'Requests with a measurable approval wait',
+      'เวลารออนุมัติ — ค่ากลาง': 'Approval wait — median',
+      'เวลารออนุมัติ — นานสุด': 'Approval wait — longest',
+      'จำนวนรายการที่วัดวงจรซื้อครบได้': 'Items with a complete measurable purchase cycle',
+      'ขอ → รับของ — ค่ากลาง': 'Request to receipt — median',
+      'ขอ → รับของ — นานสุด': 'Request to receipt — longest',
+      'สั่ง → รับของ — ค่ากลาง': 'Order to receipt — median',
+      // ── ค่าในเซลล์ที่ระบบเขียนเอง ──
+      'หมด': 'Out of Stock',
+      'เกิน Max': 'Above Max',
+      'ปกติ': 'Normal',
+      'ปิด': 'Inactive',
+      'ชีตผลิตจริง (auto)': 'Production sheet (auto)',
+      'กรอกมือ': 'Manual entry',
+      'ตรง': 'Match',
+      'เกิน': 'Over',
+      'ขาด': 'Short',
+      'ไม่เคยเบิก': 'Never issued',
+      'ของหมด (เบิกแล้วไม่เติม)': 'Out of stock (issued, not replenished)',
+      'หมุนเร็ว': 'Fast moving',
+      'หมุนปกติ': 'Normal moving',
+      'หมุนช้า (เก็บมากกว่าที่ใช้)': 'Slow moving (holding more than used)',
+      'อยู่ในเป้า': 'Within target',
+      'เกินเป้า': 'Over target',
+      'เกินเป้า {n} จุด': 'Over target by {n} points',
+      'ยังไม่ตั้งเป้า/ไม่มีมูลค่าผลิต': 'No target set / no production value',
+      'ยังไม่ตั้งเป้าไลน์นี้': 'No target set for this line',
+      'ไม่มีมูลค่าผลิตในเดือนนี้': 'No production value this month',
+      'ไม่มีมูลค่าผลิตให้เทียบ': 'No production value to compare',
+      'ยังไม่มีรอบนับ': 'No count rounds yet',
+      'ดึงข้อมูลไม่ได้': 'Data unavailable',
+      'Min ต่ำเกินจริง — ขาดบ่อย ควรพิจารณาเพิ่ม Min': 'Min set too low — frequent shortages, consider raising Min',
+      'ตั้ง Min ไว้แต่ไม่เคยเบิกในช่วงนี้ — อาจตั้งสูงเกินจำเป็น': 'Min is set but never issued in this period — possibly higher than needed',
+      'คงเหลือเกิน Max — ของจมเกินกรอบที่ตั้งไว้': 'On hand exceeds Max — holding more than the set ceiling',
+      'เคยตกใต้ Min {n} ครั้ง': 'Fell below Min {n} time(s)',
+      '(ไม่ระบุ)': '(Unspecified)',
+      '(ไม่ระบุไลน์)': '(No line specified)',
+      // ── กลุ่ม KPI ──
+      'คลังอะไหล่': 'Spare Parts Inventory',
+      'การเคลื่อนไหว': 'Stock Movement',
+      'การสั่งซื้อ': 'Procurement',
+      'ต้นทุน': 'Cost',
+      'การผลิต': 'Production',
+      'การควบคุม': 'Control',
+      'ต้นทุนและการผลิต': 'Cost & Production',
+      'การควบคุมและตรวจสอบ': 'Control & Audit',
+      // ── ตัวชี้วัด KPI ──
+      'จำนวนรายการอะไหล่ (SKU)': 'Spare part items (SKU)',
+      'มูลค่าคงคลังรวม': 'Total inventory value',
+      'ของหมด (คงเหลือ 0)': 'Out of stock (0 on hand)',
+      'ยังไม่ได้ลงราคา': 'No price recorded',
+      'ไม่มีการเบิกในช่วงนี้ (Dead stock)': 'No issues in this period (dead stock)',
+      'มูลค่าที่จมใน Dead stock': 'Value tied up in dead stock',
+      'จำนวนธุรกรรมทั้งหมด': 'Total transactions',
+      'ยอดเบิกออกรวม': 'Total issued',
+      'มูลค่าเบิกออกรวม': 'Total issued value',
+      'ยอดรับเข้ารวม': 'Total received',
+      'มูลค่ารับเข้ารวม': 'Total received value',
+      'คำขอซื้อทั้งหมด': 'Purchase requests total',
+      'คำขอที่รออนุมัติ': 'Requests pending approval',
+      'คำขอที่อนุมัติแล้ว': 'Requests approved',
+      'ใบ PR ทั้งหมด': 'PR documents total',
+      'ใบ PR ที่รออนุมัติ': 'PR documents pending approval',
+      'มูลค่ารวมในใบ PR': 'Total PR value',
+      'รายการสั่งซื้อที่บันทึกไว้': 'Purchase records logged',
+      'ยอดสั่งซื้อรวม': 'Total purchase amount',
+      'ค่าใช้จ่ายสิ้นเปลืองรวม': 'Total consumables expense',
+      'ยอดผลิตรวม': 'Total production output',
+      'มูลค่าผลิตรวม': 'Total production value',
+      'ค่าอะไหล่ + สิ้นเปลือง ต่อมูลค่าผลิต': 'Spare + consumables cost as % of production value',
+      'รอบนับสต็อกที่ทำ': 'Stock count rounds performed',
+      'ความแม่นยำการนับเฉลี่ย': 'Average count accuracy',
+      'ทะเบียนชิ้นที่ออกเลขแล้ว': 'Part tags issued',
+      'ชิ้นที่ถอดออกแล้ว': 'Pieces removed from service',
+      'เครื่องจักรที่ลงทะเบียน': 'Machines registered',
+      // ── หน่วยของ KPI ──
+      'ชิ้น': 'pcs',
+      'บาท': 'THB',
+      'คำขอ': 'requests',
+      'ใบ': 'docs',
+      'รอบ': 'rounds',
+      'เครื่อง': 'machines',
+      // ── หมายเหตุของ KPI ──
+      'คงเหลือ × ราคาต่อหน่วยล่าสุด': 'On hand x latest unit price',
+      'นับแบบ คงเหลือ < Min': 'Counted as on hand < Min',
+      'มูลค่าคงคลังจริงจะสูงกว่าที่คำนวณได้': 'Actual inventory value is higher than shown',
+      'ตีราคาจากราคาต่อหน่วยล่าสุดใน Master': 'Valued at the latest unit price in Master',
+      'ของซื้อนอกระบบอะไหล่ ไม่ซ้ำกับยอดเบิก': 'Bought outside the spare parts system — not double counted with issues',
+      'เฉพาะรุ่นที่จับคู่ราคาได้': 'Only models with a matched price',
+      // ── ชื่อชุดข้อมูล ──
+      'Master อะไหล่ (ทุกไลน์)': 'Spare Parts Master (All Lines)',
+      'Master อะไหล่': 'Spare Parts Master',
+      'รับเข้า / เบิกออก (Log)': 'Receipts / Issues (Log)',
+      'Log รับเข้า-เบิกออก': 'Receipts-Issues Log',
+      'Log รับเข้า/เบิกออก': 'Receipts / Issues Log',
+      'ทะเบียนชิ้น (Part Tag)': 'Part Tag Registry',
+      'ทะเบียนชิ้น': 'Part Tag Registry',
+      'กลุ่มแท็ก (PartTagGroups)': 'Part Tag Groups',
+      'กลุ่มแท็ก': 'Part Tag Groups',
+      'สมาชิกกลุ่มแท็ก (PartTagGroupItems)': 'Part Tag Group Items',
+      'สมาชิกกลุ่มแท็ก': 'Part Tag Group Items',
+      'เครื่องจักร (Master)': 'Machines (Master)',
+      'ทะเบียนแก้ไขข้อมูลอะไหล่': 'Spare Part Change Log',
+      'ทะเบียนแก้ไขอะไหล่': 'Spare Part Change Log',
+      'คำขอซื้อ (Order Requests)': 'Purchase Requests (Order Requests)',
+      'คำขอซื้อ': 'Purchase Requests',
+      'PR หัวใบ (PRHeaders)': 'PR Headers',
+      'PR หัวใบ': 'PR Headers',
+      'PR รายการในใบ (PRLines)': 'PR Lines',
+      'PR รายการในใบ': 'PR Lines',
+      'PR audit (ใครแก้จำนวน)': 'PR Audit (quantity changes)',
+      'PR เต็มวงจร': 'Full PR cycle',
+      'Purchase History audit': 'Purchase History Audit',
+      'ประวัตินำเข้าไฟล์ PR': 'PR File Import History',
+      'ประวัตินำเข้า PR': 'PR Import History',
+      'ค่าใช้จ่ายสิ้นเปลือง': 'Consumables Expenses',
+      'ค่าสิ้นเปลือง audit': 'Consumables Audit',
+      'ยอดผลิตรายเดือน': 'Monthly Production Output',
+      'ยอดผลิต': 'Production Output',
+      'ราคาต่อชิ้น + เป้า %': 'Unit Price + Target %',
+      'ราคาต่อชิ้นและเป้า': 'Unit Price and Target',
+      'ผลนับสต็อก (ทุกรอบ)': 'Stock Count Results (All Rounds)',
+      'ผลนับสต็อก': 'Stock Count Results',
+      'ผลนับสต็อกรายชิ้น': 'Stock Count Results by Item',
+      'ผลนับรายชิ้น': 'Count Results by Item',
+      'ผลนับรายรอบ': 'Count Results by Round',
+      'เตือนเบิกผิดปกติ': 'Unusual Issue Alerts',
+      'ผู้ใช้และสิทธิ์ (ไม่มีรหัสผ่าน)': 'Users and Permissions (no passwords)',
+      'ผู้ใช้และสิทธิ์': 'Users and Permissions',
+      'ทะเบียนการส่งออกข้อมูล': 'Data Export Log',
+      'ทะเบียนการส่งออก': 'Data Export Log',
+      // ── คำอธิบายชุดข้อมูล ──
+      'ชีตอะไหล่ 9 ชีต + มูลค่าคงคลัง + สถานะ Min/Max': '9 spare part sheets + inventory value + Min/Max status',
+      'ทุกธุรกรรม + ยอดก่อน/หลัง + มูลค่าที่ตีจากราคา master': 'Every transaction + before/after levels + value from Master prices',
+      'เลขประจำชิ้น + เครื่องที่ติดตั้ง + อายุใช้งานที่คำนวณให้': 'Per-piece serial + installed machine + calculated service life',
+      'ตั้งค่า prefix / เลขเริ่ม ของแต่ละกลุ่มที่ต้องออกเลขประจำชิ้น': 'Prefix / start number settings for each group requiring per-piece serials',
+      'อะไหล่ชิ้นไหนอยู่กลุ่มไหน — ตัวกำหนดว่าเบิกแล้วต้องออกเลขประจำชิ้น': 'Which parts belong to which group — decides whether an issue gets a serial',
+      'ทะเบียนเครื่องจักรทุกไลน์ + จำนวนอะไหล่ที่ผูกไว้': 'Machine registry for all lines + number of linked parts',
+      'ItemAudit — ใครแก้ Min/Max/ราคา/ยอดคงเหลือ ค่าก่อน-หลัง': 'ItemAudit — who changed Min/Max/price/on-hand, with before and after values',
+      'วงจรขออนุมัติซื้อ 29 คอลัมน์ + ระยะเวลารออนุมัติ': 'Purchase approval cycle, 29 columns + approval wait time',
+      'ใบขอซื้อทุกใบ + สถานะอนุมัติ + ยอดรวม': 'Every PR document + approval status + total amount',
+      'รายการอะไหล่ในแต่ละใบ PR + จำนวนที่ขอ vs ที่อนุมัติ': 'Parts in each PR + quantity requested vs approved',
+      'PRAudit — หัวหน้าแก้จำนวนจากเท่าไหร่เป็นเท่าไหร่ ใครกดอนุมัติ': 'PRAudit — what quantities supervisors changed, and who approved',
+      'ประวัติสั่งซื้อจริง 33 คอลัมน์ + ราคาย้อนหลัง': 'Actual purchase history, 33 columns + historical prices',
+      'PurchaseHistoryLog — ใครแก้/ลบรายการซื้อ พร้อมเหตุผล': 'PurchaseHistoryLog — who edited/deleted purchase records, with reasons',
+      'PurchaseHistoryImportLog — ไฟล์ PDF ที่นำเข้า/แถวซ้ำที่ข้าม': 'PurchaseHistoryImportLog — imported PDF files / duplicate rows skipped',
+      'ของซื้อนอกระบบอะไหล่ แยกหมวด/ไลน์ (ส่วนกลางไม่เฉลี่ยเข้าไลน์)': 'Purchases outside the spare parts system, by category/line (shared costs are not allocated to lines)',
+      'MiscExpenseLog — ใครแก้/ลบค่าใช้จ่าย พร้อมเหตุผล': 'MiscExpenseLog — who edited/deleted expenses, with reasons',
+      'ProductionVolume + ยอดจริงจากชีตผลิตของแต่ละไลน์ + มูลค่าผลิต': 'ProductionVolume + actual output from each line production sheet + production value',
+      'ProductionCostConfig — ราคาต่อหน่วยและเป้า % ค่าอะไหล่ต่อไลน์': 'ProductionCostConfig — unit price and spare cost target % per line',
+      'StockCount ทุก session + ผลต่าง + ใครอนุมัติ': 'Every StockCount session + variances + who approved',
+      'แตก items_json ของทุกรอบออกเป็นรายชิ้น — ยอดนับ vs ยอดระบบ': 'items_json of every round expanded per item — counted vs system quantity',
+      'AnomalyAlerts ย้อนหลังทั้งหมด (ปกติหน้าเว็บเห็นแค่ 14 วัน)': 'Full AnomalyAlerts history (the web page normally shows only 14 days)',
+      'รายชื่อผู้ใช้ + สิทธิ์ที่เปิด — password/token ถูกตัดที่เซิร์ฟเวอร์': 'User list + enabled permissions — password/token stripped on the server',
+      'ExportLog — ใครดึงข้อมูลชุดไหนออกไปเมื่อไหร่': 'ExportLog — who exported which datasets and when',
+      // ── ชื่อรายงานวิเคราะห์ ──
+      'Top 50 อะไหล่ที่เบิกเยอะสุด': 'Top 50 Most Issued Parts',
+      'Dead Stock — ของที่ไม่มีการเบิก': 'Dead Stock — Parts With No Issues',
+      'ABC Analysis — จัดชั้นความสำคัญ': 'ABC Analysis — Importance Classification',
+      'Stock Turnover — รอบหมุนของอะไหล่': 'Stock Turnover — Spare Part Turns',
+      'Min/Max Health — ค่าที่ตั้งไว้เหมาะหรือยัง': 'Min/Max Health — Are the Set Levels Right',
+      'ต้นทุนอะไหล่ต่อมูลค่าผลิต': 'Spare Cost as % of Production Value',
+      'Purchase Lead Time — วงจรจัดซื้อใช้เวลาเท่าไหร่': 'Purchase Lead Time — How Long the Procurement Cycle Takes',
+      'Lead Time รายรายการ': 'Lead Time by Item',
+      'Price Variance — ราคาซื้อของชิ้นเดียวกันต่างกันแค่ไหน': 'Price Variance — How Much Prices Differ for the Same Part',
+      'ความแม่นยำการนับสต็อก': 'Stock Count Accuracy',
+      'อายุอะไหล่จากทะเบียนชิ้น (Part Tag)': 'Spare Part Service Life From Part Tags',
+      // ── คำอธิบายรายงาน ──
+      'จัดอันดับตามจำนวนและมูลค่า พร้อมจำนวนครั้งที่เบิกและเครื่องที่ใช้': 'Ranked by quantity and value, with issue counts and machines used',
+      'อะไหล่ที่ยังมีของแต่ไม่มีการเบิกในช่วงที่เลือก + มูลค่าที่จมอยู่': 'Parts still in stock with no issues in the selected period + value tied up',
+      'แบ่งชั้น A/B/C ตามมูลค่าเบิกสะสม 80/15/5 เพื่อรู้ว่าควรคุมของกลุ่มไหนก่อน': 'A/B/C classes by cumulative issued value at 80/15/5, showing which group to control first',
+      'ยอดเบิกเทียบยอดคงเหลือปัจจุบัน บอกว่าของหมุนเร็ว/ช้าแค่ไหน': 'Issued quantity against current on hand, showing how fast or slow stock moves',
+      'หาของที่ Min ต่ำเกินจริง (ขาดบ่อย) และ Min/Max สูงเกินจริง (จมทุน)': 'Finds parts whose Min is too low (frequent shortages) and whose Min/Max is too high (capital tied up)',
+      'รายเดือน × ไลน์ เทียบกับเป้า % ที่ตั้งไว้ ใช้คุมงบสั่งซื้อ': 'By month and line against the set target %, for controlling the purchasing budget',
+      'ขอ → อนุมัติ → PR → สั่ง → รับ วัดเป็นวันต่อใบ พร้อมใบที่ช้าสุด': 'Request to approval to PR to order to receipt, measured in days per document, with the slowest ones',
+      'ราคาต่ำสุด/สูงสุด/เฉลี่ยย้อนหลังต่ออะไหล่ + ส่วนต่างเป็น %': 'Lowest / highest / average historical price per part + spread as %',
+      'ทุกรอบนับ: ตรงกี่ %, ผลต่างกี่รายการ, ไลน์ไหนเพี้ยนบ่อย': 'Every count round: accuracy %, number of variances, which lines drift most often',
+      'ชิ้นเดียวกันอยู่ในเครื่องได้กี่วัน แยกตามรุ่นและเครื่องจักร': 'How many days the same part lasts in a machine, by model and machine',
+      // ── หมายเหตุท้ายรายงาน ──
+      'เรียงตามมูลค่ารวม (ยอดเบิก × ราคาต่อหน่วยล่าสุด) — รายการที่ยังไม่ลงราคาจะมีมูลค่า 0 แต่ยอดชิ้นถูกต้อง': 'Sorted by total value (issued quantity x latest unit price). Parts with no price recorded show a value of 0, but their quantities are correct.',
+      'นับจากช่วงวันที่ที่เลือกด้านบนเท่านั้น — ถ้าเลือก "ทั้งหมด" หมายถึงไม่มีประวัติเบิกใน Log เลย': 'Based only on the date range selected above. With "All time" selected, it means there is no issue history in the Log at all.',
+      'ต้องมีราคาต่อหน่วยจึงจัดชั้นได้ — รายการที่ยังไม่ลงราคาไม่ปรากฏในรายงานนี้ ({n} รายการ)': 'Classification requires a unit price. Parts with no price recorded do not appear in this report ({n} items).',
+      'ตัวหารคือยอดคงเหลือ ณ ปัจจุบัน ไม่ใช่ค่าเฉลี่ยคงคลัง — ระบบไม่ได้เก็บ snapshot ยอดคงเหลือรายวัน จึงคำนวณค่าเฉลี่ยจริงไม่ได้': 'The divisor is the current on-hand quantity, not average inventory. The system does not keep daily stock snapshots, so a true average cannot be calculated.',
+      'นับ "ตกใต้ Min" จากคอลัมน์ Stock After ในชีต Log ตอนทำรายการจริง จึงเป็นเหตุการณ์ในอดีตที่เกิดขึ้นจริง ไม่ใช่ประเมินจากยอดปัจจุบัน': '"Below Min" events are counted from the Stock After column recorded in the Log at transaction time, so they are actual past events rather than estimates from the current level.',
+      'ค่าอะไหล่มาจากยอดเบิกออกใน Log ตีราคาด้วยราคาต่อหน่วยล่าสุด ไม่ใช่ยอดที่สั่งซื้อ (ของที่ซื้อแล้วยังไม่เบิกยังไม่ถือเป็นต้นทุนของเดือนนั้น)': 'Spare cost comes from quantities issued in the Log, valued at the latest unit price, not from purchase amounts. Parts bought but not yet issued are not counted as that month cost.',
+      'วัดได้เฉพาะใบที่มีวันที่ครบทั้งสองฝั่ง — ใบที่ยังไม่ได้รับของหรือไม่ได้กรอกวันที่จะไม่ถูกนับ (ไม่เดาแทน)': 'Only documents with both dates filled in can be measured. Documents not yet received, or with missing dates, are excluded rather than estimated.',
+      'นับเฉพาะอะไหล่ที่ซื้อตั้งแต่ 2 ครั้งขึ้นไปและมีราคาต่อหน่วยบันทึกไว้ — ส่วนต่างสูงอาจมาจากยี่ห้อ/สเปกต่างกัน ควรตรวจก่อนสรุปว่าซื้อแพง': 'Only parts purchased at least twice with a recorded unit price are included. A large spread may come from a different brand or specification, so check before concluding it was overpriced.',
+      'ความแม่น = รายการที่นับตรงกับยอดระบบ ÷ รายการที่นับทั้งหมด ในรอบนั้น': 'Accuracy = items matching the system quantity divided by all items counted in that round.',
+      'นับเฉพาะชิ้นที่มีทั้งวันติดตั้งและวันถอดในทะเบียน — ชิ้นที่ยังอยู่ในเครื่องไม่ถูกนับ เพราะยังไม่รู้อายุจริง ({n} ชิ้นในทะเบียนทั้งหมด)': 'Only pieces with both an install and a removal date are counted. Pieces still in a machine are excluded because their true life is not yet known ({n} pieces in the registry in total).',
+      // ── ชีตของ Executive Workbook ──
+      '00 ปกรายงาน': '00 Cover',
+      '01 สรุปผู้บริหาร': '01 Executive Summary',
+      '02 เทรนด์ตามช่วงเวลา': '02 Trend Over Time',
+      '03 สรุปตามไลน์': '03 Summary by Line',
+      '98 ลิงก์ไฟล์แนบ': '98 Attachment Links',
+      '99 พจนานุกรมข้อมูล': '99 Data Dictionary',
+      // ── หน้าปกรายงาน ──
+      'หัวข้อ': 'Field',
+      'รายงานข้อมูลระบบคลังอะไหล่': 'Spare Parts System Data Report',
+      'ผู้จัดทำ': 'Prepared by',
+      'ตำแหน่ง': 'Role',
+      'ช่วงข้อมูล': 'Data period',
+      'ประเภทธุรกรรม': 'Transaction type',
+      'โหมดลูกค้า': 'Customer mode',
+      'ภาษาของไฟล์': 'File language',
+      'ชีตในไฟล์นี้': 'Sheets in this file',
+      'จำนวนแถว': 'Row count',
+      'ความครบถ้วนของข้อมูล': 'Data completeness',
+      'ตั้งแต่เริ่มระบบ': 'since system start',
+      'ล่าสุด': 'latest',
+      'ทุกไลน์ (รวม)': 'All lines (combined)',
+      'ทุกหมวด': 'All categories',
+      'รับเข้าเท่านั้น': 'Receipts only',
+      'เบิกออกเท่านั้น': 'Issues only',
+      'รับเข้า + เบิกออก': 'Receipts + Issues',
+      'เปิด — ตัดคอลัมน์ราคา/ผู้ขาย/มูลค่าออกจากไฟล์นี้': 'On — price, supplier and value columns are removed from this file',
+      'ปิด — มีข้อมูลราคาครบ': 'Off — full price data included',
+      'Google Sheets ของระบบคลังอะไหล่ ดึงสดตอนสร้างไฟล์ ไม่มีตัวเลขที่สร้างขึ้นเอง': 'The spare parts system Google Sheets, pulled live when this file was generated. No figures were fabricated.',
+      'ดึงครบทุกชุดที่เลือก': 'All selected datasets retrieved successfully',
+      'มี {n} ชุดที่ดึงไม่สำเร็จ — ดูรายละเอียดในตารางด้านบน': '{n} dataset(s) could not be retrieved — see the table above for details',
+      'ดึงข้อมูลไม่ได้: {msg}': 'Could not retrieve: {msg}',
+      'ดึงข้อมูลชุดนี้ไม่สำเร็จ: {msg}': 'This dataset could not be retrieved: {msg}',
+      // ── พจนานุกรมข้อมูล ──
+      'ชื่อคอลัมน์': 'Column Name',
+      'คำอธิบาย / วิธีคำนวณ': 'Description / How It Is Calculated',
+      'คอลัมน์ตรงจากชีตต้นทางของระบบ': 'Column taken directly from the source sheet',
+      'ยอดคงเหลือปัจจุบันในชีตอะไหล่ (อัปเดตทุกครั้งที่รับเข้า/เบิกออก)': 'Current on-hand quantity in the spare parts sheet (updated on every receipt/issue)',
+      'จุดสั่งซื้อ — ระบบเตือนเมื่อคงเหลือน้อยกว่าค่านี้ (เทียบแบบน้อยกว่าเท่านั้น ไม่รวมเท่ากับ)': 'Reorder point — the system warns when on hand is less than this value (strictly less than, not equal to)',
+      'ยอดเก็บสูงสุดที่ตั้งไว้ ใช้คำนวณจำนวนที่ควรสั่ง': 'Maximum holding level, used to work out how much to order',
+      'Min ลบ คงเหลือ (ถ้าติดลบถือเป็น 0)': 'Min minus on hand (negative results count as 0)',
+      'คงเหลือ × ราคาต่อหน่วยล่าสุด — รายการที่ยังไม่ลงราคาจะได้ 0': 'On hand x latest unit price — parts with no price recorded show 0',
+      'หมด / ต่ำกว่า Min / เกิน Max / ปกติ คำนวณจากคงเหลือเทียบ Min-Max': 'Out of Stock / Below Min / Above Max / Normal, derived from on hand against Min-Max',
+      'ยอดคงเหลือก่อนทำรายการนั้น (บันทึกไว้ตอนทำรายการ)': 'On-hand quantity before that transaction (recorded at transaction time)',
+      'ยอดคงเหลือหลังทำรายการนั้น — ใช้ตรวจย้อนหลังว่ายอดเดินถูกต่อเนื่องหรือไม่': 'On-hand quantity after that transaction — used to verify the running balance is continuous',
+      'Input = รับเข้า, Output = เบิกออก': 'Input = receipt, Output = issue',
+      'ไลน์ผลิตที่ทำรายการ เก็บในคอลัมน์ Process ของชีต Log': 'The production line that made the transaction, stored in the Process column of the Log sheet',
+      'จำนวน × ราคาต่อหน่วยล่าสุดใน Master — ชีต Log ไม่ได้เก็บราคาไว้ในแถว จึงจับคู่ตอนส่งออก': 'Quantity x latest unit price from Master. The Log sheet does not store a price per row, so it is matched at export time.',
+      'วันถอด ลบ วันติดตั้ง — ว่างหมายถึงชิ้นนั้นยังอยู่ในเครื่อง หรือไม่ได้กรอกวันไว้': 'Removal date minus install date. Blank means the piece is still in the machine, or the dates were not filled in.',
+      'วันอนุมัติ ลบ วันที่ขอ — ว่างหมายถึงยังไม่ได้อนุมัติ': 'Approval date minus request date. Blank means not yet approved.',
+      'รายการที่นับตรงกับยอดระบบ ÷ รายการที่นับทั้งหมดในรอบนั้น × 100': 'Items matching the system quantity divided by all items counted in that round, x 100',
+      '(มูลค่าเบิกออก + ค่าสิ้นเปลือง) ÷ มูลค่าผลิต × 100': '(Issued value + consumables cost) divided by production value, x 100',
+      '(ค่าอะไหล่ + ค่าสิ้นเปลือง) ÷ มูลค่าผลิต × 100 ของเดือน/ไลน์นั้น': '(Spare cost + consumables cost) divided by production value, x 100, for that month and line',
+      'เป้าที่ตั้งไว้ในชีต ProductionCostConfig ต่อไลน์': 'The target set per line in the ProductionCostConfig sheet',
+      'ผลรวม (ยอดผลิตแต่ละรุ่น × ราคาต่อชิ้นที่จับคู่ได้) — รุ่นที่จับคู่ราคาไม่ได้จะไม่ถูกนับ': 'Sum of (output per model x matched unit price). Models with no matched price are excluded.',
+      'ชีตผลิตจริง (auto) = ดึงจากไฟล์ผลิตของไลน์นั้นอัตโนมัติ, กรอกมือ = คนกรอกเอง': 'Production sheet (auto) = pulled automatically from that line production file; Manual entry = entered by a person',
+      'Available / Missing / Not Required / Access Required': 'Available / Missing / Not Required / Access Required',
+      'ABC — A คือกลุ่มที่กินมูลค่าเบิกสะสม 80% แรก, B ถึง 95%, C ที่เหลือ': 'ABC — A is the group covering the first 80% of cumulative issued value, B up to 95%, C the remainder',
+      'ยอดเบิกในช่วง ÷ ยอดคงเหลือปัจจุบัน': 'Quantity issued in the period divided by current on hand',
+      'จำนวนครั้งที่ยอดหลังทำรายการต่ำกว่า Min ของตัวเอง (เหตุการณ์จริงจาก Log)': 'Number of times the after-transaction level fell below that part own Min (actual events from the Log)',
+      '(ราคาสูงสุด − ราคาต่ำสุด) ÷ ราคาต่ำสุด × 100 ของอะไหล่ชิ้นเดียวกัน': '(Highest price - lowest price) divided by lowest price, x 100, for the same part',
+      // ── ชีตลิงก์ไฟล์แนบ ──
+      'มาจากชุดข้อมูล': 'From Dataset',
+      'รหัสอ้างอิง': 'Reference ID',
+      'ประเภทไฟล์': 'File Type',
+      'ลิงก์': 'Link',
+      'รูปตอนติดตั้ง': 'Installation Photo',
+      'ใบเสนอราคา': 'Quotation',
+      'ไฟล์แนบคำขอ': 'Request Attachment',
+      'บิล/ใบเสร็จ': 'Receipt',
+      'ไฟล์แนบบิล': 'Invoice Attachment',
+      // ── Executive Report (PDF) ──
+      'Spare Parts Management System — Executive Report': 'Spare Parts Management System — Executive Report',
+      'รวมข้อมูลตาม': 'Grouped by',
+      'รายวัน': 'Daily',
+      'รายสัปดาห์': 'Weekly',
+      'รายเดือน': 'Monthly',
+      'วันเวลาที่สร้างไฟล์': 'Generated at',
+      'เปิด — ไม่แสดงราคาต้นทุน ผู้ขาย และค่าใช้จ่าย': 'On — cost prices, suppliers and expenses are not shown',
+      'ตัวเลขทุกตัวในรายงานนี้คำนวณจากข้อมูลจริงในระบบ ณ เวลาที่สร้างไฟล์': 'Every figure in this report is calculated from actual system data at the time the file was generated.',
+      'สรุปผู้บริหาร': 'Executive Summary',
+      'เทรนด์การเคลื่อนไหวของอะไหล่': 'Spare Parts Movement Trend',
+      'ยอดเบิกออก (ชิ้น) ต่อช่วงเวลา': 'Quantity issued (pcs) per period',
+      'ยอดรับเข้า (ชิ้น)': 'Quantity received (pcs)',
+      'มูลค่าเบิกออกตามช่วงเวลา (บาท)': 'Issued value per period (THB)',
+      'สรุปตามไลน์ผลิต': 'Summary by Production Line',
+      'ทุกตัวเลขเป็นของช่วง {range}': 'All figures are for the period {range}',
+      'Top 20 อะไหล่ที่เบิกมากที่สุด': 'Top 20 Most Issued Parts',
+      'อะไหล่ที่ไม่มีการเบิกในช่วงนี้ (Top 25 ตามมูลค่า)': 'Parts With No Issues in This Period (Top 25 by value)',
+      'ต้นทุนอะไหล่ต่อมูลค่าผลิต เทียบเป้า': 'Spare Cost as % of Production Value vs Target',
+      'เทรนด์ตามช่วงเวลา (ตารางเต็ม)': 'Trend Over Time (full table)',
+      'ไม่มีข้อมูลในช่วงที่เลือก': 'No data in the selected period',
+      'แสดง {shown} แถวแรกจากทั้งหมด {total} แถว — ดูครบในไฟล์ Excel': 'Showing the first {shown} of {total} rows — see the Excel file for all rows',
+      'ชุดข้อมูลที่ดึงไม่สำเร็จในรอบนี้: {list} — ตัวชี้วัดที่เกี่ยวข้องจะขึ้นว่า "ดึงข้อมูลไม่ได้" ไม่ได้แทนด้วยศูนย์': 'Datasets that could not be retrieved this run: {list}. Related metrics show "Data unavailable" rather than being replaced with zero.',
+      'ที่มาข้อมูล: ชีตอะไหล่ทุกไลน์, ชีต Log (รับเข้า/เบิกออก), OrderRequests, PRHeaders/PRLines, PurchaseHistory, MiscExpenses, ProductionVolume, StockCount, PartTags ของระบบคลังอะไหล่': 'Data sources: spare part sheets for all lines, the Log sheet (receipts/issues), OrderRequests, PRHeaders/PRLines, PurchaseHistory, MiscExpenses, ProductionVolume, StockCount and PartTags of the spare parts system.',
+      'มูลค่าเบิกออก/รับเข้า ตีจากราคาต่อหน่วยล่าสุดใน Master เพราะชีต Log ไม่ได้เก็บราคาไว้ในแถว · รายการที่ยังไม่ลงราคาจะนับมูลค่าเป็น 0 แต่จำนวนชิ้นถูกต้อง': 'Issued and received values are calculated from the latest unit price in Master because the Log sheet does not store a price per row. Parts with no price recorded count as 0 value, but their quantities are correct.',
+      'พรินต์ / บันทึกเป็น PDF': 'Print / Save as PDF',
+      'ผู้ตรวจสอบ': 'Reviewed by',
+      'ผู้อนุมัติ': 'Approved by',
+      'Executive Report': 'Executive Report'
+    };
+
+    // แปลข้อความที่จะลงไปในไฟล์ — vars ใช้แทนที่ {placeholder} ในข้อความ
+    // ต้นทางเป็นภาษาไทยเสมอ (อ่านโค้ดรู้เรื่องทันทีไม่ต้องเปิดตารางแปล)
+    function xpT(text, vars) {
+      var s = xpS(text);
+      var out = (xpFilters.lang === 'en' && XP_LANG_EN[s] !== undefined) ? XP_LANG_EN[s] : s;
+      if (vars) {
+        Object.keys(vars).forEach(function(k) { out = out.split('{' + k + '}').join(xpS(vars[k])); });
+      }
+      return out;
+    }
+    function xpIsEn() { return xpFilters.lang === 'en'; }
+    // แปลกลับอังกฤษ → ไทย ใช้เฉพาะตอนหาคำอธิบายในพจนานุกรมข้อมูล:
+    // หัวคอลัมน์ถูกแปลไปแล้วตอนสร้างตาราง แต่คีย์ของ XP_DICTIONARY เป็นภาษาไทย
+    var xpLangReverse = null;
+    function xpDictKeyOf(label) {
+      if (!xpLangReverse) {
+        xpLangReverse = {};
+        Object.keys(XP_LANG_EN).forEach(function(th) { xpLangReverse[XP_LANG_EN[th]] = th; });
+      }
+      return xpLangReverse[xpS(label)] || xpS(label);
+    }
+    // วันเวลาบนหน้าปก/รายงานต้องอยู่ในรูปแบบของภาษาที่เลือก
+    function xpLocaleStamp() {
+      return new Date().toLocaleString(xpIsEn() ? 'en-GB' : 'th-TH');
+    }
     // แปลง array ของ object เป็นตาราง { headers, rows, numeric } ตามสเปกคอลัมน์
     // cols = [{ label, key | get(o), type: 'num'|'money'|'text', sensitive: true }]
     function xpTable(cols, list) {
       var visible = cols.filter(function(c) { return !(c.sensitive && xpFilters.customerMode); });
       return {
-        headers: visible.map(function(c) { return c.label; }),
+        headers: visible.map(function(c) { return xpT(c.label); }),
         rows: (list || []).map(function(o) {
           return visible.map(function(c) {
             var v = c.get ? c.get(o) : o[c.key];
@@ -21971,7 +22502,7 @@ if (dashboardPage) {
         }
         return seen > 0;
       });
-      return { headers: keep.map(function(i) { return headers[i]; }), rows: rows, numeric: numeric, money: numeric.map(function() { return false; }) };
+      return { headers: keep.map(function(i) { return xpT(headers[i]); }), rows: rows, numeric: numeric, money: numeric.map(function() { return false; }) };
     }
 
     function xpSig() {
@@ -22194,10 +22725,10 @@ if (dashboardPage) {
               { label: 'รับเข้าล่าสุด', key: 'last_received_at' },
               { label: 'สถานะสต็อก', get: function(o) {
                 var st = xpN(o.stock), mn = xpN(o.min), mx = xpN(o.max);
-                if (st <= 0) return 'หมด';
-                if (st < mn) return 'ต่ำกว่า Min';   // strict < ตามกฎธุรกิจเดิม (คอมมิต 1cd2ea1)
-                if (mx > 0 && st > mx) return 'เกิน Max';
-                return 'ปกติ';
+                if (st <= 0) return xpT('หมด');
+                if (st < mn) return xpT('ต่ำกว่า Min');   // strict < ตามกฎธุรกิจเดิม (คอมมิต 1cd2ea1)
+                if (mx > 0 && st > mx) return xpT('เกิน Max');
+                return xpT('ปกติ');
               } }
             ], list);
           });
@@ -22314,7 +22845,7 @@ if (dashboardPage) {
               { label: 'Machine ID', key: 'machine_id' },
               { label: 'ไลน์', key: 'line' },
               { label: 'ชื่อเครื่องจักร', key: 'machine_name' },
-              { label: 'ใช้งาน', get: function(o) { return o.active ? 'ใช้งาน' : 'ปิด'; } },
+              { label: 'ใช้งาน', get: function(o) { return xpT(o.active ? 'ใช้งาน' : 'ปิด'); } },
               { label: 'อะไหล่ที่ผูกไว้ (รายการ)', type: 'num', get: function(o) { return countByMachine[xpS(o.machine_name).trim().toLowerCase()] || 0; } },
               { label: 'สร้างโดย', key: 'created_by' },
               { label: 'สร้างเมื่อ', key: 'created_at' },
@@ -22453,7 +22984,7 @@ if (dashboardPage) {
               { label: 'เดือน', key: 'month' },
               { label: 'ไลน์', key: 'line' },
               { label: 'หมวด', key: 'category' },
-              { label: 'รายการ', key: 'item_name' },
+              { label: 'ชื่อรายการ', key: 'item_name' },
               { label: 'จำนวน', key: 'qty', type: 'num' },
               { label: 'หน่วย', key: 'unit' },
               { label: 'ราคาต่อหน่วย', key: 'unit_price', type: 'money', sensitive: true },
@@ -22491,7 +23022,7 @@ if (dashboardPage) {
               { label: 'ยอดผลิตจริง (ชิ้น)', key: 'actual_qty', type: 'num' },
               { label: 'มูลค่าผลิต', key: 'production_value', type: 'money', sensitive: true },
               { label: 'ยอดที่ยังไม่มีราคารุ่น', key: 'unpriced_qty', type: 'num', sensitive: true },
-              { label: 'ที่มาข้อมูล', get: function(o) { return o.source === 'auto' ? 'ชีตผลิตจริง (auto)' : 'กรอกมือ'; } },
+              { label: 'ที่มาข้อมูล', get: function(o) { return xpT(o.source === 'auto' ? 'ชีตผลิตจริง (auto)' : 'กรอกมือ'); } },
               { label: 'อัปเดตโดย', key: 'updated_by' },
               { label: 'อัปเดตเมื่อ', key: 'updated_at' }
             ], list);
@@ -22567,13 +23098,13 @@ if (dashboardPage) {
                   xpS(s.session_id), xpS(s.month), xpS(s.line), xpS(s.status),
                   xpS(it.name || it.partName), xpS(it.model), xpS(it.sheet || it.sheetName),
                   sys, counted, counted - sys,
-                  Math.abs(counted - sys) === 0 ? 'ตรง' : (counted > sys ? 'เกิน' : 'ขาด'),
+                  xpT(Math.abs(counted - sys) === 0 ? 'ตรง' : (counted > sys ? 'เกิน' : 'ขาด')),
                   xpS(it.remark || '')
                 ]);
               });
             });
             return {
-              headers: ['Session ID', 'เดือน', 'ไลน์', 'สถานะรอบ', 'ชื่ออะไหล่', 'รุ่น', 'ชีต', 'ยอดในระบบ', 'ยอดที่นับได้', 'ผลต่าง', 'ผลการนับ', 'หมายเหตุ'],
+              headers: ['Session ID', 'เดือน', 'ไลน์', 'สถานะรอบ', 'ชื่ออะไหล่', 'รุ่น', 'ชีต', 'ยอดในระบบ', 'ยอดที่นับได้', 'ผลต่าง', 'ผลการนับ', 'หมายเหตุ'].map(xpT),
               rows: rows,
               numeric: [false, false, false, false, false, false, false, true, true, true, false, false]
             };
@@ -22676,6 +23207,7 @@ if (dashboardPage) {
       if (xpFilters.line) parts.push(xpFilters.line.replace(/[^A-Za-z0-9]+/g, '-'));
       if (xpFilters.from || xpFilters.to) parts.push((xpFilters.from || 'เริ่มต้น') + '_ถึง_' + (xpFilters.to || 'ล่าสุด'));
       if (xpFilters.customerMode) parts.push('customer');
+      if (xpIsEn()) parts.push('EN');
       return parts.length ? '-' + parts.join('-') : '';
     }
 
@@ -22743,6 +23275,22 @@ if (dashboardPage) {
               ws.getRow(r).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF6F8FB' } };
             }
           }
+          // ชีตกราฟ: ExcelJS สร้างกราฟ native ของ Excel ไม่ได้ จึงฝังรูป PNG ที่ render
+          // จาก Chart.js ด้วยข้อมูลชุดเดียวกับตาราง — วางเรียงลงมาโดยเว้นแถวให้ไม่ทับกัน
+          (spec.images || []).forEach(function(img, idx) {
+            if (!img || !img.dataUrl) return;
+            var titleRow = ws.addRow([img.title || '']);
+            titleRow.font = { bold: true, size: 12, color: { argb: 'FF1E293B' } };
+            var anchorRow = ws.rowCount; // 1-based; tl.row เป็น 0-based จึงใช้ค่านี้ได้ตรงๆ
+            var imgId = wb.addImage({ base64: img.dataUrl, extension: 'png' });
+            ws.addImage(imgId, {
+              tl: { col: 0, row: anchorRow },
+              ext: { width: img.width || 900, height: img.height || 320 }
+            });
+            // เว้นแถวเปล่าให้สูงพอที่รูปจะไม่ทับหัวข้อของกราฟถัดไป (~20px ต่อแถว)
+            var blanks = Math.ceil((img.height || 320) / 20) + 2;
+            for (var b = 0; b < blanks; b += 1) ws.addRow([]);
+          });
         });
         return wb.xlsx.writeBuffer().then(function(buf) {
           xpDownloadBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename);
@@ -22757,6 +23305,12 @@ if (dashboardPage) {
         sheets.forEach(function(spec) {
           var table = spec.table || { headers: [], rows: [] };
           var aoa = [(table.headers || []).length ? table.headers : ['(ไม่มีข้อมูล)']].concat(table.rows || []);
+          // SheetJS ฝังรูปไม่ได้ — ชีตกราฟจะว่าง ต้องบอกเหตุผลไว้ในชีต ไม่ปล่อยให้คนเปิดไฟล์งง
+          if ((spec.images || []).length) {
+            aoa.push([]);
+            aoa.push([xpT('กราฟไม่ถูกฝังในไฟล์นี้ (โหลดไลบรารีจัดรูปแบบไม่สำเร็จ) — ดูกราฟได้บนหน้าเว็บหรือในไฟล์ PDF')]);
+            (spec.images || []).forEach(function(img) { aoa.push([img.title]); });
+          }
           window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.aoa_to_sheet(aoa), xpSafeSheetName(spec.name, used2));
         });
         window.XLSX.writeFile(wb, filename);
@@ -22836,7 +23390,8 @@ if (dashboardPage) {
         format: format,
         from: xpFilters.from, to: xpFilters.to,
         line: xpFilters.line || 'ทุกไลน์',
-        customerMode: xpFilters.customerMode ? '1' : '0'
+        customerMode: xpFilters.customerMode ? '1' : '0',
+        note: 'lang=' + xpFilters.lang
       }).catch(function(err) { console.warn('logExportEvent failed', err); });
     }
 
@@ -22895,7 +23450,12 @@ if (dashboardPage) {
       var priceMap = xpPriceMap(master);
       var out = [];
       function add(group, label, value, unit, note) {
-        out.push({ group: group, label: label, value: value, unit: unit || '', note: note || '' });
+        // แปลตรงนี้จุดเดียวคุม KPI ทุกตัว รวมค่าที่เป็นข้อความ (เช่น 'ดึงข้อมูลไม่ได้')
+        out.push({
+          group: xpT(group), label: xpT(label),
+          value: typeof value === 'string' ? xpT(value) : value,
+          unit: xpT(unit || ''), note: xpT(note || '')
+        });
       }
       function na(key) { return ctx.failed[key] ? 'ดึงข้อมูลไม่ได้' : null; }
 
@@ -22925,7 +23485,7 @@ if (dashboardPage) {
           receiveValue += xpN(l.qty) * price;
         }
       });
-      add('การเคลื่อนไหว', 'จำนวนธุรกรรมทั้งหมด', na('logs') || logs.length, 'รายการ');
+      add('การเคลื่อนไหว', 'จำนวนธุรกรรมทั้งหมด', na('logs') || logs.length, 'ธุรกรรม');
       add('การเคลื่อนไหว', 'ยอดเบิกออกรวม', na('logs') || issueQty, 'ชิ้น');
       if (!xpFilters.customerMode) add('การเคลื่อนไหว', 'มูลค่าเบิกออกรวม', na('logs') || Math.round(issueValue), 'บาท', 'ตีราคาจากราคาต่อหน่วยล่าสุดใน Master');
       add('การเคลื่อนไหว', 'ยอดรับเข้ารวม', na('logs') || receiveQty, 'ชิ้น');
@@ -23000,7 +23560,7 @@ if (dashboardPage) {
     }
     function xpKpiTable(kpis) {
       return {
-        headers: ['กลุ่ม', 'ตัวชี้วัด', 'ค่า', 'หน่วย', 'หมายเหตุ'],
+        headers: ['กลุ่ม', 'ตัวชี้วัด', 'ค่า', 'หน่วย', 'หมายเหตุ'].map(xpT),
         rows: kpis.map(function(k) { return [k.group, k.label, k.value, k.unit, k.note]; }),
         numeric: [false, false, false, false, false]
       };
@@ -23040,7 +23600,7 @@ if (dashboardPage) {
       });
       var keys = Object.keys(buckets).filter(Boolean).sort();
       var cols = [
-        { label: xpFilters.groupBy === 'day' ? 'วัน' : (xpFilters.groupBy === 'week' ? 'สัปดาห์' : 'เดือน'), get: function(b) { return b.key; } },
+        { label: xpFilters.groupBy === 'day' ? 'วัน' : (xpFilters.groupBy === 'week' ? 'สัปดาห์' : 'เดือน'), get: function(b) { return b.key; } }, // label ถูกแปลใน xpTable
         { label: 'ธุรกรรม (รายการ)', type: 'num', get: function(b) { return b.txn; } },
         { label: 'รับเข้า (ชิ้น)', type: 'num', get: function(b) { return b.inQty; } },
         { label: 'เบิกออก (ชิ้น)', type: 'num', get: function(b) { return b.outQty; } },
@@ -23062,8 +23622,8 @@ if (dashboardPage) {
       var priceMap = xpPriceMap(ctx.master || []);
       var lines = {};
       function row(name) {
-        var k = xpS(name).trim() || '(ไม่ระบุไลน์)';
-        if (!lines[k]) lines[k] = { line: k, skus: 0, stockValue: 0, belowMin: 0, outQty: 0, outValue: 0, inQty: 0, reqs: 0, purchase: 0, misc: 0, prodQty: 0, prodValue: 0, target: '' };
+        var k = xpS(name).trim() || '(ไม่ระบุไลน์)'; // ถูกแปลตอนสร้างแถว
+        if (!lines[k]) lines[k] = { line: xpT(k), skus: 0, stockValue: 0, belowMin: 0, outQty: 0, outValue: 0, inQty: 0, reqs: 0, purchase: 0, misc: 0, prodQty: 0, prodValue: 0, target: '' };
         return lines[k];
       }
       (ctx.master || []).forEach(function(it) {
@@ -23102,9 +23662,9 @@ if (dashboardPage) {
         } },
         { label: 'เป้า %', key: 'target', type: 'num', sensitive: true },
         { label: 'ผลเทียบเป้า', sensitive: true, get: function(o) {
-          if (!(o.prodValue > 0) || o.target === '' || !xpN(o.target)) return 'ยังไม่ตั้งเป้า/ไม่มีมูลค่าผลิต';
+          if (!(o.prodValue > 0) || o.target === '' || !xpN(o.target)) return xpT('ยังไม่ตั้งเป้า/ไม่มีมูลค่าผลิต');
           var actual = ((o.outValue + o.misc) / o.prodValue) * 100;
-          return actual <= xpN(o.target) ? 'อยู่ในเป้า' : 'เกินเป้า';
+          return xpT(actual <= xpN(o.target) ? 'อยู่ในเป้า' : 'เกินเป้า');
         } }
       ], list);
     }
@@ -23149,7 +23709,7 @@ if (dashboardPage) {
               { label: 'เครื่องที่ใช้', get: function(o) { return Object.keys(o.machines).join(', '); } },
               { label: 'ผู้เบิก', get: function(o) { return Object.keys(o.users).join(', '); } }
             ], list),
-            note: 'เรียงตามมูลค่ารวม (ยอดเบิก × ราคาต่อหน่วยล่าสุด) — รายการที่ยังไม่ลงราคาจะมีมูลค่า 0 แต่ยอดชิ้นถูกต้อง'
+            note: xpT('เรียงตามมูลค่ารวม (ยอดเบิก × ราคาต่อหน่วยล่าสุด) — รายการที่ยังไม่ลงราคาจะมีมูลค่า 0 แต่ยอดชิ้นถูกต้อง')
           };
         }
       },
@@ -23182,7 +23742,7 @@ if (dashboardPage) {
               { label: 'มูลค่าที่จม', key: '__value', type: 'money', sensitive: true, get: function(o) { return Math.round(o.__value); } },
               { label: 'รับเข้าล่าสุด', key: 'last_received_at' }
             ], list),
-            note: 'นับจากช่วงวันที่ที่เลือกด้านบนเท่านั้น — ถ้าเลือก "ทั้งหมด" หมายถึงไม่มีประวัติเบิกใน Log เลย'
+            note: xpT('นับจากช่วงวันที่ที่เลือกด้านบนเท่านั้น — ถ้าเลือก "ทั้งหมด" หมายถึงไม่มีประวัติเบิกใน Log เลย')
           };
         }
       },
@@ -23223,7 +23783,7 @@ if (dashboardPage) {
               { label: '% ของมูลค่ารวม', type: 'num', sensitive: true, get: function(o) { return total > 0 ? Math.round((o.value / total) * 10000) / 100 : 0; } },
               { label: '% สะสม', type: 'num', sensitive: true, get: function(o) { return Math.round(o.cumPct * 100) / 100; } }
             ], list),
-            note: 'ต้องมีราคาต่อหน่วยจึงจัดชั้นได้ — รายการที่ยังไม่ลงราคาไม่ปรากฏในรายงานนี้ (' + xpFmtInt(Object.keys(agg).length - list.length) + ' รายการ)'
+            note: xpT('ต้องมีราคาต่อหน่วยจึงจัดชั้นได้ — รายการที่ยังไม่ลงราคาไม่ปรากฏในรายงานนี้ ({n} รายการ)', { n: xpFmtInt(Object.keys(agg).length - list.length) })
           };
         }
       },
@@ -23254,15 +23814,15 @@ if (dashboardPage) {
               { label: 'คงเหลือปัจจุบัน', key: 'stock', type: 'num' },
               { label: 'รอบหมุน (เท่า)', type: 'num', get: function(o) { return o.__turns === '' ? '' : Math.round(xpN(o.__turns) * 100) / 100; } },
               { label: 'ประเมิน', get: function(o) {
-                if (o.__out === 0) return 'ไม่เคยเบิก';
-                if (xpN(o.stock) === 0) return 'ของหมด (เบิกแล้วไม่เติม)';
+                if (o.__out === 0) return xpT('ไม่เคยเบิก');
+                if (xpN(o.stock) === 0) return xpT('ของหมด (เบิกแล้วไม่เติม)');
                 var t = xpN(o.__turns);
-                if (t >= 3) return 'หมุนเร็ว';
-                if (t >= 1) return 'หมุนปกติ';
-                return 'หมุนช้า (เก็บมากกว่าที่ใช้)';
+                if (t >= 3) return xpT('หมุนเร็ว');
+                if (t >= 1) return xpT('หมุนปกติ');
+                return xpT('หมุนช้า (เก็บมากกว่าที่ใช้)');
               } }
             ], list),
-            note: 'ตัวหารคือยอดคงเหลือ ณ ปัจจุบัน ไม่ใช่ค่าเฉลี่ยคงคลัง — ระบบไม่ได้เก็บ snapshot ยอดคงเหลือรายวัน จึงคำนวณค่าเฉลี่ยจริงไม่ได้'
+            note: xpT('ตัวหารคือยอดคงเหลือ ณ ปัจจุบัน ไม่ใช่ค่าเฉลี่ยคงคลัง — ระบบไม่ได้เก็บ snapshot ยอดคงเหลือรายวัน จึงคำนวณค่าเฉลี่ยจริงไม่ได้')
           };
         }
       },
@@ -23313,13 +23873,13 @@ if (dashboardPage) {
               { label: 'ครั้งที่ตกใต้ Min', key: '__hits', type: 'num' },
               { label: 'ยอดต่ำสุดที่เคยเหลือ', key: '__low', type: 'num' },
               { label: 'ข้อเสนอ', get: function(o) {
-                if (o.__hits >= 3) return 'Min ต่ำเกินจริง — ขาดบ่อย ควรพิจารณาเพิ่ม Min';
-                if (xpN(o.min) > 0 && o.__out === 0) return 'ตั้ง Min ไว้แต่ไม่เคยเบิกในช่วงนี้ — อาจตั้งสูงเกินจำเป็น';
-                if (xpN(o.max) > 0 && xpN(o.stock) > xpN(o.max)) return 'คงเหลือเกิน Max — ของจมเกินกรอบที่ตั้งไว้';
-                return 'เคยตกใต้ Min ' + o.__hits + ' ครั้ง';
+                if (o.__hits >= 3) return xpT('Min ต่ำเกินจริง — ขาดบ่อย ควรพิจารณาเพิ่ม Min');
+                if (xpN(o.min) > 0 && o.__out === 0) return xpT('ตั้ง Min ไว้แต่ไม่เคยเบิกในช่วงนี้ — อาจตั้งสูงเกินจำเป็น');
+                if (xpN(o.max) > 0 && xpN(o.stock) > xpN(o.max)) return xpT('คงเหลือเกิน Max — ของจมเกินกรอบที่ตั้งไว้');
+                return xpT('เคยตกใต้ Min {n} ครั้ง', { n: o.__hits });
               } }
             ], list),
-            note: 'นับ "ตกใต้ Min" จากคอลัมน์ Stock After ในชีต Log ตอนทำรายการจริง จึงเป็นเหตุการณ์ในอดีตที่เกิดขึ้นจริง ไม่ใช่ประเมินจากยอดปัจจุบัน'
+            note: xpT('นับ "ตกใต้ Min" จากคอลัมน์ Stock After ในชีต Log ตอนทำรายการจริง จึงเป็นเหตุการณ์ในอดีตที่เกิดขึ้นจริง ไม่ใช่ประเมินจากยอดปัจจุบัน')
           };
         }
       },
@@ -23367,13 +23927,13 @@ if (dashboardPage) {
               { label: 'เป้า %', type: 'num', sensitive: true, get: function(o) { return targets[o.line] === undefined ? '' : targets[o.line]; } },
               { label: 'ผล', sensitive: true, get: function(o) {
                 var t = targets[o.line];
-                if (!(o.prodValue > 0)) return 'ไม่มีมูลค่าผลิตในเดือนนี้';
-                if (t === undefined || !t) return 'ยังไม่ตั้งเป้าไลน์นี้';
+                if (!(o.prodValue > 0)) return xpT('ไม่มีมูลค่าผลิตในเดือนนี้');
+                if (t === undefined || !t) return xpT('ยังไม่ตั้งเป้าไลน์นี้');
                 var actual = ((o.spare + o.misc) / o.prodValue) * 100;
-                return actual <= t ? 'อยู่ในเป้า' : 'เกินเป้า ' + (Math.round((actual - t) * 100) / 100) + ' จุด';
+                return actual <= t ? xpT('อยู่ในเป้า') : xpT('เกินเป้า {n} จุด', { n: Math.round((actual - t) * 100) / 100 });
               } }
             ], list),
-            note: 'ค่าอะไหล่มาจากยอดเบิกออกใน Log ตีราคาด้วยราคาต่อหน่วยล่าสุด ไม่ใช่ยอดที่สั่งซื้อ (ของที่ซื้อแล้วยังไม่เบิกยังไม่ถือเป็นต้นทุนของเดือนนั้น)'
+            note: xpT('ค่าอะไหล่มาจากยอดเบิกออกใน Log ตีราคาด้วยราคาต่อหน่วยล่าสุด ไม่ใช่ยอดที่สั่งซื้อ (ของที่ซื้อแล้วยังไม่เบิกยังไม่ถือเป็นต้นทุนของเดือนนั้น)')
           };
         }
       },
@@ -23412,28 +23972,29 @@ if (dashboardPage) {
             var mid = Math.floor(s.length / 2);
             return s.length % 2 ? s[mid] : Math.round(((s[mid - 1] + s[mid]) / 2) * 10) / 10;
           }
+          // ตารางนี้สร้างแถวเองไม่ผ่าน xpTable จึงต้องแปลป้ายและหน่วยทีละช่อง
           var summary = [
-            ['จำนวนคำขอที่วัดเวลารออนุมัติได้', waits.length, 'คำขอ'],
-            ['เวลารออนุมัติ — ค่ากลาง', median(waits), 'วัน'],
-            ['เวลารออนุมัติ — นานสุด', waits.length ? Math.max.apply(null, waits) : '', 'วัน'],
-            ['จำนวนรายการที่วัดวงจรซื้อครบได้', totals.length, 'รายการ'],
-            ['ขอ → รับของ — ค่ากลาง', median(totals), 'วัน'],
-            ['ขอ → รับของ — นานสุด', totals.length ? Math.max.apply(null, totals) : '', 'วัน'],
-            ['สั่ง → รับของ — ค่ากลาง', median(phRows.map(function(r) { return r.orderToReceive; }).filter(function(v) { return v !== ''; })), 'วัน']
+            [xpT('จำนวนคำขอที่วัดเวลารออนุมัติได้'), waits.length, xpT('คำขอ')],
+            [xpT('เวลารออนุมัติ — ค่ากลาง'), median(waits), xpT('วัน')],
+            [xpT('เวลารออนุมัติ — นานสุด'), waits.length ? Math.max.apply(null, waits) : '', xpT('วัน')],
+            [xpT('จำนวนรายการที่วัดวงจรซื้อครบได้'), totals.length, xpT('รายการ')],
+            [xpT('ขอ → รับของ — ค่ากลาง'), median(totals), xpT('วัน')],
+            [xpT('ขอ → รับของ — นานสุด'), totals.length ? Math.max.apply(null, totals) : '', xpT('วัน')],
+            [xpT('สั่ง → รับของ — ค่ากลาง'), median(phRows.map(function(r) { return r.orderToReceive; }).filter(function(v) { return v !== ''; })), xpT('วัน')]
           ];
           var detail = phRows.slice().sort(function(a, b) { return xpN(b.total) - xpN(a.total); });
           return {
             table: {
-              headers: ['ตัวชี้วัด', 'ค่า', 'หน่วย'],
+              headers: ['ตัวชี้วัด', 'ค่า', 'หน่วย'].map(xpT),
               rows: summary,
               numeric: [false, true, false]
             },
             extraSheets: [{
-              name: 'Lead Time รายรายการ',
+              name: xpT('Lead Time รายรายการ'),
               table: xpTable([
                 { label: 'อ้างอิง', key: 'id' },
                 { label: 'ไลน์', key: 'line' },
-                { label: 'รายการ', key: 'item' },
+                { label: 'ชื่อรายการ', key: 'item' },
                 { label: 'สถานะ', key: 'status' },
                 { label: 'วันที่ขอ', key: 'requested' },
                 { label: 'วันที่สั่ง', key: 'ordered' },
@@ -23443,7 +24004,7 @@ if (dashboardPage) {
                 { label: 'ขอ → รับ (วัน)', key: 'total', type: 'num' }
               ], detail)
             }],
-            note: 'วัดได้เฉพาะใบที่มีวันที่ครบทั้งสองฝั่ง — ใบที่ยังไม่ได้รับของหรือไม่ได้กรอกวันที่จะไม่ถูกนับ (ไม่เดาแทน)'
+            note: xpT('วัดได้เฉพาะใบที่มีวันที่ครบทั้งสองฝั่ง — ใบที่ยังไม่ได้รับของหรือไม่ได้กรอกวันที่จะไม่ถูกนับ (ไม่เดาแทน)')
           };
         }
       },
@@ -23488,7 +24049,7 @@ if (dashboardPage) {
               { label: 'ยอดซื้อรวม', key: 'total', type: 'money', get: function(o) { return Math.round(o.total); } },
               { label: 'ยี่ห้อ/ผู้ขายที่พบ', get: function(o) { return Object.keys(o.vendors).join(', '); } }
             ], list),
-            note: 'นับเฉพาะอะไหล่ที่ซื้อตั้งแต่ 2 ครั้งขึ้นไปและมีราคาต่อหน่วยบันทึกไว้ — ส่วนต่างสูงอาจมาจากยี่ห้อ/สเปกต่างกัน ควรตรวจก่อนสรุปว่าซื้อแพง'
+            note: xpT('นับเฉพาะอะไหล่ที่ซื้อตั้งแต่ 2 ครั้งขึ้นไปและมีราคาต่อหน่วยบันทึกไว้ — ส่วนต่างสูงอาจมาจากยี่ห้อ/สเปกต่างกัน ควรตรวจก่อนสรุปว่าซื้อแพง')
           };
         }
       },
@@ -23519,7 +24080,7 @@ if (dashboardPage) {
               { label: 'ปรับยอดตามผลนับ (รายการ)', key: 'adjusted', type: 'num' }
             ], list),
             extraSheets: [{
-              name: 'ผลนับรายรอบ',
+              name: xpT('ผลนับรายรอบ'),
               table: xpTable([
                 { label: 'Session ID', key: 'session_id' },
                 { label: 'เดือน', key: 'month' },
@@ -23534,7 +24095,7 @@ if (dashboardPage) {
                 { label: 'อนุมัติโดย', key: 'approved_by' }
               ], ctx.stockCount || [])
             }],
-            note: 'ความแม่น = รายการที่นับตรงกับยอดระบบ ÷ รายการที่นับทั้งหมด ในรอบนั้น'
+            note: xpT('ความแม่น = รายการที่นับตรงกับยอดระบบ ÷ รายการที่นับทั้งหมด ในรอบนั้น')
           };
         }
       },
@@ -23573,7 +24134,7 @@ if (dashboardPage) {
               { label: 'สั้นสุด (วัน)', key: 'min', type: 'num' },
               { label: 'นานสุด (วัน)', key: 'max', type: 'num' }
             ], list),
-            note: 'นับเฉพาะชิ้นที่มีทั้งวันติดตั้งและวันถอดในทะเบียน — ชิ้นที่ยังอยู่ในเครื่องไม่ถูกนับ เพราะยังไม่รู้อายุจริง (' + xpFmtInt((ctx.partTags || []).length) + ' ชิ้นในทะเบียนทั้งหมด)'
+            note: xpT('นับเฉพาะชิ้นที่มีทั้งวันติดตั้งและวันถอดในทะเบียน — ชิ้นที่ยังอยู่ในเครื่องไม่ถูกนับ เพราะยังไม่รู้อายุจริง ({n} ชิ้นในทะเบียนทั้งหมด)', { n: xpFmtInt((ctx.partTags || []).length) })
           };
         }
       }
@@ -23617,35 +24178,43 @@ if (dashboardPage) {
           var key = spec.name + '||' + h;
           if (seen[key]) return;
           seen[key] = true;
-          rows.push([spec.name, h, XP_DICTIONARY[h] || 'คอลัมน์ตรงจากชีตต้นทางของระบบ']);
+          // คีย์ของ XP_DICTIONARY เป็นชื่อคอลัมน์ภาษาไทย แต่ h อาจถูกแปลไปแล้ว
+          // จึงต้องหาคำอธิบายจากทั้งคีย์ตรงและคีย์ที่แปลกลับ
+          var desc = XP_DICTIONARY[h] || XP_DICTIONARY[xpDictKeyOf(h)] || 'คอลัมน์ตรงจากชีตต้นทางของระบบ';
+          rows.push([xpT(spec.name), h, xpT(desc)]);
         });
       });
-      return { headers: ['ชีตในไฟล์นี้', 'ชื่อคอลัมน์', 'คำอธิบาย / วิธีคำนวณ'], rows: rows, numeric: [false, false, false] };
+      return { headers: [xpT('ชีตในไฟล์นี้'), xpT('ชื่อคอลัมน์'), xpT('คำอธิบาย / วิธีคำนวณ')], rows: rows, numeric: [false, false, false] };
     }
 
     // ── หน้าปกรายงาน ─────────────────────────────────────────────────
     function xpBuildCover(results, meta) {
       var rows = [];
-      rows.push(['รายงานข้อมูลระบบคลังอะไหล่', '']);
-      rows.push(['ผู้จัดทำ', (currentUser && (currentUser.name || currentUser.username)) || '-']);
-      rows.push(['ตำแหน่ง', (currentUser && currentUser.role) || '-']);
-      rows.push(['สร้างเมื่อ', new Date().toLocaleString('th-TH')]);
-      rows.push(['ช่วงข้อมูล', (xpFilters.from || 'ตั้งแต่เริ่มระบบ') + '  ถึง  ' + (xpFilters.to || 'ล่าสุด')]);
-      rows.push(['ไลน์', xpFilters.line || 'ทุกไลน์ (รวม)']);
-      rows.push(['หมวด', xpFilters.category || 'ทุกหมวด']);
-      rows.push(['ประเภทธุรกรรม', xpFilters.txnType === 'Input' ? 'รับเข้าเท่านั้น' : (xpFilters.txnType === 'Output' ? 'เบิกออกเท่านั้น' : 'รับเข้า + เบิกออก')]);
-      rows.push(['โหมดลูกค้า', xpFilters.customerMode ? 'เปิด — ตัดคอลัมน์ราคา/ผู้ขาย/มูลค่าออกจากไฟล์นี้' : 'ปิด — มีข้อมูลราคาครบ']);
-      rows.push(['ที่มาข้อมูล', 'Google Sheets ของระบบคลังอะไหล่ ดึงสดตอนสร้างไฟล์ ไม่มีตัวเลขที่สร้างขึ้นเอง']);
+      // ทุกป้ายและทุกค่าบนปกต้องเป็นภาษาเดียวกับที่เลือก ไม่งั้นปกไทยแต่ข้างในอังกฤษ
+      rows.push([xpT('รายงานข้อมูลระบบคลังอะไหล่'), '']);
+      rows.push([xpT('ผู้จัดทำ'), (currentUser && (currentUser.name || currentUser.username)) || '-']);
+      rows.push([xpT('ตำแหน่ง'), (currentUser && currentUser.role) || '-']);
+      rows.push([xpT('วันเวลาที่สร้างไฟล์'), xpLocaleStamp()]);
+      rows.push([xpT('ช่วงข้อมูล'), (xpFilters.from || xpT('ตั้งแต่เริ่มระบบ')) + '  ' + (xpIsEn() ? 'to' : 'ถึง') + '  ' + (xpFilters.to || xpT('ล่าสุด'))]);
+      rows.push([xpT('ไลน์'), xpFilters.line || xpT('ทุกไลน์ (รวม)')]);
+      rows.push([xpT('หมวด'), xpFilters.category || xpT('ทุกหมวด')]);
+      rows.push([xpT('ประเภทธุรกรรม'), xpT(xpFilters.txnType === 'Input' ? 'รับเข้าเท่านั้น' : (xpFilters.txnType === 'Output' ? 'เบิกออกเท่านั้น' : 'รับเข้า + เบิกออก'))]);
+      rows.push([xpT('โหมดลูกค้า'), xpT(xpFilters.customerMode ? 'เปิด — ตัดคอลัมน์ราคา/ผู้ขาย/มูลค่าออกจากไฟล์นี้' : 'ปิด — มีข้อมูลราคาครบ')]);
+      rows.push([xpT('ภาษาของไฟล์'), xpIsEn() ? 'English' : 'ไทย (Thai)']);
+      rows.push([xpT('ที่มาข้อมูล'), xpT('Google Sheets ของระบบคลังอะไหล่ ดึงสดตอนสร้างไฟล์ ไม่มีตัวเลขที่สร้างขึ้นเอง')]);
       rows.push(['', '']);
-      rows.push(['ชีตในไฟล์นี้', 'จำนวนแถว']);
+      rows.push([xpT('ชีตในไฟล์นี้'), xpT('จำนวนแถว')]);
       results.forEach(function(r) {
-        rows.push([r.ds ? r.ds.sheetName || r.ds.name : r.name, r.error ? 'ดึงข้อมูลไม่ได้: ' + r.error : xpFmtInt((r.table && r.table.rows || []).length)]);
+        rows.push([
+          xpT(r.ds ? r.ds.sheetName || r.ds.name : r.name),
+          r.error ? xpT('ดึงข้อมูลไม่ได้: {msg}', { msg: r.error }) : xpFmtInt((r.table && r.table.rows || []).length)
+        ]);
       });
       var failed = results.filter(function(r) { return r.error; });
       rows.push(['', '']);
-      rows.push(['ความครบถ้วนของข้อมูล', failed.length ? ('มี ' + failed.length + ' ชุดที่ดึงไม่สำเร็จ — ดูรายละเอียดในตารางด้านบน') : 'ดึงครบทุกชุดที่เลือก']);
-      if (meta && meta.note) rows.push(['หมายเหตุ', meta.note]);
-      return { headers: ['หัวข้อ', 'รายละเอียด'], rows: rows, numeric: [false, false] };
+      rows.push([xpT('ความครบถ้วนของข้อมูล'), failed.length ? xpT('มี {n} ชุดที่ดึงไม่สำเร็จ — ดูรายละเอียดในตารางด้านบน', { n: failed.length }) : xpT('ดึงครบทุกชุดที่เลือก')]);
+      if (meta && meta.note) rows.push([xpT('หมายเหตุ'), meta.note]);
+      return { headers: [xpT('หัวข้อ'), xpT('รายละเอียด')], rows: rows, numeric: [false, false] };
     }
 
     // ── Executive Workbook ───────────────────────────────────────────
@@ -23663,23 +24232,46 @@ if (dashboardPage) {
         var kpis = xpBuildKpis(ctx);
         var trend = xpBuildTrend(ctx);
         var lineSummary = xpBuildLineSummary(ctx);
+        // สองรายงานนี้คำนวณไว้เพื่อทำกราฟในชีต 04 (คำนวณจาก ctx ชุดเดียวกัน ไม่ยิงข้อมูลเพิ่ม)
+        var chartTopIssue = XP_REPORTS[0].build(ctx);
+        var chartCostReport = null;
+        if (!xpFilters.customerMode) {
+          for (var ci = 0; ci < XP_REPORTS.length; ci += 1) {
+            if (XP_REPORTS[ci].key === 'costVsProduction') chartCostReport = XP_REPORTS[ci].build(ctx);
+          }
+        }
         return xpFetchDatasetsSequential(keys, 46, 92).then(function(results) {
           xpProgressSet(94, 'กำลังประกอบไฟล์ Excel...');
           var sheets = [];
-          sheets.push({ name: '00 ปกรายงาน', table: xpBuildCover(results) });
-          sheets.push({ name: '01 สรุปผู้บริหาร', table: xpKpiTable(kpis) });
-          sheets.push({ name: '02 เทรนด์ตามช่วงเวลา', table: trend.table });
-          sheets.push({ name: '03 สรุปตามไลน์', table: lineSummary });
+          sheets.push({ name: xpT('00 ปกรายงาน'), table: xpBuildCover(results) });
+          sheets.push({ name: xpT('01 สรุปผู้บริหาร'), table: xpKpiTable(kpis) });
+          sheets.push({ name: xpT('02 เทรนด์ตามช่วงเวลา'), table: trend.table });
+          sheets.push({ name: xpT('03 สรุปตามไลน์'), table: lineSummary });
+          // ชีตกราฟ — ผู้บริหารเปิดไฟล์แล้วเห็นภาพก่อน ไม่ต้องไล่อ่านตัวเลขเอง
+          var chartSpecs = xpSummaryChartSeries(trend, lineSummary, chartTopIssue, chartCostReport);
+          var chartImages = [];
+          chartSpecs.forEach(function(c) {
+            var png = xpChartToPng(c.series, c.title, 960, c.series.spec.type === 'hbar' ? 420 : 340);
+            if (png) chartImages.push({ title: c.title, dataUrl: png, width: 900, height: c.series.spec.type === 'hbar' ? 394 : 319 });
+          });
+          if (chartImages.length) {
+            xpProgressLog('สร้างกราฟสรุป ' + chartImages.length + ' รูป', 'ok');
+            sheets.push({
+              name: xpT('04 กราฟสรุป'),
+              table: { headers: [xpT('กราฟสรุปจากข้อมูลจริงในช่วงที่เลือก')], rows: [], numeric: [false] },
+              images: chartImages
+            });
+          }
           results.forEach(function(r) {
             if (!r.table) {
-              sheets.push({ name: (r.ds.sheetName || r.ds.name), table: { headers: ['สถานะ'], rows: [['ดึงข้อมูลชุดนี้ไม่สำเร็จ: ' + r.error]], numeric: [false] } });
+              sheets.push({ name: xpT(r.ds.sheetName || r.ds.name), table: { headers: [xpT('สถานะ')], rows: [[xpT('ดึงข้อมูลชุดนี้ไม่สำเร็จ: {msg}', { msg: r.error })]], numeric: [false] } });
               return;
             }
-            sheets.push({ name: (r.ds.sheetName || r.ds.name), table: r.table });
+            sheets.push({ name: xpT(r.ds.sheetName || r.ds.name), table: r.table });
           });
           var attach = xpBuildAttachmentSheet(ctx, results);
-          if (attach.rows.length) sheets.push({ name: '98 ลิงก์ไฟล์แนบ', table: attach });
-          sheets.push({ name: '99 พจนานุกรมข้อมูล', table: xpBuildDictionary(sheets) });
+          if (attach.rows.length) sheets.push({ name: xpT('98 ลิงก์ไฟล์แนบ'), table: attach });
+          sheets.push({ name: xpT('99 พจนานุกรมข้อมูล'), table: xpBuildDictionary(sheets) });
           var total = sheets.reduce(function(s, sh) { return s + (sh.table.rows || []).length; }, 0);
           var filename = 'JR-Executive-Workbook-' + xpFileStamp() + xpFileSuffix() + '.xlsx';
           return xpWriteXlsxStyled(sheets, filename).then(function(res) {
@@ -23702,22 +24294,22 @@ if (dashboardPage) {
         [['รูปอะไหล่', it.image_main_url], ['รูปตอนติดตั้ง', it.image_install_url], ['Drawing', it.drawing_url], ['Datasheet', it.datasheet_url], ['ใบเสนอราคา', it.quotation_url]].forEach(function(pair) {
           if (!xpS(pair[1]).trim()) return;
           if (xpFilters.customerMode && pair[0] === 'ใบเสนอราคา') return;
-          rows.push(['Master อะไหล่', xpS(it.__sheet), xpS(it.no), xpS(it.name), xpS(it.model), pair[0], xpS(pair[1])]);
+          rows.push([xpT('Master อะไหล่'), xpS(it.__sheet), xpS(it.no), xpS(it.name), xpS(it.model), xpT(pair[0]), xpS(pair[1])]);
         });
       });
       (ctx.orderRequests || []).forEach(function(r) {
-        if (xpS(r.attachment_url).trim()) rows.push(['คำขอซื้อ', '', xpS(r.request_id), xpS(r.item_name), xpS(r.model), 'ไฟล์แนบคำขอ', xpS(r.attachment_url)]);
+        if (xpS(r.attachment_url).trim()) rows.push([xpT('คำขอซื้อ'), '', xpS(r.request_id), xpS(r.item_name), xpS(r.model), xpT('ไฟล์แนบคำขอ'), xpS(r.attachment_url)]);
       });
       if (!xpFilters.customerMode) {
         (ctx.miscExpenses || []).forEach(function(e) {
-          if (xpS(e.receipt_url).trim()) rows.push(['ค่าสิ้นเปลือง', '', xpS(e.expense_id), xpS(e.item_name), '', 'บิล/ใบเสร็จ', xpS(e.receipt_url)]);
+          if (xpS(e.receipt_url).trim()) rows.push([xpT('ค่าสิ้นเปลือง'), '', xpS(e.expense_id), xpS(e.item_name), '', xpT('บิล/ใบเสร็จ'), xpS(e.receipt_url)]);
         });
         (ctx.purchaseHistory || []).forEach(function(p) {
           var url = xpS(p['Attachment URL']);
-          if (url.trim()) rows.push(['Purchase History', '', xpS(p['History ID']), xpS(p['Part Name']), xpS(p['Model / Part No.']), 'ไฟล์แนบบิล', url]);
+          if (url.trim()) rows.push(['Purchase History', '', xpS(p['History ID']), xpS(p['Part Name']), xpS(p['Model / Part No.']), xpT('ไฟล์แนบบิล'), url]);
         });
       }
-      return { headers: ['มาจากชุดข้อมูล', 'ชีต', 'รหัสอ้างอิง', 'ชื่อรายการ', 'รุ่น', 'ประเภทไฟล์', 'ลิงก์'], rows: rows, numeric: [false, false, false, false, false, false, false] };
+      return { headers: ['มาจากชุดข้อมูล', 'ชีต', 'รหัสอ้างอิง', 'ชื่อรายการ', 'รุ่น', 'ประเภทไฟล์', 'ลิงก์'].map(xpT), rows: rows, numeric: [false, false, false, false, false, false, false] };
     }
 
     // ── ระดับ 2: ดาวน์โหลดชุดที่เลือก ────────────────────────────────
@@ -23760,7 +24352,7 @@ if (dashboardPage) {
           };
           ok.forEach(function(r) {
             payload.data[r.ds.key] = {
-              name: r.ds.name,
+              name: xpT(r.ds.name),
               headers: r.table.headers,
               rows: r.table.rows
             };
@@ -23772,14 +24364,14 @@ if (dashboardPage) {
           return;
         }
         xpProgressSet(96, 'กำลังประกอบไฟล์ Excel...');
-        var sheets = [{ name: '00 ปกรายงาน', table: xpBuildCover(results) }];
+        var sheets = [{ name: xpT('00 ปกรายงาน'), table: xpBuildCover(results) }];
         results.forEach(function(r) {
           sheets.push({
-            name: r.ds.sheetName || r.ds.name,
-            table: r.table || { headers: ['สถานะ'], rows: [['ดึงข้อมูลชุดนี้ไม่สำเร็จ: ' + r.error]], numeric: [false] }
+            name: xpT(r.ds.sheetName || r.ds.name),
+            table: r.table || { headers: [xpT('สถานะ')], rows: [[xpT('ดึงข้อมูลชุดนี้ไม่สำเร็จ: {msg}', { msg: r.error })]], numeric: [false] }
           });
         });
-        sheets.push({ name: '99 พจนานุกรมข้อมูล', table: xpBuildDictionary(sheets) });
+        sheets.push({ name: xpT('99 พจนานุกรมข้อมูล'), table: xpBuildDictionary(sheets) });
         var filename = 'JR-data-' + stamp + '.xlsx';
         return xpWriteXlsxStyled(sheets, filename).then(function(res) {
           xpProgressSet(100, 'เสร็จแล้ว — ดาวน์โหลด ' + filename);
@@ -23800,6 +24392,233 @@ if (dashboardPage) {
       xpRunSelectedExport('json');
     }
 
+
+    // ── กราฟของ Export Center ─────────────────────────────────────────
+    // ตารางเปล่าอ่านยาก ผู้บริหารต้องเห็นภาพก่อนแล้วค่อยลงรายละเอียด จึงมีกราฟ 3 ที่:
+    //   บนจอ  → Chart.js (โหลดอยู่แล้วในหน้าเว็บ ใช้กับ Dashboard) มี tooltip อ่านค่าได้
+    //   Excel → render กราฟจาก Chart.js เป็นรูป PNG แล้วฝังลงชีต
+    //           (ExcelJS สร้างกราฟ native ของ Excel ไม่ได้ ฝังรูปคือทางเดียวที่ทำได้จริง)
+    //   PDF   → inline SVG เพราะบางเบราว์เซอร์พรินต์ canvas ออกมาเป็นช่องว่าง
+    // ทุกกราฟวาดจากตารางผลลัพธ์จริงของรายงานนั้น ไม่มีชุดข้อมูลแยกให้หลุดกันเอง
+    var XP_CHART_COLORS = ['#2563eb', '#059669', '#dc2626', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d'];
+
+    // สเปกกราฟต่อรายงาน — labelCols/valueCols อ้างด้วย "ชื่อคอลัมน์ภาษาไทย"
+    // แล้วค่อยแปลไปหาตำแหน่งจริง เพราะหัวตารางถูกแปลตามภาษาที่เลือกไปแล้ว
+    // valueCols เป็นลิสต์: ตัวแรกที่หาเจอถูกใช้ (โหมดลูกค้าตัดคอลัมน์ราคาออก ต้องถอยไปใช้จำนวนชิ้น)
+    var XP_CHART_SPECS = {
+      topIssue: { type: 'hbar', labelCols: ['ชื่ออะไหล่', 'รุ่น'], valueCols: ['มูลค่ารวม', 'ยอดเบิก (ชิ้น)'], limit: 15 },
+      deadStock: { type: 'hbar', labelCols: ['ชื่ออะไหล่', 'รุ่น'], valueCols: ['มูลค่าที่จม', 'คงเหลือ'], limit: 15 },
+      abc: { type: 'doughnut', labelCols: ['ชั้น'], valueCols: ['มูลค่าเบิก', 'ยอดเบิก (ชิ้น)'], agg: 'sumByLabel' },
+      turnover: { type: 'hbar', labelCols: ['ชื่ออะไหล่', 'รุ่น'], valueCols: ['รอบหมุน (เท่า)'], limit: 15 },
+      minmax: { type: 'hbar', labelCols: ['ชื่ออะไหล่', 'รุ่น'], valueCols: ['ครั้งที่ตกใต้ Min'], limit: 15 },
+      costVsProduction: { type: 'bar', labelCols: ['เดือน', 'ไลน์'], valueCols: ['% จริง'], targetCol: 'เป้า %', limit: 24 },
+      leadTime: { type: 'bar', labelCols: ['ตัวชี้วัด'], valueCols: ['ค่า'] },
+      priceVariance: { type: 'hbar', labelCols: ['ชื่ออะไหล่', 'รุ่น'], valueCols: ['ส่วนต่าง (%)'], limit: 15 },
+      countAccuracy: { type: 'bar', labelCols: ['ไลน์'], valueCols: ['ความแม่น (%)'] },
+      partLife: { type: 'hbar', labelCols: ['ชื่ออะไหล่', 'เครื่องจักร'], valueCols: ['อายุเฉลี่ย (วัน)'], limit: 15 }
+    };
+
+    // หาตำแหน่งคอลัมน์จากชื่อภาษาไทย (แปลก่อนแล้วค่อยหา)
+    // ตารางกับกราฟต้องถูกสร้างในภาษาเดียวกัน — ในแอปเป็นอย่างนั้นเสมอ (สร้างในรอบเดียวกัน
+    // และเปลี่ยนภาษาจะล้าง xpLastReport ทิ้ง) ถ้าภาษาไม่ตรงจะหาคอลัมน์ไม่เจอแล้วไม่วาดกราฟ
+    // ซึ่งดีกว่าเดาตำแหน่งคอลัมน์แล้วได้กราฟที่ผิด
+    function xpColIdx(table, thaiLabel) {
+      return ((table && table.headers) || []).indexOf(xpT(thaiLabel));
+    }
+    // ดึงชุดข้อมูลกราฟออกจากตารางผลลัพธ์ของรายงาน
+    function xpChartSeries(reportKey, table) {
+      var spec = XP_CHART_SPECS[reportKey];
+      if (!spec || !table || !(table.rows || []).length) return null;
+      var labelIdx = [];
+      (spec.labelCols || []).forEach(function(c) {
+        var i = xpColIdx(table, c);
+        if (i > -1) labelIdx.push(i);
+      });
+      var valueIdx = -1, valueLabel = '';
+      for (var v = 0; v < (spec.valueCols || []).length; v += 1) {
+        var vi = xpColIdx(table, spec.valueCols[v]);
+        if (vi > -1) { valueIdx = vi; valueLabel = xpT(spec.valueCols[v]); break; }
+      }
+      if (!labelIdx.length || valueIdx < 0) return null;
+
+      var items = [];
+      (table.rows || []).forEach(function(r) {
+        var raw = r[valueIdx];
+        if (raw === '' || raw === null || raw === undefined) return; // ค่าว่าง = ไม่รู้ ไม่ใช่ 0 จึงไม่ลงกราฟ
+        items.push({
+          label: labelIdx.map(function(i) { return xpS(r[i]); }).filter(Boolean).join(' · '),
+          value: xpN(raw),
+          target: spec.targetCol ? xpN(r[xpColIdx(table, spec.targetCol)]) : null
+        });
+      });
+      if (spec.agg === 'sumByLabel') {
+        var byLabel = {};
+        items.forEach(function(it) { byLabel[it.label] = (byLabel[it.label] || 0) + it.value; });
+        items = Object.keys(byLabel).sort().map(function(k) { return { label: k, value: byLabel[k], target: null }; });
+      }
+      items = items.filter(function(it) { return it.value !== 0 || spec.type === 'bar'; });
+      if (!items.length) return null;
+      if (spec.type === 'hbar') items.sort(function(a, b) { return b.value - a.value; });
+      if (spec.limit && items.length > spec.limit) items = items.slice(0, spec.limit);
+      return { spec: spec, items: items, valueLabel: valueLabel };
+    }
+
+    // config ของ Chart.js — ใช้ชุดเดียวกันทั้งบนจอและตอน render เป็นรูปลง Excel
+    // animation:false บังคับไว้เพราะตอน render เป็นรูปต้องได้ภาพเต็มเฟรมแรกทันที
+    function xpChartConfig(series, opts) {
+      var o = opts || {};
+      var spec = series.spec;
+      var labels = series.items.map(function(it) { return it.label; });
+      var values = series.items.map(function(it) { return it.value; });
+      var isH = spec.type === 'hbar';
+      var isRound = spec.type === 'doughnut';
+      var datasets = [{
+        label: series.valueLabel,
+        data: values,
+        backgroundColor: isRound
+          ? labels.map(function(_, i) { return XP_CHART_COLORS[i % XP_CHART_COLORS.length]; })
+          : (o.color || XP_CHART_COLORS[0]),
+        borderRadius: isRound ? 0 : 4,
+        borderWidth: isRound ? 0 : 0,
+        maxBarThickness: 26
+      }];
+      // เส้นเป้าซ้อนบนแท่ง — เห็นทันทีว่าเดือนไหนเกินเป้า ไม่ต้องไล่อ่านตัวเลข
+      if (spec.targetCol && series.items.some(function(it) { return it.target; })) {
+        datasets.push({
+          type: 'line',
+          label: xpT('เป้า %'),
+          data: series.items.map(function(it) { return it.target || null; }),
+          borderColor: '#dc2626',
+          borderWidth: 2,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          fill: false
+        });
+      }
+      return {
+        type: isRound ? 'doughnut' : 'bar',
+        data: { labels: labels, datasets: datasets },
+        options: {
+          indexAxis: isH ? 'y' : 'x',
+          responsive: !o.fixed,
+          maintainAspectRatio: false,
+          animation: false,
+          devicePixelRatio: o.pixelRatio || 2,
+          plugins: {
+            legend: { display: isRound || datasets.length > 1, position: isRound ? 'right' : 'top', labels: { font: { size: 11 } } },
+            title: o.title ? { display: true, text: o.title, font: { size: 13, weight: 'bold' }, color: '#1e293b' } : { display: false },
+            tooltip: { enabled: !o.fixed }
+          },
+          scales: isRound ? {} : {
+            x: {
+              beginAtZero: true,
+              ticks: { font: { size: 10 }, color: '#64748b', autoSkip: !isH, maxRotation: isH ? 0 : 55, minRotation: isH ? 0 : 0 },
+              grid: { color: 'rgba(148,163,184,.18)' }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { font: { size: 10 }, color: '#64748b', autoSkip: false },
+              grid: { color: 'rgba(148,163,184,.18)' }
+            }
+          }
+        }
+      };
+    }
+
+    // ความสูงที่พอดี: กราฟแท่งนอนต้องสูงตามจำนวนแท่ง ไม่งั้นชื่อทับกันอ่านไม่ออก
+    function xpChartHeight(series) {
+      if (series.spec.type === 'hbar') return Math.max(220, Math.min(560, 46 + series.items.length * 26));
+      if (series.spec.type === 'doughnut') return 300;
+      return 320;
+    }
+
+    // วาดกราฟลง element บนหน้าจอ (คืน instance ไว้ทำลายตอนสร้างใหม่)
+    var xpLiveCharts = [];
+    function xpDestroyLiveCharts() {
+      xpLiveCharts.forEach(function(c) { try { c.destroy(); } catch (err) {} });
+      xpLiveCharts = [];
+    }
+    function xpRenderChartInto(wrapEl, series, title) {
+      if (!wrapEl) return false;
+      if (!window.Chart) {
+        // Chart.js โหลดไม่ได้ (เน็ต/ad-blocker) — ยังต้องเห็นตารางได้ปกติ ไม่ทำให้รายงานพัง
+        wrapEl.innerHTML = '<p style="font-size:11px;color:#94a3b8">โหลดไลบรารีกราฟไม่ได้ — ดูข้อมูลจากตารางด้านล่างได้ตามปกติ</p>';
+        return false;
+      }
+      var h = xpChartHeight(series);
+      wrapEl.innerHTML = '<div class="xp-chart-box" style="height:' + h + 'px"><canvas></canvas></div>';
+      var canvas = wrapEl.querySelector('canvas');
+      try {
+        xpLiveCharts.push(new window.Chart(canvas.getContext('2d'), xpChartConfig(series, { title: title, color: series.color })));
+        return true;
+      } catch (err) {
+        console.warn('xpRenderChartInto failed', err);
+        wrapEl.innerHTML = '<p style="font-size:11px;color:#94a3b8">วาดกราฟไม่สำเร็จ — ดูข้อมูลจากตารางด้านล่าง</p>';
+        return false;
+      }
+    }
+
+    // render กราฟเป็นรูป PNG สำหรับฝังลง Excel
+    // ต้องแปะ canvas เข้า DOM จริงชั่วคราว (ซ่อนไว้นอกจอ) ไม่งั้นบางเบราว์เซอร์
+    // วัดขนาด/ฟอนต์ไม่ได้แล้วได้รูปเปล่า — ลบทิ้งทันทีหลังอ่านค่าเสร็จ
+    function xpChartToPng(series, title, width, height) {
+      if (!window.Chart) return null;
+      var holder = document.createElement('div');
+      holder.style.cssText = 'position:absolute;left:-99999px;top:0;width:' + width + 'px;height:' + height + 'px;background:#ffffff';
+      var canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      holder.appendChild(canvas);
+      document.body.appendChild(holder);
+      var chart = null;
+      try {
+        chart = new window.Chart(canvas.getContext('2d'), xpChartConfig(series, { title: title, color: series.color, fixed: true, pixelRatio: 2 }));
+        return canvas.toDataURL('image/png');
+      } catch (err) {
+        console.warn('xpChartToPng failed', err);
+        return null;
+      } finally {
+        if (chart) { try { chart.destroy(); } catch (e) {} }
+        if (holder.parentNode) holder.parentNode.removeChild(holder);
+      }
+    }
+
+    // ── ชุดกราฟสรุปสำหรับ Executive Workbook / PDF ─────────────────────
+    // สร้างจากตารางที่คำนวณไว้แล้ว (เทรนด์ / สรุปตามไลน์ / Top parts / ต้นทุนเทียบเป้า)
+    // โหมดลูกค้าจะไม่มีกราฟที่เป็นเรื่องเงิน เพราะคอลัมน์นั้นถูกตัดออกไปแล้วตั้งแต่ต้น
+    function xpSummaryChartSeries(trend, lineSummary, topIssue, costReport) {
+      var out = [];
+      function push(title, series) { if (series) out.push({ title: title, series: series }); }
+
+      // เทรนด์: ใช้ตารางเทรนด์เป็นแหล่งเดียวกับที่ลงชีต 02
+      var tt = trend && trend.table;
+      if (tt) {
+        push(xpT('ยอดเบิกออกตามช่วงเวลา'), xpChartSeriesFromTable(tt, ['เดือน', 'วัน', 'สัปดาห์'], ['เบิกออก (ชิ้น)'], 'bar'));
+        push(xpT('ยอดรับเข้าตามช่วงเวลา'), xpChartSeriesFromTable(tt, ['เดือน', 'วัน', 'สัปดาห์'], ['รับเข้า (ชิ้น)'], 'bar', '#059669'));
+        push(xpT('มูลค่าเบิกออกตามช่วงเวลา'), xpChartSeriesFromTable(tt, ['เดือน', 'วัน', 'สัปดาห์'], ['มูลค่าเบิกออก'], 'bar', '#4f46e5'));
+      }
+      if (lineSummary) {
+        push(xpT('เปรียบเทียบยอดเบิกตามไลน์'), xpChartSeriesFromTable(lineSummary, ['ไลน์'], ['มูลค่าเบิกออก', 'เบิกออก (ชิ้น)'], 'bar', '#dc2626'));
+        push(xpT('รายการต่ำกว่า Min ตามไลน์'), xpChartSeriesFromTable(lineSummary, ['ไลน์'], ['ต่ำกว่า Min'], 'bar', '#d97706'));
+      }
+      if (topIssue && topIssue.table) {
+        var s = xpChartSeries('topIssue', topIssue.table);
+        if (s) { s.items = s.items.slice(0, 12); push(xpT('Top 12 อะไหล่ที่เบิกมากที่สุด'), s); }
+      }
+      if (costReport && costReport.table) {
+        push(xpT('ต้นทุนอะไหล่ต่อมูลค่าผลิต เทียบเป้า'), xpChartSeries('costVsProduction', costReport.table));
+      }
+      return out;
+    }
+    // ช่วยสร้างชุดกราฟจากตารางใดๆ โดยระบุคอลัมน์ป้าย/ค่าเป็นชื่อไทย
+    function xpChartSeriesFromTable(table, labelCols, valueCols, type, color) {
+      var spec = { type: type || 'bar', labelCols: labelCols, valueCols: valueCols };
+      XP_CHART_SPECS.__tmp = spec;
+      var series = xpChartSeries('__tmp', table);
+      delete XP_CHART_SPECS.__tmp;
+      if (series && color) series.color = color;
+      return series;
+    }
     // ── Executive PDF ────────────────────────────────────────────────
     // ใช้ popup + window.print() แบบเดียวกับ PDF ของ PR Report / ใบนับสต็อก
     // (ไม่โหลด jsPDF เพิ่ม — เอนจินพรินต์ของเบราว์เซอร์รองรับฟอนต์ไทยดีกว่า
@@ -23816,7 +24635,7 @@ if (dashboardPage) {
       var innerW = w - padL - padR, innerH = h - padT - padB;
       var max = 0;
       items.forEach(function(it) { if (xpN(it.value) > max) max = xpN(it.value); });
-      if (max <= 0) return '<p style="color:#64748b;font-size:12px">ไม่มีข้อมูลในช่วงที่เลือก</p>';
+      if (max <= 0) return '<p style="color:#64748b;font-size:12px">' + xpEscHtml(xpT('ไม่มีข้อมูลในช่วงที่เลือก')) + '</p>';
       var n = items.length || 1;
       var slot = innerW / n;
       var barW = Math.max(4, Math.min(46, slot * 0.62));
@@ -23836,6 +24655,36 @@ if (dashboardPage) {
       }).join('');
       return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" xmlns="http://www.w3.org/2000/svg">' + grid + bars + '</svg>';
     }
+    // กราฟแท่งนอนใน PDF — ชื่ออะไหล่ยาว วางแนวตั้งแล้วอ่านไม่ออก
+    function xpSvgHBarChart(items, opts) {
+      var o = opts || {};
+      var padL = o.labelWidth || 210, padR = 60, padT = 8, padB = 8;
+      var rowH = 20;
+      var w = o.width || 980;
+      var h = padT + padB + Math.max(1, items.length) * rowH;
+      var max = 0;
+      items.forEach(function(it) { if (xpN(it.value) > max) max = xpN(it.value); });
+      if (max <= 0) return '<p style="color:#64748b;font-size:12px">' + xpEscHtml(xpT('ไม่มีข้อมูลในช่วงที่เลือก')) + '</p>';
+      var innerW = w - padL - padR;
+      var bars = items.map(function(it, i) {
+        var v = xpN(it.value);
+        var bw = Math.max(1, (v / max) * innerW);
+        var y = padT + i * rowH;
+        var label = xpS(it.label);
+        if (label.length > 40) label = label.slice(0, 39) + '…';
+        return '<text x="' + (padL - 6) + '" y="' + (y + rowH / 2 + 3) + '" font-size="9" fill="#334155" text-anchor="end">' + xpEscHtml(label) + '</text>' +
+          '<rect x="' + padL + '" y="' + (y + 3) + '" width="' + bw.toFixed(1) + '" height="' + (rowH - 7) + '" rx="3" fill="' + (o.color || '#2563eb') + '"/>' +
+          '<text x="' + (padL + bw + 5) + '" y="' + (y + rowH / 2 + 3) + '" font-size="9" fill="#475569">' + xpEscHtml(xpFmtInt(v)) + '</text>';
+      }).join('');
+      return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="' + h + '" xmlns="http://www.w3.org/2000/svg">' + bars + '</svg>';
+    }
+    // ดึงคู่ (ป้าย, ค่า) ออกจากตารางเพื่อวาดกราฟใน PDF โดยอ้างชื่อคอลัมน์ภาษาไทย
+    function xpSvgItemsFromTable(table, labelCols, valueCols, limit) {
+      var series = xpChartSeriesFromTable(table, labelCols, valueCols, 'hbar');
+      if (!series) return [];
+      var items = series.items;
+      return limit ? items.slice(0, limit) : items;
+    }
     function xpHtmlTable(table, limit) {
       var rows = (table.rows || []).slice(0, limit || 9999);
       return '<table class="rpt"><thead><tr>' +
@@ -23851,7 +24700,7 @@ if (dashboardPage) {
           }).join('') + '</tr>';
         }).join('') +
         '</tbody></table>' +
-        ((table.rows || []).length > rows.length ? '<p class="more">แสดง ' + xpFmtInt(rows.length) + ' แถวแรกจากทั้งหมด ' + xpFmtInt(table.rows.length) + ' แถว — ดูครบในไฟล์ Excel</p>' : '');
+        ((table.rows || []).length > rows.length ? '<p class="more">' + xpEscHtml(xpT('แสดง {shown} แถวแรกจากทั้งหมด {total} แถว — ดูครบในไฟล์ Excel', { shown: xpFmtInt(rows.length), total: xpFmtInt(table.rows.length) })) + '</p>' : '');
     }
 
     function xpRunPdfReport() {
@@ -23927,86 +24776,89 @@ if (dashboardPage) {
         var outChart = xpSvgBarChart(trendBuckets.map(function(b) { return { label: b.key, value: b.outQty }; }), { color: '#dc2626' });
         var inChart = xpSvgBarChart(trendBuckets.map(function(b) { return { label: b.key, value: b.inQty }; }), { color: '#059669' });
         var valueChart = xpFilters.customerMode ? '' :
-          '<h3 class="sec" style="margin-top:16px">มูลค่าเบิกออกตามช่วงเวลา (บาท)</h3>' +
+          '<h3 class="sec" style="margin-top:16px">' + xpEscHtml(xpT('มูลค่าเบิกออกตามช่วงเวลา (บาท)')) + '</h3>' +
           xpSvgBarChart(trendBuckets.map(function(b) { return { label: b.key, value: Math.round(b.outValue) }; }), { color: '#4f46e5' });
 
-        var rangeText = (xpFilters.from || 'ตั้งแต่เริ่มระบบ') + '  ถึง  ' + (xpFilters.to || 'ล่าสุด');
+        var rangeText = (xpFilters.from || xpT('ตั้งแต่เริ่มระบบ')) + '  ' + (xpIsEn() ? 'to' : 'ถึง') + '  ' + (xpFilters.to || xpT('ล่าสุด'));
         var failedList = Object.keys(ctx.failed || {});
         var html = [
-          '<div class="noprint"><button onclick="window.print()">🖨️ พรินต์ / บันทึกเป็น PDF</button></div>',
+          '<div class="noprint"><button onclick="window.print()">🖨️ ' + xpEscHtml(xpT('พรินต์ / บันทึกเป็น PDF')) + '</button></div>',
 
           '<div class="page cover">',
           '<div class="brandbar"></div>',
-          '<h1>รายงานข้อมูลระบบคลังอะไหล่</h1>',
+          '<h1>' + xpEscHtml(xpT('รายงานข้อมูลระบบคลังอะไหล่')) + '</h1>',
           '<h2>Spare Parts Management System — Executive Report</h2>',
           '<div class="meta">',
-          '<div><b>ช่วงข้อมูล</b> ' + xpEscHtml(rangeText) + '</div>',
-          '<div><b>ไลน์</b> ' + xpEscHtml(xpFilters.line || 'ทุกไลน์ (รวม)') + '</div>',
-          '<div><b>หมวด</b> ' + xpEscHtml(xpFilters.category || 'ทุกหมวด') + '</div>',
-          '<div><b>รวมข้อมูลตาม</b> ' + xpEscHtml(xpFilters.groupBy === 'day' ? 'รายวัน' : (xpFilters.groupBy === 'week' ? 'รายสัปดาห์' : 'รายเดือน')) + '</div>',
-          '<div><b>ผู้จัดทำ</b> ' + xpEscHtml((currentUser && (currentUser.name || currentUser.username)) || '-') + '</div>',
-          '<div><b>สร้างเมื่อ</b> ' + xpEscHtml(new Date().toLocaleString('th-TH')) + '</div>',
-          xpFilters.customerMode ? '<div><b>โหมดลูกค้า</b> เปิด — ไม่แสดงราคาต้นทุน ผู้ขาย และค่าใช้จ่าย</div>' : '',
+          '<div><b>' + xpEscHtml(xpT('ช่วงข้อมูล')) + '</b> ' + xpEscHtml(rangeText) + '</div>',
+          '<div><b>' + xpEscHtml(xpT('ไลน์')) + '</b> ' + xpEscHtml(xpFilters.line || xpT('ทุกไลน์ (รวม)')) + '</div>',
+          '<div><b>' + xpEscHtml(xpT('หมวด')) + '</b> ' + xpEscHtml(xpFilters.category || xpT('ทุกหมวด')) + '</div>',
+          '<div><b>' + xpEscHtml(xpT('รวมข้อมูลตาม')) + '</b> ' + xpEscHtml(xpT(xpFilters.groupBy === 'day' ? 'รายวัน' : (xpFilters.groupBy === 'week' ? 'รายสัปดาห์' : 'รายเดือน'))) + '</div>',
+          '<div><b>' + xpEscHtml(xpT('ผู้จัดทำ')) + '</b> ' + xpEscHtml((currentUser && (currentUser.name || currentUser.username)) || '-') + '</div>',
+          '<div><b>' + xpEscHtml(xpT('วันเวลาที่สร้างไฟล์')) + '</b> ' + xpEscHtml(xpLocaleStamp()) + '</div>',
+          xpFilters.customerMode ? '<div><b>' + xpEscHtml(xpT('โหมดลูกค้า')) + '</b> ' + xpEscHtml(xpT('เปิด — ไม่แสดงราคาต้นทุน ผู้ขาย และค่าใช้จ่าย')) + '</div>' : '',
           '</div>',
-          '<p style="font-size:10px;color:#94a3b8;margin-top:22px">ตัวเลขทุกตัวในรายงานนี้คำนวณจากข้อมูลจริงในระบบ ณ เวลาที่สร้างไฟล์</p>',
+          '<p style="font-size:10px;color:#94a3b8;margin-top:22px">' + xpEscHtml(xpT('ตัวเลขทุกตัวในรายงานนี้คำนวณจากข้อมูลจริงในระบบ ณ เวลาที่สร้างไฟล์')) + '</p>',
           '</div>',
 
           '<div class="page">',
-          '<h3 class="sec">สรุปผู้บริหาร</h3>',
-          '<p class="sub">ช่วงข้อมูล ' + xpEscHtml(rangeText) + ' · ' + xpEscHtml(xpFilters.line || 'ทุกไลน์') + '</p>',
+          '<h3 class="sec">' + xpEscHtml(xpT('สรุปผู้บริหาร')) + '</h3>',
+          '<p class="sub">' + xpEscHtml(xpT('ช่วงข้อมูล')) + ' ' + xpEscHtml(rangeText) + ' · ' + xpEscHtml(xpFilters.line || xpT('ทุกไลน์ (รวม)')) + '</p>',
           kpiHtml,
-          failedList.length ? '<div class="footnote">ชุดข้อมูลที่ดึงไม่สำเร็จในรอบนี้: ' + xpEscHtml(failedList.join(', ')) + ' — ตัวชี้วัดที่เกี่ยวข้องจะขึ้นว่า "ดึงข้อมูลไม่ได้" ไม่ได้แทนด้วยศูนย์</div>' : '',
+          failedList.length ? '<div class="footnote">' + xpEscHtml(xpT('ชุดข้อมูลที่ดึงไม่สำเร็จในรอบนี้: {list} — ตัวชี้วัดที่เกี่ยวข้องจะขึ้นว่า "ดึงข้อมูลไม่ได้" ไม่ได้แทนด้วยศูนย์', { list: failedList.join(', ') })) + '</div>' : '',
           '</div>',
 
           '<div class="page">',
-          '<h3 class="sec">เทรนด์การเคลื่อนไหวของอะไหล่</h3>',
-          '<p class="sub">ยอดเบิกออก (ชิ้น) ต่อช่วงเวลา</p>',
+          '<h3 class="sec">' + xpEscHtml(xpT('เทรนด์การเคลื่อนไหวของอะไหล่')) + '</h3>',
+          '<p class="sub">' + xpEscHtml(xpT('ยอดเบิกออก (ชิ้น) ต่อช่วงเวลา')) + '</p>',
           outChart,
-          '<h3 class="sec" style="margin-top:16px">ยอดรับเข้า (ชิ้น)</h3>',
+          '<h3 class="sec" style="margin-top:16px">' + xpEscHtml(xpT('ยอดรับเข้า (ชิ้น)')) + '</h3>',
           inChart,
           valueChart,
           '</div>',
 
           '<div class="page">',
-          '<h3 class="sec">สรุปตามไลน์ผลิต</h3>',
-          '<p class="sub">ทุกตัวเลขเป็นของช่วง ' + xpEscHtml(rangeText) + '</p>',
+          '<h3 class="sec">' + xpEscHtml(xpT('สรุปตามไลน์ผลิต')) + '</h3>',
+          '<p class="sub">' + xpEscHtml(xpT('ทุกตัวเลขเป็นของช่วง {range}', { range: rangeText })) + '</p>',
+          xpSvgHBarChart(xpSvgItemsFromTable(lineSummary, ['ไลน์'], ['มูลค่าเบิกออก', 'เบิกออก (ชิ้น)']), { color: '#0891b2', labelWidth: 150 }),
           xpHtmlTable(lineSummary),
           '</div>',
 
           '<div class="page">',
-          '<h3 class="sec">Top 20 อะไหล่ที่เบิกมากที่สุด</h3>',
+          '<h3 class="sec">' + xpEscHtml(xpT('Top 20 อะไหล่ที่เบิกมากที่สุด')) + '</h3>',
           '<p class="sub">' + xpEscHtml(topIssue.note) + '</p>',
+          xpSvgHBarChart(xpSvgItemsFromTable(topIssue.table, ['ชื่ออะไหล่', 'รุ่น'], ['มูลค่ารวม', 'ยอดเบิก (ชิ้น)'], 12), { color: '#dc2626' }),
           xpHtmlTable(topIssue.table, 20),
           '</div>',
 
           '<div class="page">',
-          '<h3 class="sec">อะไหล่ที่ไม่มีการเบิกในช่วงนี้ (Top 25 ตามมูลค่า)</h3>',
+          '<h3 class="sec">' + xpEscHtml(xpT('อะไหล่ที่ไม่มีการเบิกในช่วงนี้ (Top 25 ตามมูลค่า)')) + '</h3>',
           '<p class="sub">' + xpEscHtml(deadStock.note) + '</p>',
+          xpSvgHBarChart(xpSvgItemsFromTable(deadStock.table, ['ชื่ออะไหล่', 'รุ่น'], ['มูลค่าที่จม', 'คงเหลือ'], 12), { color: '#d97706' }),
           xpHtmlTable(deadStock.table, 25),
           '</div>',
 
           costReport ? [
             '<div class="page">',
-            '<h3 class="sec">ต้นทุนอะไหล่ต่อมูลค่าผลิต เทียบเป้า</h3>',
+            '<h3 class="sec">' + xpEscHtml(xpT('ต้นทุนอะไหล่ต่อมูลค่าผลิต เทียบเป้า')) + '</h3>',
             '<p class="sub">' + xpEscHtml(costReport.note) + '</p>',
             xpHtmlTable(costReport.table, 40),
             '</div>'
           ].join('') : '',
 
           '<div class="page">',
-          '<h3 class="sec">เทรนด์ตามช่วงเวลา (ตารางเต็ม)</h3>',
+          '<h3 class="sec">' + xpEscHtml(xpT('เทรนด์ตามช่วงเวลา (ตารางเต็ม)')) + '</h3>',
           xpHtmlTable(trend.table),
           '<div class="footnote">',
-          'ที่มาข้อมูล: ชีตอะไหล่ทุกไลน์, ชีต Log (รับเข้า/เบิกออก), OrderRequests, PRHeaders/PRLines, PurchaseHistory, MiscExpenses, ProductionVolume, StockCount, PartTags ของระบบคลังอะไหล่<br/>',
-          'มูลค่าเบิกออก/รับเข้า ตีจากราคาต่อหน่วยล่าสุดใน Master เพราะชีต Log ไม่ได้เก็บราคาไว้ในแถว · รายการที่ยังไม่ลงราคาจะนับมูลค่าเป็น 0 แต่จำนวนชิ้นถูกต้อง',
+          xpEscHtml(xpT('ที่มาข้อมูล: ชีตอะไหล่ทุกไลน์, ชีต Log (รับเข้า/เบิกออก), OrderRequests, PRHeaders/PRLines, PurchaseHistory, MiscExpenses, ProductionVolume, StockCount, PartTags ของระบบคลังอะไหล่')) + '<br/>',
+          xpEscHtml(xpT('มูลค่าเบิกออก/รับเข้า ตีจากราคาต่อหน่วยล่าสุดใน Master เพราะชีต Log ไม่ได้เก็บราคาไว้ในแถว · รายการที่ยังไม่ลงราคาจะนับมูลค่าเป็น 0 แต่จำนวนชิ้นถูกต้อง')),
           '</div>',
           '<div class="signrow">',
-          '<div class="signbox">ผู้จัดทำ</div><div class="signbox">ผู้ตรวจสอบ</div><div class="signbox">ผู้อนุมัติ</div>',
+          '<div class="signbox">' + xpEscHtml(xpT('ผู้จัดทำ')) + '</div><div class="signbox">' + xpEscHtml(xpT('ผู้ตรวจสอบ')) + '</div><div class="signbox">' + xpEscHtml(xpT('ผู้อนุมัติ')) + '</div>',
           '</div>',
           '</div>'
         ].join('\n');
 
-        win.document.write('<html lang="th"><head><meta charset="utf-8"/><title>Executive Report — ' + xpEscHtml(rangeText) + '</title><style>' + css + '</style></head><body>' + html + '</body></html>');
+        win.document.write('<html lang="' + (xpIsEn() ? 'en' : 'th') + '"><head><meta charset="utf-8"/><title>Executive Report — ' + xpEscHtml(rangeText) + '</title><style>' + css + '</style></head><body>' + html + '</body></html>');
         win.document.close();
         xpProgressSet(100, 'เปิดหน้ารายงานแล้ว — กดปุ่มพรินต์เพื่อบันทึกเป็น PDF');
         xpProgressLog('เปิด Executive Report ในแท็บใหม่', 'ok');
@@ -24049,8 +24901,8 @@ if (dashboardPage) {
         : '';
       wrap.innerHTML =
         '<div class="flex flex-wrap items-start justify-between gap-3 mb-3">' +
-          '<div><h4 style="font-size:14px;font-weight:800;color:#1e293b">' + xpEscHtml(rp.name) + '</h4>' +
-          '<p style="font-size:11px;color:#64748b;margin-top:2px">' + xpEscHtml(rp.desc) + '</p></div>' +
+          '<div><h4 style="font-size:14px;font-weight:800;color:#1e293b">' + xpEscHtml(xpT(rp.name)) + '</h4>' +
+          '<p style="font-size:11px;color:#64748b;margin-top:2px">' + xpEscHtml(xpT(rp.desc)) + '</p></div>' +
           '<div class="flex gap-2">' +
             '<button id="xpReportXlsxBtn" type="button" class="xp-btn-primary xp-btn-sm">📗 ดาวน์โหลด .xlsx</button>' +
             '<button id="xpReportCsvBtn" type="button" class="xp-btn-secondary xp-btn-sm">📄 .csv</button>' +
@@ -24062,10 +24914,32 @@ if (dashboardPage) {
           xpFmtInt((table.rows || []).length) + ' แถว · ช่วง ' + xpEscHtml((xpFilters.from || 'ทั้งหมด') + ' → ' + (xpFilters.to || 'ล่าสุด')) +
           ' · ' + xpEscHtml(xpFilters.line || 'ทุกไลน์') +
         '</p>' +
-        '<div class="xp-report-scroll">' + xpHtmlTable({ headers: table.headers, rows: rows, numeric: table.numeric, money: table.money }) + '</div>' +
+        '<div class="xp-chart-wrap" id="xpReportChart"></div>' +
+        '<div class="flex items-center justify-between gap-2 mb-2">' +
+          '<span style="font-size:11px;font-weight:700;color:#475569">' + xpEscHtml(xpT('ตารางข้อมูล')) + '</span>' +
+          '<button id="xpToggleTableBtn" type="button" class="xp-btn-mini">' + xpEscHtml(xpT('ซ่อนตาราง')) + '</button>' +
+        '</div>' +
+        '<div class="xp-report-scroll" id="xpReportTableWrap">' + xpHtmlTable({ headers: table.headers, rows: rows, numeric: table.numeric, money: table.money }) + '</div>' +
         (built.note ? '<p style="font-size:10.5px;color:#64748b;margin-top:8px;border-left:3px solid #cbd5e1;padding-left:8px;line-height:1.6">' + xpEscHtml(built.note) + '</p>' : '') +
         ((table.rows || []).length > rows.length ? '<p style="font-size:10.5px;color:#94a3b8;margin-top:6px">แสดง 200 แถวแรกบนหน้าจอ — ไฟล์ที่ดาวน์โหลดมีครบทุกแถว</p>' : '');
       wrap.classList.remove('hidden');
+      // กราฟมาก่อนตาราง — ตารางเปล่าอ่านยาก คนอ่านต้องเห็นภาพรวมก่อนแล้วค่อยลงรายละเอียด
+      // ใช้ทั้งตาราง (ไม่ใช่แค่ 200 แถวที่โชว์) เพื่อให้กราฟสะท้อนข้อมูลจริงทั้งชุด
+      xpDestroyLiveCharts();
+      var chartSeries = xpChartSeries(rp.key, table);
+      if (chartSeries) xpRenderChartInto(xpEl('xpReportChart'), chartSeries, xpT(rp.name));
+      else {
+        var noChart = xpEl('xpReportChart');
+        if (noChart) noChart.innerHTML = '<p style="font-size:11px;color:#94a3b8">' + xpEscHtml(xpT('รายงานนี้ยังไม่มีข้อมูลพอจะวาดกราฟ — ดูตารางด้านล่าง')) + '</p>';
+      }
+      var toggleBtn = xpEl('xpToggleTableBtn');
+      if (toggleBtn) toggleBtn.addEventListener('click', function() {
+        var tw = xpEl('xpReportTableWrap');
+        if (!tw) return;
+        var hide = !tw.classList.contains('hidden');
+        tw.classList.toggle('hidden', hide);
+        toggleBtn.textContent = xpT(hide ? 'แสดงตาราง' : 'ซ่อนตาราง');
+      });
       var xb = xpEl('xpReportXlsxBtn');
       if (xb) xb.addEventListener('click', function() { xpDownloadReport('xlsx'); });
       var cb = xpEl('xpReportCsvBtn');
@@ -24085,10 +24959,22 @@ if (dashboardPage) {
         xpLogExport('report-csv', [rp.key], total, 'csv');
         return;
       }
-      var sheets = [{ name: '00 ปกรายงาน', table: xpBuildCover([{ name: rp.name, table: built.table }], { note: built.note || '' }) }];
-      sheets.push({ name: rp.name, table: built.table });
+      var sheets = [{ name: xpT('00 ปกรายงาน'), table: xpBuildCover([{ name: rp.name, table: built.table }], { note: built.note || '' }) }];
+      sheets.push({ name: xpT(rp.name), table: built.table });
+      // แนบกราฟของรายงานนี้ไปในไฟล์ด้วย — คนเปิดไฟล์เห็นภาพเหมือนที่เห็นบนจอ
+      var rpSeries = xpChartSeries(rp.key, built.table);
+      if (rpSeries) {
+        var rpPng = xpChartToPng(rpSeries, xpT(rp.name), 960, rpSeries.spec.type === 'hbar' ? 420 : 340);
+        if (rpPng) {
+          sheets.push({
+            name: xpT('กราฟ'),
+            table: { headers: [xpT(rp.name)], rows: [], numeric: [false] },
+            images: [{ title: xpT(rp.name), dataUrl: rpPng, width: 900, height: rpSeries.spec.type === 'hbar' ? 394 : 319 }]
+          });
+        }
+      }
       (built.extraSheets || []).forEach(function(s) { sheets.push(s); });
-      sheets.push({ name: '99 พจนานุกรมข้อมูล', table: xpBuildDictionary(sheets) });
+      sheets.push({ name: xpT('99 พจนานุกรมข้อมูล'), table: xpBuildDictionary(sheets) });
       xpWriteXlsxStyled(sheets, 'JR-report-' + rp.key + '-' + stamp + '.xlsx').then(function() {
         showQuickToast('ดาวน์โหลดรายงาน Excel แล้ว', 'success');
         xpLogExport('report-xlsx', [rp.key], total, 'xlsx');
@@ -24140,6 +25026,7 @@ if (dashboardPage) {
       var tt = xpEl('xpTxnTypeFilter'); xpFilters.txnType = tt ? tt.value : '';
       var g = xpEl('xpGroupBy'); xpFilters.groupBy = g ? g.value : 'month';
       var cm = xpEl('xpCustomerMode'); xpFilters.customerMode = !!(cm && cm.checked);
+      var lg = xpEl('xpLangFilter'); xpFilters.lang = (lg && lg.value === 'en') ? 'en' : 'th';
       if (xpFilters.from || xpFilters.to) {
         xpFilters.rangeKey = 'custom';
         document.querySelectorAll('#xpQuickRange .xp-chip').forEach(function(ch) { ch.classList.remove('xp-chip-active'); });
@@ -24153,6 +25040,7 @@ if (dashboardPage) {
       xpRenderReportGrid();
       var prev = xpEl('xpReportPreview');
       if (prev) prev.classList.add('hidden');
+      xpDestroyLiveCharts(); // Chart.js instance ที่ค้างอยู่กิน memory และวาดทับกันตอนเปิดรายงานใหม่
       xpLastReport = null;
     }
     function xpRenderFilterSummary() {
@@ -24164,6 +25052,7 @@ if (dashboardPage) {
       if (xpFilters.category) parts.push('หมวด ' + xpFilters.category);
       if (xpFilters.txnType) parts.push(xpFilters.txnType === 'Input' ? 'รับเข้าเท่านั้น' : 'เบิกออกเท่านั้น');
       parts.push('รวมตาม' + (xpFilters.groupBy === 'day' ? 'วัน' : (xpFilters.groupBy === 'week' ? 'สัปดาห์' : 'เดือน')));
+      parts.push(xpIsEn() ? '🇬🇧 ไฟล์ที่ดาวน์โหลดเป็นภาษาอังกฤษ' : '🇹🇭 ไฟล์ที่ดาวน์โหลดเป็นภาษาไทย');
       if (xpFilters.customerMode) parts.push('🕶️ โหมดลูกค้า: ตัดคอลัมน์ราคา/ผู้ขาย/มูลค่าออกจากไฟล์');
       el.textContent = parts.join(' · ');
       el.style.color = xpFilters.customerMode ? '#92400e' : '#64748b';
@@ -24218,15 +25107,15 @@ if (dashboardPage) {
       xpVisibleDatasets().forEach(function(d) { (groups[d.group] = groups[d.group] || []).push(d); });
       var html = '';
       Object.keys(groups).forEach(function(g) {
-        html += '<div style="grid-column:1/-1;font-size:11px;font-weight:800;color:#475569;margin-top:6px;letter-spacing:.02em">' + xpEscHtml(g) + '</div>';
+        html += '<div style="grid-column:1/-1;font-size:11px;font-weight:800;color:#475569;margin-top:6px;letter-spacing:.02em">' + xpEscHtml(xpT(g)) + '</div>';
         groups[g].forEach(function(d) {
           var count = xpRowCountFor(d);
           var isOn = first ? !!d.core : !!checked[d.key];
           html += '<label class="xp-ds' + (isOn ? ' xp-ds-on' : '') + '" data-xp-ds-row="' + d.key + '">' +
             '<input type="checkbox" data-xp-ds="' + d.key + '"' + (isOn ? ' checked' : '') + ' />' +
             '<span class="xp-ds-body">' +
-              '<span class="xp-ds-name">' + xpEscHtml(d.name) + (d.adminOnly ? ' 🔒' : '') + '</span>' +
-              '<span class="xp-ds-meta">' + xpEscHtml(d.meta) + '</span>' +
+              '<span class="xp-ds-name">' + xpEscHtml(xpT(d.name)) + (d.adminOnly ? ' 🔒' : '') + '</span>' +
+              '<span class="xp-ds-meta">' + xpEscHtml(xpT(d.meta)) + '</span>' +
               (count !== null ? '<span class="xp-ds-rows">' + xpFmtInt(count) + ' แถวในชีต</span>' : '') +
             '</span>' +
           '</label>';
@@ -24254,8 +25143,8 @@ if (dashboardPage) {
         return !(xpFilters.customerMode && r.hiddenInCustomerMode);
       }).map(function(r) {
         return '<button type="button" class="xp-rp" data-xp-report="' + r.key + '">' +
-          '<span class="xp-rp-name">' + xpEscHtml(r.name) + '</span>' +
-          '<span class="xp-rp-desc">' + xpEscHtml(r.desc) + '</span>' +
+          '<span class="xp-rp-name">' + xpEscHtml(xpT(r.name)) + '</span>' +
+          '<span class="xp-rp-desc">' + xpEscHtml(xpT(r.desc)) + '</span>' +
         '</button>';
       }).join('');
     }
@@ -24335,7 +25224,7 @@ if (dashboardPage) {
       document.querySelectorAll('#xpQuickRange .xp-chip').forEach(function(chip) {
         chip.addEventListener('click', function() { xpApplyQuickRange(chip.getAttribute('data-xp-range')); });
       });
-      ['xpDateFrom', 'xpDateTo', 'xpLineFilter', 'xpCategoryFilter', 'xpTxnTypeFilter', 'xpGroupBy', 'xpCustomerMode'].forEach(function(id) {
+      ['xpDateFrom', 'xpDateTo', 'xpLineFilter', 'xpCategoryFilter', 'xpTxnTypeFilter', 'xpGroupBy', 'xpCustomerMode', 'xpLangFilter'].forEach(function(id) {
         var el = xpEl(id);
         if (el) el.addEventListener('change', xpReadFilterInputs);
       });
