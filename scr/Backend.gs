@@ -1783,7 +1783,7 @@ function importPurchaseHistoryPdfBatch(payload) {
 
 function createPurchaseHistoryBatch(payload) {
   var session = getSessionUser({ authToken: payload.authToken });
-  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  requireWarehouseWriter({ authToken: payload.authToken }, 'view_logs');
   var items = Array.isArray(payload.items) ? payload.items : [];
   if (!items.length) throw new Error('ไม่พบรายการสำหรับบันทึก Purchase History');
   var month = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM');
@@ -1807,7 +1807,7 @@ function createPurchaseHistoryBatch(payload) {
 
 function addManualPurchaseHistory(payload) {
   var session = getSessionUser({ authToken: payload.authToken });
-  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  requireWarehouseWriter({ authToken: payload.authToken }, 'view_logs');
   var qty = Number(payload.qty_ordered || 0);
   if (!isFinite(qty) || qty <= 0) throw new Error('Qty Ordered ต้องมากกว่า 0');
   if (!String(payload.part_name || '').trim()) throw new Error('กรุณาระบุ Part Name');
@@ -2104,7 +2104,7 @@ function uploadMiscExpenseReceipt(payload) {
 // purchase-history/<yyyy-MM>/ เพื่อให้ไล่หาย้อนหลังตอนปิดบัญชีได้ ไม่ปนกับไฟล์แนบของงานอื่น
 function uploadPurchaseHistoryAttachment(payload) {
   var session = getSessionUser({ authToken: payload.authToken });
-  var user = requirePermission({ authToken: payload.authToken }, 'view_logs');
+  var user = requireWarehouseWriter({ authToken: payload.authToken }, 'view_logs');
   var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
   if (!dataUrl) throw new Error('ไม่พบข้อมูลไฟล์');
   var mimeType = getDataUrlMimeType(dataUrl);
@@ -3482,6 +3482,24 @@ function requirePermission(payload, permissionName) {
     throw new Error('ไม่มีสิทธิ์ใช้งานฟังก์ชันนี้ (' + permissionName + ')');
   }
   return user;
+}
+
+// แยก "ดู Log/Dashboard ได้" ออกจาก "เขียนข้อมูลคลังได้"
+// เดิมหลายฟังก์ชันที่บันทึกข้อมูลใช้ view_logs เป็นด่านเดียว ซึ่งกว้างเกินไป: บัญชีที่ตั้งใจให้
+// ดูอย่างเดียว (preset ผู้บริหาร) ต้องมี view_logs เพื่อเปิดหน้า Log/Dashboard แล้วก็จะ
+// บันทึกผลนับสต็อก / เพิ่ม Purchase History / อัปโหลดบิล ได้ไปด้วยทั้งที่ไม่ควรได้
+//
+// ด่านนี้ต้องการสิทธิ์ "ทำงานคลังจริง" อย่างน้อยหนึ่งอย่าง (เบิก/รับเข้า/จัดการรายการ) หรือเป็น Admin
+// ผู้ใช้เดิมทุกคนที่ใช้ฟังก์ชันเหล่านี้อยู่ผ่านด่านนี้หมด (Engineer/หัวหน้าช่าง/Admin มี
+// receive_part หรือ manage_items อยู่แล้ว) — ที่ถูกกันคือบัญชีดูอย่างเดียวเท่านั้น
+function requireWarehouseWriter(payload, permissionName) {
+  var user = requirePermission(payload, permissionName || 'view_logs');
+  if (normalizeRole(user.role) === 'admin') return user;
+  var writerKeys = ['receive_part', 'issue_part', 'transact', 'manage_items'];
+  for (var i = 0; i < writerKeys.length; i += 1) {
+    if (hasPermissionForUser(user, writerKeys[i])) return user;
+  }
+  throw new Error('บัญชีนี้เป็นสิทธิ์ดูอย่างเดียว จึงบันทึกข้อมูลส่วนนี้ไม่ได้');
 }
 
 function hasPermissionForUser(user, permissionName) {
@@ -5688,7 +5706,7 @@ function getStockCountGroupState(payload) {
 
 function saveStockCountResult(payload) {
   var session = getSessionUser({ authToken: payload.authToken });
-  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  requireWarehouseWriter({ authToken: payload.authToken }, 'view_logs');
   var sessionId = 'SC-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + (String(payload.line||'ALL').replace(/[^A-Za-z0-9]/g,'')).toUpperCase().substring(0,4);
   var sheet = getOrCreateStockCountSheet();
   var items = payload.items;
@@ -5801,7 +5819,7 @@ function getStockCountHistory(payload) {
 // เพราะยอดที่นับไว้อาจเก่าเป็นเดือน เอาไปปรับ Stock ย้อนหลังตอนนี้จะยิ่งทำให้ยอดเพี้ยน
 function importLegacyStockCount(payload) {
   var session = getSessionUser({ authToken: payload.authToken });
-  requirePermission({ authToken: payload.authToken }, 'view_logs');
+  requireWarehouseWriter({ authToken: payload.authToken }, 'view_logs');
   var sessionId = String(payload.session_id || '').trim();
   if (!sessionId) throw new Error('ต้องระบุ session_id');
 
