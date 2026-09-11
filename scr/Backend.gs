@@ -46,7 +46,7 @@ SPARE_APP_CONFIG.productionLogSources = SPARE_APP_CONFIG.productionLogSources ||
   'Lug&Screw': { id: '1Xx2XEGtT-KbnvVP_9gzkW9kuyFUBpj1H-oIsT3zUx1U', sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty', modelCol: 'ProductCode' },
   // altQtyCol = คอลัมน์ยอดสำรอง (Actual Scan) — ต่อแถว เอาค่ามากสุดระหว่าง Actual กับ Actual Scan
   // (ห้ามบวกกัน เพราะเป็นยอดงานเดียวกันที่บันทึกซ้ำ 2 ทาง ไม่ใช่ยอดคนละก้อน)
-  'H9': { id: '1PYcAatoJ4QX28uQ_LF8dDC6oTiMWbfPs5TZDfGJVa4U', sheet: 'Plan', dateCol: 'Actual complete date', qtyCol: 'Actual', altQtyCol: 'Actual Scan', modelCol: 'Order model' },
+  'H9': { id: '1PYcAatoJ4QX28uQ_LF8dDC6oTiMWbfPs5TZDfGJVa4U', sheet: 'Plan', dateCol: 'Date วันที่', qtyCol: 'Actual', altQtyCol: 'Actual Scan', modelCol: 'Order model' },
   'Coil Winding': { id: '11NGAEXnTZIXMseO_0vfA-yRWxBXEiWpNkCIdIQq2ftQ', sheet: 'Production_Data', dateCol: 'Date', qtyCol: 'FG', modelCol: 'Product' }
 };
 // ชีตราคาต่อชิ้นล่าสุด (ทุกไลน์รวมกัน) — ใช้จับคู่กับ Model ของแต่ละไลน์เพื่อคำนวณมูลค่าผลิต
