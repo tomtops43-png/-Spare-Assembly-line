@@ -2791,12 +2791,35 @@
           </div>
           <div id="miscExpenseRows" class="mt-2 space-y-2"></div>
           <button id="miscExpenseAddRow" type="button" class="mt-2 h-10 w-full rounded-lg border border-dashed border-emerald-400 bg-white text-sm font-bold text-emerald-700 hover:bg-emerald-50">+ เพิ่มรายการ</button>
-          <div class="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2">
-            <div>
-              <p class="text-sm font-bold text-slate-800">ยอดรวมทั้งบิล</p>
-              <p class="text-[10px] text-slate-400">คิดจากทุกแถวรวมกัน แก้ไม่ได้</p>
+          <div id="miscExpenseShippingVatWrap" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="text-xs font-semibold text-slate-600">ค่าจัดส่ง (บาท)
+              <input id="miscExpenseShipping" type="number" min="0" step="any" inputmode="decimal" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="0.00" />
+            </label>
+            <div class="flex items-end gap-2 pb-0.5">
+              <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                <input id="miscExpenseVatEnabled" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
+                คิดภาษีมูลค่าเพิ่ม (VAT)
+              </label>
+              <input id="miscExpenseVatPercent" type="number" min="0" max="100" step="any" value="7" class="h-9 w-16 rounded-lg border border-slate-300 px-2 text-xs" />
+              <span class="text-xs text-slate-400">%</span>
             </div>
-            <output id="miscExpenseGrandTotal" class="text-xl font-extrabold text-slate-900">฿0</output>
+          </div>
+          <div class="mt-3 space-y-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2">
+            <div class="flex items-center justify-between text-xs text-slate-500">
+              <span>รวมเป็นเงิน</span>
+              <output id="miscExpenseSubtotal">฿0.00</output>
+            </div>
+            <div id="miscExpenseVatRow" class="hidden flex items-center justify-between text-xs text-slate-500">
+              <span id="miscExpenseVatLabel">ภาษีมูลค่าเพิ่ม 7%</span>
+              <output id="miscExpenseVatAmount">฿0.00</output>
+            </div>
+            <div class="flex items-center justify-between gap-3 border-t border-slate-200 pt-1.5">
+              <div>
+                <p class="text-sm font-bold text-slate-800">ยอดรวมทั้งบิล</p>
+                <p class="text-[10px] text-slate-400">คิดจากทุกแถว + ค่าจัดส่ง + ภาษี แก้ไม่ได้</p>
+              </div>
+              <output id="miscExpenseGrandTotal" class="text-xl font-extrabold text-slate-900">฿0</output>
+            </div>
           </div>
         </div>
         <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
@@ -13970,7 +13993,7 @@ function inferRequestPriority(stock, min) {
        ของจิปาถะที่ซื้อนอกระบบอะไหล่ (น็อตทั่วไป เครื่องมือช่าง วัสดุสิ้นเปลือง ค่าจ้างซ่อม)
        ตัดเป็นค่าใช้จ่ายทันทีวันที่ซื้อ ไม่เข้าสต็อก จึงไม่มีทางไปซ้ำกับยอดเบิกที่ Dashboard
        คิดจาก Log — ยอดพวกนี้ไหลเข้ากราฟ % ต้นทุน และงบ PR ผ่าน fccMiscExpenseRows()   */
-    var MISC_EXPENSE_CATEGORY_OPTIONS = ['น็อต/สกรู/ฮาร์ดแวร์', 'เครื่องมือช่าง', 'วัสดุสิ้นเปลือง', 'ค่าซ่อม/ค่าจ้างภายนอก', 'อื่นๆ'];
+    var MISC_EXPENSE_CATEGORY_OPTIONS = ['น็อต/สกรู/ฮาร์ดแวร์', 'เครื่องมือช่าง', 'วัสดุสิ้นเปลือง', 'ค่าซ่อม/ค่าจ้างภายนอก', 'ค่าจัดส่ง', 'ภาษีมูลค่าเพิ่ม (VAT)', 'อื่นๆ'];
     var MISC_EXPENSE_SHARED_LINE_LABEL = 'ส่วนกลาง';
     var miscExpenseCache = [];
     var miscExpenseLoaded = false;
@@ -14168,6 +14191,23 @@ function inferRequestPriority(stock, min) {
 
     function mxEditMode() { return !!String(mxEl('miscExpenseId') ? mxEl('miscExpenseId').value : '').trim(); }
 
+    // ค่าจัดส่ง + VAT ไม่ใช่แถวที่กรอกเอง แต่คิดแยกต่างหากแล้วค่อยแปลงเป็นรายการ
+    // "ค่าจัดส่ง" / "ภาษีมูลค่าเพิ่ม" ตอนส่งขึ้นเซิร์ฟเวอร์ — เหมือนบิลร้านค้าจริงที่แยกบรรทัดนี้ไว้ต่างหาก
+    function mxExtraCharges(itemsSubtotal) {
+      var shippingEl = mxEl('miscExpenseShipping');
+      var shipping = shippingEl ? Number(shippingEl.value) : 0;
+      if (!isFinite(shipping) || shipping < 0) shipping = 0;
+      shipping = Math.round(shipping * 100) / 100;
+      var vatEnabledEl = mxEl('miscExpenseVatEnabled');
+      var vatEnabled = !!(vatEnabledEl && vatEnabledEl.checked);
+      var vatPercentEl = mxEl('miscExpenseVatPercent');
+      var vatPercent = vatPercentEl ? Number(vatPercentEl.value) : 0;
+      if (!isFinite(vatPercent) || vatPercent < 0) vatPercent = 0;
+      var vatBase = itemsSubtotal + shipping;
+      var vatAmount = vatEnabled ? Math.round(vatBase * vatPercent) / 100 : 0;
+      return { shipping: shipping, vatEnabled: vatEnabled, vatPercent: vatPercent, vatAmount: vatAmount, subtotal: vatBase };
+    }
+
     function mxRecalcTotals() {
       var wrap = mxEl('miscExpenseRows');
       if (!wrap) return;
@@ -14179,6 +14219,16 @@ function inferRequestPriority(stock, min) {
         var out = host ? host.querySelector('[data-mx-amount]') : null;
         if (out) out.textContent = '฿' + amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       });
+      var extra = mxExtraCharges(grand);
+      grand = extra.subtotal + extra.vatAmount;
+      var subtotalEl = mxEl('miscExpenseSubtotal');
+      if (subtotalEl) subtotalEl.textContent = '฿' + extra.subtotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      var vatRow = mxEl('miscExpenseVatRow');
+      if (vatRow) vatRow.classList.toggle('hidden', !extra.vatEnabled);
+      var vatLabel = mxEl('miscExpenseVatLabel');
+      if (vatLabel) vatLabel.textContent = 'ภาษีมูลค่าเพิ่ม ' + extra.vatPercent + '%';
+      var vatAmountEl = mxEl('miscExpenseVatAmount');
+      if (vatAmountEl) vatAmountEl.textContent = '฿' + extra.vatAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       var totalEl = mxEl('miscExpenseGrandTotal');
       if (totalEl) totalEl.textContent = '฿' + grand.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       var countEl = mxEl('miscExpenseRowCount');
@@ -14213,6 +14263,9 @@ function inferRequestPriority(stock, min) {
       }).join('');
       var addBtn = mxEl('miscExpenseAddRow');
       if (addBtn) addBtn.classList.toggle('hidden', single);
+      // แก้ทีละแถว (single) ไม่ให้ยุ่งกับค่าจัดส่ง/VAT ของทั้งบิล — บวกซ้ำได้ถ้าไปโผล่ตรงนี้ด้วย
+      var shippingVatWrap = mxEl('miscExpenseShippingVatWrap');
+      if (shippingVatWrap) shippingVatWrap.classList.toggle('hidden', single);
       mxRecalcTotals();
     }
 
@@ -14291,7 +14344,7 @@ function inferRequestPriority(stock, min) {
     }
 
     function mxCollectItems() {
-      return mxRowState.filter(function(row) { return !mxIsBlankRow(row); }).map(function(row) {
+      var items = mxRowState.filter(function(row) { return !mxIsBlankRow(row); }).map(function(row) {
         return {
           category: row.category,
           item_name: String(row.item_name || '').trim(),
@@ -14300,6 +14353,17 @@ function inferRequestPriority(stock, min) {
           total_amount: mxRowAmount(row)
         };
       });
+      // ค่าจัดส่ง/VAT ไม่มีคอลัมน์ของตัวเองฝั่งเซิร์ฟเวอร์ — ส่งเป็นรายการเพิ่มในบิลเดียวกัน
+      // เหมือนบิลร้านค้าจริงที่แยกบรรทัดนี้ไว้ต่างหาก จะได้ไม่ต้องแก้ backend/สคีมาชีต
+      var itemsSubtotal = items.reduce(function(sum, it) { return sum + Number(it.total_amount || 0); }, 0);
+      var extra = mxExtraCharges(itemsSubtotal);
+      if (extra.shipping > 0) {
+        items.push({ category: 'ค่าจัดส่ง', item_name: 'ค่าจัดส่ง', qty: 1, unit: 'ครั้ง', total_amount: extra.shipping });
+      }
+      if (extra.vatAmount > 0) {
+        items.push({ category: 'ภาษีมูลค่าเพิ่ม (VAT)', item_name: 'ภาษีมูลค่าเพิ่ม ' + extra.vatPercent + '%', qty: 1, unit: 'ครั้ง', total_amount: extra.vatAmount });
+      }
+      return items;
     }
 
     function submitMiscExpenseForm() {
@@ -14414,6 +14478,10 @@ function inferRequestPriority(stock, min) {
           if (btn) mxRemoveRow(btn.getAttribute('data-mx-row-remove'));
         });
       }
+      ['miscExpenseShipping', 'miscExpenseVatEnabled', 'miscExpenseVatPercent'].forEach(function(id) {
+        var el = mxEl(id);
+        if (el) el.addEventListener('input', mxRecalcTotals);
+      });
       ['miscExpenseClose', 'miscExpenseCancel'].forEach(function(id) {
         var el = mxEl(id);
         if (el) el.addEventListener('click', closeMiscExpenseModal);
