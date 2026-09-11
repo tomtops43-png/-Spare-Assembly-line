@@ -44,7 +44,9 @@ SPARE_APP_CONFIG.prAuditSheetName = SPARE_APP_CONFIG.prAuditSheetName || 'PRAudi
 // รายรุ่นไว้คำนวณมูลค่าผลิตแบบต่อรุ่นภายหลัง
 SPARE_APP_CONFIG.productionLogSources = SPARE_APP_CONFIG.productionLogSources || {
   'Lug&Screw': { id: '1Xx2XEGtT-KbnvVP_9gzkW9kuyFUBpj1H-oIsT3zUx1U', sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty', modelCol: 'ProductCode' },
-  'H9': { id: '1PYcAatoJ4QX28uQ_LF8dDC6oTiMWbfPs5TZDfGJVa4U', sheet: 'Plan', dateCol: 'Actual complete date', qtyCol: 'Actual', modelCol: 'Order model' },
+  // altQtyCol = คอลัมน์ยอดสำรอง (Actual Scan) — ต่อแถว เอาค่ามากสุดระหว่าง Actual กับ Actual Scan
+  // (ห้ามบวกกัน เพราะเป็นยอดงานเดียวกันที่บันทึกซ้ำ 2 ทาง ไม่ใช่ยอดคนละก้อน)
+  'H9': { id: '1PYcAatoJ4QX28uQ_LF8dDC6oTiMWbfPs5TZDfGJVa4U', sheet: 'Plan', dateCol: 'Actual complete date', qtyCol: 'Actual', altQtyCol: 'Actual Scan', modelCol: 'Order model' },
   'Coil Winding': { id: '11NGAEXnTZIXMseO_0vfA-yRWxBXEiWpNkCIdIQq2ftQ', sheet: 'Production_Data', dateCol: 'Date', qtyCol: 'FG', modelCol: 'Product' }
 };
 // ชีตราคาต่อชิ้นล่าสุด (ทุกไลน์รวมกัน) — ใช้จับคู่กับ Model ของแต่ละไลน์เพื่อคำนวณมูลค่าผลิต
@@ -775,12 +777,13 @@ function requireProductionCostEditor(payload) {
 // แปลง config เป็น object มาตรฐานเสมอ (รองรับทั้งแบบเก่าที่เป็น string id และแบบใหม่ที่เป็น object)
 function normalizeProductionSourceConfig(raw) {
   if (!raw) return null;
-  if (typeof raw === 'string') return { id: raw, sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty', modelCol: '' };
+  if (typeof raw === 'string') return { id: raw, sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty', altQtyCol: '', modelCol: '' };
   return {
     id: raw.id || '',
     sheet: raw.sheet || 'ProductionLog',
     dateCol: raw.dateCol || 'Date',
     qtyCol: raw.qtyCol || 'ActualQty',
+    altQtyCol: raw.altQtyCol || '',
     modelCol: raw.modelCol || ''
   };
 }
@@ -805,19 +808,24 @@ function getExternalProductionVolumeForLine(line) {
     // "Actual complete date" และ "Actual complete date" ไปชน "Actual complete date 0"
     var wantDate = String(cfg.dateCol).trim().toLowerCase();
     var wantQty = String(cfg.qtyCol).trim().toLowerCase();
+    var wantAltQty = cfg.altQtyCol ? String(cfg.altQtyCol).trim().toLowerCase() : '';
     var wantModel = cfg.modelCol ? String(cfg.modelCol).trim().toLowerCase() : '';
-    var dateCol = -1, qtyCol = -1, modelCol = -1;
+    var dateCol = -1, qtyCol = -1, altQtyCol = -1, modelCol = -1;
     for (var i = 0; i < headers.length; i += 1) {
       var h = String(headers[i] || '').trim().toLowerCase();
       if (h === wantDate && dateCol === -1) dateCol = i;
       if (h === wantQty && qtyCol === -1) qtyCol = i;
+      if (wantAltQty && h === wantAltQty && altQtyCol === -1) altQtyCol = i;
       if (wantModel && h === wantModel && modelCol === -1) modelCol = i;
     }
     if (dateCol === -1 || qtyCol === -1) return null;
     var byMonth = {}, byMonthModel = {};
     for (var r = 1; r < values.length; r += 1) {
       var dateVal = values[r][dateCol];
+      // ยอดต่อแถว: ถ้ามีคอลัมน์สำรอง (เช่น Actual Scan) ให้เอาค่ามากสุดระหว่างสองคอลัมน์
+      // ไม่ใช่บวกกัน เพราะเป็นยอดงานเดียวกันที่บันทึกซ้ำสองทาง
       var qty = Number(values[r][qtyCol] || 0);
+      if (altQtyCol !== -1) qty = Math.max(qty, Number(values[r][altQtyCol] || 0));
       if (!dateVal || !isFinite(qty) || qty <= 0) continue;
       var d = dateVal instanceof Date ? dateVal : new Date(dateVal);
       if (isNaN(d.getTime())) continue;
