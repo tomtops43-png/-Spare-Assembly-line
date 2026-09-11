@@ -79,7 +79,7 @@ var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updat
 // (บนบิลร้านค้ามีแต่ยอดรวม ไม่ได้แยกราคาต่อหน่วยเสมอ) ส่วน Unit Price คิดย้อนจาก Total/Qty
 var MISC_EXPENSE_HEADERS = ['Expense ID', 'Date', 'Month', 'Line', 'Category', 'Item Name', 'Qty', 'Unit', 'Unit Price', 'Total Amount', 'Vendor', 'Receipt No', 'Receipt URL', 'Paid By', 'Remark', 'Deleted', 'Created By', 'Created At', 'Updated By', 'Updated At', 'Bill ID'];
 var MISC_EXPENSE_AUDIT_HEADERS = ['Date Time', 'User', 'Expense ID', 'Action Type', 'Old Value', 'New Value', 'Reason'];
-var MISC_EXPENSE_CATEGORIES = ['น็อต/สกรู/ฮาร์ดแวร์', 'เครื่องมือช่าง', 'วัสดุสิ้นเปลือง', 'ค่าซ่อม/ค่าจ้างภายนอก', 'อื่นๆ'];
+var MISC_EXPENSE_CATEGORIES = ['น็อต/สกรู/ฮาร์ดแวร์', 'เครื่องมือช่าง', 'วัสดุสิ้นเปลือง', 'ค่าซ่อม/ค่าจ้างภายนอก', 'ค่าจัดส่ง', 'ภาษีมูลค่าเพิ่ม (VAT)', 'อื่นๆ'];
 // 'ส่วนกลาง' = ของที่ใช้ร่วมหลายไลน์ ไม่เฉลี่ยเข้าไลน์ไหน (จะเห็นเฉพาะมุมมอง "ทุกไลน์ (รวม)")
 // เจตนา: ไม่ปันส่วนอัตโนมัติ เพราะตัวเลขที่เฉลี่ยเองอธิบายกับหน้างานไม่ได้ว่ามาจากไหน
 var MISC_EXPENSE_LINES = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw', 'ส่วนกลาง'];
