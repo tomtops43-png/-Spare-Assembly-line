@@ -3673,6 +3673,7 @@
              เดิมเป็นช่องพิมพ์อิสระ + datalist ที่เติมจากประวัติ Log ทำให้ชื่อเครื่องสะกดไม่ตรงกัน -->
         <select id="issueCartMachine" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
           <option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>
+          <option value="__other__">✏️ อื่นๆ (พิมพ์เอง)</option>
         </select>
         <input id="issueCartMachineOther" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="🏭 ระบุชื่อเครื่องเอง (บังคับ)" />
         <div>
@@ -3844,6 +3845,7 @@
         <!-- เครื่องจักรของไลน์อะไหล่ชิ้นนี้ (ทะเบียนเดียวกับ Issue Cart) -->
         <select id="quickIssueMachine" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
           <option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>
+          <option value="__other__">✏️ อื่นๆ (พิมพ์เอง)</option>
         </select>
         <input id="quickIssueMachineOther" type="text" class="hidden h-11 w-full rounded-xl border border-blue-300 bg-blue-50 px-3 text-base" placeholder="🏭 ระบุชื่อเครื่องเอง (บังคับ)" />
         <!-- เลขประจำชิ้นที่ช่างอ่านจากตัวของ — โชว์เฉพาะอะไหล่ที่อยู่ในกลุ่มแท็ก -->
@@ -6429,7 +6431,11 @@
       var sel = document.getElementById(selectId);
       if (!sel) return Promise.resolve([]);
       var previous = String(sel.value || '');
+      // ใส่ "อื่นๆ" ไว้ก่อนตั้งแต่ต้น กันไว้ก่อนที่ fetch จะโหลดเสร็จ/พัง จะได้ไม่มีจังหวะที่กดอะไรไม่ได้เลย
+      sel.innerHTML = '<option value="">🏭 กำลังโหลดรายชื่อเครื่อง...</option>' +
+        '<option value="' + MACHINE_SELECT_OTHER + '">✏️ อื่นๆ (พิมพ์เอง)</option>';
       return fetchMachinesForLine(String(line || '').trim()).then(function(list) {
+        var fetchFailed = !!machinesFetchFailedLines[String(line || '').trim()];
         var names = (list || []).map(function(m) { return String((m && m.machine_name) || '').trim(); })
           .filter(function(n) { return !!n; });
         var allowList = (allowedNames || []).map(function(n) { return String(n || '').trim(); }).filter(Boolean);
@@ -6441,7 +6447,9 @@
         setMachineSelectScopeHint(selectId, isFiltered ? names.length : 0, allowList.length);
         var placeholder = names.length
           ? (isFiltered ? '🏭 เลือกเครื่อง (เฉพาะที่อะไหล่นี้ใช้ได้)' : '🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)')
-          : '🏭 ยังไม่มีเครื่องจักรของไลน์นี้ — เลือก "อื่นๆ" เพื่อพิมพ์เอง';
+          : (fetchFailed
+              ? '⚠️ โหลดรายชื่อเครื่องไม่สำเร็จ — เลือก "อื่นๆ" เพื่อพิมพ์เอง'
+              : '🏭 ยังไม่มีเครื่องจักรของไลน์นี้ — เลือก "อื่นๆ" เพื่อพิมพ์เอง');
         sel.innerHTML = '<option value="">' + escHtml(placeholder) + '</option>' +
           names.map(function(n) { return '<option value="' + escHtml(n) + '">' + escHtml(n) + '</option>'; }).join('') +
           '<option value="' + MACHINE_SELECT_OTHER + '">✏️ อื่นๆ (พิมพ์เอง)</option>';
@@ -7149,15 +7157,20 @@ function getIssueCartEntries() {
     }
 
     var machinesCacheByLine = {};
+    // เก็บว่าไลน์ไหน "โหลดล้มเหลว" (ต่างจาก "โหลดสำเร็จแต่ยังไม่มีเครื่อง") —
+    // ไม่งั้น backend error กับไลน์ที่ยังไม่ลงทะเบียนเครื่องจะโชว์เหมือนกันหมด ตามไม่ได้ว่าเกิดอะไรขึ้นจริง
+    var machinesFetchFailedLines = {};
     function fetchMachinesForLine(line, includeInactive) {
       var key = String(line || '').trim();
       if (!key) return Promise.resolve([]);
       var cacheKey = key + '::' + (includeInactive ? '1' : '0');
       if (machinesCacheByLine[cacheKey]) return machinesCacheByLine[cacheKey];
       var p = requestApi(withAuthPayload({ action: 'getMachines', line: key, includeInactive: includeInactive ? '1' : '' })).then(function(list) {
+        delete machinesFetchFailedLines[key];
         return Array.isArray(list) ? list : [];
       }).catch(function(err) {
         console.warn('fetchMachinesForLine failed', err);
+        machinesFetchFailedLines[key] = true;
         delete machinesCacheByLine[cacheKey];
         return [];
       });
