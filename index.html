@@ -355,24 +355,37 @@
       border:1px solid rgba(148,163,184,.42);
       box-shadow:0 10px 24px -14px rgba(15,23,42,.35);
     }
-    .fcc-jump-lb{ flex:none; font-size:11px; font-weight:700; color:#475569; letter-spacing:.2px; }
-    @media (max-width:640px){ .fcc-jump-lb{ display:none; } }
+    .fcc-jump-lb{ flex:none; font-size:12px; font-weight:700; color:#475569; letter-spacing:.2px; }
+    @media (max-width:860px){ .fcc-jump-lb{ display:none; } }
+    /* ไม่ใส่ scroll-behavior:smooth ที่นี่ — จะทำให้หมุนล้อเมาส์แล้วหน่วงจนรู้สึกหนืด
+       ปุ่มลูกศร/เลื่อนอัตโนมัติสั่ง smooth เองเป็นครั้งๆ ผ่าน scrollTo() แทน */
     .fcc-jump-list{
-      display:flex; gap:5px; overflow-x:auto; scroll-behavior:smooth;
+      flex:1; min-width:0; display:flex; gap:6px; overflow-x:auto;
       scrollbar-width:none; -ms-overflow-style:none; padding:1px;
     }
     .fcc-jump-list::-webkit-scrollbar{ display:none; }
     .fcc-jump-it{
-      flex:none; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
-      font-family:'Prompt',sans-serif; font-size:11px; font-weight:600; color:#475569;
-      background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;
-      padding:5px 10px; cursor:pointer; transition:all .16s;
+      flex:none; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+      font-family:'Prompt',sans-serif; font-size:13px; font-weight:600; color:#334155;
+      background:#f8fafc; border:1px solid #e2e8f0; border-radius:11px;
+      padding:8px 13px; cursor:pointer; transition:all .16s;
     }
     .fcc-jump-it:hover{ color:#1d4ed8; border-color:#93c5fd; background:#eff6ff; }
     .fcc-jump-it.on{ color:#fff; background:#2563eb; border-color:#1d4ed8; box-shadow:0 4px 12px -4px rgba(37,99,235,.6); }
-    .fcc-jump-it .ic{ font-size:12px; line-height:1; }
+    .fcc-jump-it .ic{ font-size:14px; line-height:1; }
+    /* ปุ่มเลื่อนซ้าย-ขวา — จำเป็นบน desktop เพราะเมาส์ไม่มีล้อแนวนอน
+       และเราซ่อน scrollbar ไว้ ถ้าไม่มีปุ่มนี้จะกดรายการที่ล้นออกนอกจอไม่ได้เลย */
+    .fcc-jump-nav{
+      flex:none; width:30px; height:30px; border-radius:10px; cursor:pointer;
+      display:none; align-items:center; justify-content:center;
+      font-size:17px; font-weight:700; line-height:1; color:#475569;
+      background:#fff; border:1px solid #cbd5e1; transition:all .16s;
+    }
+    .fcc-jump-nav.show{ display:inline-flex; }
+    .fcc-jump-nav:hover{ color:#1d4ed8; border-color:#60a5fa; background:#eff6ff; }
+    .fcc-jump-nav[disabled]{ opacity:.32; cursor:default; }
     /* เผื่อที่ให้แถบ sticky ไม่บังหัวการ์ดตอนกดข้าม */
-    #dashboardPage.fcc .fcc-card, #dashboardPage.fcc .fcc-exec{ scroll-margin-top:86px; }
+    #dashboardPage.fcc .fcc-card, #dashboardPage.fcc .fcc-exec{ scroll-margin-top:96px; }
 
     /* ── grid system ─────────────────────────────────────────── */
     .fcc-row{ display:grid; gap:12px; grid-template-columns:repeat(12,minmax(0,1fr)); }
@@ -1330,7 +1343,9 @@
       <!-- แถบข้ามไปยังการ์ด/กราฟแต่ละตัว — รายการสร้างจาก FCC_SECTIONS ใน fccBuildJump() -->
       <nav id="fccJump" class="fcc-jump" aria-label="ข้ามไปยังส่วนต่างๆ ของ Dashboard">
         <span class="fcc-jump-lb">&#x1F4D1; ข้ามไปที่</span>
+        <button type="button" id="fccJumpPrev" class="fcc-jump-nav" data-fcc-act="jumpscroll:-1" aria-label="เลื่อนรายการไปทางซ้าย">&#x2039;</button>
         <div class="fcc-jump-list" id="fccJumpList"></div>
+        <button type="button" id="fccJumpNext" class="fcc-jump-nav" data-fcc-act="jumpscroll:1" aria-label="เลื่อนรายการไปทางขวา">&#x203A;</button>
       </nav>
       <div class="fcc-canvas">
 
@@ -13341,9 +13356,43 @@ function inferRequestPriority(stock, min) {
         return '<button type="button" class="fcc-jump-it" data-fcc-act="scroll:' + s.id + '" data-jump="' + s.id + '">' +
           '<span class="ic">' + s.icon + '</span>' + fccEsc(s.label) + '</button>';
       }).join('');
+      // เมาส์ทั่วไปมีแต่ล้อแนวตั้ง — แปลงให้เลื่อนแถบแนวนอนแทน ไม่งั้นบน desktop
+      // จะเลื่อนดูรายการที่ล้นออกนอกจอไม่ได้เลย (scrollbar ถูกซ่อนไว้)
+      list.addEventListener('wheel', function(e) {
+        if (list.scrollWidth <= list.clientWidth) return;
+        var d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+        if (!d) return;
+        e.preventDefault();
+        list.scrollLeft += d;
+        fccSyncJumpArrows();
+      }, { passive: false });
+      list.addEventListener('scroll', fccSyncJumpArrows, { passive: true });
       window.addEventListener('scroll', fccQueueJumpSync, { passive: true });
-      window.addEventListener('resize', fccQueueJumpSync);
+      // resize ยิงรัวมากบนมือถือ (address bar ซ่อน/โผล่ตอนเลื่อนจอก็นับ) ต้อง throttle
+      window.addEventListener('resize', rafThrottle(function() { fccSyncJumpActive(); fccSyncJumpArrows(); }));
       fccSyncJumpActive();
+      fccSyncJumpArrows();
+    }
+
+    // ซ่อนปุ่มลูกศรถ้ารายการไม่ล้น และหรี่ปุ่มเมื่อเลื่อนสุดทางแล้ว
+    function fccSyncJumpArrows() {
+      var list = document.getElementById('fccJumpList');
+      var prev = document.getElementById('fccJumpPrev');
+      var next = document.getElementById('fccJumpNext');
+      if (!list || !prev || !next) return;
+      var overflow = list.scrollWidth - list.clientWidth;
+      prev.classList.toggle('show', overflow > 4);
+      next.classList.toggle('show', overflow > 4);
+      if (overflow <= 4) return;
+      if (list.scrollLeft <= 2) prev.setAttribute('disabled', 'disabled'); else prev.removeAttribute('disabled');
+      if (list.scrollLeft >= overflow - 2) next.setAttribute('disabled', 'disabled'); else next.removeAttribute('disabled');
+    }
+
+    function fccScrollJumpList(dir) {
+      var list = document.getElementById('fccJumpList');
+      if (!list) return;
+      var step = Math.max(200, Math.round(list.clientWidth * 0.75));
+      list.scrollTo({ left: list.scrollLeft + dir * step, behavior: 'smooth' });
     }
 
     function fccQueueJumpSync() {
@@ -13351,28 +13400,46 @@ function inferRequestPriority(stock, min) {
       fccJumpRaf = requestAnimationFrame(function() { fccJumpRaf = 0; fccSyncJumpActive(); });
     }
 
-    // การ์ดที่ "ผ่านใต้แถบ sticky ไปแล้วและอยู่บนสุด" คือการ์ดที่กำลังดูอยู่
+    // ไฮไลต์ "ทุกการ์ดที่เห็นอยู่บนจอตอนนี้" ไม่ใช่ใบเดียว — การ์ดที่วางคู่กันในแถวเดียว
+    // (เช่น Risk Heatmap กับ Top Intelligence) เห็นพร้อมกัน แต่เดิมติดสีแค่ใบเดียว
+    // ทำให้ดูเหมือนระบบชี้ผิดใบ
     function fccSyncJumpActive() {
       var list = document.getElementById('fccJumpList');
       var page = document.getElementById('dashboardPage');
       if (!list || !page || page.classList.contains('hidden')) return;
-      var activeId = '';
+      var bar = document.getElementById('fccJump');
+      var bandTop = bar ? bar.getBoundingClientRect().bottom : 60;
+      var vh = window.innerHeight || 800;
+      var bandBottom = bandTop + Math.max(180, (vh - bandTop) * 0.55);
+      var active = {}, activeIds = [], lastPassed = '';
       FCC_SECTIONS.forEach(function(s) {
         var el = document.getElementById(s.id);
-        if (el && el.getBoundingClientRect().top <= 140) activeId = s.id;
+        if (!el) return;
+        var r = el.getBoundingClientRect();
+        if (r.bottom > bandTop && r.top < bandBottom) { active[s.id] = true; activeIds.push(s.id); }
+        if (r.top <= bandTop) lastPassed = s.id;
       });
-      if (!activeId && FCC_SECTIONS.length) activeId = FCC_SECTIONS[0].id;
-      if (activeId === fccJumpActiveId) return;
-      fccJumpActiveId = activeId;
+      // อยู่ระหว่างการ์ด (ไม่มีใบไหนอยู่ในช่วงอ่าน) — ยึดใบล่าสุดที่ผ่านไปแล้ว
+      if (!activeIds.length) {
+        var fallback = lastPassed || (FCC_SECTIONS.length ? FCC_SECTIONS[0].id : '');
+        if (fallback) { active[fallback] = true; activeIds.push(fallback); }
+      }
+      var signature = activeIds.join(',');
+      if (signature === fccJumpActiveId) return;
+      fccJumpActiveId = signature;
+      var firstOn = null;
       Array.prototype.forEach.call(list.children, function(btn) {
-        var on = btn.getAttribute('data-jump') === activeId;
+        var on = !!active[btn.getAttribute('data-jump')];
         btn.classList.toggle('on', on);
-        if (!on) return;
-        // เลื่อนแถบแนวนอนให้เห็นปุ่มที่ active เสมอ (มือถือแถบยาวเกินจอ)
-        var lr = list.getBoundingClientRect(), br = btn.getBoundingClientRect();
-        if (br.left < lr.left + 4) list.scrollLeft -= (lr.left + 4 - br.left);
-        else if (br.right > lr.right - 4) list.scrollLeft += (br.right - (lr.right - 4));
+        if (on && !firstOn) firstOn = btn;
       });
+      if (!firstOn) return;
+      // เลื่อนแถบแนวนอนให้เห็นปุ่มที่ active เสมอ (แถบยาวเกินจอ)
+      var lr = list.getBoundingClientRect(), br = firstOn.getBoundingClientRect();
+      var delta = 0;
+      if (br.left < lr.left + 6) delta = br.left - (lr.left + 6);
+      else if (br.right > lr.right - 6) delta = br.right - (lr.right - 6);
+      if (delta) list.scrollTo({ left: list.scrollLeft + delta, behavior: 'smooth' });
     }
 
     function fccBuildDock() {
@@ -13451,6 +13518,8 @@ function inferRequestPriority(stock, min) {
       } else if (kind === 'expand') {
         fccQExp[arg] = !fccQExp[arg];
         if (fccLast.P) fccRenderQueue(fccLast.P);
+      } else if (kind === 'jumpscroll') {
+        fccScrollJumpList(Number(arg) || 1);
       } else if (kind === 'mexp') {
         fccMachineExp[arg] = !fccMachineExp[arg];
         fccRenderMachineUsage();
