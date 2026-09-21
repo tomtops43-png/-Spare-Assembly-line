@@ -38,12 +38,13 @@ const src = [
   grab(/^ {4}function fccRelTime\(ts\) \{[\s\S]*?\n {4}\}/m, 'fccRelTime'),
   grab(/^ {4}function fccMonthKey\(raw\) \{[\s\S]*?\n {4}\}/m, 'fccMonthKey'),
   grab(/^ {4}function fccExpenseValidRows\(logs\) \{[\s\S]*?\n {4}\}/m, 'fccExpenseValidRows'),
+  grab(/^ {4}function fccMachineAnomalies\(rows\) \{[\s\S]*?\n {4}\}/m, 'fccMachineAnomalies'),
   grab(/^ {4}function fccRenderMachineUsage\(\) \{[\s\S]*?\n {4}\}/m, 'fccRenderMachineUsage')
 ].join('\n');
 
 function makeEl() { return { innerHTML: '', textContent: '', value: '' }; }
 const els = {
-  fccMachineTable: makeEl(), fccMachineSummary: makeEl(),
+  fccMachineTable: makeEl(), fccMachineSummary: makeEl(), fccMachineAlert: makeEl(),
   fccMachineNote: makeEl(), fccMachineSub: makeEl(),
   fccMachineLineFilter: makeEl(), fccMachineRangeFilter: makeEl(), fccMachineSortFilter: makeEl()
 };
@@ -52,7 +53,8 @@ els.fccMachineRangeFilter.value = '0';   // ทั้งหมด — กัน�
 els.fccMachineSortFilter.value = 'count';
 
 const harness = new Function('document', 'partsData', 'dashboardAllPartsData', 'fccLast', 'formatThaiDateTime',
-  'var fccMachineExp = {};\n' + src + '\nreturn { render: fccRenderMachineUsage, exp: fccMachineExp, valid: fccExpenseValidRows };');
+  'var fccMachineExp = {};\n' + src +
+  '\nreturn { render: fccRenderMachineUsage, exp: fccMachineExp, valid: fccExpenseValidRows, anomalies: fccMachineAnomalies };');
 
 const parts = [
   { line: 'H9', name: 'Bearing 6204', model: 'SKF-01', unit_price: 100 },
@@ -120,5 +122,56 @@ fccLast.Logs = [];
 api.render();
 assert(els.fccMachineTable.innerHTML.includes('ยังไม่มีประวัติการเบิกที่ระบุเครื่อง'),
   'ไม่มีข้อมูลต้องขึ้นข้อความอธิบาย');
+
+// ── เตือนเครื่องที่เบิกถี่ผิดปกติ (เทียบกับค่าปกติของเครื่องนั้นเอง) ──────────
+// แต่ละเครื่องต้องเทียบกับตัวเอง ไม่ใช่เทียบข้ามเครื่อง เพราะเครื่องใหญ่/เล็ก
+// กินอะไหล่คนละระดับกันอยู่แล้ว
+function row(machine, daysAgo, line) {
+  return { machine: machine, ms: now - daysAgo * 86400000, qty: 1, line: line || 'H9', partName: 'Bearing 6204', model: 'SKF-01' };
+}
+const anomalyRows = [];
+// SPIKE-01: ฐาน 90 วันก่อนหน้า 3 ครั้ง (= ~1 ครั้ง/30 วัน) แต่ 30 วันล่าสุดพุ่งเป็น 6 → ~6 เท่า
+[100, 70, 45].forEach(function(d) { anomalyRows.push(row('SPIKE-01', d)); });
+[2, 5, 9, 14, 20, 27].forEach(function(d) { anomalyRows.push(row('SPIKE-01', d)); });
+// STEADY-01: เบิกสม่ำเสมอ ฐาน 9 ครั้ง (~3/30วัน) ล่าสุด 3 ครั้ง → ปกติ ห้ามเตือน
+[35, 45, 55, 65, 75, 85, 95, 105, 115].forEach(function(d) { anomalyRows.push(row('STEADY-01', d)); });
+[4, 12, 25].forEach(function(d) { anomalyRows.push(row('STEADY-01', d)); });
+// NEW-01: เพิ่งมีในระบบ ไม่มีฐานให้เทียบ → ห้ามเตือนว่าผิดปกติ (ยังไม่รู้ค่าปกติของมัน)
+[1, 6, 11, 18].forEach(function(d) { anomalyRows.push(row('NEW-01', d)); });
+// ONCE-01: ล่าสุดเบิกแค่ 2 ครั้ง น้อยเกินกว่าจะสรุป → ห้ามเตือน
+[3, 8].forEach(function(d) { anomalyRows.push(row('ONCE-01', d)); });
+[50, 60, 70].forEach(function(d) { anomalyRows.push(row('ONCE-01', d)); });
+
+const found = api.anomalies(anomalyRows);
+const names = found.map(function(a) { return a.machine; });
+assert(names.indexOf('SPIKE-01') > -1, 'เครื่องที่เบิกพุ่งผิดปกติต้องถูกจับได้');
+assert(names.indexOf('STEADY-01') === -1, 'เครื่องที่เบิกสม่ำเสมอต้องไม่ถูกเตือน');
+assert(names.indexOf('NEW-01') === -1, 'เครื่องใหม่ที่ยังไม่มีฐานเทียบ ต้องไม่ถูกเหมาว่าผิดปกติ');
+assert(names.indexOf('ONCE-01') === -1, 'จำนวนครั้งน้อยเกินไปต้องไม่เตือน (กันเตือนมั่วจนคนเลิกเชื่อ)');
+const spike = found[0];
+assert.strictEqual(spike.recent, 6, 'ต้องนับครั้งใน 30 วันล่าสุดให้ถูก');
+assert(spike.ratio >= 3, 'ฐาน ~1 ครั้ง/30วัน เบิกจริง 6 ครั้ง ต้องได้อัตราส่วน ≥3 เท่า');
+assert.strictEqual(spike.level, 'crit', '≥3 เท่าต้องเป็นระดับวิกฤต');
+assert(spike.topPart.includes('Bearing 6204'), 'ต้องบอกด้วยว่าอะไหล่ตัวไหนที่เบิกถี่');
+
+// ต้องขึ้นแถบเตือนบนการ์ด พร้อมตัวเลขที่ตรวจสอบย้อนได้ ไม่ใช่บอกแค่ "ผิดปกติ"
+fccLast.Logs = anomalyRows.map(function(r) {
+  return { type: 'Output', process: r.line, partName: r.partName, model: r.model, qty: r.qty,
+    timestamp: new Date(r.ms).toISOString(), machine: r.machine };
+});
+els.fccMachineLineFilter.value = '__all__';
+api.render();
+const alertHtml = els.fccMachineAlert.innerHTML;
+assert(alertHtml.includes('เบิกอะไหล่ถี่ผิดปกติ'), 'ต้องมีแถบเตือนบนการ์ด');
+assert(alertHtml.includes('SPIKE-01'), 'แถบเตือนต้องระบุชื่อเครื่อง');
+assert(alertHtml.includes('เบิก 6 ครั้งใน 30 วัน'), 'ต้องโชว์ตัวเลขจริงให้คนตรวจสอบย้อนได้');
+assert(!alertHtml.includes('STEADY-01'), 'เครื่องปกติต้องไม่โผล่ในแถบเตือน');
+assert(alertHtml.includes('data-fcc-act="mexp:'), 'กดที่แถบเตือนต้องกางดูรายการอะไหล่ของเครื่องนั้นได้');
+assert(els.fccMachineTable.innerHTML.includes('🚨'), 'แถวในตารางของเครื่องผิดปกติต้องติดป้ายด้วย');
+
+// ไม่มีเครื่องผิดปกติ = ต้องไม่เหลือแถบเตือนค้างจากรอบก่อน
+fccLast.Logs = [{ type: 'Output', process: 'H9', partName: 'Bearing 6204', model: 'SKF-01', qty: 1, timestamp: ts(2), machine: 'CALM-01' }];
+api.render();
+assert.strictEqual(els.fccMachineAlert.innerHTML, '', 'ไม่มีเครื่องผิดปกติต้องไม่ขึ้นแถบเตือน');
 
 console.log('Dashboard machine usage history checks passed');
