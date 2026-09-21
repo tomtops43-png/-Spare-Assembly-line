@@ -68,11 +68,10 @@ assert(/if \(fn === 'runDailyAutoJobs' \|\| fn === 'runDailyBackup'\) ScriptApp\
 assert(/ScriptApp\.newTrigger\('runDailyAutoJobs'\)\.timeBased\(\)\.everyDays\(1\)\.atHour\(7\)\.create\(\);/.test(backend),
   'งานเช้าเดิมต้องยังอยู่');
 
-// ── backup ที่พังเงียบๆ อันตรายกว่าไม่มี backup — ต้องเตือนทุกเช้า ────────────
-assert(/if \(backupState\.age_days < 0\) lines\.push\('⚠️ ยังไม่มีไฟล์สำรองข้อมูลเลย'\);/.test(backend));
-assert(/else if \(backupState\.age_days >= 2\) lines\.push\('⚠️ ไม่ได้สำรองข้อมูลมา '/.test(backend));
-// เช็ค backup พังต้องไม่ทำให้สรุปประจำวันทั้งฉบับหายไป
-assert(/try \{[\s\S]{0,400}readBackupState\(\)[\s\S]{0,400}\} catch \(errBackup\)/.test(backend));
+// ── backup ที่พังเงียบๆ อันตรายกว่าไม่มี backup ──────────────────────────────
+// เดิมมีคำเตือนแนบไปกับสรุปประจำวันทาง LINE ด้วย แต่ฟีเจอร์ LINE ถูกตัดออกแล้ว
+// (ไม่ได้ใช้งานจริง) ตอนนี้เหลือช่องทางเดียวคือป้ายสถานะบนหน้า Admin ซึ่งต้อง
+// บอกให้ชัดว่า "ค้างมากี่วัน" ไม่ใช่แค่ว่าเปิดใช้งานอยู่ — assert อยู่ด้านล่าง
 
 // ── สิทธิ์ + routing ───────────────────────────────────────────────────────
 assert(/function getBackupStatus\(payload\) \{[\s\S]{0,120}requireAdminUser/.test(backend));
@@ -85,7 +84,7 @@ assert(/function runBackupNow\(payload\) \{[\s\S]{0,120}requireAdminUser/.test(b
 // ── หน้า Admin ────────────────────────────────────────────────────────────
 assert(htmlLf.includes('id="backupStatusBadge"') && htmlLf.includes('id="backupRunNowBtn"') && htmlLf.includes('id="backupFolderLink"'));
 assert(htmlLf.includes('💾 สำรองข้อมูลอัตโนมัติ'));
-assert(/loadLineNotifyStatus\(\);\n\s+loadBackupStatus\(\);/.test(htmlLf), 'เข้าหน้า Admin ต้องเช็คสถานะสำรองให้เลย');
+assert(/loadBackupStatus\(\)/.test(htmlLf), 'เข้าหน้า Admin ต้องเช็คสถานะสำรองให้เลย');
 // ต้องบอก "ล่าสุดเมื่อไหร่/ค้างมากี่วัน" ไม่ใช่แค่ว่าเปิดใช้งานอยู่
 assert(htmlLf.includes("'⚠️ ค้างมา ' + age + ' วัน'") && htmlLf.includes('⛔ ยังไม่มีไฟล์สำรอง'));
 assert(htmlLf.includes('รัน setupAutomation ใน Apps Script อีกครั้ง'), 'ค้างแล้วต้องบอกวิธีแก้ ไม่ใช่เตือนลอยๆ');
