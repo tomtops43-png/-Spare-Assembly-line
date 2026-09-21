@@ -47,6 +47,16 @@ assert.strictEqual(new Set(ids).size, ids.length, 'id ต้องไม่ซ�
 assert(/data-fcc-act="scroll:' \+ s\.id \+ '"/.test(htmlLf), 'ปุ่มต้องใช้ act "scroll:<id>" ตัวเดิม');
 assert(/fccInited = true;\n\s*fccBuildJump\(\);/.test(htmlLf), 'fccInit ต้องสร้างแถบข้าม');
 
+// ── ต้องเลื่อนดูรายการที่ล้นออกนอกจอได้ ─────────────────────────────────────
+// เมาส์ทั่วไปไม่มีล้อแนวนอน + เราซ่อน scrollbar ไว้ ถ้าไม่มีทางเลื่อนเลย
+// รายการท้ายๆ จะกดไม่ได้ถาวร
+assert(htmlLf.includes('id="fccJumpPrev"') && htmlLf.includes('id="fccJumpNext"'),
+  'ต้องมีปุ่มเลื่อนซ้าย-ขวา');
+assert(/list\.addEventListener\('wheel'/.test(htmlLf), 'ต้องแปลงล้อเมาส์แนวตั้งเป็นการเลื่อนแนวนอน');
+assert(/kind === 'jumpscroll'/.test(htmlLf), 'ปุ่มลูกศรต้องมี handler');
+assert(!/\.fcc-jump-list\{[^}]*scroll-behavior:smooth/.test(htmlLf.replace(/\n/g, '')),
+  'ห้ามใส่ scroll-behavior:smooth ที่ตัว list — หมุนล้อแล้วจะหนืด');
+
 // ── ไฮไลต์ตามตำแหน่งที่กำลังดูอยู่ ──────────────────────────────────────────
 const src = [
   grab(/^ {4}function fccEsc\(v\) \{[\s\S]*?\n {4}\}/m, 'fccEsc'),
@@ -55,40 +65,56 @@ const src = [
   grab(/^ {4}var fccJumpRaf = 0;$/m, 'fccJumpRaf'),
   grab(/^ {4}var fccJumpActiveId = '';$/m, 'fccJumpActiveId'),
   grab(/^ {4}function fccBuildJump\(\) \{[\s\S]*?\n {4}\}/m, 'fccBuildJump'),
+  grab(/^ {4}function fccSyncJumpArrows\(\) \{[\s\S]*?\n {4}\}/m, 'fccSyncJumpArrows'),
+  grab(/^ {4}function fccScrollJumpList\(dir\) \{[\s\S]*?\n {4}\}/m, 'fccScrollJumpList'),
   grab(/^ {4}function fccQueueJumpSync\(\) \{[\s\S]*?\n {4}\}/m, 'fccQueueJumpSync'),
   grab(/^ {4}function fccSyncJumpActive\(\) \{[\s\S]*?\n {4}\}/m, 'fccSyncJumpActive')
 ].join('\n');
 
-// ตำแหน่งจำลอง: การ์ดที่ผ่านใต้แถบไปแล้ว (top <= 140) ตัวล่างสุดคือตัวที่กำลังดู
+const CARD_H = 300;
 let tops = {};
-function fakeCard(id) {
+function fakeEl(id) {
   const cls = new Set();
+  const attrs = {};
   return {
     id: id,
     classList: {
-      contains: (c) => cls.has(c),
       toggle: (c, on) => { on ? cls.add(c) : cls.delete(c); return on; },
-      has: (c) => cls.has(c)
+      has: (c) => cls.has(c),
+      contains: (c) => cls.has(c)
     },
-    getAttribute: (k) => (k === 'data-jump' ? id : null),
-    getBoundingClientRect: () => ({ top: tops[id] === undefined ? 9999 : tops[id], left: 0, right: 100 })
+    setAttribute: (k, v) => { attrs[k] = v; },
+    removeAttribute: (k) => { delete attrs[k]; },
+    getAttribute: (k) => (k === 'data-jump' ? id : (k in attrs ? attrs[k] : null)),
+    has: (k) => k in attrs,
+    getBoundingClientRect: () => {
+      const top = tops[id] === undefined ? 9999 : tops[id];
+      return { top: top, bottom: top + CARD_H, left: 0, right: 100 };
+    }
   };
 }
 const chips = [];
 const jumpList = {
-  innerHTML: '',
-  scrollLeft: 0,
+  innerHTML: '', scrollLeft: 0, clientWidth: 900, scrollWidth: 900,
   get children() { return chips; },
-  getBoundingClientRect: () => ({ left: 0, right: 1000 })
+  addEventListener: function() {},
+  scrollTo: function(o) { this.scrollLeft = o.left; },
+  getBoundingClientRect: () => ({ left: 0, right: 900 })
 };
+const prevBtn = fakeEl('fccJumpPrev');
+const nextBtn = fakeEl('fccJumpNext');
 const page = { classList: { contains: () => false } };
-const nodes = { fccJumpList: jumpList, dashboardPage: page };
-FCC_SECTIONS.forEach(function(s) { nodes[s.id] = fakeCard(s.id); });
+const bar = { getBoundingClientRect: () => ({ bottom: 60 }) };
+const nodes = { fccJumpList: jumpList, dashboardPage: page, fccJump: bar, fccJumpPrev: prevBtn, fccJumpNext: nextBtn };
+FCC_SECTIONS.forEach(function(s) { nodes[s.id] = fakeEl(s.id); });
 
+// resize ต้องผ่าน rafThrottle (ยามใน ui-performance-guards บังคับไว้) — ใช้ตัวจริงจาก index.html
+const rafThrottleSrc = grab(/^ {4}function rafThrottle\(fn\) \{[\s\S]*?\n {4}\}/m, 'rafThrottle');
 const api = new Function('document', 'window', 'requestAnimationFrame',
-  src + '\nreturn { build: fccBuildJump, sync: fccSyncJumpActive };')(
+  rafThrottleSrc + '\n' + src +
+  '\nreturn { build: fccBuildJump, sync: fccSyncJumpActive, arrows: fccSyncJumpArrows, scrollList: fccScrollJumpList };')(
   { getElementById: (id) => nodes[id] || null },
-  { addEventListener: function() {} },
+  { addEventListener: function() {}, innerHeight: 800 },
   function() {}
 );
 
@@ -97,27 +123,50 @@ assert(jumpList.innerHTML.includes('data-fcc-act="scroll:' + FCC_SECTIONS[0].id 
   'ต้องสร้างปุ่มจาก FCC_SECTIONS');
 assert.strictEqual((jumpList.innerHTML.match(/class="fcc-jump-it"/g) || []).length, FCC_SECTIONS.length,
   'ต้องมีปุ่มครบทุกส่วน');
+FCC_SECTIONS.forEach(function(s) { chips.push(fakeEl(s.id)); });
 
-// จำลองปุ่มจริงให้ sync ใช้ (ของจริงเป็น DOM ที่เกิดจาก innerHTML)
-FCC_SECTIONS.forEach(function(s) { chips.push(fakeCard(s.id)); });
-
-// เลื่อนมาอยู่ที่การ์ดใบที่ 3 — ใบ 1-3 ผ่านแถบไปแล้ว ที่เหลือยังอยู่ล่างจอ
-tops[FCC_SECTIONS[0].id] = -900;
-tops[FCC_SECTIONS[1].id] = -400;
-tops[FCC_SECTIONS[2].id] = 60;
-api.sync();
-assert(chips[2].classList.has('on'), 'ต้องไฮไลต์การ์ดที่กำลังดูอยู่');
-assert(!chips[1].classList.has('on') && !chips[3].classList.has('on'), 'ต้องไฮไลต์ทีละอันเดียว');
-
-// เลื่อนต่อไปการ์ดใบที่ 4
-tops[FCC_SECTIONS[2].id] = -200;
-tops[FCC_SECTIONS[3].id] = 100;
-api.sync();
-assert(chips[3].classList.has('on') && !chips[2].classList.has('on'), 'ไฮไลต์ต้องขยับตามการเลื่อน');
-
-// อยู่บนสุดยังไม่เลื่อน — ต้องไฮไลต์ตัวแรกไว้ ไม่ใช่ปล่อยว่าง
+// ── การ์ดที่วางคู่กันในแถวเดียว ต้องติดสีทั้งคู่ ────────────────────────────
+// เดิมไฮไลต์ใบเดียว ทำให้ Risk Heatmap / Top Intelligence ที่เห็นพร้อมกันบนจอ
+// ติดสีแค่ใบเดียว ดูเหมือนระบบชี้ผิดใบ
 tops = {};
+tops[FCC_SECTIONS[2].id] = -900;      // เลื่อนผ่านไปแล้ว อยู่เหนือจอ
+tops[FCC_SECTIONS[3].id] = 100;       // คู่ที่กำลังดู
+tops[FCC_SECTIONS[4].id] = 100;
 api.sync();
-assert(chips[0].classList.has('on'), 'ตอนอยู่บนสุดต้องไฮไลต์รายการแรก');
+assert(chips[3].classList.has('on') && chips[4].classList.has('on'),
+  'การ์ดที่อยู่แถวเดียวกันและเห็นพร้อมกัน ต้องติดสีทั้งคู่');
+assert(!chips[2].classList.has('on'), 'การ์ดที่เลื่อนผ่านไปแล้วต้องไม่ติดสี');
+assert(!chips[5].classList.has('on'), 'การ์ดที่ยังอยู่ล่างจอต้องไม่ติดสี');
+
+// เลื่อนต่อ — ไฮไลต์ต้องขยับตาม
+tops = {};
+tops[FCC_SECTIONS[6].id] = 120;
+api.sync();
+assert(chips[6].classList.has('on'), 'ไฮไลต์ต้องขยับตามการเลื่อน');
+assert(!chips[3].classList.has('on') && !chips[4].classList.has('on'), 'ของเดิมต้องถูกปลดสี');
+
+// อยู่ระหว่างการ์ด (ไม่มีใบไหนอยู่ในช่วงอ่าน) — ต้องยึดใบล่าสุดที่ผ่านไปแล้ว ไม่ใช่ปล่อยว่าง
+tops = {};
+tops[FCC_SECTIONS[1].id] = -900;
+api.sync();
+assert(chips[1].classList.has('on'), 'ต้องมีตัวที่ active เสมอ ไม่ปล่อยว่าง');
+
+// ── ปุ่มลูกศร: โผล่เมื่อรายการล้น และหรี่เมื่อเลื่อนสุดทาง ───────────────────
+jumpList.scrollWidth = 900; jumpList.clientWidth = 900; jumpList.scrollLeft = 0;
+api.arrows();
+assert(!prevBtn.classList.has('show') && !nextBtn.classList.has('show'),
+  'รายการไม่ล้น ต้องไม่โชว์ปุ่มลูกศร');
+
+jumpList.scrollWidth = 1800; jumpList.scrollLeft = 0;
+api.arrows();
+assert(prevBtn.classList.has('show') && nextBtn.classList.has('show'), 'รายการล้นต้องโชว์ปุ่ม');
+assert(prevBtn.has('disabled'), 'อยู่ซ้ายสุดแล้ว ปุ่มซ้ายต้องหรี่');
+assert(!nextBtn.has('disabled'), 'ยังเลื่อนขวาได้ ปุ่มขวาต้องกดได้');
+
+api.scrollList(1);
+assert(jumpList.scrollLeft > 0, 'กดลูกศรขวาแล้วต้องเลื่อนจริง');
+jumpList.scrollLeft = 900;   // สุดขวา
+api.arrows();
+assert(nextBtn.has('disabled') && !prevBtn.has('disabled'), 'สุดขวาแล้วปุ่มขวาต้องหรี่ ปุ่มซ้ายกดได้');
 
 console.log('Dashboard jump navigation checks passed');
