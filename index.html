@@ -1733,6 +1733,7 @@
             </div>
           </div>
           <div class="fcc-card-b">
+            <div id="fccMachineAlert"></div>
             <div id="fccMachineSummary" style="display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin-bottom:12px;"></div>
             <div id="fccMachineTable"><div class="fcc-skel" style="height:150px"></div></div>
             <div id="fccMachineNote" style="margin-top:10px;"></div>
@@ -12580,6 +12581,45 @@ function inferRequestPriority(stock, min) {
        "ยังไม่ระบุเครื่อง" ให้เห็นชัด ไม่กลืนหายจนตัวเลขดูน้อยกว่าจริง   */
     var fccMachineExp = {};
 
+    /* เครื่องที่ "เบิกถี่ผิดปกติ" — เทียบความถี่ 30 วันล่าสุด กับค่าปกติของเครื่องนั้นเอง
+       (90 วันก่อนหน้า ปรับให้เป็นอัตราต่อ 30 วันก่อนเทียบ) ไม่เทียบข้ามเครื่อง เพราะ
+       เครื่องใหญ่กับเครื่องเล็กกินอะไหล่คนละระดับอยู่แล้ว
+       ต้องมีอย่างน้อย 3 ครั้งในช่วงล่าสุด + 2 ครั้งในช่วงฐาน ถึงจะสรุป — น้อยกว่านี้
+       เป็นความบังเอิญได้ง่าย และการเตือนผิดบ่อยๆ จะทำให้คนเลิกเชื่อการเตือนทั้งหมด */
+    function fccMachineAnomalies(rows) {
+      var RECENT_MS = 30 * 86400000;
+      var BASE_MS = 90 * 86400000;
+      var recentFrom = Date.now() - RECENT_MS;
+      var baseFrom = recentFrom - BASE_MS;
+      var acc = {};
+      (rows || []).forEach(function(r) {
+        if (!r.machine || !r.ms || r.ms < baseFrom) return;
+        var key = r.line + '||' + r.machine;
+        if (!acc[key]) acc[key] = { key: key, line: r.line, machine: r.machine, recent: 0, recentQty: 0, base: 0, parts: {} };
+        var a = acc[key];
+        if (r.ms < recentFrom) { a.base += 1; return; }
+        a.recent += 1;
+        a.recentQty += r.qty;
+        var pk = (r.partName || 'ไม่ระบุชื่อ') + (r.model && r.model !== '-' ? ' (' + r.model + ')' : '');
+        a.parts[pk] = (a.parts[pk] || 0) + 1;
+      });
+      var out = [];
+      Object.keys(acc).forEach(function(k) {
+        var a = acc[k];
+        if (a.recent < 3 || a.base < 2) return;
+        var baseRate = a.base / (BASE_MS / RECENT_MS);
+        var ratio = a.recent / baseRate;
+        if (ratio < 2) return;
+        var topPart = Object.keys(a.parts).sort(function(x, y) { return a.parts[y] - a.parts[x]; })[0] || '';
+        out.push({
+          key: a.key, line: a.line, machine: a.machine, recent: a.recent, recentQty: a.recentQty,
+          baseRate: baseRate, ratio: ratio, level: ratio >= 3 ? 'crit' : 'warn',
+          topPart: topPart, topPartCount: topPart ? a.parts[topPart] : 0
+        });
+      });
+      return out.sort(function(a, b) { return b.ratio - a.ratio; });
+    }
+
     function fccRenderMachineUsage() {
       var tableEl = document.getElementById('fccMachineTable');
       var sumEl = document.getElementById('fccMachineSummary');
@@ -12598,6 +12638,11 @@ function inferRequestPriority(stock, min) {
 
       var rows = fccExpenseValidRows(logs);
       if (selLine) rows = rows.filter(function(r) { return r.line === selLine; });
+      // หาเครื่องผิดปกติจากช่วงเวลาคงที่ (30 วัน vs 90 วันก่อนหน้า) ไม่ผูกกับตัวกรองช่วงของตาราง
+      // ไม่งั้นเลือก "3 เดือน" กับ "12 เดือน" จะได้คำตอบคนละแบบทั้งที่ถามคำถามเดียวกัน
+      var anomalies = fccMachineAnomalies(rows);
+      var anomalyByKey = {};
+      anomalies.forEach(function(a) { anomalyByKey[a.key] = a; });
       var monthsAll = Array.from(new Set(rows.map(function(r) { return r.month; }))).sort();
       var months = monthLimit > 0 ? monthsAll.slice(-monthLimit) : monthsAll;
       var monthSet = {};
@@ -12651,6 +12696,33 @@ function inferRequestPriority(stock, min) {
           : '';
       }
 
+      var alertEl = document.getElementById('fccMachineAlert');
+      if (alertEl) {
+        alertEl.innerHTML = anomalies.length
+          ? '<div style="border:1px solid #fecaca; background:linear-gradient(135deg,#fef2f2,#fff7ed); border-radius:12px; padding:11px 13px; margin-bottom:12px;">' +
+              '<div style="font-size:12px; font-weight:800; color:#b91c1c;">🚨 เครื่องที่เบิกอะไหล่ถี่ผิดปกติ ' + fccInt(anomalies.length) + ' เครื่อง</div>' +
+              '<div style="font-size:10px; color:#9a3412; margin-top:1px;">เทียบความถี่ 30 วันล่าสุด กับค่าปกติของเครื่องนั้นเอง (90 วันก่อนหน้า) — เบิกถี่ขึ้นผิดปกติมักแปลว่าเครื่องกำลังมีปัญหา ควรเข้าไปดูก่อนเสียจริง</div>' +
+              '<div style="display:flex; flex-direction:column; gap:6px; margin-top:9px;">' +
+              anomalies.slice(0, 6).map(function(a) {
+                var crit = a.level === 'crit';
+                return '<div data-fcc-act="mexp:' + fccEsc(a.key) + '" role="button" tabindex="0" title="กดเพื่อดูรายการอะไหล่ของเครื่องนี้" ' +
+                  'style="cursor:pointer; display:flex; flex-wrap:wrap; align-items:center; gap:7px; background:#fff; border:1px solid ' +
+                  (crit ? '#fca5a5' : '#fed7aa') + '; border-radius:9px; padding:6px 9px;">' +
+                  '<span style="font-size:10px; font-weight:800; color:#fff; background:' + (crit ? '#dc2626' : '#ea580c') +
+                    '; border-radius:6px; padding:2px 6px; white-space:nowrap;">' + a.ratio.toFixed(1) + '× ปกติ</span>' +
+                  '<span style="font-size:12px; font-weight:700; color:#0f172a;">' + fccEsc(a.machine) + '</span>' +
+                  '<span style="font-size:10px; color:#64748b;">' + fccEsc(a.line) + '</span>' +
+                  '<span style="font-size:10.5px; color:#475569;">เบิก ' + fccInt(a.recent) + ' ครั้งใน 30 วัน (ปกติ ~' +
+                    (a.baseRate < 1 ? a.baseRate.toFixed(1) : fccInt(Math.round(a.baseRate))) + ' ครั้ง)</span>' +
+                  (a.topPart ? '<span style="font-size:10px; color:#94a3b8;">ส่วนใหญ่: ' + fccEsc(a.topPart) + ' ×' + fccInt(a.topPartCount) + '</span>' : '') +
+                  '</div>';
+              }).join('') +
+              '</div>' +
+              (anomalies.length > 6 ? '<div style="font-size:10px; color:#9a3412; margin-top:6px;">และอีก ' + fccInt(anomalies.length - 6) + ' เครื่อง — ดูในตารางด้านล่าง</div>' : '') +
+            '</div>'
+          : '';
+      }
+
       if (!list.length) {
         tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีประวัติการเบิกที่ระบุเครื่องในช่วงที่เลือก — ข้อมูลจะขึ้นเองเมื่อมีการเบิกอะไหล่พร้อมเลือกเครื่อง</div>';
         if (sumEl) sumEl.innerHTML = '';
@@ -12688,6 +12760,11 @@ function inferRequestPriority(stock, min) {
           '<td style="padding:8px 10px; color:#64748b; white-space:nowrap;">' + fccEsc(m.line) + '</td>' +
           '<td style="padding:8px 10px; font-weight:700;">' +
             '<span style="color:#94a3b8; margin-right:5px;">' + (open ? '&#x25BE;' : '&#x25B8;') + '</span>' + fccEsc(m.machine) +
+            (anomalyByKey[m.key]
+              ? '<span style="margin-left:6px; font-size:9.5px; font-weight:800; color:#fff; border-radius:5px; padding:1px 5px; white-space:nowrap; background:' +
+                (anomalyByKey[m.key].level === 'crit' ? '#dc2626' : '#ea580c') + ';" title="เบิกถี่กว่าปกติของเครื่องนี้เอง ' +
+                anomalyByKey[m.key].ratio.toFixed(1) + ' เท่า (30 วันล่าสุด)">🚨 ' + anomalyByKey[m.key].ratio.toFixed(1) + '×</span>'
+              : '') +
             '<div style="font-size:9.5px; color:#94a3b8; font-weight:500;">' + fccEsc(partList.length + ' รายการอะไหล่' + (topParts ? ' · ' + topParts : '')) + '</div>' +
           '</td>' +
           '<td style="padding:8px 10px; text-align:right; font-weight:800; color:#2563eb;">' + fccInt(m.count) + '</td>' +
