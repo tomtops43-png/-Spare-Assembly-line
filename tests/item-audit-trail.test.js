@@ -63,7 +63,9 @@ assert(/for \(var i = values\.length - 1; i >= 1 && rows\.length < limit; i -= 1
 // ── หน้าจอฝั่ง Admin ────────────────────────────────────────────────────────
 assert(htmlLf.includes('id="itemAuditTable"') && htmlLf.includes('🛡️ ประวัติการแก้ไขข้อมูลอะไหล่'));
 assert(htmlLf.includes('id="itemAuditActionFilter"') && htmlLf.includes('id="itemAuditSearch"'));
-assert(/setTabStyles\('admin'\);\n\s+loadItemAudit\(false\)/.test(htmlLf), 'เข้าหน้า Admin แล้วต้องโหลดประวัติให้เลย');
+// หน้า Admin แยกเป็นแท็บแล้ว โหลดข้อมูลตอนเปิดแท็บนั้น (เดิมยิงทุก API พร้อมกันตอนเข้าหน้า)
+assert(/name === 'audit'\) \{\n\s+loadItemAudit\(false\)/.test(htmlLf), 'เปิดแท็บประวัติแล้วต้องโหลดให้เลย');
+assert(htmlLf.includes('data-admin-panel="audit"'), 'ประวัติการแก้ไขต้องอยู่ในแท็บของตัวเอง');
 assert(/STOCK_EDIT: \{ label: '⚠️ แก้ยอดคงเหลือ'/.test(htmlLf), 'การแก้ยอดคงเหลือต้องเด่นกว่าการแก้อย่างอื่น');
 assert(htmlLf.includes('⚠️ มีการแก้ยอดคงเหลือโดยตรง '), 'ต้องสรุปให้เห็นว่ามีการแก้ยอดตรงๆ กี่ครั้ง');
 // ช่อง Stock ในฟอร์มแก้ไขต้องล็อกให้คนที่ไม่ใช่ Admin เห็นตั้งแต่แรก ไม่ใช่ให้พิมพ์แล้วค่อยเด้ง
