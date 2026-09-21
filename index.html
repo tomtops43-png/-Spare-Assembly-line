@@ -1667,6 +1667,42 @@
             </div>
           </div>
         </div>
+        <!-- ประวัติการเบิกต่อเครื่องจักร — อ่านจากคอลัมน์ Machine ในชีต Log (ช่องบังคับตอนเบิก)
+             ตอบคำถาม "เครื่องไหนกินอะไหล่อะไรไปกี่ครั้ง" ซึ่งเดิมดูได้แค่ระดับไลน์ -->
+        <div class="fcc-card" id="fccMachineCard" style="margin-top:12px">
+          <div class="fcc-card-h">
+            <div>
+              <div class="fcc-card-t"><span class="ico">&#x1F3ED;</span>ประวัติการเบิกของเครื่องจักร</div>
+              <div class="fcc-card-sub" id="fccMachineSub">เครื่องไหนเบิกอะไหล่อะไรไปบ้างกี่ครั้ง — แยกตามไลน์ × เครื่อง (กดที่แถวเพื่อดูรายการอะไหล่)</div>
+            </div>
+            <div class="fcc-controls">
+              <select id="fccMachineLineFilter" class="fcc-select fcc-select-sm" aria-label="เลือกไลน์สำหรับประวัติการเบิกของเครื่องจักร">
+                <option value="__all__">ทุกไลน์ (รวม 4 ไลน์)</option>
+                <option value="H9">H9</option>
+                <option value="Arc Chute">Arc Chute</option>
+                <option value="Coil Winding">Coil Winding</option>
+                <option value="Lug&Screw">Lug&amp;Screw</option>
+              </select>
+              <select id="fccMachineRangeFilter" class="fcc-select fcc-select-sm" aria-label="เลือกช่วงเวลาสำหรับประวัติการเบิกของเครื่องจักร">
+                <option value="3">3 เดือนล่าสุด</option>
+                <option value="6">6 เดือนล่าสุด</option>
+                <option value="12" selected>12 เดือนล่าสุด</option>
+                <option value="0">ทั้งหมด</option>
+              </select>
+              <select id="fccMachineSortFilter" class="fcc-select fcc-select-sm" aria-label="เรียงลำดับเครื่องจักร">
+                <option value="count">เรียงตามจำนวนครั้งที่เบิก</option>
+                <option value="qty">เรียงตามจำนวนชิ้น</option>
+                <option value="amount">เรียงตามมูลค่า</option>
+                <option value="last">เรียงตามเบิกล่าสุด</option>
+              </select>
+            </div>
+          </div>
+          <div class="fcc-card-b">
+            <div id="fccMachineSummary" style="display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin-bottom:12px;"></div>
+            <div id="fccMachineTable"><div class="fcc-skel" style="height:150px"></div></div>
+            <div id="fccMachineNote" style="margin-top:10px;"></div>
+          </div>
+        </div>
         <div id="fccExec" class="fcc-exec" style="margin-top:12px">
           <div class="fcc-card fcc-skel" style="min-height:92px"></div>
           <div class="fcc-card fcc-skel" style="min-height:92px"></div>
@@ -11618,7 +11654,9 @@ function inferRequestPriority(stock, min) {
           model: r.model || '',
           partName: r.partName || r.name || '',
           reason: String(r.reason || '').trim(),
-          by: String(r.by || '').trim()
+          by: String(r.by || '').trim(),
+          ms: ms,
+          machine: String(r.machine || '').trim()
         };
       }).filter(function(r) { return r !== null && r.month; });
     }
@@ -12501,6 +12539,166 @@ function inferRequestPriority(stock, min) {
       showQuickToast('Export ค่าใช้จ่ายสิ้นเปลืองเป็น CSV แล้ว', 'success');
     }
 
+    /* ── ประวัติการเบิกต่อเครื่องจักร ──────────────────────────────────
+       อ่านชื่อเครื่องจากคอลัมน์ Machine ของชีต Log (ช่องบังคับตอนเบิก)
+       รายการเก่าที่บันทึกก่อนมีช่องนี้จะไม่มีชื่อเครื่อง — แยกไปนับใน
+       "ยังไม่ระบุเครื่อง" ให้เห็นชัด ไม่กลืนหายจนตัวเลขดูน้อยกว่าจริง   */
+    var fccMachineExp = {};
+
+    function fccRenderMachineUsage() {
+      var tableEl = document.getElementById('fccMachineTable');
+      var sumEl = document.getElementById('fccMachineSummary');
+      var noteEl = document.getElementById('fccMachineNote');
+      var subEl = document.getElementById('fccMachineSub');
+      if (!tableEl) return;
+      var logs = fccLast.Logs;
+      if (!Array.isArray(logs)) return; // ยังโหลดไม่เสร็จ — คง skeleton ไว้
+
+      var lineSel = document.getElementById('fccMachineLineFilter');
+      var rangeSel = document.getElementById('fccMachineRangeFilter');
+      var sortSel = document.getElementById('fccMachineSortFilter');
+      var selLine = (lineSel && lineSel.value !== '__all__') ? String(lineSel.value) : '';
+      var monthLimit = rangeSel ? Number(rangeSel.value || 12) : 12;
+      var sortMode = sortSel ? String(sortSel.value || 'count') : 'count';
+
+      var rows = fccExpenseValidRows(logs);
+      if (selLine) rows = rows.filter(function(r) { return r.line === selLine; });
+      var monthsAll = Array.from(new Set(rows.map(function(r) { return r.month; }))).sort();
+      var months = monthLimit > 0 ? monthsAll.slice(-monthLimit) : monthsAll;
+      var monthSet = {};
+      months.forEach(function(m) { monthSet[m] = true; });
+      rows = rows.filter(function(r) { return monthSet[r.month]; });
+
+      var byMachine = {}, list = [];
+      var noMachineCount = 0, noMachineQty = 0;
+      rows.forEach(function(r) {
+        if (!r.machine) { noMachineCount += 1; noMachineQty += r.qty; return; }
+        var key = r.line + '||' + r.machine;
+        var m = byMachine[key];
+        if (!m) {
+          m = byMachine[key] = { key: key, line: r.line, machine: r.machine, count: 0, qty: 0, amount: 0, lastMs: 0, parts: {} };
+          list.push(m);
+        }
+        m.count += 1; m.qty += r.qty; m.amount += r.amount;
+        if (r.ms > m.lastMs) m.lastMs = r.ms;
+        var pk = (r.partName || 'ไม่ระบุชื่อ') + (r.model && r.model !== '-' ? ' (' + r.model + ')' : '');
+        if (!m.parts[pk]) m.parts[pk] = { name: pk, count: 0, qty: 0, amount: 0, lastMs: 0 };
+        var p = m.parts[pk];
+        p.count += 1; p.qty += r.qty; p.amount += r.amount;
+        if (r.ms > p.lastMs) p.lastMs = r.ms;
+      });
+
+      list.sort(function(a, b) {
+        if (sortMode === 'qty') return b.qty - a.qty || b.count - a.count;
+        if (sortMode === 'amount') return b.amount - a.amount || b.count - a.count;
+        if (sortMode === 'last') return b.lastMs - a.lastMs;
+        return b.count - a.count || b.qty - a.qty;
+      });
+
+      var totalCount = 0, totalQty = 0, totalAmount = 0;
+      list.forEach(function(m) { totalCount += m.count; totalQty += m.qty; totalAmount += m.amount; });
+      var scopeTxt = (selLine || 'ทุกไลน์') + ' · ' + (monthLimit > 0 ? monthLimit + ' เดือนล่าสุด' : 'ทั้งหมด');
+
+      function sumCard(label, value, note, color) {
+        return '<div style="border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; background:#f8fafc;">' +
+          '<div style="font-size:10.5px; color:#64748b; font-weight:600;">' + fccEsc(label) + '</div>' +
+          '<div style="font-size:19px; font-weight:800; color:' + color + '; margin-top:2px;">' + value + '</div>' +
+          (note ? '<div style="font-size:10px; color:#94a3b8; margin-top:1px;">' + fccEsc(note) + '</div>' : '') +
+          '</div>';
+      }
+
+      if (noteEl) {
+        noteEl.innerHTML = noMachineCount
+          ? '<div style="border:1px solid #fde68a; background:#fffbeb; border-radius:10px; padding:8px 11px; font-size:11px; color:#92400e;">' +
+              '⚠️ มีการเบิกที่ยังไม่ได้ระบุเครื่อง ' + fccInt(noMachineCount) + ' ครั้ง (' + fccInt(noMachineQty) + ' ชิ้น) — ' +
+              'ส่วนใหญ่เป็นรายการเก่าที่บันทึกไว้ก่อนระบบจะบังคับเลือกเครื่อง จึงไม่ถูกนับในตารางนี้' +
+            '</div>'
+          : '';
+      }
+
+      if (!list.length) {
+        tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีประวัติการเบิกที่ระบุเครื่องในช่วงที่เลือก — ข้อมูลจะขึ้นเองเมื่อมีการเบิกอะไหล่พร้อมเลือกเครื่อง</div>';
+        if (sumEl) sumEl.innerHTML = '';
+        if (subEl) subEl.textContent = 'เครื่องไหนเบิกอะไหล่อะไรไปบ้างกี่ครั้ง · ' + scopeTxt + ' · ยังไม่มีข้อมูล';
+        return;
+      }
+
+      var topMachine = list.slice().sort(function(a, b) { return b.count - a.count; })[0];
+      if (sumEl) {
+        sumEl.innerHTML =
+          sumCard('เครื่องที่มีการเบิก (' + scopeTxt + ')', fccInt(list.length) + ' เครื่อง',
+                  Object.keys(list.reduce(function(acc, m) { acc[m.line] = 1; return acc; }, {})).length + ' ไลน์', '#0f172a') +
+          sumCard('จำนวนครั้งที่เบิกรวม', fccInt(totalCount) + ' ครั้ง', fccInt(totalQty) + ' ชิ้น', '#2563eb') +
+          sumCard('มูลค่าอะไหล่ที่ลงเครื่อง', '฿' + fccInt(totalAmount), 'เฉพาะอะไหล่ที่ใส่ราคาไว้แล้ว', '#dc2626') +
+          sumCard('เครื่องที่เบิกบ่อยสุด', fccEsc(topMachine.machine),
+                  topMachine.line + ' · ' + fccInt(topMachine.count) + ' ครั้ง · ' + fccInt(topMachine.qty) + ' ชิ้น', '#7c3aed');
+      }
+
+      var head = '<thead><tr style="border-bottom:2px solid #e2e8f0; color:#64748b; font-size:11px;">' +
+        '<th style="padding:6px 10px; text-align:left;">ไลน์</th>' +
+        '<th style="padding:6px 10px; text-align:left;">เครื่อง</th>' +
+        '<th style="padding:6px 10px; text-align:right; white-space:nowrap;">ครั้งที่เบิก</th>' +
+        '<th style="padding:6px 10px; text-align:right; white-space:nowrap;">จำนวนชิ้น</th>' +
+        '<th style="padding:6px 10px; text-align:right; white-space:nowrap;">มูลค่า</th>' +
+        '<th style="padding:6px 10px; text-align:right; white-space:nowrap;">เบิกล่าสุด</th>' +
+        '</tr></thead>';
+
+      var body = list.map(function(m) {
+        var open = !!fccMachineExp[m.key];
+        var partList = Object.keys(m.parts).map(function(k) { return m.parts[k]; })
+          .sort(function(a, b) { return b.count - a.count || b.qty - a.qty; });
+        var topParts = partList.slice(0, 3).map(function(p) { return p.name + ' ×' + p.count; }).join(', ');
+        var main = '<tr data-fcc-act="mexp:' + fccEsc(m.key) + '" role="button" tabindex="0" ' +
+          'style="border-bottom:1px solid #f1f5f9; cursor:pointer;" title="กดเพื่อดูรายการอะไหล่ทั้งหมดของเครื่องนี้">' +
+          '<td style="padding:8px 10px; color:#64748b; white-space:nowrap;">' + fccEsc(m.line) + '</td>' +
+          '<td style="padding:8px 10px; font-weight:700;">' +
+            '<span style="color:#94a3b8; margin-right:5px;">' + (open ? '&#x25BE;' : '&#x25B8;') + '</span>' + fccEsc(m.machine) +
+            '<div style="font-size:9.5px; color:#94a3b8; font-weight:500;">' + fccEsc(partList.length + ' รายการอะไหล่' + (topParts ? ' · ' + topParts : '')) + '</div>' +
+          '</td>' +
+          '<td style="padding:8px 10px; text-align:right; font-weight:800; color:#2563eb;">' + fccInt(m.count) + '</td>' +
+          '<td style="padding:8px 10px; text-align:right;">' + fccInt(m.qty) + '</td>' +
+          '<td style="padding:8px 10px; text-align:right;">' + (m.amount > 0 ? '฿' + fccInt(m.amount) : '<span style="color:#cbd5e1;">—</span>') + '</td>' +
+          '<td style="padding:8px 10px; text-align:right; color:#64748b; white-space:nowrap;">' + fccEsc(fccRelTime(m.lastMs)) + '</td>' +
+          '</tr>';
+        if (!open) return main;
+        var detail = '<tr style="border-bottom:1px solid #f1f5f9; background:#f8fafc;"><td colspan="6" style="padding:4px 10px 10px 28px;">' +
+          '<table style="width:100%; border-collapse:collapse; font-size:11.5px;">' +
+          '<thead><tr style="color:#94a3b8;">' +
+            '<th style="padding:4px 8px; text-align:left;">อะไหล่ที่เบิกใส่เครื่องนี้</th>' +
+            '<th style="padding:4px 8px; text-align:right; white-space:nowrap;">กี่ครั้ง</th>' +
+            '<th style="padding:4px 8px; text-align:right; white-space:nowrap;">รวมชิ้น</th>' +
+            '<th style="padding:4px 8px; text-align:right; white-space:nowrap;">มูลค่า</th>' +
+            '<th style="padding:4px 8px; text-align:right; white-space:nowrap;">ล่าสุด</th>' +
+          '</tr></thead><tbody>' +
+          partList.map(function(p) {
+            return '<tr>' +
+              '<td style="padding:4px 8px;">' + fccEsc(p.name) + '</td>' +
+              '<td style="padding:4px 8px; text-align:right; font-weight:700;">' + fccInt(p.count) + '</td>' +
+              '<td style="padding:4px 8px; text-align:right;">' + fccInt(p.qty) + '</td>' +
+              '<td style="padding:4px 8px; text-align:right;">' + (p.amount > 0 ? '฿' + fccInt(p.amount) : '<span style="color:#cbd5e1;">—</span>') + '</td>' +
+              '<td style="padding:4px 8px; text-align:right; color:#94a3b8; white-space:nowrap;">' + fccEsc(fccRelTime(p.lastMs)) + '</td>' +
+              '</tr>';
+          }).join('') +
+          '</tbody></table></td></tr>';
+        return main + detail;
+      }).join('');
+
+      var foot = '<tfoot><tr style="border-top:2px solid #cbd5e1; background:#f1f5f9;">' +
+        '<td colspan="2" style="padding:9px 10px; font-weight:800;">รวม ' + fccInt(list.length) + ' เครื่อง</td>' +
+        '<td style="padding:9px 10px; text-align:right; font-weight:800;">' + fccInt(totalCount) + '</td>' +
+        '<td style="padding:9px 10px; text-align:right; font-weight:800;">' + fccInt(totalQty) + '</td>' +
+        '<td style="padding:9px 10px; text-align:right; font-weight:900; color:#dc2626;">฿' + fccInt(totalAmount) + '</td>' +
+        '<td></td></tr></tfoot>';
+
+      tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12.5px; min-width:560px;">' +
+        head + '<tbody>' + body + '</tbody>' + foot + '</table></div>';
+
+      if (subEl) {
+        subEl.textContent = 'เครื่องไหนเบิกอะไหล่อะไรไปบ้างกี่ครั้ง · ' + scopeTxt + ' · ' +
+          fccInt(list.length) + ' เครื่อง · ' + fccInt(totalCount) + ' ครั้ง · กดที่แถวเพื่อดูรายการอะไหล่';
+      }
+    }
+
     /* ── Cost Ratio (รายจ่ายอะไหล่ / มูลค่าผลิต) ──────────────────────── */
     function fccRenderCostRatio() {
       var tableEl = document.getElementById('fccCostRatioTable');
@@ -13074,6 +13272,9 @@ function inferRequestPriority(stock, min) {
       } else if (kind === 'expand') {
         fccQExp[arg] = !fccQExp[arg];
         if (fccLast.P) fccRenderQueue(fccLast.P);
+      } else if (kind === 'mexp') {
+        fccMachineExp[arg] = !fccMachineExp[arg];
+        fccRenderMachineUsage();
       } else if (kind === 'csv') {
         fccExportCsv();
       } else if (kind === 'dock') {
@@ -13213,6 +13414,7 @@ function inferRequestPriority(stock, min) {
         fccRenderCostRatio();
         fccRenderRepairCost();
         fccRenderMiscExpense();
+        fccRenderMachineUsage();
       });
     }
 
@@ -19603,6 +19805,11 @@ function inferRequestPriority(stock, min) {
     ['fccMiscLineFilter', 'fccMiscRangeFilter'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.addEventListener('change', fccRenderMiscExpense);
+    });
+    // ── ประวัติการเบิกของเครื่องจักร: คำนวณใหม่จาก log ที่โหลดไว้แล้ว ไม่ยิง API ซ้ำ ──
+    ['fccMachineLineFilter', 'fccMachineRangeFilter', 'fccMachineSortFilter'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('change', fccRenderMachineUsage);
     });
     var fccMiscExportBtnEl = document.getElementById('fccMiscExportBtn');
     if (fccMiscExportBtnEl) fccMiscExportBtnEl.addEventListener('click', fccExportMiscExpenseCsv);
