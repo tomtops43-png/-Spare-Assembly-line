@@ -344,6 +344,36 @@
     }
     @media (min-width:768px){ .fcc-canvas{ padding:26px 26px 34px; } }
 
+    /* ── แถบข้ามไปยังส่วนต่างๆ (jump bar) ──────────────────────
+       ต้องอยู่นอก .fcc-canvas เพราะ canvas มี overflow:hidden ซึ่งทำให้
+       position:sticky ของลูกไม่ทำงาน (ยึดกับ canvas แทน viewport)      */
+    .fcc-jump{
+      position:sticky; top:0; z-index:40; margin-bottom:10px;
+      display:flex; align-items:center; gap:9px;
+      padding:8px 10px; border-radius:16px;
+      background:rgba(255,255,255,.92); backdrop-filter:blur(10px);
+      border:1px solid rgba(148,163,184,.42);
+      box-shadow:0 10px 24px -14px rgba(15,23,42,.35);
+    }
+    .fcc-jump-lb{ flex:none; font-size:11px; font-weight:700; color:#475569; letter-spacing:.2px; }
+    @media (max-width:640px){ .fcc-jump-lb{ display:none; } }
+    .fcc-jump-list{
+      display:flex; gap:5px; overflow-x:auto; scroll-behavior:smooth;
+      scrollbar-width:none; -ms-overflow-style:none; padding:1px;
+    }
+    .fcc-jump-list::-webkit-scrollbar{ display:none; }
+    .fcc-jump-it{
+      flex:none; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+      font-family:'Prompt',sans-serif; font-size:11px; font-weight:600; color:#475569;
+      background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;
+      padding:5px 10px; cursor:pointer; transition:all .16s;
+    }
+    .fcc-jump-it:hover{ color:#1d4ed8; border-color:#93c5fd; background:#eff6ff; }
+    .fcc-jump-it.on{ color:#fff; background:#2563eb; border-color:#1d4ed8; box-shadow:0 4px 12px -4px rgba(37,99,235,.6); }
+    .fcc-jump-it .ic{ font-size:12px; line-height:1; }
+    /* เผื่อที่ให้แถบ sticky ไม่บังหัวการ์ดตอนกดข้าม */
+    #dashboardPage.fcc .fcc-card, #dashboardPage.fcc .fcc-exec{ scroll-margin-top:86px; }
+
     /* ── grid system ─────────────────────────────────────────── */
     .fcc-row{ display:grid; gap:12px; grid-template-columns:repeat(12,minmax(0,1fr)); }
     .fcc-c3{grid-column:span 12} .fcc-c4{grid-column:span 12} .fcc-c5{grid-column:span 12}
@@ -1297,6 +1327,11 @@
 
     <!-- ═══════════════ FACTORY COMMAND CENTER ═══════════════ -->
     <section id="dashboardPage" class="hidden fcc mb-6">
+      <!-- แถบข้ามไปยังการ์ด/กราฟแต่ละตัว — รายการสร้างจาก FCC_SECTIONS ใน fccBuildJump() -->
+      <nav id="fccJump" class="fcc-jump" aria-label="ข้ามไปยังส่วนต่างๆ ของ Dashboard">
+        <span class="fcc-jump-lb">&#x1F4D1; ข้ามไปที่</span>
+        <div class="fcc-jump-list" id="fccJumpList"></div>
+      </nav>
       <div class="fcc-canvas">
 
         <!-- Command header -->
@@ -1403,7 +1438,7 @@
             </div>
           </div>
           <div class="fcc-c5">
-            <div class="fcc-card" style="height:100%">
+            <div class="fcc-card" id="fccTrendCard" style="height:100%">
               <div class="fcc-card-h">
                 <div>
                   <div class="fcc-card-t"><span class="ico">&#x1F4C8;</span>เบิก / รับเข้า 14 วัน</div>
@@ -1418,7 +1453,7 @@
         </div>
         <div class="fcc-row" style="margin-top:12px">
           <div class="fcc-c7">
-            <div class="fcc-card" style="height:100%">
+            <div class="fcc-card" id="fccHeatmapCard" style="height:100%">
               <div class="fcc-card-h">
                 <div>
                   <div class="fcc-card-t"><span class="ico">&#x1F525;</span>Risk Heatmap — หมวดอะไหล่ &times; Line</div>
@@ -1431,7 +1466,7 @@
             </div>
           </div>
           <div class="fcc-c5">
-            <div class="fcc-card" style="height:100%">
+            <div class="fcc-card" id="fccTopsCard" style="height:100%">
               <div class="fcc-card-h">
                 <div class="fcc-card-t"><span class="ico">&#x1F3C6;</span>Top Intelligence</div>
                 <div class="fcc-tabs" id="fccTopsTabs">
@@ -1456,7 +1491,7 @@
         </div>
         <div class="fcc-row">
           <div class="fcc-c5">
-            <div class="fcc-card" style="height:100%">
+            <div class="fcc-card" id="fccInsightsCard" style="height:100%">
               <div class="fcc-card-h">
                 <div>
                   <div class="fcc-card-t"><span class="ico">&#x2728;</span>Insight Engine</div>
@@ -1488,7 +1523,7 @@
             </div>
           </div>
         </div>
-        <div class="fcc-card" style="margin-top:12px">
+        <div class="fcc-card" id="fccRailCard" style="margin-top:12px">
           <div class="fcc-card-h">
             <div>
               <div class="fcc-card-t"><span class="ico">&#x1F6A8;</span>Critical Spare Parts</div>
@@ -1515,7 +1550,7 @@
         </div>
         <div class="fcc-row">
           <div class="fcc-c7">
-            <div class="fcc-card">
+            <div class="fcc-card" id="fccPipelineCard">
               <div class="fcc-card-h">
                 <div>
                   <div class="fcc-card-t"><span class="ico">&#x1F4CB;</span>Purchase Workflow</div>
@@ -1529,7 +1564,7 @@
             </div>
           </div>
           <div class="fcc-c5">
-            <div class="fcc-card" style="height:100%">
+            <div class="fcc-card" id="fccActivityCard" style="height:100%">
               <div class="fcc-card-h">
                 <div>
                   <div class="fcc-card-t"><span class="ico">&#x1F504;</span>Live Activity</div>
@@ -1543,7 +1578,7 @@
             </div>
           </div>
         </div>
-        <div class="fcc-card" style="margin-top:12px">
+        <div class="fcc-card" id="fccCostRatioCard" style="margin-top:12px">
           <div class="fcc-card-h">
             <div>
               <div class="fcc-card-t"><span class="ico">&#x1F3AF;</span>Cost Ratio & Expense Control — ยอดขาย vs ค่าใช้จ่าย Spare Part</div>
@@ -1585,7 +1620,7 @@
           </div>
         </div>
         <!-- ค่าซ่อม (Repair Cost) — คิดจากประวัติการเบิกอะไหล่จริง แยกไลน์ × เดือน + ยอดรวม -->
-        <div class="fcc-card" style="margin-top:12px">
+        <div class="fcc-card" id="fccRepairCard" style="margin-top:12px">
           <div class="fcc-card-h">
             <div>
               <div class="fcc-card-t"><span class="ico">&#x1F527;</span>ค่าซ่อม (Repair Cost) — จากประวัติการเบิกอะไหล่</div>
@@ -13196,6 +13231,73 @@ function inferRequestPriority(stock, min) {
     }
 
     /* ── floating dock / clock / init ──────────────────────────── */
+    /* ── แถบข้ามไปยังการ์ด/กราฟ ────────────────────────────────
+       หน้า Dashboard ยาวมากจนหาการ์ดที่ต้องการไม่เจอ — แถบนี้ยึดติดด้านบน
+       กดแล้วเลื่อนไปการ์ดนั้น และไฮไลต์ตามตำแหน่งที่กำลังดูอยู่
+       id ในลิสต์ต้องตรงกับ id ของการ์ดในหน้า (ไม่เจอ = ข้ามไปเงียบๆ)    */
+    var FCC_SECTIONS = [
+      { id: 'fccHealth',        icon: '&#x1FA7A;', label: 'Health Score' },
+      { id: 'fccMapCard',       icon: '&#x1F3ED;', label: 'Factory Map' },
+      { id: 'fccTrendCard',     icon: '&#x1F4C8;', label: 'เบิก/รับเข้า 14 วัน' },
+      { id: 'fccHeatmapCard',   icon: '&#x1F525;', label: 'Risk Heatmap' },
+      { id: 'fccTopsCard',      icon: '&#x1F3C6;', label: 'Top Intelligence' },
+      { id: 'fccInsightsCard',  icon: '&#x2728;',  label: 'Insight Engine' },
+      { id: 'fccQueueCard',     icon: '&#x1F6D2;', label: 'ต้องสั่งซื้อ' },
+      { id: 'fccRailCard',      icon: '&#x1F6A8;', label: 'Critical Parts' },
+      { id: 'fccPipelineCard',  icon: '&#x1F4CB;', label: 'Purchase Workflow' },
+      { id: 'fccActivityCard',  icon: '&#x1F504;', label: 'Live Activity' },
+      { id: 'fccCostRatioCard', icon: '&#x1F3AF;', label: 'Cost Ratio' },
+      { id: 'fccRepairCard',    icon: '&#x1F527;', label: 'ค่าซ่อม' },
+      { id: 'fccMiscCard',      icon: '&#x1F9FE;', label: 'ค่าใช้จ่ายสิ้นเปลือง' },
+      { id: 'fccMachineCard',   icon: '&#x2699;&#xFE0F;', label: 'ประวัติเบิกของเครื่อง' },
+      { id: 'fccExec',          icon: '&#x1F4CA;', label: 'สรุปผู้บริหาร' }
+    ];
+    var fccJumpBuilt = false;
+    var fccJumpRaf = 0;
+    var fccJumpActiveId = '';
+
+    function fccBuildJump() {
+      var list = document.getElementById('fccJumpList');
+      if (!list || fccJumpBuilt) return;
+      fccJumpBuilt = true;
+      list.innerHTML = FCC_SECTIONS.map(function(s) {
+        return '<button type="button" class="fcc-jump-it" data-fcc-act="scroll:' + s.id + '" data-jump="' + s.id + '">' +
+          '<span class="ic">' + s.icon + '</span>' + fccEsc(s.label) + '</button>';
+      }).join('');
+      window.addEventListener('scroll', fccQueueJumpSync, { passive: true });
+      window.addEventListener('resize', fccQueueJumpSync);
+      fccSyncJumpActive();
+    }
+
+    function fccQueueJumpSync() {
+      if (fccJumpRaf) return;
+      fccJumpRaf = requestAnimationFrame(function() { fccJumpRaf = 0; fccSyncJumpActive(); });
+    }
+
+    // การ์ดที่ "ผ่านใต้แถบ sticky ไปแล้วและอยู่บนสุด" คือการ์ดที่กำลังดูอยู่
+    function fccSyncJumpActive() {
+      var list = document.getElementById('fccJumpList');
+      var page = document.getElementById('dashboardPage');
+      if (!list || !page || page.classList.contains('hidden')) return;
+      var activeId = '';
+      FCC_SECTIONS.forEach(function(s) {
+        var el = document.getElementById(s.id);
+        if (el && el.getBoundingClientRect().top <= 140) activeId = s.id;
+      });
+      if (!activeId && FCC_SECTIONS.length) activeId = FCC_SECTIONS[0].id;
+      if (activeId === fccJumpActiveId) return;
+      fccJumpActiveId = activeId;
+      Array.prototype.forEach.call(list.children, function(btn) {
+        var on = btn.getAttribute('data-jump') === activeId;
+        btn.classList.toggle('on', on);
+        if (!on) return;
+        // เลื่อนแถบแนวนอนให้เห็นปุ่มที่ active เสมอ (มือถือแถบยาวเกินจอ)
+        var lr = list.getBoundingClientRect(), br = btn.getBoundingClientRect();
+        if (br.left < lr.left + 4) list.scrollLeft -= (lr.left + 4 - br.left);
+        else if (br.right > lr.right - 4) list.scrollLeft += (br.right - (lr.right - 4));
+      });
+    }
+
     function fccBuildDock() {
       var dock = document.getElementById('fccDock');
       if (!dock || dock.getAttribute('data-built')) return;
@@ -13290,6 +13392,7 @@ function inferRequestPriority(stock, min) {
       var page = document.getElementById('dashboardPage');
       if (!page) return;
       fccInited = true;
+      fccBuildJump();
       fccBuildDock();
       fccStartClock();
       page.addEventListener('click', function(e) {
