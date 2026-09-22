@@ -24,7 +24,8 @@ assert(/function populateMachineSelect\(selectId, otherId, line, allowedNames\)[
   'ต้องดึงรายชื่อจาก fetchMachinesForLine ตามไลน์ที่ส่งเข้ามา');
 
 // ── Issue Cart wiring ────────────────────────────────────────────────────────
-assert(html.includes("return populateMachineSelect('issueCartMachine', 'issueCartMachineOther', currentLine, getSharedMachineNames(items));"));
+// ไลน์ต้องมาจากของในตะกร้า ไม่ใช่ currentLine ตรงๆ — โหมด "ทุกไลน์" currentLine เป็นคีย์เสมือน
+assert(html.includes("return populateMachineSelect('issueCartMachine', 'issueCartMachineOther', formLineDefault(items[0]), getSharedMachineNames(items));"));
 assert(/populateIssueCartMachineOptions\(\);[\s\S]{0,80}renderIssueCart\(\);/.test(html),
   'openIssueCart ต้องเรียก populateIssueCartMachineOptions');
 assert(html.includes('var machineValue = getIssueCartMachineValue();'));
@@ -35,7 +36,7 @@ assert(html.includes("issueCartMachineSelect.addEventListener('change', syncIssu
 assert(html.includes('id="quickIssueMachineOther"'));
 // ต้องผูกกับไลน์ของ "อะไหล่ชิ้นนั้น" ไม่ใช่ไลน์ที่กำลังเปิดดูอยู่ (อาจคนละไลน์)
 // ต้องส่ง item ไปด้วย เพื่อตัดตัวเลือกให้เหลือเฉพาะเครื่องที่อะไหล่ชิ้นนั้นผูกไว้
-assert(html.includes('populateQuickIssueMachineOptions(item.line || currentLine, item);'),
+assert(html.includes('populateQuickIssueMachineOptions(item.line || formLineDefault(item), item);'),
   'เบิกด่วนต้องโหลดเครื่องตามไลน์ + เครื่องที่อะไหล่ชิ้นนั้นผูกไว้');
 assert(html.includes('resetQuickIssueMachineField();'));
 // payload เดิมไม่มี machine เลย — ต้องส่งไปด้วย ไม่งั้นบันทึกแล้วไม่รู้ว่าใส่เครื่องไหน

@@ -1134,6 +1134,10 @@
         </div>
 
         <div class="hidden md:flex md:flex-row md:items-center gap-3 md:gap-4 mb-4">
+          <!-- กรองไลน์ (โผล่เฉพาะโหมด "ทุกไลน์" — โหมดไลน์เดียวมีไลน์เดียวอยู่แล้ว) -->
+          <select id="lineFilter" class="hidden w-full lg:w-48 rounded-xl border border-violet-300 bg-violet-50 px-4 py-2.5 text-violet-700 font-semibold">
+            <option value="all">🏭 ทุกไลน์</option>
+          </select>
           <!-- ชีตย่อย filter (hidden เมื่อมีแค่ 1 sheet) -->
           <select id="subSheetFilter" class="hidden w-full lg:w-48 rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2.5 text-indigo-700 font-semibold">
             <option value="all">📂 ทุกชีตย่อย</option>
@@ -4022,6 +4026,9 @@
         <option value="out">หมด</option>
         <option value="ok">OK</option>
       </select>
+      <select id="lineFilterMobile" class="hidden h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
+        <option value="all">🏭 ทุกไลน์</option>
+      </select>
       <select id="categoryFilterMobile" class="h-11 w-full rounded-xl border border-slate-300 px-3 bg-white">
         <option value="all">ทุกหมวดหมู่</option>
       </select>
@@ -4146,6 +4153,33 @@
       'Coil Winding': ['Coil Winding'],
       'Lug&Screw': ['Lug&Screw']
     };
+    // "ทุกไลน์" — ไลน์เสมือนสำหรับดูอะไหล่ของทุกไลน์รวมกันในหน้า Stock เดียว
+    // ช่างมักไม่รู้ว่าอะไหล่ตัวนั้นอยู่ไลน์ไหน เดิมต้องไล่เปิดทีละไลน์ถึงจะเจอ
+    var ALL_LINES_KEY = '__ALL_LINES__';
+    var ALL_LINES_LABEL = 'ทุกไลน์';
+    LINE_SHEET_OPTIONS[ALL_LINES_KEY] = Object.keys(LINE_SHEET_OPTIONS).reduce(function(acc, key) {
+      LINE_SHEET_OPTIONS[key].forEach(function(sheet) { if (acc.indexOf(sheet) === -1) acc.push(sheet); });
+      return acc;
+    }, []);
+    // ชีต → ไลน์ต้นทาง ใช้ระบุไลน์ของอะไหล่ตอนโชว์รวมทุกไลน์
+    // (เชื่อถือได้กว่าคอลัมน์ line ในชีต ซึ่งบางแถวเว้นว่าง/กรอกไม่ตรงรูปแบบ)
+    var SHEET_LINE_MAP = {};
+    Object.keys(LINE_SHEET_OPTIONS).forEach(function(key) {
+      if (key === ALL_LINES_KEY) return;
+      LINE_SHEET_OPTIONS[key].forEach(function(sheet) { if (!SHEET_LINE_MAP[sheet]) SHEET_LINE_MAP[sheet] = key; });
+    });
+    function isAllLinesMode() { return currentLine === ALL_LINES_KEY; }
+    function realLineKeys() {
+      return Object.keys(LINE_SHEET_OPTIONS).filter(function(key) { return key !== ALL_LINES_KEY; });
+    }
+    function lineDisplayName(lineKey) {
+      return lineKey === ALL_LINES_KEY ? ALL_LINES_LABEL : String(lineKey || '-');
+    }
+    function lineOfItem(item) {
+      var sheet = String((item && (item.__sourceSheet || item.subLine)) || '').trim();
+      if (sheet && SHEET_LINE_MAP[sheet]) return SHEET_LINE_MAP[sheet];
+      return canonicalLineName(item && item.line);
+    }
     var LINE_CACHE_VERSION = 'lite-master-cache-v4';
     var MASTER_CACHE_TTL_MS = 8 * 60 * 1000;
 
@@ -4545,6 +4579,18 @@
     var confirmImportBtn = document.getElementById('confirmImportBtn');
     var importState = { rows: [] };
     var currentLine = 'H9';
+    var lastRealLine = 'H9';
+    function setCurrentLine(value) {
+      currentLine = value;
+      if (value && value !== ALL_LINES_KEY) lastRealLine = value;
+    }
+    function activeRealLine() {
+      return isAllLinesMode() ? lastRealLine : (currentLine || lastRealLine);
+    }
+    // ไลน์ตั้งต้นของฟอร์ม: ยึดไลน์ของอะไหล่ชิ้นนั้นก่อน ไม่มีค่อยถอยไปไลน์จริงล่าสุด
+    function formLineDefault(item) {
+      return (item ? lineOfItem(item) : '') || activeRealLine();
+    }
     var authToken = localStorage.getItem('spare_auth_token') || '';
     var currentUser = null;
     var requestOrderBadgeCount = 0;
@@ -4645,6 +4691,7 @@
     var appShell = document.getElementById('appShell');
     var loginModal = document.getElementById('loginModal');
     var lineConfig = [
+      { key: ALL_LINES_KEY, color: '#0f172a' },
       { key: 'H9', color: '#2563eb' },
       { key: 'Arc Chute', color: '#9333ea' },
       { key: 'Coil Winding', color: '#0891b2' },
@@ -4922,7 +4969,8 @@
     function canonicalLineName(value) {
       var raw = String(value || '').trim();
       var n = normalizeLineText(raw);
-      if (!n || n === '-' || n === 'all') return currentLine || 'Assembly Line';
+      // โหมดทุกไลน์ไม่ใช่ไลน์จริง ห้ามคืนคีย์เสมือนออกไปติดกับใบ PR/ประวัติ
+      if (!n || n === '-' || n === 'all') return (isAllLinesMode() ? '' : currentLine) || 'Assembly Line';
       if (n === 'arcchut' || n === 'arc chute' || n === 'arcchute') return 'Arc Chute';
       if (n === 'coilwinding' || n === 'coil winding') return 'Coil Winding';
       if (n === 'lug&screw' || n === 'lugscrew' || n === 'lug & screw') return 'Lug&Screw';
@@ -5019,6 +5067,7 @@
 
       // (ตัด console.log ที่ dump partsData ทั้งก้อนออก — DevTools ค้าง reference ไว้ทำให้ทั้งชุด
       //  ไม่ถูก GC และ console อืดเมื่อข้อมูลเยอะ)
+      populateLineFilterOptions(partsData);
       populateCategoryOptions(partsData);
       populateBrandOptions(partsData);
       populateCoilSizeOptions(partsData);
@@ -5062,7 +5111,8 @@
     function populateManageLineOptions(forceDefault) {
       if (!manageLineSelect) return;
       var previous = String(manageLineSelect.value || '').trim();
-      var options = lineConfig.map(function(item) { return item.key; });
+      var options = lineConfig.map(function(item) { return item.key; })
+        .filter(function(key) { return key !== ALL_LINES_KEY; });
       var defaultLine = options.indexOf(currentLine) > -1 ? currentLine : options[0];
       var selected = (previous && options.indexOf(previous) > -1 && !forceDefault) ? previous : defaultLine;
       var html = ['<option value="">เลือก LINE MAIN</option>'].concat(options.map(function(line) {
@@ -5335,7 +5385,15 @@
       modalLockCount = 0;
       document.body.style.overflow = '';
       if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
-      if (issueCartProcess && !String(issueCartProcess.value || '').trim()) issueCartProcess.value = currentLine || '';
+      if (issueCartProcess && !String(issueCartProcess.value || '').trim()) {
+        // ตะกร้าข้ามไลน์ได้ในโหมดทุกไลน์ — โชว์ไลน์ตามของที่อยู่ในตะกร้าจริง
+        var cartLines = [];
+        getIssueCartEntries().forEach(function(e) {
+          var key = formLineDefault(e.item);
+          if (key && cartLines.indexOf(key) === -1) cartLines.push(key);
+        });
+        issueCartProcess.value = cartLines.length ? cartLines.join(', ') : activeRealLine();
+      }
       if (issueCartDate && !issueCartDate.value) issueCartDate.value = formatDateToLocalInputValue(new Date());
       syncTxnActorFields();
       setIssueCartMessage('', 'muted');
@@ -5451,7 +5509,7 @@
         name: item ? String(item.name || '') : '',
         model: item ? String(item.model || '') : '',
         brand: item ? String(item.brand || '') : '',
-        line: item ? String(item.line || currentLine || '') : String(currentLine || ''),
+        line: String((item && item.line) || formLineDefault(item) || ''),
         location: item ? String(item.location || '') : '',
         unit: item ? String(item.unit || '') : '',
         image: item ? String(item.image_main_url || '') : '',
@@ -6593,7 +6651,7 @@
       // ตะกร้าใช้เครื่องเดียวกับทุกรายการ จึงเหลือเฉพาะเครื่องที่ทุกชิ้นใส่ได้
       // ถ้าในตะกร้ามีของคนละขนาดปนกัน จะตัดกันไม่เหลือ → ถอยไปแสดงทุกเครื่องเอง
       var items = getIssueCartEntries().map(function(e) { return e.item; });
-      return populateMachineSelect('issueCartMachine', 'issueCartMachineOther', currentLine, getSharedMachineNames(items));
+      return populateMachineSelect('issueCartMachine', 'issueCartMachineOther', formLineDefault(items[0]), getSharedMachineNames(items));
     }
     function syncIssueCartMachineOtherVisibility() {
       syncMachineSelectOther('issueCartMachine', 'issueCartMachineOther');
@@ -6638,7 +6696,7 @@
     }
 
     function populateQuickIssueMachineOptions(line, item) {
-      return populateMachineSelect('quickIssueMachine', 'quickIssueMachineOther', line || currentLine, parseItemMachines(item));
+      return populateMachineSelect('quickIssueMachine', 'quickIssueMachineOther', line || formLineDefault(item), parseItemMachines(item));
     }
     function getQuickIssueMachineValue() {
       return getMachineSelectValue('quickIssueMachine', 'quickIssueMachineOther');
@@ -6972,7 +7030,7 @@ function getIssueCartEntries() {
         var payload = new URLSearchParams();
         payload.append('action', 'uploadImage');
         payload.append('itemId', itemId);
-        payload.append('line', currentLine);
+        payload.append('line', activeRealLine());
         payload.append('imageType', kind);
         payload.append('itemName', itemName || '');
         payload.append('model', model || '');
@@ -7366,12 +7424,12 @@ function getIssueCartEntries() {
     }
 
     function getTxnAutoProcess(item) {
-      if (!item) return currentLine || '';
+      if (!item) return activeRealLine() || '';
       var directLine = String(item.line || item.line_name || item.lineName || item.area || item.process || '').trim();
       if (directLine) return directLine;
       var sourceLine = String(item.__sourceSheet || item.subLine || '').trim();
       if (sourceLine) return canonicalLineName(sourceLine) || sourceLine;
-      return String(currentLine || '').trim();
+      return String(formLineDefault(item) || '').trim();
     }
 
     function syncReceiveFormAutoFields(item) {
@@ -8028,7 +8086,7 @@ function getIssueCartEntries() {
     function updateStockLineLockBar() {
       if (!stockLineLockBar || !stockLineLockText) return;
       var active = lineConfig.filter(function(item){ return item.key === currentLine; })[0] || lineConfig[0];
-      stockLineLockText.textContent = currentLine || '-';
+      stockLineLockText.textContent = lineDisplayName(currentLine);
       stockLineLockBar.style.borderColor = active.color + '55';
       stockLineLockBar.style.backgroundColor = active.color + '1A';
       stockLineLockBar.style.boxShadow = 'inset 0 0 0 1px ' + active.color + '22';
@@ -8041,9 +8099,9 @@ function getIssueCartEntries() {
       document.documentElement.style.setProperty('--line-accent', active.color);
       tabStock.style.backgroundColor = currentLine ? '' : '';
       var currentLineBadge = document.getElementById('currentLineBadge');
-      if (currentLineBadge) currentLineBadge.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>Line: ' + (currentLine || '-');
+      if (currentLineBadge) currentLineBadge.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>Line: ' + lineDisplayName(currentLine);
       var lineMenuBtnLabel = document.getElementById('lineMenuBtnLabel');
-      if (lineMenuBtnLabel) lineMenuBtnLabel.textContent = currentLine || 'Line';
+      if (lineMenuBtnLabel) lineMenuBtnLabel.textContent = lineDisplayName(currentLine) || 'Line';
       updateStockLineLockBar();
       syncSheetSelectorForCurrentLine();
     }
@@ -8068,19 +8126,26 @@ function getIssueCartEntries() {
     }
 
     function renderLineTabs() {
-      var iconMap = { 'H9': '🏭', 'Arc Chute': '⚡', 'Coil Winding': '🧲', 'Lug&Screw': '🔩' };
-      var subtitleMap = { 'H9': 'Main Assembly Line', 'Arc Chute': 'Arc Chute Production', 'Coil Winding': 'Coil Winding Process', 'Lug&Screw': 'Lug & Screw Assembly' };
+      var iconMap = {};
+      iconMap[ALL_LINES_KEY] = '🗂️';
+      Object.assign(iconMap, { 'H9': '🏭', 'Arc Chute': '⚡', 'Coil Winding': '🧲', 'Lug&Screw': '🔩' });
+      var subtitleMap = {};
+      subtitleMap[ALL_LINES_KEY] = 'อะไหล่ทุกไลน์รวมกันที่เดียว';
+      Object.assign(subtitleMap, { 'H9': 'Main Assembly Line', 'Arc Chute': 'Arc Chute Production', 'Coil Winding': 'Coil Winding Process', 'Lug&Screw': 'Lug & Screw Assembly' });
       lineTabs.innerHTML = lineConfig.map(function(item) {
         var active = item.key === currentLine;
         var icon = iconMap[item.key] || '📦';
         var subtitle = subtitleMap[item.key] || '';
-        var partCount = (partsData || []).filter(function(p){ return p.line && String(p.line).indexOf(item.key.split(' ')[0]) !== -1; }).length;
+        var label = lineDisplayName(item.key);
+        var partCount = item.key === ALL_LINES_KEY
+          ? (isAllLinesMode() ? (partsData || []).length : 0)
+          : (partsData || []).filter(function(p){ return p.line && String(p.line).indexOf(item.key.split(' ')[0]) !== -1; }).length;
         if (active) {
           return '<button data-line="' + item.key + '" class="w-full rounded-xl p-3 text-left text-white shadow-md transition" style="background:' + item.color + '">' +
             '<div class="flex items-center gap-3">' +
             '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/20 text-xl">' + icon + '</div>' +
             '<div class="min-w-0 flex-1">' +
-            '<p class="text-sm font-extrabold leading-tight">' + item.key + '</p>' +
+            '<p class="text-sm font-extrabold leading-tight">' + label + '</p>' +
             '<p class="text-[11px] text-white/70 leading-tight mt-0.5">' + subtitle + '</p>' +
             '</div>' +
             '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white/80 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' +
@@ -8092,7 +8157,7 @@ function getIssueCartEntries() {
           '<div class="flex items-center gap-3">' +
           '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl" style="background:' + item.color + '18">' + icon + '</div>' +
           '<div class="min-w-0 flex-1">' +
-          '<p class="text-sm font-bold text-slate-800 leading-tight">' + item.key + '</p>' +
+          '<p class="text-sm font-bold text-slate-800 leading-tight">' + label + '</p>' +
           '<p class="text-[11px] text-slate-400 leading-tight mt-0.5">' + subtitle + '</p>' +
           '</div>' +
           '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>' +
@@ -8102,7 +8167,7 @@ function getIssueCartEntries() {
 
       Array.prototype.slice.call(lineTabs.querySelectorAll('button')).forEach(function(btn){
         btn.addEventListener('click', function(){
-          currentLine = btn.getAttribute('data-line');
+          setCurrentLine(btn.getAttribute('data-line'));
           renderLineTabs();
           applyLineTheme();
           loadPartsData();
@@ -14390,7 +14455,7 @@ function inferRequestPriority(stock, min) {
 
     function loadPurchaseImportMasterRows(rows) {
       var lines = Array.from(new Set((rows || []).map(function(row) { return canonicalLineName(row.line || ''); }).filter(Boolean)));
-      if (!lines.length) lines = [currentLine || 'H9'];
+      if (!lines.length) lines = [activeRealLine() || 'H9'];
       var failedLines = [];
       return Promise.all(lines.map(function(line) {
         return loadPrSourceItems('line_specific', line).catch(function(err) {
@@ -15354,7 +15419,7 @@ function inferRequestPriority(stock, min) {
     }
 
     function getAllLineKeys() {
-      return Object.keys(LINE_SHEET_OPTIONS || {});
+      return realLineKeys();
     }
 
     function getAllPrSheetTargets() {
@@ -15412,12 +15477,12 @@ function inferRequestPriority(stock, min) {
             var critical = priorityRaw === 'urgent' || priorityRaw === 'critical' ? 'Critical' : priorityRaw === 'high' ? 'High' : 'Medium';
             var qty = Number(r.request_qty || 0) || 1;
             var noKey = String(r.item_id || '').trim();
-            var noKeyComposite = canonicalLineName(r.line || currentLine) + '::' + noKey;
+            var noKeyComposite = canonicalLineName(r.line || activeRealLine()) + '::' + noKey;
             return {
               id: 'REQ-' + (r.request_id || r.item_id || r.item_name),
               request_id: r.request_id || '',
               selected: true, no: r.item_id || '-', name: r.item_name || '-', model: r.model || '-', brand: r.brand || '-',
-              category: r.category || '-', line: canonicalLineName(r.line || currentLine), subLine: r.line || '-',
+              category: r.category || '-', line: canonicalLineName(r.line || activeRealLine()), subLine: r.line || '-',
               location: r.location || '-', unit: r.unit || 'PCS', stock: Number(r.stock || 0), min: Number(r.min || 0), max: Number(r.max || 0),
               need: qty, suggestedQty: qty, recentUsage: 0, critical: critical, priority: critical,
               reason: 'REQ', requestedBy: r.requested_by || '-', requestStatus: r.status || 'Pending',
@@ -15477,7 +15542,7 @@ function inferRequestPriority(stock, min) {
             model: (live ? live.model : e.model) || '-',
             brand: (live ? live.brand : e.brand) || '-',
             category: src.category || '-',
-            line: canonicalLineName(src.__sourceLine || getPrLineFromSourceSheet(src.__sourceSheet) || src.line || e.line || currentLine),
+            line: canonicalLineName(src.__sourceLine || getPrLineFromSourceSheet(src.__sourceSheet) || src.line || e.line || activeRealLine()),
             subLine: src.subLine || src.__sourceSheet || e.line || '-',
             location: (live ? live.location : e.location) || '-',
             unit: (live ? live.unit : e.unit) || '',
@@ -15668,7 +15733,7 @@ function inferRequestPriority(stock, min) {
         var priority = (stock <=0 || critical.toLowerCase().indexOf('critical')>-1) ? 'Critical' : (stock<min ? 'High' : (need>0 ? 'Medium' : 'Low')); if (critical.toLowerCase().indexOf('critical') > -1) reasons.push('CRIT'); reasons = Array.from(new Set(reasons));
         var pendingOrder = findPendingPurchaseForItem(i);
         if (pendingOrder) reasons.push('PENDING');
-        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || currentLine), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', unit: i.unit || '', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, usageTier: usageTier, critical: critical, priority: priority, reason: reasons.join(', '), pendingOrder: pendingOrder, unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
+        return { id: String(i.no || i.name), selected: true, no: i.no || '-', name: i.name || '-', model: i.model || '-', brand: i.brand || '-', category: i.category || '-', line: canonicalLineName(i.__sourceLine || getPrLineFromSourceSheet(i.__sourceSheet) || i.line || i.mainLine || activeRealLine()), subLine: i.subLine || i.__sourceSheet || '-', location: i.location || '-', unit: i.unit || '', stock: stock, min: min, max: max, need: need, suggestedQty: Math.max(need, recentUsage > 0 ? Math.ceil(recentUsage / 2) : 0, 1), recentUsage: recentUsage, usageTier: usageTier, critical: critical, priority: priority, reason: reasons.join(', '), pendingOrder: pendingOrder, unitPrice: Number(i.unit_price || i.unitPrice || 0), currency: i.currency || 'THB', supplier: i.supplier || '', priceUpdatedAt: i.price_updated_at || '', priceRemark: i.price_remark || '', machineStation: i.machineStation || '', purpose: '', mainImage: i.image_main_url || i.mainImage || i.imageUrlMain || i.imageMain || i.image || '', drawingUrl: i.drawing_url || '', drawing_url: i.drawing_url || '', drawingFileName: i.drawing_file_name || '', drawing_file_name: i.drawing_file_name || '', drawingRevision: i.drawing_revision || '', drawing_revision: i.drawing_revision || '', drawingStatus: normalizeDrawingStatus(i), drawing_status: normalizeDrawingStatus(i), datasheetUrl: i.datasheet_url || '', quotationUrl: i.quotation_url || '' };
       }).filter(Boolean);
       prHistoryBatchId = 'AUTOPR-' + Date.now();
       renderPrCandidates();
@@ -16181,7 +16246,7 @@ function inferRequestPriority(stock, min) {
     // แถมเซฟลง cache key รายชีท คนละตัวกับ key แบบ '<line>::ALL' ที่ loadPartsData อ่านจริง)
     function prefetchOtherLinesInBackground() {
       if (backgroundSheetPrefetching.allLines) return;
-      var lines = Object.keys(LINE_SHEET_OPTIONS).filter(function(lineKey) {
+      var lines = realLineKeys().filter(function(lineKey) {
         if (lineKey === currentLine) return false;
         var cached = loadLineCache(lineKey, lineKey + '::ALL');
         return !cached || cached.stale;
@@ -16203,13 +16268,85 @@ function inferRequestPriority(stock, min) {
       chain.finally(function() { delete backgroundSheetPrefetching.allLines; });
     }
 
+    // โหลดอะไหล่ทุกไลน์มารวมกัน — ใช้แคชรายไลน์ชุดเดียวกับโหมดไลน์เดียว
+    // ไลน์ไหนมีแคชสดอยู่แล้วขึ้นทันที ไลน์ที่ค้างค่อยทยอยยิงทีละไลน์แล้วเติมเข้าตาราง
+    // (ไม่เก็บแคชรวมก้อนใหม่ เพราะซ้ำซ้อนกับแคชรายไลน์และเสี่ยงชน quota ของ localStorage)
+    function loadAllLinesPartsData(opts) {
+      var skipCache = !!opts.skipCache;
+      var requestSeq = ++partsLoadRequestSeq;
+      var lines = realLineKeys();
+      var byLine = {};
+      var painted = false;
+
+      function mergedRows() {
+        var out = [];
+        lines.forEach(function(lineKey) { if (byLine[lineKey]) out = out.concat(byLine[lineKey]); });
+        return out;
+      }
+      function paint() {
+        if (requestSeq !== partsLoadRequestSeq) return;
+        var rows = mergedRows();
+        if (!rows.length) return;
+        painted = true;
+        applyLoadedPartsData(rows);
+        loadedStockSheetKey = ALL_LINES_KEY + '::ALL';
+        populateSubSheetFilter(partsData);
+      }
+
+      var pending = [];
+      lines.forEach(function(lineKey) {
+        var cached = skipCache ? null : loadLineCache(lineKey, lineKey + '::ALL');
+        if (cached && cached.items && cached.items.length) byLine[lineKey] = cached.items;
+        if (skipCache || !cached || cached.stale || !cached.items || !cached.items.length) pending.push(lineKey);
+      });
+      if (mergedRows().length) paint();
+      else renderStockSkeleton('กำลังรวมอะไหล่ทุกไลน์...');
+      if (!pending.length) return Promise.resolve();
+
+      var done = 0;
+      var chain = Promise.resolve();
+      pending.forEach(function(lineKey) {
+        chain = chain.then(function() {
+          if (requestSeq !== partsLoadRequestSeq) return;
+          if (!painted) {
+            desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">กำลังโหลด... (' + (done + 1) + '/' + pending.length + ' ไลน์)</div>';
+            mobileCardList.innerHTML = '<div class="py-8 text-center text-slate-400">กำลังโหลด... ' + (done + 1) + '/' + pending.length + ' ไลน์</div>';
+          }
+          return Promise.all(getSheetOptionsForLine(lineKey).map(function(sheetName) {
+            return fetchSheetRows(sheetName, { lite: true, refresh: skipCache });
+          })).then(function(chunks) {
+            return normalizeRecordsInBatches([].concat.apply([], chunks));
+          }).then(function(rows) {
+            saveLineCache(lineKey, rows, lineKey + '::ALL');
+            byLine[lineKey] = rows;
+            done += 1;
+            paint();
+          }).catch(function(err) {
+            console.warn('โหลดไลน์ไม่สำเร็จ', lineKey, err);
+            done += 1;
+          });
+        });
+      });
+      return chain.then(function() {
+        if (requestSeq !== partsLoadRequestSeq) return;
+        if (!mergedRows().length) {
+          desktopCardGrid.innerHTML = '<div class="col-span-full py-8 text-center text-rose-500">โหลดอะไหล่ไม่สำเร็จ ลองกด Refresh อีกครั้ง</div>';
+          mobileCardList.innerHTML = '<div class="py-8 text-center text-rose-500">โหลดอะไหล่ไม่สำเร็จ</div>';
+        }
+      });
+    }
+
     function loadPartsData(options) {
       var opts = options || {};
       var skipCache = !!opts.skipCache;
+      if (isAllLinesMode()) return loadAllLinesPartsData(opts);
       var requestSeq = ++partsLoadRequestSeq;
       var lineSheets = getSheetOptionsForLine(currentLine);
       var selectedSheetForLoad = 'ALL_SHEETS'; // โหลดทุก sheet รวมกันเสมอ
-      if (loadedStockSheetKey && partsData.length) saveLineCache(currentLine, partsData, loadedStockSheetKey);
+      // ก้อนข้อมูลของโหมดทุกไลน์เป็นของหลายไลน์รวมกัน เขียนกลับแคชรายไลน์ไม่ได้
+      if (loadedStockSheetKey && partsData.length && loadedStockSheetKey.indexOf(ALL_LINES_KEY) !== 0) {
+        saveLineCache(currentLine, partsData, loadedStockSheetKey);
+      }
       // โหลดทุก sheet ของ Line พร้อมกัน (รวม sub-sheets)
       var activeSheets = lineSheets.length ? lineSheets : [getCurrentSheetName()];
       var totalSheets = activeSheets.length;
@@ -16317,7 +16454,7 @@ function inferRequestPriority(stock, min) {
           }
         });
         if (changed) {
-          saveLineCache(currentLine, partsData, getCurrentSheetName());
+          if (!isAllLinesMode()) saveLineCache(currentLine, partsData, getCurrentSheetName());
           applyLoadedPartsData(partsData.slice());
         }
         return changed;
@@ -16815,7 +16952,7 @@ function inferRequestPriority(stock, min) {
       quickIssueQty.value = '';
       if (quickIssueDate) quickIssueDate.value = formatDateToLocalInputValue(new Date());
       syncTxnActorFields();
-      quickIssueProcess.value = item.line || currentLine || '';
+      quickIssueProcess.value = item.line || formLineDefault(item) || '';
       if (quickIssueReason) quickIssueReason.value = '';
       if (quickIssueReasonRemark) {
         quickIssueReasonRemark.value = '';
@@ -16823,7 +16960,7 @@ function inferRequestPriority(stock, min) {
       }
       // เครื่องจักรต้องเป็นของไลน์อะไหล่ชิ้นนี้ (อาจคนละไลน์กับที่กำลังเปิดดูอยู่)
       resetQuickIssueMachineField();
-      populateQuickIssueMachineOptions(item.line || currentLine, item);
+      populateQuickIssueMachineOptions(item.line || formLineDefault(item), item);
       syncQuickIssueTagField(item, true);
       quickIssueMessage.className = 'text-sm text-slate-500';
       quickIssueMessage.textContent = '';
@@ -16920,7 +17057,7 @@ function inferRequestPriority(stock, min) {
       var payload = {
         partNo: item.no,
         type: quickIssueType.value || 'Output',
-        process: process || item.line || currentLine || '-',
+        process: process || item.line || formLineDefault(item) || '-',
         category: item.category || 'General',
         partName: item.name,
         model: item.model || '-',
@@ -17030,7 +17167,7 @@ function inferRequestPriority(stock, min) {
       quickReceiveStock.textContent = 'Stock: ' + (item.stock || 0) + ' ' + (item.unit || 'PCS');
       quickReceiveQty.value = '';
       quickReceiveBy.value = (currentUser && (currentUser.name || currentUser.username)) || '';
-      quickReceiveProcess.value = item.line || currentLine || '';
+      quickReceiveProcess.value = item.line || formLineDefault(item) || '';
       if (quickReceiveDate) quickReceiveDate.value = formatDateToLocalInputValue(new Date());
       quickReceiveMessage.className = 'text-sm text-slate-500';
       quickReceiveMessage.textContent = '';
@@ -17072,7 +17209,7 @@ function inferRequestPriority(stock, min) {
       var payload = {
         partNo: item.no,
         type: 'Input',
-        process: process || item.line || currentLine || '-',
+        process: process || item.line || formLineDefault(item) || '-',
         category: item.category || 'General',
         partName: item.name,
         model: item.model || '-',
@@ -18037,7 +18174,7 @@ function inferRequestPriority(stock, min) {
       (function() {
         var panel = document.getElementById('qaStatsPanel');
         var lineLabel = document.getElementById('qaLineLabel');
-        if (lineLabel) lineLabel.textContent = (currentLine || '-') + ' Line';
+        if (lineLabel) lineLabel.textContent = isAllLinesMode() ? ALL_LINES_LABEL : (currentLine || '-') + ' Line';
         if (!panel) return;
         function qaStat(icon, value, label, color, bg, clickStatus) {
           var urgent = value > 0 && (clickStatus === 'out' || clickStatus === 'low');
@@ -18066,6 +18203,15 @@ function inferRequestPriority(stock, min) {
           });
         });
       })();
+    }
+
+    function renderCardLineBadge(item, compact) {
+      if (!isAllLinesMode()) return '';
+      var key = lineOfItem(item);
+      if (!key) return '';
+      var color = (lineConfig.filter(function(c) { return c.key === key; })[0] || {}).color || '#475569';
+      var size = compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]';
+      return '<span class="rounded-md font-bold ' + size + '" style="background:' + color + '1a;color:' + color + '">' + escHtml(key) + '</span>';
     }
 
     function renderTable(data) {
@@ -18115,6 +18261,7 @@ function inferRequestPriority(stock, min) {
             '<div class="mt-2 flex flex-wrap items-center gap-1.5">' +
               (modelVal ? '<span class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-mono font-medium text-slate-500 max-w-[120px] truncate">' + modelVal + '</span>' : '') +
               (brandVal ? '<span class="rounded-md px-2 py-0.5 text-[11px] font-bold" style="background:#eff6ff;color:#1d4ed8;">' + brandVal + '</span>' : '') +
+              renderCardLineBadge(item, false) +
             '</div>' +
             (locationTxt ? '<div class="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400"><svg xmlns=\'http://www.w3.org/2000/svg\' class=\'h-3 w-3 shrink-0\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' stroke-width=\'2\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M15 11a3 3 0 11-6 0 3 3 0 016 0z\'/></svg>' + locationTxt + '</div>' : '') +
             '<div class="mt-3 rounded-xl px-3 py-2.5 flex items-center justify-between" style="' + qtyBg + '">' +
@@ -18225,6 +18372,7 @@ function inferRequestPriority(stock, min) {
             '<div class="mt-1.5 flex flex-wrap items-center gap-1">' +
               (mModelVal ? '<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-500 max-w-[90px] truncate">' + mModelVal + '</span>' : '') +
               (mBrandVal ? '<span class="rounded px-1.5 py-0.5 text-[10px] font-bold" style="background:#eff6ff;color:#1d4ed8;">' + mBrandVal + '</span>' : '') +
+              renderCardLineBadge(item, true) +
             '</div>' +
             '<div class="mt-2 flex items-center justify-between rounded-lg px-2.5 py-2" style="' + mQtyBg + '">' +
               '<span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ' + tone.badgeClass + '">' + status + '</span>' +
@@ -18650,20 +18798,26 @@ function inferRequestPriority(stock, min) {
       var selectedCoilSize = coilSizeFilter ? coilSizeFilter.value : 'all';
       var subSheetFilterEl = document.getElementById('subSheetFilter');
       var selectedSubSheet = subSheetFilterEl ? subSheetFilterEl.value : 'all';
+      var lineFilterEl = document.getElementById('lineFilter');
+      var selectedLineFilter = (lineFilterEl && isAllLinesMode()) ? lineFilterEl.value : 'all';
       var hasKeyword = !!keyword;
 
       if (searchScopeHint) {
         searchScopeHint.classList.toggle('hidden', !hasKeyword);
-        if (hasKeyword) searchScopeHint.textContent = 'กำลังค้นหาในทุกชีตย่อยของ ' + currentLine;
+        if (hasKeyword) searchScopeHint.textContent = isAllLinesMode()
+          ? 'กำลังค้นหาในอะไหล่ทุกไลน์ ทุกชีตย่อย'
+          : 'กำลังค้นหาในทุกชีตย่อยของ ' + currentLine;
       }
 
       // ลูปนี้วิ่งทับ partsData ทั้งก้อนทุกครั้งที่พิมพ์/เปลี่ยนฟิลเตอร์ ของเดิมคิดงานหนักทุกตัวเสมอ
       // แม้ฟิลเตอร์นั้นจะปิดอยู่ — เช่นสร้าง+join+toLowerCase สตริงค้นหาทั้งที่ยังไม่ได้พิมพ์อะไรเลย
       // (indexOf('') คืน 0 เสมอ = เสียเปล่าล้วนๆ) ตอนนี้ข้ามงานที่ไม่จำเป็นทั้งหมด
+      var needLine = selectedLineFilter !== 'all';
       var needSourceSheet = selectedSubSheet !== 'all';
       var needStatus = selectedStatus !== 'all';
       var filtered = partsData.filter(function(item) {
         // เช็คตัวที่ถูกที่สุดก่อน เจอไม่ผ่านก็ตัดจบทันที ไม่ต้องคิดตัวที่แพงกว่า
+        if (needLine && lineOfItem(item) !== selectedLineFilter) return false;
         if (category !== 'all' && item.category !== category) return false;
         if (selectedBrand !== 'all' && item.brand !== selectedBrand) return false;
         // เทียบแบบ canonical — แถวเก่าที่เก็บ '25/32' (ไม่มี A) ต้องยังหาเจอใต้ฟิลเตอร์ '25/32A'
@@ -18842,7 +18996,7 @@ function inferRequestPriority(stock, min) {
         var selectedMainLine = String(manageLineSelect.value || '').trim();
         syncManageCoilSizeVisibility();
         if (!selectedMainLine) return;
-        currentLine = selectedMainLine;
+        setCurrentLine(selectedMainLine);
         renderLineTabs();
         applyLineTheme();
         populateManageSheetOptions(true, selectedMainLine);
@@ -20400,6 +20554,13 @@ if (dashboardPage) {
       statusFilterMobile.value = statusFilter.value;
       brandFilterMobile.value = brandFilter.value;
       if (coilSizeFilterMobile && coilSizeFilter) coilSizeFilterMobile.value = coilSizeFilter.value;
+      var lfDesktop = document.getElementById('lineFilter');
+      var lfMobile = document.getElementById('lineFilterMobile');
+      if (lfDesktop && lfMobile) {
+        lfMobile.innerHTML = lfDesktop.innerHTML;
+        lfMobile.value = lfDesktop.value;
+        lfMobile.classList.toggle('hidden', lfDesktop.classList.contains('hidden'));
+      }
       filterSheet.classList.remove('hidden');
     });
     closeFilterSheetBtn.addEventListener('click', function(){ filterSheet.classList.add('hidden'); });
@@ -20408,6 +20569,9 @@ if (dashboardPage) {
       statusFilter.value = statusFilterMobile.value;
       brandFilter.value = brandFilterMobile.value;
       if (coilSizeFilter && coilSizeFilterMobile) coilSizeFilter.value = coilSizeFilterMobile.value;
+      var lfd = document.getElementById('lineFilter');
+      var lfm = document.getElementById('lineFilterMobile');
+      if (lfd && lfm) lfd.value = lfm.value;
       tableStatusMode = 'all';
       filterSheet.classList.add('hidden');
       applyFilters();
@@ -21629,6 +21793,28 @@ if (dashboardPage) {
     });
 
     // ── Sub-sheet filter ─────────────────────────────────────────────
+    // ตัวเลือกไลน์ของตัวกรอง — สร้างจากของที่โหลดมาจริง ไม่ใช่รายชื่อไลน์ทั้งหมด
+    // (ไลน์ไหนโหลดไม่สำเร็จจะได้ไม่มีตัวเลือกให้กดแล้วเจอตารางว่าง)
+    function populateLineFilterOptions(data) {
+      var lines = [];
+      (data || []).forEach(function(item) {
+        var key = lineOfItem(item);
+        if (key && lines.indexOf(key) === -1) lines.push(key);
+      });
+      lines.sort(function(a, b) { return realLineKeys().indexOf(a) - realLineKeys().indexOf(b); });
+      [['lineFilter', '🏭 ทุกไลน์ (' + lines.length + ')'], ['lineFilterMobile', '🏭 ทุกไลน์']].forEach(function(pair) {
+        var el = document.getElementById(pair[0]);
+        if (!el) return;
+        var show = isAllLinesMode() && lines.length > 1;
+        el.classList.toggle('hidden', !show);
+        if (!show) { el.value = 'all'; return; }
+        var prev = el.value;
+        el.innerHTML = '<option value="all">' + pair[1] + '</option>' +
+          lines.map(function(key) { return '<option value="' + escHtml(key) + '">' + escHtml(key) + '</option>'; }).join('');
+        el.value = (prev && lines.indexOf(prev) > -1) ? prev : 'all';
+      });
+    }
+
     function populateSubSheetFilter(data) {
       var el = document.getElementById('subSheetFilter');
       if (!el) return;
@@ -21648,6 +21834,12 @@ if (dashboardPage) {
     (function() {
       var ssf = document.getElementById('subSheetFilter');
       if (ssf) ssf.addEventListener('change', function(){ applyFilters(true); });
+      var lf = document.getElementById('lineFilter');
+      if (lf) lf.addEventListener('change', function(){
+        var m = document.getElementById('lineFilterMobile');
+        if (m) m.value = lf.value;
+        applyFilters(true);
+      });
     })();
     var roReasonPreset = document.getElementById('roReasonPreset');
     var roReasonOther = document.getElementById('roReasonOther');
@@ -21885,7 +22077,7 @@ if (dashboardPage) {
         model: isNewItemMode ? document.getElementById('roNewItemModel').value : roSelectedItem.model,
         brand: isNewItemMode ? document.getElementById('roNewItemBrand').value : roSelectedItem.brand,
         category: isNewItemMode ? '' : roSelectedItem.category,
-        line: isNewItemMode ? currentLine : (roSelectedItem.line || currentLine),
+        line: isNewItemMode ? activeRealLine() : (roSelectedItem.line || formLineDefault(roSelectedItem)),
         current_stock: isNewItemMode ? 0 : roSelectedItem.stock,
         min: isNewItemMode ? 0 : roSelectedItem.min,
         max: isNewItemMode ? 0 : roSelectedItem.max,
@@ -26488,7 +26680,7 @@ if (dashboardPage) {
     function xpPopulateFilterOptions() {
       var l = xpEl('xpLineFilter');
       if (l && l.options.length <= 1) {
-        Object.keys(LINE_SHEET_OPTIONS || {}).forEach(function(key) {
+        realLineKeys().forEach(function(key) {
           var opt = document.createElement('option');
           opt.value = key;
           opt.textContent = key;
