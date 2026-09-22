@@ -14,7 +14,8 @@ assert(/<input id="phManualAttachFile"[^>]*accept="image\/jpeg,image\/png,image\
 assert(htmlLf.includes('id="phManualAttachUrl"') && htmlLf.includes('id="phManualAttachName"'));
 
 // รูปจากมือถือ 4-8MB ส่งตรงไป Apps Script จะช้า/หลุด — ต้องย่อก่อน ส่วน PDF ห้ามย่อ (จะพัง)
-assert(/var prepare = isImage \? resizeImageForAi\(file, 1600\) : readFileAsDataUrl\(file\);/.test(htmlLf));
+// ย่อแค่ด้านกว้างยังได้ก้อนหลายเมกะ (base64 บวมอีก 33%) ต้องไล่ลดจนต่ำกว่าเป้าจริงๆ
+assert(/var prepare = isImage \? compressImageToDataUrl\(file, \{ maxDim: 1600, targetBytes: 700 \* 1024 \}\) : readFileAsDataUrl\(file\);/.test(htmlLf));
 assert(htmlLf.includes("action: 'uploadPurchaseHistoryAttachment'"));
 assert(/month: phManualAttachMonth\(\),/.test(htmlLf), 'ต้องส่งเดือนไปด้วย ไฟล์จะได้ลงโฟลเดอร์เดือนที่ถูก');
 assert(htmlLf.includes('var PH_ATTACH_MAX_BYTES = 8 * 1024 * 1024;') && htmlLf.includes('ไฟล์ใหญ่เกิน 8MB'));
@@ -23,9 +24,9 @@ assert(htmlLf.includes('รองรับเฉพาะไฟล์รูป (
 assert(/input\.value = ''; \/\/ เลือกไฟล์เดิมซ้ำได้/.test(htmlLf));
 
 // เปิดฟอร์มใหม่ต้องล้างไฟล์แนบของรอบก่อน ไม่งั้นบิลของรายการเก่าติดไปกับรายการใหม่
-assert(/document\.getElementById\('phManualPartId'\)\.value = '';\s*\n\s*phSetManualAttachment\('', ''\);/.test(htmlLf));
-// ส่งไปกับรายการตอนบันทึก
-assert(/attachment_url: document\.getElementById\('phManualAttachUrl'\)\.value,\s*\n\s*attachment_name: document\.getElementById\('phManualAttachName'\)\.value/.test(htmlLf));
+assert(/phSetManualAttachment\('', ''\);\s*\n[\s\S]{0,400}phRowState = \[phNewRow\(\)\];/.test(htmlLf));
+// ส่งไปกับทุกแถวในใบตอนบันทึก (ไฟล์แนบเป็นของทั้งใบ = บิลใบเดียวกัน)
+assert(/attachment_url: \(document\.getElementById\('phManualAttachUrl'\) \|\| \{\}\)\.value \|\| '',\s*\n\s*attachment_name: \(document\.getElementById\('phManualAttachName'\) \|\| \{\}\)\.value \|\| ''/.test(htmlLf));
 // ตารางประวัติต้องเห็นว่ารายการไหนมีบิลแนบ
 assert(htmlLf.includes('📎 ไฟล์แนบ'), 'ตาราง Purchase History ต้องมีลิงก์เปิดไฟล์แนบ');
 

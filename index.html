@@ -2753,9 +2753,9 @@
 
     <!-- Manual Add Purchase History Modal -->
     <div id="phManualModal" class="fixed inset-0 z-[125] hidden overflow-y-auto bg-slate-900/60 p-4">
-      <form id="phManualForm" class="mx-auto w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl md:my-8">
+      <form id="phManualForm" class="mx-auto w-full max-w-3xl space-y-3 rounded-2xl bg-white p-5 shadow-2xl md:my-8">
         <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-          <div><h3 class="text-lg font-bold text-slate-900">เพิ่มรายการ Manual</h3><p class="text-xs text-slate-500 mt-0.5">บันทึกประวัติการสั่งซื้อด้วยตนเอง (source: Manual)</p></div>
+          <div><h3 class="text-lg font-bold text-slate-900">เพิ่มรายการ Manual</h3><p class="text-xs text-slate-500 mt-0.5">บันทึกประวัติการสั่งซื้อด้วยตนเอง — กรอกได้หลายรายการ แล้วบันทึกครั้งเดียว (source: Manual)</p></div>
           <button id="phManualClose" type="button" class="h-9 w-9 rounded-full border border-slate-300 text-slate-500 text-lg leading-none">×</button>
         </div>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2779,44 +2779,33 @@
             </select>
           </label>
         </div>
-        <label class="block text-sm font-semibold text-slate-700">Part Name <span class="text-rose-500">*</span>
-          <div class="relative mt-1" id="phPartNameWrapper">
-            <input id="phManualPartName" required autocomplete="off" class="h-10 w-full rounded-lg border border-slate-300 px-3 pr-8" placeholder="พิมพ์เพื่อค้นหาในระบบ..." />
-            <span id="phPartNameClear" class="absolute right-2 top-1/2 -translate-y-1/2 hidden cursor-pointer text-slate-400 hover:text-slate-700 text-lg leading-none select-none">×</span>
-            <div id="phPartNameDropdown" class="absolute z-[200] hidden w-full rounded-lg border border-slate-200 bg-white shadow-xl" style="top:calc(100% + 2px); max-height:240px; overflow-y:auto;"></div>
-          </div>
-          <input type="hidden" id="phManualPartId" />
-        </label>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label class="text-sm font-semibold text-slate-700">Model / Part No.
-            <input id="phManualModel" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="-" list="phModelList" />
-          </label>
-          <label class="text-sm font-semibold text-slate-700">Brand
-            <input id="phManualBrand" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="-" list="phBrandList" />
-          </label>
-        </div>
-        <div class="grid grid-cols-3 gap-3">
-          <label class="text-sm font-semibold text-slate-700">Qty <span class="text-rose-500">*</span>
-            <input id="phManualQty" type="number" min="0.000001" step="any" required class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="0" />
-          </label>
-          <label class="text-sm font-semibold text-slate-700">Unit
-            <input id="phManualUnit" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="PCS" />
-          </label>
-          <label class="text-sm font-semibold text-slate-700">Unit Price
-            <input id="phManualUnitPrice" type="number" min="0" step="any" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="0.00" />
-          </label>
-        </div>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label class="text-sm font-semibold text-slate-700">Currency
-            <input id="phManualCurrency" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" value="THB" />
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <label class="text-sm font-semibold text-slate-700">วันที่ขอ (Request Date)
+            <input id="phManualDate" type="date" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" />
           </label>
           <label class="text-sm font-semibold text-slate-700">Requested By
             <input id="phManualRequestedBy" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" placeholder="ชื่อผู้ขอ" />
           </label>
+          <label class="text-sm font-semibold text-slate-700">Currency
+            <input id="phManualCurrency" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" value="THB" />
+          </label>
         </div>
-        <label class="block text-sm font-semibold text-slate-700">วันที่ขอ (Request Date)
-          <input id="phManualDate" type="date" class="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3" />
-        </label>
+        <!-- รายการในใบเดียวกัน — เพิ่มได้หลายแถว บันทึกทีเดียว (แนวเดียวกับค่าใช้จ่ายสิ้นเปลือง)
+             ช่อง Part Name ผูกกับ datalist ของ "ไลน์ที่เลือกไว้ด้านบน" เลือกแล้วเติม
+             Model/Brand/Unit/ราคา ให้เอง -->
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm font-bold text-slate-700">รายการที่สั่งซื้อ <span id="phManualRowCount" class="ml-1 text-xs font-semibold text-slate-400">0 รายการ</span></p>
+            <button id="phManualAddRow" type="button" class="rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50">+ เพิ่มรายการ</button>
+          </div>
+          <p id="phManualPartsHint" class="mt-1 text-[11px] text-slate-400">เลือก Line ด้านบนก่อน เพื่อให้ช่อง Part Name แนะนำอะไหล่ของไลน์นั้น</p>
+          <div id="phManualRows" class="mt-2 space-y-2"></div>
+          <div class="mt-2 flex items-center justify-end gap-2 border-t border-slate-200 pt-2">
+            <span class="text-xs font-semibold text-slate-500">รวมทั้งใบ</span>
+            <output id="phManualGrandTotal" class="text-base font-black text-slate-800">฿0.00</output>
+          </div>
+        </div>
+        <datalist id="phManualPartList"></datalist>
         <label class="block text-sm font-semibold text-slate-700">Remark
           <textarea id="phManualRemark" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
         </label>
@@ -19867,11 +19856,13 @@ function inferRequestPriority(stock, min) {
       phManualMessage.textContent = ''; phManualMessage.className = 'text-sm';
       document.getElementById('phManualSubmit').disabled = false;
       document.getElementById('phManualSubmit').textContent = 'บันทึก';
-      document.getElementById('phManualPartId').value = '';
       phSetManualAttachment('', '');
-      var _pnClear = document.getElementById('phPartNameClear'); if (_pnClear) _pnClear.classList.add('hidden');
-      var _pnDd = document.getElementById('phPartNameDropdown'); if (_pnDd) _pnDd.classList.add('hidden');
-      if (!partsData || partsData.length === 0) { loadPartsData({ silent: true }).catch(function(){}); }
+      // เปิดมาที่ไลน์ที่กำลังดูอยู่ให้เลย (โหมดทุกไลน์ไม่มีไลน์จริง ปล่อยว่างให้เลือกเอง)
+      var lineSelect = document.getElementById('phManualLine');
+      if (lineSelect && !isAllLinesMode()) lineSelect.value = currentLine || '';
+      phRowState = [phNewRow()];
+      phRenderRows();
+      phSyncLinePartOptions();
       phManualModal.classList.remove('hidden');
       phManualModal.scrollTop = 0;
       lockBodyScroll();
@@ -19880,6 +19871,78 @@ function inferRequestPriority(stock, min) {
        รับได้ทั้งถ่ายรูปจากมือถือ และแนบไฟล์รูป/PDF จากเครื่อง เก็บใน Google Drive
        โฟลเดอร์ purchase-history/<เดือน>/ แยกจากไฟล์แนบของงานอื่น                */
     var PH_ATTACH_MAX_BYTES = 8 * 1024 * 1024; // Apps Script รับ payload ได้จำกัด — กันไฟล์ใหญ่จน timeout หน้างาน
+
+    // ย่อรูปให้ "เล็กพอจะส่งผ่าน Apps Script ได้จริง" ไม่ใช่แค่ย่อด้านกว้างอย่างเดียว
+    // base64 บวมกว่าไฟล์จริงราว 33% รูปจากมือถือ 8MB ย่อแค่ด้านกว้างยังได้ก้อนหลายเมกะ
+    // ส่งช้ามากและหลุดกลางทางบ่อย — ตรงนี้ไล่ลดคุณภาพ/ขนาดจนต่ำกว่าเป้าแล้วค่อยส่ง
+    function compressImageToDataUrl(file, options) {
+      var opts = options || {};
+      var maxDim = opts.maxDim || 1600;
+      var targetBytes = opts.targetBytes || 700 * 1024;
+      return readFileAsDataUrl(file).then(function(dataUrl) {
+        return new Promise(function(resolve, reject) {
+          var img = new Image();
+          img.onload = function() { resolve(img); };
+          img.onerror = function() { reject(new Error('อ่านไฟล์รูปไม่สำเร็จ')); };
+          img.src = dataUrl;
+        });
+      }).then(function(img) {
+        var dim = maxDim;
+        var quality = 0.82;
+        var out = '';
+        for (var step = 0; step < 6; step += 1) {
+          var scale = Math.min(1, dim / Math.max(img.width, img.height));
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          out = canvas.toDataURL('image/jpeg', quality);
+          if (out.length * 0.75 <= targetBytes) break; // base64 → ไบต์จริง
+          if (quality > 0.6) quality -= 0.12; else dim = Math.round(dim * 0.8);
+        }
+        return out;
+      });
+    }
+
+    // POST แบบ form-encoded + ยิงซ้ำสลับ URL สำรอง (/exec ↔ /dev)
+    // ใช้ท่อเดียวกับอัปโหลดรูปอะไหล่ (uploadImageFile) ที่ใช้งานจริงมานาน ทนกว่า postJson
+    // ซึ่งยิงครั้งเดียวจบ — พอ Google ตอบ 404/สะดุดชั่วคราวทีเดียวก็ล้มทั้งงาน อัปโหลดใหม่เอง
+    // doPost ฝั่งเซิร์ฟเวอร์อ่าน e.parameter เป็น fallback อยู่แล้ว จึงใช้ได้กับทุก action
+    function postFormResilient(payload, attempts) {
+      var urls = getManageApiCandidates();
+      if (!urls.length) urls = [getWriteApiUrl()];
+      var rounds = Math.max(1, attempts || 2);
+      var plan = [];
+      for (var round = 0; round < rounds; round += 1) {
+        urls.forEach(function(url) { plan.push(url); });
+      }
+      var idx = 0;
+      function attempt(lastErr) {
+        if (idx >= plan.length) return Promise.reject(lastErr || new Error('ส่งข้อมูลไม่สำเร็จ'));
+        var url = plan[idx];
+        // รอบแรกไล่ URL รวดเดียว รอบถัดไปหน่วงให้ฝั่งเซิร์ฟเวอร์หายสะอึกก่อน
+        var wait = idx < urls.length ? 0 : 800;
+        idx += 1;
+        return new Promise(function(resolve) { setTimeout(resolve, wait); }).then(function() {
+          var body = new URLSearchParams();
+          Object.keys(payload || {}).forEach(function(key) {
+            var value = payload[key];
+            if (value === undefined || value === null) return;
+            body.append(key, String(value));
+          });
+          return fetch(url, { method: 'POST', body: body });
+        }).then(function(res) {
+          return res.text().then(function(text) {
+            var parsed = null;
+            try { parsed = text ? JSON.parse(text) : null; } catch (err) {}
+            if (!res.ok) throw new Error((parsed && parsed.message) || ('HTTP ' + res.status));
+            if (!parsed) throw new Error('รูปแบบข้อมูลตอบกลับไม่ถูกต้อง');
+            return parsed;
+          });
+        }).catch(function(err) { return attempt(err); });
+      }
+      return attempt(null);
+    }
 
     function phSetManualAttachment(url, name) {
       var urlEl = document.getElementById('phManualAttachUrl');
@@ -19907,6 +19970,15 @@ function inferRequestPriority(stock, min) {
       if (clearBtn) clearBtn.classList.toggle('hidden', !url);
     }
 
+    // ตั้งชื่อไฟล์แนบจากรายการแรกในใบ (ฟอร์มเป็นหลายแถวแล้ว ไม่มีช่อง Part Name เดี่ยว)
+    function phFirstRowPartName() {
+      for (var i = 0; i < phRowState.length; i += 1) {
+        var name = String(phRowState[i].part_name || '').trim();
+        if (name) return name;
+      }
+      return '';
+    }
+
     function phManualAttachMonth() {
       var dateEl = document.getElementById('phManualDate');
       return String(dateEl ? dateEl.value : '').slice(0, 7);
@@ -19924,16 +19996,17 @@ function inferRequestPriority(stock, min) {
       }
       if (!isPdf && !isImage) { fail('รองรับเฉพาะไฟล์รูป (jpg/png/webp) และ PDF'); return; }
       if (Number(file.size || 0) > PH_ATTACH_MAX_BYTES) { fail('ไฟล์ใหญ่เกิน 8MB — ถ่ายใหม่หรือย่อไฟล์ก่อน'); return; }
-      if (statusEl) { statusEl.textContent = '⏳ กำลังอัปโหลดไฟล์แนบ...'; statusEl.className = 'mt-2 text-xs font-semibold text-slate-500'; }
-      // รูปย่อก่อนส่งเสมอ (รูปจากมือถือ 4-8MB ส่งตรงไปจะช้า/หลุด) ส่วน PDF ส่งไฟล์เดิมทั้งก้อน
-      var prepare = isImage ? resizeImageForAi(file, 1600) : readFileAsDataUrl(file);
+      if (statusEl) { statusEl.textContent = '⏳ กำลังเตรียมไฟล์...'; statusEl.className = 'mt-2 text-xs font-semibold text-slate-500'; }
+      // รูปย่อก่อนส่งเสมอ (รูปจากมือถือ 4-8MB ส่งตรงไปจะช้าและหลุดกลางทาง) ส่วน PDF ส่งไฟล์เดิมทั้งก้อน
+      var prepare = isImage ? compressImageToDataUrl(file, { maxDim: 1600, targetBytes: 700 * 1024 }) : readFileAsDataUrl(file);
       prepare.then(function(dataUrl) {
-        return postJson(withAuthPayload({
+        if (statusEl) statusEl.textContent = '⏳ กำลังอัปโหลด (' + Math.max(1, Math.round(dataUrl.length * 0.75 / 1024)) + ' KB)...';
+        return postFormResilient(withAuthPayload({
           action: 'uploadPurchaseHistoryAttachment',
           dataUrl: dataUrl,
           month: phManualAttachMonth(),
-          partName: (document.getElementById('phManualPartName') || {}).value || ''
-        }));
+          partName: phFirstRowPartName()
+        }), 2);
       }).then(parseApiResponse).then(function(res) {
         phSetManualAttachment((res && res.attachment_url) || '', (res && res.attachment_name) || file.name || '');
         showQuickToast('แนบไฟล์แล้ว', 'success');
@@ -19960,154 +20033,319 @@ function inferRequestPriority(stock, min) {
       phManualModal.classList.add('hidden'); unlockBodyScroll();
       var dd = document.getElementById('phPartNameDropdown'); if (dd) dd.classList.add('hidden');
     }
-    // ── Part Name autocomplete ──────────────────────────────────────────
-    (function() {
-      var phPartInput   = document.getElementById('phManualPartName');
-      var phPartIdHidden = document.getElementById('phManualPartId');
-      var phPartClear   = document.getElementById('phPartNameClear');
-      var dd            = document.getElementById('phPartNameDropdown');
-      var _matchedParts = [];
-      var _isOther      = false;
+    /* ── รายการหลายแถวในใบเดียว (Purchase History Manual) ──────────────────────
+       เดิมกรอกได้ทีละ 1 รายการต่อ 1 ครั้งบันทึก บิลใบเดียวมี 10 รายการต้องเปิดฟอร์ม
+       10 รอบ ตอนนี้กรอกหลายแถวแล้วกดบันทึกครั้งเดียว (แนวเดียวกับค่าใช้จ่ายสิ้นเปลือง) */
+    var phRowState = [];
+    var phRowSeq = 0;
+    var phLinePartsCache = {};
+    var phCurrentLineParts = [];
 
-      function hideDropdown() { if (dd) dd.classList.add('hidden'); }
+    function phNewRow(data) {
+      data = data || {};
+      phRowSeq += 1;
+      return {
+        uid: 'phrow-' + phRowSeq,
+        part_id: data.part_id || '',
+        part_name: data.part_name || '',
+        model: data.model || '',
+        brand: data.brand || '',
+        qty: data.qty === undefined || data.qty === null ? '' : String(data.qty),
+        unit: data.unit || '',
+        unit_price: data.unit_price === undefined || data.unit_price === null ? '' : String(data.unit_price)
+      };
+    }
+    function phRowAmount(row) {
+      return (Number(row.qty) || 0) * (Number(row.unit_price) || 0);
+    }
+    function phIsBlankRow(row) {
+      return !String(row.part_name || '').trim() && !String(row.qty || '').trim() && !String(row.unit_price || '').trim();
+    }
+    function phMoney(value) {
+      return '฿' + (Number(value) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
-      function fillFromPart(p) {
-        _isOther = false;
-        phPartIdHidden.value = p.id || p.part_id || '';
-        phPartInput.value = p.name || p.part_name || '';
-        if (phPartClear) phPartClear.classList.remove('hidden');
-        document.getElementById('phManualModel').value     = p.model     || '';
-        document.getElementById('phManualBrand').value     = p.brand     || '';
-        document.getElementById('phManualUnit').value      = p.unit      || '';
-        document.getElementById('phManualUnitPrice').value = (p.unit_price != null && p.unit_price !== '') ? p.unit_price : '';
-        hideDropdown();
+    // อัปเดตแค่ตัวเลขสรุป ไม่วาดแถวใหม่ — ไม่งั้นเคอร์เซอร์เด้งออกจากช่องที่กำลังพิมพ์
+    function phRecalcTotals() {
+      var wrap = document.getElementById('phManualRows');
+      var grand = 0;
+      phRowState.forEach(function(row) {
+        grand += phRowAmount(row);
+        if (!wrap) return;
+        var rowEl = wrap.querySelector('[data-ph-row="' + row.uid + '"]');
+        var amountEl = rowEl ? rowEl.querySelector('[data-ph-amount]') : null;
+        if (amountEl) amountEl.textContent = phMoney(phRowAmount(row));
+      });
+      var totalEl = document.getElementById('phManualGrandTotal');
+      if (totalEl) totalEl.textContent = phMoney(grand);
+      var countEl = document.getElementById('phManualRowCount');
+      var filled = phRowState.filter(function(row) { return !phIsBlankRow(row); }).length;
+      if (countEl) countEl.textContent = filled + ' รายการ';
+    }
+
+    function phRenderRows() {
+      var wrap = document.getElementById('phManualRows');
+      if (!wrap) return;
+      var canRemove = phRowState.length > 1;
+      wrap.innerHTML = phRowState.map(function(row, index) {
+        return '<div class="rounded-lg border border-slate-200 bg-white p-2" data-ph-row="' + escHtml(row.uid) + '">' +
+          '<div class="flex items-center justify-between gap-2">' +
+            '<span class="text-[11px] font-bold text-slate-400">#' + (index + 1) + '</span>' +
+            (canRemove ? '<button type="button" data-ph-row-remove="' + escHtml(row.uid) + '" class="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-600">ลบแถว</button>' : '') +
+          '</div>' +
+          '<div class="mt-1 grid grid-cols-12 gap-2">' +
+            '<label class="col-span-12 sm:col-span-6 text-[11px] font-semibold text-slate-500">Part Name<input data-ph-field="part_name" list="phManualPartList" value="' + escHtml(row.part_name) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="พิมพ์เพื่อเลือกจากอะไหล่ของไลน์" /></label>' +
+            '<label class="col-span-6 sm:col-span-3 text-[11px] font-semibold text-slate-500">Model / Part No.<input data-ph-field="model" list="phModelList" value="' + escHtml(row.model) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="-" /></label>' +
+            '<label class="col-span-6 sm:col-span-3 text-[11px] font-semibold text-slate-500">Brand<input data-ph-field="brand" list="phBrandList" value="' + escHtml(row.brand) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="-" /></label>' +
+            '<label class="col-span-3 text-[11px] font-semibold text-slate-500">Qty<input data-ph-field="qty" type="number" min="0.000001" step="any" inputmode="decimal" value="' + escHtml(row.qty) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="0" /></label>' +
+            '<label class="col-span-3 text-[11px] font-semibold text-slate-500">Unit<input data-ph-field="unit" value="' + escHtml(row.unit) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="PCS" /></label>' +
+            '<label class="col-span-3 text-[11px] font-semibold text-slate-500">Unit Price<input data-ph-field="unit_price" type="number" min="0" step="any" inputmode="decimal" value="' + escHtml(row.unit_price) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="0.00" /></label>' +
+            '<label class="col-span-3 text-[11px] font-semibold text-slate-500">เป็นเงิน<output data-ph-amount class="mt-0.5 flex h-10 w-full items-center justify-end rounded-lg border border-slate-200 bg-slate-100 px-2 text-sm font-bold text-slate-800">฿0.00</output></label>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      phRecalcTotals();
+    }
+
+    function phAddRow() {
+      phRowState.push(phNewRow());
+      phRenderRows();
+      var wrap = document.getElementById('phManualRows');
+      var last = wrap ? wrap.querySelector('[data-ph-row="' + phRowState[phRowState.length - 1].uid + '"] [data-ph-field="part_name"]') : null;
+      if (last) last.focus();
+    }
+
+    function phRemoveRow(uid) {
+      phRowState = phRowState.filter(function(row) { return row.uid !== uid; });
+      if (!phRowState.length) phRowState = [phNewRow()];
+      phRenderRows();
+    }
+
+    // เลือกชื่ออะไหล่จากลิสต์ของไลน์แล้ว เติม Model/Brand/Unit/ราคา ให้เอง
+    // เติมเฉพาะช่องที่ยังว่าง — ไม่ทับค่าที่ผู้ใช้พิมพ์เองไว้
+    function phAutoFillRowFromMaster(row, rowEl) {
+      var typed = String(row.part_name || '').trim().toLowerCase();
+      if (!typed) { row.part_id = ''; return; }
+      var hit = null;
+      for (var i = 0; i < phCurrentLineParts.length; i += 1) {
+        if (String(phCurrentLineParts[i].name || '').trim().toLowerCase() === typed) { hit = phCurrentLineParts[i]; break; }
       }
+      if (!hit) { row.part_id = ''; return; }
+      row.part_id = String(hit.no || '');
+      var price = typeof getItemUnitPrice === 'function' ? getItemUnitPrice(hit) : null;
+      [['model', hit.model], ['brand', hit.brand], ['unit', hit.unit], ['unit_price', price]].forEach(function(pair) {
+        var key = pair[0];
+        var value = pair[1];
+        if (value === null || value === undefined || value === '' || value === '-') return;
+        if (String(row[key] || '').trim()) return;
+        row[key] = String(value);
+        var input = rowEl ? rowEl.querySelector('[data-ph-field="' + key + '"]') : null;
+        if (input) input.value = row[key];
+      });
+    }
 
-      function clearPartSelection() {
-        phPartIdHidden.value = '';
-        _isOther = false;
-        if (phPartClear) phPartClear.classList.add('hidden');
-      }
+    function phOnRowInput(e) {
+      var rowEl = e.target && e.target.closest ? e.target.closest('[data-ph-row]') : null;
+      if (!rowEl) return;
+      var field = e.target.getAttribute('data-ph-field');
+      if (!field) return;
+      var uid = rowEl.getAttribute('data-ph-row');
+      var row = phRowState.filter(function(r) { return r.uid === uid; })[0];
+      if (!row) return;
+      row[field] = e.target.value;
+      if (field === 'part_name') phAutoFillRowFromMaster(row, rowEl);
+      phRecalcTotals();
+    }
 
-      function selectOther() {
-        _isOther = true;
-        phPartIdHidden.value = '';
-        if (phPartClear) phPartClear.classList.remove('hidden');
-        document.getElementById('phManualModel').value     = '';
-        document.getElementById('phManualBrand').value     = '';
-        document.getElementById('phManualUnit').value      = '';
-        document.getElementById('phManualUnitPrice').value = '';
-        hideDropdown();
-        if (phPartInput) phPartInput.focus();
-      }
-
-      function renderDropdown(query) {
-        if (!dd || !partsData) return;
-        var q = (query || '').toLowerCase().trim();
-        _matchedParts = q.length === 0 ? [] : (partsData || []).filter(function(p) {
-          var n = String(p.name || p.part_name || '').toLowerCase();
-          var m = String(p.model || '').toLowerCase();
-          return n && n !== '-' && (n.indexOf(q) !== -1 || m.indexOf(q) !== -1);
-        }).slice(0, 15);
-
-        var html = '';
-        _matchedParts.forEach(function(p, i) {
-          var name = escHtml(String(p.name || p.part_name || ''));
-          var sub  = [p.model, p.brand].filter(function(s){ return s && s !== '-'; }).map(function(s){ return escHtml(String(s)); }).join(' · ');
-          html += '<div class="ph-part-opt px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100" data-i="' + i + '">' +
-            '<div class="text-sm font-medium text-slate-800">' + name + '</div>' +
-            (sub ? '<div class="text-xs text-slate-500 mt-0.5">' + sub + '</div>' : '') +
-            '</div>';
+    // รายการอะไหล่ของไลน์ที่เลือก — ใช้แคชรายไลน์ก้อนเดียวกับหน้า Stock
+    // ไลน์ที่เคยเปิดแล้วขึ้นทันที ไลน์ที่ยังไม่เคยเปิดค่อยยิงโหลดครั้งเดียวแล้วจำไว้
+    function phLoadLineParts(lineKey) {
+      var key = String(lineKey || '').trim();
+      if (!key) return Promise.resolve([]);
+      if (phLinePartsCache[key]) return phLinePartsCache[key];
+      var cached = loadLineCache(key, key + '::ALL');
+      var loading;
+      if (cached && cached.items && cached.items.length) {
+        loading = Promise.resolve(cached.items);
+      } else {
+        loading = Promise.all(getSheetOptionsForLine(key).map(function(sheetName) {
+          return fetchSheetRows(sheetName, { lite: true });
+        })).then(function(chunks) {
+          return normalizeRecordsInBatches([].concat.apply([], chunks));
+        }).then(function(rows) {
+          saveLineCache(key, rows, key + '::ALL');
+          return rows;
         });
-        // divider + other option
-        if (_matchedParts.length > 0) html += '<div class="border-t border-slate-200"></div>';
-        html += '<div class="ph-part-other px-3 py-2.5 cursor-pointer hover:bg-blue-50 flex items-center gap-2">' +
-          '<span class="text-sm font-semibold text-blue-600">+ รายการอื่นๆ</span>' +
-          '<span class="text-xs text-slate-400">(ไม่มีในระบบ — พิมพ์เองได้)</span>' +
-          '</div>';
+      }
+      phLinePartsCache[key] = loading.catch(function(err) {
+        console.warn('โหลดอะไหล่ของไลน์ไม่สำเร็จ', key, err);
+        delete phLinePartsCache[key];
+        return [];
+      });
+      return phLinePartsCache[key];
+    }
 
-        dd.innerHTML = html;
-        dd.classList.remove('hidden');
+    function phSyncLinePartOptions() {
+      var lineEl = document.getElementById('phManualLine');
+      var lineKey = String(lineEl ? lineEl.value : '').trim();
+      var hint = document.getElementById('phManualPartsHint');
+      var list = document.getElementById('phManualPartList');
+      if (!lineKey) {
+        phCurrentLineParts = [];
+        if (list) list.innerHTML = '';
+        if (hint) hint.textContent = 'เลือก Line ด้านบนก่อน เพื่อให้ช่อง Part Name แนะนำอะไหล่ของไลน์นั้น';
+        return Promise.resolve([]);
+      }
+      if (hint) hint.textContent = 'กำลังโหลดรายการอะไหล่ของ ' + lineKey + '...';
+      return phLoadLineParts(lineKey).then(function(rows) {
+        // ผู้ใช้อาจเปลี่ยนไลน์ระหว่างรอโหลด — ของที่มาช้าต้องไม่ทับลิสต์ของไลน์ที่เลือกอยู่ตอนนี้
+        if (String((document.getElementById('phManualLine') || {}).value || '').trim() !== lineKey) return rows;
+        phCurrentLineParts = rows || [];
+        var seen = {};
+        var names = [];
+        phCurrentLineParts.forEach(function(part) {
+          var name = String(part.name || '').trim();
+          if (!name || name === '-' || seen[name]) return;
+          seen[name] = true;
+          names.push(name);
+        });
+        names.sort();
+        if (list) list.innerHTML = names.map(function(name) { return '<option value="' + escHtml(name) + '"></option>'; }).join('');
+        if (hint) {
+          hint.textContent = names.length
+            ? ('พิมพ์ในช่อง Part Name เพื่อเลือกจากอะไหล่ของ ' + lineKey + ' (' + names.length + ' รายการ) — เลือกแล้วเติม Model / Brand / ราคา ให้เอง')
+            : ('ยังไม่มีรายการอะไหล่ของ ' + lineKey + ' ในระบบ — พิมพ์ชื่อเองได้');
+        }
+        return rows;
+      });
+    }
 
-        dd.querySelectorAll('.ph-part-opt').forEach(function(el) {
-          el.addEventListener('mousedown', function(e) {
-            e.preventDefault();
-            var i = parseInt(el.getAttribute('data-i'), 10);
-            if (_matchedParts[i]) fillFromPart(_matchedParts[i]);
+    function phCollectManualItems() {
+      return phRowState.filter(function(row) { return !phIsBlankRow(row); }).map(function(row) {
+        return {
+          part_id: String(row.part_id || '').trim(),
+          part_name: String(row.part_name || '').trim(),
+          model: String(row.model || '').trim(),
+          brand: String(row.brand || '').trim(),
+          qty_ordered: String(row.qty || '').trim(),
+          unit: String(row.unit || '').trim(),
+          unit_price: String(row.unit_price || '').trim()
+        };
+      });
+    }
+
+    function phSetManualMessage(text, tone) {
+      if (!phManualMessage) return;
+      phManualMessage.textContent = text || '';
+      phManualMessage.className = 'text-sm ' + (tone === 'error' ? 'text-rose-600' : tone === 'success' ? 'text-emerald-600' : 'text-slate-500');
+    }
+
+    // แบ็กเอนด์รุ่นที่ยังไม่ได้ deploy จะไม่รู้จัก action ใหม่ แล้วตกไปเข้า processTransaction
+    // ซึ่ง throw 'ต้องมี partName และ qty' ตั้งแต่ก่อนเขียนอะไรลงชีท (ไม่มีเขียนค้างครึ่งทาง)
+    // เจอข้อความนี้เท่านั้นถึงถอยไปบันทึกทีละแถวได้อย่างปลอดภัย — error อื่นห้ามถอย
+    // เพราะอาจเป็นกรณีที่ batch เขียนไปแล้วบางส่วน ถอยไปยิงซ้ำจะได้รายการซ้ำ
+    function phIsUnknownActionError(err) {
+      var message = String((err && err.message) || err || '');
+      return message.indexOf('ต้องมี partName') > -1 || message.indexOf('partName และ qty') > -1;
+    }
+
+    function phSaveManualRowsOneByOne(base, items, onProgress) {
+      var saved = 0;
+      var chain = Promise.resolve();
+      items.forEach(function(item) {
+        chain = chain.then(function() {
+          var single = Object.assign({ action: 'addManualPurchaseHistory' }, base, {
+            part_name: item.part_name, model: item.model, brand: item.brand,
+            qty_ordered: item.qty_ordered, unit: item.unit,
+            unit_price: item.unit_price !== '' ? item.unit_price : undefined
+          });
+          return postJson(withAuthPayload(single)).then(parseApiResponse).then(function() {
+            saved += 1;
+            if (onProgress) onProgress(saved, items.length);
+          }).catch(function(err) {
+            // พังกลางทางต้องบอกว่าบันทึกไปแล้วกี่รายการ ไม่งั้นผู้ใช้กดบันทึกซ้ำทั้งใบ = ได้ของซ้ำ
+            var detail = (err && err.message) ? err.message : String(err);
+            throw new Error('บันทึกได้ ' + saved + '/' + items.length + ' รายการแล้วหยุดที่ "' + item.part_name + '": ' + detail + ' · กรุณาลบรายการที่บันทึกไปแล้วออกจากฟอร์มก่อนลองใหม่');
           });
         });
-        var otherEl = dd.querySelector('.ph-part-other');
-        if (otherEl) otherEl.addEventListener('mousedown', function(e) { e.preventDefault(); selectOther(); });
-      }
-
-      if (phPartInput) {
-        phPartInput.addEventListener('input', function() {
-          clearPartSelection();
-          var q = phPartInput.value.trim();
-          if (phPartClear) phPartClear.classList.toggle('hidden', q.length === 0);
-          renderDropdown(q);
-        });
-        phPartInput.addEventListener('focus', function() {
-          if (phPartInput.value.trim().length > 0) renderDropdown(phPartInput.value.trim());
-        });
-        phPartInput.addEventListener('blur', function() { setTimeout(hideDropdown, 150); });
-        phPartInput.addEventListener('keydown', function(e) {
-          if (e.key === 'Escape') { hideDropdown(); phPartInput.blur(); }
-        });
-      }
-      if (phPartClear) phPartClear.addEventListener('click', function() {
-        phPartInput.value = ''; phPartClear.classList.add('hidden');
-        clearPartSelection(); hideDropdown(); phPartInput.focus();
-        document.getElementById('phManualModel').value     = '';
-        document.getElementById('phManualBrand').value     = '';
-        document.getElementById('phManualUnit').value      = '';
-        document.getElementById('phManualUnitPrice').value = '';
       });
+      return chain.then(function() { return { count: saved }; });
+    }
 
-      // reset when modal opens
-      var _origOpen = purchaseHistoryAddBtn ? purchaseHistoryAddBtn.onclick : null;
-      document.addEventListener('phManualModalOpen', function() {
-        clearPartSelection(); if (phPartClear) phPartClear.classList.add('hidden'); hideDropdown();
-      });
+    function phSubmitManualForm() {
+      var submitBtn = document.getElementById('phManualSubmit');
+      var line = String((document.getElementById('phManualLine') || {}).value || '').trim();
+      if (!line) { phSetManualMessage('กรุณาเลือก Line', 'error'); return; }
+      var items = phCollectManualItems();
+      if (!items.length) { phSetManualMessage('กรุณากรอกอย่างน้อย 1 รายการ', 'error'); return; }
+      for (var i = 0; i < items.length; i += 1) {
+        if (!items[i].part_name) { phSetManualMessage('แถวที่ ' + (i + 1) + ': กรุณาระบุ Part Name', 'error'); return; }
+        var qty = Number(items[i].qty_ordered);
+        if (!isFinite(qty) || qty <= 0) { phSetManualMessage('แถวที่ ' + (i + 1) + ': Qty ต้องมากกว่า 0', 'error'); return; }
+      }
+      var base = {
+        line: line,
+        status: (document.getElementById('phManualStatus') || {}).value || 'Requested',
+        date: (document.getElementById('phManualDate') || {}).value || '',
+        requested_by: String((document.getElementById('phManualRequestedBy') || {}).value || '').trim(),
+        currency: String((document.getElementById('phManualCurrency') || {}).value || '').trim() || 'THB',
+        remark: String((document.getElementById('phManualRemark') || {}).value || '').trim(),
+        attachment_url: (document.getElementById('phManualAttachUrl') || {}).value || '',
+        attachment_name: (document.getElementById('phManualAttachName') || {}).value || ''
+      };
+      phSetManualMessage('กำลังบันทึก ' + items.length + ' รายการ...', 'muted');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'กำลังบันทึก...'; }
+      postJson(withAuthPayload(Object.assign({ action: 'addManualPurchaseHistoryBatch', items: JSON.stringify(items) }, base)))
+        .then(parseApiResponse)
+        .catch(function(err) {
+          if (!phIsUnknownActionError(err)) throw err;
+          phSetManualMessage('แบ็กเอนด์ยังไม่รองรับบันทึกครั้งเดียวหลายรายการ — กำลังบันทึกทีละรายการให้แทน...', 'muted');
+          return phSaveManualRowsOneByOne(base, items, function(done, total) {
+            phSetManualMessage('กำลังบันทึก ' + done + '/' + total + ' รายการ...', 'muted');
+          });
+        })
+        .then(function(res) {
+          var count = res && res.count !== undefined ? res.count : items.length;
+          var rowErrors = (res && Array.isArray(res.errors)) ? res.errors : [];
+          if (rowErrors.length) {
+            // บางแถวไม่ผ่านต้องบอกให้รู้ ไม่ใช่รายงานว่าสำเร็จเฉยๆ แล้วปล่อยให้ไปเจอเองทีหลัง
+            phSetManualMessage('บันทึกสำเร็จ ' + count + ' รายการ · ไม่ผ่าน ' + rowErrors.length + ' แถว: ' + rowErrors.join(' · '), 'error');
+            showQuickToast('บันทึกสำเร็จ ' + count + ' รายการ แต่มี ' + rowErrors.length + ' แถวไม่ผ่าน', 'warn');
+          } else {
+            phSetManualMessage('บันทึกสำเร็จ ' + count + ' รายการ!', 'success');
+          }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'บันทึก'; }
+          purchaseHistoryLoaded = false;
+          // มีแถวไม่ผ่านต้องคาฟอร์มไว้ให้อ่านว่าแถวไหนพัง ปิดหนีไปเลยผู้ใช้จะไม่รู้ตัว
+          if (rowErrors.length) { loadPurchaseHistory(true).catch(function() {}); return; }
+          setTimeout(function() { closePhManualModal(); loadPurchaseHistory(true).catch(function() {}); }, 700);
+        })
+        .catch(function(err) {
+          phSetManualMessage((err && err.message) ? err.message : 'เกิดข้อผิดพลาด', 'error');
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'บันทึก'; }
+        });
+    }
+
+    (function initPhManualRows() {
+      var rowsWrap = document.getElementById('phManualRows');
+      if (rowsWrap) {
+        rowsWrap.addEventListener('input', phOnRowInput);
+        rowsWrap.addEventListener('change', phOnRowInput);
+        rowsWrap.addEventListener('click', function(e) {
+          var removeBtn = e.target && e.target.closest ? e.target.closest('[data-ph-row-remove]') : null;
+          if (removeBtn) phRemoveRow(removeBtn.getAttribute('data-ph-row-remove'));
+        });
+      }
+      var addBtn = document.getElementById('phManualAddRow');
+      if (addBtn) addBtn.addEventListener('click', phAddRow);
+      var lineSelect = document.getElementById('phManualLine');
+      if (lineSelect) lineSelect.addEventListener('change', function() { phSyncLinePartOptions(); });
     })();
-    // ────────────────────────────────────────────────────────────────────
     ['phManualClose','phManualCancel'].forEach(function(id){ var b=document.getElementById(id); if(b) b.addEventListener('click', closePhManualModal); });
     if (phManualModal) phManualModal.addEventListener('click', function(e){ if(e.target===phManualModal) closePhManualModal(); });
     if (phManualForm) phManualForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      var submitBtn = document.getElementById('phManualSubmit');
-      var line = document.getElementById('phManualLine').value.trim();
-      var partName = document.getElementById('phManualPartName').value.trim();
-      var qty = document.getElementById('phManualQty').value.trim();
-      var unitPrice = document.getElementById('phManualUnitPrice').value.trim();
-      if (!line) { phManualMessage.textContent = 'กรุณาเลือก Line'; phManualMessage.className = 'text-sm text-rose-600'; return; }
-      phManualMessage.textContent = 'กำลังบันทึก...'; phManualMessage.className = 'text-sm text-slate-500';
-      submitBtn.disabled = true; submitBtn.textContent = 'กำลังบันทึก...';
-      var payload = withAuthPayload({
-        action: 'addManualPurchaseHistory',
-        line: line, part_name: partName,
-        model: document.getElementById('phManualModel').value.trim(),
-        brand: document.getElementById('phManualBrand').value.trim(),
-        qty_ordered: qty, unit: document.getElementById('phManualUnit').value.trim(),
-        unit_price: unitPrice !== '' ? unitPrice : undefined,
-        currency: document.getElementById('phManualCurrency').value.trim() || 'THB',
-        status: document.getElementById('phManualStatus').value,
-        requested_by: document.getElementById('phManualRequestedBy').value.trim(),
-        date: document.getElementById('phManualDate').value,
-        remark: document.getElementById('phManualRemark').value.trim(),
-        attachment_url: document.getElementById('phManualAttachUrl').value,
-        attachment_name: document.getElementById('phManualAttachName').value
-      });
-      requestApi(payload).then(parseApiResponse).then(function() {
-        phManualMessage.textContent = 'บันทึกสำเร็จ!'; phManualMessage.className = 'text-sm text-emerald-600';
-        submitBtn.disabled = false; submitBtn.textContent = 'บันทึก';
-        purchaseHistoryLoaded = false;
-        setTimeout(function() { closePhManualModal(); loadPurchaseHistory(true).catch(function(){}); }, 800);
-      }).catch(function(err) {
-        phManualMessage.textContent = (err && err.message) ? err.message : 'เกิดข้อผิดพลาด';
-        phManualMessage.className = 'text-sm text-rose-600';
-        submitBtn.disabled = false; submitBtn.textContent = 'บันทึก';
-      });
+      phSubmitManualForm();
     });
     if (purchaseHistoryImportBtn) purchaseHistoryImportBtn.addEventListener('click', openPurchaseHistoryImport);
     if (purchaseHistoryPdfFiles) purchaseHistoryPdfFiles.addEventListener('change', function() {
