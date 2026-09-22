@@ -1843,6 +1843,61 @@ function addManualPurchaseHistory(payload) {
   return { status: 'success', history: result };
 }
 
+// บิลใบเดียวมักมีหลายรายการ — บันทึกรอบเดียวจบแทนที่จะยิงทีละแถว
+// หัวใบ (ไลน์/สถานะ/วันที่/ผู้ขอ/สกุลเงิน/หมายเหตุ/ไฟล์แนบ) ใช้ร่วมกันทุกแถว
+// แถวไหนพัง เก็บข้อความไว้รายงานกลับไป แต่แถวที่ผ่านแล้วยังบันทึกให้ครบ
+function addManualPurchaseHistoryBatch(payload) {
+  var session = getSessionUser({ authToken: payload.authToken });
+  requireWarehouseWriter({ authToken: payload.authToken }, 'view_logs');
+  var items = payload.items;
+  if (typeof items === 'string') {
+    try { items = JSON.parse(items); } catch (parseErr) { items = []; }
+  }
+  if (!Array.isArray(items) || !items.length) throw new Error('ไม่พบรายการสำหรับบันทึก');
+  if (items.length > 50) throw new Error('บันทึกได้สูงสุด 50 รายการต่อครั้ง');
+  var status = String(payload.status || 'Requested').trim();
+  if (PURCHASE_HISTORY_STATUSES.indexOf(status) === -1) throw new Error('Status ไม่ถูกต้อง');
+  var attachmentUrl = String(payload.attachment_url || payload.attachmentUrl || '').trim();
+  var attachmentName = String(payload.attachment_name || payload.attachmentName || '').trim();
+  var requestedBy = String(payload.requested_by || session.user.username || '').trim();
+  var saved = [];
+  var errors = [];
+  items.forEach(function(item, index) {
+    try {
+      var qty = Number(item.qty_ordered || item.qtyOrdered || 0);
+      if (!isFinite(qty) || qty <= 0) throw new Error('Qty Ordered ต้องมากกว่า 0');
+      var partName = String(item.part_name || item.partName || '').trim();
+      if (!partName) throw new Error('กรุณาระบุ Part Name');
+      var unitPrice = item.unit_price !== undefined && item.unit_price !== '' ? Number(item.unit_price) : undefined;
+      var result = upsertPurchaseHistoryRecord({
+        source: 'Manual',
+        date: payload.date || new Date(),
+        line: payload.line || '',
+        part_id: String(item.part_id || item.partId || '').trim(),
+        part_name: partName,
+        brand: item.brand || '',
+        model: item.model || '',
+        qty_ordered: qty,
+        unit: item.unit || '',
+        unit_price: unitPrice,
+        currency: payload.currency || (unitPrice ? 'THB' : ''),
+        status: status,
+        requested_by: requestedBy,
+        updated_by: session.user.username,
+        remark: payload.remark || '',
+        attachment_url: attachmentUrl,
+        attachment_name: attachmentName,
+        force_status: true
+      });
+      saved.push(result.history_id || '');
+    } catch (rowErr) {
+      errors.push('แถวที่ ' + (index + 1) + ': ' + (rowErr && rowErr.message ? rowErr.message : rowErr));
+    }
+  });
+  if (!saved.length) throw new Error(errors.join(' · ') || 'บันทึกไม่สำเร็จ');
+  return { status: 'success', count: saved.length, history_ids: saved, errors: errors };
+}
+
 // =============================
 // MISC EXPENSES — ค่าใช้จ่ายสิ้นเปลือง (ของซื้อนอกระบบอะไหล่)
 // =============================
@@ -5434,6 +5489,7 @@ function doPost(e) {
     if (action === 'upsertProductionCostConfig') return respond(upsertProductionCostConfig(body), e);
     if (action === 'checkPurchaseHistoryImportDuplicates') return respond(checkPurchaseHistoryImportDuplicates(body), e);
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(body), e);
+    if (action === 'addManualPurchaseHistoryBatch') return respond(addManualPurchaseHistoryBatch(body), e);
     if (action === 'uploadPurchaseHistoryAttachment') return respond(uploadPurchaseHistoryAttachment(body), e);
     if (action === 'getMiscExpenses') return respond(getMiscExpenses(body), e);
     if (action === 'addMiscExpense') return respond(addMiscExpense(body), e);
