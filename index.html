@@ -8126,14 +8126,14 @@ function getIssueCartEntries() {
     }
 
     function renderLineTabs() {
-      var iconMap = {};
-      iconMap[ALL_LINES_KEY] = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
-        '<rect x="3" y="3" width="8.2" height="8.2" rx="2.4"/>' +
-        '<rect x="12.8" y="3" width="8.2" height="8.2" rx="2.4" opacity="0.78"/>' +
-        '<rect x="3" y="12.8" width="8.2" height="8.2" rx="2.4" opacity="0.62"/>' +
-        '<rect x="12.8" y="12.8" width="8.2" height="8.2" rx="2.4" opacity="0.88"/>' +
-        '</svg>';
-      Object.assign(iconMap, { 'H9': '🏭', 'Arc Chute': '⚡', 'Coil Winding': '🧲', 'Lug&Screw': '🔩' });
+      var iconMap = { 'H9': '🏭', 'Arc Chute': '⚡', 'Coil Winding': '🧲', 'Lug&Screw': '🔩' };
+      // ไอคอน "ทุกไลน์" = ไอคอนของทุกไลน์มาเรียงรวมกันในช่องเดียว แต่ละช่องแต้มสีประจำไลน์
+      // สร้างจาก iconMap/lineConfig ตัวจริง เพิ่มไลน์ใหม่เมื่อไหร่ไอคอนนี้ก็อัปเดตตามเอง
+      iconMap[ALL_LINES_KEY] = '<span class="grid grid-cols-2 gap-[2px]">' + realLineKeys().map(function(key) {
+        var lineColor = (lineConfig.filter(function(c) { return c.key === key; })[0] || {}).color || '#64748b';
+        return '<span class="flex h-[15px] w-[15px] items-center justify-center rounded-[4px] text-[10px] leading-none"' +
+          ' style="background:' + lineColor + '2e">' + (iconMap[key] || '📦') + '</span>';
+      }).join('') + '</span>';
       var subtitleMap = {};
       subtitleMap[ALL_LINES_KEY] = 'อะไหล่ทุกไลน์รวมกันที่เดียว';
       Object.assign(subtitleMap, { 'H9': 'Main Assembly Line', 'Arc Chute': 'Arc Chute Production', 'Coil Winding': 'Coil Winding Process', 'Lug&Screw': 'Lug & Screw Assembly' });
