@@ -914,11 +914,6 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/></svg>
             <span class="hidden sm:inline">Stock</span>
           </button>
-          <!-- Standalone: ค้นหาอะไหล่ทุกไลน์ -->
-          <button id="tabAllParts" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
-            <span>ทุกไลน์</span>
-          </button>
           <!-- Standalone: Dashboard -->
           <button id="tabDashboard" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
@@ -2663,43 +2658,6 @@
         <p id="purchaseHistoryMessage" class="text-sm text-slate-500"></p>
         <div class="flex items-center gap-2"><button id="purchaseHistoryPrevBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-40">Previous</button><span id="purchaseHistoryPageInfo" class="text-sm font-semibold text-slate-600">Page 1</span><button id="purchaseHistoryNextBtn" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-40">Next</button></div>
       </div>
-    </section>
-
-    <!-- ค้นหาอะไหล่รวมทุกไลน์ — ไม่ต้องเลือกไลน์ก่อน -->
-    <section id="allPartsPage" class="hidden space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm panel-shadow md:p-6">
-      <div class="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 class="text-xl font-bold text-slate-900">🔎 อะไหล่ทุกไลน์</h2>
-          <p class="text-sm text-slate-500">ค้นหาอะไหล่จากทุกไลน์ ทุกชีตย่อย ในที่เดียว ไม่ต้องเลือกไลน์ก่อน · กด “เปิดในไลน์” เพื่อไปหน้ารายละเอียด/เบิกของไลน์นั้น</p>
-        </div>
-        <button id="allPartsRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชทุกไลน์</button>
-      </div>
-      <div id="allPartsLineChips" class="flex flex-wrap gap-2"></div>
-      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <input id="allPartsSearch" type="search" class="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm" placeholder="ค้นหา ชื่อ / รุ่น / แบรนด์ / No. / ที่เก็บ" />
-        <select id="allPartsLineFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุกไลน์</option></select>
-        <select id="allPartsCategoryFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"><option value="all">ทุกหมวดหมู่</option></select>
-        <select id="allPartsStatusFilter" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm">
-          <option value="all">ทุกสถานะ</option>
-          <option value="out">หมดสต็อก</option>
-          <option value="low">ต่ำกว่า Min</option>
-          <option value="ok">ปกติ</option>
-        </select>
-      </div>
-      <p id="allPartsSummary" class="text-sm text-slate-500">กำลังรวมข้อมูลทุกไลน์...</p>
-      <div class="overflow-x-auto rounded-xl border border-slate-200">
-        <table class="w-full min-w-[820px] text-sm">
-          <thead class="bg-slate-100 text-left text-xs uppercase text-slate-500">
-            <tr>
-              <th class="px-3 py-2">อะไหล่</th><th class="px-3 py-2">No.</th><th class="px-3 py-2">Line / ชีต</th>
-              <th class="px-3 py-2 hidden md:table-cell">แบรนด์</th><th class="px-3 py-2 hidden lg:table-cell">ที่เก็บ</th>
-              <th class="px-3 py-2 text-right">คงเหลือ</th><th class="px-3 py-2">สถานะ</th><th class="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody id="allPartsTable"></tbody>
-        </table>
-      </div>
-      <div class="flex justify-center"><button id="allPartsMoreBtn" type="button" class="hidden h-10 rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700">โหลดเพิ่ม</button></div>
     </section>
 
     <!-- ค่าใช้จ่ายสิ้นเปลือง — ของจิปาถะที่ซื้อนอกระบบอะไหล่ (น็อต/เครื่องมือ/วัสดุ)
@@ -8810,8 +8768,6 @@ function getIssueCartEntries() {
       var tabManageActive = 'eng-tab shrink-0 flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold shadow-sm md:px-4 whitespace-nowrap';
       var tabStockCount = document.getElementById('tabStockCount');
       tabStock.className = tabBaseClass;
-      var tabAllPartsEl = document.getElementById('tabAllParts');
-      if (tabAllPartsEl) tabAllPartsEl.className = tabBaseClass;
       if (tabDashboard) tabDashboard.className = tabBaseClass;
       tabTxn.className = tabBaseClass;
       tabLog.className = tabBaseClass;
@@ -8827,7 +8783,6 @@ function getIssueCartEntries() {
       var tabExportEl = document.getElementById('tabExport');
       if (tabExportEl) { tabExportEl.className = tabBaseClass; tabExportEl.style.cssText = 'background:#eef2ff;color:#4338ca;border:1px solid #a5b4fc;'; }
       if (active === 'stock') tabStock.className = tabActiveClass;
-      if (active === 'all-parts' && tabAllPartsEl) tabAllPartsEl.className = tabActiveClass;
       if (active === 'dashboard' && tabDashboard) tabDashboard.className = tabActiveClass;
       if (active === 'txn') tabTxn.className = tabActiveClass;
       if (active === 'log') tabLog.className = tabActiveClass;
@@ -8840,7 +8795,6 @@ function getIssueCartEntries() {
       if (active === 'manage') { tabManage.className = tabManageActive; tabManage.style.cssText = 'background:#d97706;color:#ffffff;border:1px solid #b45309;'; }
       if (active === 'admin') tabAdmin.className = tabActiveClass;
       if (active === 'export' && tabExportEl) { tabExportEl.className = tabActiveClass; tabExportEl.style.cssText = 'background:#4338ca;color:#fff;border:1px solid #3730a3;'; }
-      if (tabAllPartsEl) tabAllPartsEl.classList.toggle('hidden', !hasPermission('view'));
       tabLog.classList.toggle('hidden', !hasPermission('view_logs'));
       tabManage.classList.toggle('hidden', !hasPermission('manage_items'));
       tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
@@ -8875,7 +8829,6 @@ function getIssueCartEntries() {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       setTabStyles('stock');
       normalizeMobileHeaderCartUi();
     }
@@ -8892,7 +8845,6 @@ function getIssueCartEntries() {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       setTabStyles('txn');
       syncReceiveFormAutoFields(getSelectedTxnItem());
       if (txnInStockOnly) txnInStockOnly.checked = false;
@@ -8929,7 +8881,6 @@ function getIssueCartEntries() {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       setTabStyles('log');
       loadLogData();
     }
@@ -8950,7 +8901,6 @@ function getIssueCartEntries() {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       if (stockCountPage) stockCountPage.classList.remove('hidden');
       setTabStyles('stock-count');
       scInitPage();
@@ -10786,7 +10736,6 @@ function getIssueCartEntries() {
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       setTabStyles('manage');
       populateManageLineOptions(true);
@@ -13746,7 +13695,6 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       setTabStyles('dashboard');
       loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1);
       if (dashboardPage) dashboardPage.scrollTop = 0;
@@ -13763,7 +13711,6 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
       window.__roActiveGroupIdx = undefined;
       closeRequestOrderDetailModal();
@@ -14949,336 +14896,6 @@ function inferRequestPriority(stock, min) {
       });
     }
 
-    // ── อะไหล่ทุกไลน์: ค้นหารวมทุกไลน์ทุกชีตในหน้าเดียว ──────────────────────────
-    // เดิมต้องเลือกไลน์ให้ถูกก่อนถึงจะค้นเจอ ช่างที่ไม่รู้ว่าอะไหล่ตัวนั้นอยู่ไลน์ไหน
-    // ต้องไล่เปิดทีละไลน์ หน้านี้ยืมแคชรายไลน์ก้อนเดียวกับหน้า Stock ('<line>::ALL')
-    // ไลน์ไหนโหลดไว้แล้วขึ้นทันที ที่เหลือทยอยเติมเข้ามาเบื้องหลัง
-    var AP_PAGE_SIZE = 60;
-    var apPool = [];
-    var apByLine = {};
-    var apLineState = {};
-    var apVisibleCount = AP_PAGE_SIZE;
-    var apLoading = false;
-
-    function apEl(id) { return document.getElementById(id); }
-    function apHidePage() {
-      var el = apEl('allPartsPage');
-      if (el) el.classList.add('hidden');
-    }
-    function apLineKeys() { return Object.keys(LINE_SHEET_OPTIONS); }
-
-    // สตริงค้นหาต่อชิ้น — จำไว้ในตัว item เหมือน getItemSearchText ของหน้า Stock
-    // (ต่างกันตรงที่รวม No./ที่เก็บ/หมวด/ชื่อไลน์ด้วย เพราะหน้านี้คือหน้า "หาให้เจอ")
-    function apSearchText(item) {
-      if (item.__apSearchText === undefined) {
-        item.__apSearchText = [item.no, item.name, item.model, item.brand, item.category,
-          item.location, item.coil_size, item.__apLine, getItemSourceSheet(item)].join(' ').toLowerCase();
-      }
-      return item.__apSearchText;
-    }
-
-    function apApplyPool() {
-      var seen = {};
-      var pool = [];
-      apLineKeys().forEach(function(lineKey) {
-        (apByLine[lineKey] || []).forEach(function(item) {
-          if (!item || !item.name || item.name === '-') return;
-          var key = [lineKey, String(item.no || ''), getItemSourceSheet(item), String(item.name || '')].join('::');
-          if (seen[key]) return;
-          seen[key] = true;
-          if (item.__apLine !== lineKey) {
-            item.__apLine = lineKey;
-            item.__apSearchText = undefined;
-          }
-          pool.push(item);
-        });
-      });
-      apPool = pool;
-      apSyncFilterOptions();
-      apRenderChips();
-      apRender();
-    }
-
-    // เติมตัวเลือกไลน์/หมวดหมู่ โดยคงค่าที่ผู้ใช้เลือกไว้ (พูลโตขึ้นเรื่อยๆ ระหว่างโหลด)
-    function apSyncFilterOptions() {
-      var lineSel = apEl('allPartsLineFilter');
-      if (lineSel) {
-        var keepLine = lineSel.value || 'all';
-        var lineHtml = '<option value="all">ทุกไลน์</option>' + apLineKeys().map(function(k) {
-          return '<option value="' + escHtml(k) + '">' + escHtml(k) + '</option>';
-        }).join('');
-        if (lineSel.innerHTML !== lineHtml) lineSel.innerHTML = lineHtml;
-        lineSel.value = keepLine;
-        if (!lineSel.value) lineSel.value = 'all';
-      }
-      var catSel = apEl('allPartsCategoryFilter');
-      if (catSel) {
-        var keepCat = catSel.value || 'all';
-        var cats = {};
-        apPool.forEach(function(item) { cats[String(item.category || 'General')] = true; });
-        var catHtml = '<option value="all">ทุกหมวดหมู่</option>' + Object.keys(cats).sort().map(function(c) {
-          return '<option value="' + escHtml(c) + '">' + escHtml(c) + '</option>';
-        }).join('');
-        if (catSel.innerHTML !== catHtml) catSel.innerHTML = catHtml;
-        catSel.value = keepCat;
-        if (!catSel.value) catSel.value = 'all';
-      }
-    }
-
-    function apRenderChips() {
-      var wrap = apEl('allPartsLineChips');
-      if (!wrap) return;
-      var counts = {};
-      apPool.forEach(function(item) { counts[item.__apLine] = (counts[item.__apLine] || 0) + 1; });
-      var selected = (apEl('allPartsLineFilter') || {}).value || 'all';
-      var chips = [{ key: 'all', label: 'ทุกไลน์', count: apPool.length, state: 'ready' }];
-      apLineKeys().forEach(function(k) {
-        chips.push({ key: k, label: k, count: counts[k] || 0, state: apLineState[k] || 'idle' });
-      });
-      wrap.innerHTML = chips.map(function(c) {
-        var on = selected === c.key;
-        var cls = on
-          ? 'rounded-full bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm'
-          : 'rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-400';
-        var note = c.state === 'loading' ? ' · กำลังโหลด' : (c.state === 'error' ? ' · โหลดไม่สำเร็จ' : '');
-        return '<button type="button" data-ap-line-chip="' + escHtml(c.key) + '" class="' + cls + '">'
-          + escHtml(c.label) + ' (' + c.count + escHtml(note) + ')</button>';
-      }).join('');
-    }
-
-    function apRowHtml(item) {
-      var status = getStockStatus(item);
-      var tone = getStatusTone(status);
-      var statusLabel = status === 'OUT' ? 'หมดสต็อก' : (status === 'LOW' ? 'ต่ำกว่า Min' : 'ปกติ');
-      var img = String(item.image_main_url || item.image_main || item.photo || '');
-      var thumb = img
-        ? '<img src="' + escHtml(img) + '" alt="" loading="lazy" decoding="async" class="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-slate-200" />'
-        : '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">📦</div>';
-      var sheet = getItemSourceSheet(item) || '-';
-      return '<tr class="border-t border-slate-100 align-middle">'
-        + '<td class="px-3 py-2"><div class="flex items-center gap-2">' + thumb
-        + '<div class="min-w-0"><p class="truncate font-semibold text-slate-800">' + escHtml(item.name || '-') + '</p>'
-        + '<p class="truncate text-xs text-slate-400">' + escHtml(item.model || '-') + '</p></div></div></td>'
-        + '<td class="px-3 py-2 whitespace-nowrap text-slate-600">' + escHtml(String(item.no || '-')) + '</td>'
-        + '<td class="px-3 py-2"><p class="font-semibold text-slate-700">' + escHtml(item.__apLine || '-') + '</p>'
-        + '<p class="text-xs text-slate-400">' + escHtml(sheet) + '</p></td>'
-        + '<td class="px-3 py-2 hidden md:table-cell text-slate-600">' + escHtml(item.brand || '-') + '</td>'
-        + '<td class="px-3 py-2 hidden lg:table-cell text-slate-600">' + escHtml(item.location || '-') + '</td>'
-        + '<td class="px-3 py-2 text-right whitespace-nowrap font-bold ' + tone.textClass + '">' + safeNum(item.stock)
-        + '<span class="ml-1 text-xs font-normal text-slate-400">/ min ' + safeNum(item.min) + '</span></td>'
-        + '<td class="px-3 py-2"><span class="inline-flex rounded-full px-2 py-0.5 text-xs ' + tone.badgeClass + '">' + statusLabel + '</span></td>'
-        + '<td class="px-3 py-2 text-right"><button type="button" data-ap-open="1"'
-        + ' data-ap-line="' + escHtml(item.__apLine || '') + '"'
-        + ' data-ap-no="' + escHtml(String(item.no || '')) + '"'
-        + ' data-ap-name="' + escHtml(String(item.name || '')) + '"'
-        + ' data-ap-sheet="' + escHtml(sheet === '-' ? '' : sheet) + '"'
-        + ' class="h-8 whitespace-nowrap rounded-lg bg-blue-600 px-3 text-xs font-bold text-white hover:bg-blue-700">เปิดในไลน์</button></td>'
-        + '</tr>';
-    }
-
-    function apRender() {
-      var tbody = apEl('allPartsTable');
-      if (!tbody) return;
-      var searchEl = apEl('allPartsSearch');
-      var keyword = String(searchEl ? searchEl.value : '').trim().toLowerCase();
-      var lineSel = (apEl('allPartsLineFilter') || {}).value || 'all';
-      var catSel = (apEl('allPartsCategoryFilter') || {}).value || 'all';
-      var statusSel = (apEl('allPartsStatusFilter') || {}).value || 'all';
-      var lineOrder = apLineKeys();
-      var needStatus = statusSel !== 'all';
-      var rows = apPool.filter(function(item) {
-        if (lineSel !== 'all' && item.__apLine !== lineSel) return false;
-        if (catSel !== 'all' && String(item.category || 'General') !== catSel) return false;
-        if (needStatus) {
-          var st = getStockStatus(item);
-          if (statusSel === 'out' && st !== 'OUT') return false;
-          if (statusSel === 'low' && st !== 'LOW') return false;
-          if (statusSel === 'ok' && st !== 'OK') return false;
-        }
-        if (keyword && apSearchText(item).indexOf(keyword) === -1) return false;
-        return true;
-      });
-      rows.sort(function(a, b) {
-        var la = lineOrder.indexOf(a.__apLine);
-        var lb = lineOrder.indexOf(b.__apLine);
-        if (la !== lb) return la - lb;
-        return String(a.name || '').localeCompare(String(b.name || ''), 'th');
-      });
-      var shown = rows.slice(0, apVisibleCount);
-      if (shown.length) {
-        tbody.innerHTML = shown.map(apRowHtml).join('');
-      } else {
-        var empty = apPool.length ? 'ไม่พบอะไหล่ที่ตรงกับเงื่อนไข'
-          : (apLoading ? 'กำลังรวมข้อมูลทุกไลน์...' : 'ยังไม่มีข้อมูล กดปุ่มรีเฟรชทุกไลน์');
-        tbody.innerHTML = '<tr><td colspan="8" class="px-3 py-10 text-center text-slate-400">' + empty + '</td></tr>';
-      }
-      var moreBtn = apEl('allPartsMoreBtn');
-      if (moreBtn) moreBtn.classList.toggle('hidden', rows.length <= shown.length);
-      var summary = apEl('allPartsSummary');
-      if (summary) {
-        var pending = apLineKeys().filter(function(k) { return apLineState[k] === 'loading'; });
-        summary.textContent = 'แสดง ' + shown.length + ' จาก ' + rows.length + ' รายการที่ตรงเงื่อนไข · รวมทุกไลน์ '
-          + apPool.length + ' รายการ' + (pending.length ? ' · กำลังโหลด: ' + pending.join(', ') : '');
-      }
-    }
-
-    var debouncedApRender = debounce(function() {
-      apVisibleCount = AP_PAGE_SIZE;
-      apRender();
-    }, 200);
-
-    // โหลดข้อมูลทุกไลน์ — ไลน์ที่เปิดอยู่ใช้ partsData ในมือเลย ที่เหลืออ่านแคชก่อน
-    // แล้วค่อยยิงทีละไลน์ (ไม่ยิงพร้อมกัน) กันแย่ง bandwidth/quota กับงานที่ผู้ใช้ทำอยู่
-    function apLoadAllLines(force) {
-      if (apLoading) return Promise.resolve();
-      apLoading = true;
-      var chain = Promise.resolve();
-      var needFetch = false;
-      apLineKeys().forEach(function(lineKey) {
-        if (!force && lineKey === currentLine && partsData.length) {
-          apByLine[lineKey] = partsData.slice();
-          apLineState[lineKey] = 'ready';
-          return;
-        }
-        var cached = force ? null : loadLineCache(lineKey, lineKey + '::ALL');
-        if (cached && cached.items && cached.items.length) {
-          apByLine[lineKey] = cached.items;
-          if (!cached.stale) { apLineState[lineKey] = 'ready'; return; }
-        }
-        apLineState[lineKey] = 'loading';
-        needFetch = true;
-        chain = chain.then(function() {
-          return Promise.all(getSheetOptionsForLine(lineKey).map(function(sheetName) {
-            return fetchSheetRows(sheetName, { lite: true, refresh: !!force });
-          })).then(function(chunks) {
-            return normalizeRecordsInBatches([].concat.apply([], chunks));
-          }).then(function(rows) {
-            saveLineCache(lineKey, rows, lineKey + '::ALL');
-            apByLine[lineKey] = rows;
-            apLineState[lineKey] = 'ready';
-            apApplyPool();
-          }).catch(function(err) {
-            console.warn('all-parts load failed', lineKey, err);
-            apLineState[lineKey] = 'error';
-            apApplyPool();
-          });
-        });
-      });
-      apApplyPool(); // โชว์ของที่มีในมือก่อน ไม่ต้องรอไลน์ที่ยังโหลดไม่เสร็จ
-      if (!needFetch) { apLoading = false; return Promise.resolve(); }
-      return chain.then(function() {
-        apLoading = false;
-        apApplyPool();
-      });
-    }
-
-    // ฟิลเตอร์หน้า Stock อาจค้างจากการใช้งานก่อนหน้า — ถ้าไม่ล้างก่อน กระโดดไปแล้วจะ
-    // "ไม่เจอ" ทั้งที่ของอยู่จริง (เช่นค้างหมวดอื่น หรือค้างโหมดเฉพาะของที่ยังไม่มีราคา)
-    function apResetStockFilters() {
-      ['categoryFilter', 'categoryFilterMobile', 'brandFilter', 'brandFilterMobile',
-        'statusFilter', 'statusFilterMobile', 'coilSizeFilter', 'coilSizeFilterMobile',
-        'subSheetFilter'].forEach(function(id) {
-        var el = apEl(id);
-        if (el) el.value = 'all';
-      });
-      tableStatusMode = 'all';
-      noPriceOnlyState = false;
-      newArrivalOnlyState = false;
-    }
-
-    // ข้อมูลไลน์ใหม่อาจยังโหลดไม่เสร็จตอนกด — รอจนกว่าจะเจอตัวจริงใน partsData แล้วค่อยเปิด
-    function apWaitForPart(no, sheetName, startedAt) {
-      var target = String(no || '');
-      if (!target) return;
-      for (var i = 0; i < partsData.length; i += 1) {
-        var p = partsData[i];
-        if (String(p.no || '') !== target) continue;
-        if (sheetName && getItemSourceSheet(p) !== String(sheetName)) continue;
-        openDetailModal(p);
-        return;
-      }
-      if (Date.now() - startedAt > 20000) return;
-      setTimeout(function() { apWaitForPart(no, sheetName, startedAt); }, 300);
-    }
-
-    function apOpenInLine(lineKey, no, name, sheetName) {
-      var line = String(lineKey || '').trim();
-      if (line && line !== currentLine) {
-        currentLine = line;
-        if (typeof renderLineTabs === 'function') renderLineTabs();
-        if (typeof applyLineTheme === 'function') applyLineTheme();
-        loadPartsData();
-      }
-      switchToStockPage();
-      apResetStockFilters();
-      // ช่องค้นหาหน้า Stock เทียบกับ ชื่อ/รุ่น/แบรนด์ เท่านั้น (ไม่รวม No.) — ต้องส่ง "ชื่อ" ไป
-      var keyword = String(name || '').trim();
-      if (searchInput) searchInput.value = keyword;
-      if (searchInputMobile) searchInputMobile.value = keyword;
-      applyFilters(true);
-      apWaitForPart(no, sheetName, Date.now());
-    }
-
-    function switchToAllPartsPage() {
-      if (!hasPermission('view')) return switchToStockPage();
-      stockPage.classList.add('hidden');
-      if (dashboardPage) dashboardPage.classList.add('hidden');
-      txnPage.classList.add('hidden');
-      if (requestOrderPage) requestOrderPage.classList.add('hidden');
-      logPage.classList.add('hidden');
-      prReportPage.classList.add('hidden');
-      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
-      mxHidePage();
-      managePage.classList.add('hidden');
-      adminPage.classList.add('hidden');
-      xpHidePage();
-      var page = apEl('allPartsPage');
-      if (page) page.classList.remove('hidden');
-      setTabStyles('all-parts');
-      apLoadAllLines(false);
-    }
-
-    (function initAllPartsPage() {
-      var tabBtn = apEl('tabAllParts');
-      if (tabBtn) tabBtn.addEventListener('click', switchToAllPartsPage);
-      var refreshBtn = apEl('allPartsRefreshBtn');
-      if (refreshBtn) refreshBtn.addEventListener('click', function() { apLoadAllLines(true); });
-      var searchEl = apEl('allPartsSearch');
-      if (searchEl) searchEl.addEventListener('input', debouncedApRender);
-      ['allPartsLineFilter', 'allPartsCategoryFilter', 'allPartsStatusFilter'].forEach(function(id) {
-        var el = apEl(id);
-        if (!el) return;
-        el.addEventListener('change', function() {
-          apVisibleCount = AP_PAGE_SIZE;
-          apRenderChips();
-          apRender();
-        });
-      });
-      var moreBtn = apEl('allPartsMoreBtn');
-      if (moreBtn) moreBtn.addEventListener('click', function() {
-        apVisibleCount += AP_PAGE_SIZE;
-        apRender();
-      });
-      var tbody = apEl('allPartsTable');
-      if (tbody) tbody.addEventListener('click', function(e) {
-        var btn = e.target && e.target.closest ? e.target.closest('[data-ap-open]') : null;
-        if (!btn) return;
-        apOpenInLine(btn.getAttribute('data-ap-line'), btn.getAttribute('data-ap-no'),
-          btn.getAttribute('data-ap-name'), btn.getAttribute('data-ap-sheet'));
-      });
-      var chipWrap = apEl('allPartsLineChips');
-      if (chipWrap) chipWrap.addEventListener('click', function(e) {
-        var chip = e.target && e.target.closest ? e.target.closest('[data-ap-line-chip]') : null;
-        if (!chip) return;
-        var sel = apEl('allPartsLineFilter');
-        if (sel) sel.value = chip.getAttribute('data-ap-line-chip');
-        apVisibleCount = AP_PAGE_SIZE;
-        apRenderChips();
-        apRender();
-      });
-    })();
-
-
     function switchToMiscExpensePage() {
       if (!hasPermission('view')) return switchToStockPage();
       stockPage.classList.add('hidden');
@@ -15289,7 +14906,6 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       var page = mxEl('miscExpensePage');
@@ -15374,7 +14990,6 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.remove('hidden');
       mxHidePage();
@@ -15687,7 +15302,6 @@ function inferRequestPriority(stock, min) {
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       mxHidePage();
       xpHidePage();
-      apHidePage();
       managePage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       adminPage.classList.remove('hidden');
@@ -15706,7 +15320,6 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       mxHidePage();
@@ -19274,7 +18887,6 @@ function inferRequestPriority(stock, min) {
       else if (!prReportPage.classList.contains('hidden')) setTabStyles('pr');
       else if (purchaseHistoryPage && !purchaseHistoryPage.classList.contains('hidden')) setTabStyles('purchase-history');
       else if (document.getElementById('miscExpensePage') && !document.getElementById('miscExpensePage').classList.contains('hidden')) setTabStyles('misc-expense');
-      else if (document.getElementById('allPartsPage') && !document.getElementById('allPartsPage').classList.contains('hidden')) setTabStyles('all-parts');
       else if (!managePage.classList.contains('hidden')) setTabStyles('manage');
       else if (!adminPage.classList.contains('hidden')) setTabStyles('admin');
     }));
@@ -26999,7 +26611,6 @@ if (dashboardPage) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
-      apHidePage();
       var page = xpEl('exportPage');
       if (page) page.classList.remove('hidden');
       setTabStyles('export');
