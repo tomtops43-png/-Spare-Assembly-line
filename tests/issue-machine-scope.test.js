@@ -76,9 +76,9 @@ assert(popSrc.indexOf('MACHINE_SELECT_OTHER') === -1 || script.indexOf("'<option
 assert(script.indexOf('✏️ อื่นๆ (พิมพ์เอง)') > -1, 'ต้องคงตัวเลือก "อื่นๆ (พิมพ์เอง)" ไว้');
 
 // ── ต่อสายครบทั้ง 2 หน้าจอ ───────────────────────────────────────────────────
-assert(script.indexOf("populateMachineSelect('quickIssueMachine', 'quickIssueMachineOther', line || currentLine, parseItemMachines(item))") > -1,
+assert(script.indexOf("populateMachineSelect('quickIssueMachine', 'quickIssueMachineOther', line || formLineDefault(item), parseItemMachines(item))") > -1,
   'เบิกด่วนต้องส่งเครื่องที่อะไหล่ผูกไว้เข้าไป');
-assert(script.indexOf("populateMachineSelect('issueCartMachine', 'issueCartMachineOther', currentLine, getSharedMachineNames(items))") > -1,
+assert(script.indexOf("populateMachineSelect('issueCartMachine', 'issueCartMachineOther', formLineDefault(items[0]), getSharedMachineNames(items))") > -1,
   'ตะกร้าต้องส่งเครื่องที่ใช้ได้ร่วมกันเข้าไป');
 
 console.log('Issue machine scope checks passed');
