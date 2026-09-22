@@ -8127,7 +8127,12 @@ function getIssueCartEntries() {
 
     function renderLineTabs() {
       var iconMap = {};
-      iconMap[ALL_LINES_KEY] = '🗂️';
+      iconMap[ALL_LINES_KEY] = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+        '<rect x="3" y="3" width="8.2" height="8.2" rx="2.4"/>' +
+        '<rect x="12.8" y="3" width="8.2" height="8.2" rx="2.4" opacity="0.78"/>' +
+        '<rect x="3" y="12.8" width="8.2" height="8.2" rx="2.4" opacity="0.62"/>' +
+        '<rect x="12.8" y="12.8" width="8.2" height="8.2" rx="2.4" opacity="0.88"/>' +
+        '</svg>';
       Object.assign(iconMap, { 'H9': '🏭', 'Arc Chute': '⚡', 'Coil Winding': '🧲', 'Lug&Screw': '🔩' });
       var subtitleMap = {};
       subtitleMap[ALL_LINES_KEY] = 'อะไหล่ทุกไลน์รวมกันที่เดียว';
@@ -8155,7 +8160,7 @@ function getIssueCartEntries() {
         }
         return '<button data-line="' + item.key + '" class="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-300 hover:shadow-sm">' +
           '<div class="flex items-center gap-3">' +
-          '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl" style="background:' + item.color + '18">' + icon + '</div>' +
+          '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl" style="background:' + item.color + '18;color:' + item.color + '">' + icon + '</div>' +
           '<div class="min-w-0 flex-1">' +
           '<p class="text-sm font-bold text-slate-800 leading-tight">' + label + '</p>' +
           '<p class="text-[11px] text-slate-400 leading-tight mt-0.5">' + subtitle + '</p>' +
