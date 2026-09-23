@@ -3747,11 +3747,8 @@
         <input id="issueCartReasonRemark" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="📝 ระบุเหตุผลอื่นๆ (บังคับกรอก)" />
         <!-- ดึงรายชื่อเครื่องจักรที่ลงทะเบียนไว้ของไลน์นี้มาให้เลือก (Admin > จัดการเครื่องจักรต่อไลน์)
              เดิมเป็นช่องพิมพ์อิสระ + datalist ที่เติมจากประวัติ Log ทำให้ชื่อเครื่องสะกดไม่ตรงกัน -->
-        <select id="issueCartMachine" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
-          <option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>
-          <option value="__other__">✏️ อื่นๆ (พิมพ์เอง)</option>
-        </select>
-        <input id="issueCartMachineOther" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="🏭 ระบุชื่อเครื่องเอง (บังคับ)" />
+        <!-- ตะกร้าข้ามไลน์ได้ (โหมดทุกไลน์) — เลือกเครื่องแยกทีละไลน์ ไม่ใช่เครื่องเดียวทั้งตะกร้า -->
+        <div id="issueCartMachineGroups" class="space-y-2"></div>
         <div>
           <label for="issueCartDate" class="mb-1 block text-xs font-semibold text-slate-500">📅 วันเวลาที่เบิก (ย้อนหลังได้)</label>
           <input id="issueCartDate" type="datetime-local" class="h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" />
@@ -5374,15 +5371,6 @@
       modalLockCount = 0;
       document.body.style.overflow = '';
       if (stockStickyHeader) stockStickyHeader.classList.add('hidden');
-      if (issueCartProcess && !String(issueCartProcess.value || '').trim()) {
-        // ตะกร้าข้ามไลน์ได้ในโหมดทุกไลน์ — โชว์ไลน์ตามของที่อยู่ในตะกร้าจริง
-        var cartLines = [];
-        getIssueCartEntries().forEach(function(e) {
-          var key = formLineDefault(e.item);
-          if (key && cartLines.indexOf(key) === -1) cartLines.push(key);
-        });
-        issueCartProcess.value = cartLines.length ? cartLines.join(', ') : activeRealLine();
-      }
       if (issueCartDate && !issueCartDate.value) issueCartDate.value = formatDateToLocalInputValue(new Date());
       syncTxnActorFields();
       setIssueCartMessage('', 'muted');
@@ -6377,6 +6365,11 @@
         return { key: key, item: found, qty: safeNum(issueCartState[key]) || 1 };
       }).filter(Boolean);
       issueCartRenderEntries = entries;
+      // ลบ/เพิ่มของจนชุดไลน์ในตะกร้าเปลี่ยน → ช่องเลือกเครื่องต่อไลน์ต้องวาดใหม่ตาม
+      if (issueCartModal && !issueCartModal.classList.contains('hidden') &&
+          getIssueCartLines(entries).join('\n') !== issueCartMachineLines.join('\n')) {
+        populateIssueCartMachineOptions().then(refreshIssueCartSubmitGate);
+      }
 
       var noPriceCount = entries.filter(function(e) { return getItemUnitPrice(e.item) === null; }).length;
       issueCartSummary.textContent = entries.length + ' รายการ' + (noPriceCount ? ' · ❓ ยังไม่มีราคา ' + noPriceCount + ' รายการ' : '');
@@ -6631,20 +6624,81 @@
       syncMachineSelectOther(selectId, otherId);
     }
 
+    // ตะกร้าในโหมดทุกไลน์มีของหลายไลน์ปนกันได้ — แต่ละไลน์มีทะเบียนเครื่องของตัวเอง
+    // จึงต้องเลือกเครื่องแยกต่อไลน์ และบันทึกแต่ละรายการเข้าไลน์ของอะไหล่ชิ้นนั้นเอง
+    var issueCartMachineLines = [];
+    function issueCartMachineIds(idx) {
+      return { sel: 'issueCartMachine_' + idx, other: 'issueCartMachineOther_' + idx };
+    }
+    function getIssueCartLines(entries) {
+      var lines = [];
+      (entries || []).forEach(function(e) {
+        var line = formLineDefault(e.item) || '-';
+        if (lines.indexOf(line) === -1) lines.push(line);
+      });
+      return lines;
+    }
     function populateIssueCartMachineOptions() {
-      // ตะกร้าใช้เครื่องเดียวกับทุกรายการ จึงเหลือเฉพาะเครื่องที่ทุกชิ้นใส่ได้
-      // ถ้าในตะกร้ามีของคนละขนาดปนกัน จะตัดกันไม่เหลือ → ถอยไปแสดงทุกเครื่องเอง
-      var items = getIssueCartEntries().map(function(e) { return e.item; });
-      return populateMachineSelect('issueCartMachine', 'issueCartMachineOther', formLineDefault(items[0]), getSharedMachineNames(items));
+      var entries = getIssueCartEntries();
+      var lines = getIssueCartLines(entries);
+      if (issueCartProcess) issueCartProcess.value = lines.length ? lines.join(', ') : activeRealLine();
+      var wrap = document.getElementById('issueCartMachineGroups');
+      if (!wrap) return Promise.resolve();
+      // เปลี่ยนรายการในตะกร้าแล้ววาดใหม่ — เครื่องที่เลือกไว้ของไลน์เดิมต้องไม่หาย
+      var previous = {};
+      issueCartMachineLines.forEach(function(line, i) {
+        var ids = issueCartMachineIds(i);
+        var sel = document.getElementById(ids.sel);
+        var other = document.getElementById(ids.other);
+        if (sel) previous[line] = { sel: sel.value, other: other ? other.value : '' };
+      });
+      issueCartMachineLines = lines;
+      var multi = lines.length > 1;
+      wrap.innerHTML = lines.map(function(line, i) {
+        var ids = issueCartMachineIds(i);
+        var count = entries.filter(function(e) { return (formLineDefault(e.item) || '-') === line; }).length;
+        return '<div class="space-y-1">' +
+          (multi ? '<p class="text-xs font-bold text-slate-700">🏭 เครื่องของไลน์ ' + escHtml(line) + ' <span class="font-normal text-slate-500">(' + count + ' รายการ)</span></p>' : '') +
+          '<select id="' + ids.sel + '" data-cart-machine-idx="' + i + '" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">' +
+            '<option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>' +
+            '<option value="' + MACHINE_SELECT_OTHER + '">✏️ อื่นๆ (พิมพ์เอง)</option>' +
+          '</select>' +
+          '<input id="' + ids.other + '" data-cart-machine-idx="' + i + '" type="text" class="hidden h-10 w-full rounded-lg border border-blue-300 bg-blue-50 px-3 text-sm" placeholder="🏭 ระบุชื่อเครื่องเอง (บังคับ)" />' +
+        '</div>';
+      }).join('');
+      return Promise.all(lines.map(function(line, i) {
+        var ids = issueCartMachineIds(i);
+        // ในไลน์เดียวกันใช้เครื่องเดียวกัน จึงเหลือเฉพาะเครื่องที่ทุกชิ้นของไลน์นั้นใส่ได้
+        var items = entries.filter(function(e) { return (formLineDefault(e.item) || '-') === line; }).map(function(e) { return e.item; });
+        return populateMachineSelect(ids.sel, ids.other, line, getSharedMachineNames(items)).then(function() {
+          var prev = previous[line];
+          var sel = document.getElementById(ids.sel);
+          var other = document.getElementById(ids.other);
+          if (!prev || !sel || issueCartMachineLines[i] !== line) return;
+          sel.value = prev.sel;
+          syncMachineSelectOther(ids.sel, ids.other);
+          if (other && sel.value === MACHINE_SELECT_OTHER) other.value = prev.other;
+        });
+      }));
     }
-    function syncIssueCartMachineOtherVisibility() {
-      syncMachineSelectOther('issueCartMachine', 'issueCartMachineOther');
+    function getIssueCartMachineForLine(line) {
+      var i = issueCartMachineLines.indexOf(line || '-');
+      if (i === -1) return '';
+      var ids = issueCartMachineIds(i);
+      return getMachineSelectValue(ids.sel, ids.other);
     }
-    function getIssueCartMachineValue() {
-      return getMachineSelectValue('issueCartMachine', 'issueCartMachineOther');
+    // ไลน์แรกที่ยังไม่ได้เลือกเครื่อง ('' = ครบทุกไลน์แล้ว)
+    function getIssueCartLineMissingMachine() {
+      for (var i = 0; i < issueCartMachineLines.length; i += 1) {
+        if (!getIssueCartMachineForLine(issueCartMachineLines[i])) return issueCartMachineLines[i];
+      }
+      return issueCartMachineLines.length ? '' : '-';
     }
     function resetIssueCartMachineField() {
-      resetMachineSelect('issueCartMachine', 'issueCartMachineOther');
+      issueCartMachineLines.forEach(function(line, i) {
+        var ids = issueCartMachineIds(i);
+        resetMachineSelect(ids.sel, ids.other);
+      });
     }
 
     // โชว์ช่องเลขประจำชิ้นเฉพาะอะไหล่ที่อยู่ในกลุ่มแท็ก และล้างค่าเดิมของชิ้นก่อนหน้าทิ้ง
@@ -6715,7 +6769,7 @@
       var reasonRemark = String((issueCartReasonRemark && issueCartReasonRemark.value) || '').trim();
       if (!reason) return true;
       if (reason === 'Other' && !reasonRemark) return true;
-      if (!getIssueCartMachineValue()) return true;
+      if (getIssueCartLineMissingMachine()) return true;
       return false;
     }
     function refreshIssueCartSubmitGate() {
@@ -6766,7 +6820,12 @@ function getIssueCartEntries() {
       if (!reason) return 'กรุณาเลือก Reason สำหรับการเบิกออก';
       if (reason === 'Other' && !reasonRemark) return 'กรุณาระบุ Reason Remark';
       // บังคับระบุเครื่อง — ต้องเก็บให้ครบทุกรายการ ถึงจะสรุปได้ว่าเครื่องไหนกินอะไหล่บ่อย
-      if (!getIssueCartMachineValue()) return 'กรุณาเลือกเครื่องที่จะเอาอะไหล่ไปใส่ (บังคับ)';
+      var lineMissingMachine = getIssueCartLineMissingMachine();
+      if (lineMissingMachine) {
+        return issueCartMachineLines.length > 1
+          ? 'กรุณาเลือกเครื่องของไลน์ ' + lineMissingMachine + ' (บังคับ)'
+          : 'กรุณาเลือกเครื่องที่จะเอาอะไหล่ไปใส่ (บังคับ)';
+      }
       // อะไหล่ที่อยู่ในกลุ่มแท็ก ต้องระบุเลขของชิ้นที่หยิบมาให้ครบตามจำนวน
       for (var t = 0; t < entries.length; t += 1) {
         var tagEntry = entries[t];
@@ -16697,11 +16756,9 @@ function inferRequestPriority(stock, min) {
       }
 
       var byValue = String(issueCartBy.value || '').trim();
-      var processValue = String((issueCartProcess && issueCartProcess.value) || '').trim();
       var noteValue = String((issueCartNote && issueCartNote.value) || '').trim();
       var reasonValue = String((issueCartReason && issueCartReason.value) || '').trim();
       var reasonRemarkValue = String((issueCartReasonRemark && issueCartReasonRemark.value) || '').trim();
-      var machineValue = getIssueCartMachineValue();
       var txnDateValue = formatLocalInputValueToTxnDate(issueCartDate && issueCartDate.value);
       if (issueCartDate && issueCartDate.value && !txnDateValue) {
         setIssueCartMessage('วันเวลาที่เบิกไม่ถูกต้อง', 'error');
@@ -16734,7 +16791,10 @@ function inferRequestPriority(stock, min) {
           failures.push((latestItem.name || entry.no) + ': stock ไม่พอสำหรับเบิก');
           return runNext();
         }
-        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, processValue, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '', machineValue, issueCartTagNos[entry.key], txnDateValue);
+        // แต่ละรายการบันทึกเข้าไลน์ของตัวเอง + เครื่องที่เลือกไว้ของไลน์นั้น (ตะกร้าข้ามไลน์ได้)
+        var entryLine = formLineDefault(entry.item) || '-';
+        var machineValue = getIssueCartMachineForLine(entryLine);
+        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, entryLine === '-' ? '' : entryLine, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '', machineValue, issueCartTagNos[entry.key], txnDateValue);
         var beforeStock = Number(latestItem.stock || 0);
         latestItem.stock = Math.max(0, beforeStock - latestQty);
         applyFilters(false);
@@ -21055,13 +21115,18 @@ if (dashboardPage) {
     bindPartTagUi();
     if (issueCartReason) issueCartReason.addEventListener('change', function(){ var isOther = String(issueCartReason.value || '') === 'Other'; if (issueCartReasonRemark) { issueCartReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) issueCartReasonRemark.value = ''; } refreshIssueCartSubmitGate(); });
     if (issueCartReasonRemark) issueCartReasonRemark.addEventListener('input', refreshIssueCartSubmitGate);
-    var issueCartMachineSelect = document.getElementById('issueCartMachine');
-    if (issueCartMachineSelect) issueCartMachineSelect.addEventListener('change', function() {
-      syncIssueCartMachineOtherVisibility();
-      refreshIssueCartSubmitGate();
-    });
-    var issueCartMachineOtherEl = document.getElementById('issueCartMachineOther');
-    if (issueCartMachineOtherEl) issueCartMachineOtherEl.addEventListener('input', refreshIssueCartSubmitGate);
+    var issueCartMachineGroupsEl = document.getElementById('issueCartMachineGroups');
+    if (issueCartMachineGroupsEl) {
+      issueCartMachineGroupsEl.addEventListener('change', function(e) {
+        if (!e.target || e.target.tagName !== 'SELECT') return;
+        var ids = issueCartMachineIds(e.target.getAttribute('data-cart-machine-idx'));
+        syncMachineSelectOther(ids.sel, ids.other);
+        refreshIssueCartSubmitGate();
+      });
+      issueCartMachineGroupsEl.addEventListener('input', function(e) {
+        if (e.target && e.target.tagName === 'INPUT') refreshIssueCartSubmitGate();
+      });
+    }
     if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } refreshQuickIssueGate(); });
     if (quickIssueReasonRemark) quickIssueReasonRemark.addEventListener('input', refreshQuickIssueGate);
     var quickIssueMachineSelect = document.getElementById('quickIssueMachine');
