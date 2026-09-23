@@ -2791,7 +2791,8 @@
           </label>
         </div>
         <!-- รายการในใบเดียวกัน — เพิ่มได้หลายแถว บันทึกทีเดียว (แนวเดียวกับค่าใช้จ่ายสิ้นเปลือง)
-             ช่อง Part Name ผูกกับ datalist ของ "ไลน์ที่เลือกไว้ด้านบน" เลือกแล้วเติม
+             ช่อง Part Name ค้นหาจากอะไหล่ของ "ไลน์ที่เลือกไว้ด้านบน" ได้ทั้งจากชื่อและ Model
+             (ดรอปดาวน์โชว์ Model ให้เห็นเลย เพราะคนส่วนใหญ่จำ Model แม่นกว่าชื่อ) เลือกแล้วเติม
              Model/Brand/Unit/ราคา ให้เอง -->
         <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
@@ -2805,7 +2806,6 @@
             <output id="phManualGrandTotal" class="text-base font-black text-slate-800">฿0.00</output>
           </div>
         </div>
-        <datalist id="phManualPartList"></datalist>
         <label class="block text-sm font-semibold text-slate-700">Remark
           <textarea id="phManualRemark" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
         </label>
@@ -20094,7 +20094,10 @@ function inferRequestPriority(stock, min) {
             (canRemove ? '<button type="button" data-ph-row-remove="' + escHtml(row.uid) + '" class="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-600">ลบแถว</button>' : '') +
           '</div>' +
           '<div class="mt-1 grid grid-cols-12 gap-2">' +
-            '<label class="col-span-12 sm:col-span-6 text-[11px] font-semibold text-slate-500">Part Name<input data-ph-field="part_name" list="phManualPartList" value="' + escHtml(row.part_name) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="พิมพ์เพื่อเลือกจากอะไหล่ของไลน์" /></label>' +
+            '<div class="relative col-span-12 sm:col-span-6">' +
+              '<label class="text-[11px] font-semibold text-slate-500">Part Name / Model<input data-ph-field="part_name" value="' + escHtml(row.part_name) + '" autocomplete="off" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="พิมพ์ชื่อหรือ Model เพื่อค้นหา" /></label>' +
+              '<div data-ph-suggest class="hidden absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"></div>' +
+            '</div>' +
             '<label class="col-span-6 sm:col-span-3 text-[11px] font-semibold text-slate-500">Model / Part No.<input data-ph-field="model" list="phModelList" value="' + escHtml(row.model) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="-" /></label>' +
             '<label class="col-span-6 sm:col-span-3 text-[11px] font-semibold text-slate-500">Brand<input data-ph-field="brand" list="phBrandList" value="' + escHtml(row.brand) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="-" /></label>' +
             '<label class="col-span-3 text-[11px] font-semibold text-slate-500">Qty<input data-ph-field="qty" type="number" min="0.000001" step="any" inputmode="decimal" value="' + escHtml(row.qty) + '" class="mt-0.5 h-10 w-full rounded-lg border border-slate-300 px-2 text-sm" placeholder="0" /></label>' +
@@ -20144,6 +20147,80 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    // ดรอปดาวน์ค้นหา Part Name ต่อแถว — ค้นได้ทั้งจากชื่อและ Model เพราะคนหน้างาน
+    // ส่วนมากจำ Model แม่นกว่าชื่ออะไหล่ (ชื่อยาว/ซ้ำกันได้ แต่ Model ระบุตัวได้ชัดกว่า)
+    var phRowSuggestState = {};
+    function phBuildPartSearchText(part) {
+      if (part.__phSearchText === undefined) {
+        part.__phSearchText = [part.name, part.model, part.brand].join(' ').trim().toLowerCase();
+      }
+      return part.__phSearchText;
+    }
+    function phRenderSuggestions(row, rowEl) {
+      var box = rowEl ? rowEl.querySelector('[data-ph-suggest]') : null;
+      if (!box) return;
+      var query = String(row.part_name || '').trim().toLowerCase();
+      if (!query) { box.classList.add('hidden'); box.innerHTML = ''; phRowSuggestState[row.uid] = []; return; }
+      var seen = {};
+      var matches = [];
+      for (var i = 0; i < phCurrentLineParts.length && matches.length < 25; i += 1) {
+        var part = phCurrentLineParts[i];
+        var name = String(part.name || '').trim();
+        if (!name || name === '-') continue;
+        if (phBuildPartSearchText(part).indexOf(query) === -1) continue;
+        var key = name + '|' + String(part.model || '').trim();
+        if (seen[key]) continue;
+        seen[key] = true;
+        matches.push(part);
+      }
+      phRowSuggestState[row.uid] = matches;
+      if (!matches.length) {
+        box.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400">ไม่พบรายการที่ตรงกัน — พิมพ์ชื่อเองได้</div>';
+        box.classList.remove('hidden');
+        return;
+      }
+      box.innerHTML = matches.map(function(part, idx) {
+        return '<button type="button" data-ph-suggest-idx="' + idx + '" class="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-indigo-50">' +
+          '<span class="font-semibold text-slate-800">' + escHtml(part.name || '') + '</span>' +
+          '<span class="ml-1.5 text-xs text-slate-500">Model: ' + escHtml(part.model || '-') + (part.brand && part.brand !== '-' ? ' · ' + escHtml(part.brand) : '') + '</span>' +
+        '</button>';
+      }).join('');
+      box.classList.remove('hidden');
+    }
+    function phHideSuggestions(rowEl) {
+      var box = rowEl ? rowEl.querySelector('[data-ph-suggest]') : null;
+      if (box) box.classList.add('hidden');
+    }
+    // คลิกเลือกจากดรอปดาวน์ = ตั้งใจเลือกอะไหล่ตัวนี้ชัดเจน ทับ Model/Brand/Unit ที่เคยพิมพ์ไว้ได้เลย
+    // (ต่างจากตอนพิมพ์ชื่อเป๊ะแล้ว auto-fill เฉยๆ ซึ่งเติมเฉพาะช่องว่างเพื่อไม่ทับของที่ผู้ใช้ตั้งใจพิมพ์เอง)
+    function phPickSuggestion(btn) {
+      var rowEl = btn.closest('[data-ph-row]');
+      if (!rowEl) return;
+      var uid = rowEl.getAttribute('data-ph-row');
+      var idx = Number(btn.getAttribute('data-ph-suggest-idx'));
+      var matches = phRowSuggestState[uid] || [];
+      var hit = matches[idx];
+      if (!hit) return;
+      var row = phRowState.filter(function(r) { return r.uid === uid; })[0];
+      if (!row) return;
+      row.part_name = String(hit.name || '');
+      row.part_id = String(hit.no || '');
+      var price = typeof getItemUnitPrice === 'function' ? getItemUnitPrice(hit) : null;
+      var updates = { part_name: row.part_name, model: hit.model, brand: hit.brand, unit: hit.unit };
+      Object.keys(updates).forEach(function(key) {
+        var value = updates[key];
+        if (value === null || value === undefined || value === '-') return;
+        row[key] = String(value);
+      });
+      if (!String(row.unit_price || '').trim() && price !== null && price !== undefined && price !== '') row.unit_price = String(price);
+      ['part_name', 'model', 'brand', 'unit', 'unit_price'].forEach(function(key) {
+        var input = rowEl.querySelector('[data-ph-field="' + key + '"]');
+        if (input) input.value = row[key] || '';
+      });
+      phHideSuggestions(rowEl);
+      phRecalcTotals();
+    }
+
     function phOnRowInput(e) {
       var rowEl = e.target && e.target.closest ? e.target.closest('[data-ph-row]') : null;
       if (!rowEl) return;
@@ -20153,6 +20230,7 @@ function inferRequestPriority(stock, min) {
       var row = phRowState.filter(function(r) { return r.uid === uid; })[0];
       if (!row) return;
       row[field] = e.target.value;
+      if (field === 'part_name' && e.type === 'input') phRenderSuggestions(row, rowEl);
       if (field === 'part_name') phAutoFillRowFromMaster(row, rowEl);
       phRecalcTotals();
     }
@@ -20189,10 +20267,8 @@ function inferRequestPriority(stock, min) {
       var lineEl = document.getElementById('phManualLine');
       var lineKey = String(lineEl ? lineEl.value : '').trim();
       var hint = document.getElementById('phManualPartsHint');
-      var list = document.getElementById('phManualPartList');
       if (!lineKey) {
         phCurrentLineParts = [];
-        if (list) list.innerHTML = '';
         if (hint) hint.textContent = 'เลือก Line ด้านบนก่อน เพื่อให้ช่อง Part Name แนะนำอะไหล่ของไลน์นั้น';
         return Promise.resolve([]);
       }
@@ -20201,19 +20277,18 @@ function inferRequestPriority(stock, min) {
         // ผู้ใช้อาจเปลี่ยนไลน์ระหว่างรอโหลด — ของที่มาช้าต้องไม่ทับลิสต์ของไลน์ที่เลือกอยู่ตอนนี้
         if (String((document.getElementById('phManualLine') || {}).value || '').trim() !== lineKey) return rows;
         phCurrentLineParts = rows || [];
+        // นับจำนวนชื่อไม่ซ้ำไว้แค่โชว์ในคำใบ้ — ตัวค้นหาจริงอ่านจาก phCurrentLineParts ตรงๆ ตอนพิมพ์
         var seen = {};
-        var names = [];
+        var uniqueCount = 0;
         phCurrentLineParts.forEach(function(part) {
           var name = String(part.name || '').trim();
           if (!name || name === '-' || seen[name]) return;
           seen[name] = true;
-          names.push(name);
+          uniqueCount += 1;
         });
-        names.sort();
-        if (list) list.innerHTML = names.map(function(name) { return '<option value="' + escHtml(name) + '"></option>'; }).join('');
         if (hint) {
-          hint.textContent = names.length
-            ? ('พิมพ์ในช่อง Part Name เพื่อเลือกจากอะไหล่ของ ' + lineKey + ' (' + names.length + ' รายการ) — เลือกแล้วเติม Model / Brand / ราคา ให้เอง')
+          hint.textContent = uniqueCount
+            ? ('พิมพ์ชื่อหรือ Model ในช่อง Part Name เพื่อค้นหาอะไหล่ของ ' + lineKey + ' (' + uniqueCount + ' รายการ) — เลือกแล้วเติม Model / Brand / ราคา ให้เอง')
             : ('ยังไม่มีรายการอะไหล่ของ ' + lineKey + ' ในระบบ — พิมพ์ชื่อเองได้');
         }
         return rows;
@@ -20333,7 +20408,24 @@ function inferRequestPriority(stock, min) {
         rowsWrap.addEventListener('change', phOnRowInput);
         rowsWrap.addEventListener('click', function(e) {
           var removeBtn = e.target && e.target.closest ? e.target.closest('[data-ph-row-remove]') : null;
-          if (removeBtn) phRemoveRow(removeBtn.getAttribute('data-ph-row-remove'));
+          if (removeBtn) { phRemoveRow(removeBtn.getAttribute('data-ph-row-remove')); return; }
+          var suggestBtn = e.target && e.target.closest ? e.target.closest('[data-ph-suggest-idx]') : null;
+          if (suggestBtn) phPickSuggestion(suggestBtn);
+        });
+        // โฟกัสเข้าช่อง Part Name ให้โชว์ดรอปดาวน์ตามที่พิมพ์ไว้ทันที (เผื่อกลับมาแก้)
+        // ออกจากช่อง (คลิกที่อื่น/แตะที่ปุ่มในดรอปดาวน์) ต้องหน่วงก่อนซ่อน ไม่งั้นคลิกเลือกรายการไม่ทัน
+        // เพราะ blur ยิงก่อน click ของปุ่มในดรอปดาวน์เสมอ
+        rowsWrap.addEventListener('focusin', function(e) {
+          if (!e.target || e.target.getAttribute('data-ph-field') !== 'part_name') return;
+          var rowEl = e.target.closest('[data-ph-row]');
+          var row = rowEl ? phRowState.filter(function(r) { return r.uid === rowEl.getAttribute('data-ph-row'); })[0] : null;
+          if (row) phRenderSuggestions(row, rowEl);
+        });
+        rowsWrap.addEventListener('focusout', function(e) {
+          if (!e.target || e.target.getAttribute('data-ph-field') !== 'part_name') return;
+          var rowEl = e.target.closest('[data-ph-row]');
+          if (!rowEl) return;
+          setTimeout(function() { phHideSuggestions(rowEl); }, 150);
         });
       }
       var addBtn = document.getElementById('phManualAddRow');
@@ -22193,15 +22285,26 @@ if (dashboardPage) {
         var q = String(roItemSearch.value || '').trim().toLowerCase();
         if (!q) { roSearchResultState = []; roItemSearchResults.innerHTML = ''; return; }
         var source = (roSearchPool && roSearchPool.length) ? roSearchPool : (partsData || []);
+        // pool นี้รวมทุกไลน์ ชื่ออะไหล่ซ้ำกันข้ามไลน์ได้บ่อย — ต้องดันไลน์ที่กำลังดูอยู่ขึ้นบนสุด
+        // แล้วแปะป้ายไลน์ให้เห็นทุกแถว ไม่งั้นเผลอเลือกอะไหล่ของไลน์อื่นโดยไม่รู้ตัว
+        var myLine = (typeof activeRealLine === 'function') ? activeRealLine() : '';
         var filtered = source.filter(function(p) {
           if (p.__roSearchText === undefined) {
             p.__roSearchText = [p.name, p.model, p.brand, p.line, p.location].join(' ').toLowerCase();
           }
           return p.__roSearchText.indexOf(q) > -1;
+        }).sort(function(a, b) {
+          var aMine = (myLine && a.line === myLine) ? 0 : 1;
+          var bMine = (myLine && b.line === myLine) ? 0 : 1;
+          return aMine - bMine;
         }).slice(0, 20);
         roSearchResultState = filtered.slice();
         roItemSearchResults.innerHTML = filtered.map(function(item, idx) {
-          return '<button type="button" data-idx="' + idx + '" class="block w-full border-b px-3 py-2.5 text-left text-sm hover:bg-slate-50">' + (item.name || '-') + ' <span class="text-xs text-slate-500">(' + (item.model || '-') + ')</span></button>';
+          var isMine = !!(myLine && item.line === myLine);
+          return '<button type="button" data-idx="' + idx + '" class="flex w-full items-center justify-between gap-2 border-b px-3 py-2.5 text-left text-sm hover:bg-slate-50">' +
+            '<span class="min-w-0 truncate">' + escHtml(item.name || '-') + ' <span class="text-xs text-slate-500">(' + escHtml(item.model || '-') + ')</span></span>' +
+            '<span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' + (isMine ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500') + '">' + escHtml(item.line || '-') + '</span>' +
+          '</button>';
         }).join('') || '<p class="px-3 py-2 text-slate-400">ไม่พบรายการ</p>';
       }, 200));
       roItemSearchResults.addEventListener('click', function(e) {
