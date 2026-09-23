@@ -14,7 +14,10 @@ assert(htmlLf.includes('id="phManualRows"'), 'ต้องมีที่สำ�
 assert(htmlLf.includes('id="phManualAddRow"'), 'ต้องมีปุ่มเพิ่มรายการ');
 assert(htmlLf.includes('id="phManualRowCount"') && htmlLf.includes('id="phManualGrandTotal"'),
   'ต้องสรุปจำนวนรายการและยอดรวมทั้งใบ');
-assert(htmlLf.includes('id="phManualPartList"'), 'ต้องมี datalist ของอะไหล่รายไลน์');
+// ค้นอะไหล่ของไลน์ได้ทั้งจากชื่อและ Model (คนหน้างานจำ Model แม่นกว่าชื่อ) — datalist ค้นได้แค่ชื่อ
+assert(!htmlLf.includes('id="phManualPartList"'), 'ต้องเลิกใช้ datalist ที่ค้นได้แค่ชื่อ');
+assert(htmlLf.includes('data-ph-suggest'), 'ต้องมีดรอปดาวน์ค้นหาต่อแถว');
+assert(htmlLf.includes("[part.name, part.model, part.brand].join(' ')"), 'ต้องค้นจาก Model ได้ด้วย');
 // ช่องเดี่ยวของเดิมต้องถูกถอดออก ไม่งั้นเหลือสองทางกรอกที่ขัดกันเอง
 ['phManualPartName', 'phManualPartId', 'phPartNameDropdown', 'phPartNameClear'].forEach(function(id) {
   assert(!htmlLf.includes('id="' + id + '"'), 'ต้องไม่เหลือช่องกรอกแบบแถวเดียวของเดิม: ' + id);

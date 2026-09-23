@@ -6,7 +6,8 @@ const html = fs.readFileSync('index.html', 'utf8');
 // เดิม Issue Cart เป็น <input list="issueCartMachineOptions"> ที่ datalist ถูกเติมจาก
 // ชื่อเครื่องที่เคยพิมพ์ไว้ในประวัติ Log → พิมพ์ผิดครั้งเดียวก็กลายเป็นตัวเลือกถาวร และ
 // เครื่องที่ลงทะเบียนไว้จริงกลับไม่ขึ้นให้เลือกเลย ส่วน "เบิกด่วน" ไม่มีช่องนี้เลยแต่แรก
-assert(html.includes('<select id="issueCartMachine"'), 'Issue Cart ต้องเป็น select');
+assert(html.includes('<div id="issueCartMachineGroups"'), 'Issue Cart ต้องมีกล่องช่องเลือกเครื่องต่อไลน์');
+assert(html.includes(`'<select id="' + ids.sel + '" data-cart-machine-idx`), 'ช่องเครื่องของตะกร้าต้องเป็น select');
 assert(html.includes('<select id="quickIssueMachine"'), 'เบิกด่วนต้องมี select เครื่องจักรด้วย');
 assert(!html.includes('list="issueCartMachineOptions"'), 'ต้องเลิกใช้ datalist เดิม');
 assert(!html.includes('id="issueCartMachineOptions"'), 'ต้องลบ datalist element ทิ้ง');
@@ -24,19 +25,25 @@ assert(/function populateMachineSelect\(selectId, otherId, line, allowedNames\)[
   'ต้องดึงรายชื่อจาก fetchMachinesForLine ตามไลน์ที่ส่งเข้ามา');
 
 // ── Issue Cart wiring ────────────────────────────────────────────────────────
-// ไลน์ต้องมาจากของในตะกร้า ไม่ใช่ currentLine ตรงๆ — โหมด "ทุกไลน์" currentLine เป็นคีย์เสมือน
-assert(html.includes("return populateMachineSelect('issueCartMachine', 'issueCartMachineOther', formLineDefault(items[0]), getSharedMachineNames(items));"));
-assert(/populateIssueCartMachineOptions\(\);[\s\S]{0,80}renderIssueCart\(\);/.test(html),
+// ไลน์ต้องมาจากของในตะกร้า ไม่ใช่ currentLine ตรงๆ — โหมด "ทุกไลน์" ตะกร้ามีของหลายไลน์ได้
+// จึงต้องมีช่องเลือกเครื่องแยกต่อไลน์ แต่ละช่องดึงทะเบียนเครื่องของไลน์นั้นเอง
+assert(html.includes('return populateMachineSelect(ids.sel, ids.other, line, getSharedMachineNames(items))'),
+  'ตะกร้าต้องโหลดเครื่องแยกตามไลน์ของของในตะกร้า');
+assert(/populateIssueCartMachineOptions\(\)\.then\(refreshIssueCartSubmitGate\);[\s\S]{0,80}renderIssueCart\(\);/.test(html),
   'openIssueCart ต้องเรียก populateIssueCartMachineOptions');
-assert(html.includes('var machineValue = getIssueCartMachineValue();'));
+// แต่ละรายการบันทึกเข้าไลน์ของตัวเอง + เครื่องของไลน์นั้น ไม่ใช่ค่าชุดเดียวทั้งตะกร้า
+assert(html.includes("var entryLine = formLineDefault(entry.item) || '-';"));
+assert(html.includes('var machineValue = getIssueCartMachineForLine(entryLine);'));
+assert(html.includes("createOutputTransactionPayload(latestItem, latestQty, byValue, entryLine === '-' ? '' : entryLine,"),
+  'process ของแต่ละรายการต้องเป็นไลน์ของอะไหล่ชิ้นนั้น');
 assert(html.includes('resetIssueCartMachineField();'), 'เบิกเสร็จต้องรีเซ็ตช่องเครื่อง');
-assert(html.includes("issueCartMachineSelect.addEventListener('change', syncIssueCartMachineOtherVisibility)"));
+assert(html.includes("issueCartMachineGroupsEl.addEventListener('change'"), 'ช่องเครื่องที่วาดใหม่ต้องผูกอีเวนต์แบบ delegate');
 
 // ── Quick Issue (เบิกด่วน) wiring ────────────────────────────────────────────
 assert(html.includes('id="quickIssueMachineOther"'));
 // ต้องผูกกับไลน์ของ "อะไหล่ชิ้นนั้น" ไม่ใช่ไลน์ที่กำลังเปิดดูอยู่ (อาจคนละไลน์)
 // ต้องส่ง item ไปด้วย เพื่อตัดตัวเลือกให้เหลือเฉพาะเครื่องที่อะไหล่ชิ้นนั้นผูกไว้
-assert(html.includes('populateQuickIssueMachineOptions(item.line || formLineDefault(item), item);'),
+assert(html.includes('populateQuickIssueMachineOptions(item.line || formLineDefault(item), item).then(refreshQuickIssueGate);'),
   'เบิกด่วนต้องโหลดเครื่องตามไลน์ + เครื่องที่อะไหล่ชิ้นนั้นผูกไว้');
 assert(html.includes('resetQuickIssueMachineField();'));
 // payload เดิมไม่มี machine เลย — ต้องส่งไปด้วย ไม่งั้นบันทึกแล้วไม่รู้ว่าใส่เครื่องไหน
@@ -52,7 +59,7 @@ assert(html.includes('ยังไม่มีเครื่องจักร�
 
 // ── บังคับเลือกเครื่องทั้งสองฟอร์ม ───────────────────────────────────────────
 // ต้องได้ข้อมูลครบทุกรายการเบิก ถึงจะสรุปได้ว่าเครื่องไหนกินอะไหล่บ่อย
-assert(html.includes("if (!getIssueCartMachineValue()) return 'กรุณาเลือกเครื่องที่จะเอาอะไหล่ไปใส่ (บังคับ)';"),
+assert(html.includes('var lineMissingMachine = getIssueCartLineMissingMachine();') && html.includes("'กรุณาเลือกเครื่องของไลน์ ' + lineMissingMachine"),
   'Issue Cart ต้องบล็อกการบันทึกถ้าไม่เลือกเครื่อง');
 assert(/var quickMachine = getQuickIssueMachineValue\(\);[\s\S]{0,200}if \(!quickMachine\) \{/.test(html),
   'เบิกด่วนต้องบล็อกการบันทึกถ้าไม่เลือกเครื่อง');
