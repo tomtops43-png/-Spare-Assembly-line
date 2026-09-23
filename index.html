@@ -5386,7 +5386,7 @@
       if (issueCartDate && !issueCartDate.value) issueCartDate.value = formatDateToLocalInputValue(new Date());
       syncTxnActorFields();
       setIssueCartMessage('', 'muted');
-      populateIssueCartMachineOptions();
+      populateIssueCartMachineOptions().then(refreshIssueCartSubmitGate);
       renderIssueCart();
       // ถ้า config ยังไม่ถูกโหลด ให้โหลดแล้ว render ซ้ำ เพื่อให้ป้าย "ต้องแท็ก" ขึ้นครบ
       if (!partTagConfigState.loaded) {
@@ -6380,12 +6380,7 @@
 
       var noPriceCount = entries.filter(function(e) { return getItemUnitPrice(e.item) === null; }).length;
       issueCartSummary.textContent = entries.length + ' รายการ' + (noPriceCount ? ' · ❓ ยังไม่มีราคา ' + noPriceCount + ' รายการ' : '');
-      if (issueCartSubmitBtn && !issueCartSubmitting) {
-        var shouldDisable = !entries.length || !canIssuePart();
-        issueCartSubmitBtn.disabled = shouldDisable;
-        issueCartSubmitBtn.classList.toggle('opacity-60', shouldDisable);
-        issueCartSubmitBtn.classList.toggle('cursor-not-allowed', shouldDisable);
-      }
+      refreshIssueCartSubmitGate();
       if (!entries.length) {
         issueCartList.innerHTML = '<div class="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">ยังไม่มีรายการใน cart</div>';
         return;
@@ -6713,16 +6708,30 @@
       issueCartSubmitBtn.textContent = isSubmitting ? 'กำลังบันทึกรายการ...' : 'บันทึกรายการ';
     }
 
+    // Reason/เครื่อง ต้องเลือกครบก่อนถึงจะกดบันทึกได้ — เดิมเช็คแค่ตอนกด submit()
+    // แล้วค่อยฟ้อง error ทีหลัง ทำให้ปุ่มดูเหมือนกดเบิกได้เฉยๆ ก่อนเจอ error
+    function issueCartMissingReasonOrMachine() {
+      var reason = String((issueCartReason && issueCartReason.value) || '').trim();
+      var reasonRemark = String((issueCartReasonRemark && issueCartReasonRemark.value) || '').trim();
+      if (!reason) return true;
+      if (reason === 'Other' && !reasonRemark) return true;
+      if (!getIssueCartMachineValue()) return true;
+      return false;
+    }
+    function refreshIssueCartSubmitGate() {
+      if (!issueCartSubmitBtn || issueCartSubmitting) return;
+      var shouldDisable = !issueCartRenderEntries.length || !canIssuePart() || issueCartMissingReasonOrMachine();
+      issueCartSubmitBtn.disabled = shouldDisable;
+      issueCartSubmitBtn.classList.toggle('opacity-60', shouldDisable);
+      issueCartSubmitBtn.classList.toggle('cursor-not-allowed', shouldDisable);
+    }
+
     function applyIssueCartAuthorizationUi() {
       var canIssue = canIssuePart();
       if (openIssueCartBtn) openIssueCartBtn.classList.toggle('hidden', !canIssue);
       if (openIssueCartBtnMobile) openIssueCartBtnMobile.classList.toggle('hidden', !canIssue);
       if (detailAddToCartBtn) detailAddToCartBtn.classList.toggle('hidden', !canIssue);
-      if (issueCartSubmitBtn) {
-        issueCartSubmitBtn.disabled = !canIssue || issueCartSubmitting;
-        issueCartSubmitBtn.classList.toggle('opacity-60', !canIssue || issueCartSubmitting);
-        issueCartSubmitBtn.classList.toggle('cursor-not-allowed', !canIssue || issueCartSubmitting);
-      }
+      refreshIssueCartSubmitGate();
       if (!canIssue) setIssueCartMessage('คุณไม่มีสิทธิ์ทำรายการเบิก', 'error');
     }
 
@@ -16862,6 +16871,32 @@ function inferRequestPriority(stock, min) {
       quickIssueSubmitBtn.textContent = quickIssueSubmitting ? 'กำลังบันทึกรายการ...' : 'บันทึกรายการ';
     }
 
+    // ปุ่มบันทึกต้องกดไม่ได้เลยจนกว่าจะเลือก Reason + เครื่องครบ — เดิม submitQuickIssue()
+    // เช็คแค่ตอนกด submit แล้วค่อยฟ้อง error ทีหลัง ทำให้ดูเหมือนกดเบิกได้เฉยๆ ก่อนเจอ error
+    function refreshQuickIssueGate() {
+      if (!quickIssueSubmitBtn || quickIssueSubmitting) return;
+      var item = getCurrentQuickIssueItem();
+      var outOfStock = !item || Number(item.stock || 0) <= 0;
+      var reason = String((quickIssueReason && quickIssueReason.value) || '').trim();
+      var reasonRemark = String((quickIssueReasonRemark && quickIssueReasonRemark.value) || '').trim();
+      var reasonMissing = !reason || (reason === 'Other' && !reasonRemark);
+      var machineMissing = !getQuickIssueMachineValue();
+      var disabled = outOfStock || reasonMissing || machineMissing;
+      quickIssueSubmitBtn.disabled = disabled;
+      quickIssueSubmitBtn.classList.toggle('opacity-60', disabled);
+      quickIssueSubmitBtn.classList.toggle('cursor-not-allowed', disabled);
+      if (outOfStock) {
+        quickIssueMessage.className = 'text-sm text-rose-600';
+        quickIssueMessage.textContent = 'อะไหล่หมดสต็อก ไม่สามารถเบิกออกได้';
+      } else if (reasonMissing || machineMissing) {
+        quickIssueMessage.className = 'text-sm text-amber-600';
+        quickIssueMessage.textContent = 'กรุณาเลือก' + (reasonMissing ? 'เหตุผลการเบิก' : '') + (reasonMissing && machineMissing ? ' และ' : '') + (machineMissing ? 'เครื่องที่จะเอาไปใส่' : '') + ' ก่อนบันทึก';
+      } else if (quickIssueMessage.textContent === 'อะไหล่หมดสต็อก ไม่สามารถเบิกออกได้' || quickIssueMessage.className.indexOf('text-amber-600') > -1) {
+        quickIssueMessage.className = 'text-sm text-slate-500';
+        quickIssueMessage.textContent = '';
+      }
+    }
+
     function getCurrentQuickIssueItem() {
       // ใช้อะไหล่ตัวที่เลือกไว้จริงเป็นหลัก resolve ด้วย identity key (กัน NO ซ้ำข้าม Sheet หยิบผิดตัว)
       if (currentQuickIssueSelectedPart) {
@@ -16954,19 +16989,13 @@ function inferRequestPriority(stock, min) {
       }
       // เครื่องจักรต้องเป็นของไลน์อะไหล่ชิ้นนี้ (อาจคนละไลน์กับที่กำลังเปิดดูอยู่)
       resetQuickIssueMachineField();
-      populateQuickIssueMachineOptions(item.line || formLineDefault(item), item);
+      populateQuickIssueMachineOptions(item.line || formLineDefault(item), item).then(refreshQuickIssueGate);
       syncQuickIssueTagField(item, true);
       quickIssueMessage.className = 'text-sm text-slate-500';
       quickIssueMessage.textContent = '';
       setQuickIssueSubmitState(false);
       var outOfStock = Number(item.stock || 0) <= 0;
-      quickIssueSubmitBtn.disabled = outOfStock;
-      quickIssueSubmitBtn.classList.toggle('opacity-60', outOfStock);
-      quickIssueSubmitBtn.classList.toggle('cursor-not-allowed', outOfStock);
-      if (outOfStock) {
-        quickIssueMessage.className = 'text-sm text-rose-600';
-        quickIssueMessage.textContent = 'อะไหล่หมดสต็อก ไม่สามารถเบิกออกได้';
-      }
+      refreshQuickIssueGate();
       document.body.classList.add('quick-issue-open');
       lockBodyScroll();
       quickIssueModal.classList.remove('hidden');
@@ -21024,14 +21053,24 @@ if (dashboardPage) {
       on('partTagGroupItemSearchInput', 'input', searchPartTagGroupItemCandidates);
     }
     bindPartTagUi();
-    if (issueCartReason) issueCartReason.addEventListener('change', function(){ var isOther = String(issueCartReason.value || '') === 'Other'; if (issueCartReasonRemark) { issueCartReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) issueCartReasonRemark.value = ''; } });
+    if (issueCartReason) issueCartReason.addEventListener('change', function(){ var isOther = String(issueCartReason.value || '') === 'Other'; if (issueCartReasonRemark) { issueCartReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) issueCartReasonRemark.value = ''; } refreshIssueCartSubmitGate(); });
+    if (issueCartReasonRemark) issueCartReasonRemark.addEventListener('input', refreshIssueCartSubmitGate);
     var issueCartMachineSelect = document.getElementById('issueCartMachine');
-    if (issueCartMachineSelect) issueCartMachineSelect.addEventListener('change', syncIssueCartMachineOtherVisibility);
-    if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } });
+    if (issueCartMachineSelect) issueCartMachineSelect.addEventListener('change', function() {
+      syncIssueCartMachineOtherVisibility();
+      refreshIssueCartSubmitGate();
+    });
+    var issueCartMachineOtherEl = document.getElementById('issueCartMachineOther');
+    if (issueCartMachineOtherEl) issueCartMachineOtherEl.addEventListener('input', refreshIssueCartSubmitGate);
+    if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } refreshQuickIssueGate(); });
+    if (quickIssueReasonRemark) quickIssueReasonRemark.addEventListener('input', refreshQuickIssueGate);
     var quickIssueMachineSelect = document.getElementById('quickIssueMachine');
     if (quickIssueMachineSelect) quickIssueMachineSelect.addEventListener('change', function() {
       syncMachineSelectOther('quickIssueMachine', 'quickIssueMachineOther');
+      refreshQuickIssueGate();
     });
+    var quickIssueMachineOtherEl = document.getElementById('quickIssueMachineOther');
+    if (quickIssueMachineOtherEl) quickIssueMachineOtherEl.addEventListener('input', refreshQuickIssueGate);
     var quickIssueTagNextBtn = document.getElementById('quickIssueTagNextBtn');
     if (quickIssueTagNextBtn) quickIssueTagNextBtn.addEventListener('click', function() {
       var input = document.getElementById('quickIssueTagNos');
