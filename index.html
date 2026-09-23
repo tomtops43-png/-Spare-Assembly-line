@@ -11795,6 +11795,28 @@ function inferRequestPriority(stock, min) {
       }).filter(function(r) { return r !== null; });
     }
 
+    // ยอดสั่งซื้อ (PR) ต่อเดือน จาก Purchase History — ใช้เป็นฐานของกราฟ % ต้นทุน
+    // (ยอดเบิกมีกราฟแยกของตัวเองอยู่แล้ว) นับตามเดือนที่ขอซื้อ ตัดใบที่ยกเลิกทิ้ง
+    // รายการที่ยังไม่มีราคา (TBC) ไม่รวมในยอด แต่แยกนับไว้เตือนให้ไปเติมราคา
+    function fccPurchaseSpendRows(hist) {
+      return (Array.isArray(hist) ? hist : []).map(function(r) {
+        if (String(r.status || '').trim().toLowerCase() === 'cancelled') return null;
+        var month = fccMonthKey(r.requested_date || r.created_at || r.updated_at);
+        if (!month || !/^\d{4}-\d{2}$/.test(month)) return null;
+        var qty = Math.abs(fccN(r.qty_ordered || r.qty));
+        var amount = fccN(r.total_amount);
+        if (!(amount > 0)) amount = qty * fccN(r.unit_price);
+        return {
+          month: month,
+          line: fccLineOf(r.line),
+          amount: amount > 0 ? amount : 0,
+          qty: qty,
+          model: String(r.model || ''),
+          partName: String(r.part_name || '')
+        };
+      }).filter(function(r) { return r !== null; });
+    }
+
     function fccExpenseValidRows(logs) {
       var priceMap = {};
       var partsList = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
@@ -11928,7 +11950,7 @@ function inferRequestPriority(stock, min) {
             { type: 'bar', label: 'งบ Spare part', data: perMonth.map(function(d) { return d.budget; }), stack: 'budget',
               backgroundColor: '#CBD5E1', hoverBackgroundColor: '#94A3B8',
               yAxisID: 'yBahtSpend', borderRadius: 4, order: 4, categoryPercentage: 0.64, barPercentage: 0.94 },
-            { type: 'bar', label: 'ค่าใช้จ่ายอะไหล่', data: perMonth.map(function(d) { return d.expenseParts; }), stack: 'spend',
+            { type: 'bar', label: 'ยอดสั่งซื้ออะไหล่ (PR)', data: perMonth.map(function(d) { return d.expenseParts; }), stack: 'spend',
               backgroundColor: function(c) { var d = perMonth[c.dataIndex]; return (d && d.budget != null && d.expense > d.budget) ? '#EF4444' : '#F59E0B'; },
               hoverBackgroundColor: function(c) { var d = perMonth[c.dataIndex]; return (d && d.budget != null && d.expense > d.budget) ? '#DC2626' : '#D97706'; },
               yAxisID: 'yBahtSpend', borderRadius: 4, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
@@ -12954,7 +12976,7 @@ function inferRequestPriority(stock, min) {
       var tableEl = document.getElementById('fccCostRatioTable');
       var sub = document.getElementById('fccCostRatioSub');
       if (!tableEl) return;
-      var hist = fccLast.Hist, prodVolume = fccLast.ProdVolume, prodConfig = fccLast.ProdConfig, logs = fccLast.Logs;
+      var hist = fccLast.Hist, prodVolume = fccLast.ProdVolume, prodConfig = fccLast.ProdConfig;
       var miscRows = fccMiscExpenseRows(fccLast.Misc);
       if (!Array.isArray(hist) || !Array.isArray(prodVolume) || !Array.isArray(prodConfig)) return; // ยังโหลดไม่เสร็จ — คง skeleton ไว้
       var lineSelEl = document.getElementById('fccCostRatioLineFilter');
@@ -12971,8 +12993,9 @@ function inferRequestPriority(stock, min) {
       var unpricedWithdrawQtyByMonth = {};
       var unpricedWithdrawModels = {};
 
-      fccExpenseValidRows(logs || []).filter(function(r) { return isAll ? true : r.line === line; }).forEach(function(r) {
-        if (r.unitPrice > 0) {
+      // รายจ่าย = ยอดสั่งซื้อ (PR) จาก Purchase History ไม่ใช่ยอดเบิก — ยอดเบิกมีกราฟแยกอยู่แล้ว
+      fccPurchaseSpendRows(hist).filter(function(r) { return isAll ? true : r.line === line; }).forEach(function(r) {
+        if (r.amount > 0) {
           spendByMonth[r.month] = (spendByMonth[r.month] || 0) + r.amount;
         } else {
           unpricedWithdrawQtyByMonth[r.month] = (unpricedWithdrawQtyByMonth[r.month] || 0) + r.qty;
@@ -13063,7 +13086,7 @@ function inferRequestPriority(stock, min) {
           ? '<span title="ดึงยอดผลิตอัตโนมัติจาก ProductionLog" style="margin-left:5px;font-size:9px;color:#2563eb;">🔄 auto</span>'
           : (sourceByMonth[m] === 'manual' ? '<span title="กรอกมือ" style="margin-left:5px;font-size:9px;color:#94a3b8;">✏️ manual</span>' : '');
         var unpTip = unpricedQtyByMonth[m] ? '<span title="ยอดผลิตที่ยังจับคู่ราคาไม่ได้ ไม่รวมในมูลค่าผลิต" style="margin-left:4px;font-size:9px;color:#d97706;">⚠︎ ' + fccInt(unpricedQtyByMonth[m]) + ' ชิ้นไม่มีราคา</span>' : '';
-        var unpSpendTip = unpricedWithdrawQtyByMonth[m] ? '<span title="อะไหล่ที่เบิกแต่ไม่มีราคา ไม่รวมในยอดรายจ่าย" style="margin-left:4px;font-size:9px;color:#dc2626;cursor:help;">⚠︎ ' + fccInt(unpricedWithdrawQtyByMonth[m]) + ' ชิ้นไม่มีราคา</span>' : '';
+        var unpSpendTip = unpricedWithdrawQtyByMonth[m] ? '<span title="รายการสั่งซื้อที่ยังไม่มีราคา (TBC) ไม่รวมในยอดสั่งซื้อ" style="margin-left:4px;font-size:9px;color:#dc2626;cursor:help;">⚠︎ ' + fccInt(unpricedWithdrawQtyByMonth[m]) + ' ชิ้นไม่มีราคา</span>' : '';
         var budgetDetail = isAll && budgetDetailByMonth[m] ? Object.keys(budgetDetailByMonth[m]).map(function(ln) { return ln + ': ฿' + fccInt(budgetDetailByMonth[m][ln]); }).join(' | ') : '';
         var budgetTitle = budgetDetail ? ' title="แยกตามไลน์: ' + fccEsc(budgetDetail) + '"' : '';
         var miscTip = miscByMonth[m] ? '<div title="ของซื้อนอกระบบอะไหล่ (น็อต/เครื่องมือ/วัสดุสิ้นเปลือง)" style="font-size:9px;color:#7c3aed;">รวมของสิ้นเปลือง ฿' + fccInt(miscByMonth[m]) + ' (' + miscCountByMonth[m] + ' รายการ)</div>' : '';
@@ -13078,19 +13101,19 @@ function inferRequestPriority(stock, min) {
       }).join('');
       tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
         '<thead><tr style="border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;">' +
-        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต (ยอดขาย)</th><th style="padding:6px 10px;text-align:right;">งบ Spare part</th><th style="padding:6px 10px;text-align:right;">รายจ่ายอะไหล่จริง</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
+        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต (ยอดขาย)</th><th style="padding:6px 10px;text-align:right;">งบ Spare part</th><th style="padding:6px 10px;text-align:right;">ยอดสั่งซื้อ (PR)</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>';
       // แจ้งรุ่นที่ยังจับคู่ราคาไม่ได้ (ถ้ามี) เพื่อให้ผู้ใช้ไปแก้ชื่อรุ่น/เพิ่มราคาในชีต
       var unpKeys = Object.keys(unpricedModels).sort(function(a, b) { return unpricedModels[b] - unpricedModels[a]; });
       if (unpKeys.length) {
         tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:11px;color:#92400e;">⚠︎ ' + unpKeys.length + ' รุ่นยังจับคู่ราคาไม่ได้ (ไม่รวมในมูลค่าผลิต): ' + unpKeys.slice(0, 12).map(function(m) { return fccEsc(m) + ' (' + fccInt(unpricedModels[m]) + ')'; }).join(', ') + (unpKeys.length > 12 ? ' …' : '') + '</div>';
       }
-      // แจ้งรุ่นที่ถูกเบิกแต่ยังไม่มีราคา
+      // แจ้งรุ่นที่สั่งซื้อแต่ยังไม่มีราคา
       var unpWithdrawKeys = Object.keys(unpricedWithdrawModels).sort(function(a, b) { return unpricedWithdrawModels[b] - unpricedWithdrawModels[a]; });
       if (unpWithdrawKeys.length) {
-        tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:11px;color:#991b1b;">⚠︎ ' + unpWithdrawKeys.length + ' รุ่นที่ถูกเบิกยังไม่มีราคา (ไม่รวมในรายจ่ายจริง): ' + unpWithdrawKeys.slice(0, 12).map(function(m) { return fccEsc(m) + ' (' + fccInt(unpricedWithdrawModels[m]) + ' ชิ้น)'; }).join(', ') + (unpWithdrawKeys.length > 12 ? ' …' : '') + '</div>';
+        tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:11px;color:#991b1b;">⚠︎ ' + unpWithdrawKeys.length + ' รุ่นที่สั่งซื้อยังไม่มีราคา (ไม่รวมในยอดสั่งซื้อ): ' + unpWithdrawKeys.slice(0, 12).map(function(m) { return fccEsc(m) + ' (' + fccInt(unpricedWithdrawModels[m]) + ' ชิ้น)'; }).join(', ') + (unpWithdrawKeys.length > 12 ? ' …' : '') + '</div>';
       }
-      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + '📦 รายจ่าย = ยอดเบิกจริง + ของสิ้นเปลืองที่ซื้อนอกระบบ · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + '📦 รายจ่าย = ยอดสั่งซื้อ (PR ไม่นับที่ยกเลิก) + ของสิ้นเปลืองที่ซื้อนอกระบบ · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
     }
     function fccRenderTops(P, L) {
       var el = document.getElementById('fccTops');
