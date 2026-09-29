@@ -294,6 +294,50 @@
       #roDetailModal { padding: 8px; align-items: stretch; }
       #roDetailPanel { width: 100%; max-height: calc(100vh - 16px); border-radius: 14px; }
     }
+    /* Purchase History — ตารางอยู่ในกล่องเลื่อนสูงไม่เกินจอ: scrollbar แนวนอนอยู่ในจอเสมอ ไม่ต้องเลื่อนลงไปล่างสุด
+       + แถบเลื่อนด้านบน (ปุ่ม ◀ ▶ + แถบลากได้) + หัวตารางค้างบน + คอลัมน์ Action ค้างขวา
+       หมายเหตุ: Tailwind ที่ใช้เป็น v2 static — ไม่มี slate-* / arbitrary value จึงเขียน CSS ตรงนี้ */
+    .ph-table-card { border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; overflow: hidden; }
+    .ph-scroll-toolbar { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); }
+    .ph-scroll-toolbar.ph-no-overflow .ph-scroll-controls { opacity: .35; pointer-events: none; }
+    .ph-scroll-hint { font-size: 12px; font-weight: 600; color: #64748b; white-space: nowrap; }
+    .ph-scroll-controls { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; transition: opacity .2s; }
+    .ph-scroll-btn { flex-shrink: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid #cbd5e1; background: #fff; color: #334155; font-size: 14px; font-weight: 700; box-shadow: 0 1px 2px rgba(15,23,42,.06); transition: background .15s, border-color .15s, color .15s, opacity .15s; }
+    .ph-scroll-btn:hover:not(:disabled) { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+    .ph-scroll-btn:disabled { opacity: .35; cursor: default; }
+    .ph-scroll-track { position: relative; flex: 1 1 auto; min-width: 60px; height: 10px; border-radius: 999px; background: #e2e8f0; cursor: pointer; touch-action: none; }
+    .ph-scroll-thumb { position: absolute; top: 0; bottom: 0; left: 0; min-width: 28px; border-radius: 999px; background: linear-gradient(90deg, #60a5fa, #2563eb); box-shadow: 0 1px 3px rgba(37,99,235,.35); cursor: grab; transition: background .15s; }
+    .ph-scroll-thumb:hover, .ph-scroll-track.ph-dragging .ph-scroll-thumb { background: linear-gradient(90deg, #3b82f6, #1d4ed8); }
+    .ph-scroll-track.ph-dragging .ph-scroll-thumb { cursor: grabbing; }
+    .ph-scroll-shell { position: relative; }
+    .ph-scroll-shell::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 28px; z-index: 5; pointer-events: none; background: linear-gradient(90deg, rgba(15,23,42,.10), rgba(15,23,42,0)); opacity: 0; transition: opacity .2s; }
+    .ph-scroll-shell.ph-can-left::before { opacity: 1; }
+    .ph-scroll { max-height: calc(100vh - 180px); min-height: 280px; overflow: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #94a3b8 #f1f5f9; }
+    .ph-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+    .ph-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+    .ph-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid #f1f5f9; }
+    .ph-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .ph-table { width: 100%; border-collapse: separate; border-spacing: 0; } /* ความกว้างตามเนื้อหา (nowrap) — มือถือซ่อนบางคอลัมน์จึงไม่ fix min-width */
+    .ph-table thead th { position: sticky; top: 0; z-index: 3; background: #f1f5f9; color: #475569; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; box-shadow: inset 0 -1px 0 #e2e8f0; }
+    .ph-table tbody td { background: #fff; border-top: 1px solid #f1f5f9; vertical-align: top; }
+    .ph-table tbody tr:nth-child(even) td { background: #f8fafc; }
+    .ph-table tbody tr:hover td { background: #eff6ff; }
+    .ph-table .ph-sticky-end { position: sticky; right: 0; }
+    .ph-table thead .ph-sticky-end { z-index: 4; }
+    .ph-table tbody .ph-sticky-end { z-index: 2; }
+    .ph-scroll-shell.ph-can-right .ph-sticky-end { box-shadow: -8px 0 12px -8px rgba(15,23,42,.22); }
+    .ph-scroll-shell.ph-can-right thead .ph-sticky-end { box-shadow: -8px 0 12px -8px rgba(15,23,42,.22), inset 0 -1px 0 #e2e8f0; }
+    .ph-table .ph-part { min-width: 160px; }
+    .ph-table .ph-remark { min-width: 220px; max-width: 320px; }
+    .ph-table .ph-sub { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 640px) {
+      .ph-scroll { max-height: calc(100vh - 140px); }
+      .ph-scroll-hint { display: none; }
+    }
+    @media (max-width: 767px) {
+      /* จอแคบ: ไม่ค้างคอลัมน์ Action — กินพื้นที่ครึ่งจอ */
+      .ph-table .ph-sticky-end { position: static; box-shadow: none !important; }
+    }
     .splash-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg,#f1f5f9 0%,#eef2ff 100%); }
     .splash-card { text-align: center; padding: 24px; }
     .splash-spinner { width: 42px; height: 42px; border-radius: 999px; border: 4px solid #bfdbfe; border-top-color: #2563eb; animation: splash-spin .9s linear infinite; margin: 14px auto; }
@@ -2637,9 +2681,19 @@
         </select>
         <input id="purchaseHistorySearch" type="search" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm" placeholder="ค้นหา Part Name / Model" />
       </div>
-      <div class="overflow-x-auto rounded-xl border border-slate-200">
-        <table class="w-full min-w-[700px] text-sm">
-          <thead class="bg-slate-100 text-left text-slate-600"><tr>
+      <div class="ph-table-card">
+        <div id="purchaseHistoryScrollToolbar" class="ph-scroll-toolbar">
+          <span class="ph-scroll-hint">↔ เลื่อนดูคอลัมน์</span>
+          <div class="ph-scroll-controls">
+            <button id="purchaseHistoryScrollLeft" type="button" class="ph-scroll-btn" title="เลื่อนไปทางซ้าย" aria-label="เลื่อนตารางไปทางซ้าย">◀</button>
+            <div id="purchaseHistoryScrollTrack" class="ph-scroll-track" title="ลากเพื่อเลื่อนตารางซ้าย-ขวา"><div id="purchaseHistoryScrollThumb" class="ph-scroll-thumb"></div></div>
+            <button id="purchaseHistoryScrollRight" type="button" class="ph-scroll-btn" title="เลื่อนไปทางขวา" aria-label="เลื่อนตารางไปทางขวา">▶</button>
+          </div>
+        </div>
+        <div id="purchaseHistoryScrollShell" class="ph-scroll-shell">
+        <div id="purchaseHistoryScroll" class="ph-scroll">
+        <table class="ph-table text-sm">
+          <thead class="text-left"><tr>
             <th class="px-3 py-3">Requested Date</th>
             <th class="px-3 py-3">Line</th>
             <th class="px-3 py-3">Part Name</th>
@@ -2653,10 +2707,12 @@
             <th class="px-3 py-3 hidden md:table-cell">Requested By</th>
             <th class="px-3 py-3 hidden lg:table-cell">Updated At</th>
             <th class="px-3 py-3 hidden lg:table-cell">Remark</th>
-            <th class="px-3 py-3">Action</th>
+            <th class="px-3 py-3 ph-sticky-end">Action</th>
           </tr></thead>
           <tbody id="purchaseHistoryTable"></tbody>
         </table>
+        </div>
+        </div>
       </div>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <p id="purchaseHistoryMessage" class="text-sm text-slate-500"></p>
@@ -4306,6 +4362,13 @@
     var purchaseHistoryStatusFilter = document.getElementById('purchaseHistoryStatusFilter');
     var purchaseHistorySearch = document.getElementById('purchaseHistorySearch');
     var purchaseHistoryMessage = document.getElementById('purchaseHistoryMessage');
+    var purchaseHistoryScroll = document.getElementById('purchaseHistoryScroll');
+    var purchaseHistoryScrollShell = document.getElementById('purchaseHistoryScrollShell');
+    var purchaseHistoryScrollToolbar = document.getElementById('purchaseHistoryScrollToolbar');
+    var purchaseHistoryScrollTrack = document.getElementById('purchaseHistoryScrollTrack');
+    var purchaseHistoryScrollThumb = document.getElementById('purchaseHistoryScrollThumb');
+    var purchaseHistoryScrollLeftBtn = document.getElementById('purchaseHistoryScrollLeft');
+    var purchaseHistoryScrollRightBtn = document.getElementById('purchaseHistoryScrollRight');
     var purchaseHistoryRefreshBtn = document.getElementById('purchaseHistoryRefreshBtn');
     var purchaseHistoryPrevBtn = document.getElementById('purchaseHistoryPrevBtn');
     var purchaseHistoryNextBtn = document.getElementById('purchaseHistoryNextBtn');
@@ -13981,21 +14044,22 @@ function inferRequestPriority(stock, min) {
       var pageRows = rows.slice(start, start + PURCHASE_HISTORY_PAGE_SIZE);
       purchaseHistoryTable.innerHTML = pageRows.length ? pageRows.map(function(item, index) {
         var actions = canEditPurchaseHistory() ? '<div class="flex gap-1"><button type="button" data-ph-edit="' + escapePurchaseHistoryText(item.history_id) + '" class="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">Edit</button><button type="button" data-ph-delete="' + escapePurchaseHistoryText(item.history_id) + '" class="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">Delete</button></div>' : '-';
-        return '<tr class="border-t border-slate-100 ' + (index % 2 ? 'bg-slate-50/60' : 'bg-white') + '">' +
-          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(item.date)) + '<div class="text-[10px] text-slate-400">' + escapePurchaseHistoryText(item.source || '-') + ' • ' + escapePurchaseHistoryText(item.request_id || '-') + '</div></td>' +
-          '<td class="px-3 py-3">' + escapePurchaseHistoryText(item.line || '-') + '</td><td class="px-3 py-3 font-semibold text-slate-800">' + escapePurchaseHistoryText(item.part_name || '-') +
+        var sourceLabel = escapePurchaseHistoryText(item.source || '-') + ' • ' + escapePurchaseHistoryText(item.request_id || '-');
+        return '<tr>' +
+          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(item.date)) + '<div class="ph-sub text-xs text-gray-400" title="' + sourceLabel + '">' + sourceLabel + '</div></td>' +
+          '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(item.line || '-') + '</td><td class="ph-part px-3 py-3 font-semibold text-slate-800">' + escapePurchaseHistoryText(item.part_name || '-') +
             (item.attachment_url ? '<div><a href="' + escapePurchaseHistoryText(item.attachment_url) + '" target="_blank" rel="noopener" class="text-[10px] font-semibold text-blue-600 underline">📎 ไฟล์แนบ</a></div>' : '') + '</td>' +
           '<td class="px-3 py-3 hidden md:table-cell">' + escapePurchaseHistoryText(item.brand || '-') + '</td>' +
-          '<td class="px-3 py-3 hidden sm:table-cell">' + escapePurchaseHistoryText(item.model || '-') + '</td>' +
+          '<td class="px-3 py-3 whitespace-nowrap hidden sm:table-cell">' + escapePurchaseHistoryText(item.model || '-') + '</td>' +
           '<td class="px-3 py-3 text-right font-semibold">' + Number(item.qty_ordered || 0).toLocaleString('th-TH') + '</td>' +
-          '<td class="px-3 py-3 hidden sm:table-cell">' + escapePurchaseHistoryText(item.unit || '-') + '</td>' +
-          '<td class="px-3 py-3 text-right hidden md:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.unit_price, item.currency)) + '</td>' +
-          '<td class="px-3 py-3 text-right font-semibold hidden lg:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.total_amount, item.currency)) + '</td>' +
-          '<td class="px-3 py-3">' + purchaseHistoryStatusBadge(item.status) + '</td>' +
-          '<td class="px-3 py-3 hidden md:table-cell">' + escapePurchaseHistoryText(item.requested_by || '-') + '</td>' +
+          '<td class="px-3 py-3 whitespace-nowrap hidden sm:table-cell">' + escapePurchaseHistoryText(item.unit || '-') + '</td>' +
+          '<td class="px-3 py-3 text-right whitespace-nowrap hidden md:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.unit_price, item.currency)) + '</td>' +
+          '<td class="px-3 py-3 text-right font-semibold whitespace-nowrap hidden lg:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.total_amount, item.currency)) + '</td>' +
+          '<td class="px-3 py-3 whitespace-nowrap">' + purchaseHistoryStatusBadge(item.status) + '</td>' +
+          '<td class="px-3 py-3 whitespace-nowrap hidden md:table-cell">' + escapePurchaseHistoryText(item.requested_by || '-') + '</td>' +
           '<td class="px-3 py-3 whitespace-nowrap hidden lg:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(item.updated_at)) + '</td>' +
-          '<td class="px-3 py-3 hidden lg:table-cell">' + escapePurchaseHistoryText(item.remark || '-') + '</td>' +
-          '<td class="px-3 py-3">' + actions + '</td></tr>';
+          '<td class="ph-remark px-3 py-3 hidden lg:table-cell">' + escapePurchaseHistoryText(item.remark || '-') + '</td>' +
+          '<td class="ph-sticky-end px-3 py-3">' + actions + '</td></tr>';
       }).join('') : '<tr><td colspan="14" class="px-3 py-8 text-center text-slate-400">ไม่พบประวัติการสั่งซื้อ</td></tr>';
 
       var first = rows.length ? start + 1 : 0, last = Math.min(start + PURCHASE_HISTORY_PAGE_SIZE, rows.length);
@@ -14003,6 +14067,37 @@ function inferRequestPriority(stock, min) {
       if (purchaseHistoryPageInfo) purchaseHistoryPageInfo.textContent = 'Page ' + purchaseHistoryCurrentPage + ' / ' + totalPages;
       if (purchaseHistoryPrevBtn) purchaseHistoryPrevBtn.disabled = purchaseHistoryCurrentPage <= 1;
       if (purchaseHistoryNextBtn) purchaseHistoryNextBtn.disabled = purchaseHistoryCurrentPage >= totalPages;
+      // เปลี่ยนหน้า/กรองใหม่ → กลับไปแถวบนสุดของกล่อง (คงตำแหน่งซ้าย-ขวาไว้) แล้วอัปเดตแถบเลื่อน
+      if (purchaseHistoryScroll) purchaseHistoryScroll.scrollTop = 0;
+      updatePurchaseHistoryScrollUi();
+    }
+
+    // แถบเลื่อนซ้าย-ขวาด้านบนตาราง Purchase History — sync กับกล่องเลื่อนของตาราง
+    function updatePurchaseHistoryScrollUi() {
+      if (!purchaseHistoryScroll || !purchaseHistoryScrollThumb) return;
+      var el = purchaseHistoryScroll;
+      var maxLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+      var overflow = maxLeft > 1;
+      if (purchaseHistoryScrollToolbar) purchaseHistoryScrollToolbar.classList.toggle('ph-no-overflow', !overflow);
+      if (purchaseHistoryScrollShell) {
+        purchaseHistoryScrollShell.classList.toggle('ph-can-left', overflow && el.scrollLeft > 1);
+        purchaseHistoryScrollShell.classList.toggle('ph-can-right', overflow && el.scrollLeft < maxLeft - 1);
+      }
+      if (purchaseHistoryScrollLeftBtn) purchaseHistoryScrollLeftBtn.disabled = !overflow || el.scrollLeft <= 1;
+      if (purchaseHistoryScrollRightBtn) purchaseHistoryScrollRightBtn.disabled = !overflow || el.scrollLeft >= maxLeft - 1;
+      var trackWidth = purchaseHistoryScrollTrack ? purchaseHistoryScrollTrack.clientWidth : 0;
+      if (!trackWidth) return;
+      var ratio = el.scrollWidth ? Math.min(1, el.clientWidth / el.scrollWidth) : 1;
+      var thumbWidth = Math.max(28, Math.round(trackWidth * ratio));
+      var thumbLeft = maxLeft > 0 ? Math.round((trackWidth - thumbWidth) * (el.scrollLeft / maxLeft)) : 0;
+      purchaseHistoryScrollThumb.style.width = thumbWidth + 'px';
+      purchaseHistoryScrollThumb.style.transform = 'translateX(' + thumbLeft + 'px)';
+    }
+
+    function scrollPurchaseHistoryBy(direction) {
+      if (!purchaseHistoryScroll) return;
+      var step = Math.max(200, Math.round(purchaseHistoryScroll.clientWidth * 0.6));
+      purchaseHistoryScroll.scrollBy({ left: direction * step, behavior: 'smooth' });
     }
 
     function loadPurchaseHistory(forceRefresh) {
@@ -19897,6 +19992,46 @@ function inferRequestPriority(stock, min) {
     });
     if (purchaseHistoryPrevBtn) purchaseHistoryPrevBtn.addEventListener('click', function() { if (purchaseHistoryCurrentPage > 1) { purchaseHistoryCurrentPage -= 1; renderPurchaseHistory(); } });
     if (purchaseHistoryNextBtn) purchaseHistoryNextBtn.addEventListener('click', function() { var pages = Math.max(1, Math.ceil(getFilteredPurchaseHistory().length / PURCHASE_HISTORY_PAGE_SIZE)); if (purchaseHistoryCurrentPage < pages) { purchaseHistoryCurrentPage += 1; renderPurchaseHistory(); } });
+    if (purchaseHistoryScroll) {
+      purchaseHistoryScroll.addEventListener('scroll', updatePurchaseHistoryScrollUi, { passive: true });
+      window.addEventListener('resize', updatePurchaseHistoryScrollUi);
+      // ตารางถูก render ตอนแท็บยังซ่อน (กว้าง 0) ได้ → ResizeObserver จะอัปเดตแถบเลื่อนตอนแท็บโผล่/ขนาดตารางเปลี่ยน
+      if (typeof ResizeObserver === 'function') {
+        var phResizeObserver = new ResizeObserver(function() { updatePurchaseHistoryScrollUi(); });
+        phResizeObserver.observe(purchaseHistoryScroll);
+        if (purchaseHistoryTable) phResizeObserver.observe(purchaseHistoryTable);
+      }
+      if (purchaseHistoryScrollLeftBtn) purchaseHistoryScrollLeftBtn.addEventListener('click', function() { scrollPurchaseHistoryBy(-1); });
+      if (purchaseHistoryScrollRightBtn) purchaseHistoryScrollRightBtn.addEventListener('click', function() { scrollPurchaseHistoryBy(1); });
+      if (purchaseHistoryScrollTrack && purchaseHistoryScrollThumb) {
+        // ลาก thumb = เลื่อนตาม / คลิกที่ราง = กระโดดไปตำแหน่งนั้น (ให้ thumb อยู่กึ่งกลางจุดที่คลิก)
+        var phDrag = null;
+        var phScrollToTrackX = function(x) {
+          var el = purchaseHistoryScroll;
+          var trackWidth = purchaseHistoryScrollTrack.clientWidth;
+          var thumbWidth = purchaseHistoryScrollThumb.offsetWidth;
+          var usable = Math.max(1, trackWidth - thumbWidth);
+          el.scrollLeft = Math.max(0, Math.min(1, x / usable)) * Math.max(0, el.scrollWidth - el.clientWidth);
+        };
+        purchaseHistoryScrollTrack.addEventListener('pointerdown', function(e) {
+          var rect = purchaseHistoryScrollTrack.getBoundingClientRect();
+          var thumbRect = purchaseHistoryScrollThumb.getBoundingClientRect();
+          var grabOffset = e.target === purchaseHistoryScrollThumb ? e.clientX - thumbRect.left : thumbRect.width / 2;
+          phDrag = { rectLeft: rect.left, grabOffset: grabOffset };
+          phScrollToTrackX(e.clientX - rect.left - grabOffset);
+          purchaseHistoryScrollTrack.classList.add('ph-dragging');
+          if (purchaseHistoryScrollTrack.setPointerCapture) purchaseHistoryScrollTrack.setPointerCapture(e.pointerId);
+          e.preventDefault();
+        });
+        purchaseHistoryScrollTrack.addEventListener('pointermove', function(e) {
+          if (!phDrag) return;
+          phScrollToTrackX(e.clientX - phDrag.rectLeft - phDrag.grabOffset);
+        });
+        var phEndDrag = function() { phDrag = null; purchaseHistoryScrollTrack.classList.remove('ph-dragging'); };
+        purchaseHistoryScrollTrack.addEventListener('pointerup', phEndDrag);
+        purchaseHistoryScrollTrack.addEventListener('pointercancel', phEndDrag);
+      }
+    }
     if (purchaseHistoryTable) purchaseHistoryTable.addEventListener('click', function(e) {
       var editBtn = e.target.closest('[data-ph-edit]');
       if (editBtn) return openPurchaseHistoryEdit(editBtn.getAttribute('data-ph-edit'));
