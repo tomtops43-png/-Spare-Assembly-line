@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 
 // แท็บ "รับเข้า" มีไอคอน SVG + <span> ข้างใน ไม่ใช่ text ตรงๆ ใน <button> แล้ว
 assert(/<button id="tabTxn"[\s\S]{0,600}?>รับเข้า<\/span>[\s\S]{0,80}?<\/button>/.test(html),

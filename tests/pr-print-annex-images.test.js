@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 
 // ---- รูปใน Annex C ของใบ PR ที่ปริ้นจาก Inbox ต้องขึ้นจริง ----
 // เคสจริง: PR-202608-STAR-189 ปริ้นออกมาแล้วช่อง Picture ขึ้น "No image available" ทั้ง 19 แถว

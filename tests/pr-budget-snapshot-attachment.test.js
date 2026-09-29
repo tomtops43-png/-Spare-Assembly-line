@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 
 // เมื่อกดส่งอนุมัติ PR ต้องแนบกราฟงบ Spare part (แผง #prBudgetPanel ที่คนส่งเห็นอยู่ตรงๆ)
 // ไปให้หัวหน้าเห็นตอนตรวจใน Inbox ด้วย ไม่ใช่แค่ตัวเลขรายบรรทัด

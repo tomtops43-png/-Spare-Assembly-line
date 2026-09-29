@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 const htmlLf = fs.readFileSync('index.html', 'utf8').replace(/\r\n/g, '\n');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 
 // ── หน้า Admin ต้องแยกเป็นแท็บ ───────────────────────────────────────────────
 // เดิมการ์ดทุกใบกองเรียงกันหน้าเดียว ต้องเลื่อนผ่านทะเบียนเครื่องจักรยาวๆ กว่าจะถึง

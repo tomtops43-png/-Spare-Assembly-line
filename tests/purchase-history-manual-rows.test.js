@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 const htmlLf = fs.readFileSync('index.html', 'utf8').replace(/\r\n/g, '\n');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8').replace(/\r\n/g, '\n');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8').replace(/\r\n/g, '\n');
 
 function grab(re, label) {
   const m = htmlLf.match(re);

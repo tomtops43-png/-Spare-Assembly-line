@@ -1,0 +1,108 @@
+name: Deploy Apps Script
+
+# push เข้า main → push โค้ด backend ขึ้น Apps Script แล้วอัปเดต deployment เดิม (URL /exec ไม่เปลี่ยน)
+# กรองเฉพาะไฟล์ backend: ทุกครั้งที่ deploy จะสร้าง version ใหม่ และ Apps Script จำกัดไว้ 200 version ต่อโปรเจกต์
+# แก้แค่หน้าเว็บ (index.html) จึงไม่ต้อง deploy backend — ถ้าต้องการ deploy เองกด Run workflow ได้
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'appsscript.json'
+      - '.github/workflows/deploy-appsscript.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# กัน 2 รอบ deploy ชนกัน — รอบใหม่รอรอบเก่าจบก่อน (ไม่ยกเลิกกลางทาง เพราะอาจค้างครึ่งๆ ระหว่าง push/deploy)
+concurrency:
+  group: deploy-appsscript
+  cancel-in-progress: false
+
+# runner ของ GitHub เป็น UTC แต่ Backend.gs fix timezone เป็น Asia/Bangkok — เทสต์เวลาจะเพี้ยนถ้าไม่ pin
+env:
+  TZ: Asia/Bangkok
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run tests
+        run: npm test
+
+      - name: Check required secrets
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+          DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
+        run: |
+          missing=0
+          for name in CLASPRC_JSON SCRIPT_ID DEPLOYMENT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::ยังไม่ได้ตั้ง secret $name (Settings → Secrets and variables → Actions) — ดู DEPLOYMENT.md"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Verify webapp access settings
+        run: |
+          node -e '
+            const m = JSON.parse(require("fs").readFileSync("appsscript.json", "utf8"));
+            const w = m.webapp || {};
+            const errors = [];
+            if (w.access !== "ANYONE_ANONYMOUS") errors.push("webapp.access ต้องเป็น ANYONE_ANONYMOUS (ตอนนี้: " + w.access + ")");
+            if (w.executeAs !== "USER_DEPLOYING") errors.push("webapp.executeAs ต้องเป็น USER_DEPLOYING (ตอนนี้: " + w.executeAs + ")");
+            if (errors.length) {
+              errors.forEach(e => console.log("::error file=appsscript.json::" + e));
+              console.log("หน้าเว็บเรียก backend แบบไม่ login — ถ้าเปลี่ยนค่านี้หน้าเว็บจะเรียก API ไม่ได้ ยกเลิก deploy");
+              process.exit(1);
+            }
+            console.log("OK webapp.access=" + w.access + " executeAs=" + w.executeAs);
+          '
+
+      - name: Install clasp
+        run: npm install -g @google/clasp@3
+
+      - name: Configure clasp
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+        run: |
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+          node -e 'JSON.parse(require("fs").readFileSync(process.env.HOME + "/.clasprc.json", "utf8"))' \
+            || { echo "::error::secret CLASPRC_JSON ไม่ใช่ JSON ที่ถูกต้อง — copy เนื้อหาไฟล์ ~/.clasprc.json มาทั้งไฟล์"; exit 1; }
+          # .clasp.json ใน repo เป็นค่าหลอก — เขียนทับด้วย scriptId จริงจาก secret
+          node -e '
+            require("fs").writeFileSync(".clasp.json", JSON.stringify({ scriptId: process.env.SCRIPT_ID, rootDir: "src" }, null, 2));
+          '
+          # clasp อ่าน manifest จาก rootDir (src/) เท่านั้น — copy ตัวจริงจาก root เข้าไป
+          cp appsscript.json src/appsscript.json
+          clasp status
+
+      - name: Push code
+        run: clasp push --force
+
+      - name: Update existing deployment
+        env:
+          DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
+        run: |
+          clasp deploy --deploymentId "$DEPLOYMENT_ID" \
+            --description "main@${GITHUB_SHA::7} ($(date +'%Y-%m-%d %H:%M'))"
+          clasp list-deployments
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$HOME/.clasprc.json"

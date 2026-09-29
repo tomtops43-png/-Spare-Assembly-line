@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 const backendLf = backend.replace(/\r\n/g, '\n');
 
 // ── Backend: dispatch + admin gate ────────────────────────────────────────────

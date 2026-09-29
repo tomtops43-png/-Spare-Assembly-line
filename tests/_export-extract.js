@@ -7,7 +7,7 @@ const fs = require('fs');
 const assert = require('assert');
 
 const html = fs.readFileSync('index.html', 'utf8').replace(/\r\n/g, '\n');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8').replace(/\r\n/g, '\n');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8').replace(/\r\n/g, '\n');
 
 // ดึงฟังก์ชันระดับบนสุดของสคริปต์ (ย่อหน้า 4 ช่อง ปิดด้วย '\n    }')
 function grabFn(name, source, indent) {

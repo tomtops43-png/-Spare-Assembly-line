@@ -2,7 +2,7 @@ const fs = require('fs');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
 const htmlLf = html.replace(/\r\n/g, '\n');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 
 // ── ฟอร์ม "เพิ่มรายการ Manual" ต้องแนบบิลได้ ─────────────────────────────────
 // ของที่ซื้อมามีบิลกระดาษเสมอ ถ้าแนบไม่ได้ก็ตรวจย้อนหลังไม่ได้ว่ายอดที่กรอกมาจากไหน

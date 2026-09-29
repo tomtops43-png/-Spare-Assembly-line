@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 
 // บั๊กจริง: ผู้ใช้เลือก Coil Size ใหม่ในฟอร์มแล้ว (ทั้งฟอร์ม "เพิ่มรายการใหม่" #mCoilSize
 // และ "แก้ไขรายการ" #eCoilSize) กด save ผ่านไป แต่กลับมาเปิดดูใหม่ค่าไม่เปลี่ยน — เพราะ

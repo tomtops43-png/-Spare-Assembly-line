@@ -16,7 +16,7 @@ const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
 
 function grabFrontFn(name) {

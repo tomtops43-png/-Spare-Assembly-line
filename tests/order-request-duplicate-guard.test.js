@@ -1,7 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 
 // บั๊กจริง: ผู้ใช้กด "ส่งคำขอซื้อ" → ของเข้าชีตแล้ว แต่เน็ตหลุดตอนรับคำตอบ
 // เว็บขึ้น "ส่งคำขอไม่สำเร็จ" ทั้งที่สำเร็จ ผู้ใช้เลยกดส่งใหม่ → ได้คำขอซ้ำ 2 ใบ

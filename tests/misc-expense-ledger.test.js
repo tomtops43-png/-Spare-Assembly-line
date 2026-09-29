@@ -2,7 +2,7 @@ const fs = require('fs');
 const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
 const htmlLf = html.replace(/\r\n/g, '\n');
-const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
+const backend = fs.readFileSync('src/Backend.gs', 'utf8');
 
 function grab(re, label) {
   const m = htmlLf.match(re);
