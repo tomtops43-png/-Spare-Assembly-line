@@ -321,4 +321,31 @@ assert(/function msCanEdit\(m\) \{ return !!\(m && m\.can_edit && canWriteWareho
 assert(/var MS_RUN_STATUSES = \['running', 'degraded'\];/.test(html), 'รันได้บางส่วนนับเป็นเครื่องพร้อมรัน');
 assert(grabFn('msUpdateBadgeFromList').includes('MS_DOWN_STATUSES.indexOf(m.status) > -1'), 'badge นับเฉพาะเครื่องที่ไม่ได้ผลิต (ไม่รวมรันบางส่วน)');
 
+// ── style block ของ Dashboard ต้องปิดก่อนเปิดบล็อกถัดไป ────────────────────────────
+// เดิม <style id="fccStyles"> ไม่มี </style> → แท็ก <style> ถัดไปกลายเป็นข้อความ CSS ขยะ
+// กินกฎข้อแรกของบล็อกถัดไปทิ้ง (badge แจ้งเตือนเลยไม่มีพื้นแดง เห็นแต่ตัวเลขสีขาว)
+// ดูเฉพาะใน <head> — ในสคริปต์มีสตริง '<style>' สำหรับหน้าพิมพ์ ซึ่งไม่ใช่แท็กจริง
+const styleTags = html.slice(0, html.indexOf('</head>')).match(/<\/?style[^>]*>/g) || [];
+let depth = 0;
+styleTags.forEach(function(t) {
+  depth += t[1] === '/' ? -1 : 1;
+  assert(depth === 0 || depth === 1, 'แท็ก <style> ห้ามซ้อนกัน/ห้ามลืมปิด: ' + t);
+});
+assert.strictEqual(depth, 0, 'ทุก <style> ต้องมี </style>');
+assert(/#machineStatusNavBadge \{ background-color:#f43f5e;/.test(html), 'badge เครื่องจักรต้องมีพื้นแดงจริง (Tailwind v2 ไม่มี bg-rose-500)');
+
+// ── เลือกอะไหล่ได้หลายตัว: รายการไม่ปิดหลังกดเลือก และกดซ้ำ = เอาออก ─────────────────
+const pickHandler = html.slice(html.indexOf("if (results) results.addEventListener('click'"), html.indexOf('// คลิกนอกช่องค้นหา'));
+assert(pickHandler.includes('msTogglePickedItem(it);') && pickHandler.includes('msRenderPartResults();'), 'เลือกแล้ววาดรายการใหม่ ไม่ปิด');
+assert(!pickHandler.includes("msEl('msPartSearch').value = ''"), 'ห้ามล้างคำค้นหลังเลือก (จะเลือกตัวถัดไปไม่ได้)');
+assert(html.includes('if (!e.target.isConnected) return;'), 'แถวที่ถูกวาดใหม่ต้องไม่นับเป็นคลิกนอกรายการ');
+assert(grabFn('msTogglePickedItem').includes('msEditState.parts.splice(at, 1)'), 'กดตัวที่เลือกแล้ว = เอาออก');
+
+// ── ชิปกรองไลน์บนหน้า = ทางเดียวกับเมนูไลน์ซ้าย ───────────────────────────────────
+assert(html.includes('id="msLineChips"'));
+const sel = grabFn('msSelectLine');
+['setCurrentLine(key)', 'renderLineTabs()', 'applyLineTheme()', 'loadPartsData()', 'msOnLineChanged()'].forEach(function(call) {
+  assert(sel.includes(call), 'เลือกไลน์จากชิปต้องเรียก ' + call + ' เหมือนเมนูซ้าย');
+});
+
 console.log('machine status checks passed');
