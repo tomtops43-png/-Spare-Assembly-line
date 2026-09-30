@@ -59,7 +59,7 @@ assert(/if \(needLine && lineOfItem\(item\) !== selectedLineFilter\) return fals
 const src = [
   grab(/^ {4}var LINE_SHEET_OPTIONS = \{[\s\S]*?\n {4}\};/m, 'LINE_SHEET_OPTIONS'),
   grab(/^ {4}var ALL_LINES_KEY = '__ALL_LINES__';[\s\S]*?\n(?= {4}var LINE_CACHE_VERSION)/m, 'all-lines helpers'),
-  grab(/^ {4}var currentLine = 'H9';[\s\S]*?\n {4}function formLineDefault\(item\) \{[\s\S]*?\n {4}\}/m, 'currentLine helpers'),
+  grab(/^ {4}var currentLine = ALL_LINES_KEY;[\s\S]*?\n {4}function formLineDefault\(item\) \{[\s\S]*?\n {4}\}/m, 'currentLine helpers'),
   grab(/^ {4}function normalizeLineText\(value\) \{[\s\S]*?\n {4}\}/m, 'normalizeLineText'),
   grab(/^ {4}function mapLine\(lineName\) \{[\s\S]*?\n {4}\}/m, 'mapLine'),
   grab(/^ {4}function canonicalLineName\(value\) \{[\s\S]*?\n {4}\}/m, 'canonicalLineName')
@@ -86,6 +86,10 @@ assert.strictEqual(api.lineOfItem({ __sourceSheet: 'Gv.2 (9 plate)' }), 'Arc Chu
 assert.strictEqual(api.lineOfItem({ __sourceSheet: 'Stock for MC' }), 'H9');
 assert.strictEqual(api.lineOfItem({ subLine: 'Coil Winding' }), 'Coil Winding');
 assert.strictEqual(api.lineOfItem({ __sourceSheet: 'Lug&Screw', line: 'H9' }), 'Lug&Screw');
+
+// เปิดหน้า Stock มาต้องเริ่มที่หน้ารวม "ทุกไลน์" เลย
+assert(api.isAllLinesMode(), 'เปิดมาครั้งแรกต้องอยู่โหมดทุกไลน์');
+assert.strictEqual(api.activeRealLine(), 'H9', 'ไลน์จริงตั้งต้นของฟอร์มยังเป็น H9');
 
 api.setCurrentLine(api.ALL_LINES_KEY);
 assert(api.isAllLinesMode(), 'เลือกไลน์เสมือนแล้วต้องเข้าโหมดทุกไลน์');
