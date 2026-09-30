@@ -12,6 +12,10 @@ SPARE_APP_CONFIG.purchaseHistoryImportLogSheetName = SPARE_APP_CONFIG.purchaseHi
 SPARE_APP_CONFIG.productionVolumeSheetName = SPARE_APP_CONFIG.productionVolumeSheetName || 'ProductionVolume';
 SPARE_APP_CONFIG.productionCostConfigSheetName = SPARE_APP_CONFIG.productionCostConfigSheetName || 'ProductionCostConfig';
 SPARE_APP_CONFIG.machinesSheetName = SPARE_APP_CONFIG.machinesSheetName || 'Machines';
+// สถานะเครื่องจักร — MachineStatus เก็บ "สถานะล่าสุด" 1 แถวต่อ 1 เครื่อง (อ่านเร็ว โชว์การ์ดได้ทันที)
+// ส่วน MachineStatusLog เก็บทุกครั้งที่เปลี่ยนสถานะ ใช้ทำ Timeline และสถิติชั่วโมงเครื่องหยุด
+SPARE_APP_CONFIG.machineStatusSheetName = SPARE_APP_CONFIG.machineStatusSheetName || 'MachineStatus';
+SPARE_APP_CONFIG.machineStatusLogSheetName = SPARE_APP_CONFIG.machineStatusLogSheetName || 'MachineStatusLog';
 // ทะเบียนการแก้ไขข้อมูลอะไหล่ — เดิมการแก้ Min/Max/ราคา/ยอดคงเหลือ เขียนทับชีตเงียบๆ
 // ไม่มีร่องรอยเลย (ต่างจาก PR / Purchase History / นับสต็อก ที่มี audit ครบ)
 // ใครลด Min จาก 10 เหลือ 2 แล้วของไม่เคยขึ้นเตือนอีก ก็ไล่ไม่ได้ว่าใครทำเมื่อไหร่
@@ -89,6 +93,13 @@ var MISC_EXPENSE_SHARED_LINE = 'ส่วนกลาง';
 // เครื่องจักรของแต่ละไลน์ (master list ให้ Admin กรอกเอง) — อะไหล่แต่ละชิ้นผูกได้หลายเครื่องจักร
 // โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
 var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
+// สถานะเครื่องจักร: running = ทำงาน, maintenance = ซ่อมบำรุง, stopped = หยุด, waiting_parts = รออะไหล่
+// Case ID ผูก "ช่วงที่เครื่องไม่ได้เดิน" ตั้งแต่หยุดจนกลับมาทำงาน (เปลี่ยนสาเหตุกลางทางก็ยังเป็นเคสเดิม)
+var MACHINE_STATUS_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Status', 'Reason Type', 'Parts JSON', 'Comment', 'PR Ref', 'Since', 'Case ID', 'Updated By', 'Updated At'];
+var MACHINE_STATUS_LOG_HEADERS = ['Log ID', 'Case ID', 'Machine ID', 'Line', 'Machine Name', 'From Status', 'To Status', 'Reason Type', 'Parts JSON', 'Comment', 'PR Ref', 'Changed By', 'Changed At', 'Prev Duration Min'];
+var MACHINE_STATUS_KEYS = ['running', 'maintenance', 'stopped', 'waiting_parts'];
+var MACHINE_REASON_KEYS = ['spare_part', 'breakdown', 'no_job', 'other'];
+var MACHINE_STATUS_MAX_PARTS = 15;
 var ITEM_AUDIT_HEADERS = ['Date Time', 'User', 'Role', 'Sheet Name', 'NO', 'Part Name', 'Model', 'Action Type', 'Changed Fields', 'Old Values', 'New Values'];
 // เก็บเฉพาะฟิลด์ที่มีผลต่อการควบคุม (ตัวเลข/ข้อมูลที่ใช้ตัดสินใจสั่งซื้อ) — ไม่เก็บ URL รูป/ไฟล์แนบ
 // เพราะพวกนั้นตามรอยได้จาก Drive อยู่แล้ว และจะทำให้ log รกจนอ่านของสำคัญไม่เจอ
@@ -1108,6 +1119,232 @@ function deleteMachine(payload) {
     }
   }
   throw new Error('ไม่พบเครื่องจักรนี้');
+}
+
+// =============================
+// MACHINE STATUS — สถานะเครื่องจักรรายเครื่อง (ทำงาน/ซ่อมบำรุง/หยุด/รออะไหล่)
+// =============================
+function getMachineStatusSheet() {
+  var sheet = getOrCreateSheet(SpreadsheetApp.getActiveSpreadsheet(), SPARE_APP_CONFIG.machineStatusSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(MACHINE_STATUS_HEADERS);
+  return sheet;
+}
+
+function getMachineStatusLogSheet() {
+  var sheet = getOrCreateSheet(SpreadsheetApp.getActiveSpreadsheet(), SPARE_APP_CONFIG.machineStatusLogSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(MACHINE_STATUS_LOG_HEADERS);
+  return sheet;
+}
+
+function machineStatusNow() {
+  return Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+}
+
+// เวลาในชีตอาจกลายเป็น Date object (Sheets แปลงให้เอง) — คืน string รูปแบบเดียวกันเสมอ
+function machineStatusTimeText(value) {
+  if (value instanceof Date) return Utilities.formatDate(value, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  return String(value || '');
+}
+
+function machineStatusParseTime(text) {
+  var raw = String(text || '').trim();
+  if (!raw) return null;
+  var d = new Date(raw.replace(' ', 'T') + (/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw) ? '' : '+07:00'));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function machineStatusParseParts(raw) {
+  if (!raw) return [];
+  var parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch (err) { return []; }
+  }
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+// อะไหล่ที่ผูกกับเครื่อง: เลือกจากสต็อก (มี key) หรือพิมพ์เอง (manual) — ตัดให้สั้นและปลอดภัยก่อนเก็บ
+function sanitizeMachineStatusParts(raw) {
+  var list = machineStatusParseParts(raw);
+  if (list.length > MACHINE_STATUS_MAX_PARTS) throw new Error('ผูกอะไหล่ได้สูงสุด ' + MACHINE_STATUS_MAX_PARTS + ' รายการต่อเครื่อง');
+  var clip = function(v, n) { return String(v === undefined || v === null ? '' : v).trim().slice(0, n); };
+  return list.map(function(p) {
+    var qty = Math.round(Number(p && p.qty_needed));
+    return {
+      key: clip(p && p.key, 300),
+      no: clip(p && p.no, 40),
+      name: clip(p && p.name, 150),
+      model: clip(p && p.model, 150),
+      sheet: clip(p && p.sheet, 80),
+      unit: clip(p && p.unit, 20),
+      qty_needed: isFinite(qty) && qty > 0 ? Math.min(qty, 9999) : 1,
+      stock_at_save: isFinite(Number(p && p.stock_at_save)) ? Number(p.stock_at_save) : '',
+      manual: !!(p && (p.manual === true || String(p.manual) === 'true'))
+    };
+  }).filter(function(p) { return p.name; });
+}
+
+function machineStatusRowToObject(r) {
+  return {
+    machine_id: String(r[0] || ''),
+    line: String(r[1] || ''),
+    machine_name: String(r[2] || ''),
+    status: String(r[3] || 'running'),
+    reason_type: String(r[4] || ''),
+    parts: machineStatusParseParts(String(r[5] || '')),
+    comment: String(r[6] || ''),
+    pr_ref: String(r[7] || ''),
+    since: machineStatusTimeText(r[8]),
+    case_id: String(r[9] || ''),
+    updated_by: String(r[10] || ''),
+    updated_at: machineStatusTimeText(r[11])
+  };
+}
+
+function machineStatusLogRowToObject(r) {
+  return {
+    log_id: String(r[0] || ''),
+    case_id: String(r[1] || ''),
+    machine_id: String(r[2] || ''),
+    line: String(r[3] || ''),
+    machine_name: String(r[4] || ''),
+    from_status: String(r[5] || ''),
+    to_status: String(r[6] || ''),
+    reason_type: String(r[7] || ''),
+    parts: machineStatusParseParts(String(r[8] || '')),
+    comment: String(r[9] || ''),
+    pr_ref: String(r[10] || ''),
+    changed_by: String(r[11] || ''),
+    changed_at: machineStatusTimeText(r[12]),
+    prev_duration_min: Number(r[13] || 0)
+  };
+}
+
+// ทุกคนในไลน์เปลี่ยนสถานะเครื่องของไลน์ตัวเองได้ — Admin และคนที่ไม่ได้ผูกไลน์ (ดูแลทุกไลน์) ได้ทุกไลน์
+// บัญชีดูอย่างเดียว (preset ผู้บริหาร) ถูกกันที่ requireWarehouseWriter ก่อนถึงตรงนี้
+function machineStatusUserCanEditLine(user, line) {
+  if (normalizeRole(user && user.role) === 'admin') return true;
+  var myLine = String((user && user.line) || '').trim();
+  if (!myLine) return true;
+  return myLine === String(line || '').trim();
+}
+
+// รวม master เครื่องจักร (Machines) กับสถานะล่าสุด — เครื่องที่ยังไม่เคยตั้งสถานะถือว่า "ทำงาน"
+function getMachineStatusBoard(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'view');
+  var line = String(payload.line || '').trim();
+  var machines = getMachines({ authToken: payload.authToken, line: line });
+  var values = getMachineStatusSheet().getDataRange().getValues();
+  var byId = {};
+  values.slice(1).forEach(function(r) {
+    var id = String(r[0] || '').trim();
+    if (id) byId[id] = machineStatusRowToObject(r);
+  });
+  var list = machines.map(function(m) {
+    var st = byId[m.machine_id];
+    var out = st ? st : {
+      machine_id: m.machine_id, status: 'running', reason_type: '', parts: [], comment: '', pr_ref: '',
+      since: '', case_id: '', updated_by: '', updated_at: ''
+    };
+    // ชื่อ/ไลน์ยึดตาม master เสมอ (Admin เปลี่ยนชื่อเครื่องทีหลังการ์ดต้องเปลี่ยนตาม)
+    out.line = m.line;
+    out.machine_name = m.machine_name;
+    out.can_edit = machineStatusUserCanEditLine(user, m.line);
+    return out;
+  });
+  return { status: 'success', machines: list, generated_at: machineStatusNow() };
+}
+
+function updateMachineStatus(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try { return updateMachineStatusUnlocked(payload); } finally { lock.releaseLock(); }
+}
+
+function updateMachineStatusUnlocked(payload) {
+  var user = requireWarehouseWriter({ authToken: payload.authToken }, 'view');
+  var machineId = String(payload.machine_id || '').trim();
+  if (!machineId) throw new Error('ไม่พบรหัสเครื่องจักร');
+  var status = String(payload.status || '').trim();
+  if (MACHINE_STATUS_KEYS.indexOf(status) === -1) throw new Error('สถานะไม่ถูกต้อง');
+
+  var machine = null;
+  getMachines({ authToken: payload.authToken, includeInactive: '1' }).some(function(m) {
+    if (m.machine_id === machineId) { machine = m; return true; }
+    return false;
+  });
+  if (!machine) throw new Error('ไม่พบเครื่องจักรนี้ในทะเบียน');
+  if (!machine.active) throw new Error('เครื่องนี้ถูกปิดใช้งานในทะเบียนแล้ว');
+  if (!machineStatusUserCanEditLine(user, machine.line)) throw new Error('เปลี่ยนสถานะได้เฉพาะเครื่องในไลน์ของคุณ (' + (user.line || '-') + ')');
+
+  var reason = status === 'running' ? '' : String(payload.reason_type || '').trim();
+  if (status === 'waiting_parts') reason = 'spare_part';
+  if (status !== 'running' && MACHINE_REASON_KEYS.indexOf(reason) === -1) throw new Error('กรุณาเลือกสาเหตุที่เครื่องไม่ได้ทำงาน');
+  var parts = status === 'running' ? [] : sanitizeMachineStatusParts(payload.parts_json || payload.parts);
+  if (status === 'waiting_parts' && !parts.length) throw new Error('สถานะ "รออะไหล่" ต้องระบุอะไหล่อย่างน้อย 1 รายการ');
+  var comment = String(payload.comment || '').trim().slice(0, 500);
+  if (status !== 'running' && reason === 'other' && !comment) throw new Error('สาเหตุ "อื่นๆ" ต้องพิมพ์คอมเมนต์อธิบาย');
+  var prRef = status === 'running' ? '' : String(payload.pr_ref || '').trim().slice(0, 80);
+
+  var sheet = getMachineStatusSheet();
+  var values = sheet.getDataRange().getValues();
+  var rowIndex = -1;
+  for (var i = 1; i < values.length; i += 1) {
+    if (String(values[i][0] || '').trim() === machineId) { rowIndex = i; break; }
+  }
+  var prev = rowIndex > -1 ? machineStatusRowToObject(values[rowIndex]) : null;
+  var prevStatus = prev ? prev.status : 'running';
+  var now = machineStatusNow();
+  var statusChanged = prevStatus !== status;
+
+  // Since = เวลาที่เข้าสู่สถานะปัจจุบัน — แก้แค่คอมเมนต์/อะไหล่ในสถานะเดิม ห้ามรีเซ็ตเวลา ไม่งั้นนับชั่วโมงหยุดผิด
+  var since = (!statusChanged && prev && prev.since) ? prev.since : now;
+  var caseId = '';
+  if (status !== 'running') {
+    caseId = (prev && prev.case_id && prevStatus !== 'running') ? prev.case_id
+      : 'MSC-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + Utilities.getUuid().slice(0, 6);
+  }
+  var logCaseId = caseId || (prev && prev.case_id) || '';
+
+  var prevDurationMin = 0;
+  if (statusChanged && prev && prev.since) {
+    var sinceDate = machineStatusParseTime(prev.since);
+    if (sinceDate) prevDurationMin = Math.max(0, Math.round((Date.now() - sinceDate.getTime()) / 60000));
+  }
+
+  var partsJson = JSON.stringify(parts);
+  var row = [machineId, machine.line, machine.machine_name, status, reason, partsJson, comment, prRef, since, caseId, user.username || '', now];
+  if (rowIndex > -1) sheet.getRange(rowIndex + 1, 1, 1, MACHINE_STATUS_HEADERS.length).setValues([row]);
+  else sheet.appendRow(row);
+
+  getMachineStatusLogSheet().appendRow([
+    'MSL-' + Utilities.getUuid(), logCaseId, machineId, machine.line, machine.machine_name,
+    prevStatus, status, reason, partsJson, comment, prRef, user.username || '', now, prevDurationMin
+  ]);
+
+  var saved = machineStatusRowToObject(row);
+  saved.can_edit = true;
+  return { status: 'success', machine: saved };
+}
+
+// ประวัติการเปลี่ยนสถานะ — ใช้ทั้ง Timeline รายเครื่อง และสถิติรวม (ชั่วโมงหยุด/อะไหล่ที่ทำให้หยุดบ่อย)
+function getMachineStatusHistory(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var machineId = String(payload.machine_id || '').trim();
+  var line = String(payload.line || '').trim();
+  var days = Math.min(400, Math.max(1, Number(payload.days || 90) || 90));
+  var cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  var values = getMachineStatusLogSheet().getDataRange().getValues();
+  var out = [];
+  for (var i = values.length - 1; i >= 1 && out.length < 3000; i -= 1) {
+    var item = machineStatusLogRowToObject(values[i]);
+    if (!item.log_id) continue;
+    if (machineId && item.machine_id !== machineId) continue;
+    if (line && item.line !== line) continue;
+    var at = machineStatusParseTime(item.changed_at);
+    if (at && at < cutoff) break;
+    out.push(item);
+  }
+  return { status: 'success', history: out, days: days };
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -5131,6 +5368,9 @@ function doGet(e) {
     if (action === 'getPartTags') return respond(getPartTags(e.parameter), e);
     if (action === 'updatePartTagStatus') return respond(updatePartTagStatus(e.parameter), e);
     if (action === 'getMachines') return respond(getMachines(e.parameter), e);
+    if (action === 'getMachineStatusBoard') return respond(getMachineStatusBoard(e.parameter), e);
+    if (action === 'updateMachineStatus') return respond(updateMachineStatus(e.parameter), e);
+    if (action === 'getMachineStatusHistory') return respond(getMachineStatusHistory(e.parameter), e);
     if (action === 'getItemAudit') return respond(getItemAudit(e.parameter), e);
     if (action === 'getBackupStatus') return respond(getBackupStatus(e.parameter), e);
     if (action === 'runBackupNow') return respond(runBackupNow(e.parameter), e);
@@ -5491,6 +5731,9 @@ function doPost(e) {
     if (action === 'addManualPurchaseHistory') return respond(addManualPurchaseHistory(body), e);
     if (action === 'addManualPurchaseHistoryBatch') return respond(addManualPurchaseHistoryBatch(body), e);
     if (action === 'uploadPurchaseHistoryAttachment') return respond(uploadPurchaseHistoryAttachment(body), e);
+    if (action === 'getMachineStatusBoard') return respond(getMachineStatusBoard(body), e);
+    if (action === 'updateMachineStatus') return respond(updateMachineStatus(body), e);
+    if (action === 'getMachineStatusHistory') return respond(getMachineStatusHistory(body), e);
     if (action === 'getMiscExpenses') return respond(getMiscExpenses(body), e);
     if (action === 'addMiscExpense') return respond(addMiscExpense(body), e);
     if (action === 'addMiscExpenseBatch') return respond(addMiscExpenseBatch(body), e);
@@ -6969,7 +7212,8 @@ function exportManifest(payload) {
 // เช่น PartTagGroupItems ที่ getPartTagGroupItems() ต้องส่ง group_id มาทุกครั้ง
 var EXPORT_RAW_SHEET_WHITELIST = [
   'PartTagGroups', 'PartTagGroupItems', 'Machines', 'ProductionVolume', 'ProductionCostConfig',
-  'AnomalyAlerts', 'StockCount', 'OrderRequests', 'PurchaseHistory', 'MiscExpenses', 'PartTags'
+  'AnomalyAlerts', 'StockCount', 'OrderRequests', 'PurchaseHistory', 'MiscExpenses', 'PartTags',
+  'MachineStatus', 'MachineStatusLog'
 ];
 function exportRawSheets(payload) {
   var user = requireExportAccess(payload);

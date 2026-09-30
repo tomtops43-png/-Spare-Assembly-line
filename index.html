@@ -754,6 +754,259 @@
       #dashboardPage.fcc *, #dashboardPage.fcc *::before, #dashboardPage.fcc *::after{ animation-duration:.001s !important; transition-duration:.001s !important; }
     }
   <!-- Export Center — ศูนย์ส่งออกข้อมูล (prefix xp- ทั้งหมด กันชนกับ fcc-/mx- ของหน้าอื่น) -->
+  <style id="msStyles">
+    /* ═══════════════════════════════════════════════════════════════
+       สถานะเครื่องจักร (Machine Status) — scoped ที่ #machineStatusPage + modal ms-*
+       ภาษาเดียวกับ Dashboard (FCC): การ์ดขาว ขอบ slate ตัวเลข Chakra Petch สีตามสถานะ
+       Tailwind v2 static ไม่มี slate/rose/emerald/amber/violet จึงเขียนสีเป็น CSS จริงทั้งหมด
+       ═══════════════════════════════════════════════════════════════ */
+    #machineStatusNavBadge { background-color:#f43f5e; }
+    #machineStatusPage, .ms-modal {
+      --tx:#0f172a; --mut:#64748b; --dim:#94a3b8; --bd:#e2e8f0; --bd2:#cbd5e1; --soft:#f8fafc;
+      --fnum:'Chakra Petch','Prompt',sans-serif;
+      color:var(--tx);
+    }
+    /* accent ต่อสถานะ: --a สีหลัก · --as พื้นอ่อน · --ab ขอบ */
+    .ms-st-running       { --a:#059669; --as:rgba(5,150,105,.1);   --ab:rgba(5,150,105,.35); }
+    .ms-st-maintenance   { --a:#d97706; --as:rgba(217,119,6,.11);  --ab:rgba(217,119,6,.38); }
+    .ms-st-stopped       { --a:#e11d48; --as:rgba(225,29,72,.09);  --ab:rgba(225,29,72,.38); }
+    .ms-st-waiting_parts { --a:#7c3aed; --as:rgba(124,58,237,.09); --ab:rgba(124,58,237,.36); }
+    .ms-st-all           { --a:#2563eb; --as:rgba(37,99,235,.08);  --ab:rgba(37,99,235,.35); }
+
+    .ms-canvas {
+      position:relative; border-radius:24px; padding:14px; isolation:isolate;
+      background:
+        radial-gradient(900px 420px at 10% -10%, rgba(59,130,246,.1), transparent 60%),
+        radial-gradient(700px 380px at 100% 0%, rgba(124,58,237,.06), transparent 55%),
+        linear-gradient(175deg, #f8fafc 0%, #eef2ff 60%, #f1f5f9 100%);
+      border:1px solid rgba(148,163,184,.35);
+      box-shadow:0 18px 45px -20px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.9);
+    }
+    .ms-canvas::before {
+      content:''; position:absolute; inset:0; z-index:-1; opacity:.5; pointer-events:none; border-radius:24px;
+      background-image:radial-gradient(rgba(71,85,105,.14) 1px, transparent 1.4px); background-size:26px 26px;
+    }
+    @media (min-width:768px) { .ms-canvas { padding:22px; } }
+
+    /* ── hero ── */
+    .ms-hero {
+      --ln:#2563eb;
+      display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;
+      padding:16px 18px; border-radius:18px; color:#fff; position:relative; overflow:hidden;
+      background:linear-gradient(115deg, #0f172a 0%, #1e3a8a 45%, var(--ln) 130%);
+      box-shadow:0 14px 30px -16px rgba(15,23,42,.55);
+    }
+    .ms-hero::after {
+      content:''; position:absolute; inset:0; pointer-events:none; opacity:.35;
+      background-image:radial-gradient(rgba(255,255,255,.22) 1px, transparent 1.4px); background-size:22px 22px;
+      -webkit-mask-image:linear-gradient(90deg, transparent, #000 70%); mask-image:linear-gradient(90deg, transparent, #000 70%);
+    }
+    .ms-hero-main { display:flex; align-items:center; gap:12px; min-width:0; position:relative; z-index:1; }
+    .ms-hero-ic { flex:none; width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); }
+    .ms-hero-ic svg { width:26px; height:26px; animation:msSpin 14s linear infinite; }
+    @keyframes msSpin { to { transform:rotate(360deg); } }
+    .ms-hero-title { font-size:20px; font-weight:800; line-height:1.2; }
+    .ms-hero-sub { font-size:12px; color:rgba(255,255,255,.72); margin-top:2px; }
+    .ms-hero-side { display:flex; flex-wrap:wrap; align-items:center; gap:8px; position:relative; z-index:1; }
+    .ms-hero-chip { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25); }
+    .ms-hero-chip i { width:8px; height:8px; border-radius:999px; background:var(--ln); box-shadow:0 0 0 2px rgba(255,255,255,.7); }
+    .ms-hero-time { font-size:11px; color:rgba(255,255,255,.7); }
+    .ms-hero-btn { display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 14px; border-radius:12px; font-size:13px; font-weight:600; color:#fff; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); transition:background .15s; }
+    .ms-hero-btn:hover { background:rgba(255,255,255,.26); }
+    .ms-hero-btn svg { width:16px; height:16px; }
+    .ms-hero-btn.is-loading svg { animation:msSpin .9s linear infinite; }
+
+    /* ── KPI ── */
+    .ms-kpis { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
+    @media (min-width:768px) { .ms-kpis { grid-template-columns:1.35fr repeat(4,minmax(0,1fr)); gap:12px; } }
+    .ms-kpi {
+      position:relative; text-align:left; border-radius:16px; padding:14px 16px; background:#fff;
+      border:1px solid var(--bd); box-shadow:0 1px 2px rgba(15,23,42,.05); transition:transform .15s, box-shadow .15s, border-color .15s; overflow:hidden;
+    }
+    .ms-kpi::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--a); opacity:.9; }
+    .ms-kpi:hover { transform:translateY(-2px); box-shadow:0 10px 22px -14px rgba(15,23,42,.4); border-color:var(--ab); }
+    .ms-kpi.on { border-color:var(--a); box-shadow:0 0 0 3px var(--as), 0 10px 22px -14px rgba(15,23,42,.4); }
+    .ms-kpi-num { font-family:var(--fnum); font-size:32px; font-weight:700; line-height:1; color:var(--a); }
+    .ms-kpi-lb { margin-top:6px; font-size:12px; font-weight:600; color:var(--mut); display:flex; align-items:center; gap:6px; }
+    .ms-kpi-ic { position:absolute; right:12px; top:12px; width:30px; height:30px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:var(--as); color:var(--a); font-size:15px; font-weight:800; }
+    .ms-kpi-all { grid-column:span 2; }
+    @media (min-width:768px) { .ms-kpi-all { grid-column:auto; } }
+    .ms-kpi-all .ms-kpi-num { color:var(--tx); }
+    .ms-kpi-meter { margin-top:10px; height:8px; border-radius:999px; background:#eef2f7; overflow:hidden; display:flex; }
+    .ms-kpi-meter span { display:block; height:100%; }
+
+    /* ── toolbar ── */
+    .ms-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:14px; padding:8px; border-radius:16px; background:rgba(255,255,255,.92); border:1px solid rgba(148,163,184,.42); box-shadow:0 8px 20px -16px rgba(15,23,42,.4); }
+    .ms-toolbar-grow { display:flex; flex:1 1 260px; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+    .ms-toolbar-end { justify-content:flex-end; }
+    .ms-toolbar-grow.hidden { display:none; }
+    .ms-seg { display:flex; padding:3px; border-radius:12px; background:#f1f5f9; border:1px solid var(--bd); }
+    .ms-seg-btn { padding:7px 12px; border-radius:9px; font-size:13px; font-weight:600; color:#475569; white-space:nowrap; transition:all .15s; }
+    .ms-seg-btn:hover { color:#1d4ed8; }
+    .ms-seg-btn.on { background:#2563eb; color:#fff; box-shadow:0 4px 12px -4px rgba(37,99,235,.6); }
+    .ms-input { height:38px; border-radius:11px; border:1px solid var(--bd2); background:#fff; padding:0 12px; font-size:14px; color:var(--tx); outline:none; transition:border-color .15s, box-shadow .15s; }
+    .ms-input:focus { border-color:#60a5fa; box-shadow:0 0 0 3px rgba(59,130,246,.18); }
+    .ms-input-grow { flex:1 1 180px; min-width:0; }
+    .ms-input-block { width:100%; }
+    .ms-textarea { height:auto; padding:9px 12px; resize:vertical; line-height:1.5; }
+    .ms-muted-label { font-size:12px; font-weight:600; color:var(--mut); }
+    .ms-message { min-height:18px; margin-top:10px; font-size:12px; color:var(--mut); }
+    .ms-message.is-error { color:#e11d48; font-weight:600; }
+
+    /* ── line group ── */
+    .ms-group { --ln:#2563eb; margin-top:8px; }
+    .ms-group + .ms-group { margin-top:22px; }
+    .ms-group-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:10px; }
+    .ms-group-title { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:800; }
+    .ms-group-title i { width:12px; height:12px; border-radius:4px; background:var(--ln); box-shadow:0 0 0 3px rgba(15,23,42,.06); }
+    .ms-group-count { font-size:12px; font-weight:600; color:var(--mut); }
+    .ms-group-avail { display:flex; align-items:center; gap:8px; margin-left:auto; font-size:12px; font-weight:700; color:#334155; }
+    .ms-group-avail .bar { width:120px; height:8px; border-radius:999px; background:#e2e8f0; overflow:hidden; }
+    .ms-group-avail .bar span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#10b981,#059669); }
+    .ms-group-avail .bar.warn span { background:linear-gradient(90deg,#f59e0b,#d97706); }
+    .ms-group-avail .bar.bad span { background:linear-gradient(90deg,#fb7185,#e11d48); }
+    .ms-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; align-items:start; }
+    .ms-empty { border:1px dashed var(--bd2); border-radius:16px; background:rgba(255,255,255,.7); padding:26px 16px; text-align:center; color:var(--mut); font-size:13px; }
+
+    /* ── machine card ── */
+    .ms-card {
+      position:relative; display:flex; flex-direction:column; gap:8px; min-width:0;
+      border-radius:16px; padding:14px 14px 12px 16px; background:#fff;
+      border:1px solid var(--bd); border-left:5px solid var(--a);
+      box-shadow:0 1px 2px rgba(15,23,42,.05); transition:transform .15s, box-shadow .15s;
+    }
+    .ms-card:hover { transform:translateY(-2px); box-shadow:0 14px 28px -18px rgba(15,23,42,.45); }
+    .ms-card.ms-st-stopped, .ms-card.ms-st-waiting_parts { background:linear-gradient(170deg, var(--as) 0%, #fff 42%); }
+    .ms-card-top { display:flex; align-items:flex-start; gap:10px; }
+    .ms-card-name { font-size:15px; font-weight:700; line-height:1.25; word-break:break-word; }
+    .ms-dot { flex:none; margin-left:auto; width:30px; height:30px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:var(--a); color:#fff; font-size:14px; font-weight:800; box-shadow:0 4px 10px -3px var(--ab); }
+    .ms-card.ms-st-stopped .ms-dot { animation:msPulse 1.8s ease-in-out infinite; }
+    @keyframes msPulse { 0%,100% { box-shadow:0 0 0 0 rgba(225,29,72,.45); } 50% { box-shadow:0 0 0 7px rgba(225,29,72,0); } }
+    @media (prefers-reduced-motion: reduce) { .ms-card.ms-st-stopped .ms-dot, .ms-hero-ic svg { animation:none; } }
+    .ms-pill-row { display:flex; flex-wrap:wrap; gap:6px; }
+    .ms-pill { display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:3px 10px; font-size:12px; font-weight:700; background:var(--as); color:var(--a); border:1px solid var(--ab); }
+    .ms-pill-soft { background:#f1f5f9; color:#475569; border-color:var(--bd); font-weight:600; }
+    .ms-pill-pr { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+    .ms-ready { position:relative; overflow:hidden; background:linear-gradient(135deg,#d1fae5,#a7f3d0); color:#047857; border-color:#34d399; }
+    .ms-ready::after { content:''; position:absolute; top:0; left:-60%; width:40%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent); animation:newArrivalShine 2.6s ease-in-out infinite; }
+    .ms-parts { display:flex; flex-direction:column; gap:5px; }
+    .ms-part { display:flex; align-items:center; gap:8px; border-radius:10px; padding:6px 8px; background:var(--soft); border:1px solid var(--bd); font-size:12px; }
+    .ms-part-name { flex:1; min-width:0; font-weight:600; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ms-part-name small { font-weight:500; color:var(--dim); }
+    .ms-stock { flex:none; border-radius:8px; padding:2px 7px; font-family:var(--fnum); font-size:12px; font-weight:700; }
+    .ms-stock.ok { background:#d1fae5; color:#047857; }
+    .ms-stock.bad { background:#ffe4e6; color:#be123c; }
+    .ms-stock.na { background:#f1f5f9; color:#64748b; font-family:'Prompt',sans-serif; font-weight:600; }
+    .ms-note { border-radius:10px; padding:7px 10px; font-size:12px; line-height:1.5; color:#334155; background:#f8fafc; border:1px solid var(--bd); border-left:3px solid var(--a); word-break:break-word; white-space:pre-wrap; }
+    .ms-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; font-size:11px; color:var(--mut); }
+    .ms-meta b { color:var(--a); font-family:var(--fnum); font-size:12px; }
+    .ms-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:auto; padding-top:8px; border-top:1px dashed var(--bd); }
+
+    /* ── buttons ── */
+    .ms-btn { display:inline-flex; align-items:center; justify-content:center; gap:5px; height:38px; padding:0 14px; border-radius:11px; font-size:13px; font-weight:700; white-space:nowrap; transition:all .15s; border:1px solid transparent; }
+    .ms-btn:disabled { opacity:.55; cursor:not-allowed; }
+    .ms-btn-sm { height:30px; padding:0 10px; font-size:12px; border-radius:9px; }
+    .ms-btn-primary { background:#2563eb; color:#fff; box-shadow:0 6px 14px -8px rgba(37,99,235,.9); }
+    .ms-btn-primary:hover:not(:disabled) { background:#1d4ed8; }
+    .ms-btn-ghost { background:#fff; color:#475569; border-color:var(--bd2); }
+    .ms-btn-ghost:hover:not(:disabled) { background:#f1f5f9; }
+    .ms-btn-dark { background:#1e293b; color:#fff; }
+    .ms-btn-dark:hover:not(:disabled) { background:#0f172a; }
+    .ms-btn-go { background:#059669; color:#fff; box-shadow:0 6px 14px -8px rgba(5,150,105,.9); }
+    .ms-btn-go:hover:not(:disabled) { background:#047857; }
+    .ms-btn-stop { background:#fff1f2; color:#e11d48; border-color:#fecdd3; }
+    .ms-btn-stop:hover:not(:disabled) { background:#ffe4e6; }
+    .ms-btn-buy { background:#fffbeb; color:#b45309; border-color:#fcd34d; }
+    .ms-btn-buy:hover:not(:disabled) { background:#fef3c7; }
+
+    /* ── modal ── */
+    .ms-modal { position:fixed; inset:0; z-index:9500; overflow-y:auto; padding:16px; background:rgba(15,23,42,.6); }
+    .ms-modal.hidden { display:none; }
+    .ms-sheet { width:100%; max-width:600px; margin:0 auto; border-radius:20px; overflow:hidden; background:#fff; box-shadow:0 30px 60px -20px rgba(15,23,42,.55); }
+    @media (min-width:768px) { .ms-sheet { margin:32px auto; } }
+    .ms-sheet-head { --a:#2563eb; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:16px 20px; color:#fff; background:linear-gradient(115deg,#0f172a 0%, var(--a) 120%); }
+    .ms-sheet-head-light { color:var(--tx); background:#fff; border-bottom:1px solid var(--bd); }
+    .ms-sheet-kicker { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; opacity:.75; }
+    .ms-sheet-title { font-size:18px; font-weight:800; line-height:1.3; word-break:break-word; }
+    .ms-sheet-sub { font-size:12px; opacity:.8; margin-top:2px; }
+    .ms-sheet-x { flex:none; width:36px; height:36px; border-radius:999px; font-size:20px; line-height:1; color:inherit; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.3); }
+    .ms-sheet-head-light .ms-sheet-x { background:#fff; border-color:var(--bd2); color:var(--mut); }
+    .ms-sheet-body { display:flex; flex-direction:column; gap:16px; padding:18px 20px; }
+    .ms-sheet-foot { display:flex; justify-content:flex-end; gap:8px; padding:12px 20px; background:var(--soft); border-top:1px solid var(--bd); }
+    .ms-field { display:block; }
+    .ms-field.hidden { display:none; }
+    .ms-field-label { display:block; margin-bottom:8px; font-size:14px; font-weight:700; color:#334155; }
+    .ms-m0 { margin:0; }
+    .ms-hint { font-weight:400; font-size:12px; color:var(--dim); }
+    .ms-req { color:#e11d48; }
+    .ms-form-msg { min-height:18px; font-size:13px; font-weight:600; }
+    .ms-form-msg.is-error { color:#e11d48; }
+    .ms-form-msg.is-ok { color:#059669; }
+    .ms-choices { display:grid; gap:8px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    @media (min-width:640px) { .ms-choices-4 { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    .ms-choice { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:66px; padding:8px; border-radius:14px; border:2px solid var(--bd); background:#fff; color:#475569; font-size:13px; font-weight:700; text-align:center; transition:all .15s; }
+    .ms-choice .ic { width:26px; height:26px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:var(--as); color:var(--a); font-size:13px; }
+    .ms-choice:hover { border-color:var(--ab); }
+    .ms-choice.on { border-color:var(--a); background:var(--as); color:var(--a); box-shadow:0 6px 16px -10px var(--a); }
+    .ms-choice.on .ic { background:var(--a); color:#fff; }
+    .ms-choices-2 .ms-choice { flex-direction:row; justify-content:flex-start; min-height:46px; padding:8px 12px; text-align:left; --a:#2563eb; --as:rgba(37,99,235,.08); --ab:rgba(37,99,235,.35); }
+    .ms-parts-box { border-radius:14px; padding:12px; background:var(--soft); border:1px solid var(--bd); }
+    .ms-parts-box.hidden { display:none; }
+    .ms-parts-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+    .ms-search-wrap { position:relative; }
+    .ms-results { position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:5; max-height:280px; overflow-y:auto; border-radius:14px; background:#fff; border:1px solid var(--bd); box-shadow:0 18px 36px -14px rgba(15,23,42,.4); }
+    .ms-results.hidden { display:none; }
+    .ms-result { display:flex; width:100%; align-items:center; gap:10px; padding:9px 12px; text-align:left; border-bottom:1px solid #f1f5f9; transition:background .12s; }
+    .ms-result:last-child { border-bottom:none; }
+    .ms-result:hover { background:#eff6ff; }
+    .ms-result-main { flex:1; min-width:0; }
+    .ms-result-name { font-size:13px; font-weight:600; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ms-result-sub { font-size:11px; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ms-result-empty { padding:14px; text-align:center; font-size:12px; color:var(--mut); }
+    .ms-manual-row { display:grid; gap:8px; margin-top:8px; grid-template-columns:1fr; }
+    @media (min-width:640px) { .ms-manual-row { grid-template-columns:1fr 1fr auto; } }
+    .ms-manual-row.hidden { display:none; }
+    .ms-parts-list { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+    .ms-pick { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:12px; background:#fff; border:1px solid var(--bd); }
+    .ms-pick-main { flex:1; min-width:0; }
+    .ms-pick-qty { width:64px; height:32px; text-align:center; border-radius:9px; border:1px solid var(--bd2); font-size:14px; }
+    .ms-pick-x { flex:none; width:30px; height:30px; border-radius:999px; color:#e11d48; background:#fff1f2; font-weight:800; }
+    .ms-tag-manual { display:inline-block; margin-left:4px; padding:0 6px; border-radius:6px; font-size:10px; font-weight:700; color:#7c3aed; background:rgba(124,58,237,.1); }
+
+    /* ── timeline ── */
+    .ms-tl-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:12px 20px; background:var(--soft); border-bottom:1px solid var(--bd); }
+    .ms-tl-stat { border-radius:12px; padding:8px 10px; background:#fff; border:1px solid var(--bd); }
+    .ms-tl-stat b { display:block; font-family:var(--fnum); font-size:20px; color:var(--tx); }
+    .ms-tl-stat span { font-size:11px; color:var(--mut); }
+    .ms-tl-body { max-height:60vh; overflow-y:auto; padding:16px 20px; }
+    .ms-tl { position:relative; padding-left:22px; }
+    .ms-tl::before { content:''; position:absolute; left:7px; top:6px; bottom:6px; width:2px; background:#e2e8f0; }
+    .ms-tl-item { position:relative; padding-bottom:16px; }
+    .ms-tl-item::before { content:''; position:absolute; left:-20px; top:4px; width:12px; height:12px; border-radius:999px; background:var(--a); box-shadow:0 0 0 3px #fff, 0 0 0 4px var(--ab); }
+    .ms-tl-when { font-size:11px; color:var(--dim); }
+    .ms-tl-what { margin-top:2px; font-size:13px; font-weight:700; color:#1e293b; }
+    .ms-tl-what .arrow { color:var(--dim); font-weight:500; margin:0 4px; }
+    .ms-tl-detail { margin-top:4px; display:flex; flex-direction:column; gap:4px; }
+
+    /* ── stats ── */
+    .ms-stats-grid { display:grid; gap:12px; grid-template-columns:1fr; }
+    @media (min-width:900px) { .ms-stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    .ms-panel { border-radius:18px; padding:16px; background:#fff; border:1px solid var(--bd); box-shadow:0 1px 2px rgba(15,23,42,.05); min-width:0; }
+    .ms-panel-wide { grid-column:1 / -1; }
+    .ms-panel-title { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:800; color:#1e293b; }
+    .ms-panel-sub { margin-top:2px; font-size:11px; color:var(--mut); }
+    .ms-hbars { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+    .ms-hbar-row { display:grid; grid-template-columns:minmax(90px,34%) 1fr auto; align-items:center; gap:10px; font-size:12px; }
+    .ms-hbar-lb { font-weight:600; color:#334155; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ms-hbar-track { height:12px; border-radius:999px; background:#f1f5f9; overflow:hidden; display:flex; }
+    .ms-hbar-track span { display:block; height:100%; }
+    .ms-hbar-val { font-family:var(--fnum); font-weight:700; color:#1e293b; white-space:nowrap; }
+    .ms-legend { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; font-size:11px; color:var(--mut); }
+    .ms-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; background:var(--a); }
+    .ms-kpi-mini { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    @media (min-width:768px) { .ms-kpi-mini { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    .ms-kpi-mini .ms-tl-stat b { font-size:24px; }
+  </style>
   <style id="xpStyles">
     #exportPage { font-family: inherit; }
     .xp-filterbar { border:1px solid #cbd5e1; border-radius:18px; background:linear-gradient(180deg,#ffffff,#f8fafc); padding:14px 16px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
@@ -962,6 +1215,11 @@
           <button id="tabDashboard" class="eng-tab shrink-0 flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             <span class="hidden sm:inline">Dashboard</span>
+          </button>
+          <!-- Standalone: สถานะเครื่องจักร (badge = เครื่องที่ไม่ได้ทำงาน) -->
+          <button id="tabMachineStatus" class="eng-tab shrink-0 relative flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 bg-transparent md:px-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <span class="hidden sm:inline">เครื่องจักร</span><span id="machineStatusNavBadge" class="hidden ml-1 inline-flex items-center justify-center rounded-full bg-rose-500 px-1.5 text-xs font-bold text-white" style="min-width:18px">0</span>
           </button>
 
           <!-- Group: คลังอะไหล่ -->
@@ -1819,6 +2077,131 @@
       <!-- Floating quick actions -->
       <div id="fccDock" class="fcc-dock"></div>
     </section>
+
+    <!-- ═══ สถานะเครื่องจักร (Machine Status) ═══
+         เปิด/ปิดสถานะเครื่องเอง + บอกสาเหตุที่หยุด + ผูกอะไหล่ที่ขาดจากสต็อกจริง (หรือพิมพ์เอง)
+         สีทั้งหมดอยู่ใน <style id="msStyles"> — Tailwind v2 static ที่ใช้ไม่มี slate/rose/emerald -->
+    <section id="machineStatusPage" class="hidden mb-6">
+      <div class="ms-canvas">
+        <div class="ms-hero">
+          <div class="ms-hero-main">
+            <div class="ms-hero-ic">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <div class="min-w-0">
+              <h2 class="ms-hero-title">สถานะเครื่องจักร</h2>
+              <p class="ms-hero-sub">เปิด/ปิดสถานะเครื่องเอง · บอกสาเหตุที่หยุด · ผูกอะไหล่ที่รออยู่</p>
+            </div>
+          </div>
+          <div class="ms-hero-side">
+            <span id="msLineBadge" class="ms-hero-chip">Line: -</span>
+            <span id="msUpdatedAt" class="ms-hero-time"></span>
+            <button id="msRefreshBtn" type="button" class="ms-hero-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              <span>รีเฟรช</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- สรุปสถานะ: กดกล่องไหน = กรองการ์ดตามสถานะนั้น (กดซ้ำ = ดูทั้งหมด) -->
+        <div id="msSummary" class="ms-kpis"></div>
+
+        <div class="ms-toolbar">
+          <div class="ms-seg" role="tablist">
+            <button type="button" data-ms-view="cards" class="ms-seg-btn on">🏭 การ์ดเครื่องจักร</button>
+            <button type="button" data-ms-view="stats" class="ms-seg-btn">📊 สถิติเครื่องหยุด</button>
+          </div>
+          <div id="msCardsToolbar" class="ms-toolbar-grow">
+            <input id="msSearch" type="search" class="ms-input ms-input-grow" placeholder="ค้นหาชื่อเครื่อง / อะไหล่ / คอมเมนต์" />
+            <select id="msSort" class="ms-input">
+              <option value="urgent">เรียง: ด่วนก่อน (หยุดนานสุด)</option>
+              <option value="name">เรียง: ชื่อเครื่อง</option>
+            </select>
+          </div>
+          <div id="msStatsToolbar" class="ms-toolbar-grow ms-toolbar-end hidden">
+            <span class="ms-muted-label">ช่วงข้อมูล</span>
+            <select id="msStatsDays" class="ms-input">
+              <option value="7">7 วันล่าสุด</option>
+              <option value="30" selected>30 วันล่าสุด</option>
+              <option value="90">90 วันล่าสุด</option>
+            </select>
+          </div>
+        </div>
+
+        <p id="msMessage" class="ms-message"></p>
+        <div id="msBoard"></div>
+        <div id="msStats" class="hidden"></div>
+      </div>
+    </section>
+
+    <!-- เปลี่ยนสถานะเครื่อง -->
+    <div id="msEditModal" class="ms-modal hidden">
+      <form id="msEditForm" class="ms-sheet" novalidate>
+        <div id="msEditHead" class="ms-sheet-head">
+          <div class="min-w-0">
+            <p id="msEditLine" class="ms-sheet-kicker">-</p>
+            <h3 id="msEditTitle" class="ms-sheet-title">-</h3>
+            <p id="msEditCurrent" class="ms-sheet-sub">-</p>
+          </div>
+          <button id="msEditClose" type="button" class="ms-sheet-x" aria-label="ปิด">×</button>
+        </div>
+        <div class="ms-sheet-body">
+          <input type="hidden" id="msEditMachineId" />
+          <div>
+            <p class="ms-field-label">สถานะเครื่อง</p>
+            <div id="msStatusChoices" class="ms-choices ms-choices-4"></div>
+          </div>
+          <div id="msReasonWrap" class="hidden">
+            <p class="ms-field-label">สาเหตุที่ไม่ได้ทำงาน <span class="ms-req">*</span></p>
+            <div id="msReasonChoices" class="ms-choices ms-choices-2"></div>
+          </div>
+          <div id="msPartsWrap" class="ms-parts-box hidden">
+            <div class="ms-parts-head">
+              <p class="ms-field-label ms-m0">⚙️ อะไหล่ที่ขาด / รออยู่</p>
+              <button id="msManualToggle" type="button" class="ms-btn ms-btn-ghost ms-btn-sm">✏️ พิมพ์ชื่อเอง</button>
+            </div>
+            <div class="ms-search-wrap">
+              <input id="msPartSearch" type="search" autocomplete="off" class="ms-input ms-input-block" placeholder="ค้นหาอะไหล่ในสต็อก: ชื่อ / Model / NO" />
+              <div id="msPartResults" class="ms-results hidden"></div>
+            </div>
+            <div id="msManualRow" class="ms-manual-row hidden">
+              <input id="msManualName" type="text" maxlength="150" class="ms-input" placeholder="ชื่ออะไหล่ (ไม่มีในระบบ)" />
+              <input id="msManualModel" type="text" maxlength="150" class="ms-input" placeholder="Model / สเปก (ถ้ามี)" />
+              <button id="msManualAdd" type="button" class="ms-btn ms-btn-dark">＋ เพิ่ม</button>
+            </div>
+            <div id="msPartsList" class="ms-parts-list"></div>
+          </div>
+          <label id="msPrRefWrap" class="ms-field hidden">
+            <span class="ms-field-label">เลข PR / PO อ้างอิง (ถ้ามี)</span>
+            <input id="msPrRef" type="text" maxlength="80" class="ms-input ms-input-block" placeholder="เช่น PR-20261001-STAR-01" />
+          </label>
+          <label class="ms-field">
+            <span class="ms-field-label">คอมเมนต์ <span id="msCommentHint" class="ms-hint">(เช่น รอสั่ง Bearing จาก supplier / ช่างนัดเข้า 14:00)</span></span>
+            <textarea id="msComment" rows="3" maxlength="500" class="ms-input ms-input-block ms-textarea" placeholder="บอกรายละเอียดให้คนอื่นรู้ว่ารออะไรอยู่"></textarea>
+          </label>
+          <p id="msEditMessage" class="ms-form-msg"></p>
+        </div>
+        <div class="ms-sheet-foot">
+          <button id="msEditCancel" type="button" class="ms-btn ms-btn-ghost">ยกเลิก</button>
+          <button id="msEditSubmit" type="submit" class="ms-btn ms-btn-primary">บันทึกสถานะ</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ประวัติ (Timeline) ต่อเครื่อง -->
+    <div id="msTimelineModal" class="ms-modal hidden">
+      <div class="ms-sheet">
+        <div class="ms-sheet-head ms-sheet-head-light">
+          <div class="min-w-0">
+            <p class="ms-sheet-kicker">ประวัติสถานะ · 90 วันล่าสุด</p>
+            <h3 id="msTimelineTitle" class="ms-sheet-title">-</h3>
+          </div>
+          <button id="msTimelineClose" type="button" class="ms-sheet-x" aria-label="ปิด">×</button>
+        </div>
+        <div id="msTimelineSummary" class="ms-tl-summary"></div>
+        <div id="msTimelineBody" class="ms-tl-body"></div>
+      </div>
+    </div>
 
     <section id="txnPage" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm panel-shadow eng-gridline p-4 md:p-6 mb-6">
       <div class="mb-4 flex items-center justify-between">
@@ -5123,6 +5506,8 @@
       syncCoilFilterVisibility();
       populatePartOptions(partsData);
       populateTxnFilters(partsData);
+      // การ์ดสถานะเครื่องโชว์ยอดสต็อกสดของอะไหล่ที่รออยู่ — ข้อมูลอะไหล่มาทีหลังต้องวาดใหม่
+      if (typeof msState !== 'undefined' && msState.loaded && msIsPageVisible()) msRender();
       populateManageLineOptions(false);
       populateManageSheetOptions(false);
       if (currentTxnItemNo && !partMap[currentTxnItemNo]) currentTxnItemNo = '';
@@ -7642,6 +8027,7 @@ function getIssueCartEntries() {
       refreshRequestOrderBadgeCount();
       updateRequestOrderBadgeUI(requestOrderBadgeCount);
       if (typeof loadInboxBadge === 'function') loadInboxBadge();
+      if (typeof msLoadBadge === 'function') msLoadBadge();
       applyIssueCartAuthorizationUi();
       applyReceivePermissionUi();
       normalizeMobileHeaderCartUi();
@@ -8297,6 +8683,7 @@ function getIssueCartEntries() {
           applyLineTheme();
           loadPartsData();
           if (!logPage.classList.contains('hidden')) loadLogData();
+          msOnLineChanged();
         });
       });
     }
@@ -8965,6 +9352,8 @@ function getIssueCartEntries() {
       if (tabPurchaseHistory) tabPurchaseHistory.className = tabBaseClass;
       var tabMiscExpenseEl = document.getElementById('tabMiscExpense');
       if (tabMiscExpenseEl) tabMiscExpenseEl.className = tabBaseClass;
+      var tabMachineStatusEl = document.getElementById('tabMachineStatus');
+      if (tabMachineStatusEl) tabMachineStatusEl.className = tabBaseClass;
       if (tabRequestOrder) tabRequestOrder.className = tabBaseClass;
       if (tabStockCount) { tabStockCount.className = tabBaseClass; tabStockCount.style.cssText = ''; }
       tabManage.className = tabManageBase;
@@ -8979,6 +9368,7 @@ function getIssueCartEntries() {
       if (active === 'pr') tabPrReport.className = tabActiveClass;
       if (active === 'purchase-history' && tabPurchaseHistory) tabPurchaseHistory.className = tabActiveClass;
       if (active === 'misc-expense' && tabMiscExpenseEl) tabMiscExpenseEl.className = tabActiveClass;
+      if (active === 'machine-status' && tabMachineStatusEl) tabMachineStatusEl.className = tabActiveClass;
       if (active === 'request-order' && tabRequestOrder) tabRequestOrder.className = tabActiveClass;
       if (active === 'stock-count' && tabStockCount) { tabStockCount.className = tabBaseClass; tabStockCount.style.cssText = 'background:#4f46e5;color:#fff;border:1px solid #3730a3;'; }
       if (tabRequestOrder) tabRequestOrder.classList.add('request-order-nav-btn');
@@ -8990,6 +9380,7 @@ function getIssueCartEntries() {
       tabPrReport.classList.toggle('hidden', !hasPermission('view_logs'));
       if (tabPurchaseHistory) tabPurchaseHistory.classList.toggle('hidden', !hasPermission('view'));
       if (tabMiscExpenseEl) tabMiscExpenseEl.classList.toggle('hidden', !hasPermission('view'));
+      if (tabMachineStatusEl) tabMachineStatusEl.classList.toggle('hidden', !hasPermission('view'));
       if (tabRequestOrder) tabRequestOrder.classList.toggle('hidden', !hasPermission('request_order_create') && !hasPermission('request_order_view_own') && !hasPermission('request_order_view_all'));
       // หน้าเช็คสต็อกเป็นงานที่ "บันทึกข้อมูล" ไม่ใช่หน้าดู — ต้องมีสิทธิ์ทำงานคลังจริงด้วย
       // ตรงกับด่าน requireWarehouseWriter ฝั่งเซิร์ฟเวอร์ (บัญชีดูอย่างเดียวบันทึกไม่ได้)
@@ -9019,6 +9410,7 @@ function getIssueCartEntries() {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       setTabStyles('stock');
       normalizeMobileHeaderCartUi();
     }
@@ -9035,6 +9427,7 @@ function getIssueCartEntries() {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       setTabStyles('txn');
       syncReceiveFormAutoFields(getSelectedTxnItem());
       if (txnInStockOnly) txnInStockOnly.checked = false;
@@ -9071,6 +9464,7 @@ function getIssueCartEntries() {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       setTabStyles('log');
       loadLogData();
     }
@@ -9091,6 +9485,7 @@ function getIssueCartEntries() {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       if (stockCountPage) stockCountPage.classList.remove('hidden');
       setTabStyles('stock-count');
       scInitPage();
@@ -10926,6 +11321,7 @@ function getIssueCartEntries() {
       managePage.classList.remove('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       setTabStyles('manage');
       populateManageLineOptions(true);
@@ -13908,6 +14304,7 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       setTabStyles('dashboard');
       loadDashboardAllPartsData().then(renderDashboardPhase1).catch(renderDashboardPhase1);
       if (dashboardPage) dashboardPage.scrollTop = 0;
@@ -13924,6 +14321,7 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       if (requestOrderPage) requestOrderPage.classList.remove('hidden');
       window.__roActiveGroupIdx = undefined;
       closeRequestOrderDetailModal();
@@ -15151,6 +15549,7 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       var page = mxEl('miscExpensePage');
@@ -15225,6 +15624,959 @@ function inferRequestPriority(stock, min) {
       });
     })();
 
+    /* ── สถานะเครื่องจักร (Machine Status) ─────────────────────────────────────
+       ทุกคนในไลน์เปิด/ปิดสถานะเครื่องเองได้ (ฝั่ง backend เช็คไลน์ซ้ำอีกชั้น — ดู updateMachineStatus)
+       เครื่องที่ไม่ได้ทำงานต้องบอกสาเหตุ ถ้าขาดอะไหล่ให้เลือกจากสต็อกจริง (เห็นยอดคงเหลือสดๆ)
+       หรือพิมพ์ชื่อเองถ้ายังไม่มีในระบบ + คอมเมนต์ว่ารออะไรอยู่
+       สถิติเครื่องหยุดคิดจาก MachineStatusLog: ช่วงเวลาระหว่างการเปลี่ยนสถานะแต่ละครั้ง    */
+    var MS_STATUS = {
+      running:       { label: 'ทำงาน',     icon: '✓' },
+      maintenance:   { label: 'ซ่อมบำรุง', icon: '🔧' },
+      stopped:       { label: 'หยุด',      icon: '✕' },
+      waiting_parts: { label: 'รออะไหล่',  icon: '⏳' }
+    };
+    var MS_STATUS_ORDER = ['running', 'maintenance', 'stopped', 'waiting_parts'];
+    var MS_DOWN_STATUSES = ['stopped', 'waiting_parts', 'maintenance'];
+    var MS_STATUS_COLOR = { running: '#059669', maintenance: '#d97706', stopped: '#e11d48', waiting_parts: '#7c3aed' };
+    var MS_REASON = {
+      spare_part: '⚙️ ขาด Spare Part',
+      breakdown: '🔧 เสีย / รอช่างซ่อม',
+      no_job: '📦 ไม่มีงาน / ไม่มีวัตถุดิบ',
+      other: '✏️ อื่นๆ'
+    };
+    var MS_POLL_MS = 60000;
+    var MS_STALE_MS = 30000;
+    var msState = { machines: [], loaded: false, loading: null, loadingLine: null, lineKey: null, loadedAt: 0, filter: 'all', view: 'cards', history: null, historyKey: '', historyLoading: null };
+    var msEditState = { machine: null, status: 'running', reason: '', parts: [] };
+
+    function msEl(id) { return document.getElementById(id); }
+    function msIsPageVisible() { var el = msEl('machineStatusPage'); return !!(el && !el.classList.contains('hidden')); }
+    function msHidePage() { var el = msEl('machineStatusPage'); if (el) el.classList.add('hidden'); }
+    function msScopeLine() { return isAllLinesMode() ? '' : String(currentLine || ''); }
+    function msStatusInfo(status) { return MS_STATUS[status] || MS_STATUS.running; }
+    function msLineColor(line) {
+      var hit = lineConfig.filter(function(c) { return c.key === line; })[0];
+      return hit ? hit.color : '#2563eb';
+    }
+    function msCanEdit(m) { return !!(m && m.can_edit && canWriteWarehouse()); }
+    function msFindMachine(id) {
+      return msState.machines.filter(function(m) { return m.machine_id === id; })[0] || null;
+    }
+
+    // เวลาจาก backend เป็น 'yyyy-MM-dd HH:mm:ss' เวลาไทยเสมอ — ต้องแปะ +07:00 เอง ไม่งั้นเครื่องที่ตั้ง
+    // timezone อื่นจะนับชั่วโมงหยุดเพี้ยน
+    function msParseTime(text) {
+      var raw = String(text || '').trim();
+      if (!raw) return null;
+      var d = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/.test(raw) ? new Date(raw.replace(' ', 'T') + '+07:00') : new Date(raw);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    function msDuration(ms) {
+      var min = Math.max(0, Math.floor((Number(ms) || 0) / 60000));
+      if (min < 1) return 'ไม่ถึง 1 นาที';
+      if (min < 60) return min + ' นาที';
+      var h = Math.floor(min / 60), m = min % 60;
+      if (h < 24) return h + ' ชม.' + (m ? ' ' + m + ' นาที' : '');
+      var d = Math.floor(h / 24), hh = h % 24;
+      return d + ' วัน' + (hh ? ' ' + hh + ' ชม.' : '');
+    }
+    function msHours(ms) {
+      var h = (Number(ms) || 0) / 3600000;
+      return (h >= 100 ? Math.round(h).toLocaleString('th-TH') : h.toFixed(1)) + ' ชม.';
+    }
+    function msTimeLabel(text) {
+      var d = msParseTime(text);
+      if (!d) return '-';
+      var bkk = new Date(d.getTime() + 7 * 3600000);
+      var pad = function(n) { return String(n).padStart(2, '0'); };
+      return pad(bkk.getUTCDate()) + '/' + pad(bkk.getUTCMonth() + 1) + ' ' + pad(bkk.getUTCHours()) + ':' + pad(bkk.getUTCMinutes());
+    }
+    function msSinceMs(m) {
+      var d = msParseTime(m && m.since);
+      return d ? Date.now() - d.getTime() : 0;
+    }
+
+    // ── อะไหล่ที่ผูกกับเครื่อง: หายอดสต็อกสดจาก partsData ก่อน ไม่เจอค่อยใช้ยอดตอนบันทึก ──
+    function msFindPartItem(p) {
+      if (!p || p.manual) return null;
+      if (p.key) {
+        var byKey = findItemByIdentityKey(p.key);
+        if (byKey) return byKey;
+      }
+      // identity key มี location ปนอยู่ ย้ายที่เก็บแล้วจะจับไม่เจอ — ถอยไปจับชื่อ+รุ่น(+ชีต)
+      var name = String(p.name || '').trim().toLowerCase(), model = String(p.model || '').trim().toLowerCase();
+      for (var i = 0; i < partsData.length; i += 1) {
+        var it = partsData[i];
+        if (String(it.name || '').trim().toLowerCase() !== name) continue;
+        if (String(it.model || '').trim().toLowerCase() !== model) continue;
+        if (p.sheet && String(it.__sourceSheet || it.subLine || '') !== p.sheet) continue;
+        return it;
+      }
+      return null;
+    }
+    function msPartStock(p) {
+      if (!p || p.manual) return null;
+      var item = msFindPartItem(p);
+      if (item) return { stock: safeNum(item.stock), live: true, item: item };
+      if (p.stock_at_save !== '' && p.stock_at_save !== undefined && p.stock_at_save !== null) return { stock: safeNum(p.stock_at_save), live: false, item: null };
+      return null;
+    }
+    function msPartHasEnough(p) {
+      var st = msPartStock(p);
+      return !!(st && st.stock >= (Number(p.qty_needed) || 1));
+    }
+    function msMissingParts(m) {
+      return (m && m.parts || []).filter(function(p) { return !p.manual && !msPartHasEnough(p); });
+    }
+    // "อะไหล่มาแล้ว" = ทุกตัวที่ผูกไว้มีในระบบและสต็อกพอแล้ว (มีตัวที่พิมพ์เองอยู่ = ระบบรู้ไม่ได้ ไม่ขึ้นป้าย)
+    function msPartsReady(m) {
+      if (!m || m.status === 'running') return false;
+      var parts = m.parts || [];
+      if (!parts.length) return false;
+      return parts.every(function(p) { return !p.manual && msPartHasEnough(p); });
+    }
+
+    function msSetMessage(text, isError) {
+      var el = msEl('msMessage');
+      if (!el) return;
+      el.className = 'ms-message' + (isError ? ' is-error' : '');
+      el.textContent = text || '';
+    }
+    function msSetRefreshing(on) {
+      var btn = msEl('msRefreshBtn');
+      if (btn) btn.classList.toggle('is-loading', !!on);
+    }
+
+    function msLoad(opts) {
+      opts = opts || {};
+      var line = msScopeLine();
+      if (msState.loading && msState.loadingLine === line) return msState.loading;
+      if (!opts.silent) msSetMessage('กำลังโหลดสถานะเครื่องจักร...');
+      msSetRefreshing(true);
+      var p = requestApi(withAuthPayload({ action: 'getMachineStatusBoard', line: line })).then(parseApiResponse).then(function(res) {
+        if (line !== msScopeLine()) return; // ผู้ใช้สลับไลน์ไประหว่างรอ — ผลนี้ไม่ใช่ของจอปัจจุบันแล้ว
+        msState.machines = Array.isArray(res.machines) ? res.machines : [];
+        msState.loaded = true;
+        msState.lineKey = line;
+        msState.loadedAt = Date.now();
+        msSetMessage('');
+        msUpdateBadgeFromList(msState.machines, line);
+        msRender();
+      }).catch(function(err) {
+        if (!opts.silent) msSetMessage('โหลดสถานะเครื่องจักรไม่สำเร็จ: ' + (err && err.message ? err.message : err), true);
+      }).then(function() {
+        if (msState.loading === p) { msState.loading = null; msState.loadingLine = null; }
+        msSetRefreshing(false);
+      });
+      msState.loading = p;
+      msState.loadingLine = line;
+      return p;
+    }
+
+    // badge บนแท็บ = จำนวนเครื่องที่ "ไม่ได้ทำงาน" ในขอบเขตที่ผู้ใช้ดูแล (ไลน์ตัวเอง หรือทุกไลน์)
+    function msBadgeScope() { return String((currentUser && currentUser.line) || ''); }
+    function msUpdateBadgeFromList(list, scopeLine) {
+      var badge = msEl('machineStatusNavBadge');
+      if (!badge) return;
+      var mine = msBadgeScope();
+      if (mine && scopeLine && scopeLine !== mine) return;
+      var rows = (list || []).filter(function(m) { return !mine || m.line === mine; });
+      if (scopeLine && !mine) return; // ดูแลทุกไลน์แต่โหลดมาไลน์เดียว — ตัวเลขยังไม่ครบ ไม่อัปเดต
+      var down = rows.filter(function(m) { return m.status !== 'running'; }).length;
+      badge.textContent = String(down);
+      badge.classList.toggle('hidden', down === 0);
+      var tab = msEl('tabMachineStatus');
+      if (tab) tab.title = down ? ('เครื่องที่ไม่ได้ทำงาน ' + down + ' เครื่อง') : 'เครื่องจักรทำงานครบ';
+    }
+    var msBadgeTimer = null;
+    function msLoadBadge() {
+      var badge = msEl('machineStatusNavBadge');
+      if (msBadgeTimer) { clearTimeout(msBadgeTimer); msBadgeTimer = null; }
+      if (!currentUser || !hasPermission('view')) { if (badge) badge.classList.add('hidden'); return; }
+      // เลื่อนไปหลังของสำคัญ (สต็อก/Inbox) โหลดเสร็จก่อน — badge ไม่ใช่ของด่วน
+      msBadgeTimer = setTimeout(function() {
+        msBadgeTimer = null;
+        if (!currentUser) return;
+        var scope = msBadgeScope();
+        requestApi(withAuthPayload({ action: 'getMachineStatusBoard', line: scope })).then(parseApiResponse).then(function(res) {
+          msUpdateBadgeFromList(Array.isArray(res.machines) ? res.machines : [], scope);
+        }).catch(function() {});
+      }, 4000);
+    }
+
+    // ── render ──
+    function msFilteredMachines() {
+      var q = String((msEl('msSearch') && msEl('msSearch').value) || '').trim().toLowerCase();
+      return msState.machines.filter(function(m) {
+        if (msState.filter !== 'all' && m.status !== msState.filter) return false;
+        if (!q) return true;
+        var hay = [m.machine_name, m.line, m.comment, m.pr_ref, MS_REASON[m.reason_type] || '']
+          .concat((m.parts || []).map(function(p) { return p.name + ' ' + p.model; })).join(' ').toLowerCase();
+        return hay.indexOf(q) > -1;
+      });
+    }
+    function msSortMachines(list) {
+      var mode = (msEl('msSort') && msEl('msSort').value) || 'urgent';
+      var rank = { stopped: 0, waiting_parts: 1, maintenance: 2, running: 3 };
+      return list.slice().sort(function(a, b) {
+        if (mode === 'urgent') {
+          var r = (rank[a.status] === undefined ? 3 : rank[a.status]) - (rank[b.status] === undefined ? 3 : rank[b.status]);
+          if (r) return r;
+          if (a.status !== 'running') { var d = msSinceMs(b) - msSinceMs(a); if (d) return d; }
+        }
+        return String(a.machine_name || '').localeCompare(String(b.machine_name || ''), 'th', { numeric: true });
+      });
+    }
+
+    function msRender() {
+      var line = msScopeLine();
+      var hero = document.querySelector('#machineStatusPage .ms-hero');
+      if (hero) hero.style.setProperty('--ln', isAllLinesMode() ? '#6366f1' : msLineColor(line));
+      var lineBadge = msEl('msLineBadge');
+      if (lineBadge) lineBadge.innerHTML = '<i></i>Line: ' + escHtml(lineDisplayName(currentLine));
+      var upd = msEl('msUpdatedAt');
+      if (upd) upd.textContent = msState.loadedAt ? ('อัปเดต ' + new Date(msState.loadedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })) : '';
+      msRenderSummary();
+      msApplyView();
+      if (msState.view === 'stats') msRenderStats();
+      else msRenderBoard();
+    }
+
+    function msRenderSummary() {
+      var wrap = msEl('msSummary');
+      if (!wrap) return;
+      var all = msState.machines;
+      var counts = { running: 0, maintenance: 0, stopped: 0, waiting_parts: 0 };
+      all.forEach(function(m) { if (counts[m.status] !== undefined) counts[m.status] += 1; });
+      var total = all.length;
+      var avail = total ? Math.round(counts.running / total * 100) : 0;
+      var meter = total ? MS_STATUS_ORDER.map(function(k) {
+        return counts[k] ? '<span style="width:' + (counts[k] / total * 100) + '%;background:' + MS_STATUS_COLOR[k] + '"></span>' : '';
+      }).join('') : '';
+      var html = '<button type="button" class="ms-kpi ms-kpi-all ms-st-all' + (msState.filter === 'all' ? ' on' : '') + '" data-ms-filter="all">' +
+        '<span class="ms-kpi-ic">⚙</span>' +
+        '<div class="ms-kpi-num">' + String(counts.running) + '<span style="font-size:18px;color:#94a3b8"> / ' + String(total) + '</span></div>' +
+        '<div class="ms-kpi-lb">เครื่องพร้อมรัน · ความพร้อม <b style="color:#0f172a">' + String(avail) + '%</b></div>' +
+        '<div class="ms-kpi-meter">' + meter + '</div></button>';
+      html += MS_STATUS_ORDER.map(function(k) {
+        var info = MS_STATUS[k];
+        return '<button type="button" class="ms-kpi ms-st-' + k + (msState.filter === k ? ' on' : '') + '" data-ms-filter="' + k + '">' +
+          '<span class="ms-kpi-ic">' + info.icon + '</span>' +
+          '<div class="ms-kpi-num">' + String(counts[k]) + '</div>' +
+          '<div class="ms-kpi-lb">' + escHtml(info.label) + '</div></button>';
+      }).join('');
+      wrap.innerHTML = html;
+    }
+
+    function msGroupLines() {
+      if (!isAllLinesMode()) return [String(currentLine || '')];
+      var lines = realLineKeys().slice();
+      msState.machines.forEach(function(m) { if (m.line && lines.indexOf(m.line) === -1) lines.push(m.line); });
+      return lines;
+    }
+
+    function msRenderBoard() {
+      var board = msEl('msBoard');
+      if (!board) return;
+      if (!msState.loaded) { board.innerHTML = ''; return; }
+      if (!msState.machines.length) {
+        board.innerHTML = '<div class="ms-empty">🏭 ยังไม่มีเครื่องจักรในทะเบียน' + (isAllLinesMode() ? '' : 'ของไลน์ ' + escHtml(currentLine)) +
+          '<br><span style="font-size:12px">Admin เพิ่มได้ที่ จัดการ → Admin → เครื่องจักรต่อไลน์</span></div>';
+        return;
+      }
+      var shown = msFilteredMachines();
+      var html = msGroupLines().map(function(line) {
+        var lineAll = msState.machines.filter(function(m) { return m.line === line; });
+        var lineShown = msSortMachines(shown.filter(function(m) { return m.line === line; }));
+        if (!lineAll.length && isAllLinesMode()) return '';
+        if (!lineShown.length && isAllLinesMode()) return '';
+        var run = lineAll.filter(function(m) { return m.status === 'running'; }).length;
+        var pct = lineAll.length ? Math.round(run / lineAll.length * 100) : 0;
+        var barClass = pct >= 85 ? '' : (pct >= 60 ? ' warn' : ' bad');
+        return '<section class="ms-group" style="--ln:' + msLineColor(line) + '">' +
+          '<div class="ms-group-head">' +
+            '<p class="ms-group-title"><i></i>' + escHtml(line) + ' Line <span class="ms-group-count">' + String(lineAll.length) + ' เครื่อง</span></p>' +
+            '<div class="ms-group-avail">พร้อมรัน ' + String(run) + '/' + String(lineAll.length) + ' <div class="bar' + barClass + '"><span style="width:' + pct + '%"></span></div> ' + String(pct) + '%</div>' +
+          '</div>' +
+          (lineShown.length ? '<div class="ms-grid">' + lineShown.map(msCardHtml).join('') + '</div>'
+            : '<div class="ms-empty">ไม่มีเครื่องตรงกับตัวกรอง</div>') +
+        '</section>';
+      }).join('');
+      board.innerHTML = html || '<div class="ms-empty">ไม่มีเครื่องตรงกับตัวกรอง</div>';
+    }
+
+    function msPartRowHtml(p) {
+      var qty = Number(p.qty_needed) || 1;
+      var chip;
+      if (p.manual) chip = '<span class="ms-stock na">พิมพ์เอง</span>';
+      else {
+        var st = msPartStock(p);
+        if (!st) chip = '<span class="ms-stock na">ไม่ทราบสต็อก</span>';
+        else chip = '<span class="ms-stock ' + (st.stock >= qty ? 'ok' : 'bad') + '" title="' + (st.live ? 'สต็อกปัจจุบัน' : 'สต็อก ณ ตอนบันทึก') + '">' +
+          String(st.stock) + '/' + String(qty) + (st.live ? '' : '*') + '</span>';
+      }
+      return '<div class="ms-part"><span class="ms-part-name">' + escHtml(p.name) + (p.model && p.model !== '-' ? ' <small>' + escHtml(p.model) + '</small>' : '') + '</span>' + chip + '</div>';
+    }
+
+    function msCardHtml(m) {
+      var info = msStatusInfo(m.status);
+      var id = escHtml(m.machine_id);
+      var down = m.status !== 'running';
+      var pills = '<span class="ms-pill">' + escHtml(info.label) + '</span>';
+      if (down && m.reason_type && MS_REASON[m.reason_type]) pills += '<span class="ms-pill ms-pill-soft">' + escHtml(MS_REASON[m.reason_type]) + '</span>';
+      if (msPartsReady(m)) pills += '<span class="ms-pill ms-ready">✅ อะไหล่มาแล้ว พร้อมซ่อม</span>';
+      if (down && m.pr_ref) pills += '<span class="ms-pill ms-pill-pr">🧾 ' + escHtml(m.pr_ref) + '</span>';
+      var parts = down && m.parts && m.parts.length ? '<div class="ms-parts">' + m.parts.map(msPartRowHtml).join('') + '</div>' : '';
+      var note = m.comment ? '<div class="ms-note">💬 ' + escHtml(m.comment) + '</div>' : '';
+      var since = m.since ? msSinceMs(m) : 0;
+      var meta = [];
+      if (m.since) meta.push((down ? 'ไม่ได้ทำงานมาแล้ว ' : 'ทำงานมาแล้ว ') + '<b>' + escHtml(msDuration(since)) + '</b>');
+      if (m.updated_at) meta.push('อัปเดต ' + escHtml(msTimeLabel(m.updated_at)) + (m.updated_by ? ' โดย ' + escHtml(m.updated_by) : ''));
+      var acts = [];
+      if (msCanEdit(m)) {
+        if (down) {
+          acts.push('<button type="button" class="ms-btn ms-btn-go ms-btn-sm" data-ms-act="resume" data-ms-id="' + id + '">▶ กลับมาทำงาน</button>');
+          acts.push('<button type="button" class="ms-btn ms-btn-ghost ms-btn-sm" data-ms-act="edit" data-ms-id="' + id + '">✎ อัปเดต</button>');
+        } else {
+          acts.push('<button type="button" class="ms-btn ms-btn-stop ms-btn-sm" data-ms-act="stop" data-ms-id="' + id + '">⏸ แจ้งหยุด/ซ่อม</button>');
+        }
+      }
+      if (down && msMissingParts(m).length) acts.push('<button type="button" class="ms-btn ms-btn-buy ms-btn-sm" data-ms-act="buy" data-ms-id="' + id + '">🛒 สั่งซื้อ</button>');
+      acts.push('<button type="button" class="ms-btn ms-btn-ghost ms-btn-sm" data-ms-act="history" data-ms-id="' + id + '">🕘 ประวัติ</button>');
+      return '<article class="ms-card ms-st-' + escHtml(m.status) + '">' +
+        '<div class="ms-card-top"><div class="min-w-0"><p class="ms-card-name">' + escHtml(m.machine_name) + '</p></div>' +
+          '<span class="ms-dot" title="' + escHtml(info.label) + '">' + info.icon + '</span></div>' +
+        '<div class="ms-pill-row">' + pills + '</div>' + parts + note +
+        (meta.length ? '<div class="ms-meta">' + meta.join(' · ') + '</div>' : '') +
+        '<div class="ms-actions">' + acts.join('') + '</div>' +
+      '</article>';
+    }
+
+    function msApplyView() {
+      var isStats = msState.view === 'stats';
+      document.querySelectorAll('#machineStatusPage [data-ms-view]').forEach(function(btn) {
+        btn.classList.toggle('on', btn.getAttribute('data-ms-view') === msState.view);
+      });
+      var b = msEl('msBoard'), st = msEl('msStats'), ct = msEl('msCardsToolbar'), stt = msEl('msStatsToolbar');
+      if (b) b.classList.toggle('hidden', isStats);
+      if (st) st.classList.toggle('hidden', !isStats);
+      if (ct) ct.classList.toggle('hidden', isStats);
+      if (stt) stt.classList.toggle('hidden', !isStats);
+    }
+
+    // ── เปลี่ยนสถานะ ──
+    function msOpenEdit(m, presetStatus) {
+      if (!m) return;
+      if (!msCanEdit(m)) { showQuickToast('เปลี่ยนสถานะได้เฉพาะเครื่องในไลน์ของคุณ', 'warn'); return; }
+      msEditState.machine = m;
+      msEditState.status = presetStatus || m.status || 'running';
+      msEditState.reason = msEditState.status === 'running' ? '' : (m.status === msEditState.status ? (m.reason_type || '') : '');
+      msEditState.parts = (m.parts || []).map(function(p) { return Object.assign({}, p); });
+      var head = msEl('msEditHead');
+      if (head) head.style.setProperty('--a', msLineColor(m.line));
+      msEl('msEditLine').textContent = m.line + ' Line';
+      msEl('msEditTitle').textContent = m.machine_name;
+      msEl('msEditCurrent').textContent = 'ตอนนี้: ' + msStatusInfo(m.status).label + (m.since ? ' · ' + msDuration(msSinceMs(m)) : '');
+      msEl('msEditMachineId').value = m.machine_id;
+      msEl('msComment').value = m.status === msEditState.status ? (m.comment || '') : '';
+      msEl('msPrRef').value = m.pr_ref || '';
+      msEl('msPartSearch').value = '';
+      msEl('msManualName').value = '';
+      msEl('msManualModel').value = '';
+      msEl('msManualRow').classList.add('hidden');
+      msEl('msPartResults').classList.add('hidden');
+      msSetEditMessage('');
+      var submit = msEl('msEditSubmit');
+      submit.disabled = false;
+      submit.textContent = 'บันทึกสถานะ';
+      msRenderEditForm();
+      var modal = msEl('msEditModal');
+      modal.classList.remove('hidden');
+      modal.scrollTop = 0;
+      lockBodyScroll();
+    }
+    function msCloseEdit() {
+      var modal = msEl('msEditModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      modal.classList.add('hidden');
+      unlockBodyScroll();
+      msEditState.machine = null;
+    }
+    function msSetEditMessage(text, tone) {
+      var el = msEl('msEditMessage');
+      if (!el) return;
+      el.className = 'ms-form-msg' + (tone === 'error' ? ' is-error' : tone === 'ok' ? ' is-ok' : '');
+      el.textContent = text || '';
+    }
+    function msRenderEditForm() {
+      var st = msEditState.status;
+      if (st === 'waiting_parts') msEditState.reason = 'spare_part';
+      msEl('msStatusChoices').innerHTML = MS_STATUS_ORDER.map(function(k) {
+        var info = MS_STATUS[k];
+        return '<button type="button" class="ms-choice ms-st-' + k + (st === k ? ' on' : '') + '" data-ms-status="' + k + '"><span class="ic">' + info.icon + '</span>' + escHtml(info.label) + '</button>';
+      }).join('');
+      var down = st !== 'running';
+      msEl('msReasonWrap').classList.toggle('hidden', !down || st === 'waiting_parts');
+      msEl('msReasonChoices').innerHTML = Object.keys(MS_REASON).map(function(k) {
+        return '<button type="button" class="ms-choice' + (msEditState.reason === k ? ' on' : '') + '" data-ms-reason="' + k + '">' + escHtml(MS_REASON[k]) + '</button>';
+      }).join('');
+      var showParts = st === 'waiting_parts' || (down && msEditState.reason === 'spare_part');
+      msEl('msPartsWrap').classList.toggle('hidden', !showParts);
+      msEl('msPrRefWrap').classList.toggle('hidden', !down);
+      msEl('msCommentHint').textContent = down
+        ? (msEditState.reason === 'other' ? '(จำเป็น — อธิบายสาเหตุ)' : '(เช่น รอสั่ง Bearing จาก supplier / ช่างนัดเข้า 14:00)')
+        : '(ไม่บังคับ — เช่น เปลี่ยน Bearing แล้ว เดินปกติ)';
+      msRenderPickedParts();
+    }
+    function msRenderPickedParts() {
+      var wrap = msEl('msPartsList');
+      if (!wrap) return;
+      if (!msEditState.parts.length) {
+        wrap.innerHTML = '<p class="ms-result-empty">ยังไม่ได้เลือกอะไหล่ — ค้นหาจากสต็อก หรือกด "พิมพ์ชื่อเอง"</p>';
+        return;
+      }
+      wrap.innerHTML = msEditState.parts.map(function(p, i) {
+        var chip = '';
+        if (!p.manual) {
+          var stock = msPartStock(p);
+          chip = stock ? '<span class="ms-stock ' + (stock.stock >= (Number(p.qty_needed) || 1) ? 'ok' : 'bad') + '">คงเหลือ ' + String(stock.stock) + '</span>' : '';
+        }
+        return '<div class="ms-pick"><div class="ms-pick-main"><p class="ms-result-name">' + escHtml(p.name) + (p.manual ? '<span class="ms-tag-manual">พิมพ์เอง</span>' : '') + '</p>' +
+          '<p class="ms-result-sub">' + escHtml([p.model && p.model !== '-' ? p.model : '', p.no ? 'NO ' + p.no : '', p.sheet].filter(Boolean).join(' · ') || '-') + '</p></div>' +
+          chip +
+          '<input type="number" min="1" max="9999" step="1" class="ms-pick-qty" data-ms-qty="' + i + '" value="' + String(Number(p.qty_needed) || 1) + '" title="จำนวนที่ต้องใช้" />' +
+          '<button type="button" class="ms-pick-x" data-ms-remove="' + i + '" title="เอาออก">×</button></div>';
+      }).join('');
+    }
+    function msPartSearchPool() {
+      var line = msEditState.machine ? msEditState.machine.line : '';
+      var pool = partsData.filter(function(it) { return lineOfItem(it) === line; });
+      return pool.length ? pool : partsData;
+    }
+    function msRenderPartResults() {
+      var box = msEl('msPartResults');
+      var q = String(msEl('msPartSearch').value || '').trim().toLowerCase();
+      if (!q) { box.classList.add('hidden'); return; }
+      var pool = msPartSearchPool();
+      if (!pool.length) {
+        box.innerHTML = '<p class="ms-result-empty">ยังไม่ได้โหลดรายการอะไหล่ของไลน์นี้ — กด "พิมพ์ชื่อเอง" ได้เลย</p>';
+        box.classList.remove('hidden');
+        return;
+      }
+      var tokens = q.split(/\s+/).filter(Boolean);
+      var hits = [];
+      for (var i = 0; i < pool.length && hits.length < 12; i += 1) {
+        var it = pool[i];
+        var hay = [it.name, it.model, it.no, it.brand, it.code].join(' ').toLowerCase();
+        if (tokens.every(function(t) { return hay.indexOf(t) > -1; })) hits.push(it);
+      }
+      msState.searchHits = hits;
+      box.innerHTML = hits.length ? hits.map(function(it, idx) {
+        var stock = safeNum(it.stock);
+        return '<button type="button" class="ms-result" data-ms-pick="' + idx + '"><div class="ms-result-main">' +
+          '<p class="ms-result-name">' + escHtml(it.name) + '</p>' +
+          '<p class="ms-result-sub">' + escHtml([it.model && it.model !== '-' ? it.model : '', 'NO ' + it.no, it.__sourceSheet || it.subLine || ''].filter(Boolean).join(' · ')) + '</p></div>' +
+          '<span class="ms-stock ' + (stock > 0 ? 'ok' : 'bad') + '">คงเหลือ ' + String(stock) + '</span></button>';
+      }).join('') : '<p class="ms-result-empty">ไม่พบอะไหล่ที่ตรงกับ "' + escHtml(q) + '" — กด "พิมพ์ชื่อเอง" ได้</p>';
+      box.classList.remove('hidden');
+    }
+    function msAddPart(part) {
+      if (msEditState.parts.length >= 15) { msSetEditMessage('ผูกอะไหล่ได้สูงสุด 15 รายการต่อเครื่อง', 'error'); return; }
+      var dup = msEditState.parts.filter(function(p) {
+        return part.key ? p.key === part.key : (p.manual && p.name.toLowerCase() === part.name.toLowerCase() && String(p.model || '').toLowerCase() === String(part.model || '').toLowerCase());
+      })[0];
+      if (dup) dup.qty_needed = (Number(dup.qty_needed) || 1) + 1;
+      else msEditState.parts.push(part);
+      msSetEditMessage('');
+      msRenderPickedParts();
+    }
+    function msPartFromItem(it) {
+      return {
+        key: getItemIdentityKey(it), no: String(it.no || ''), name: String(it.name || ''), model: String(it.model || ''),
+        sheet: String(it.__sourceSheet || it.subLine || ''), unit: String(it.unit || ''), qty_needed: 1,
+        stock_at_save: safeNum(it.stock), manual: false
+      };
+    }
+
+    function msSubmitEdit(e) {
+      if (e) e.preventDefault();
+      var m = msEditState.machine;
+      if (!m) return;
+      var st = msEditState.status;
+      var down = st !== 'running';
+      var reason = st === 'waiting_parts' ? 'spare_part' : (down ? msEditState.reason : '');
+      var comment = String(msEl('msComment').value || '').trim();
+      var usesParts = st === 'waiting_parts' || reason === 'spare_part';
+      var parts = down && usesParts ? msEditState.parts : [];
+      if (down && !reason) { msSetEditMessage('กรุณาเลือกสาเหตุที่เครื่องไม่ได้ทำงาน', 'error'); return; }
+      if (st === 'waiting_parts' && !parts.length) { msSetEditMessage('สถานะ "รออะไหล่" ต้องระบุอะไหล่อย่างน้อย 1 รายการ', 'error'); return; }
+      if (down && reason === 'other' && !comment) { msSetEditMessage('สาเหตุ "อื่นๆ" ต้องพิมพ์คอมเมนต์อธิบาย', 'error'); return; }
+      // อัปเดตยอดสต็อก ณ ตอนบันทึก — ถ้าวันหลังเปิดจากไลน์อื่นที่ไม่มี partsData ของไลน์นี้ ยังเห็นตัวเลขล่าสุด
+      parts = parts.map(function(p) {
+        var out = Object.assign({}, p, { qty_needed: Math.max(1, Math.round(Number(p.qty_needed) || 1)) });
+        var stock = msPartStock(p);
+        if (stock && stock.live) out.stock_at_save = stock.stock;
+        return out;
+      });
+      msSaveStatus(m, {
+        status: st, reason_type: reason, parts_json: JSON.stringify(parts), comment: comment,
+        pr_ref: down ? String(msEl('msPrRef').value || '').trim() : ''
+      }, msEl('msEditSubmit')).then(function(ok) { if (ok) msCloseEdit(); });
+    }
+
+    function msSaveStatus(m, fields, btn) {
+      var original = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
+      msSetEditMessage('');
+      return requestApi(withAuthPayload(Object.assign({ action: 'updateMachineStatus', machine_id: m.machine_id }, fields)))
+        .then(parseApiResponse).then(function(res) {
+          var saved = res.machine || {};
+          var idx = msState.machines.findIndex(function(x) { return x.machine_id === m.machine_id; });
+          if (idx > -1) msState.machines[idx] = Object.assign({}, msState.machines[idx], saved, { can_edit: true });
+          msState.history = null; // สถิติต้องคิดใหม่
+          msUpdateBadgeFromList(msState.machines, msState.lineKey);
+          msRender();
+          showQuickToast(saved.status === 'running' ? ('▶ ' + m.machine_name + ' กลับมาทำงานแล้ว') : ('บันทึกสถานะ ' + m.machine_name + ': ' + msStatusInfo(saved.status).label), 'success');
+          return true;
+        }).catch(function(err) {
+          var text = 'บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+          if (msEditState.machine) msSetEditMessage(text, 'error');
+          else showQuickToast(text, 'error');
+          return false;
+        }).then(function(ok) {
+          if (btn) { btn.disabled = false; btn.textContent = original; }
+          return ok;
+        });
+    }
+
+    function msQuickResume(m, btn) {
+      if (!m || !msCanEdit(m)) return;
+      showConfirmDialog({
+        title: '▶ ' + m.machine_name + ' กลับมาทำงาน?',
+        message: 'เปลี่ยนสถานะเป็น "ทำงาน" และปิดเคส' + msStatusInfo(m.status).label + ' (ไม่ได้ทำงานมา ' + msDuration(msSinceMs(m)) + ')',
+        okLabel: 'กลับมาทำงาน'
+      }).then(function(ok) {
+        if (!ok) return;
+        msSaveStatus(m, { status: 'running', reason_type: '', parts_json: '[]', comment: '', pr_ref: '' }, btn);
+      });
+    }
+
+    // 🛒 สั่งซื้อ: ติดดาวอะไหล่ที่ยังขาด (พร้อมโน๊ตว่าเครื่องไหนรอ) แล้วพาไปเปิด PR จากรายการติดดาว
+    // ใช้ flow ติดดาว → PR เดิม จะได้ผ่านขั้นตอนงบ/อนุมัติเหมือนใบอื่นทุกอย่าง
+    function msBuyParts(m) {
+      if (!m) return;
+      var missing = msMissingParts(m);
+      if (!missing.length) {
+        showQuickToast('อะไหล่ที่พิมพ์เองไม่มีในระบบ — ส่งผ่านหน้า "ขอซื้อ" แทน', 'warn');
+        return;
+      }
+      var added = 0;
+      missing.forEach(function(p) {
+        var item = msFindPartItem(p) || {
+          no: p.no, name: p.name, model: p.model, line: m.line, subLine: p.sheet, __sourceSheet: p.sheet,
+          unit: p.unit, stock: safeNum(p.stock_at_save), min: 0, location: '', brand: ''
+        };
+        var key = msFindPartItem(p) ? getItemIdentityKey(item) : (p.key || getItemIdentityKey(item));
+        if (!key) return;
+        var note = '🏭 ' + m.machine_name + ' รออะไหล่ (ต้องใช้ ' + (Number(p.qty_needed) || 1) + ')';
+        if (starredState[key]) {
+          if (String(starredState[key].note || '').indexOf(note) === -1) {
+            starredState[key].note = [starredState[key].note, note].filter(Boolean).join(' · ');
+          }
+        } else {
+          starredState[key] = buildStarredEntry(item, note);
+        }
+        added += 1;
+      });
+      saveStarredToStorage();
+      updateStarredBadges();
+      if (!added) return;
+      if (hasPermission('view_logs')) {
+        showQuickToast('⭐ ติดดาวอะไหล่ของ ' + m.machine_name + ' ' + added + ' รายการ — กำลังเปิด PR', 'success');
+        openPrFromStarred();
+      } else {
+        showQuickToast('⭐ ติดดาวอะไหล่ ' + added + ' รายการแล้ว — ให้หัวหน้าเปิด PR จากรายการติดดาว', 'success');
+      }
+    }
+
+    // ── ประวัติรายเครื่อง ──
+    function msOpenTimeline(m) {
+      if (!m) return;
+      var modal = msEl('msTimelineModal');
+      msEl('msTimelineTitle').textContent = m.machine_name + ' · ' + m.line;
+      msEl('msTimelineSummary').innerHTML = '';
+      msEl('msTimelineBody').innerHTML = '<p class="ms-result-empty">กำลังโหลดประวัติ...</p>';
+      modal.classList.remove('hidden');
+      lockBodyScroll();
+      requestApi(withAuthPayload({ action: 'getMachineStatusHistory', machine_id: m.machine_id, days: 90 })).then(parseApiResponse).then(function(res) {
+        var rows = Array.isArray(res.history) ? res.history : [];
+        var windowStart = Date.now() - 90 * 86400000;
+        var segs = msBuildSegments(rows, [m], windowStart, Date.now());
+        var downMs = segs.reduce(function(s, x) { return s + (x.end - x.start); }, 0);
+        var stops = rows.filter(function(r) { return r.from_status === 'running' && r.to_status !== 'running'; }).length;
+        var lastStop = rows.filter(function(r) { return r.to_status !== 'running'; })[0];
+        msEl('msTimelineSummary').innerHTML =
+          '<div class="ms-tl-stat"><b>' + String(stops) + '</b><span>ครั้งที่หยุด</span></div>' +
+          '<div class="ms-tl-stat"><b>' + escHtml(msHours(downMs)) + '</b><span>ไม่ได้ทำงานรวม</span></div>' +
+          '<div class="ms-tl-stat"><b style="font-size:14px">' + escHtml(lastStop ? msTimeLabel(lastStop.changed_at) : '-') + '</b><span>หยุดครั้งล่าสุด</span></div>';
+        msEl('msTimelineBody').innerHTML = rows.length ? '<div class="ms-tl">' + rows.map(function(r) {
+          var from = msStatusInfo(r.from_status).label, to = msStatusInfo(r.to_status).label;
+          var detail = [];
+          if (r.to_status !== 'running' && MS_REASON[r.reason_type]) detail.push('<div class="ms-pill-row"><span class="ms-pill ms-pill-soft">' + escHtml(MS_REASON[r.reason_type]) + '</span>' + (r.pr_ref ? '<span class="ms-pill ms-pill-pr">🧾 ' + escHtml(r.pr_ref) + '</span>' : '') + '</div>');
+          if (r.parts && r.parts.length) detail.push('<div class="ms-parts">' + r.parts.map(function(p) {
+            return '<div class="ms-part"><span class="ms-part-name">' + escHtml(p.name) + (p.model && p.model !== '-' ? ' <small>' + escHtml(p.model) + '</small>' : '') + '</span><span class="ms-stock na">x' + String(Number(p.qty_needed) || 1) + '</span></div>';
+          }).join('') + '</div>');
+          if (r.comment) detail.push('<div class="ms-note">💬 ' + escHtml(r.comment) + '</div>');
+          return '<div class="ms-tl-item ms-st-' + escHtml(r.to_status) + '">' +
+            '<p class="ms-tl-when">' + escHtml(msTimeLabel(r.changed_at)) + ' · ' + escHtml(r.changed_by || '-') +
+              (r.from_status !== r.to_status && r.prev_duration_min ? ' · อยู่ในสถานะ "' + escHtml(from) + '" มา ' + escHtml(msDuration(r.prev_duration_min * 60000)) : '') + '</p>' +
+            '<p class="ms-tl-what">' + (r.from_status === r.to_status ? 'อัปเดตรายละเอียด · ' + escHtml(to) : escHtml(from) + '<span class="arrow">→</span>' + escHtml(to)) + '</p>' +
+            (detail.length ? '<div class="ms-tl-detail">' + detail.join('') + '</div>' : '') +
+          '</div>';
+        }).join('') + '</div>' : '<p class="ms-result-empty">ยังไม่มีการเปลี่ยนสถานะใน 90 วันที่ผ่านมา</p>';
+      }).catch(function(err) {
+        msEl('msTimelineBody').innerHTML = '<p class="ms-result-empty" style="color:#e11d48">โหลดประวัติไม่สำเร็จ: ' + escHtml(err && err.message ? err.message : String(err)) + '</p>';
+      });
+    }
+    function msCloseTimeline() {
+      var modal = msEl('msTimelineModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+      modal.classList.add('hidden');
+      unlockBodyScroll();
+    }
+
+    // ── สถิติ: แตก log เป็นช่วงเวลา "ไม่ได้ทำงาน" ต่อเครื่อง แล้วตัดให้อยู่ในหน้าต่างเวลาที่เลือก ──
+    // log แต่ละแถว = เข้าสู่สถานะ to_status ณ changed_at → ช่วงนั้นจบตอน log ถัดไปของเครื่องเดียวกัน (หรือ "ตอนนี้")
+    function msBuildSegments(history, machinesNow, windowStart, nowMs) {
+      var byMachine = {};
+      (history || []).forEach(function(r) {
+        var t = msParseTime(r.changed_at);
+        if (!t) return;
+        (byMachine[r.machine_id] = byMachine[r.machine_id] || []).push({ r: r, t: t.getTime() });
+      });
+      var segs = [];
+      function push(base, status, reason, parts, caseId, start, end) {
+        var s = Math.max(start, windowStart), e = Math.min(end, nowMs);
+        if (e <= s || MS_DOWN_STATUSES.indexOf(status) === -1) return;
+        segs.push({ machine_id: base.machine_id, line: base.line, machine_name: base.machine_name, status: status, reason: reason || '', parts: parts || [], case_id: caseId || '', start: s, end: e });
+      }
+      Object.keys(byMachine).forEach(function(id) {
+        var list = byMachine[id].sort(function(a, b) { return a.t - b.t; });
+        // เครื่องที่ไม่ได้ทำงานอยู่ก่อนช่วงที่เลือก — ช่วงแรกเริ่มก่อนหน้าต่างเวลา
+        var first = list[0].r;
+        if (first.from_status && first.from_status !== 'running') push(first, first.from_status, '', [], first.case_id, windowStart, list[0].t);
+        list.forEach(function(x, i) {
+          var end = i + 1 < list.length ? list[i + 1].t : nowMs;
+          push(x.r, x.r.to_status, x.r.reason_type, x.r.parts, x.r.case_id, x.t, end);
+        });
+      });
+      // เครื่องที่หยุดมาตั้งแต่ก่อนหน้าต่างเวลาและไม่มี log ในช่วงนี้เลย
+      (machinesNow || []).forEach(function(m) {
+        if (byMachine[m.machine_id] || m.status === 'running') return;
+        var since = msParseTime(m.since);
+        push(m, m.status, m.reason_type, m.parts, m.case_id, since ? since.getTime() : windowStart, nowMs);
+      });
+      return segs;
+    }
+
+    function msLoadHistoryForStats() {
+      var days = Number((msEl('msStatsDays') && msEl('msStatsDays').value) || 30);
+      var line = msScopeLine();
+      var key = line + '::' + days;
+      if (msState.history && msState.historyKey === key) return Promise.resolve(msState.history);
+      if (msState.historyLoading && msState.historyLoadingKey === key) return msState.historyLoading;
+      var p = requestApi(withAuthPayload({ action: 'getMachineStatusHistory', line: line, days: days })).then(parseApiResponse).then(function(res) {
+        var rows = Array.isArray(res.history) ? res.history : [];
+        if (key === msScopeLine() + '::' + Number((msEl('msStatsDays') && msEl('msStatsDays').value) || 30)) {
+          msState.history = rows;
+          msState.historyKey = key;
+        }
+        return rows;
+      }).then(function(rows) { msState.historyLoading = null; return rows; }, function(err) { msState.historyLoading = null; throw err; });
+      msState.historyLoading = p;
+      msState.historyLoadingKey = key;
+      return p;
+    }
+
+    function msStackBar(parts, maxTotal) {
+      var total = MS_DOWN_STATUSES.reduce(function(s, k) { return s + (parts[k] || 0); }, 0);
+      var width = maxTotal ? total / maxTotal * 100 : 0;
+      return '<div class="ms-hbar-track"><div style="display:flex;height:100%;width:' + width + '%">' +
+        MS_DOWN_STATUSES.map(function(k) {
+          return parts[k] ? '<span style="width:' + (parts[k] / total * 100) + '%;background:' + MS_STATUS_COLOR[k] + '" title="' + escHtml(MS_STATUS[k].label + ' ' + msHours(parts[k])) + '"></span>' : '';
+        }).join('') + '</div></div>';
+    }
+    function msStatsLegend() {
+      return '<div class="ms-legend">' + MS_DOWN_STATUSES.map(function(k) {
+        return '<span class="ms-st-' + k + '"><i></i>' + escHtml(MS_STATUS[k].label) + '</span>';
+      }).join('') + '</div>';
+    }
+
+    function msRenderStats() {
+      var wrap = msEl('msStats');
+      if (!wrap) return;
+      if (!msState.loaded) { wrap.innerHTML = ''; return; }
+      var days = Number((msEl('msStatsDays') && msEl('msStatsDays').value) || 30);
+      if (!msState.history || msState.historyKey !== msScopeLine() + '::' + days) {
+        wrap.innerHTML = '<div class="ms-empty">กำลังคำนวณสถิติ ' + String(days) + ' วันล่าสุด...</div>';
+        msLoadHistoryForStats().then(function() { if (msState.view === 'stats' && msIsPageVisible()) msRenderStats(); }).catch(function(err) {
+          wrap.innerHTML = '<div class="ms-empty" style="color:#e11d48">โหลดสถิติไม่สำเร็จ: ' + escHtml(err && err.message ? err.message : String(err)) + '</div>';
+        });
+        return;
+      }
+      var nowMs = Date.now();
+      var windowStart = nowMs - days * 86400000;
+      var history = msState.history;
+      var segs = msBuildSegments(history, msState.machines, windowStart, nowMs);
+      var totalDown = segs.reduce(function(s, x) { return s + (x.end - x.start); }, 0);
+      var stops = history.filter(function(r) { return r.from_status === 'running' && r.to_status !== 'running'; });
+      // เวลาเฉลี่ยกลับมาทำงาน = เคสที่ปิดแล้ว (มี log กลับเป็น running) รวมเวลาทุกช่วงของเคสนั้น ÷ จำนวนเคส
+      var closedCases = {};
+      history.forEach(function(r) { if (r.to_status === 'running' && r.case_id) closedCases[r.case_id] = true; });
+      var caseMs = {};
+      segs.forEach(function(x) { if (x.case_id && closedCases[x.case_id]) caseMs[x.case_id] = (caseMs[x.case_id] || 0) + (x.end - x.start); });
+      var caseIds = Object.keys(caseMs);
+      var mttr = caseIds.length ? caseIds.reduce(function(s, k) { return s + caseMs[k]; }, 0) / caseIds.length : 0;
+      var total = msState.machines.length;
+      var run = msState.machines.filter(function(m) { return m.status === 'running'; }).length;
+      var capacityMs = total * days * 86400000;
+      var uptimePct = capacityMs ? Math.max(0, 100 - totalDown / capacityMs * 100) : 0;
+
+      var html = '<div class="ms-panel ms-panel-wide"><div class="ms-kpi-mini">' +
+        '<div class="ms-tl-stat"><b>' + String(total ? Math.round(run / total * 100) : 0) + '%</b><span>ความพร้อมตอนนี้ (' + String(run) + '/' + String(total) + ' เครื่อง)</span></div>' +
+        '<div class="ms-tl-stat"><b>' + uptimePct.toFixed(1) + '%</b><span>เวลาเดินเครื่อง ' + String(days) + ' วัน</span></div>' +
+        '<div class="ms-tl-stat"><b>' + escHtml(msHours(totalDown)) + '</b><span>ไม่ได้ทำงานรวม · หยุด ' + String(stops.length) + ' ครั้ง</span></div>' +
+        '<div class="ms-tl-stat"><b>' + escHtml(caseIds.length ? msDuration(mttr) : '-') + '</b><span>เวลาเฉลี่ยกว่าจะกลับมาทำงาน</span></div>' +
+      '</div></div>';
+
+      if (!segs.length) {
+        wrap.innerHTML = html + '<div class="ms-empty" style="margin-top:12px">🎉 ไม่มีเครื่องหยุดในช่วง ' + String(days) + ' วันนี้ — หรือยังไม่เริ่มบันทึกสถานะ<br><span style="font-size:12px">สถิติจะเริ่มเก็บทันทีที่มีการเปลี่ยนสถานะเครื่อง</span></div>';
+        return;
+      }
+
+      function sumBy(keyFn) {
+        var out = {};
+        segs.forEach(function(x) {
+          var k = keyFn(x);
+          if (!k) return;
+          var row = out[k] = out[k] || { label: k, total: 0 };
+          row[x.status] = (row[x.status] || 0) + (x.end - x.start);
+          row.total += x.end - x.start;
+        });
+        return Object.keys(out).map(function(k) { return out[k]; })
+          .filter(function(r) { return r.total >= 60000; }) // เพิ่งกดหยุดไม่ถึงนาที ไม่ต้องขึ้นแถว 0.0 ชม.
+          .sort(function(a, b) { return b.total - a.total; });
+      }
+      function barsPanel(title, sub, rows, wide) {
+        var max = rows.length ? rows[0].total : 0;
+        return '<div class="ms-panel' + (wide ? ' ms-panel-wide' : '') + '"><p class="ms-panel-title">' + title + '</p><p class="ms-panel-sub">' + sub + '</p>' +
+          '<div class="ms-hbars">' + rows.map(function(r) {
+            return '<div class="ms-hbar-row"><span class="ms-hbar-lb" title="' + escHtml(r.label) + '">' + escHtml(r.label) + '</span>' + msStackBar(r, max) + '<span class="ms-hbar-val">' + escHtml(msHours(r.total)) + '</span></div>';
+          }).join('') + '</div>' + msStatsLegend() + '</div>';
+      }
+
+      html += '<div class="ms-stats-grid" style="margin-top:12px">';
+      if (isAllLinesMode()) html += barsPanel('🏭 ชั่วโมงไม่ได้ทำงานต่อไลน์', 'รวมทุกเครื่องในไลน์ · แยกสีตามสถานะ', sumBy(function(x) { return x.line; }), false);
+      html += barsPanel('⏱ เครื่องที่หยุดนานสุด', 'Top 8 ในช่วง ' + String(days) + ' วัน', sumBy(function(x) { return x.machine_name + (isAllLinesMode() ? ' · ' + x.line : ''); }).slice(0, 8), false);
+      html += barsPanel('🔎 สาเหตุที่ทำให้เครื่องหยุด', 'ชั่วโมงรวมต่อสาเหตุ', sumBy(function(x) { return MS_REASON[x.reason] || (x.status === 'maintenance' ? '🔧 ซ่อมบำรุง (ไม่ระบุ)' : 'ไม่ระบุสาเหตุ'); }), false);
+
+      // อะไหล่ที่ทำให้เครื่องหยุดบ่อยสุด: นับ "เคส" ที่ผูกอะไหล่ตัวนั้น (ไม่นับซ้ำถ้าอัปเดตหลายรอบในเคสเดียว)
+      var partStats = {};
+      segs.forEach(function(x) {
+        (x.parts || []).forEach(function(p) {
+          var k = (p.key || (p.name + '::' + (p.model || ''))).toLowerCase();
+          var row = partStats[k] = partStats[k] || { name: p.name, model: p.model, cases: {}, ms: 0, machines: {} };
+          row.cases[x.case_id || (x.machine_id + x.start)] = true;
+          row.machines[x.machine_name] = true;
+          row.ms += x.end - x.start;
+        });
+      });
+      var partRows = Object.keys(partStats).map(function(k) {
+        var r = partStats[k];
+        return { name: r.name, model: r.model, count: Object.keys(r.cases).length, ms: r.ms, machines: Object.keys(r.machines) };
+      }).sort(function(a, b) { return b.count - a.count || b.ms - a.ms; }).slice(0, 8);
+      var maxCount = partRows.length ? partRows[0].count : 0;
+      html += '<div class="ms-panel"><p class="ms-panel-title">⚙️ อะไหล่ที่ทำให้เครื่องหยุดบ่อยสุด</p><p class="ms-panel-sub">นับจำนวนเคส · เวลารออะไหล่รวม</p>' +
+        (partRows.length ? '<div class="ms-hbars">' + partRows.map(function(r) {
+          return '<div class="ms-hbar-row"><span class="ms-hbar-lb" title="' + escHtml(r.name + ' ' + (r.model || '') + ' · ' + r.machines.join(', ')) + '">' + escHtml(r.name) + (r.model && r.model !== '-' ? ' <small style="color:#94a3b8">' + escHtml(r.model) + '</small>' : '') + '</span>' +
+            '<div class="ms-hbar-track"><span style="width:' + (maxCount ? r.count / maxCount * 100 : 0) + '%;background:linear-gradient(90deg,#a78bfa,#7c3aed)"></span></div>' +
+            '<span class="ms-hbar-val">' + String(r.count) + ' ครั้ง · ' + escHtml(msHours(r.ms)) + '</span></div>';
+        }).join('') + '</div>' : '<p class="ms-result-empty">ยังไม่มีเคสที่ผูกอะไหล่ในช่วงนี้</p>') + '</div>';
+      html += '</div>';
+      wrap.innerHTML = html;
+    }
+
+    function msOnLineChanged() {
+      msState.history = null;
+      if (!msIsPageVisible()) { msState.loaded = false; return; }
+      msState.machines = [];
+      msState.loaded = false;
+      msRender();
+      msLoad();
+    }
+
+    function switchToMachineStatusPage() {
+      if (!hasPermission('view')) return switchToStockPage();
+      stockPage.classList.add('hidden');
+      if (dashboardPage) dashboardPage.classList.add('hidden');
+      txnPage.classList.add('hidden');
+      logPage.classList.add('hidden');
+      prReportPage.classList.add('hidden');
+      managePage.classList.add('hidden');
+      adminPage.classList.add('hidden');
+      xpHidePage();
+      mxHidePage();
+      if (requestOrderPage) requestOrderPage.classList.add('hidden');
+      if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
+      var page = msEl('machineStatusPage');
+      if (page) page.classList.remove('hidden');
+      setTabStyles('machine-status');
+      var fresh = msState.loaded && msState.lineKey === msScopeLine() && (Date.now() - msState.loadedAt) < MS_STALE_MS;
+      msRender();
+      if (!fresh) msLoad({ silent: msState.loaded && msState.lineKey === msScopeLine() });
+    }
+
+    (function initMachineStatusPage() {
+      var tabBtn = msEl('tabMachineStatus');
+      if (tabBtn) tabBtn.addEventListener('click', switchToMachineStatusPage);
+      var refreshBtn = msEl('msRefreshBtn');
+      if (refreshBtn) refreshBtn.addEventListener('click', function() { msState.history = null; msLoad(); });
+      var summary = msEl('msSummary');
+      if (summary) summary.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest ? e.target.closest('[data-ms-filter]') : null;
+        if (!btn) return;
+        var f = btn.getAttribute('data-ms-filter');
+        msState.filter = (msState.filter === f || f === 'all') ? 'all' : f;
+        if (msState.view !== 'cards') msState.view = 'cards';
+        msRender();
+      });
+      document.querySelectorAll('#machineStatusPage [data-ms-view]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          msState.view = btn.getAttribute('data-ms-view') === 'stats' ? 'stats' : 'cards';
+          msRender();
+        });
+      });
+      var search = msEl('msSearch');
+      if (search) search.addEventListener('input', rafThrottle(msRenderBoard));
+      var sort = msEl('msSort');
+      if (sort) sort.addEventListener('change', msRenderBoard);
+      var days = msEl('msStatsDays');
+      if (days) days.addEventListener('change', msRenderStats);
+      var board = msEl('msBoard');
+      if (board) board.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest ? e.target.closest('[data-ms-act]') : null;
+        if (!btn) return;
+        var m = msFindMachine(btn.getAttribute('data-ms-id'));
+        var act = btn.getAttribute('data-ms-act');
+        if (act === 'edit') msOpenEdit(m);
+        else if (act === 'stop') msOpenEdit(m, 'stopped');
+        else if (act === 'resume') msQuickResume(m, btn);
+        else if (act === 'buy') msBuyParts(m);
+        else if (act === 'history') msOpenTimeline(m);
+      });
+
+      var form = msEl('msEditForm');
+      if (form) form.addEventListener('submit', msSubmitEdit);
+      ['msEditClose', 'msEditCancel'].forEach(function(id) { var el = msEl(id); if (el) el.addEventListener('click', msCloseEdit); });
+      var editModal = msEl('msEditModal');
+      if (editModal) bindBackdropClose(editModal, msCloseEdit);
+      var statusChoices = msEl('msStatusChoices');
+      if (statusChoices) statusChoices.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest ? e.target.closest('[data-ms-status]') : null;
+        if (!btn) return;
+        var next = btn.getAttribute('data-ms-status');
+        if (next !== msEditState.status && next !== 'waiting_parts' && msEditState.status === 'waiting_parts') msEditState.reason = 'spare_part';
+        msEditState.status = next;
+        if (next === 'running') msEditState.reason = '';
+        msSetEditMessage('');
+        msRenderEditForm();
+      });
+      var reasonChoices = msEl('msReasonChoices');
+      if (reasonChoices) reasonChoices.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest ? e.target.closest('[data-ms-reason]') : null;
+        if (!btn) return;
+        msEditState.reason = btn.getAttribute('data-ms-reason');
+        msSetEditMessage('');
+        msRenderEditForm();
+      });
+      var partSearch = msEl('msPartSearch');
+      if (partSearch) {
+        partSearch.addEventListener('input', rafThrottle(msRenderPartResults));
+        partSearch.addEventListener('focus', msRenderPartResults);
+        partSearch.addEventListener('keydown', function(e) { if (e.key === 'Enter') e.preventDefault(); });
+      }
+      var results = msEl('msPartResults');
+      if (results) results.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest ? e.target.closest('[data-ms-pick]') : null;
+        if (!btn) return;
+        var it = (msState.searchHits || [])[Number(btn.getAttribute('data-ms-pick'))];
+        if (!it) return;
+        msAddPart(msPartFromItem(it));
+        msEl('msPartSearch').value = '';
+        results.classList.add('hidden');
+      });
+      // คลิกนอกช่องค้นหา = ปิดรายการผลลัพธ์
+      if (form) form.addEventListener('click', function(e) {
+        if (!results || results.classList.contains('hidden')) return;
+        if (e.target.closest && e.target.closest('.ms-search-wrap')) return;
+        results.classList.add('hidden');
+      });
+      var manualToggle = msEl('msManualToggle');
+      if (manualToggle) manualToggle.addEventListener('click', function() {
+        var row = msEl('msManualRow');
+        row.classList.toggle('hidden');
+        if (!row.classList.contains('hidden')) msEl('msManualName').focus();
+      });
+      function addManual() {
+        var name = String(msEl('msManualName').value || '').trim();
+        if (!name) { msSetEditMessage('กรุณาพิมพ์ชื่ออะไหล่', 'error'); msEl('msManualName').focus(); return; }
+        msAddPart({ key: '', no: '', name: name, model: String(msEl('msManualModel').value || '').trim(), sheet: '', unit: '', qty_needed: 1, stock_at_save: '', manual: true });
+        msEl('msManualName').value = '';
+        msEl('msManualModel').value = '';
+        msEl('msManualName').focus();
+      }
+      var manualAdd = msEl('msManualAdd');
+      if (manualAdd) manualAdd.addEventListener('click', addManual);
+      ['msManualName', 'msManualModel'].forEach(function(id) {
+        var el = msEl(id);
+        if (el) el.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addManual(); } });
+      });
+      var picked = msEl('msPartsList');
+      if (picked) {
+        picked.addEventListener('click', function(e) {
+          var btn = e.target && e.target.closest ? e.target.closest('[data-ms-remove]') : null;
+          if (!btn) return;
+          msEditState.parts.splice(Number(btn.getAttribute('data-ms-remove')), 1);
+          msRenderPickedParts();
+        });
+        picked.addEventListener('change', function(e) {
+          var idx = e.target && e.target.getAttribute ? e.target.getAttribute('data-ms-qty') : null;
+          if (idx === null || !msEditState.parts[Number(idx)]) return;
+          var q = Math.max(1, Math.min(9999, Math.round(Number(e.target.value) || 1)));
+          msEditState.parts[Number(idx)].qty_needed = q;
+          msRenderPickedParts();
+        });
+      }
+
+      var tl = msEl('msTimelineModal');
+      if (tl) bindBackdropClose(tl, msCloseTimeline);
+      var tlClose = msEl('msTimelineClose');
+      if (tlClose) tlClose.addEventListener('click', msCloseTimeline);
+      document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        msCloseEdit();
+        msCloseTimeline();
+      });
+
+      // หน้าเปิดค้างไว้ (เช่น จอหน้าไลน์) — รีเฟรชเงียบๆ ทุกนาที แต่ไม่ทับตอนกำลังกรอกฟอร์ม
+      setInterval(function() {
+        if (!currentUser || document.visibilityState === 'hidden' || !msIsPageVisible()) return;
+        if (msEditState.machine) return;
+        msState.history = null;
+        msLoad({ silent: true });
+      }, MS_POLL_MS);
+    })();
+
     function switchToPurchaseHistoryPage() {
       if (!hasPermission('view')) return switchToStockPage();
       stockPage.classList.add('hidden');
@@ -15235,6 +16587,7 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.remove('hidden');
       mxHidePage();
@@ -15547,6 +16900,7 @@ function inferRequestPriority(stock, min) {
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       mxHidePage();
       xpHidePage();
+      msHidePage();
       managePage.classList.add('hidden');
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       adminPage.classList.remove('hidden');
@@ -15565,6 +16919,7 @@ function inferRequestPriority(stock, min) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       if (requestOrderPage) requestOrderPage.classList.add('hidden');
       if (purchaseHistoryPage) purchaseHistoryPage.classList.add('hidden');
       mxHidePage();
@@ -19242,6 +20597,7 @@ function inferRequestPriority(stock, min) {
       else if (!prReportPage.classList.contains('hidden')) setTabStyles('pr');
       else if (purchaseHistoryPage && !purchaseHistoryPage.classList.contains('hidden')) setTabStyles('purchase-history');
       else if (document.getElementById('miscExpensePage') && !document.getElementById('miscExpensePage').classList.contains('hidden')) setTabStyles('misc-expense');
+      else if (msIsPageVisible()) setTabStyles('machine-status');
       else if (!managePage.classList.contains('hidden')) setTabStyles('manage');
       else if (!adminPage.classList.contains('hidden')) setTabStyles('admin');
     }));
@@ -27411,6 +28767,7 @@ if (dashboardPage) {
       managePage.classList.add('hidden');
       adminPage.classList.add('hidden');
       xpHidePage();
+      msHidePage();
       var page = xpEl('exportPage');
       if (page) page.classList.remove('hidden');
       setTabStyles('export');
