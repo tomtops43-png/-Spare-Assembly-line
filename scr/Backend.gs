@@ -93,11 +93,17 @@ var MISC_EXPENSE_SHARED_LINE = 'ส่วนกลาง';
 // เครื่องจักรของแต่ละไลน์ (master list ให้ Admin กรอกเอง) — อะไหล่แต่ละชิ้นผูกได้หลายเครื่องจักร
 // โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
 var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
-// สถานะเครื่องจักร: running = ทำงาน, maintenance = ซ่อมบำรุง, stopped = หยุด, waiting_parts = รออะไหล่
-// Case ID ผูก "ช่วงที่เครื่องไม่ได้เดิน" ตั้งแต่หยุดจนกลับมาทำงาน (เปลี่ยนสาเหตุกลางทางก็ยังเป็นเคสเดิม)
-var MACHINE_STATUS_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Status', 'Reason Type', 'Parts JSON', 'Comment', 'PR Ref', 'Since', 'Case ID', 'Updated By', 'Updated At'];
-var MACHINE_STATUS_LOG_HEADERS = ['Log ID', 'Case ID', 'Machine ID', 'Line', 'Machine Name', 'From Status', 'To Status', 'Reason Type', 'Parts JSON', 'Comment', 'PR Ref', 'Changed By', 'Changed At', 'Prev Duration Min'];
-var MACHINE_STATUS_KEYS = ['running', 'maintenance', 'stopped', 'waiting_parts'];
+// สถานะเครื่องจักร: running = ทำงาน, degraded = รันได้บางส่วน (ยังผลิตได้แต่ไม่เต็ม รออะไหล่บางตัว),
+// maintenance = ซ่อมบำรุง, stopped = หยุด, waiting_parts = รออะไหล่
+// Case ID ผูก "ช่วงที่เครื่องไม่ได้เดินเต็มกำลัง" ตั้งแต่เริ่มมีปัญหาจนกลับมาทำงานปกติ
+// (รันบางส่วน → หยุด → ซ่อม กลางทางก็ยังเป็นเคสเดิม)
+// คอลัมน์ใหม่ต่อท้ายเสมอ (Impact JSON) — ชีตเดิมที่สร้างไว้แล้วจะถูกเติมหัวคอลัมน์ให้เอง ตำแหน่งเดิมไม่ขยับ
+var MACHINE_STATUS_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Status', 'Reason Type', 'Parts JSON', 'Comment', 'PR Ref', 'Since', 'Case ID', 'Updated By', 'Updated At', 'Impact JSON'];
+var MACHINE_STATUS_LOG_HEADERS = ['Log ID', 'Case ID', 'Machine ID', 'Line', 'Machine Name', 'From Status', 'To Status', 'Reason Type', 'Parts JSON', 'Comment', 'PR Ref', 'Changed By', 'Changed At', 'Prev Duration Min', 'Impact JSON'];
+var MACHINE_STATUS_KEYS = ['running', 'degraded', 'maintenance', 'stopped', 'waiting_parts'];
+// ผลกระทบของ "รันได้บางส่วน": slow = กำลังผลิตลด (ใส่ % ได้), partial_models = ทำได้บางรุ่น,
+// workaround = ใช้ของแก้ขัดชั่วคราว, at_risk = เสี่ยงหยุดถ้าไม่เปลี่ยนภายในวันที่กำหนด
+var MACHINE_IMPACT_KEYS = ['slow', 'partial_models', 'workaround', 'at_risk'];
 var MACHINE_REASON_KEYS = ['spare_part', 'breakdown', 'no_job', 'other'];
 var MACHINE_STATUS_MAX_PARTS = 15;
 var ITEM_AUDIT_HEADERS = ['Date Time', 'User', 'Role', 'Sheet Name', 'NO', 'Part Name', 'Model', 'Action Type', 'Changed Fields', 'Old Values', 'New Values'];
@@ -1127,13 +1133,20 @@ function deleteMachine(payload) {
 function getMachineStatusSheet() {
   var sheet = getOrCreateSheet(SpreadsheetApp.getActiveSpreadsheet(), SPARE_APP_CONFIG.machineStatusSheetName);
   if (sheet.getLastRow() === 0) sheet.appendRow(MACHINE_STATUS_HEADERS);
+  else ensureMachineStatusHeaders(sheet, MACHINE_STATUS_HEADERS);
   return sheet;
 }
 
 function getMachineStatusLogSheet() {
   var sheet = getOrCreateSheet(SpreadsheetApp.getActiveSpreadsheet(), SPARE_APP_CONFIG.machineStatusLogSheetName);
   if (sheet.getLastRow() === 0) sheet.appendRow(MACHINE_STATUS_LOG_HEADERS);
+  else ensureMachineStatusHeaders(sheet, MACHINE_STATUS_LOG_HEADERS);
   return sheet;
+}
+
+// ชีตที่สร้างจากเวอร์ชันก่อนยังไม่มีคอลัมน์ท้าย (Impact JSON) — เติมเฉพาะหัวที่ขาด ข้อมูลเดิมไม่ขยับ
+function ensureMachineStatusHeaders(sheet, headers) {
+  if (sheet.getLastColumn() < headers.length) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 }
 
 function machineStatusNow() {
@@ -1183,6 +1196,40 @@ function sanitizeMachineStatusParts(raw) {
   }).filter(function(p) { return p.name; });
 }
 
+function machineStatusParseImpact(raw) {
+  var parsed = raw;
+  if (typeof raw === 'string') {
+    if (!raw) return {};
+    try { parsed = JSON.parse(raw); } catch (err) { return {}; }
+  }
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+}
+
+// ผลกระทบของ "รันได้บางส่วน" — เก็บเฉพาะช่องที่ติ๊กเลือก (ไม่ติ๊กกำลังผลิตลด ก็ไม่เก็บ %)
+function sanitizeMachineImpact(raw) {
+  var src = machineStatusParseImpact(raw);
+  var impacts = [];
+  (Array.isArray(src.impacts) ? src.impacts : []).forEach(function(k) {
+    var key = String(k || '').trim();
+    if (MACHINE_IMPACT_KEYS.indexOf(key) > -1 && impacts.indexOf(key) === -1) impacts.push(key);
+  });
+  var out = { impacts: impacts, capacity_pct: '', models: '', risk_until: '' };
+  if (impacts.indexOf('slow') > -1 && src.capacity_pct !== undefined && src.capacity_pct !== null && String(src.capacity_pct).trim() !== '') {
+    var pct = Math.round(Number(src.capacity_pct));
+    if (!isFinite(pct) || pct < 1 || pct > 99) throw new Error('กำลังผลิตที่เหลือต้องอยู่ระหว่าง 1–99%');
+    out.capacity_pct = pct;
+  }
+  if (impacts.indexOf('partial_models') > -1) out.models = String(src.models || '').trim().slice(0, 150);
+  if (impacts.indexOf('at_risk') > -1) {
+    var until = String(src.risk_until || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(until) || isNaN(new Date(until + 'T00:00:00+07:00').getTime())) {
+      throw new Error('"เสี่ยงหยุด" ต้องระบุวันที่ที่ต้องเปลี่ยนให้ทัน');
+    }
+    out.risk_until = until;
+  }
+  return out;
+}
+
 function machineStatusRowToObject(r) {
   return {
     machine_id: String(r[0] || ''),
@@ -1196,7 +1243,8 @@ function machineStatusRowToObject(r) {
     since: machineStatusTimeText(r[8]),
     case_id: String(r[9] || ''),
     updated_by: String(r[10] || ''),
-    updated_at: machineStatusTimeText(r[11])
+    updated_at: machineStatusTimeText(r[11]),
+    impact: machineStatusParseImpact(String(r[12] || ''))
   };
 }
 
@@ -1215,7 +1263,8 @@ function machineStatusLogRowToObject(r) {
     pr_ref: String(r[10] || ''),
     changed_by: String(r[11] || ''),
     changed_at: machineStatusTimeText(r[12]),
-    prev_duration_min: Number(r[13] || 0)
+    prev_duration_min: Number(r[13] || 0),
+    impact: machineStatusParseImpact(String(r[14] || ''))
   };
 }
 
@@ -1243,7 +1292,7 @@ function getMachineStatusBoard(payload) {
     var st = byId[m.machine_id];
     var out = st ? st : {
       machine_id: m.machine_id, status: 'running', reason_type: '', parts: [], comment: '', pr_ref: '',
-      since: '', case_id: '', updated_by: '', updated_at: ''
+      since: '', case_id: '', updated_by: '', updated_at: '', impact: {}
     };
     // ชื่อ/ไลน์ยึดตาม master เสมอ (Admin เปลี่ยนชื่อเครื่องทีหลังการ์ดต้องเปลี่ยนตาม)
     out.line = m.line;
@@ -1276,11 +1325,16 @@ function updateMachineStatusUnlocked(payload) {
   if (!machine.active) throw new Error('เครื่องนี้ถูกปิดใช้งานในทะเบียนแล้ว');
   if (!machineStatusUserCanEditLine(user, machine.line)) throw new Error('เปลี่ยนสถานะได้เฉพาะเครื่องในไลน์ของคุณ (' + (user.line || '-') + ')');
 
-  var reason = status === 'running' ? '' : String(payload.reason_type || '').trim();
+  // "รันได้บางส่วน" ยังผลิตได้ จึงไม่ถามสาเหตุที่หยุด — ให้บอกผลกระทบ + อะไหล่ที่รอแทน
+  var degraded = status === 'degraded';
+  var reason = (status === 'running' || degraded) ? '' : String(payload.reason_type || '').trim();
   if (status === 'waiting_parts') reason = 'spare_part';
-  if (status !== 'running' && MACHINE_REASON_KEYS.indexOf(reason) === -1) throw new Error('กรุณาเลือกสาเหตุที่เครื่องไม่ได้ทำงาน');
+  if (status !== 'running' && !degraded && MACHINE_REASON_KEYS.indexOf(reason) === -1) throw new Error('กรุณาเลือกสาเหตุที่เครื่องไม่ได้ทำงาน');
   var parts = status === 'running' ? [] : sanitizeMachineStatusParts(payload.parts_json || payload.parts);
   if (status === 'waiting_parts' && !parts.length) throw new Error('สถานะ "รออะไหล่" ต้องระบุอะไหล่อย่างน้อย 1 รายการ');
+  var impact = degraded ? sanitizeMachineImpact(payload.impact_json || payload.impact) : {};
+  if (degraded && !parts.length && !impact.impacts.length) throw new Error('"รันได้บางส่วน" ต้องระบุอะไหล่ที่รอ หรือผลกระทบอย่างน้อย 1 อย่าง');
+  if (degraded && parts.length) reason = 'spare_part';
   var comment = String(payload.comment || '').trim().slice(0, 500);
   if (status !== 'running' && reason === 'other' && !comment) throw new Error('สาเหตุ "อื่นๆ" ต้องพิมพ์คอมเมนต์อธิบาย');
   var prRef = status === 'running' ? '' : String(payload.pr_ref || '').trim().slice(0, 80);
@@ -1312,13 +1366,14 @@ function updateMachineStatusUnlocked(payload) {
   }
 
   var partsJson = JSON.stringify(parts);
-  var row = [machineId, machine.line, machine.machine_name, status, reason, partsJson, comment, prRef, since, caseId, user.username || '', now];
+  var impactJson = degraded ? JSON.stringify(impact) : '';
+  var row = [machineId, machine.line, machine.machine_name, status, reason, partsJson, comment, prRef, since, caseId, user.username || '', now, impactJson];
   if (rowIndex > -1) sheet.getRange(rowIndex + 1, 1, 1, MACHINE_STATUS_HEADERS.length).setValues([row]);
   else sheet.appendRow(row);
 
   getMachineStatusLogSheet().appendRow([
     'MSL-' + Utilities.getUuid(), logCaseId, machineId, machine.line, machine.machine_name,
-    prevStatus, status, reason, partsJson, comment, prRef, user.username || '', now, prevDurationMin
+    prevStatus, status, reason, partsJson, comment, prRef, user.username || '', now, prevDurationMin, impactJson
   ]);
 
   var saved = machineStatusRowToObject(row);

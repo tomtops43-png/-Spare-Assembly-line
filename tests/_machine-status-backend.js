@@ -10,6 +10,7 @@ function makeSheet(rows) {
   return {
     rows: data,
     getLastRow: function() { return data.length; },
+    getLastColumn: function() { return data.reduce(function(m, r) { return Math.max(m, r.length); }, 0); },
     appendRow: function(row) { data.push(row.slice()); },
     getDataRange: function() {
       return { getValues: function() { return data.map(function(r) { return r.slice(); }); } };
@@ -74,6 +75,7 @@ function makeMachineStatusBackend(opts) {
     grabVar('MACHINE_STATUS_LOG_HEADERS', backend),
     grabVar('MACHINE_STATUS_KEYS', backend),
     grabVar('MACHINE_REASON_KEYS', backend),
+    grabVar('MACHINE_IMPACT_KEYS', backend),
     'function requirePermission(payload) { return session(payload); }',
     'function requireWarehouseWriter(payload) { var u = session(payload); if (u.viewOnly) throw new Error("บัญชีนี้เป็นสิทธิ์ดูอย่างเดียว จึงบันทึกข้อมูลส่วนนี้ไม่ได้"); return u; }',
     grabFn('normalizeRole', backend, 0),
@@ -82,11 +84,14 @@ function makeMachineStatusBackend(opts) {
     grabFn('getMachines', backend, 0),
     grabFn('getMachineStatusSheet', backend, 0),
     grabFn('getMachineStatusLogSheet', backend, 0),
+    grabFn('ensureMachineStatusHeaders', backend, 0),
     grabFn('machineStatusNow', backend, 0),
     grabFn('machineStatusTimeText', backend, 0),
     grabFn('machineStatusParseTime', backend, 0),
     grabFn('machineStatusParseParts', backend, 0),
     grabFn('sanitizeMachineStatusParts', backend, 0),
+    grabFn('machineStatusParseImpact', backend, 0),
+    grabFn('sanitizeMachineImpact', backend, 0),
     grabFn('machineStatusRowToObject', backend, 0),
     grabFn('machineStatusLogRowToObject', backend, 0),
     grabFn('machineStatusUserCanEditLine', backend, 0),
