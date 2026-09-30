@@ -132,6 +132,56 @@ b.sheets.MachineStatus.rows[1][8] = new Date('2026-10-01T01:00:00Z');
 const row = b.getMachineStatusBoard({ authToken: 'h9' }).machines.filter(function(x) { return x.machine_id === 'MC-H9-1'; })[0];
 assert.strictEqual(row.since, '2026-10-01 08:00:00');
 
+
+// ── รันได้บางส่วน (degraded): ยังผลิตได้ แต่รออะไหล่บางตัว / บอกผลกระทบ ────────────────
+b = fresh();
+throwsWith(function() { b.updateMachineStatus({ authToken: 'h9', machine_id: 'MC-H9-2', status: 'degraded' }); },
+  'อย่างน้อย 1 อย่าง', 'รันได้บางส่วนต้องบอกอะไหล่ที่รอ หรือผลกระทบ');
+throwsWith(function() { b.updateMachineStatus({ authToken: 'h9', machine_id: 'MC-H9-2', status: 'degraded', impact_json: JSON.stringify({ impacts: ['slow'], capacity_pct: 120 }) }); },
+  '1–99%', 'เปอร์เซ็นต์กำลังผลิตต้องสมเหตุสมผล');
+throwsWith(function() { b.updateMachineStatus({ authToken: 'h9', machine_id: 'MC-H9-2', status: 'degraded', impact_json: JSON.stringify({ impacts: ['at_risk'] }) }); },
+  'ระบุวันที่', 'เสี่ยงหยุดต้องมีวันที่ต้องเปลี่ยนให้ทัน');
+m = b.updateMachineStatus({ authToken: 'h9', machine_id: 'MC-H9-2', status: 'degraded', reason_type: 'breakdown',
+  impact_json: JSON.stringify({ impacts: ['slow', 'workaround', 'bogus', 'slow'], capacity_pct: '70', models: 'ไม่ได้ติ๊กจึงไม่เก็บ' }) }).machine;
+assert.strictEqual(m.status, 'degraded');
+assert.strictEqual(m.reason_type, '', 'รันได้บางส่วนไม่ใช่เครื่องหยุด จึงไม่เก็บสาเหตุที่หยุด');
+assert.deepStrictEqual(m.impact, { impacts: ['slow', 'workaround'], capacity_pct: 70, models: '', risk_until: '' },
+  'เก็บเฉพาะผลกระทบที่รู้จัก ไม่ซ้ำ และเก็บช่องเสริมเฉพาะที่ติ๊ก');
+assert(/^MSC-/.test(m.case_id), 'รันได้บางส่วนเปิดเคสเหมือนเครื่องมีปัญหา');
+const degCase = m.case_id;
+m = b.updateMachineStatus({ authToken: 'h9', machine_id: 'MC-H9-2', status: 'degraded', parts_json: JSON.stringify([bearing]),
+  impact_json: JSON.stringify({ impacts: ['at_risk', 'partial_models'], risk_until: '2026-10-05', models: 'รุ่น 16A' }) }).machine;
+assert.strictEqual(m.reason_type, 'spare_part', 'มีอะไหล่ที่รอ = สาเหตุขาด Spare Part (ใช้กับสถิติอะไหล่)');
+assert.strictEqual(m.impact.risk_until, '2026-10-05');
+assert.strictEqual(m.impact.models, 'รุ่น 16A');
+assert.strictEqual(m.impact.capacity_pct, '', 'ไม่ติ๊กกำลังผลิตลด = ไม่เก็บ %');
+b.advanceMinutes(120);
+m = b.updateMachineStatus({ authToken: 'h9', machine_id: 'MC-H9-2', status: 'stopped', reason_type: 'spare_part', parts_json: JSON.stringify([bearing]) }).machine;
+assert.strictEqual(m.case_id, degCase, 'รันบางส่วนแล้วอาการหนักขึ้นจนหยุด = เคสเดียวกัน');
+assert.deepStrictEqual(m.impact, {}, 'สถานะอื่นไม่เก็บผลกระทบของรันบางส่วน');
+let dlog = b.getMachineStatusHistory({ authToken: 'h9', machine_id: 'MC-H9-2' }).history;
+assert.strictEqual(dlog[0].from_status, 'degraded');
+assert.strictEqual(dlog[0].prev_duration_min, 120);
+assert.strictEqual(dlog[1].impact.risk_until, '2026-10-05', 'ประวัติเก็บผลกระทบไว้ด้วย');
+m = b.updateMachineStatus({ authToken: 'h9', machine_id: 'MC-H9-2', status: 'running', impact_json: JSON.stringify({ impacts: ['slow'] }) }).machine;
+assert.strictEqual(m.case_id, '');
+assert.deepStrictEqual(m.impact, {}, 'กลับมาทำงานปกติ = ล้างผลกระทบ');
+
+// ── ชีตจากเวอร์ชันก่อน (ยังไม่มีคอลัมน์ Impact JSON) ต้องเติมหัวให้เอง ข้อมูลเดิมอ่านได้ ──────
+const oldStatusHead = ['Machine ID', 'Line', 'Machine Name', 'Status', 'Reason Type', 'Parts JSON', 'Comment', 'PR Ref', 'Since', 'Case ID', 'Updated By', 'Updated At'];
+const legacy = makeMachineStatusBackend({ users: USERS, sheets: {
+  Machines: MACHINES.map(function(r) { return r.slice(); }),
+  MachineStatus: [oldStatusHead, ['MC-H9-1', 'H9', 'H9 Press 1', 'stopped', 'breakdown', '[]', 'เก่า', '', '2026-09-30 08:00:00', 'MSC-old', 'somchai', '2026-09-30 08:00:00']],
+  MachineStatusLog: [['Log ID', 'Case ID', 'Machine ID', 'Line', 'Machine Name', 'From Status', 'To Status', 'Reason Type', 'Parts JSON', 'Comment', 'PR Ref', 'Changed By', 'Changed At', 'Prev Duration Min']]
+} });
+const legacyRow = legacy.getMachineStatusBoard({ authToken: 'h9' }).machines[0];
+assert.strictEqual(legacyRow.status, 'stopped');
+assert.deepStrictEqual(legacyRow.impact, {}, 'แถวเก่าไม่มีคอลัมน์ผลกระทบ = ว่าง');
+assert.strictEqual(legacy.sheets.MachineStatus.rows[0][12], 'Impact JSON', 'เติมหัวคอลัมน์ใหม่ต่อท้าย');
+legacy.updateMachineStatus({ authToken: 'h9', machine_id: 'MC-H9-1', status: 'degraded', impact_json: JSON.stringify({ impacts: ['workaround'] }) });
+assert.strictEqual(legacy.sheets.MachineStatusLog.rows[0][14], 'Impact JSON');
+assert.strictEqual(legacy.getMachineStatusBoard({ authToken: 'h9' }).machines[0].case_id, 'MSC-old', 'หยุด → รันบางส่วน ยังเป็นเคสเดิม');
+
 // ── backend: route + export whitelist ──────────────────────────────────────
 ['getMachineStatusBoard', 'updateMachineStatus', 'getMachineStatusHistory'].forEach(function(action) {
   assert.strictEqual((backend.match(new RegExp("action === '" + action + "'", 'g')) || []).length, 2, action + ' ต้องมีทั้ง doGet และ doPost');
@@ -141,6 +191,7 @@ assert(/'MachineStatus', 'MachineStatusLog'/.test(backend), 'ชีตใหม�
 // ════════════════════ ฝั่งเว็บ ════════════════════
 const web = new Function('partsData', [
   grabVar('MS_DOWN_STATUSES', html),
+  grabVar('MS_ISSUE_STATUSES', html),
   grabFn('safeNum'),
   grabFn('getItemIdentityKey'),
   grabFn('findItemByIdentityKey'),
@@ -153,8 +204,14 @@ const web = new Function('partsData', [
   grabFn('msPartHasEnough'),
   grabFn('msMissingParts'),
   grabFn('msPartsReady'),
+  grabFn('msLostCapacityMs'),
+  grabFn('escHtml'),
+  grabFn('msDateLabel'),
+  grabFn('msTodayYmd'),
+  grabFn('msImpactPillsHtml'),
   'return { msParseTime: msParseTime, msDuration: msDuration, msHours: msHours, msBuildSegments: msBuildSegments,' +
-  ' msMissingParts: msMissingParts, msPartsReady: msPartsReady, msPartStock: msPartStock };'
+  ' msMissingParts: msMissingParts, msPartsReady: msPartsReady, msPartStock: msPartStock,' +
+  ' msLostCapacityMs: msLostCapacityMs, msImpactPillsHtml: msImpactPillsHtml };'
 ].join('\n'));
 
 const stockItem = { no: '12', subLine: 'Stock for MC', __sourceSheet: 'Stock for MC', model: '6204ZZ', name: 'Bearing', location: 'A-02', stock: 1 };
@@ -213,6 +270,27 @@ assert.strictEqual(hoursOf('B'), 24, 'หยุดมาก่อนช่วง
 assert.strictEqual(hoursOf('C'), 24, 'หยุดมานานแต่ไม่มี log ในช่วงนี้ ก็ต้องนับ (ตัดที่ต้นหน้าต่าง)');
 assert.strictEqual(segs.filter(function(s) { return s.machine_id === 'A'; })[0].case_id, 'C1');
 
+
+// รันได้บางส่วน: นับเป็นช่วงมีปัญหา (แยกจากชั่วโมงหยุด) + กำลังผลิตที่เสียไปคิดจาก % ที่กรอก
+const degHist = [
+  { machine_id: 'D', line: 'H9', machine_name: 'D', from_status: 'degraded', to_status: 'running', case_id: 'C9', changed_at: '2026-10-10 06:00:00', parts: [] },
+  { machine_id: 'D', line: 'H9', machine_name: 'D', from_status: 'running', to_status: 'degraded', case_id: 'C9', changed_at: '2026-10-09 20:00:00', parts: [bearing],
+    impact: { impacts: ['slow'], capacity_pct: 70 } }
+];
+const degSegs = w.msBuildSegments(degHist, [{ machine_id: 'D', status: 'running' }], winStart, now);
+assert.strictEqual(degSegs.length, 1);
+assert.strictEqual(degSegs[0].status, 'degraded');
+assert.strictEqual((degSegs[0].end - degSegs[0].start) / H, 10);
+assert.strictEqual(w.msLostCapacityMs(degSegs[0]) / H, 3, 'รัน 70% นาน 10 ชม. = เสียไป 3 ชม.เครื่อง');
+assert.strictEqual(w.msLostCapacityMs(Object.assign({}, degSegs[0], { impact: { impacts: ['slow'] } })), 0, 'ไม่ใส่ % = ไม่เดาตัวเลข');
+assert.strictEqual(w.msLostCapacityMs(Object.assign({}, degSegs[0], { impact: { impacts: ['workaround'], capacity_pct: 70 } })), 0, 'ไม่ได้ติ๊กกำลังผลิตลด = ไม่นับ');
+assert.strictEqual(w.msLostCapacityMs(Object.assign({}, degSegs[0], { status: 'stopped' })), 0);
+// ป้ายเสี่ยงหยุด: เลยกำหนดแล้วต้องขึ้นแดง
+assert(w.msImpactPillsHtml({ impacts: ['at_risk'], risk_until: '2020-01-01' }).indexOf('เลยกำหนดเปลี่ยนแล้ว') > -1);
+assert(w.msImpactPillsHtml({ impacts: ['at_risk'], risk_until: '2999-01-31' }).indexOf('ภายใน 31/01') > -1);
+assert(w.msImpactPillsHtml({ impacts: ['slow'], capacity_pct: 70 }).indexOf('กำลังผลิต ~70%') > -1);
+assert.strictEqual(w.msImpactPillsHtml({}), '');
+
 // ── เดินสายหน้าใหม่ ────────────────────────────────────────────────────────
 assert(html.includes('id="tabMachineStatus"'), 'มีแท็บเมนูของหน้าใหม่');
 assert(html.includes('id="machineStatusPage"'), 'มีหน้าใหม่แยก');
@@ -239,5 +317,8 @@ assert(buy.includes('buildStarredEntry(') && buy.includes('openPrFromStarred()')
 assert(buy.includes("hasPermission('view_logs')"), 'คนที่เข้าหน้า PR ไม่ได้ ติดดาวไว้ให้หัวหน้า');
 // เปลี่ยนสถานะต้องเช็คสิทธิ์ทั้งจาก backend (can_edit) และสิทธิ์เขียนคลัง
 assert(/function msCanEdit\(m\) \{ return !!\(m && m\.can_edit && canWriteWarehouse\(\)\); \}/.test(html));
+
+assert(/var MS_RUN_STATUSES = \['running', 'degraded'\];/.test(html), 'รันได้บางส่วนนับเป็นเครื่องพร้อมรัน');
+assert(grabFn('msUpdateBadgeFromList').includes('MS_DOWN_STATUSES.indexOf(m.status) > -1'), 'badge นับเฉพาะเครื่องที่ไม่ได้ผลิต (ไม่รวมรันบางส่วน)');
 
 console.log('machine status checks passed');
