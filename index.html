@@ -12456,6 +12456,51 @@ function inferRequestPriority(stock, min) {
       }).filter(function(r) { return r !== null; });
     }
 
+    // วันแบบ yyyy-MM-dd ตามเวลาไทย — ใช้ตัดแบ่ง "ก่อน/หลังวันเริ่มระบบ PR ใหม่" ระดับวัน (ไม่ใช่ระดับเดือน)
+    function fccDayKey(raw) {
+      var str = String(raw == null ? '' : raw).trim();
+      if (!str) return ''; // ห้ามปล่อยไป new Date(null) — จะได้วันที่ปี 1970 แทนที่จะเป็น "ไม่มีค่า"
+      if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+      var d = new Date(raw);
+      if (isNaN(d.getTime())) return '';
+      var bkk = new Date(d.getTime() + 7 * 3600000);
+      return bkk.getUTCFullYear() + '-' + String(bkk.getUTCMonth() + 1).padStart(2, '0') + '-' + String(bkk.getUTCDate()).padStart(2, '0');
+    }
+
+    // ยอดรับของจริงจากใบรับของ (GR) — นับตามเดือนที่รับ ราคาตาม PR
+    // รับโดยไม่มี PR (Admin) ไม่ใช่ค่าใช้จ่าย จึงไม่นับและไม่เตือนว่าไม่มีราคา / GR ที่ถูกคืนรายการ backend ตัดทิ้งให้แล้ว
+    function fccGrSpendRows(receipts) {
+      return (Array.isArray(receipts) ? receipts : []).map(function(g) {
+        if (!String(g.pr_id || '').trim() || String(g.status || '') === 'REVERSED') return null;
+        var month = fccMonthKey(g.received_at);
+        if (!month || !/^\d{4}-\d{2}$/.test(month)) return null;
+        var qty = Math.abs(fccN(g.qty));
+        var amount = fccN(g.amount);
+        if (!(amount > 0)) amount = qty * fccN(g.unit_price);
+        return {
+          month: month,
+          line: fccLineOf(g.line),
+          amount: amount > 0 ? amount : 0,
+          qty: qty,
+          model: String(g.model || ''),
+          partName: String(g.part_name || ''),
+          source: 'gr'
+        };
+      }).filter(function(r) { return r !== null; });
+    }
+
+    // รายจ่ายอะไหล่ของกราฟ % ต้นทุน — ก่อนวันเริ่มระบบ PR ใหม่ = ยอดสั่งซื้อใน Purchase History (แบบเดิม)
+    // ตั้งแต่วันเริ่มระบบ = ยอดรับของจริง (GR) แทน ไม่นับ Purchase History ช่วงหลังซ้ำ (กันนับเบิ้ล)
+    function fccSpendRows(hist, gr) {
+      var cutoverDay = fccDayKey(gr && gr.cutoverAt);
+      if (!cutoverDay) return fccPurchaseSpendRows(hist);
+      var before = (Array.isArray(hist) ? hist : []).filter(function(r) {
+        var day = fccDayKey(r.requested_date || r.created_at || r.updated_at);
+        return day && day < cutoverDay;
+      });
+      return fccPurchaseSpendRows(before).concat(fccGrSpendRows(gr.receipts));
+    }
+
     function fccExpenseValidRows(logs) {
       var priceMap = {};
       var partsList = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
@@ -13633,7 +13678,9 @@ function inferRequestPriority(stock, min) {
       var unpricedWithdrawModels = {};
 
       // รายจ่าย = ยอดสั่งซื้อ (PR) จาก Purchase History ไม่ใช่ยอดเบิก — ยอดเบิกมีกราฟแยกอยู่แล้ว
-      fccPurchaseSpendRows(hist).filter(function(r) { return isAll ? true : r.line === line; }).forEach(function(r) {
+      // เปิดระบบ PR → รับของแล้ว: ตั้งแต่วันเริ่มระบบนับจากยอดรับจริง (GR) แทน (ดู fccSpendRows)
+      var grInfo = fccLast.Gr || { cutoverAt: '', receipts: [] };
+      fccSpendRows(hist, grInfo).filter(function(r) { return isAll ? true : r.line === line; }).forEach(function(r) {
         if (r.amount > 0) {
           spendByMonth[r.month] = (spendByMonth[r.month] || 0) + r.amount;
         } else {
@@ -13752,7 +13799,16 @@ function inferRequestPriority(stock, min) {
       if (unpWithdrawKeys.length) {
         tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:11px;color:#991b1b;">⚠︎ ' + unpWithdrawKeys.length + ' รุ่นที่สั่งซื้อยังไม่มีราคา (ไม่รวมในยอดสั่งซื้อ): ' + unpWithdrawKeys.slice(0, 12).map(function(m) { return fccEsc(m) + ' (' + fccInt(unpricedWithdrawModels[m]) + ' ชิ้น)'; }).join(', ') + (unpWithdrawKeys.length > 12 ? ' …' : '') + '</div>';
       }
-      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + '📦 รายจ่าย = ยอดสั่งซื้อ (PR ไม่นับที่ยกเลิก) + ของสิ้นเปลืองที่ซื้อนอกระบบ · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      // ยอดผูกพัน = PR ที่อนุมัติแล้วแต่ของยังไม่เข้า (ค้างรับ × ราคา) — ยังไม่ใช่รายจ่าย แต่จะกลายเป็นรายจ่ายเมื่อของเข้า
+      var committed = (fccLast.OpenPr || []).filter(function(l) { return isAll ? true : fccLineOf(l.pr_line) === line; })
+        .reduce(function(s, l) { return s + fccN(l.qty_outstanding) * fccN(l.unit_price); }, 0);
+      var basisTxt = grInfo.cutoverAt
+        ? '📦 รายจ่าย = ยอดสั่งซื้อ (PR) ก่อน ' + grInfo.cutoverAt.slice(0, 10) + ' · ตั้งแต่วันนั้นนับจากยอดรับของจริง (GR) + ของสิ้นเปลือง'
+        : '📦 รายจ่าย = ยอดสั่งซื้อ (PR ไม่นับที่ยกเลิก) + ของสิ้นเปลืองที่ซื้อนอกระบบ';
+      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + basisTxt + ' · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      if (grInfo.cutoverAt && committed > 0) {
+        tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;color:#1e40af;">⏳ ยอดผูกพัน (PR อนุมัติแล้ว รอของเข้า) ฿' + fccMoney(committed) + ' — ยังไม่นับในรายจ่าย จะนับเมื่อรับของเข้า</div>';
+      }
     }
     function fccRenderTops(P, L) {
       var el = document.getElementById('fccTops');
@@ -14391,13 +14447,29 @@ function inferRequestPriority(stock, min) {
           return Array.isArray(rows) ? rows : [];
         })
         .catch(function() { return fccAsyncCache.misc || []; });
-      fccAsyncCache.pending = Promise.all([pReq, pLog, pHist, pProdVolume, pProdConfig, pMisc]).then(function(res) {
+      // ระบบ PR → รับของ: ยอดรับจริง (GR) แทน Purchase History ตั้งแต่วันเริ่มระบบ + ยอดผูกพัน (PR อนุมัติแล้วรอของ)
+      // ยังไม่เปิดระบบ backend คืน cutover_at ว่าง / lines ว่าง กราฟจึงคิดแบบเดิมทุกอย่าง
+      var pGr = requestApi(withAuthPayload({ action: 'getGrLog' }))
+        .then(function(res) {
+          if (!res || res.status === 'error') throw new Error((res && res.message) || 'error');
+          return { cutoverAt: String(res.cutover_at || ''), receipts: Array.isArray(res.receipts) ? res.receipts : [] };
+        })
+        .catch(function() { return fccAsyncCache.gr || { cutoverAt: '', receipts: [] }; });
+      var pOpenPr = requestApi(withAuthPayload({ action: 'getOpenPrLines' }))
+        .then(function(res) {
+          if (!res || res.status === 'error') throw new Error((res && res.message) || 'error');
+          return Array.isArray(res.lines) ? res.lines : [];
+        })
+        .catch(function() { return fccAsyncCache.openPr || []; });
+      fccAsyncCache.pending = Promise.all([pReq, pLog, pHist, pProdVolume, pProdConfig, pMisc, pGr, pOpenPr]).then(function(res) {
         fccAsyncCache.requests = res[0];
         fccAsyncCache.logs = res[1];
         fccAsyncCache.hist = res[2];
         fccAsyncCache.prodVolume = res[3];
         fccAsyncCache.prodConfig = res[4];
         fccAsyncCache.misc = res[5];
+        fccAsyncCache.gr = res[6];
+        fccAsyncCache.openPr = res[7];
         fccAsyncCache.at = Date.now();
         fccAsyncCache.pending = null;
         return fccAsyncCache;
@@ -14445,6 +14517,8 @@ function inferRequestPriority(stock, min) {
         fccLast.ProdVolume = A.prodVolume;
         fccLast.ProdConfig = A.prodConfig;
         fccLast.Misc = A.misc;
+        fccLast.Gr = A.gr;
+        fccLast.OpenPr = A.openPr;
         fccRenderCostRatio();
         fccRenderRepairCost();
         fccRenderMiscExpense();
@@ -17145,6 +17219,8 @@ function inferRequestPriority(stock, min) {
     }
     function ptAfterReceive() {
       ptData.open = null; ptData.prs = null; ptData.grs = null;
+      // ยอดรับของ (GR) เป็นรายจ่ายในกราฟ % ต้นทุนแล้ว — ล้างแคช Dashboard ให้ดึงใหม่ครั้งหน้า
+      if (typeof fccInvalidateAsyncCache === 'function') fccInvalidateAsyncCache();
       var page = ptEl('prTrackingPage');
       if (page && !page.classList.contains('hidden')) ptLoad(true);
     }
