@@ -81,3 +81,20 @@ assert(tabStyles.includes("if (active === 'pr-tracking' && tabPrTrackingEl) tabP
 });
 
 console.log('PR tracking UI checks passed');
+
+// ---- เปิดระบบแล้ว ซ่อนปุ่มขั้นตอนเดิมที่ซ้ำกับระบบใหม่ (ข้อมูลเดิมยังดูได้) ----
+assert(html.includes('body.pt-system-on .pt-legacy-hide { display: none !important; }'), 'มี CSS ซ่อนปุ่มเดิมเมื่อเปิดระบบ');
+assert(grabFn('ptLoadSystemStatus').includes("document.body.classList.toggle('pt-system-on', ptState.enabled)"), 'ตั้งคลาสที่ body ตามสถานะระบบ');
+[
+  'id="purchaseHistoryReconcileBtn" type="button" class="pt-legacy-hide',   // 1) Reconcile
+  'id="purchaseHistoryAddBtn" type="button" class="pt-legacy-hide',         // 2) เพิ่มรายการ Manual
+  'id="purchaseHistoryImportBtn" type="button" class="pt-legacy-hide',      // 2) นำเข้า PR PDF
+  'data-act="markOrderRequestPurchased" class="pt-legacy-hide',             // 3) ขอซื้อ: สั่งซื้อแล้ว
+  'data-act="markOrderRequestReceived" class="pt-legacy-hide',              // 3) ขอซื้อ: รับเข้าแล้ว
+  'id="roBulkOrderedBtn" type="button" class="pt-legacy-hide',              // 3) ทำทีละหลายใบ
+  'id="roBulkReceivedBtn" type="button" class="pt-legacy-hide',
+  'id="prNumberDisplay" class="pt-legacy-hide'                              // 4) เลข PR ชั่วคราว
+].forEach(function(sig) { assert(html.includes(sig), 'ต้องซ่อนเมื่อเปิดระบบ: ' + sig); });
+assert(html.includes('class="pt-legacy-note'), 'หน้า Purchase History บอกว่าเป็นประวัติก่อนระบบใหม่');
+
+console.log('Legacy button hiding checks passed');

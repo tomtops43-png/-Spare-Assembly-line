@@ -200,6 +200,10 @@
     #inboxOverlay .bg-rose-50, #prApprovalModal .bg-rose-50 { background-color: #fff1f2; }
     #inboxOverlay .bg-rose-100 { background-color: #ffe4e6; }
     #inboxOverlay .bg-rose-500 { background-color: #f43f5e; }
+    /* เปิดระบบ PR → รับของแล้ว (body.pt-system-on): ซ่อนปุ่มขั้นตอนเดิมที่ซ้ำกับระบบใหม่ — ข้อมูล/ประวัติเดิมยังดูได้ครบ
+       ยังไม่เปิดระบบ = ทุกอย่างแสดงเหมือนเดิม; ป้ายอธิบาย (.pt-legacy-note) โชว์เฉพาะตอนเปิดระบบแล้ว */
+    body.pt-system-on .pt-legacy-hide { display: none !important; }
+    body:not(.pt-system-on) .pt-legacy-note { display: none !important; }
     /* หน้า "ติดตาม PR" + ตัวเลือก "รับตาม PR" — Tailwind 2.2.19 ที่โหลดอยู่ไม่มีสีชุด slate/emerald/amber/orange/teal/rose/violet
        จึงต้องกำหนดสีให้เองแบบจำกัดขอบเขต (แนวเดียวกับ #inboxOverlay ด้านบน) ไม่งั้นป้ายสถานะ/ปุ่มจะไม่มีสี */
     #prTrackingPage .bg-amber-100, #ptDetailModal .bg-amber-100, #txnPrPicker .bg-amber-100, #quickReceivePrPicker .bg-amber-100 { background-color: #fef3c7; }
@@ -1708,8 +1712,8 @@
             <div id="roBulkToolbar" class="mx-4 mb-3 hidden rounded-xl border border-blue-200 bg-blue-50 p-3">
               <div class="flex flex-wrap items-center gap-2">
                 <span id="roBulkSelectedCount" class="mr-auto text-sm font-semibold text-blue-900">เลือกแล้ว 0 รายการ</span>
-                <button id="roBulkOrderedBtn" type="button" class="rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700">🛒 สั่งซื้อแล้ว</button>
-                <button id="roBulkReceivedBtn" type="button" class="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700">📥 รับเข้าแล้ว</button>
+                <button id="roBulkOrderedBtn" type="button" class="pt-legacy-hide rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700">🛒 สั่งซื้อแล้ว</button>
+                <button id="roBulkReceivedBtn" type="button" class="pt-legacy-hide rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-700">📥 รับเข้าแล้ว</button>
                 <button id="roBulkCancelBtn" type="button" class="rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700">❌ ปฏิเสธคำขอ</button>
               </div>
             </div>
@@ -2872,7 +2876,7 @@
           <p class="text-sm text-slate-500 mt-0.5">สร้างเอกสารขออนุมัติสั่งซื้ออะไหล่ สำหรับผู้จัดการอนุมัติ</p>
         </div>
         <div class="relative flex items-center gap-2">
-          <span id="prNumberDisplay" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700"></span>
+          <span id="prNumberDisplay" class="pt-legacy-hide hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700"></span>
           <button id="prSavedSetsBtn" type="button" class="flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 transition">
             📂 Set ที่บันทึกไว้<span id="prSavedSetsCount" class="hidden rounded-full bg-violet-600 px-1.5 py-0.5 text-[11px] text-white">0</span>
           </button>
@@ -3200,20 +3204,21 @@
         <div>
           <h2 class="text-xl font-bold text-slate-900">Purchase History</h2>
           <p class="text-sm text-slate-500">ประวัติการขอซื้อและสั่งซื้ออะไหล่สำหรับดูย้อนหลังและวิเคราะห์เบื้องต้น</p>
+          <p class="pt-legacy-note mt-1 rounded-lg px-2 py-1 text-xs font-semibold" style="background:#eff6ff;color:#1e40af;">📚 หน้านี้เป็นประวัติก่อนเริ่มระบบ PR ใหม่ (ดูอย่างเดียว) — PR / รับของใหม่ดูที่เมนู จัดซื้อ → 📦 ติดตาม PR</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button id="purchaseHistoryReconcileBtn" type="button" class="h-10 rounded-lg border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700" title="เทียบรายการที่ยังค้างอยู่กับประวัติการรับเข้าทั้งหมด (รวมรายการที่รับเข้าไปก่อนคำขอซื้อจะถูกสร้าง)">🔄 ตรวจสอบ/Reconcile</button>
+          <button id="purchaseHistoryReconcileBtn" type="button" class="pt-legacy-hide h-10 rounded-lg border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700" title="เทียบรายการที่ยังค้างอยู่กับประวัติการรับเข้าทั้งหมด (รวมรายการที่รับเข้าไปก่อนคำขอซื้อจะถูกสร้าง)">🔄 ตรวจสอบ/Reconcile</button>
           <button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
         </div>
       </div>
-      <div class="flex flex-col gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="pt-legacy-hide flex flex-col gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p class="font-bold text-violet-950">นำเข้าประวัติจาก PR Report เดิม</p>
           <p class="text-sm text-violet-700">เลือกไฟล์ PR PDF ได้หลายไฟล์ ตรวจสอบ Preview แล้วจึงยืนยันนำเข้า</p>
         </div>
         <div class="flex flex-wrap gap-2 shrink-0">
-          <button id="purchaseHistoryAddBtn" type="button" class="h-11 rounded-lg bg-green-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-green-700"><span class="hidden sm:inline">+ เพิ่มรายการ Manual</span><span class="sm:hidden">+ Manual</span></button>
-          <button id="purchaseHistoryImportBtn" type="button" class="h-11 rounded-lg px-4 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2" style="background-color:#7c3aed;color:#ffffff;border:1px solid #6d28d9;"><span class="hidden sm:inline">📄 เลือกไฟล์ PR PDF</span><span class="sm:hidden">📄 PR PDF</span></button>
+          <button id="purchaseHistoryAddBtn" type="button" class="pt-legacy-hide h-11 rounded-lg bg-green-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-green-700"><span class="hidden sm:inline">+ เพิ่มรายการ Manual</span><span class="sm:hidden">+ Manual</span></button>
+          <button id="purchaseHistoryImportBtn" type="button" class="pt-legacy-hide h-11 rounded-lg px-4 text-sm font-bold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2" style="background-color:#7c3aed;color:#ffffff;border:1px solid #6d28d9;"><span class="hidden sm:inline">📄 เลือกไฟล์ PR PDF</span><span class="sm:hidden">📄 PR PDF</span></button>
         </div>
       </div>
       <div id="purchaseHistorySummary" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"></div>
@@ -11775,8 +11780,8 @@ function getIssueCartEntries() {
           acts.push('<button data-id="'+r.request_id+'" data-act="reject" class="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">❌ ปฏิเสธ</button>');
         }
         if (hasPermission('request_order_approve') && (s==='Approved'||s==='Purchased')) {
-          if (s==='Approved') acts.push('<button data-id="'+r.request_id+'" data-act="markOrderRequestPurchased" class="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-700 hover:bg-cyan-100">🛒 สั่งซื้อแล้ว</button>');
-          if (s==='Purchased') acts.push('<button data-id="'+r.request_id+'" data-act="markOrderRequestReceived" class="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100">📥 รับเข้าแล้ว</button>');
+          if (s==='Approved') acts.push('<button data-id="'+r.request_id+'" data-act="markOrderRequestPurchased" class="pt-legacy-hide rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-700 hover:bg-cyan-100">🛒 สั่งซื้อแล้ว</button>');
+          if (s==='Purchased') acts.push('<button data-id="'+r.request_id+'" data-act="markOrderRequestReceived" class="pt-legacy-hide rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100">📥 รับเข้าแล้ว</button>');
         }
         if (hasPermission('request_order_convert_pr')) acts.push('<button data-id="'+r.request_id+'" data-act="convert" class="rounded-xl border border-purple-300 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100">📋 แปลงเป็น PR</button>');
         if (hasPermission('request_order_close') && s!=='Closed') acts.push('<button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">🔒 ปิดรายการ</button>');
@@ -17131,6 +17136,8 @@ function inferRequestPriority(stock, min) {
         ptState.enabled = !!res.enabled;
         ptState.cutoverAt = String(res.cutover_at || '');
         ptState.checkedAt = Date.now();
+        // ซ่อนปุ่มขั้นตอนเดิมที่ซ้ำกับระบบใหม่ทั้งหน้าเว็บ (ดู .pt-legacy-hide ใน <style>)
+        document.body.classList.toggle('pt-system-on', ptState.enabled);
         return ptState;
       }).catch(function() { return ptState; }).finally(function() { ptState.loading = null; });
       return ptState.loading;
