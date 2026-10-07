@@ -37,7 +37,7 @@ function makeSheet(rows) {
   };
 }
 
-function makeBackend() {
+function makeBackend(stock) {
   const clock = { now: Date.parse('2026-10-07T03:00:00Z') }; // 10:00 เวลาไทย
   const sheets = {};
   const props = {};
@@ -92,7 +92,15 @@ function makeBackend() {
     requirePermission: requirePermission,
     requireAdminUser: requireAdminUser,
     findUserByUsername: function(name) { return users[name] || null; },
-    upsertPurchaseHistoryRecord: function(rec) { phWrites.push(rec); }
+    upsertPurchaseHistoryRecord: function(rec) { phWrites.push(rec); },
+    // ชุด stub สำหรับ Auto-PR (อ่านสต็อกทุกไลน์ / สถิติการเบิก) — ค่าคงที่พอสำหรับทดสอบการสร้างใบ
+    readAllStockItemsLean: function() { return (stock || []).map(function(it) { return Object.assign({}, it); }); },
+    computeIssueUsageStats: function() { return {}; },
+    getLogRows: function() { return []; },
+    computeSuggestedOrderQty: function(it) { return Math.max(it.min * 2 - it.stock, 1); },
+    findCrossLineStockMatches: function() { return []; },
+    sanitizeDrivePathSegment: function(v) { return String(v || '').replace(/[^A-Za-z0-9]/g, ''); },
+    partKeyOf: function(name, model) { return String(name || '').toLowerCase() + '|' + String(model || '').toLowerCase(); }
   };
 
   const fnNames = [
@@ -104,7 +112,8 @@ function makeBackend() {
     'generatePrRunningId', 'prLineIsClosed', 'prLineOutstanding', 'prLineStatusFromQty', 'computePrHeaderStatus', 'prIsTracked',
     'prLineRowToObject', 'refreshPrHeaderStatus', 'findPrLineRow', 'prLineMatchesReceivedPart', 'resolvePrReceiptForTransaction',
     'buildGrId', 'grLogRef', 'postPrGoodsReceipt', 'reversePrGoodsReceiptForLog', 'markPROrderedUnlocked', 'cancelPRUnlocked',
-    'closePrLineUnlocked', 'listPRs', 'getPRDetail', 'grRowToObject', 'listGrRows', 'getGrLog', 'listOpenPrLines', 'getOpenPrLines'
+    'closePrLineUnlocked', 'listPRs', 'getPRDetail', 'grRowToObject', 'listGrRows', 'getGrLog', 'listOpenPrLines', 'getOpenPrLines',
+    'listPendingPrPartKeys', 'runAutoPrJob'
   ];
   const src = [
     grabVar('PR_HEADER_HEADERS', backend), grabVar('PR_LINE_HEADERS', backend), grabVar('PR_AUDIT_HEADERS', backend),
@@ -308,3 +317,34 @@ console.log('PR → GR tracking checks passed');
 })();
 
 console.log('PR → GR date-cell checks passed');
+
+// ---- Auto-PR (รันทุกเช้า) หลังเปิดระบบ: ใบต้องติดตามการรับของได้ และไม่เสนอของที่รอส่งอยู่ซ้ำ ----
+(function autoPrAfterCutover() {
+  const stock = [{ sheet: 'Main List Stock', no: '12', name: 'Cutter blade', model: 'CB-100', brand: 'ACME', category: 'Cutter', unit: 'PCS', stock: 1, min: 5, unit_price: 50, line: 'STAR' }];
+  const api = makeBackend(stock);
+
+  // ก่อนเปิดระบบ = แบบเดิม (เลข PR-AUTO-..., ไม่ติดธง)
+  const legacy = api.runAutoPrJob();
+  assert.strictEqual(legacy.created.length, 1);
+  assert(/^PR-AUTO-/.test(legacy.created[0]), 'ก่อนเปิดระบบใช้เลขแบบเดิม');
+  assert.strictEqual(api.listPRs({ authToken: 'tok-admin' }).prs[0].gr_tracked, false);
+  api.cancelPRUnlocked({ authToken: 'tok-admin', pr_id: legacy.created[0], reason: 'ล้างก่อนทดสอบ' });
+
+  api.startPrGrSystem({ authToken: 'tok-admin' });
+  const first = api.runAutoPrJob();
+  assert.deepStrictEqual(first.created, ['PR-2610-001'], 'หลังเปิดระบบใช้เลขรันต่อเนื่อง');
+  assert.strictEqual(api.runAutoPrJob().created.length, 0, 'ยังรออนุมัติอยู่ = ไม่สร้างซ้ำ');
+
+  api.approvePRUnlocked({ authToken: 'tok-admin', pr_id: 'PR-2610-001' });
+  assert.strictEqual(api.listOpenPrLines({}).length, 1, 'ใบอัตโนมัติที่อนุมัติแล้วต้องขึ้นในรายการค้างรับ (รับของตาม PR ได้)');
+  assert.strictEqual(api.runAutoPrJob().created.length, 0, 'อนุมัติแล้วแต่ของยังไม่มา = ไม่เสนอซ้ำ');
+  assert(api.listPendingPrPartKeys()['cutter blade|cb-100'], 'Inbox ต้องเห็นว่าของตัวนี้อยู่ใน PR แล้ว');
+
+  const qty = api.listOpenPrLines({})[0].qty_outstanding;
+  const payload = { authToken: 'tok-tech', partNo: '12', partName: 'Cutter blade', model: 'CB-100', process: 'STAR', unit: 'PCS', by: 'tech', prId: 'PR-2610-001', prLineNo: 1 };
+  api.postPrGoodsReceipt(api.resolvePrReceiptForTransaction(payload), payload, qty, '2026-10-08 09:00:00', 'Main List Stock');
+  assert(!api.listPendingPrPartKeys()['cutter blade|cb-100'], 'รับครบแล้ว = ไม่นับว่ารอส่ง');
+  assert.strictEqual(api.runAutoPrJob().created.length, 1, 'ของรับครบแล้วแต่ยังต่ำกว่า Min (สต็อกจำลองไม่ขยับ) = เสนอใบใหม่ได้');
+})();
+
+console.log('Auto-PR cutover checks passed');
