@@ -7276,20 +7276,24 @@ function listPendingPrPartKeys() {
   var hData = headerSheet.getDataRange().getValues();
   if (hData.length <= 1) return {};
   var hIdx = prIndexMap(hData[0]);
-  var pendingIds = {};
+  // รออนุมัติ = นับทุกบรรทัด / ระบบ PR → รับของ: ใบที่อนุมัติแล้วแต่ของยังไม่ครบ ก็ถือว่า "สั่งอยู่แล้ว" เช่นกัน
+  // (ไม่งั้น Auto-PR จะเสนอของที่รอส่งอยู่ซ้ำทุกเช้า และ Inbox จะขึ้นว่ายังไม่อยู่ใน PR)
+  var pendingIds = {}, openIds = {};
   for (var i = 1; i < hData.length; i += 1) {
-    if (String(hData[i][hIdx.status]) === 'PENDING') pendingIds[String(hData[i][hIdx.pr_id])] = true;
+    var st = String(hData[i][hIdx.status]);
+    if (st === 'PENDING') pendingIds[String(hData[i][hIdx.pr_id])] = true;
+    else if (PR_RECEIVABLE_STATUSES.indexOf(st) > -1 && prIsTracked(hIdx, hData[i])) openIds[String(hData[i][hIdx.pr_id])] = true;
   }
   var keys = {};
-  if (!Object.keys(pendingIds).length) return keys;
+  if (!Object.keys(pendingIds).length && !Object.keys(openIds).length) return keys;
   var linesSheet = getPrLinesSheet();
   var lData = linesSheet.getDataRange().getValues();
   if (lData.length <= 1) return keys;
   var lIdx = prIndexMap(lData[0]);
   for (var j = 1; j < lData.length; j += 1) {
-    if (pendingIds[String(lData[j][lIdx.pr_id])]) {
-      keys[partKeyOf(lData[j][lIdx.part_name], lData[j][lIdx.model])] = true;
-    }
+    var id = String(lData[j][lIdx.pr_id]);
+    var waiting = pendingIds[id] || (openIds[id] && prLineRowToObject(lIdx, lData[j]).qty_outstanding > 0);
+    if (waiting) keys[partKeyOf(lData[j][lIdx.part_name], lData[j][lIdx.model])] = true;
   }
   return keys;
 }
@@ -7321,10 +7325,15 @@ function runAutoPrJob() {
 
   var createdPrs = [];
   var totalItems = 0;
+  // ระบบ PR → รับของเปิดแล้ว: ใบอัตโนมัติต้องติดธงติดตามการรับของ และใช้เลขรันต่อเนื่องเหมือนใบที่คนสร้าง
+  // ไม่งั้นอนุมัติแล้วจะไม่ขึ้นในช่อง "รับตาม PR" (กันสร้างซ้ำวันเดียวกันด้วย listPendingPrPartKeys แทนเลขใบ)
+  var tracked = isPrGrSystemEnabled();
   Object.keys(bySheet).forEach(function(sheetName) {
     var items = bySheet[sheetName];
-    var prId = 'PR-AUTO-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd') + '-' + sanitizeDrivePathSegment(sheetName, 'LINE').slice(0, 12);
-    if (findPrHeaderRow(headerSheet.getDataRange().getValues(), hIdx, prId) !== -1) return; // วันนี้สร้างของไลน์นี้ไปแล้ว
+    var prId = tracked
+      ? generatePrRunningId(headerSheet.getDataRange().getValues(), hIdx, new Date())
+      : 'PR-AUTO-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd') + '-' + sanitizeDrivePathSegment(sheetName, 'LINE').slice(0, 12);
+    if (!tracked && findPrHeaderRow(headerSheet.getDataRange().getValues(), hIdx, prId) !== -1) return; // วันนี้สร้างของไลน์นี้ไปแล้ว
     var totalAmount = 0;
     var lineRows = items.map(function(it, i) {
       var usage = usageStats[partKeyOf(it.name, it.model)];
@@ -7353,6 +7362,7 @@ function runAutoPrJob() {
       rowArr[lIdx.unit_price] = price;
       rowArr[lIdx.remark] = remarkParts.join(' | ');
       if (lIdx.image_url !== undefined) rowArr[lIdx.image_url] = it.image_main_url || '';
+      if (tracked && lIdx.qty_received !== undefined) rowArr[lIdx.qty_received] = 0;
       return rowArr;
     });
     linesSheet.getRange(linesSheet.getLastRow() + 1, 1, lineRows.length, lHeaderRow.length).setValues(lineRows);
@@ -7367,6 +7377,7 @@ function runAutoPrJob() {
     headerRowArr[hIdx.item_count] = items.length;
     headerRowArr[hIdx.total_amount] = totalAmount;
     headerRowArr[hIdx.updated_at] = now;
+    if (tracked && hIdx.gr_tracked !== undefined) headerRowArr[hIdx.gr_tracked] = 'Y';
     headerSheet.appendRow(headerRowArr);
     appendPrAudit(prId, 'CREATE', 'AUTO-BOT', sheetName, '', '', items.length + ' รายการ (สร้างอัตโนมัติจากรายการต่ำกว่า Min)');
     createdPrs.push(prId);
