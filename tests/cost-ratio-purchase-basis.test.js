@@ -36,7 +36,8 @@ assert.strictEqual(unpriced.length, 1, 'รายการไม่มีรา�
 assert.strictEqual(unpriced[0].qty, 2);
 
 const render = extract('fccRenderCostRatio()');
-assert(render.includes('fccPurchaseSpendRows(hist)'), 'กราฟ % ต้นทุนต้องใช้ยอดสั่งซื้อ');
+assert(render.includes('fccSpendRows(hist, grInfo)'), 'กราฟ % ต้นทุนต้องใช้ยอดสั่งซื้อ (ผ่าน fccSpendRows ที่สลับเป็น GR หลังวันเริ่มระบบ PR ใหม่)');
+assert(extract('fccSpendRows(hist, gr)').includes('return fccPurchaseSpendRows(hist);'), 'ยังไม่เปิดระบบ PR ใหม่ = ใช้ยอดสั่งซื้อแบบเดิม');
 assert(!render.includes('fccExpenseValidRows('), 'กราฟ % ต้นทุนต้องไม่คิดจากยอดเบิกแล้ว');
 assert(html.includes('<th style="padding:6px 10px;text-align:right;">ยอดสั่งซื้อ (PR)</th>'), 'หัวคอลัมน์ต้องบอกว่าเป็นยอดสั่งซื้อ');
 

@@ -46,7 +46,7 @@ assert(/fccMiscExpenseRows\(A\.misc\)\.forEach\(function\(r\) \{[\s\S]{0,200}spe
   'ระบบคุมงบ PR ต้องนับค่าใช้จ่ายสิ้นเปลืองเข้า used ของเดือนนั้นด้วย');
 assert(htmlLf.includes("var pMisc = requestApi(withAuthPayload({ action: 'getMiscExpenses' }))"),
   'Dashboard ต้องโหลด getMiscExpenses มาพร้อมชุดข้อมูลอื่น');
-assert(htmlLf.includes('Promise.all([pReq, pLog, pHist, pProdVolume, pProdConfig, pMisc])'));
+assert(htmlLf.includes('Promise.all([pReq, pLog, pHist, pProdVolume, pProdConfig, pMisc, pGr, pOpenPr])'));
 assert(htmlLf.includes('fccAsyncCache.misc = res[5];') && htmlLf.includes('fccLast.Misc = A.misc;'));
 // แท่งกราฟต้องแยกสีให้เห็นว่าเงินหมดไปกับของในระบบหรือของซื้อนอกระบบ (stack เดียวกัน = เทียบกับงบได้)
 assert(htmlLf.includes("label: 'ของสิ้นเปลือง (ซื้อนอกระบบ)'") && htmlLf.includes("stack: 'spend'") && htmlLf.includes("stack: 'budget'"));
