@@ -98,3 +98,9 @@ assert(grabFn('ptLoadSystemStatus').includes("document.body.classList.toggle('pt
 assert(html.includes('class="pt-legacy-note'), 'หน้า Purchase History บอกว่าเป็นประวัติก่อนระบบใหม่');
 
 console.log('Legacy button hiding checks passed');
+
+// ---- ปุ่ม Bypass เกินงบ (หน้า PR Report) ต้องมีสีจริง — bg-rose-600 ไม่มีใน Tailwind 2.2.19 ตัวหนังสือขาวจะหายบนพื้นขาว ----
+assert(/#prBudgetBypassBtn \{[^}]*background:[^}]*#e11d48[^}]*color: #fff/.test(html), 'ปุ่ม Bypass ต้องกำหนดพื้นแดง + ตัวหนังสือขาว');
+assert(html.includes('#prBudgetGateConfirm { background-color: #e11d48; color: #fff; }'), 'ปุ่มยืนยัน Bypass ใน modal ต้องมีสี');
+assert(html.includes('#prBudgetGateModal { z-index: 250; }'), 'modal Bypass ต้องลอยเหนือหน้า (z-[250] ไม่มีใน Tailwind 2)');
+console.log('Budget bypass button style checks passed');

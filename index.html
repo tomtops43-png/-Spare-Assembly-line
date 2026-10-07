@@ -293,6 +293,25 @@
     #prPrintBtn { background-color: #7c3aed; }
     #prPrintBtn:hover { background-color: #6d28d9; }
     #prPrintBtnHint { color: #8b5cf6; }
+    /* ปุ่ม/ข้อความ Bypass เกินงบ — bg-rose-600 / text-rose-* / amber-600 / z-[250] ไม่มีใน Tailwind 2.2.19 (เดิมเป็นปุ่มขาวมองไม่เห็นตัวหนังสือ) */
+    #prBudgetBypassBtn { background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color: #fff; border: 1px solid #be123c; box-shadow: 0 4px 12px rgba(225,29,72,0.28); }
+    #prBudgetBypassBtn:hover { background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); box-shadow: 0 6px 16px rgba(190,18,60,0.35); }
+    #prBudgetBypassBtn:focus-visible { outline: 2px solid #fda4af; outline-offset: 2px; }
+    #prBypassHint { color: #e11d48; }
+    /* text-[11px] ไม่มีใน Tailwind 2 — hint ใต้ปุ่มเลยตัวใหญ่เท่าเนื้อหา */
+    #prBypassHint, #prApproverHint, #prBudgetGateModal .text-\[11px\] { font-size: 11px; line-height: 1.5; }
+    #prBudgetGateModal { z-index: 250; }
+    #prBudgetGateModal .text-rose-700 { color: #be123c; }
+    #prBudgetGateModal .text-rose-500 { color: #f43f5e; }
+    #prBudgetGateModal .border-rose-400 { border-color: #fb7185; }
+    #prBudgetGateModal .text-amber-600 { color: #d97706; }
+    #prBudgetGateModal .text-rose-600 { color: #e11d48; }
+    #prBudgetGateModal .border-rose-200 { border-color: #fecdd3; }
+    #prBudgetGateModal .bg-rose-50 { background-color: #fff1f2; }
+    #prBudgetGateConfirm { background-color: #e11d48; color: #fff; }
+    #prBudgetGateConfirm:hover { background-color: #be123c; }
+    #prForceResaveBtn { color: #d97706; }
+    #prForceResaveBtn:hover { color: #b45309; }
     /* ─── แท็บเมนูจัดกลุ่มเป็น dropdown (แก้ปัญหาแท็บล้นแนวนอน) ─── */
     #topNavTabs { overflow: visible; }
     .nav-group { position: relative; }
