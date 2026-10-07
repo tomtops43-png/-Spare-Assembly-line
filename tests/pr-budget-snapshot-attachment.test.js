@@ -7,7 +7,7 @@ const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
 // ไปให้หัวหน้าเห็นตอนตรวจใน Inbox ด้วย ไม่ใช่แค่ตัวเลขรายบรรทัด
 
 // ---- Backend: schema เก็บสแนปช็อตไว้ที่ PR header (additive column) ----
-assert(backend.includes("'assigned_to', 'budget_snapshot_html']"), 'PR_HEADER_HEADERS gains budget_snapshot_html');
+assert(backend.includes("'assigned_to', 'budget_snapshot_html',"), 'PR_HEADER_HEADERS gains budget_snapshot_html');
 
 // ---- Backend: createPR เขียนสแนปช็อตลง header ----
 const createPRBody = (function() {

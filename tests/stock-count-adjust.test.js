@@ -54,8 +54,14 @@ assert(adjustBlock.includes('skipPurchaseHistory: true'),
   'txnPayload ของ adjustStockFromCount ต้องมี skipPurchaseHistory: true');
 assert(adjustBlock.indexOf('skipPurchaseHistory: true') < adjustBlock.indexOf('processTransaction(txnPayload)'),
   'ต้องใส่ flag ก่อนเรียก processTransaction');
-assert((backend.match(/if \(signedQty > 0 && !payload\.skipPurchaseHistory\) \{/g) || []).length === 2,
-  'flag นี้ต้องยังกันทั้ง stampLastReceivedAt และ syncPurchaseHistoryOnReceive');
+assert((backend.match(/if \(signedQty > 0 && !payload\.skipPurchaseHistory\) \{/g) || []).length === 1,
+  'flag นี้ต้องยังกัน stampLastReceivedAt');
+// การรับของตาม PR (ระบบใหม่) และการตัดยอด Purchase History (ระบบเดิม) ทำผ่าน prReceipt
+// ซึ่งถูกสร้างใต้ flag เดียวกัน — ปรับยอดนับสต็อกจึงไม่ไปแตะทั้งสองระบบ
+assert(backend.includes('var prReceipt = (signedQty > 0 && !payload.skipPurchaseHistory) ? resolvePrReceiptForTransaction(payload) : null;'),
+  'flag นี้ต้องกันการตรวจ/บันทึกรับของตาม PR');
+assert(/if \(prReceipt && prReceipt\.mode === 'LEGACY'\) \{[\s\S]{0,400}syncPurchaseHistoryOnReceive\(/.test(backend),
+  'syncPurchaseHistoryOnReceive ต้องทำงานเฉพาะตอนยังไม่เปิดระบบ PR → GR และอยู่ใต้ flag เดียวกัน');
 
 // ปรับยอดเป็นการลง Input/Output ด้วยส่วนต่าง ไม่ใช่เขียนทับตัวเลข — ต้องมี audit trail
 assert(adjustBlock.includes('var variance = Number(item.counted) - Number(item.system_qty);'));
