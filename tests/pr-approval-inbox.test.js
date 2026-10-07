@@ -4,10 +4,10 @@ const html = fs.readFileSync('index.html', 'utf8');
 const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
 
 // ---- Backend: schema (qty_requested locked, qty_approved separate + audit) ----
-assert(backend.includes("var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to', 'budget_snapshot_html']"), 'PR header schema');
+assert(backend.includes("var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to', 'budget_snapshot_html', 'gr_tracked', 'ordered_by', 'ordered_at', 'po_no', 'vendor', 'closed_at', 'close_reason']"), 'PR header schema');
 assert(backend.includes("'qty_requested', 'qty_approved'"), 'PR lines keep qty_requested and qty_approved separately');
 assert(backend.includes("var PR_AUDIT_HEADERS = ['timestamp', 'pr_id', 'action', 'actor', 'line', 'old_qty', 'new_qty', 'detail']"), 'PR audit schema');
-assert(backend.includes("var PR_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED']"), 'PR statuses');
+assert(backend.includes("var PR_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'ORDERED', 'PARTIAL', 'RECEIVED', 'CLOSED', 'CANCELLED']"), 'PR statuses');
 
 // ---- Backend: approvePR is atomic (LockService) and re-guards status ----
 assert(/function approvePR\(payload\) \{\s*var lock = LockService\.getScriptLock\(\);\s*lock\.waitLock\(30000\);/.test(backend), 'approvePR uses LockService like borrow/transfer');

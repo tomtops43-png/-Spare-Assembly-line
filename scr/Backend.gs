@@ -39,6 +39,8 @@ SPARE_APP_CONFIG.partTagMaxPerTransaction = SPARE_APP_CONFIG.partTagMaxPerTransa
 SPARE_APP_CONFIG.prHeaderSheetName = SPARE_APP_CONFIG.prHeaderSheetName || 'PRHeaders';
 SPARE_APP_CONFIG.prLinesSheetName = SPARE_APP_CONFIG.prLinesSheetName || 'PRLines';
 SPARE_APP_CONFIG.prAuditSheetName = SPARE_APP_CONFIG.prAuditSheetName || 'PRAudit';
+// ใบรับของ (Goods Receipt) — ทุกครั้งที่รับเข้าตาม PR (หรือ Admin รับโดยไม่มี PR) บันทึกที่นี่
+SPARE_APP_CONFIG.grLogSheetName = SPARE_APP_CONFIG.grLogSheetName || 'GRLog';
 // ชีตติดตามยอดผลิตของแต่ละไลน์ (Google Sheet คนละไฟล์กับสเปรดชีตอะไหล่) — ถ้าตั้งค่าไว้ ระบบจะดึง
 // ยอดผลิตจริงมาคำนวณอัตโนมัติแทนการกรอกมือ ต้องให้บัญชีที่รัน Apps Script นี้มีสิทธิ์ View ไฟล์
 // ปลายทางด้วย ไม่งั้นจะ fallback ไปใช้ค่าที่กรอกมือแทนเงียบๆ
@@ -128,10 +130,13 @@ var PART_TAG_STATUS_INSTALLED = 'ติดตั้งแล้ว';
 var PART_TAG_STATUS_REMOVED = 'ถอดแล้ว';
 var PART_TAG_STATUS_ON_ISSUE = PART_TAG_STATUS_INSTALLED;
 // Purchase Request (PR) schema — เก็บ qty_requested (ล็อก) แยกจาก qty_approved (หัวหน้าแก้ได้)
-var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to', 'budget_snapshot_html'];
-var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark', 'image_url'];
+// คอลัมน์ต่อท้าย (gr_tracked ...) ใช้กับระบบ PR → GR — ชีทเดิมถูกเติมคอลัมน์ให้แบบ additive
+var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to', 'budget_snapshot_html', 'gr_tracked', 'ordered_by', 'ordered_at', 'po_no', 'vendor', 'closed_at', 'close_reason'];
+var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark', 'image_url', 'qty_received', 'line_status', 'close_reason'];
 var PR_AUDIT_HEADERS = ['timestamp', 'pr_id', 'action', 'actor', 'line', 'old_qty', 'new_qty', 'detail'];
-var PR_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'];
+// APPROVED → ORDERED (สั่งซื้อแล้ว) → PARTIAL (รับบางส่วน) → RECEIVED (รับครบ) / CLOSED (ปิดยอดค้าง)
+var PR_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'ORDERED', 'PARTIAL', 'RECEIVED', 'CLOSED', 'CANCELLED'];
+var GR_LOG_HEADERS = ['gr_id', 'received_at', 'pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'line', 'sheet_name', 'qty', 'unit', 'unit_price', 'amount', 'over_qty', 'received_by', 'no_pr_reason', 'log_ref', 'status', 'remark'];
 var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
 var DRIVE_ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
 var DRAWING_STATUS_OPTIONS = ['Available', 'Missing', 'Not Required', 'Access Required'];
@@ -3062,7 +3067,14 @@ function prHeaderRowToCard(hIdx, row) {
     approved_at: prStr(row[hIdx.approved_at]),
     reject_reason: prStr(row[hIdx.reject_reason]),
     updated_at: prStr(row[hIdx.updated_at]),
-    assigned_to: hIdx.assigned_to !== undefined ? prStr(row[hIdx.assigned_to]) : ''
+    assigned_to: hIdx.assigned_to !== undefined ? prStr(row[hIdx.assigned_to]) : '',
+    gr_tracked: prIsTracked(hIdx, row),
+    ordered_by: hIdx.ordered_by !== undefined ? prStr(row[hIdx.ordered_by]) : '',
+    ordered_at: hIdx.ordered_at !== undefined ? normalizeLogTimestamp(row[hIdx.ordered_at]) : '',
+    po_no: hIdx.po_no !== undefined ? prStr(row[hIdx.po_no]) : '',
+    vendor: hIdx.vendor !== undefined ? prStr(row[hIdx.vendor]) : '',
+    closed_at: hIdx.closed_at !== undefined ? normalizeLogTimestamp(row[hIdx.closed_at]) : '',
+    close_reason: hIdx.close_reason !== undefined ? prStr(row[hIdx.close_reason]) : ''
   };
 }
 
@@ -3110,14 +3122,17 @@ function createPRUnlocked(payload) {
   if (!lines.length) throw new Error('ต้องมีรายการอย่างน้อย 1 บรรทัดใน PR');
 
   var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
-  var prId = String(payload.pr_id || '').trim() ||
-    ('PR-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + Math.floor(Math.random() * 900 + 100));
   var headerLine = String(payload.line || user.line || '').trim();
   var dept = String(payload.dept || '').trim();
 
   var headerSheet = getPrHeaderSheet();
   var hData = headerSheet.getDataRange().getValues();
   var hIdx = prIndexMap(hData[0]);
+  // ระบบ PR → GR เปิดแล้ว: เลข PR ออกจาก server แบบรันต่อเนื่องเสมอ (ไม่ใช้เลขที่หน้าเว็บสุ่มมา)
+  // และติดธง gr_tracked ให้ใบนี้ถูกติดตามการรับของ
+  var tracked = isPrGrSystemEnabled();
+  var prId = tracked ? generatePrRunningId(hData, hIdx, new Date()) : (String(payload.pr_id || '').trim() ||
+    ('PR-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + Math.floor(Math.random() * 900 + 100)));
   if (findPrHeaderRow(hData, hIdx, prId) !== -1) throw new Error('pr_id ซ้ำในระบบ: ' + prId);
 
   var linesSheet = getPrLinesSheet();
@@ -3145,6 +3160,7 @@ function createPRUnlocked(payload) {
     // สแนปช็อตรูปไว้ตอนสร้าง PR — ผู้อนุมัติจะได้เห็นรูปประกอบตอนตรวจ/แก้ยอด โดยไม่ต้องพึ่ง
     // cache ฝั่ง client ของไลน์นั้น (ซึ่งอาจไม่มีถ้าไม่เคยเปิดไลน์นี้มาก่อน) หรือ master ที่อาจถูกแก้ทีหลัง
     if (lIdx.image_url !== undefined) rowArr[lIdx.image_url] = prStr(ln.image_url || ln.image || '');
+    if (tracked) rowArr[lIdx.qty_received] = 0;
     return rowArr;
   });
   linesSheet.getRange(linesSheet.getLastRow() + 1, 1, lineRows.length, lHeaderRow.length).setValues(lineRows);
@@ -3171,6 +3187,7 @@ function createPRUnlocked(payload) {
   headerRowArr[hIdx.total_amount] = totalAmount;
   headerRowArr[hIdx.updated_at] = now;
   if (hIdx.assigned_to !== undefined) headerRowArr[hIdx.assigned_to] = assignedTo;
+  if (tracked) headerRowArr[hIdx.gr_tracked] = 'Y';
   // สแนปช็อตกราฟงบ Spare part ตอนกดส่งอนุมัติ (HTML ที่หน้า builder เห็นอยู่ตรงๆ) — แนบให้
   // หัวหน้าเห็นภาพรวมงบตอนตรวจ ไม่ต้องเปิดหน้า PR builder เองแยกต่างหาก จำกัดความยาวกันเซลล์บวม
   if (hIdx.budget_snapshot_html !== undefined) {
@@ -3284,6 +3301,7 @@ function approvePRUnlocked(payload) {
   });
 
   var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var tracked = prIsTracked(hIdx, hData[hRow]);
   var linesSheet = getPrLinesSheet();
   var lData = linesSheet.getDataRange().getValues();
   var lIdx = prIndexMap(lData[0]);
@@ -3307,8 +3325,13 @@ function approvePRUnlocked(payload) {
     var price = Number(lData[i][lIdx.unit_price] || 0) || 0;
     totalAmount += newApproved * price;
 
-    // บันทึก Purchase History ด้วยยอด qty_approved (ย้ายจากตอนปริ้นมาที่ตอนอนุมัติ)
-    if (newApproved > 0) {
+    // ใบระบบใหม่: เปิดบรรทัดรอรับของ (ยอดอนุมัติ 0 = ไม่ต้องรอ) และไม่เขียน Purchase History อีกแล้ว
+    // — ค่าใช้จ่ายนับจากใบรับของ (GRLog) แทน ส่วน Purchase History เก็บไว้เป็นประวัติเดิม
+    if (tracked) {
+      linesSheet.getRange(i + 1, lIdx.line_status + 1).setValue(newApproved > 0 ? 'OPEN' : 'CANCELLED');
+    }
+    // บันทึก Purchase History ด้วยยอด qty_approved (ย้ายจากตอนปริ้นมาที่ตอนอนุมัติ) — เฉพาะใบระบบเก่า
+    if (newApproved > 0 && !tracked) {
       try {
         upsertPurchaseHistoryRecord({
           request_id: prId + '-L' + lineNo, history_id: 'PH-' + prId + '-L' + lineNo, source: 'PR Report',
@@ -3424,20 +3447,35 @@ function getInbox(payload) {
   // ของเข้ารอตรวจรับ — Purchase History ที่สั่งแล้วแต่ยังรับไม่ครบ (Ordered / Partial Received)
   var qcIncoming = [];
   try {
-    var phValues = getPurchaseHistorySheet().getDataRange().getValues();
-    for (var qi = 1; qi < phValues.length; qi += 1) {
-      var ph = purchaseHistoryRowToObject(phValues[qi]);
-      if (!ph.history_id || ph.deleted || ph.qty_ordered <= 0) continue;
-      if (['Ordered', 'Partial Received'].indexOf(ph.status) === -1) continue;
-      qcIncoming.push({
-        history_id: ph.history_id, request_id: ph.request_id, line: ph.line,
-        part_name: ph.part_name, brand: ph.brand, model: ph.model,
-        qty_ordered: ph.qty_ordered, received_qty: ph.received_qty, unit: ph.unit,
-        status: ph.status, ordered_date: ph.ordered_date, requested_date: ph.date
-      });
+    if (isPrGrSystemEnabled()) {
+      // ระบบ PR → GR เปิดแล้ว: ของรอเข้า = บรรทัด PR ที่ยังค้างรับ (เริ่มนับจากศูนย์ ไม่รวม Purchase History เดิม)
+      // map เป็นรูปเดียวกับของเดิม หน้า Inbox จึงแสดงได้ทันทีโดยไม่ต้องแก้การ์ด
+      qcIncoming = listOpenPrLines({}).map(function(ln) {
+        return {
+          history_id: ln.pr_id + '-L' + ln.line_no, request_id: ln.pr_id, line: ln.pr_line,
+          part_name: ln.part_name, brand: ln.brand, model: ln.model,
+          qty_ordered: ln.qty_approved, received_qty: ln.qty_received, unit: ln.unit,
+          status: ln.qty_received > 0 ? 'Partial Received' : 'Ordered',
+          ordered_date: ln.ordered_at || ln.approved_at, requested_date: ln.created_at,
+          pr_id: ln.pr_id, line_no: ln.line_no, qty_outstanding: ln.qty_outstanding, days_waiting: ln.days_waiting
+        };
+      }).slice(0, 200);
+    } else {
+      var phValues = getPurchaseHistorySheet().getDataRange().getValues();
+      for (var qi = 1; qi < phValues.length; qi += 1) {
+        var ph = purchaseHistoryRowToObject(phValues[qi]);
+        if (!ph.history_id || ph.deleted || ph.qty_ordered <= 0) continue;
+        if (['Ordered', 'Partial Received'].indexOf(ph.status) === -1) continue;
+        qcIncoming.push({
+          history_id: ph.history_id, request_id: ph.request_id, line: ph.line,
+          part_name: ph.part_name, brand: ph.brand, model: ph.model,
+          qty_ordered: ph.qty_ordered, received_qty: ph.received_qty, unit: ph.unit,
+          status: ph.status, ordered_date: ph.ordered_date, requested_date: ph.date
+        });
+      }
+      qcIncoming.sort(function(a, b) { return String(b.ordered_date || b.requested_date || '').localeCompare(String(a.ordered_date || a.requested_date || '')); });
+      qcIncoming = qcIncoming.slice(0, 200);
     }
-    qcIncoming.sort(function(a, b) { return String(b.ordered_date || b.requested_date || '').localeCompare(String(a.ordered_date || a.requested_date || '')); });
-    qcIncoming = qcIncoming.slice(0, 200);
   } catch (qcErr) {
     Logger.log('getInbox qcIncoming warning: ' + (qcErr && qcErr.message ? qcErr.message : qcErr));
   }
@@ -3518,6 +3556,606 @@ function getPendingPrUsage(payload) {
     });
   }
   return { status: 'success', pending: out };
+}
+
+// =============================
+// 📦 ระบบ PR → สั่งซื้อ → รับของ (GR) แบบสากล
+// PR ที่อนุมัติแล้วถูกติดตามทีละบรรทัด (qty_approved / qty_received / ค้างรับ)
+// ตอนรับเข้าต้องเลือก PR + บรรทัดที่รับ — ไม่เดาจับคู่จากชื่อ/รุ่นแบบ Purchase History เดิมแล้ว
+// ทุกครั้งที่รับเข้าบันทึกเป็นแถวใน GRLog (เลข GR) ผูกกับแถว Log สต็อกด้วย log_ref
+//
+// เปิดใช้ด้วยปุ่ม "เริ่มระบบ PR ใหม่" (startPrGrSystem) ซึ่งเก็บวันเวลาเริ่มไว้ใน Script Properties
+// ก่อนกดปุ่ม ระบบทำงานแบบเดิมทุกอย่าง (รับเข้าแล้วไปตัดยอด Purchase History) — deploy ได้ปลอดภัย
+// หลังกดปุ่ม: PR ที่สร้างใหม่ถูกติดตาม (gr_tracked = Y) ส่วน PR / Purchase History เดิมยังอยู่ครบ
+// ดูย้อนหลังได้เหมือนเดิม แต่ไม่ถูกนับเป็น "รอของเข้า" แล้ว (เริ่มนับจากศูนย์)
+// =============================
+var PR_GR_CUTOVER_PROP = 'PR_GR_CUTOVER_AT';
+// สถานะที่ยังรับของเข้าได้ — อนุมัติแล้วรับได้เลย ไม่บังคับต้องกด "สั่งซื้อแล้ว" ก่อน
+var PR_RECEIVABLE_STATUSES = ['APPROVED', 'ORDERED', 'PARTIAL'];
+
+function getGrLogSheet() { return getPrSheetWithHeaders(SPARE_APP_CONFIG.grLogSheetName, GR_LOG_HEADERS); }
+
+function getPrGrCutoverAt() {
+  try {
+    return String(PropertiesService.getScriptProperties().getProperty(PR_GR_CUTOVER_PROP) || '').trim();
+  } catch (err) {
+    return '';
+  }
+}
+function isPrGrSystemEnabled() { return !!getPrGrCutoverAt(); }
+
+function prNowText() { return Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'); }
+
+function getPrGrSystemStatus(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var cutoverAt = getPrGrCutoverAt();
+  return { status: 'success', enabled: !!cutoverAt, cutover_at: cutoverAt };
+}
+
+// เริ่มระบบ PR ใหม่ — Admin กดครั้งเดียว ไม่ลบ/ไม่ย้ายข้อมูลเก่า แค่จดวันเริ่มไว้
+function startPrGrSystem(payload) {
+  var user = requireAdminUser({ authToken: payload.authToken });
+  var existing = getPrGrCutoverAt();
+  if (existing) return { status: 'success', enabled: true, cutover_at: existing, already_started: true };
+  var now = prNowText();
+  PropertiesService.getScriptProperties().setProperty(PR_GR_CUTOVER_PROP, now);
+  getGrLogSheet();
+  appendPrAudit('', 'SYSTEM_START', user.username, '', '', '', 'เริ่มระบบ PR → GR ใหม่ ' + now);
+  return { status: 'success', enabled: true, cutover_at: now, already_started: false };
+}
+
+// เลข PR แบบรันต่อเนื่อง: PR-yyMM-001 (นับใหม่ทุกเดือน) — อ่านเลขสูงสุดของเดือนนั้นจากชีทแล้ว +1
+function generatePrRunningId(hData, hIdx, date) {
+  var prefix = 'PR-' + Utilities.formatDate(date || new Date(), 'Asia/Bangkok', 'yyMM') + '-';
+  var maxSeq = 0;
+  for (var i = 1; i < hData.length; i += 1) {
+    var id = String(hData[i][hIdx.pr_id] || '');
+    if (id.indexOf(prefix) !== 0) continue;
+    var seq = Number(id.substring(prefix.length));
+    if (isFinite(seq) && seq > maxSeq) maxSeq = seq;
+  }
+  return prefix + ('00' + (maxSeq + 1)).slice(-3);
+}
+
+function prLineIsClosed(lineStatus) {
+  var s = String(lineStatus || '').toUpperCase();
+  return s === 'CLOSED' || s === 'CANCELLED';
+}
+
+// ยอดค้างรับของบรรทัด — บรรทัดที่ปิดยอดแล้ว/ยกเลิกถือว่าไม่ค้าง, รับเกินไม่ติดลบ
+function prLineOutstanding(qtyApproved, qtyReceived, lineStatus) {
+  if (prLineIsClosed(lineStatus)) return 0;
+  return Math.max(Number(qtyApproved || 0) - Number(qtyReceived || 0), 0);
+}
+
+function prLineStatusFromQty(qtyApproved, qtyReceived, lineStatus) {
+  if (prLineIsClosed(lineStatus)) return String(lineStatus).toUpperCase();
+  var approved = Number(qtyApproved || 0), received = Number(qtyReceived || 0);
+  if (received <= 0) return approved > 0 ? 'OPEN' : 'RECEIVED';
+  return received >= approved ? 'RECEIVED' : 'PARTIAL';
+}
+
+// สถานะใบ PR คำนวณจากทุกบรรทัด: lines = [{ qty_approved, qty_received, line_status }]
+// สถานะก่อนอนุมัติ / ยกเลิก ไม่ถูกเปลี่ยนจากยอดรับ
+// wasOrdered = ใบนี้เคยกด "สั่งซื้อแล้ว" — ใช้ตอนยอดรับถูกคืนจนเป็นศูนย์ ให้ถอยกลับสถานะที่ถูก
+function computePrHeaderStatus(curStatus, lines, wasOrdered) {
+  var cur = String(curStatus || '').toUpperCase();
+  if (['APPROVED', 'ORDERED', 'PARTIAL', 'RECEIVED', 'CLOSED'].indexOf(cur) === -1) return cur;
+  var anyActivity = false, allDone = true, anyShortClosed = false;
+  (lines || []).forEach(function(ln) {
+    var approved = Number(ln.qty_approved || 0), received = Number(ln.qty_received || 0);
+    var closed = prLineIsClosed(ln.line_status);
+    if (received > 0 || closed) anyActivity = true;
+    if (closed && received < approved) anyShortClosed = true;
+    if (!closed && received < approved) allDone = false;
+  });
+  if (!lines || !lines.length) return cur;
+  if (allDone && anyActivity) return anyShortClosed ? 'CLOSED' : 'RECEIVED';
+  if (anyActivity) return 'PARTIAL';
+  if (cur === 'PARTIAL' || cur === 'RECEIVED' || cur === 'CLOSED') return wasOrdered ? 'ORDERED' : 'APPROVED';
+  return cur;
+}
+
+function prIsTracked(hIdx, row) {
+  return hIdx.gr_tracked !== undefined && String(row[hIdx.gr_tracked] || '').toUpperCase() === 'Y';
+}
+
+function prLineRowToObject(lIdx, r) {
+  var approved = Number(r[lIdx.qty_approved] || 0);
+  var received = lIdx.qty_received !== undefined ? Number(r[lIdx.qty_received] || 0) : 0;
+  var lineStatus = lIdx.line_status !== undefined ? prStr(r[lIdx.line_status]) : '';
+  return {
+    pr_id: prStr(r[lIdx.pr_id]),
+    line_no: Number(r[lIdx.line_no] || 0),
+    part_no: prStr(r[lIdx.part_no]),
+    part_name: prStr(r[lIdx.part_name]),
+    model: prStr(r[lIdx.model]),
+    brand: prStr(r[lIdx.brand]),
+    category: prStr(r[lIdx.category]),
+    unit: prStr(r[lIdx.unit]),
+    qty_requested: Number(r[lIdx.qty_requested] || 0),
+    qty_approved: approved,
+    qty_received: received,
+    qty_outstanding: prLineOutstanding(approved, received, lineStatus),
+    line_status: lineStatus || prLineStatusFromQty(approved, received, ''),
+    close_reason: lIdx.close_reason !== undefined ? prStr(r[lIdx.close_reason]) : '',
+    unit_price: Number(r[lIdx.unit_price] || 0),
+    remark: prStr(r[lIdx.remark]),
+    image_url: lIdx.image_url !== undefined ? prStr(r[lIdx.image_url]) : ''
+  };
+}
+
+// อัปเดตสถานะใบจากบรรทัดทั้งหมดในชีท (หลังรับของ/ปิดยอด) — คืนสถานะใหม่
+function refreshPrHeaderStatus(headerSheet, hData, hIdx, hRow, lData, lIdx, actor) {
+  var prId = prStr(hData[hRow][hIdx.pr_id]);
+  var lines = [];
+  for (var i = 1; i < lData.length; i += 1) {
+    if (String(lData[i][lIdx.pr_id]) === prId) lines.push(prLineRowToObject(lIdx, lData[i]));
+  }
+  var cur = prStr(hData[hRow][hIdx.status]);
+  var wasOrdered = hIdx.ordered_at !== undefined && !!prStr(hData[hRow][hIdx.ordered_at]);
+  var next = computePrHeaderStatus(cur, lines, wasOrdered);
+  var now = prNowText();
+  if (next !== cur) {
+    headerSheet.getRange(hRow + 1, hIdx.status + 1).setValue(next);
+    hData[hRow][hIdx.status] = next;
+    if ((next === 'RECEIVED' || next === 'CLOSED') && hIdx.closed_at !== undefined) {
+      headerSheet.getRange(hRow + 1, hIdx.closed_at + 1).setValue(now);
+    }
+    appendPrAudit(prId, 'STATUS_' + next, actor || '', prStr(hData[hRow][hIdx.line]), '', '', cur + ' → ' + next);
+  }
+  headerSheet.getRange(hRow + 1, hIdx.updated_at + 1).setValue(now);
+  return next;
+}
+
+function findPrLineRow(lData, lIdx, prId, lineNo) {
+  for (var i = 1; i < lData.length; i += 1) {
+    if (String(lData[i][lIdx.pr_id]) === String(prId) && Number(lData[i][lIdx.line_no]) === Number(lineNo)) return i;
+  }
+  return -1;
+}
+
+// อะไหล่ที่รับเข้าต้องเป็นตัวเดียวกับบรรทัดใน PR — เทียบรุ่น (ถ้ามีทั้งสองฝั่ง) ไม่งั้นเทียบชื่อ
+function prLineMatchesReceivedPart(lineObj, payload) {
+  var lineModelOk = isMeaningfulPurchaseHistoryModel(lineObj.model);
+  var payModelOk = isMeaningfulPurchaseHistoryModel(payload.model);
+  if (lineModelOk && payModelOk) {
+    return normalizePurchaseHistoryModel(lineObj.model) === normalizePurchaseHistoryModel(payload.model);
+  }
+  return normalizePurchaseHistoryName(lineObj.part_name) === normalizePurchaseHistoryName(payload.partName);
+}
+
+// ตรวจก่อนแตะสต็อก (เรียกจาก processTransactionUnlocked) — ถ้าผิดต้องล้มทั้งรายการตั้งแต่ยังไม่เขียนอะไร
+// คืน { mode: 'LEGACY' } = ยังไม่เปิดระบบใหม่, 'PR' = รับตาม PR, 'NO_PR' = Admin รับโดยไม่มี PR
+function resolvePrReceiptForTransaction(payload) {
+  if (!isPrGrSystemEnabled()) return { mode: 'LEGACY' };
+  var prId = String(payload.prId || payload.pr_id || '').trim();
+  if (!prId) {
+    var reason = String(payload.noPrReason || '').trim();
+    if (!reason) throw new Error('กรุณาเลือก PR ที่จะรับของเข้า (รับเข้าโดยไม่มี PR ได้เฉพาะ Admin พร้อมระบุเหตุผล)');
+    var actor = payload.authToken ? findUserByUsername(getSessionUser({ authToken: payload.authToken }).user.username) : null;
+    if (!actor || normalizeRole(actor.role) !== 'admin') throw new Error('รับเข้าโดยไม่มี PR ได้เฉพาะ Admin เท่านั้น');
+    return { mode: 'NO_PR', reason: reason };
+  }
+  var lineNo = Number(payload.prLineNo || payload.pr_line_no);
+  if (!lineNo) throw new Error('กรุณาเลือกรายการใน PR ที่จะรับ');
+
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, prId);
+  if (hRow === -1) throw new Error('ไม่พบ PR: ' + prId);
+  if (!prIsTracked(hIdx, hData[hRow])) throw new Error('PR ' + prId + ' เป็นใบระบบเก่า ไม่ได้ติดตามการรับของ');
+  var status = prStr(hData[hRow][hIdx.status]);
+  if (PR_RECEIVABLE_STATUSES.indexOf(status) === -1) {
+    throw new Error('PR ' + prId + ' ยังรับของไม่ได้ (สถานะ: ' + status + ')');
+  }
+
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var lRow = findPrLineRow(lData, lIdx, prId, lineNo);
+  if (lRow === -1) throw new Error('ไม่พบรายการที่ ' + lineNo + ' ใน PR ' + prId);
+  var lineObj = prLineRowToObject(lIdx, lData[lRow]);
+  if (prLineIsClosed(lineObj.line_status)) throw new Error('รายการที่ ' + lineNo + ' ใน PR ' + prId + ' ถูกปิดยอดไปแล้ว');
+  if (lineObj.qty_outstanding <= 0) throw new Error('รายการที่ ' + lineNo + ' ใน PR ' + prId + ' รับครบแล้ว');
+  if (!prLineMatchesReceivedPart(lineObj, payload)) {
+    throw new Error('อะไหล่ที่รับเข้าไม่ตรงกับรายการใน PR (' + lineObj.part_name + (lineObj.model ? ' / ' + lineObj.model : '') + ')');
+  }
+  return { mode: 'PR', pr_id: prId, line_no: lineNo, line: lineObj, pr_line: prStr(hData[hRow][hIdx.line]) };
+}
+
+function buildGrId(grData, grIdx, timestamp) {
+  var prefix = 'GR-' + String(timestamp || prNowText()).replace(/[^0-9]/g, '').substring(2, 6) + '-';
+  var maxSeq = 0;
+  for (var i = 1; i < grData.length; i += 1) {
+    var id = String(grData[i][grIdx.gr_id] || '');
+    if (id.indexOf(prefix) !== 0) continue;
+    var seq = Number(id.substring(prefix.length));
+    if (isFinite(seq) && seq > maxSeq) maxSeq = seq;
+  }
+  return prefix + ('000' + (maxSeq + 1)).slice(-4);
+}
+
+function grLogRef(timestamp, partName) { return String(timestamp || '') + '|' + String(partName || '').trim(); }
+
+// บันทึกใบรับของ (หลังเขียนสต็อก+Log แล้ว) — อัปเดตยอดรับในบรรทัด PR + สถานะใบ + audit
+function postPrGoodsReceipt(receipt, payload, qty, txnTimestamp, sheetName) {
+  var grSheet = getGrLogSheet();
+  var grData = grSheet.getDataRange().getValues();
+  var grIdx = prIndexMap(grData[0]);
+  var grId = buildGrId(grData, grIdx, txnTimestamp);
+  var receivedBy = String(payload.by || '');
+  var row = new Array(grData[0].length).fill('');
+  row[grIdx.gr_id] = grId;
+  row[grIdx.received_at] = txnTimestamp;
+  row[grIdx.part_no] = prStr(payload.partNo);
+  row[grIdx.part_name] = prStr(payload.partName);
+  row[grIdx.model] = prStr(payload.model);
+  row[grIdx.brand] = prStr(payload.brand);
+  row[grIdx.line] = prStr(payload.process);
+  row[grIdx.sheet_name] = prStr(sheetName);
+  row[grIdx.qty] = qty;
+  row[grIdx.unit] = prStr(payload.unit || 'PCS');
+  row[grIdx.received_by] = receivedBy;
+  row[grIdx.log_ref] = grLogRef(txnTimestamp, payload.partName);
+  row[grIdx.status] = 'POSTED';
+  row[grIdx.remark] = prStr(payload.reasonRemark);
+
+  if (receipt.mode === 'NO_PR') {
+    // รับโดยไม่มี PR (ของแถม/ของยืม/ของคืนจากซัพ) — เก็บไว้ตรวจสอบ แต่ไม่คิดเป็นค่าใช้จ่าย
+    row[grIdx.unit_price] = 0;
+    row[grIdx.amount] = 0;
+    row[grIdx.no_pr_reason] = receipt.reason;
+    grSheet.appendRow(row);
+    return { gr_id: grId, mode: 'NO_PR' };
+  }
+
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, receipt.pr_id);
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var lRow = findPrLineRow(lData, lIdx, receipt.pr_id, receipt.line_no);
+  if (hRow === -1 || lRow === -1) throw new Error('ไม่พบ PR ' + receipt.pr_id + ' ตอนบันทึกรับของ');
+
+  var before = prLineRowToObject(lIdx, lData[lRow]);
+  var receivedTotal = before.qty_received + qty;
+  // รับเกินที่สั่งได้ — เก็บส่วนเกินไว้ใน over_qty ให้เห็นตอนตรวจย้อนหลัง
+  var overQty = Math.max(receivedTotal - before.qty_approved, 0) - Math.max(before.qty_received - before.qty_approved, 0);
+  var lineStatus = prLineStatusFromQty(before.qty_approved, receivedTotal, '');
+  linesSheet.getRange(lRow + 1, lIdx.qty_received + 1).setValue(receivedTotal);
+  linesSheet.getRange(lRow + 1, lIdx.line_status + 1).setValue(lineStatus);
+  lData[lRow][lIdx.qty_received] = receivedTotal;
+  lData[lRow][lIdx.line_status] = lineStatus;
+
+  row[grIdx.pr_id] = receipt.pr_id;
+  row[grIdx.line_no] = receipt.line_no;
+  row[grIdx.unit_price] = before.unit_price;
+  row[grIdx.amount] = qty * before.unit_price;
+  row[grIdx.over_qty] = overQty > 0 ? overQty : 0;
+  grSheet.appendRow(row);
+
+  var prLine = prStr(hData[hRow][hIdx.line]);
+  appendPrAudit(receipt.pr_id, 'RECEIVE', receivedBy, prLine, before.qty_received, receivedTotal,
+    grId + ' · line ' + receipt.line_no + ' · รับ ' + qty + (overQty > 0 ? ' (เกิน ' + overQty + ')' : ''));
+  var prStatus = refreshPrHeaderStatus(headerSheet, hData, hIdx, hRow, lData, lIdx, receivedBy);
+  return {
+    gr_id: grId, mode: 'PR', pr_id: receipt.pr_id, line_no: receipt.line_no,
+    qty_received: receivedTotal, qty_approved: before.qty_approved,
+    qty_outstanding: prLineOutstanding(before.qty_approved, receivedTotal, ''),
+    over_qty: overQty > 0 ? overQty : 0, line_status: lineStatus, pr_status: prStatus
+  };
+}
+
+// คืนรายการ Log ที่เป็นการรับเข้า → ยกเลิก GR ที่ผูกอยู่ แล้วหักยอดรับในบรรทัด PR กลับ
+function reversePrGoodsReceiptForLog(originalTs, partName, actor) {
+  if (!isPrGrSystemEnabled()) return null;
+  var grSheet = getGrLogSheet();
+  var grData = grSheet.getDataRange().getValues();
+  var grIdx = prIndexMap(grData[0]);
+  var ref = grLogRef(originalTs, partName);
+  for (var i = 1; i < grData.length; i += 1) {
+    if (String(grData[i][grIdx.log_ref]) !== ref || String(grData[i][grIdx.status]) !== 'POSTED') continue;
+    grSheet.getRange(i + 1, grIdx.status + 1).setValue('REVERSED');
+    var grId = prStr(grData[i][grIdx.gr_id]);
+    var prId = prStr(grData[i][grIdx.pr_id]);
+    if (!prId) return { gr_id: grId, pr_id: '' };
+    var qty = Number(grData[i][grIdx.qty] || 0);
+    var headerSheet = getPrHeaderSheet();
+    var hData = headerSheet.getDataRange().getValues();
+    var hIdx = prIndexMap(hData[0]);
+    var hRow = findPrHeaderRow(hData, hIdx, prId);
+    var linesSheet = getPrLinesSheet();
+    var lData = linesSheet.getDataRange().getValues();
+    var lIdx = prIndexMap(lData[0]);
+    var lRow = findPrLineRow(lData, lIdx, prId, grData[i][grIdx.line_no]);
+    if (hRow === -1 || lRow === -1) return { gr_id: grId, pr_id: prId };
+    var before = prLineRowToObject(lIdx, lData[lRow]);
+    var receivedTotal = Math.max(before.qty_received - qty, 0);
+    var keepClosed = prLineIsClosed(before.line_status) ? before.line_status : '';
+    var lineStatus = prLineStatusFromQty(before.qty_approved, receivedTotal, keepClosed);
+    linesSheet.getRange(lRow + 1, lIdx.qty_received + 1).setValue(receivedTotal);
+    linesSheet.getRange(lRow + 1, lIdx.line_status + 1).setValue(lineStatus);
+    lData[lRow][lIdx.qty_received] = receivedTotal;
+    lData[lRow][lIdx.line_status] = lineStatus;
+    appendPrAudit(prId, 'RECEIVE_REVERSED', actor || '', prStr(hData[hRow][hIdx.line]), before.qty_received, receivedTotal, grId + ' ถูกคืนรายการ');
+    refreshPrHeaderStatus(headerSheet, hData, hIdx, hRow, lData, lIdx, actor);
+    return { gr_id: grId, pr_id: prId, qty_received: receivedTotal };
+  }
+  return null;
+}
+
+// ฝ่ายจัดซื้อ/Admin กด "สั่งซื้อแล้ว" — ใส่เลข PO / ผู้ขาย (ไม่บังคับ) เพื่อเริ่มนับวันรอของ
+function markPROrdered(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return markPROrderedUnlocked(payload); } finally { lock.releaseLock(); }
+}
+function markPROrderedUnlocked(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'pr_view_all');
+  var prId = String(payload.pr_id || '').trim();
+  if (!prId) throw new Error('ต้องระบุ pr_id');
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, prId);
+  if (hRow === -1) throw new Error('ไม่พบ PR: ' + prId);
+  if (!prIsTracked(hIdx, hData[hRow])) throw new Error('PR ' + prId + ' เป็นใบระบบเก่า');
+  var cur = prStr(hData[hRow][hIdx.status]);
+  if (cur !== 'APPROVED') throw new Error('กดสั่งซื้อได้เฉพาะ PR ที่อนุมัติแล้ว (สถานะปัจจุบัน: ' + cur + ')');
+  var now = prNowText();
+  var poNo = String(payload.po_no || '').trim();
+  var vendor = String(payload.vendor || '').trim();
+  headerSheet.getRange(hRow + 1, hIdx.status + 1).setValue('ORDERED');
+  headerSheet.getRange(hRow + 1, hIdx.ordered_by + 1).setValue(user.username);
+  headerSheet.getRange(hRow + 1, hIdx.ordered_at + 1).setValue(now);
+  headerSheet.getRange(hRow + 1, hIdx.po_no + 1).setValue(poNo);
+  headerSheet.getRange(hRow + 1, hIdx.vendor + 1).setValue(vendor);
+  headerSheet.getRange(hRow + 1, hIdx.updated_at + 1).setValue(now);
+  appendPrAudit(prId, 'ORDER', user.username, prStr(hData[hRow][hIdx.line]), '', '', (poNo ? 'PO ' + poNo : 'ไม่ระบุ PO') + (vendor ? ' · ' + vendor : ''));
+  return { status: 'success', pr_id: prId, pr_status: 'ORDERED', ordered_at: now };
+}
+
+// ยกเลิกทั้งใบ — ได้เฉพาะใบที่ยังไม่มีของเข้าเลย (มีของเข้าแล้วให้ "ปิดยอดค้าง" ทีละรายการแทน)
+function cancelPR(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return cancelPRUnlocked(payload); } finally { lock.releaseLock(); }
+}
+function cancelPRUnlocked(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'pr_create');
+  var prId = String(payload.pr_id || '').trim();
+  if (!prId) throw new Error('ต้องระบุ pr_id');
+  var reason = String(payload.reason || '').trim();
+  if (!reason) throw new Error('กรุณาระบุเหตุผลที่ยกเลิก');
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, prId);
+  if (hRow === -1) throw new Error('ไม่พบ PR: ' + prId);
+  var isOwner = prStr(hData[hRow][hIdx.created_by]) === user.username;
+  if (!isOwner && !(user.permissions && user.permissions.pr_view_all)) throw new Error('ยกเลิกได้เฉพาะคนสร้าง PR หรือ Admin');
+  var cur = prStr(hData[hRow][hIdx.status]);
+  if (['PENDING', 'APPROVED', 'ORDERED', 'REJECTED', 'DRAFT'].indexOf(cur) === -1) {
+    throw new Error('PR สถานะ ' + cur + ' ยกเลิกทั้งใบไม่ได้ — ถ้ามีของเข้าบางส่วนแล้ว ให้ปิดยอดค้างทีละรายการ');
+  }
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  for (var i = 1; i < lData.length; i += 1) {
+    if (String(lData[i][lIdx.pr_id]) !== prId) continue;
+    if (lIdx.qty_received !== undefined && Number(lData[i][lIdx.qty_received] || 0) > 0) {
+      throw new Error('PR นี้มีของเข้าแล้ว ยกเลิกทั้งใบไม่ได้ — ให้ปิดยอดค้างทีละรายการ');
+    }
+  }
+  for (var j = 1; j < lData.length; j += 1) {
+    if (String(lData[j][lIdx.pr_id]) === prId && lIdx.line_status !== undefined) {
+      linesSheet.getRange(j + 1, lIdx.line_status + 1).setValue('CANCELLED');
+    }
+  }
+  var now = prNowText();
+  headerSheet.getRange(hRow + 1, hIdx.status + 1).setValue('CANCELLED');
+  headerSheet.getRange(hRow + 1, hIdx.close_reason + 1).setValue(reason);
+  headerSheet.getRange(hRow + 1, hIdx.closed_at + 1).setValue(now);
+  headerSheet.getRange(hRow + 1, hIdx.updated_at + 1).setValue(now);
+  appendPrAudit(prId, 'CANCEL', user.username, prStr(hData[hRow][hIdx.line]), '', '', reason);
+  return { status: 'success', pr_id: prId, pr_status: 'CANCELLED' };
+}
+
+// ปิดยอดค้างรับของบรรทัดเดียว (ของไม่มาแล้ว/ซัพยกเลิก) — ยอดที่รับแล้วยังนับตามจริง
+function closePrLine(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return closePrLineUnlocked(payload); } finally { lock.releaseLock(); }
+}
+function closePrLineUnlocked(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'pr_view_all');
+  var prId = String(payload.pr_id || '').trim();
+  var lineNo = Number(payload.line_no);
+  if (!prId || !lineNo) throw new Error('ต้องระบุ pr_id และ line_no');
+  var reason = String(payload.reason || '').trim();
+  if (!reason) throw new Error('กรุณาระบุเหตุผลที่ปิดยอดค้าง');
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, prId);
+  if (hRow === -1) throw new Error('ไม่พบ PR: ' + prId);
+  if (!prIsTracked(hIdx, hData[hRow])) throw new Error('PR ' + prId + ' เป็นใบระบบเก่า');
+  var cur = prStr(hData[hRow][hIdx.status]);
+  if (PR_RECEIVABLE_STATUSES.indexOf(cur) === -1) throw new Error('PR สถานะ ' + cur + ' ปิดยอดค้างไม่ได้');
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var lRow = findPrLineRow(lData, lIdx, prId, lineNo);
+  if (lRow === -1) throw new Error('ไม่พบรายการที่ ' + lineNo + ' ใน PR ' + prId);
+  var before = prLineRowToObject(lIdx, lData[lRow]);
+  if (before.qty_outstanding <= 0) throw new Error('รายการนี้ไม่มียอดค้างรับแล้ว');
+  linesSheet.getRange(lRow + 1, lIdx.line_status + 1).setValue('CLOSED');
+  linesSheet.getRange(lRow + 1, lIdx.close_reason + 1).setValue(reason);
+  lData[lRow][lIdx.line_status] = 'CLOSED';
+  appendPrAudit(prId, 'CLOSE_LINE', user.username, prStr(hData[hRow][hIdx.line]), before.qty_outstanding, 0, 'line ' + lineNo + ' · ' + reason);
+  var prStatus = refreshPrHeaderStatus(headerSheet, hData, hIdx, hRow, lData, lIdx, user.username);
+  return { status: 'success', pr_id: prId, line_no: lineNo, pr_status: prStatus };
+}
+
+// รายการ PR ทั้งหมด (ทั้งใบใหม่ที่ติดตาม และใบเก่า) กรองตามสถานะ/ไลน์/เดือนที่สร้าง ตามสิทธิ์ผู้ใช้
+function listPRs(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'view');
+  var wantStatus = String(payload.pr_status || '').trim();
+  var wantLine = String(payload.line || '').trim();
+  var wantMonth = String(payload.month || '').trim();
+  var sheet = getPrHeaderSheet();
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { status: 'success', cutover_at: getPrGrCutoverAt(), prs: [] };
+  var hIdx = prIndexMap(data[0]);
+  var out = [];
+  for (var i = 1; i < data.length; i += 1) {
+    var row = data[i];
+    if (!prStr(row[hIdx.pr_id])) continue;
+    var card = prHeaderRowToCard(hIdx, row);
+    if (wantStatus && card.status !== wantStatus) continue;
+    if (wantLine && card.line !== wantLine) continue;
+    // ค่าวันที่ในชีทอาจถูก Google Sheets แปลงเป็น Date — normalize ก่อนเทียบ/เรียง
+    card.created_at = normalizeLogTimestamp(row[hIdx.created_at]);
+    if (wantMonth && card.created_at.slice(0, 7) !== wantMonth) continue;
+    if (!prUserCanAccessLine(user, card.line) && card.created_by !== user.username) continue;
+    out.push(card);
+  }
+  out.sort(function(a, b) { return String(b.created_at || '').localeCompare(String(a.created_at || '')); });
+  return { status: 'success', cutover_at: getPrGrCutoverAt(), prs: out };
+}
+
+// รายละเอียดใบเดียว + ไทม์ไลน์ (audit) + ใบรับของ (GR) ทั้งหมดของใบนี้
+function getPRDetail(payload) {
+  var base = getPRForApproval(payload);
+  var prId = base.header.pr_id;
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var lines = [];
+  for (var i = 1; i < lData.length; i += 1) {
+    if (String(lData[i][lIdx.pr_id]) === prId) lines.push(prLineRowToObject(lIdx, lData[i]));
+  }
+  lines.sort(function(a, b) { return a.line_no - b.line_no; });
+
+  var timeline = [];
+  var aData = getPrAuditSheet().getDataRange().getValues();
+  var aIdx = prIndexMap(aData[0]);
+  for (var a = 1; a < aData.length; a += 1) {
+    if (String(aData[a][aIdx.pr_id]) !== prId) continue;
+    timeline.push({
+      timestamp: normalizeLogTimestamp(aData[a][aIdx.timestamp]), action: prStr(aData[a][aIdx.action]),
+      actor: prStr(aData[a][aIdx.actor]), old_qty: aData[a][aIdx.old_qty], new_qty: aData[a][aIdx.new_qty],
+      detail: prStr(aData[a][aIdx.detail])
+    });
+  }
+  timeline.sort(function(x, y) { return String(x.timestamp).localeCompare(String(y.timestamp)); });
+
+  var receipts = listGrRows({ pr_id: prId });
+  return { status: 'success', header: base.header, lines: lines, timeline: timeline, receipts: receipts };
+}
+
+function grRowToObject(grIdx, r) {
+  return {
+    gr_id: prStr(r[grIdx.gr_id]), received_at: normalizeLogTimestamp(r[grIdx.received_at]),
+    pr_id: prStr(r[grIdx.pr_id]), line_no: Number(r[grIdx.line_no] || 0),
+    part_no: prStr(r[grIdx.part_no]), part_name: prStr(r[grIdx.part_name]), model: prStr(r[grIdx.model]),
+    brand: prStr(r[grIdx.brand]), line: prStr(r[grIdx.line]), sheet_name: prStr(r[grIdx.sheet_name]),
+    qty: Number(r[grIdx.qty] || 0), unit: prStr(r[grIdx.unit]), unit_price: Number(r[grIdx.unit_price] || 0),
+    amount: Number(r[grIdx.amount] || 0), over_qty: Number(r[grIdx.over_qty] || 0),
+    received_by: prStr(r[grIdx.received_by]), no_pr_reason: prStr(r[grIdx.no_pr_reason]),
+    status: prStr(r[grIdx.status]), remark: prStr(r[grIdx.remark])
+  };
+}
+
+// filter = { pr_id, from: 'yyyy-MM-dd', to: 'yyyy-MM-dd', include_reversed }
+function listGrRows(filter) {
+  filter = filter || {};
+  var data = getGrLogSheet().getDataRange().getValues();
+  if (data.length <= 1) return [];
+  var grIdx = prIndexMap(data[0]);
+  var out = [];
+  for (var i = 1; i < data.length; i += 1) {
+    if (!prStr(data[i][grIdx.gr_id])) continue;
+    var gr = grRowToObject(grIdx, data[i]);
+    if (filter.pr_id && gr.pr_id !== filter.pr_id) continue;
+    if (!filter.include_reversed && gr.status === 'REVERSED') continue;
+    var day = gr.received_at.slice(0, 10);
+    if (filter.from && day < filter.from) continue;
+    if (filter.to && day > filter.to) continue;
+    out.push(gr);
+  }
+  out.sort(function(a, b) { return String(b.received_at).localeCompare(String(a.received_at)); });
+  return out;
+}
+
+// ประวัติใบรับของ — ใช้ทั้งหน้า "ประวัติรับของ" และกราฟค่าใช้จ่าย (ยอดรับจริงต่อเดือน)
+function getGrLog(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  return {
+    status: 'success',
+    cutover_at: getPrGrCutoverAt(),
+    receipts: listGrRows({ from: payload.from, to: payload.to, pr_id: String(payload.pr_id || '').trim(), include_reversed: toBoolean(payload.include_reversed, false) })
+  };
+}
+
+// บรรทัด PR ที่ยังค้างรับทั้งหมด (เฉพาะใบระบบใหม่) — ใช้ทั้งหน้าติดตาม, Inbox และ dropdown "รับตาม PR"
+// ส่ง part_name/model มาเพื่อกรองเฉพาะอะไหล่ตัวที่กำลังรับเข้าได้
+function listOpenPrLines(filter) {
+  filter = filter || {};
+  if (!isPrGrSystemEnabled()) return [];
+  var hData = getPrHeaderSheet().getDataRange().getValues();
+  if (hData.length <= 1) return [];
+  var hIdx = prIndexMap(hData[0]);
+  var headers = {};
+  for (var i = 1; i < hData.length; i += 1) {
+    if (!prIsTracked(hIdx, hData[i])) continue;
+    var status = prStr(hData[i][hIdx.status]);
+    if (PR_RECEIVABLE_STATUSES.indexOf(status) === -1) continue;
+    headers[prStr(hData[i][hIdx.pr_id])] = {
+      status: status, line: prStr(hData[i][hIdx.line]), created_by: prStr(hData[i][hIdx.created_by]),
+      created_at: normalizeLogTimestamp(hData[i][hIdx.created_at]), approved_at: normalizeLogTimestamp(hData[i][hIdx.approved_at]),
+      ordered_at: normalizeLogTimestamp(hData[i][hIdx.ordered_at]), po_no: prStr(hData[i][hIdx.po_no]), vendor: prStr(hData[i][hIdx.vendor])
+    };
+  }
+  var lData = getPrLinesSheet().getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var nowMs = new Date().getTime();
+  var out = [];
+  for (var j = 1; j < lData.length; j += 1) {
+    var h = headers[prStr(lData[j][lIdx.pr_id])];
+    if (!h) continue;
+    var ln = prLineRowToObject(lIdx, lData[j]);
+    if (ln.qty_outstanding <= 0) continue;
+    if ((filter.part_name || filter.model) && !prLineMatchesReceivedPart(ln, { partName: filter.part_name, model: filter.model })) continue;
+    var since = h.ordered_at || h.approved_at || h.created_at;
+    var sinceMs = since ? new Date(String(since).replace(' ', 'T') + '+07:00').getTime() : NaN;
+    ln.pr_status = h.status;
+    ln.pr_line = h.line;
+    ln.created_by = h.created_by;
+    ln.created_at = h.created_at;
+    ln.approved_at = h.approved_at;
+    ln.ordered_at = h.ordered_at;
+    ln.po_no = h.po_no;
+    ln.vendor = h.vendor;
+    ln.days_waiting = isNaN(sinceMs) ? null : Math.max(Math.floor((nowMs - sinceMs) / 86400000), 0);
+    out.push(ln);
+  }
+  out.sort(function(a, b) { return String(a.approved_at || a.created_at).localeCompare(String(b.approved_at || b.created_at)); });
+  return out;
+}
+
+function getOpenPrLines(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  return {
+    status: 'success',
+    enabled: isPrGrSystemEnabled(),
+    cutover_at: getPrGrCutoverAt(),
+    lines: listOpenPrLines({ part_name: payload.part_name, model: payload.model })
+  };
 }
 
 function normalizeRole(role) {
@@ -3989,6 +4627,10 @@ function parseTransactionPayloadFromGet(e) {
     tagNos: e.parameter.tagNos,
     // วันเวลาที่เบิกจริง (ย้อนหลังได้) — รูปแบบ "yyyy-MM-dd HH:mm:ss" ตามเวลาไทย ถ้าไม่ส่งมาจะใช้เวลาปัจจุบัน
     txnDate: e.parameter.txnDate,
+    // ระบบ PR → GR: รับเข้าตาม PR ใบไหน บรรทัดไหน / เหตุผลที่ Admin รับโดยไม่มี PR
+    prId: e.parameter.prId,
+    prLineNo: e.parameter.prLineNo,
+    noPrReason: e.parameter.noPrReason,
     sheetName: e.parameter.sheet,
     authToken: e.parameter.authToken || e.parameter.token || ''
   };
@@ -4285,6 +4927,8 @@ function returnLogEntryUnlocked(payload) {
   // คืนแล้วต้องลบเลขประจำชิ้นที่ออกจากรายการนี้ทิ้งด้วย ไม่งั้นจะเหลือเลขค้างชี้ไปยัง
   // การเบิกที่ถูกยกเลิกไปแล้ว และเลขนั้นจะถูกกินไปเปล่าๆ — ลบแล้วเบิกใหม่จะได้เลขเดิมคืน
   var removedTags = deletePartTagsForLogEntry(originalTs, originalName);
+  // คืนรายการรับเข้า → ยกเลิกใบรับของที่ผูกอยู่ และหักยอดรับใน PR กลับ ให้ยอดค้างรับถูกต้อง
+  var reversedReceipt = signedQty > 0 ? reversePrGoodsReceiptForLog(originalTs, originalName, user.username) : null;
 
   return {
     status: 'success',
@@ -4294,7 +4938,8 @@ function returnLogEntryUnlocked(payload) {
     sheet: sheetName,
     stockBefore: result.stockBefore,
     stockAfter: result.stockAfter,
-    removed_tags: removedTags
+    removed_tags: removedTags,
+    reversed_receipt: reversedReceipt
   };
 }
 
@@ -4435,6 +5080,8 @@ function processTransactionUnlocked(payload) {
   if (signedQty < 0 && !payload.skipPartTags) {
     validatePartTagNosForIssue(payload, Math.abs(signedQty));
   }
+  // รับเข้าของจริง (ไม่ใช่คืนรายการ/ปรับยอดนับสต็อก) — ตรวจ PR ที่เลือกก่อนแตะสต็อกเช่นกัน
+  var prReceipt = (signedQty > 0 && !payload.skipPurchaseHistory) ? resolvePrReceiptForTransaction(payload) : null;
 
   var sheetRowNumber = headerRowIndex + 2 + targetIndex;
   mainSheet.getRange(sheetRowNumber, stockCol + 1).setValue(stockAfter);
@@ -4475,9 +5122,22 @@ function processTransactionUnlocked(payload) {
   }
 
   var purchaseHistorySync = null;
+  var goodsReceipt = null;
+  // ระบบ PR → GR: บันทึกใบรับของผูกกับ PR ที่เลือก (ไม่ไปเดาตัดยอด Purchase History แล้ว)
+  // ตรวจ PR ผ่านไปแล้วก่อนแตะสต็อก — ถ้ามาพังตอนเขียนใบรับของ ห้าม throw เพราะสต็อก+Log ถูกเขียนไปแล้ว
+  // ผู้ใช้จะกดซ้ำแล้วรับเข้าเบิ้ล ให้ส่งคำเตือนกลับไปแทน (Admin ตามแก้ยอดใน PR ได้)
+  var goodsReceiptError = '';
+  if (prReceipt && prReceipt.mode !== 'LEGACY') {
+    try {
+      goodsReceipt = postPrGoodsReceipt(prReceipt, payload, signedQty, txnTimestamp, resolvedSheetName);
+    } catch (grErr) {
+      goodsReceiptError = grErr && grErr.message ? grErr.message : String(grErr);
+      Logger.log('processTransaction GoodsReceipt warning: ' + goodsReceiptError);
+    }
+  }
   // skipPurchaseHistory: ใช้ตอน "คืนรายการ" (returnLogEntry) — การคืนของที่เบิกไปจะกลายเป็น
   // Input ซึ่งปกติจะไปสร้าง Purchase History ให้ ทั้งที่ไม่ได้ซื้อของเข้ามาจริง
-  if (signedQty > 0 && !payload.skipPurchaseHistory) {
+  if (prReceipt && prReceipt.mode === 'LEGACY') {
     try {
       var transactionUser = payload.authToken ? getSessionUser({ authToken: payload.authToken }).user.username : (payload.by || '');
       purchaseHistorySync = syncPurchaseHistoryOnReceive(payload, transactionUser);
@@ -4507,6 +5167,8 @@ function processTransactionUnlocked(payload) {
     stockAfter: stockAfter,
     qty: signedQty,
     purchaseHistorySync: purchaseHistorySync,
+    goodsReceipt: goodsReceipt,
+    goodsReceiptError: goodsReceiptError,
     part_tags: partTagResult.tags,
     part_tag_required: partTagResult.required,
     part_tag_warning: partTagResult.skipped_reason
@@ -5475,6 +6137,15 @@ function doGet(e) {
     if (action === 'approvePR') return respond(approvePR(e.parameter), e);
     if (action === 'rejectPR') return respond(rejectPR(e.parameter), e);
     if (action === 'getPRStatus') return respond(getPRStatus(e.parameter), e);
+    if (action === 'getPrGrSystemStatus') return respond(getPrGrSystemStatus(e.parameter), e);
+    if (action === 'startPrGrSystem') return respond(startPrGrSystem(e.parameter), e);
+    if (action === 'markPROrdered') return respond(markPROrdered(e.parameter), e);
+    if (action === 'cancelPR') return respond(cancelPR(e.parameter), e);
+    if (action === 'closePrLine') return respond(closePrLine(e.parameter), e);
+    if (action === 'listPRs') return respond(listPRs(e.parameter), e);
+    if (action === 'getPRDetail') return respond(getPRDetail(e.parameter), e);
+    if (action === 'getGrLog') return respond(getGrLog(e.parameter), e);
+    if (action === 'getOpenPrLines') return respond(getOpenPrLines(e.parameter), e);
     if (action === 'getPrApprovers') return respond(getPrApprovers(e.parameter), e);
     if (action === 'saveStockCountResult') return respond(saveStockCountResult(e.parameter), e);
     if (action === 'getStockCountHistory') return respond(getStockCountHistory(e.parameter), e);
@@ -5817,6 +6488,15 @@ function doPost(e) {
     if (action === 'approvePR') return respond(approvePR(body), e);
     if (action === 'rejectPR') return respond(rejectPR(body), e);
     if (action === 'getPRStatus') return respond(getPRStatus(body), e);
+    if (action === 'getPrGrSystemStatus') return respond(getPrGrSystemStatus(body), e);
+    if (action === 'startPrGrSystem') return respond(startPrGrSystem(body), e);
+    if (action === 'markPROrdered') return respond(markPROrdered(body), e);
+    if (action === 'cancelPR') return respond(cancelPR(body), e);
+    if (action === 'closePrLine') return respond(closePrLine(body), e);
+    if (action === 'listPRs') return respond(listPRs(body), e);
+    if (action === 'getPRDetail') return respond(getPRDetail(body), e);
+    if (action === 'getGrLog') return respond(getGrLog(body), e);
+    if (action === 'getOpenPrLines') return respond(getOpenPrLines(body), e);
     if (action === 'getPrApprovers') return respond(getPrApprovers(body), e);
     requirePermission(authPayload, 'view');
     if (action === 'upsertItem') {
