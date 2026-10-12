@@ -72,4 +72,16 @@ assert(htmlLf.includes("printMiscExpenseVoucher(voucherBtn.getAttribute('data-mx
 assert(/rows = billId \? miscExpenseCache\.filter\(function\(r\) \{ return String\(r\.bill_id \|\| ''\) === billId; \}\) : \[item\];/.test(htmlLf),
   'พิมพ์จากแถวไหนก็ต้องได้ทั้งบิล');
 
+// ── ต้องจบใน A4 แผ่นเดียว ─────────────────────────────────────────────────
+const css = new Function(grab(/^ {4}function mxVoucherCss\(\) \{[\s\S]*?\n {4}\}/m, 'mxVoucherCss') + '\nreturn mxVoucherCss;')()();
+assert(css.includes('@page{size:A4 portrait;margin:8mm}'));
+assert(css.includes('#mxPageProbe{') && css.includes('height:281mm'), 'ตัววัดต้องสูงเท่าพื้นที่พิมพ์ A4 (297 - 8×2)');
+const fitSrc = grab(/^ {4}function mxVoucherFitScript\(\) \{[\s\S]*?\n {4}\}/m, 'mxVoucherFitScript');
+const fit = new Function(fitSrc + '\nreturn mxVoucherFitScript;')()();
+assert(fit.includes('<\\/script>') === false && fit.endsWith('<\/script>'), 'ปิด script ได้ถูกต้องในหน้าต่างพิมพ์');
+assert(fit.includes('beforeprint') && fit.includes('s.style.zoom='), 'รายการเยอะต้องย่อทั้งใบลงให้พอดีแผ่นเดียว');
+assert(fitSrc.includes('<\\/script>'), 'ใน index.html ต้องเขียน <\\/script> ไม่งั้นปิด <script> ของหน้าหลักกลางคัน');
+assert(htmlLf.includes(`mxVoucherHtml(d, appDate) + '<div id="mxPageProbe"></div>' + mxVoucherFitScript() + '</body></html>'`));
+assert(htmlLf.includes('if (win.mxVoucherFit) win.mxVoucherFit(); win.print();'));
+
 console.log('misc-expense-voucher: ok');
