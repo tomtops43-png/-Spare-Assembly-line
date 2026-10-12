@@ -15913,18 +15913,24 @@ function inferRequestPriority(stock, min) {
       };
     }
 
+    // ช่องที่มี class "ed" แก้ได้ในหน้าต่างพิมพ์ก่อนสั่งพิมพ์ (ดู mxVoucherEditorRuntime) — data-f คือชื่อช่องที่ใช้คำนวณ
     function mxVoucherHtml(d, appDate) {
       var e = escHtml;
       var blank = !d.items.length;
       var money = function(n) { return blank ? '' : mxVoucherMoney(n); };
-      var box = function(on) { return '<span class="cb">' + (on ? '✓' : '') + '</span>'; };
+      var box = function(on) { return '<span class="cb" title="คลิกเพื่อติ๊ก">' + (on ? '✓' : '') + '</span>'; };
+      var ed = function(field, text, cls) {
+        return ' class="ed' + (cls ? ' ' + cls : '') + '" contenteditable="true"' + (field ? ' data-f="' + field + '"' : '') + '>' + text;
+      };
       var rowsHtml = '';
       var count = Math.max(MX_VOUCHER_MIN_ROWS, d.items.length);
       for (var i = 0; i < count; i += 1) {
         var it = d.items[i];
-        rowsHtml += it
-          ? '<tr><td class="c">' + (i + 1) + '</td><td>' + e(it.name) + '</td><td class="c">' + e(it.qty.toLocaleString('en-US') + (it.unit ? ' ' + it.unit : '')) + '</td><td class="r">' + mxVoucherMoney(it.unitPrice) + '</td><td class="r">' + mxVoucherMoney(it.amount) + '</td></tr>'
-          : '<tr><td class="c">&nbsp;</td><td></td><td></td><td></td><td></td></tr>';
+        rowsHtml += '<tr class="itm"><td class="c no">' + (it ? (i + 1) : '') + '</td>' +
+          '<td' + ed('name', it ? e(it.name) : '') + '</td>' +
+          '<td' + ed('qty', it ? e(it.qty.toLocaleString('en-US') + (it.unit ? ' ' + it.unit : '')) : '', 'c') + '</td>' +
+          '<td' + ed('up', it ? mxVoucherMoney(it.unitPrice) : '', 'r') + '</td>' +
+          '<td' + ed('amt', it ? mxVoucherMoney(it.amount) : '', 'r') + '</td></tr>';
       }
       var ref = [];
       if (d.receiptNo) ref.push('บิล/ใบเสร็จเลขที่ ' + d.receiptNo);
@@ -15935,30 +15941,32 @@ function inferRequestPriority(stock, min) {
           return name ? '<td>' + box(name === d.chargedDept) + ' ' + e(name) + '</td>' : '<td></td>';
         }).join('') + '</tr>';
       }).join('');
-      return '<div class="sheet">' +
+      // อัตรา VAT ไว้ให้คิด VAT ใหม่อัตโนมัติเมื่อแก้รายการ (บิลที่ไม่มี VAT = 0 → พิมพ์ยอด VAT เองได้)
+      var vatRate = d.vat ? (parseFloat(d.vatLabel) || 0) : 0;
+      return '<div class="sheet" data-vat-rate="' + vatRate + '">' +
         '<div class="co">' + e(MX_VOUCHER_COMPANY_TH) + '<br>' + e(MX_VOUCHER_COMPANY_CN) + '</div>' +
         '<div class="ttl">ใบเบิกจ่าย/ 付款申请单</div>' +
-        '<div class="appdate">申请日期/Date: <u>' + e(appDate || '') + '</u></div>' +
+        '<div class="appdate">申请日期/Date: <u' + ed('', e(appDate || '')) + '</u></div>' +
         '<table class="hd">' +
-          '<tr><td class="lb">ชื่อเจ้าหนี้:<br><small>付款公司名称</small></td><td class="val">' + e(d.vendor) + '</td>' +
-            '<td class="lb">วันที่:<br><small>付款日期:</small></td><td class="val w-s"></td>' +
-            '<td class="lb">เลขที่.:<br><small>编号:</small></td><td class="val w-s"></td></tr>' +
-          '<tr><td class="lb">จำนวนเงินที่จ่าย<br><small>付款金额/币种:</small></td><td class="val big" colspan="3">' + (blank ? '' : mxVoucherMoney(d.total)) + '</td><td class="lb" colspan="2">THB</td></tr>' +
-          '<tr><td class="lb">付款方式(จ่าย)</td><td colspan="5">' + box(false) + ' เงินสด Cash &nbsp;&nbsp;&nbsp; ' + box(false) + ' โอนเงิน Transfer &nbsp;&nbsp;&nbsp; เลขที่บัญชี: ______________________</td></tr>' +
+          '<tr><td class="lb">ชื่อเจ้าหนี้:<br><small>付款公司名称</small></td><td' + ed('vendor', e(d.vendor), 'val') + '</td>' +
+            '<td class="lb">วันที่:<br><small>付款日期:</small></td><td' + ed('', '', 'val w-s') + '</td>' +
+            '<td class="lb">เลขที่.:<br><small>编号:</small></td><td' + ed('', '', 'val w-s') + '</td></tr>' +
+          '<tr><td class="lb">จำนวนเงินที่จ่าย<br><small>付款金额/币种:</small></td><td class="val big" colspan="3" data-f="pay">' + (blank ? '' : mxVoucherMoney(d.total)) + '</td><td class="lb" colspan="2">THB</td></tr>' +
+          '<tr><td class="lb">付款方式(จ่าย)</td><td colspan="5">' + box(false) + ' เงินสด Cash &nbsp;&nbsp;&nbsp; ' + box(false) + ' โอนเงิน Transfer &nbsp;&nbsp;&nbsp; เลขที่บัญชี: <span' + ed('', '', 'acct') + '</span></td></tr>' +
         '</table>' +
         '<table class="it"><thead><tr>' +
           '<th style="width:9%">ลำดับ<br>序号</th><th>รายละเอียด<br>详细描述</th><th style="width:12%">จำนวน<br>数量</th><th style="width:15%">ราคาต่อหน่วย<br>价格/单价</th><th style="width:17%">จำนวนเงิน/สกุลเงิน<br>金额/币别</th>' +
         '</tr></thead><tbody>' + rowsHtml +
-          (ref.length ? '<tr><td></td><td colspan="4" class="ref">อ้างอิง: ' + e(ref.join(' · ')) + '</td></tr>' : '') +
-          '<tr><td colspan="3" rowspan="3" class="words"><b>ตัวเขียน大写：</b> ' + e(d.totalText) + '</td><td class="r">รวมไม่รวมภาษี</td><td class="r">' + money(d.subtotal) + '</td></tr>' +
-          '<tr><td class="r">Vat ' + e(d.vatLabel) + '</td><td class="r">' + (blank || !d.vat ? '' : mxVoucherMoney(d.vat)) + '</td></tr>' +
-          '<tr><td class="r">WHT</td><td class="r"></td></tr>' +
-          '<tr><td colspan="3"></td><td class="r"><b>ยอดรวม合计</b></td><td class="r"><b>' + money(d.total) + '</b></td></tr>' +
+          '<tr><td></td><td colspan="4"' + ed('', ref.length ? 'อ้างอิง: ' + e(ref.join(' · ')) : '', 'ref') + '</td></tr>' +
+          '<tr><td colspan="3" rowspan="3" class="words"><b>ตัวเขียน大写：</b> <span data-f="words">' + e(d.totalText) + '</span></td><td class="r">รวมไม่รวมภาษี</td><td class="r" data-f="sub">' + money(d.subtotal) + '</td></tr>' +
+          '<tr><td class="r">Vat ' + e(d.vatLabel) + '</td><td' + ed('vat', blank || !d.vat ? '' : mxVoucherMoney(d.vat), 'r') + '</td></tr>' +
+          '<tr><td class="r">WHT</td><td' + ed('wht', '', 'r') + '</td></tr>' +
+          '<tr><td colspan="3"></td><td class="r"><b>ยอดรวม合计</b></td><td class="r"><b data-f="total">' + money(d.total) + '</b></td></tr>' +
         '</tbody></table>' +
         '<table class="sg">' +
-          '<tr><td>แผนก/申请部门: <u>' + e(d.line ? 'Line ' + d.line : '') + '</u></td><td></td></tr>' +
-          '<tr><td>ผู้ยื่น申请人：<div class="ln"></div><div class="nm">( ' + e(d.requester) + ' )</div></td>' +
-            '<td>หัวหน้าแผนก 部门核准人：<div class="ln"></div><div class="nm">( &nbsp; )</div></td></tr>' +
+          '<tr><td>แผนก/申请部门: <u' + ed('', e(d.line ? 'Line ' + d.line : '')) + '</u></td><td></td></tr>' +
+          '<tr><td>ผู้ยื่น申请人：<div class="ln"></div><div class="nm">( <span' + ed('', e(d.requester)) + '</span> )</div></td>' +
+            '<td>หัวหน้าแผนก 部门核准人：<div class="ln"></div><div class="nm">( <span' + ed('', '') + '</span> )</div></td></tr>' +
         '</table>' +
         '<div class="dh">Charged Department / แผนกที่เกิดค่าใช้จ่าย / 费用承担部门</div>' +
         '<table class="dp">' + deptsHtml + '</table>' +
@@ -15968,6 +15976,78 @@ function inferRequestPriority(stock, min) {
           '<td>ผู้รับเงิน<br>收款人<div class="ln"></div></td>' +
         '</tr></table>' +
       '</div>';
+    }
+
+    // รันในหน้าต่างพิมพ์ (ส่งเข้าไปทั้งฟังก์ชันผ่าน toString) — แก้รายการ/ตัวเลขแล้วคิดยอดรวม VAT ตัวเขียนใหม่ทันที
+    // แก้ในหน้านี้ใช้แค่ตอนพิมพ์ ไม่บันทึกกลับเข้าระบบ (ยอดในกราฟ/งบยังเป็นตามบิลที่บันทึกไว้)
+    function mxVoucherEditorRuntime(bahtText) {
+      var sheet = document.querySelector('.sheet');
+      if (!sheet) return;
+      var rate = Number(sheet.getAttribute('data-vat-rate')) || 0;
+      var vatManual = false;
+      function num(t) { var m = String(t || '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : NaN; }
+      function money(n) { return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+      function field(scope, name) { return scope.querySelector('[data-f="' + name + '"]'); }
+      function recalc() {
+        var sub = 0, any = false, no = 0;
+        Array.prototype.forEach.call(sheet.querySelectorAll('tr.itm'), function(tr) {
+          var a = num(field(tr, 'amt').textContent);
+          if (!isNaN(a)) { sub += a; any = true; }
+          var filled = ['name', 'qty', 'up', 'amt'].some(function(k) { return field(tr, k).textContent.trim(); });
+          tr.querySelector('.no').textContent = filled ? String(no += 1) : '';
+        });
+        var vatEl = field(sheet, 'vat');
+        if (!vatManual && rate > 0) vatEl.textContent = any ? money(Math.round(sub * rate) / 100) : '';
+        var vat = num(vatEl.textContent) || 0, wht = num(field(sheet, 'wht').textContent) || 0;
+        var total = Math.round((sub + vat - wht) * 100) / 100;
+        var show = any || vat || wht;
+        field(sheet, 'sub').textContent = any ? money(sub) : '';
+        field(sheet, 'total').textContent = show ? money(total) : '';
+        field(sheet, 'pay').textContent = show ? money(total) : '';
+        field(sheet, 'words').textContent = show ? bahtText(total) : '';
+      }
+      sheet.addEventListener('input', function(ev) {
+        var cell = ev.target.closest ? ev.target.closest('[data-f]') : null;
+        if (!cell) return;
+        var key = cell.getAttribute('data-f');
+        if (key === 'qty' || key === 'up') {
+          var tr = cell.closest('tr'), q = num(field(tr, 'qty').textContent), u = num(field(tr, 'up').textContent);
+          if (!isNaN(q) && !isNaN(u)) field(tr, 'amt').textContent = money(Math.round(q * u * 100) / 100);
+        }
+        // พิมพ์ VAT เอง = ใช้ตามที่พิมพ์ / ลบช่องให้ว่าง = กลับไปคิดอัตโนมัติ
+        if (key === 'vat') vatManual = !!cell.textContent.trim();
+        recalc();
+      });
+      // ออกจากช่องตัวเลขแล้วจัดรูปแบบ 1,234.00 ให้เหมือนกันทั้งใบ
+      sheet.addEventListener('focusout', function(ev) {
+        var key = ev.target.getAttribute && ev.target.getAttribute('data-f');
+        if (['up', 'amt', 'vat', 'wht'].indexOf(key) === -1) return;
+        var n = num(ev.target.textContent);
+        ev.target.textContent = isNaN(n) ? '' : money(n);
+        recalc();
+      });
+      sheet.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter' && ev.target.isContentEditable) { ev.preventDefault(); ev.target.blur(); }
+      });
+      // วางข้อความจากที่อื่นให้เป็นตัวหนังสือล้วน ไม่ติดสี/ฟอนต์มา
+      sheet.addEventListener('paste', function(ev) {
+        if (!ev.target.isContentEditable || !ev.clipboardData) return;
+        ev.preventDefault();
+        document.execCommand('insertText', false, ev.clipboardData.getData('text/plain').replace(/\s+/g, ' '));
+      });
+      sheet.addEventListener('click', function(ev) {
+        var cb = ev.target.closest ? ev.target.closest('.cb') : null;
+        if (cb) cb.textContent = cb.textContent ? '' : '✓';
+      });
+      var addBtn = document.getElementById('mxAddRow');
+      if (addBtn) addBtn.addEventListener('click', function() {
+        var rows = sheet.querySelectorAll('tr.itm'), last = rows[rows.length - 1];
+        var tr = last.cloneNode(true);
+        Array.prototype.forEach.call(tr.querySelectorAll('[data-f]'), function(c) { c.textContent = ''; });
+        last.parentNode.insertBefore(tr, last.nextSibling);
+        recalc();
+        field(tr, 'name').focus();
+      });
     }
 
     // ต้องจบใน A4 แผ่นเดียวเสมอ — ระยะห่างทั้งหมดตั้งให้พอดีกับรายการ 8 แถวแล้ว
@@ -15991,6 +16071,9 @@ function inferRequestPriority(stock, min) {
         '.dh{margin-top:6px;padding:2px 6px;border:1px solid #000;font-weight:700;text-align:center;font-size:11.5px}' +
         '.dp{margin-top:-1px;border:1px solid #000}.dp td{padding:1px 6px;font-size:10.5px;width:50%;line-height:1.25}' +
         '.ap{margin-top:8px}.ap td{width:33%;text-align:center;vertical-align:top;padding:0 8px;line-height:1.25}.ap .ln{border-bottom:1px solid #000;height:30px;margin:0 10px}' +
+        '.ed.acct{display:inline-block;min-width:55mm;border-bottom:1px solid #000}.nm .ed{display:inline-block;min-width:40mm}.cb{cursor:pointer}' +
+        '@media screen{.ed{background:#fef9c3;outline:1px dashed #eab308;outline-offset:-1px}.ed:hover{background:#fef08a}.ed:focus{background:#fff;outline:2px solid #2563eb}' +
+        '.sheet{margin-top:8px}.noprint .hint{display:block;margin-top:6px;font-size:13px;color:#555}}' +
         '#mxPageProbe{position:absolute;visibility:hidden;width:1px;height:281mm;top:0;left:0}' +
         '.noprint{text-align:center;margin:12px 0}.noprint button{font-size:15px;padding:8px 18px;cursor:pointer}' +
         '@media print{.noprint{display:none}}';
@@ -16022,10 +16105,13 @@ function inferRequestPriority(stock, min) {
       if (!win) { showQuickToast('กรุณาอนุญาต popup เพื่อพิมพ์ใบเบิกจ่าย', 'warn'); return; }
       win.document.write('<html lang="th"><head><meta charset="utf-8"/><title>ใบเบิกจ่าย' + (d.vendor ? ' — ' + escHtml(d.vendor) : '') + '</title>' +
         '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap"><style>' + mxVoucherCss() + '</style></head><body>' +
-        '<div class="noprint"><button onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button></div>' +
-        mxVoucherHtml(d, appDate) + '<div id="mxPageProbe"></div>' + mxVoucherFitScript() + '</body></html>');
+        '<div class="noprint"><button onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button> <button id="mxAddRow" type="button">+ เพิ่มแถวรายการ</button>' +
+        '<span class="hint">✏️ คลิกช่องสีเหลืองเพื่อแก้ไขก่อนพิมพ์ · คลิก ☐ เพื่อติ๊ก · ยอดรวม/VAT/ตัวเขียนคิดใหม่ให้เอง (แก้ตรงนี้ไม่บันทึกกลับเข้าระบบ)</span></div>' +
+        mxVoucherHtml(d, appDate) + '<div id="mxPageProbe"></div>' + mxVoucherFitScript() +
+        '<script>(' + mxVoucherEditorRuntime.toString() + ')(' + mxBahtText.toString() + ');<\/script></body></html>');
       win.document.close();
-      setTimeout(function() { try { win.focus(); if (win.mxVoucherFit) win.mxVoucherFit(); win.print(); } catch (err) {} }, 700);
+      // ไม่สั่งพิมพ์อัตโนมัติแล้ว — ให้แก้รายการก่อน แล้วกดปุ่มพิมพ์เอง
+      win.focus();
     }
 
     function switchToMiscExpensePage() {
