@@ -3297,6 +3297,7 @@
           <p class="text-sm text-slate-500">ของที่ซื้อนอกระบบอะไหล่ — น็อตทั่วไป เครื่องมือช่าง วัสดุสิ้นเปลือง ค่าจ้างซ่อมภายนอก · ตัดเป็นค่าใช้จ่ายทันทีวันที่ซื้อ ไม่เข้าสต็อก</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+          <button id="miscExpenseVoucherBlankBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700" title="ใบเบิกจ่ายเปล่า ไว้เขียนมือ">🖨️ ใบเบิกจ่ายเปล่า</button>
           <button id="miscExpenseCopyBtn" type="button" class="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700">📋 คัดลอกสรุป</button>
           <button id="miscExpenseRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
           <button id="miscExpenseAddBtn" type="button" class="h-11 rounded-lg bg-green-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-green-700"><span class="hidden sm:inline">+ บันทึกค่าใช้จ่าย</span><span class="sm:hidden">+ บันทึก</span></button>
@@ -15476,9 +15477,11 @@ function inferRequestPriority(stock, min) {
         }).join('');
       }
       tbody.innerHTML = rows.length ? rows.map(function(r, index) {
-        var actions = canManageMiscExpense()
-          ? '<div class="flex gap-1"><button type="button" data-mx-edit="' + escHtml(r.expense_id) + '" class="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">แก้ไข</button><button type="button" data-mx-delete="' + escHtml(r.expense_id) + '" class="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">ลบ</button></div>'
-          : '<span class="text-xs text-slate-400">-</span>';
+        // ใบเบิกจ่ายพิมพ์ได้ทุกคนที่เห็นหน้านี้ (คนซื้อของเป็นคนเอาใบไปเบิก) — แก้/ลบยังเป็นของ Admin
+        var voucherBtn = '<button type="button" data-mx-voucher="' + escHtml(r.expense_id) + '" class="whitespace-nowrap rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700" title="พิมพ์ใบเบิกจ่ายของทั้งบิล">🖨️ ใบเบิก</button>';
+        var actions = '<div class="flex gap-1">' + voucherBtn + (canManageMiscExpense()
+          ? '<button type="button" data-mx-edit="' + escHtml(r.expense_id) + '" class="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">แก้ไข</button><button type="button" data-mx-delete="' + escHtml(r.expense_id) + '" class="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">ลบ</button>'
+          : '') + '</div>';
         var receipt = String(r.receipt_url || '').trim()
           ? '<a href="' + escHtml(r.receipt_url) + '" target="_blank" rel="noopener" class="text-xs font-semibold text-blue-600 underline">ดูรูปบิล</a>'
           : '<span class="text-xs text-amber-600">⚠︎ ไม่มีรูปบิล</span>';
@@ -15819,6 +15822,199 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    /* ── ใบเบิกจ่าย / 付款申请单 ────────────────────────────────────────────────
+       พิมพ์ใบเบิกจ่ายตามฟอร์มกระดาษของบริษัท จากบิลที่บันทึกไว้ในหน้านี้ (ซื้อของ/สั่งของด้านนอก
+       แล้วเอาบิลมาเบิกเงินคืนจากบริษัท) — ทั้งบิล (ทุกแถวที่ bill_id เดียวกัน) ออกเป็นใบเดียว
+       ช่องที่บัญชี/ผู้อนุมัติกรอกเอง (เลขที่ วันที่จ่าย วิธีจ่าย ลายเซ็น) เว้นว่างไว้ให้เขียนมือ */
+    var MX_VOUCHER_COMPANY_TH = 'บริษัท จินร้ง อิเล็กทรอนิกส์เทคโนโลยี(ประเทศไทย)จำกัด';
+    var MX_VOUCHER_COMPANY_CN = '津荣电子科技（泰国）有限公司';
+    var MX_VOUCHER_MIN_ROWS = 8;
+    // แผนกที่เกิดค่าใช้จ่าย (费用承担部门) — ลำดับซ้าย/ขวาตามฟอร์มกระดาษ
+    var MX_VOUCHER_CHARGED_DEPTS = [
+      ['Quality Department', 'Powder Coating Production Line'],
+      ['Sales Department', 'Electrical Stamping Production Line'],
+      ['General Management Department', 'Automotive Stamping Production Line'],
+      ['Administration Department', 'H9 Assembly Production Line'],
+      ['Finance Department', 'Aluminum Die Casting - Die Casting Production Line'],
+      ['Purchasing Department', 'Aluminum Die Casting - Grunding and Shot Blasting Production Line'],
+      ['PIU Assembly Production Line', 'Aluminum Die Casting - CNC Production Line'],
+      ['Electrical Packaging Production Line', 'Assembly Production Line'],
+      ['Automotive Packaging Production Line', 'Aluminum Die Casting - Packaging Production Line'],
+      ['Welding, Riveting, Tapping Production Line', '']
+    ];
+    // ไลน์ในระบบ → ช่องติ๊กในฟอร์ม (ไลน์ที่ไม่รู้ว่าตรงช่องไหนปล่อยว่างให้ติ๊กเอง ดีกว่าติ๊กผิดแผนก)
+    var MX_VOUCHER_LINE_DEPT = { 'H9': 'H9 Assembly Production Line' };
+
+    // ตัวเลขเป็นคำอ่านภาษาไทย แบบเดียวกับ =BAHTTEXT() ของ Excel ที่ฟอร์มเดิมใช้
+    function mxBahtText(amount) {
+      var DIGITS = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
+      var UNITS = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน'];
+      function readBelowMillion(n) {
+        var s = String(n), out = '';
+        for (var i = 0; i < s.length; i += 1) {
+          var d = Number(s.charAt(i)), pos = s.length - 1 - i;
+          if (!d) continue;
+          if (pos === 1) out += d === 1 ? 'สิบ' : (d === 2 ? 'ยี่สิบ' : DIGITS[d] + 'สิบ');
+          else if (pos === 0) out += (d === 1 && n >= 10) ? 'เอ็ด' : DIGITS[d];
+          else out += DIGITS[d] + UNITS[pos];
+        }
+        return out;
+      }
+      function readInt(n) {
+        if (n >= 1000000) return readInt(Math.floor(n / 1000000)) + 'ล้าน' + readBelowMillion(n % 1000000);
+        return readBelowMillion(n);
+      }
+      var cents = Math.round(Math.abs(Number(amount) || 0) * 100);
+      var baht = Math.floor(cents / 100), satang = cents % 100;
+      if (!baht && !satang) return 'ศูนย์บาทถ้วน';
+      var text = (Number(amount) < 0 ? 'ลบ' : '') + (baht ? readInt(baht) + 'บาท' : '');
+      return text + (satang ? readInt(satang) + 'สตางค์' : 'ถ้วน');
+    }
+
+    function mxVoucherMoney(n) {
+      return (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // รวมแถวของบิลเดียวกันเป็นข้อมูลใบเบิก — แถว VAT ไปลงช่อง Vat ไม่ใช่รายการสินค้า
+    // (ค่าจัดส่งยังเป็นรายการหนึ่งในตาราง เพราะเป็นเงินที่จ่ายจริงต่อร้าน)
+    function mxVoucherData(rows) {
+      rows = Array.isArray(rows) ? rows.filter(Boolean) : [];
+      var first = rows[0] || {};
+      var VAT_CAT = 'ภาษีมูลค่าเพิ่ม (VAT)';
+      var items = [], vat = 0, vatLabel = '';
+      rows.forEach(function(r) {
+        var amount = Number(r.total_amount) || 0;
+        if (String(r.category || '') === VAT_CAT) {
+          vat += amount;
+          var m = String(r.item_name || '').match(/(\d+(?:\.\d+)?)\s*%/);
+          if (m) vatLabel = m[1] + '%';
+          return;
+        }
+        var qty = Number(r.qty) || 0;
+        var unitPrice = Number(r.unit_price) || (qty ? amount / qty : amount);
+        items.push({ name: String(r.item_name || ''), qty: qty, unit: String(r.unit || ''), unitPrice: unitPrice, amount: amount });
+      });
+      var subtotal = items.reduce(function(s, it) { return s + it.amount; }, 0);
+      var total = Math.round((subtotal + vat) * 100) / 100;
+      return {
+        vendor: String(first.vendor || ''),
+        receiptNo: String(first.receipt_no || ''),
+        date: String(first.date || '').slice(0, 10),
+        line: String(first.line || ''),
+        requester: String(first.created_by || ''),
+        remark: String(first.remark || ''),
+        items: items,
+        subtotal: subtotal,
+        vat: vat,
+        vatLabel: vatLabel || '7%',
+        total: total,
+        totalText: rows.length ? mxBahtText(total) : '',
+        chargedDept: MX_VOUCHER_LINE_DEPT[String(first.line || '')] || ''
+      };
+    }
+
+    function mxVoucherHtml(d, appDate) {
+      var e = escHtml;
+      var blank = !d.items.length;
+      var money = function(n) { return blank ? '' : mxVoucherMoney(n); };
+      var box = function(on) { return '<span class="cb">' + (on ? '✓' : '') + '</span>'; };
+      var rowsHtml = '';
+      var count = Math.max(MX_VOUCHER_MIN_ROWS, d.items.length);
+      for (var i = 0; i < count; i += 1) {
+        var it = d.items[i];
+        rowsHtml += it
+          ? '<tr><td class="c">' + (i + 1) + '</td><td>' + e(it.name) + '</td><td class="c">' + e(it.qty.toLocaleString('en-US') + (it.unit ? ' ' + it.unit : '')) + '</td><td class="r">' + mxVoucherMoney(it.unitPrice) + '</td><td class="r">' + mxVoucherMoney(it.amount) + '</td></tr>'
+          : '<tr><td class="c">&nbsp;</td><td></td><td></td><td></td><td></td></tr>';
+      }
+      var ref = [];
+      if (d.receiptNo) ref.push('บิล/ใบเสร็จเลขที่ ' + d.receiptNo);
+      if (d.date) ref.push('ลงวันที่ ' + mxDateLabel(d.date));
+      if (d.remark) ref.push(d.remark);
+      var deptsHtml = MX_VOUCHER_CHARGED_DEPTS.map(function(pair) {
+        return '<tr>' + pair.map(function(name) {
+          return name ? '<td>' + box(name === d.chargedDept) + ' ' + e(name) + '</td>' : '<td></td>';
+        }).join('') + '</tr>';
+      }).join('');
+      return '<div class="sheet">' +
+        '<div class="co">' + e(MX_VOUCHER_COMPANY_TH) + '<br>' + e(MX_VOUCHER_COMPANY_CN) + '</div>' +
+        '<div class="ttl">ใบเบิกจ่าย/ 付款申请单</div>' +
+        '<div class="appdate">申请日期/Date: <u>' + e(appDate || '') + '</u></div>' +
+        '<table class="hd">' +
+          '<tr><td class="lb">ชื่อเจ้าหนี้:<br><small>付款公司名称</small></td><td class="val">' + e(d.vendor) + '</td>' +
+            '<td class="lb">วันที่:<br><small>付款日期:</small></td><td class="val w-s"></td>' +
+            '<td class="lb">เลขที่.:<br><small>编号:</small></td><td class="val w-s"></td></tr>' +
+          '<tr><td class="lb">จำนวนเงินที่จ่าย<br><small>付款金额/币种:</small></td><td class="val big" colspan="3">' + (blank ? '' : mxVoucherMoney(d.total)) + '</td><td class="lb" colspan="2">THB</td></tr>' +
+          '<tr><td class="lb">付款方式(จ่าย)</td><td colspan="5">' + box(false) + ' เงินสด Cash &nbsp;&nbsp;&nbsp; ' + box(false) + ' โอนเงิน Transfer &nbsp;&nbsp;&nbsp; เลขที่บัญชี: ______________________</td></tr>' +
+        '</table>' +
+        '<table class="it"><thead><tr>' +
+          '<th style="width:9%">ลำดับ<br>序号</th><th>รายละเอียด<br>详细描述</th><th style="width:12%">จำนวน<br>数量</th><th style="width:15%">ราคาต่อหน่วย<br>价格/单价</th><th style="width:17%">จำนวนเงิน/สกุลเงิน<br>金额/币别</th>' +
+        '</tr></thead><tbody>' + rowsHtml +
+          (ref.length ? '<tr><td></td><td colspan="4" class="ref">อ้างอิง: ' + e(ref.join(' · ')) + '</td></tr>' : '') +
+          '<tr><td colspan="3" rowspan="3" class="words"><b>ตัวเขียน大写：</b> ' + e(d.totalText) + '</td><td class="r">รวมไม่รวมภาษี</td><td class="r">' + money(d.subtotal) + '</td></tr>' +
+          '<tr><td class="r">Vat ' + e(d.vatLabel) + '</td><td class="r">' + (blank || !d.vat ? '' : mxVoucherMoney(d.vat)) + '</td></tr>' +
+          '<tr><td class="r">WHT</td><td class="r"></td></tr>' +
+          '<tr><td colspan="3"></td><td class="r"><b>ยอดรวม合计</b></td><td class="r"><b>' + money(d.total) + '</b></td></tr>' +
+        '</tbody></table>' +
+        '<table class="sg">' +
+          '<tr><td>แผนก/申请部门: <u>' + e(d.line ? 'Line ' + d.line : '') + '</u></td><td></td></tr>' +
+          '<tr><td>ผู้ยื่น申请人：<div class="ln"></div><div class="nm">( ' + e(d.requester) + ' )</div></td>' +
+            '<td>หัวหน้าแผนก 部门核准人：<div class="ln"></div><div class="nm">( &nbsp; )</div></td></tr>' +
+        '</table>' +
+        '<div class="dh">Charged Department / แผนกที่เกิดค่าใช้จ่าย / 费用承担部门</div>' +
+        '<table class="dp">' + deptsHtml + '</table>' +
+        '<table class="ap"><tr>' +
+          '<td>แผนกบัญชี<br>财务负责人<div class="ln"></div></td>' +
+          '<td>กรรมการผู้จัดการ<br>总经理<div class="ln"></div></td>' +
+          '<td>ผู้รับเงิน<br>收款人<div class="ln"></div></td>' +
+        '</tr></table>' +
+      '</div>';
+    }
+
+    function mxVoucherCss() {
+      return '@page{size:A4 portrait;margin:10mm}' +
+        'body{font-family:"Sarabun","TH Sarabun New","Tahoma",sans-serif;color:#000;margin:0;font-size:12.5px}' +
+        '.sheet{max-width:190mm;margin:0 auto}' +
+        '.co{text-align:center;font-weight:700;font-size:15px;line-height:1.35}' +
+        '.ttl{text-align:center;font-weight:700;font-size:17px;margin:4px 0 2px}' +
+        '.appdate{text-align:right;margin-bottom:4px}' +
+        'table{width:100%;border-collapse:collapse}' +
+        '.hd td,.it td,.it th{border:1px solid #000;padding:4px 6px;vertical-align:middle}' +
+        '.hd .lb{white-space:nowrap;font-weight:600;width:1%}.hd .val{min-width:20mm}.hd .w-s{width:22mm}.hd .big{font-size:15px;font-weight:700;text-align:right}' +
+        '.hd small,.it small{font-weight:400}' +
+        '.it{margin-top:-1px}.it th{background:#f1f5f9;font-weight:700;font-size:12px}' +
+        '.it td{height:20px}.c{text-align:center}.r{text-align:right;white-space:nowrap}' +
+        '.it .ref{font-size:11px;color:#333}.it .words{vertical-align:top}' +
+        '.cb{display:inline-block;width:12px;height:12px;border:1px solid #000;text-align:center;line-height:12px;font-size:11px;font-weight:700;vertical-align:-2px}' +
+        '.sg{margin-top:10px}.sg td{padding:6px 12px 6px 4px;width:50%;vertical-align:top}.sg .ln{border-bottom:1px solid #000;height:30px}.sg .nm{text-align:center;margin-top:3px;min-height:16px}' +
+        '.dh{margin-top:8px;padding:4px 6px;border:1px solid #000;font-weight:700;text-align:center}' +
+        '.dp{margin-top:-1px;border:1px solid #000}.dp td{padding:3px 6px;font-size:11.5px;width:50%}' +
+        '.ap{margin-top:16px}.ap td{width:33%;text-align:center;vertical-align:top;padding:0 8px}.ap .ln{border-bottom:1px solid #000;height:34px;margin:0 10px}' +
+        '.noprint{text-align:center;margin:12px 0}.noprint button{font-size:15px;padding:8px 18px;cursor:pointer}' +
+        '@media print{.noprint{display:none}}';
+    }
+
+    // expenseId ว่าง = ใบเปล่าไว้เขียนมือ
+    function printMiscExpenseVoucher(expenseId) {
+      var rows = [];
+      if (expenseId) {
+        var item = miscExpenseCache.filter(function(r) { return r.expense_id === expenseId; })[0];
+        if (!item) return;
+        var billId = String(item.bill_id || '');
+        rows = billId ? miscExpenseCache.filter(function(r) { return String(r.bill_id || '') === billId; }) : [item];
+      }
+      var d = mxVoucherData(rows);
+      var now = new Date();
+      var appDate = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
+      var win = window.open('', '_blank');
+      if (!win) { showQuickToast('กรุณาอนุญาต popup เพื่อพิมพ์ใบเบิกจ่าย', 'warn'); return; }
+      win.document.write('<html lang="th"><head><meta charset="utf-8"/><title>ใบเบิกจ่าย' + (d.vendor ? ' — ' + escHtml(d.vendor) : '') + '</title>' +
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap"><style>' + mxVoucherCss() + '</style></head><body>' +
+        '<div class="noprint"><button onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button></div>' +
+        mxVoucherHtml(d, appDate) + '</body></html>');
+      win.document.close();
+      setTimeout(function() { try { win.focus(); win.print(); } catch (err) {} }, 700);
+    }
+
     function switchToMiscExpensePage() {
       if (!hasPermission('view')) return switchToStockPage();
       stockPage.classList.add('hidden');
@@ -15846,6 +16042,8 @@ function inferRequestPriority(stock, min) {
       if (addBtn) addBtn.addEventListener('click', function() { openMiscExpenseModal(null); });
       var refreshBtn = mxEl('miscExpenseRefreshBtn');
       if (refreshBtn) refreshBtn.addEventListener('click', function() { loadMiscExpenses(true).catch(function() {}); });
+      var voucherBlankBtn = mxEl('miscExpenseVoucherBlankBtn');
+      if (voucherBlankBtn) voucherBlankBtn.addEventListener('click', function() { printMiscExpenseVoucher(''); });
       var copyBtn = mxEl('miscExpenseCopyBtn');
       if (copyBtn) copyBtn.addEventListener('click', function() { copyTextToClipboard(miscExpenseSummaryText(), 'คัดลอกสรุปแล้ว วางในกลุ่มได้เลย'); });
       ['miscExpenseMonthFilter', 'miscExpenseLineFilter', 'miscExpenseCategoryFilter'].forEach(function(id) {
@@ -15881,6 +16079,8 @@ function inferRequestPriority(stock, min) {
       if (table) table.addEventListener('click', function(e) {
         var editBtn = e.target.closest ? e.target.closest('[data-mx-edit]') : null;
         if (editBtn) { openMiscExpenseModal(miscExpenseCache.filter(function(r) { return r.expense_id === editBtn.getAttribute('data-mx-edit'); })[0]); return; }
+        var voucherBtn = e.target.closest ? e.target.closest('[data-mx-voucher]') : null;
+        if (voucherBtn) { printMiscExpenseVoucher(voucherBtn.getAttribute('data-mx-voucher')); return; }
         var delBtn = e.target.closest ? e.target.closest('[data-mx-delete]') : null;
         if (delBtn) deleteMiscExpenseRow(delBtn.getAttribute('data-mx-delete'));
       });
