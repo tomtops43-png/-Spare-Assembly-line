@@ -58,8 +58,8 @@ const out = api.mxVoucherHtml(d, '12/10/2026');
 ['ใบเบิกจ่าย/ 付款申请单', '津荣电子科技（泰国）有限公司', 'ชื่อเจ้าหนี้:', '付款方式(จ่าย)', 'ตัวเขียน大写：', 'ยอดรวม合计',
   'Charged Department / แผนกที่เกิดค่าใช้จ่าย / 费用承担部门', 'แผนกบัญชี', 'กรรมการผู้จัดการ', 'ผู้รับเงิน', 'หัวหน้าแผนก 部门核准人：'
 ].forEach(function(t) { assert(out.includes(t), 'ใบเบิกต้องมีหัวข้อตามฟอร์มกระดาษ: ' + t); });
-assert(out.includes('181.90') && out.includes('ร้านไทยวัสดุ') && out.includes('INV-01') && out.includes('( สมชาย )'));
-assert(/<span class="cb">✓<\/span> H9 Assembly Production Line/.test(out), 'ต้องติ๊กแผนกที่เกิดค่าใช้จ่ายให้');
+assert(out.includes('181.90') && out.includes('ร้านไทยวัสดุ') && out.includes('INV-01') && /\( <span class="ed" contenteditable="true">สมชาย<\/span> \)/.test(out));
+assert(/<span class="cb"[^>]*>✓<\/span> H9 Assembly Production Line/.test(out), 'ต้องติ๊กแผนกที่เกิดค่าใช้จ่ายให้');
 assert(api.mxVoucherHtml({ ...d, vendor: '<b>x</b>' }, '').includes('&lt;b&gt;x&lt;/b&gt;'), 'ชื่อร้านต้อง escape');
 // ใบเปล่าไว้เขียนมือ: ไม่มีตัวเลข 0.00 โผล่
 const blank = api.mxVoucherHtml(api.mxVoucherData([]), '');
@@ -81,7 +81,27 @@ const fit = new Function(fitSrc + '\nreturn mxVoucherFitScript;')()();
 assert(fit.includes('<\\/script>') === false && fit.endsWith('<\/script>'), 'ปิด script ได้ถูกต้องในหน้าต่างพิมพ์');
 assert(fit.includes('beforeprint') && fit.includes('s.style.zoom='), 'รายการเยอะต้องย่อทั้งใบลงให้พอดีแผ่นเดียว');
 assert(fitSrc.includes('<\\/script>'), 'ใน index.html ต้องเขียน <\\/script> ไม่งั้นปิด <script> ของหน้าหลักกลางคัน');
-assert(htmlLf.includes(`mxVoucherHtml(d, appDate) + '<div id="mxPageProbe"></div>' + mxVoucherFitScript() + '</body></html>'`));
-assert(htmlLf.includes('if (win.mxVoucherFit) win.mxVoucherFit(); win.print();'));
+assert(htmlLf.includes(`mxVoucherHtml(d, appDate) + '<div id="mxPageProbe"></div>' + mxVoucherFitScript() +`));
+
+// ── แก้รายการในใบเบิกได้ก่อนพิมพ์ ─────────────────────────────────────────────
+// ทุกช่องรายการ + ช่องหัวกระดาษแก้ได้ (contenteditable) — ยอดที่คิดเองห้ามแก้ตรงๆ
+['name', 'qty', 'up', 'amt', 'vat', 'wht', 'vendor'].forEach(function(f) {
+  assert(new RegExp('class="ed[^"]*" contenteditable="true" data-f="' + f + '"').test(out), 'ช่อง ' + f + ' ต้องแก้ได้');
+});
+['sub', 'total', 'pay', 'words'].forEach(function(f) {
+  assert(new RegExp('data-f="' + f + '"').test(out) && !new RegExp('contenteditable="true" data-f="' + f + '"').test(out), 'ช่อง ' + f + ' ต้องคิดเองจากรายการ ไม่ให้แก้มือ');
+});
+assert((out.match(/<tr class="itm">/g) || []).length === 8, 'แถวว่างก็ต้องกรอกรายการเพิ่มได้');
+assert(out.includes('data-vat-rate="7"'), 'บิลที่มี VAT ต้องส่งอัตราไปคิด VAT ใหม่ตอนแก้รายการ');
+assert(blank.includes('data-vat-rate="0"'), 'ใบเปล่าไม่คิด VAT เอง (พิมพ์ยอดเองได้)');
+const runtimeSrc = grab(/^ {4}function mxVoucherEditorRuntime\(bahtText\) \{[\s\S]*?\n {4}\}/m, 'mxVoucherEditorRuntime');
+assert(!/<\/script/i.test(runtimeSrc), 'โค้ดที่ฉีดเข้าหน้าต่างพิมพ์ห้ามมี </script>');
+assert(runtimeSrc.includes("field(sheet, 'words').textContent = show ? bahtText(total) : '';"), 'ตัวเขียนต้องคิดใหม่ตามยอดที่แก้');
+assert(runtimeSrc.includes('var total = Math.round((sub + vat - wht) * 100) / 100;'), 'ยอดรวม = รายการ + VAT - WHT');
+assert(htmlLf.includes(`'<script>(' + mxVoucherEditorRuntime.toString() + ')(' + mxBahtText.toString() + ');<\\/script></body></html>'`));
+assert(htmlLf.includes('<button id="mxAddRow" type="button">+ เพิ่มแถวรายการ</button>'));
+// ต้องให้แก้ก่อน — ห้ามเด้งหน้าต่างพิมพ์เองทันทีที่เปิด
+const printFn = grab(/^ {4}function printMiscExpenseVoucher\(expenseId\) \{[\s\S]*?\n {4}\}/m, 'printMiscExpenseVoucher');
+assert(!printFn.includes('win.print()'), 'ห้ามสั่งพิมพ์อัตโนมัติ ต้องรอผู้ใช้แก้แล้วกดพิมพ์เอง');
 
 console.log('misc-expense-voucher: ok');
