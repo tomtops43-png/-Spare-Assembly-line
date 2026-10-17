@@ -105,7 +105,7 @@ function makeBackend(stock) {
 
   const fnNames = [
     'prStr', 'getPrSheetWithHeaders', 'getPrHeaderSheet', 'getPrLinesSheet', 'getPrAuditSheet', 'prIndexMap', 'appendPrAudit',
-    'parsePrLinesInput', 'prUserCanAccessLine', 'prHeaderRowToCard', 'findPrHeaderRow', 'createPRUnlocked', 'approvePRUnlocked',
+    'parsePrLinesInput', 'prUserCanAccessLine', 'prHeaderRowToCard', 'findPrHeaderRow', 'parsePrAttachmentsInput', 'createPRUnlocked', 'approvePRUnlocked',
     'getPRForApproval', 'toBoolean', 'normalizeRole', 'normalizeLogTimestamp',
     'normalizePurchaseHistoryModel', 'isMeaningfulPurchaseHistoryModel', 'normalizePurchaseHistoryName',
     'getGrLogSheet', 'getPrGrCutoverAt', 'isPrGrSystemEnabled', 'prNowText', 'getPrGrSystemStatus', 'startPrGrSystem',
@@ -117,7 +117,8 @@ function makeBackend(stock) {
   ];
   const src = [
     grabVar('PR_HEADER_HEADERS', backend), grabVar('PR_LINE_HEADERS', backend), grabVar('PR_AUDIT_HEADERS', backend),
-    grabVar('GR_LOG_HEADERS', backend), grabVar('PR_RECEIVABLE_STATUSES', backend), grabScalar('PR_GR_CUTOVER_PROP', backend)
+    grabVar('GR_LOG_HEADERS', backend), grabVar('PR_RECEIVABLE_STATUSES', backend), grabScalar('PR_GR_CUTOVER_PROP', backend),
+    grabScalar('PR_ATTACH_MAX_FILES', backend)
   ].concat(fnNames.map(function(n) { return grabFn(n, backend, 0); }))
     .concat(['return {' + fnNames.map(function(n) { return n + ': ' + n; }).join(', ') + '};']).join('\n');
   const envKeys = Object.keys(env);
