@@ -3105,6 +3105,13 @@
               🚧 Bypass เปิดทั้งที่เกินงบ
             </button>
           </div>
+          <!-- เอกสารแนบ (ใบเสนอราคา/รูป/สเปก) — อัปโหลดลง Drive ทันทีที่เลือก แล้วแนบไปกับ PR ตอนกดส่งอนุมัติ -->
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <input id="prAttachFile" type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.pdf,.xlsx,.xls,.docx,.doc" class="hidden" />
+            <label for="prAttachFile" class="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-violet-300 bg-violet-50 px-3 text-xs font-bold text-violet-700 hover:bg-violet-100">📎 แนบเอกสาร</label>
+            <span id="prAttachStatus" class="text-[11px] text-slate-400">ใบเสนอราคา / รูป / PDF / Excel / Word (ไม่บังคับ · สูงสุด 10 ไฟล์ · ไฟล์ละไม่เกิน 8MB)</span>
+          </div>
+          <div id="prAttachList" class="mt-2 hidden flex flex-wrap gap-2"></div>
           <div class="mt-2 space-y-0.5">
             <p id="prPrintBtnHint" class="text-xs text-violet-500 font-semibold">🔒 ต้องให้หัวหน้าอนุมัติใน Inbox ก่อน จึงจะปริ้นได้</p>
             <!-- รายชื่อคนที่ PR ใบนี้จะเข้า Inbox — ให้คนส่งรู้ว่าต้องตามใคร (ไม่มี notification ช่องทางอื่น) -->
@@ -4706,6 +4713,8 @@
       <div class="overflow-y-auto p-4" style="max-height:60vh">
         <!-- กราฟงบ Spare part สแนปช็อตตอนคนส่งกดส่งอนุมัติ — ให้หัวหน้าเห็นภาพรวมงบตรงนี้เลย ไม่ต้องเปิดหน้า PR builder เอง -->
         <div id="prApprovalBudgetSnapshot" class="hidden mb-3"></div>
+        <!-- เอกสารแนบที่คนส่งแนบมากับ PR (ใบเสนอราคา/รูป/สเปก) -->
+        <div id="prApprovalAttachments" class="hidden mb-3 rounded-xl border border-violet-200 bg-violet-50 p-3"></div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -22252,6 +22261,8 @@ function inferRequestPriority(stock, min) {
       if (body) body.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">กำลังโหลด...</td></tr>';
       if (meta) meta.textContent = prId;
       if (budgetSnapshotEl) { budgetSnapshotEl.innerHTML = ''; budgetSnapshotEl.classList.add('hidden'); }
+      var attachEl = document.getElementById('prApprovalAttachments');
+      if (attachEl) { attachEl.innerHTML = ''; attachEl.classList.add('hidden'); }
       var reasonEl = document.getElementById('prRejectReason'); if (reasonEl) reasonEl.value = '';
       modal.classList.remove('hidden');
       requestApi(withAuthPayload({ action: 'getPRForApproval', pr_id: prId })).then(function(res) {
@@ -22263,6 +22274,14 @@ function inferRequestPriority(stock, min) {
           var snapshotHtml = String((res.header && res.header.budget_snapshot_html) || '').trim();
           if (snapshotHtml) { budgetSnapshotEl.innerHTML = snapshotHtml; budgetSnapshotEl.classList.remove('hidden'); }
           else { budgetSnapshotEl.innerHTML = ''; budgetSnapshotEl.classList.add('hidden'); }
+        }
+        var attachList = (res.header && res.header.attachments) || [];
+        if (attachEl && attachList.length) {
+          attachEl.innerHTML = '<div class="mb-1.5 text-xs font-bold text-violet-700">📎 เอกสารแนบจากผู้ส่ง (' + attachList.length + ')</div><div class="flex flex-wrap gap-2">' +
+            attachList.map(function(att) {
+              return '<a href="' + escHtml(att.url) + '" target="_blank" rel="noopener" class="inline-flex max-w-full items-center rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-violet-700 underline hover:bg-violet-100"><span class="truncate">📄 ' + escHtml(att.name || 'เอกสาร') + '</span></a>';
+            }).join('') + '</div>';
+          attachEl.classList.remove('hidden');
         }
         if (body) body.innerHTML = res.lines.map(function(ln) {
           // สแนปช็อตรูปตอนสร้าง PR (image_url) — ให้ผู้อนุมัติเห็นรูปประกอบจริง ไม่ใช่แค่ชื่อ/รุ่น
@@ -24958,9 +24977,76 @@ if (dashboardPage) {
     // ยอด qty_requested จะถูกล็อก, หัวหน้าปรับได้เฉพาะ qty_approved, ปริ้นได้เฉพาะเมื่อ APPROVED
     // ปุ่มปกติ (prPrintBtn) ถูกล็อกเมื่อเกินงบ ; ปุ่ม Bypass (prBudgetBypassBtn) เรียกฟังก์ชันเดียวกัน
     // แต่จะไปเจอ modal ให้ระบุเหตุผลก่อน (เพราะเกินงบ)
+    // ---- เอกสารแนบ PR (ก่อนส่งอนุมัติ) ----
+    var PR_ATTACH_MAX_FILES = 10;
+    var prAttachments = []; // [{url, name}] ที่อัปโหลดเสร็จแล้ว
+    var prAttachUploading = 0;
+    var PR_ATTACH_EXT_MIME = {
+      pdf: 'application/pdf', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls: 'application/vnd.ms-excel',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc: 'application/msword'
+    };
+    function prRenderAttachments() {
+      var listEl = document.getElementById('prAttachList');
+      var statusEl = document.getElementById('prAttachStatus');
+      if (listEl) {
+        listEl.innerHTML = prAttachments.map(function(att, i) {
+          return '<span class="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-white px-2 py-1 text-[11px] text-slate-700">' +
+            '<a href="' + escHtml(att.url) + '" target="_blank" rel="noopener" class="max-w-[220px] truncate font-semibold text-violet-700 underline">📄 ' + escHtml(att.name || 'เอกสาร') + '</a>' +
+            '<button type="button" data-pr-attach-remove="' + i + '" class="ml-1 rounded px-1 text-rose-500 hover:bg-rose-50" aria-label="ลบไฟล์แนบ">✕</button></span>';
+        }).join('');
+        listEl.classList.toggle('hidden', !prAttachments.length);
+      }
+      if (statusEl) {
+        statusEl.textContent = prAttachUploading ? ('⏳ กำลังอัปโหลด ' + prAttachUploading + ' ไฟล์...') :
+          (prAttachments.length ? ('✅ แนบแล้ว ' + prAttachments.length + ' ไฟล์ — จะส่งไปพร้อม PR') : 'ใบเสนอราคา / รูป / PDF / Excel / Word (ไม่บังคับ · สูงสุด 10 ไฟล์ · ไฟล์ละไม่เกิน 8MB)');
+        statusEl.className = 'text-[11px] ' + (prAttachments.length && !prAttachUploading ? 'font-semibold text-emerald-600' : 'text-slate-400');
+      }
+    }
+    function prUploadAttachment(file) {
+      var name = String(file.name || '');
+      var ext = (name.match(/\.([a-z0-9]+)$/i) || [])[1];
+      ext = ext ? ext.toLowerCase() : '';
+      var isImage = /^image\/(jpeg|png|webp)$/.test(String(file.type || ''));
+      var mime = isImage ? file.type : PR_ATTACH_EXT_MIME[ext];
+      if (!mime) { showQuickToast('ไม่รองรับไฟล์ ' + name + ' — ใช้รูป, PDF, Excel หรือ Word', 'warn'); return; }
+      if (Number(file.size || 0) > PH_ATTACH_MAX_BYTES) { showQuickToast('ไฟล์ ' + name + ' ใหญ่เกิน 8MB', 'warn'); return; }
+      prAttachUploading += 1; prRenderAttachments();
+      // รูปย่อก่อนส่ง ส่วนเอกสารส่งทั้งก้อน — บาง browser ให้ file.type ว่างกับ Excel/Word จึงตั้ง mime จากนามสกุลเอง
+      var prepare = isImage ? compressImageToDataUrl(file, { maxDim: 1600, targetBytes: 700 * 1024 }) :
+        readFileAsDataUrl(file).then(function(dataUrl) { return 'data:' + mime + ';base64,' + (String(dataUrl).split(',')[1] || ''); });
+      prepare.then(function(dataUrl) {
+        return postFormResilient(withAuthPayload({ action: 'uploadPrAttachment', dataUrl: dataUrl, fileName: name }), 2);
+      }).then(parseApiResponse).then(function(res) {
+        if (!res || !res.attachment_url) throw new Error('ไม่ได้ลิงก์ไฟล์กลับมา');
+        prAttachments.push({ url: res.attachment_url, name: name || res.attachment_name || 'เอกสาร' });
+      }).catch(function(err) {
+        showQuickToast('⚠️ แนบ ' + name + ' ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
+      }).finally(function() {
+        prAttachUploading -= 1; prRenderAttachments();
+      });
+    }
+    (function initPrAttachments() {
+      var input = document.getElementById('prAttachFile');
+      if (input) input.addEventListener('change', function() {
+        var files = Array.prototype.slice.call(input.files || []);
+        input.value = ''; // เลือกไฟล์เดิมซ้ำได้
+        var room = PR_ATTACH_MAX_FILES - prAttachments.length - prAttachUploading;
+        if (files.length > room) showQuickToast('แนบได้สูงสุด ' + PR_ATTACH_MAX_FILES + ' ไฟล์ต่อ PR', 'warn');
+        files.slice(0, Math.max(0, room)).forEach(prUploadAttachment);
+      });
+      var listEl = document.getElementById('prAttachList');
+      if (listEl) listEl.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-pr-attach-remove]');
+        if (!btn) return;
+        prAttachments.splice(Number(btn.getAttribute('data-pr-attach-remove')), 1);
+        prRenderAttachments();
+      });
+    })();
+
     function prSubmitCreatePr(){
       var selected = getFilteredPrCandidates(true);
       if (!selected.length) { showQuickToast('กรุณาเลือกรายการก่อนส่งอนุมัติ', 'warn'); return; }
+      if (prAttachUploading) { showQuickToast('รออัปโหลดเอกสารแนบให้เสร็จก่อน', 'warn'); return; }
       var prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
       var headerLine = (prLineFilter && prLineFilter.value && prLineFilter.value !== 'all') ? prLineFilter.value : (selected[0] && selected[0].line) || '';
       var lines = selected.map(function(item) {
@@ -24992,7 +25078,7 @@ if (dashboardPage) {
       var assignTo = assignSel ? String(assignSel.value || '').trim() : '';
       // ด่านงบ: ถ้าเกินงบต้องผ่าน modal Bypass ก่อน (ระบุเหตุผล) ไม่งั้น reject = ยกเลิก
       prRunBudgetGate(prByLine).then(function(gate) {
-        showConfirmDialog({ title: 'ส่ง PR ให้หัวหน้าอนุมัติ', message: 'สร้าง ' + prNumber + ' จำนวน ' + lines.length + ' รายการ เป็นสถานะ "รออนุมัติ"' + (assignTo ? ' — ส่งให้ ' + assignTo + ' อนุมัติ' : '') + (gate.bypass ? ' — ⚠️ เปิดทั้งที่เกินงบ (Bypass)' : '') + ' — หัวหน้าจะตรวจ/แก้ยอดใน Inbox ก่อนปริ้น ยืนยัน?', okLabel: gate.bypass ? '⚠️ ส่งอนุมัติ (Bypass)' : 'ส่งอนุมัติ' }).then(function(ok) {
+        showConfirmDialog({ title: 'ส่ง PR ให้หัวหน้าอนุมัติ', message: 'สร้าง ' + prNumber + ' จำนวน ' + lines.length + ' รายการ เป็นสถานะ "รออนุมัติ"' + (assignTo ? ' — ส่งให้ ' + assignTo + ' อนุมัติ' : '') + (gate.bypass ? ' — ⚠️ เปิดทั้งที่เกินงบ (Bypass)' : '') + (prAttachments.length ? ' — แนบเอกสาร ' + prAttachments.length + ' ไฟล์' : '') + ' — หัวหน้าจะตรวจ/แก้ยอดใน Inbox ก่อนปริ้น ยืนยัน?', okLabel: gate.bypass ? '⚠️ ส่งอนุมัติ (Bypass)' : 'ส่งอนุมัติ' }).then(function(ok) {
           if (!ok) return;
           prPrintBtn.disabled = true;
           var oldHtml = prPrintBtn.innerHTML; prPrintBtn.textContent = '⏳ กำลังส่ง...';
@@ -25009,9 +25095,11 @@ if (dashboardPage) {
           // เห็นภาพเดียวกันตอนตรวจใน Inbox ไม่ต้องเปิดหน้า PR builder เองแยกต่างหาก
           var prBudgetPanelEl = document.getElementById('prBudgetPanel');
           if (prBudgetPanelEl) payload.budget_snapshot_html = prBudgetPanelEl.innerHTML;
+          if (prAttachments.length) payload.attachments_json = JSON.stringify(prAttachments);
           postJson(withAuthPayload(payload))
             .then(parseApiResponse).then(function(res) {
               showQuickToast('✅ ส่ง PR ' + (res.pr_id || prNumber) + ' รออนุมัติแล้ว (' + (res.item_count || lines.length) + ' รายการ)' + (assignTo ? ' · ส่งให้ ' + assignTo : '') + (gate.bypass ? ' · บันทึก Bypass งบแล้ว' : ''), 'success');
+              prAttachments = []; prRenderAttachments(); // ส่งแล้ว — ไม่ให้ไฟล์ติดไปกับ PR ใบถัดไป
               if (typeof prInvalidatePendingUsage === 'function') prInvalidatePendingUsage();
               if (typeof loadInboxBadge === 'function') loadInboxBadge();
             }).catch(function(err) {

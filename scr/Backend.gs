@@ -131,7 +131,7 @@ var PART_TAG_STATUS_REMOVED = 'ถอดแล้ว';
 var PART_TAG_STATUS_ON_ISSUE = PART_TAG_STATUS_INSTALLED;
 // Purchase Request (PR) schema — เก็บ qty_requested (ล็อก) แยกจาก qty_approved (หัวหน้าแก้ได้)
 // คอลัมน์ต่อท้าย (gr_tracked ...) ใช้กับระบบ PR → GR — ชีทเดิมถูกเติมคอลัมน์ให้แบบ additive
-var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to', 'budget_snapshot_html', 'gr_tracked', 'ordered_by', 'ordered_at', 'po_no', 'vendor', 'closed_at', 'close_reason'];
+var PR_HEADER_HEADERS = ['pr_id', 'status', 'created_by', 'created_at', 'line', 'dept', 'item_count', 'total_amount', 'approved_by', 'approved_at', 'reject_reason', 'updated_at', 'assigned_to', 'budget_snapshot_html', 'gr_tracked', 'ordered_by', 'ordered_at', 'po_no', 'vendor', 'closed_at', 'close_reason', 'attachments_json'];
 var PR_LINE_HEADERS = ['pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'category', 'unit', 'qty_requested', 'qty_approved', 'unit_price', 'remark', 'image_url', 'qty_received', 'line_status', 'close_reason'];
 var PR_AUDIT_HEADERS = ['timestamp', 'pr_id', 'action', 'actor', 'line', 'old_qty', 'new_qty', 'detail'];
 // APPROVED → ORDERED (สั่งซื้อแล้ว) → PARTIAL (รับบางส่วน) → RECEIVED (รับครบ) / CLOSED (ปิดยอดค้าง)
@@ -3110,6 +3110,53 @@ function findPrHeaderRow(data, hIdx, prId) {
   return -1;
 }
 
+// เอกสารแนบของ PR — รับเฉพาะลิงก์ Google Drive ที่ได้จาก uploadPrAttachment กันคนยัดลิงก์แปลกปลอม
+// จำกัด 10 ไฟล์ต่อใบ กันเซลล์บวม
+var PR_ATTACH_MAX_FILES = 10;
+function parsePrAttachmentsInput(raw) {
+  var list = raw;
+  if (typeof raw === 'string') {
+    if (!raw.trim()) return [];
+    try { list = JSON.parse(raw); } catch (err) { return []; }
+  }
+  if (!Array.isArray(list)) return [];
+  return list.map(function(att) {
+    return { url: String((att && att.url) || '').trim(), name: String((att && att.name) || '').trim().slice(0, 120) };
+  }).filter(function(att) {
+    return /^https:\/\/drive\.google\.com\//.test(att.url);
+  }).slice(0, PR_ATTACH_MAX_FILES);
+}
+
+// อัปโหลดเอกสารแนบก่อนส่ง PR ให้อนุมัติ — เก็บใน Drive โฟลเดอร์ pr-attachments/<yyyy-MM>/
+function uploadPrAttachment(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'pr_create');
+  var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
+  if (!dataUrl) throw new Error('ไม่พบข้อมูลไฟล์');
+  var mimeType = getDataUrlMimeType(dataUrl);
+  var allowed = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx', 'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx', 'application/msword': 'doc'
+  };
+  if (!mimeType || !allowed[mimeType]) throw new Error('เอกสารแนบรองรับเฉพาะ รูป, PDF, Excel, Word');
+  var base64Content = dataUrl.split(',')[1] || '';
+  if (!base64Content) throw new Error('ไฟล์แนบเสียหาย');
+  var month = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM');
+  var root = DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID);
+  var monthFolder = getOrCreateChildFolder(getOrCreateChildFolder(root, 'pr-attachments'), month);
+  var stamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss');
+  var original = String(payload.fileName || '').trim().replace(/\.[^.]+$/, '').replace(/[\/:*?"<>|]/g, ' ').slice(0, 60);
+  var fileName = 'PRDOC-' + stamp + (original ? '-' + original : '') + '-' + (user.username || 'user') + '.' + allowed[mimeType];
+  var blob = Utilities.newBlob(Utilities.base64Decode(base64Content), mimeType, fileName);
+  var file = monthFolder.createFile(blob);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    Logger.log('uploadPrAttachment setSharing warning: ' + (err && err.message ? err.message : err));
+  }
+  return { status: 'success', attachment_url: 'https://drive.google.com/file/d/' + file.getId() + '/view', attachment_name: String(payload.fileName || fileName), file_id: file.getId(), mime_type: mimeType };
+}
+
 // สร้าง PR ใหม่ -> สถานะ PENDING (ปริ้นไม่ได้จนกว่าจะอนุมัติ) แบบ atomic
 function createPR(payload) {
   var lock = LockService.getScriptLock();
@@ -3193,6 +3240,11 @@ function createPRUnlocked(payload) {
   if (hIdx.budget_snapshot_html !== undefined) {
     headerRowArr[hIdx.budget_snapshot_html] = String(payload.budget_snapshot_html || '').slice(0, 20000);
   }
+  // เอกสารแนบที่คนส่งอัปโหลดไว้ก่อนกดส่งอนุมัติ (ใบเสนอราคา/รูป/สเปก) — เก็บเป็น JSON [{url,name}]
+  if (hIdx.attachments_json !== undefined) {
+    var prAttachments = parsePrAttachmentsInput(payload.attachments_json);
+    if (prAttachments.length) headerRowArr[hIdx.attachments_json] = JSON.stringify(prAttachments);
+  }
   headerSheet.appendRow(headerRowArr);
 
   appendPrAudit(prId, 'CREATE', user.username, headerLine, '', '', lines.length + ' รายการ' + (assignedTo ? ' · มอบหมายให้ ' + assignedTo : ''));
@@ -3224,6 +3276,7 @@ function getPRForApproval(payload) {
   // อ่านตรงจาก row แทนที่จะใส่ใน prHeaderRowToCard() ตรงๆ — ฟังก์ชันนั้นถูก listPrCardsForUser()
   // ใช้ทำ Inbox list/badge ที่ polling บ่อย ถ้าใส่ HTML สแนปช็อตติดไปด้วยทุกใบจะทำ response บวมเปล่าๆ
   header.budget_snapshot_html = hIdx.budget_snapshot_html !== undefined ? prStr(hData[hRow][hIdx.budget_snapshot_html]) : '';
+  header.attachments = hIdx.attachments_json !== undefined ? parsePrAttachmentsInput(hData[hRow][hIdx.attachments_json]) : [];
 
   var linesSheet = getPrLinesSheet();
   var lData = linesSheet.getDataRange().getValues();
@@ -6484,6 +6537,7 @@ function doPost(e) {
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(body, body.status), e);
     if (action === 'getInbox') return respond(getInbox(body), e);
     if (action === 'createPR') return respond(createPR(body), e);
+    if (action === 'uploadPrAttachment') return respond(uploadPrAttachment(body), e);
     if (action === 'getPRForApproval') return respond(getPRForApproval(body), e);
     if (action === 'approvePR') return respond(approvePR(body), e);
     if (action === 'rejectPR') return respond(rejectPR(body), e);
