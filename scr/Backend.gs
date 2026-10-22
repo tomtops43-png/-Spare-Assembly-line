@@ -454,6 +454,18 @@ function getUsersSheet() {
   return usersSheet;
 }
 
+// เพิ่มคอลัมน์ 'display_name' ต่อท้าย Users (ชื่อจริงที่ใช้แสดงบนเอกสาร เช่นช่องลายเซ็นใน PR)
+// คืนค่า index แบบ 0-based ของคอลัมน์ display_name
+function ensureUsersDisplayNameColumn(sheet) {
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return -1;
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var idx = headers.indexOf('display_name');
+  if (idx !== -1) return idx;
+  sheet.getRange(1, lastCol + 1).setValue('display_name');
+  return lastCol;
+}
+
 // เพิ่มคอลัมน์ 'line' ต่อท้าย Users แบบไม่ทำลายข้อมูลเดิม (ใช้ระบุไลน์ของหัวหน้า)
 // คืนค่า index แบบ 0-based ของคอลัมน์ line
 function ensureUsersLineColumn(sheet) {
@@ -3277,6 +3289,13 @@ function getPRForApproval(payload) {
   // ใช้ทำ Inbox list/badge ที่ polling บ่อย ถ้าใส่ HTML สแนปช็อตติดไปด้วยทุกใบจะทำ response บวมเปล่าๆ
   header.budget_snapshot_html = hIdx.budget_snapshot_html !== undefined ? prStr(hData[hRow][hIdx.budget_snapshot_html]) : '';
   header.attachments = hIdx.attachments_json !== undefined ? parsePrAttachmentsInput(hData[hRow][hIdx.attachments_json]) : [];
+  // ชื่อจริง (display_name) ของผู้ขอ/ผู้อนุมัติ ไว้แสดงในช่องลายเซ็นตอนปริ้น — ไม่ตั้งไว้ใช้ username เดิม
+  var nameByUsername = {};
+  getAllUsers().forEach(function(u) { if (u.displayName) nameByUsername[u.username] = u.displayName; });
+  header.created_by_name = nameByUsername[header.created_by] || header.created_by;
+  header.approved_by_name = nameByUsername[header.approved_by] || header.approved_by;
+  header.created_at = normalizeLogTimestamp(hData[hRow][hIdx.created_at]);
+  header.approved_at = normalizeLogTimestamp(hData[hRow][hIdx.approved_at]);
 
   var linesSheet = getPrLinesSheet();
   var lData = linesSheet.getDataRange().getValues();
@@ -4309,6 +4328,7 @@ function getAllUsers() {
   var data = usersSheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   var lineCol = (data[0] || []).indexOf('line');
+  var displayNameCol = (data[0] || []).indexOf('display_name');
   return data.slice(1).map(function(row, idx) {
     var role = normalizeRole(row[2]);
     var custom = parsePermissions(row[4]);
@@ -4322,6 +4342,7 @@ function getAllUsers() {
       token: String(row[5] || ''),
       tokenExpiry: String(row[6] || ''),
       line: lineCol !== -1 ? String(row[lineCol] || '').trim() : '',
+      displayName: displayNameCol !== -1 ? String(row[displayNameCol] || '').trim() : '',
       permissions: mergePermissions(getRoleDefaultPermissions(role), custom)
     };
   }).filter(function(u) { return !!u.username; });
@@ -4440,6 +4461,7 @@ function sanitizeUserForClient(user) {
     role: user.role,
     isActive: user.isActive,
     line: String(user.line || ''),
+    displayName: String(user.displayName || ''),
     permissions: user.permissions,
     permissionsJson: user.permissionsJson
   };
@@ -4570,9 +4592,12 @@ function upsertUser(payload) {
   var permissionsJson = JSON.stringify(permissionsObj);
   var line = String(payload.line || '').trim();
   var lineProvided = payload.line !== undefined && payload.line !== null;
+  var displayName = String(payload.displayName || '').trim();
+  var displayNameProvided = payload.displayName !== undefined && payload.displayName !== null;
 
   var usersSheet = getUsersSheet();
   var lineCol = ensureUsersLineColumn(usersSheet); // 0-based
+  var displayNameCol = ensureUsersDisplayNameColumn(usersSheet); // 0-based
   var existing = findUserByUsername(username);
   if (existing) {
     if (String(payload.password || '') !== '') {
@@ -4583,6 +4608,7 @@ function upsertUser(payload) {
     usersSheet.getRange(existing.rowIndex, 4).setValue(String(isActive));
     usersSheet.getRange(existing.rowIndex, 5).setValue(permissionsJson);
     if (lineProvided && lineCol !== -1) usersSheet.getRange(existing.rowIndex, lineCol + 1).setValue(line);
+    if (displayNameProvided && displayNameCol !== -1) usersSheet.getRange(existing.rowIndex, displayNameCol + 1).setValue(displayName);
     if (String(payload.password || '') !== '' || !isActive) revokeUserSessions(username);
     return { status: 'success', mode: 'update', username: username };
   }
@@ -4592,6 +4618,7 @@ function upsertUser(payload) {
   if (password.length < 4) throw new Error('password ต้องมีอย่างน้อย 4 ตัวอักษร');
   usersSheet.appendRow([username, hashPassword(password), role, String(isActive), permissionsJson, '', '']);
   if (lineCol !== -1) usersSheet.getRange(usersSheet.getLastRow(), lineCol + 1).setValue(line);
+  if (displayNameCol !== -1 && displayName) usersSheet.getRange(usersSheet.getLastRow(), displayNameCol + 1).setValue(displayName);
   return { status: 'success', mode: 'create', username: username };
 }
 

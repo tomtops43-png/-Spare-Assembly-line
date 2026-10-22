@@ -96,6 +96,7 @@ function makeBackend(stock) {
     // ชุด stub สำหรับ Auto-PR (อ่านสต็อกทุกไลน์ / สถิติการเบิก) — ค่าคงที่พอสำหรับทดสอบการสร้างใบ
     readAllStockItemsLean: function() { return (stock || []).map(function(it) { return Object.assign({}, it); }); },
     computeIssueUsageStats: function() { return {}; },
+    getAllUsers: function() { return []; },
     getLogRows: function() { return []; },
     computeSuggestedOrderQty: function(it) { return Math.max(it.min * 2 - it.stock, 1); },
     findCrossLineStockMatches: function() { return []; },

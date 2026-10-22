@@ -22393,16 +22393,22 @@ function inferRequestPriority(stock, min) {
           image: ln.image_url || ''
         };
       });
-      var createdAt = String(header.created_at || '');
+      // server เก่าอาจส่งเวลาเป็น Date ดิบ ("Thu Oct 22 2026 10:14:57 GMT+0700 (...)")
+      // → แปลงเป็นเวลาไทย dd/mm/yyyy HH:mm ก่อนลงเอกสาร
+      var createdAtLabel = header.created_at ? formatThaiDateTime(header.created_at) : '-';
+      var approvedAtLabel = header.approved_at ? formatThaiDateTime(header.approved_at) : '-';
+      if (createdAtLabel === '-') createdAtLabel = '';
+      if (approvedAtLabel === '-') approvedAtLabel = String(header.approved_at || '');
+      var createdDate = createdAtLabel.slice(0, 10);
       var opts = {
         prNumber: header.pr_id,
-        preparedByOverride: header.created_by || '-',
+        preparedByOverride: header.created_by_name || header.created_by || '-',
         departmentOverride: header.dept || '',
-        periodOverride: createdAt.slice(0, 7) || '',
-        submissionDateOverride: createdAt.slice(0, 10) || '',
+        periodOverride: createdDate ? createdDate.slice(6, 10) + '-' + createdDate.slice(3, 5) : '',
+        submissionDateOverride: createdDate,
         statusOverride: 'APPROVED',
-        approvedByOverride: header.approved_by || '',
-        approvedAtOverride: header.approved_at || '',
+        approvedByOverride: header.approved_by_name || header.approved_by || '',
+        approvedAtOverride: approvedAtLabel ? approvedAtLabel.slice(0, 16) : '',
         // ปริ้นจาก Inbox = จัดกลุ่มตามไลน์จริงของรายการ ไม่ยึด prLineFilter ในฟอร์ม
         isLineSpecificOverride: false,
         selectedLineOverride: 'all',
@@ -24700,7 +24706,6 @@ if (dashboardPage) {
         '<h2 class="section-table" style="page-break-before:avoid;">2. Approval Signatures</h2>' +
         '<table><thead><tr><th style="width:20%">Role</th><th style="width:22%">Name</th><th style="width:20%">Position</th><th style="width:18%">Date</th><th style="width:20%">Signature</th></tr></thead><tbody>' +
         '<tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>___________________</td></tr>' +
-        '<tr><td>Checked by</td><td>___________________</td><td>___________________</td><td>___________________</td><td>___________________</td></tr>' +
         // ใบที่อนุมัติแล้วจาก Inbox เติมชื่อผู้อนุมัติ+วันที่จริง แทนช่องว่างให้เซ็น
         '<tr><td>Approved by</td><td>'+(approvedByName ? esc(approvedByName) : '___________________')+'</td><td>Manager</td><td>'+(approvedAtLabel ? esc(approvedAtLabel) : '___________________')+'</td><td>'+(approvedByName ? '✔ APPROVED' : '___________________')+'</td></tr>' +
         '</tbody></table>' +
@@ -25807,6 +25812,7 @@ if (dashboardPage) {
         role: document.getElementById('uRole').value,
         isActive: document.getElementById('uIsActive').checked,
         line: (document.getElementById('uLine') || {}).value || '',
+        displayName: String((document.getElementById('uDisplayName') || {}).value || '').trim(),
         permissionsJson: document.getElementById('uPermissionsJson').value || '{"allow":[],"deny":[]}'
       });
       // ใช้ postJson แทน requestApi เพื่อส่ง permissionsJson ที่ยาวได้ (ไม่ติด URL limit)
