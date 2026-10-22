@@ -24774,8 +24774,9 @@ if (dashboardPage) {
         '.pr-doc .drawing-full-image{display:block;width:100%;height:auto;max-height:900px;object-fit:contain;}' +
         '.pr-doc .drawing-pdf-frame{width:100%;height:900px;border:1px solid #cbd5e1;}' +
         '@media print{@page{size:A4 portrait;margin:14mm 12mm;}body{padding:0;background:#fff;}.pr-doc{max-width:none;}' +
-        '.pr-doc h2.section-table{page-break-before:always;}.pr-doc h2.section-table:first-of-type{page-break-before:auto;}' +
-        '.pr-doc h2,.pr-doc h3{page-break-after:avoid;}tr,td,th{page-break-inside:avoid;}}';
+        // ไม่บังคับขึ้นหน้าใหม่ทุกหัวข้อ — ให้หัวข้อต่อกันเพื่อประหยัดกระดาษ (หัวข้อไม่ค้างท้ายหน้า, หัวตารางซ้ำเมื่อข้ามหน้า)
+        '.pr-doc h2.section-table{page-break-before:auto;}' +
+        '.pr-doc h2,.pr-doc h3,.pr-doc .subhead{page-break-after:avoid;break-after:avoid;}thead{display:table-header-group;}tr,td,th{page-break-inside:avoid;}}';
     }
 
     var prSimulateFitBtn = document.getElementById('prSimulateFitBtn');
