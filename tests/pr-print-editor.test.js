@@ -54,3 +54,19 @@ assert.strictEqual(items[0].suggestedQty, 10, 'ไม่แก้ข้อมู
 assert.strictEqual(opts.preparedByOverride, 'Admin', 'ไม่แก้ opts ต้นฉบับ');
 
 console.log('pr-print-editor: ok');
+
+// หน้าต่างต้องอยู่เหนือ Inbox (#inboxOverlay z-index 9999) ด้วย CSS จริง — Tailwind dist ไม่มี z-[...]
+// เคสจริง: กดปริ้นแล้วเงียบ เพราะหน้าต่างเปิดอยู่ข้างหลัง Inbox
+const zEditor = Number((html.match(/#prPrintEditor \{[^}]*z-index:\s*(\d+)/) || [])[1]);
+const zInbox = Number((html.match(/#inboxOverlay \{[^}]*z-index:\s*(\d+)/) || [])[1]);
+assert(zEditor > zInbox && zInbox >= 9999, 'prPrintEditor z-index (' + zEditor + ') ต้องสูงกว่า inboxOverlay (' + zInbox + ')');
+assert(/#prPrintEditor \{[^}]*position:\s*fixed/.test(html), 'prPrintEditor fixed ด้วย CSS จริง');
+assert(!/wrap\.className = '[^']*z-\[/.test(html), 'ห้ามพึ่ง class z-[...] ของ Tailwind');
+
+// เวลาไทยจาก server ("yyyy-MM-dd HH:mm:ss" ไม่มี timezone) ห้ามเลื่อนตามเขตเวลาเครื่อง
+const fmt = html.match(/function formatThaiDateTime\(value\) \{[\s\S]*?\n    \}/)[0];
+const label = new Function(fmt + '\n' + grab('function prBangkokTimestampLabel(') + '; return prBangkokTimestampLabel;')();
+assert.strictEqual(label('2026-10-22 10:14:57').slice(0, 16), '22/10/2026 10:14');
+assert.strictEqual(label('2026-10-21').slice(0, 10), '21/10/2026');
+assert.strictEqual(label('Thu Oct 22 2026 10:14:57 GMT+0700 (เวลาอินโดจีน)').slice(0, 16), '22/10/2026 10:14');
+assert.strictEqual(label(''), '-');
