@@ -716,11 +716,112 @@ function purchaseHistoryRowToObject(row) {
 }
 
 function getPurchaseHistory(payload) {
-  requirePermission({ authToken: payload.authToken }, 'view');
+  var user = requirePermission({ authToken: payload.authToken }, 'view');
   var values = getPurchaseHistorySheet().getDataRange().getValues();
-  if (values.length <= 1) return [];
-  return values.slice(1).map(purchaseHistoryRowToObject).filter(function(item) { return item.history_id && !item.deleted && item.qty_ordered > 0; })
-    .sort(function(a, b) { return String(b.updated_at).localeCompare(String(a.updated_at)); });
+  var rows = values.length <= 1 ? [] : values.slice(1).map(purchaseHistoryRowToObject).filter(function(item) { return item.history_id && !item.deleted && item.qty_ordered > 0; });
+  // หน้า Purchase History ขอรวมใบ PR ระบบใหม่มาด้วย (ผู้เรียกอื่น เช่น Dashboard/Export ยังได้แค่ชีตเดิม — กันนับซ้ำกับ GR)
+  if (toBoolean(payload.include_pr_system, false)) rows = rows.concat(listPrSystemPurchaseHistoryRows(user));
+  return rows.sort(function(a, b) { return String(b.updated_at).localeCompare(String(a.updated_at)); });
+}
+
+// ใบ PR ระบบใหม่ (gr_tracked) ไม่เขียนลงชีต Purchase History แล้ว — ประกอบแถวแบบอ่านอย่างเดียวจาก PRLines
+// ให้หน้าประวัติเห็นของที่สั่งไปแล้วต่อเนื่อง สถานะคิดจากยอดรับจริง, history_id ขึ้นต้น PRL- (แก้/ลบในหน้านี้ไม่ได้)
+var PR_SYSTEM_HISTORY_HEADER_STATUSES = { APPROVED: true, ORDERED: true, PARTIAL: true, RECEIVED: true, CLOSED: true, CANCELLED: true };
+function buildPrSystemHistoryId(prId, lineNo) { return 'PRL-' + prId + '-L' + lineNo; }
+function listPrSystemPurchaseHistoryRows(user) {
+  var hData = getPrHeaderSheet().getDataRange().getValues();
+  if (hData.length <= 1) return [];
+  var hIdx = prIndexMap(hData[0]);
+  var headers = {};
+  for (var h = 1; h < hData.length; h += 1) {
+    var hr = hData[h];
+    var prId = prStr(hr[hIdx.pr_id]);
+    var status = prStr(hr[hIdx.status]).toUpperCase();
+    if (!prId || !prIsTracked(hIdx, hr) || !PR_SYSTEM_HISTORY_HEADER_STATUSES[status]) continue;
+    var line = prStr(hr[hIdx.line]);
+    if (user && !prUserCanAccessLine(user, line) && prStr(hr[hIdx.created_by]) !== user.username) continue;
+    headers[prId] = {
+      status: status, line: line, created_by: prStr(hr[hIdx.created_by]),
+      date: normalizeLogTimestamp(hr[hIdx.approved_at]) || normalizeLogTimestamp(hr[hIdx.created_at]),
+      ordered_at: hIdx.ordered_at !== undefined ? normalizeLogTimestamp(hr[hIdx.ordered_at]) : '',
+      updated_at: normalizeLogTimestamp(hr[hIdx.updated_at]), po_no: hIdx.po_no !== undefined ? prStr(hr[hIdx.po_no]) : ''
+    };
+  }
+  if (!Object.keys(headers).length) return [];
+  var lData = getPrLinesSheet().getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var out = [];
+  for (var i = 1; i < lData.length; i += 1) {
+    var head = headers[prStr(lData[i][lIdx.pr_id])];
+    if (!head) continue;
+    var ln = prLineRowToObject(lIdx, lData[i]);
+    if (ln.qty_approved <= 0) continue;
+    var phStatus = 'PR Created';
+    if (head.status === 'CANCELLED' || String(ln.line_status).toUpperCase() === 'CANCELLED') phStatus = 'Cancelled';
+    else if (ln.qty_received >= ln.qty_approved) phStatus = 'Received';
+    else if (ln.qty_received > 0) phStatus = 'Partial Received';
+    else if (prLineIsClosed(ln.line_status)) phStatus = 'Cancelled';
+    else if (head.status === 'ORDERED' || head.ordered_at) phStatus = 'Ordered';
+    var price = ln.unit_price > 0 ? ln.unit_price : '';
+    out.push({
+      history_id: buildPrSystemHistoryId(ln.pr_id, ln.line_no), request_id: ln.pr_id, source: 'PR ระบบใหม่', date: head.date, month: String(head.date || '').slice(0, 7),
+      line: head.line, part_id: ln.part_no, part_name: ln.part_name, brand: ln.brand, model: ln.model,
+      qty_ordered: ln.qty_approved, unit: ln.unit, unit_price: price === '' ? '' : String(price), currency: price === '' ? '' : 'THB',
+      total_amount: price === '' ? '' : String(ln.qty_approved * price), requested_by: head.created_by, status: phStatus,
+      ordered_date: String(head.ordered_at || '').slice(0, 10), received_date: '', received_qty: ln.qty_received,
+      updated_by: '', remark: [head.po_no ? 'PO ' + head.po_no : '', ln.remark].filter(String).join(' • '), deleted: false,
+      created_at: head.date, updated_at: head.updated_at || head.date, price_status: price === '' ? 'TBC' : 'Confirmed',
+      attachment_url: '', attachment_name: '', from_pr_system: true, line_no: ln.line_no
+    });
+  }
+  return out;
+}
+
+// เติมราคาให้บรรทัด PR ระบบใหม่ที่ราคาเป็น 0 — แก้ที่ PRLines (ต้นทาง) + ยอดรวมหัวใบ
+// และใบรับของ (GRLog) ที่รับไปแล้วด้วยราคา 0 ให้มูลค่าถูกต้อง (ค่าใช้จ่ายระบบใหม่นับจาก GR)
+function fillPrSystemLinePrices(priceByKey, user, timestamp) {
+  var keys = Object.keys(priceByKey);
+  if (!keys.length) return 0;
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var touchedPr = {};
+  var filled = {};
+  for (var i = 1; i < lData.length; i += 1) {
+    var key = buildPrSystemHistoryId(prStr(lData[i][lIdx.pr_id]), prStr(lData[i][lIdx.line_no]));
+    var fill = priceByKey[key];
+    if (!fill || Number(lData[i][lIdx.unit_price] || 0) > 0) continue;
+    linesSheet.getRange(i + 1, lIdx.unit_price + 1).setValue(fill.price);
+    lData[i][lIdx.unit_price] = fill.price;
+    touchedPr[prStr(lData[i][lIdx.pr_id])] = true;
+    filled[key] = fill.price;
+    appendPrAudit(prStr(lData[i][lIdx.pr_id]), 'PRICE_FILL', user.username, '', '', fill.price, 'line ' + prStr(lData[i][lIdx.line_no]) + ' เติมราคาปัจจุบันจากทะเบียนอะไหล่');
+  }
+  var count = Object.keys(filled).length;
+  if (!count) return 0;
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  for (var h = 1; h < hData.length; h += 1) {
+    var prId = prStr(hData[h][hIdx.pr_id]);
+    if (!touchedPr[prId]) continue;
+    var total = 0;
+    for (var j = 1; j < lData.length; j += 1) {
+      if (prStr(lData[j][lIdx.pr_id]) === prId) total += Number(lData[j][lIdx.qty_approved] || 0) * (Number(lData[j][lIdx.unit_price] || 0) || 0);
+    }
+    headerSheet.getRange(h + 1, hIdx.total_amount + 1).setValue(total);
+    headerSheet.getRange(h + 1, hIdx.updated_at + 1).setValue(timestamp);
+  }
+  var grSheet = getGrLogSheet();
+  var gData = grSheet.getDataRange().getValues();
+  var gIdx = prIndexMap(gData[0]);
+  for (var g = 1; g < gData.length; g += 1) {
+    var price = filled[buildPrSystemHistoryId(prStr(gData[g][gIdx.pr_id]), prStr(gData[g][gIdx.line_no]))];
+    if (!price || Number(gData[g][gIdx.unit_price] || 0) > 0) continue;
+    grSheet.getRange(g + 1, gIdx.unit_price + 1).setValue(price);
+    grSheet.getRange(g + 1, gIdx.amount + 1).setValue(Number(gData[g][gIdx.qty] || 0) * price);
+  }
+  return count;
 }
 
 function requirePurchaseHistoryEditor(payload) {
@@ -758,6 +859,47 @@ function editPurchaseHistory(payload) {
     return { status: 'success', history: newObject };
   }
   throw new Error('ไม่พบ Purchase History');
+}
+
+// เติมราคาย้อนหลังให้รายการที่ราคาหาย (Unit Price ว่าง) ด้วยราคาปัจจุบันจากทะเบียนอะไหล่
+// หน้าเว็บเป็นคนจับคู่กับ master แล้วส่ง { history_id, unit_price, currency } มาเป็นชุด
+// เขียนเฉพาะแถวที่ราคายังว่างอยู่จริง — แถวที่มีราคาแล้ว (เช่นมีคนแก้ระหว่างนั้น) ห้ามทับ
+function fillPurchaseHistoryPrices(payload) {
+  var user = requirePurchaseHistoryEditor({ authToken: payload.authToken });
+  var items = payload.items;
+  if (typeof items === 'string') items = JSON.parse(items || '[]');
+  if (!Array.isArray(items) || !items.length) return { status: 'success', updated: 0, skipped: 0 };
+  var priceById = {}, prLinePrices = {};
+  items.forEach(function(item) {
+    var id = String(item && item.history_id || '').trim();
+    var price = Number(item && item.unit_price);
+    if (!id || !isFinite(price) || price <= 0) return;
+    (id.indexOf('PRL-') === 0 ? prLinePrices : priceById)[id] = { price: price, currency: String(item.currency || 'THB').trim() || 'THB' };
+  });
+  var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var prUpdated = fillPrSystemLinePrices(prLinePrices, user, timestamp);
+  var sheet = getPurchaseHistorySheet();
+  var values = sheet.getDataRange().getValues();
+  var audits = [];
+  var updated = 0;
+  for (var i = 1; i < values.length; i += 1) {
+    var fill = priceById[String(values[i][0] || '')];
+    if (!fill || toBoolean(values[i][22], false)) continue;
+    if (String(values[i][12] === undefined || values[i][12] === null ? '' : values[i][12]).trim()) continue;
+    var oldObject = purchaseHistoryRowToObject(values[i]);
+    values[i][12] = fill.price; values[i][13] = fill.currency;
+    values[i][14] = calculatePurchaseHistoryTotal(values[i][10], fill.price);
+    values[i][28] = 'Master'; values[i][20] = user.username; values[i][24] = timestamp;
+    sheet.getRange(i + 1, 1, 1, PURCHASE_HISTORY_HEADERS.length).setValues([values[i].slice(0, PURCHASE_HISTORY_HEADERS.length)]);
+    audits.push([timestamp, user.username, values[i][0], 'PRICE_FILL', JSON.stringify(oldObject), JSON.stringify(purchaseHistoryRowToObject(values[i])), 'เติมราคาปัจจุบันจากทะเบียนอะไหล่']);
+    updated += 1;
+  }
+  if (audits.length) {
+    var auditSheet = getPurchaseHistoryAuditSheet();
+    auditSheet.getRange(auditSheet.getLastRow() + 1, 1, audits.length, audits[0].length).setValues(audits);
+  }
+  var requested = Object.keys(priceById).length + Object.keys(prLinePrices).length;
+  return { status: 'success', updated: updated + prUpdated, pr_lines_updated: prUpdated, skipped: requested - updated - prUpdated };
 }
 
 function deletePurchaseHistory(payload) {
@@ -6529,6 +6671,7 @@ function doPost(e) {
     if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(body), e);
     if (action === 'editPurchaseHistory') return respond(editPurchaseHistory(body), e);
     if (action === 'deletePurchaseHistory') return respond(deletePurchaseHistory(body), e);
+    if (action === 'fillPurchaseHistoryPrices') return respond(fillPurchaseHistoryPrices(body), e);
     if (action === 'getProductionVolume') return respond(getProductionVolume(body), e);
     if (action === 'upsertProductionVolume') return respond(upsertProductionVolume(body), e);
     if (action === 'getProductionCostConfig') return respond(getProductionCostConfig(body), e);
