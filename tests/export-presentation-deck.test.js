@@ -204,12 +204,17 @@ assert.strictEqual(ms.table.rows[ms.table.rows.length - 1][0], 'รวม', 'แ
 assert.deepStrictEqual(M.rankAll.map(function(x) { return x.name; }), ['Belt', 'Breaker'], 'เรียงจากมูลค่าเบิกมากไปน้อย ไม่รวมรายการไม่มีราคา');
 assert.strictEqual(M.rankAll[0].value, 2000);
 assert.strictEqual(M.rankAll[0].count, 3, 'นับจำนวนครั้งที่เบิก');
+{
+  const rk = mod.xpBuildDeckModel(S, M).slides.filter(function(s) { return s.id === 'rank'; })[0];
+  assert(rk.table.headers.indexOf('จำนวนครั้ง') === -1, 'ผู้ใช้สั่งเอาคอลัมน์จำนวนครั้งออกจากสไลด์อันดับ');
+  assert(rk.table.rows.every(function(r) { return r.length === rk.table.headers.length && r.length === rk.colW.length && r.length === rk.table.numeric.length; }), 'จำนวนคอลัมน์ต้องตรงกันทุกส่วน');
+}
 assert.strictEqual(M.issueSum, 2300, 'มูลค่าเบิกรวมทั้งช่วง (ไม่รวมค่าสิ้นเปลือง)');
 const rankSlide = withM.slides.filter(function(sl) { return sl.title === 'อันดับอะไหล่ตามมูลค่าเบิก'; })[0];
 assert(rankSlide, 'ต้องมีสไลด์จัดอันดับตามมูลค่าเบิก');
 assert(kinds(withM).indexOf('monthTop') === withM.slides.indexOf(rankSlide) + 1, 'วางระหว่างสไลด์รายเดือนกับสไลด์เดือนล่าสุด');
 assert.strictEqual(rankSlide.table.rows[0][1], 'Belt');
-assert.strictEqual(rankSlide.table.rows[rankSlide.table.rows.length - 1][8], '100.0%', 'แถวสุดท้าย % สะสมต้องครบ 100% เมื่อมีไม่ถึง 15 รายการ');
+assert.strictEqual(rankSlide.table.rows[rankSlide.table.rows.length - 1][7], '100.0%', 'แถวสุดท้าย % สะสมต้องครบ 100% เมื่อมีไม่ถึง 15 รายการ');
 assert(/คิดเป็น 100%/.test(rankSlide.sub), 'หัวสไลด์ต้องบอกสัดส่วนของ 15 อันดับแรก (มีแค่ 2 รายการ = 100%)');
 
 // ชื่อ/รุ่นในตารางต้องเต็ม ไม่ถูกตัดเป็น "…" (เคยตัดที่ 40 ตัวอักษร ผู้ใช้อ่านไม่ออกว่าอะไหล่ตัวไหน)
