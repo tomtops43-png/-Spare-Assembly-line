@@ -18,7 +18,7 @@ const mod = buildModule(
     grabFn('xpDashKpiRows'), grabFn('xpDashLineTable'), grabFn('xpDashCategoryTable'),
     grabFn('xpDeckMoney'), grabFn('xpDeckPct'), grabFn('xpDeckTopUsage'), grabFn('xpDeckTopValue'),
     grabFn('xpDeckDeadStock'), grabFn('xpDeckRunningOut'), grabFn('xpDeckActionQueue'),
-    grabFn('xpDeckHighlights'), grabFn('xpDeckCut'), grabFn('xpDeckMonthLabel'), grabFn('xpDeckMonthlyIssue'), grabFn('xpBuildDeckModel')
+    grabFn('xpDeckHighlights'), grabFn('xpDeckCut'), grabFn('xpDeckMonthLabel'), grabFn('xpDeckMonthlyIssue'), grabFn('xpDeckRangeText'), grabFn('xpBuildDeckModel')
   ]),
   '{ fccCrunchParts: fccCrunchParts, fccCrunchLogs: fccCrunchLogs, fccCrunchRequests: fccCrunchRequests, fccHealth: fccHealth, xpBuildDeckModel: xpBuildDeckModel, xpDeckMonthlyIssue: xpDeckMonthlyIssue, setRange: function(f, t) { xpFilters.from = f; xpFilters.to = t; }, xpDeckActionQueue: xpDeckActionQueue, xpDeckMoney: xpDeckMoney, setLang: function(l) { xpFilters.lang = l; }, setCustomer: function(v) { xpFilters.customerMode = v; } }'
 );
@@ -226,6 +226,25 @@ longDeck.slides.forEach(function(sl) {
     r.forEach(function(c) { assert(String(c).indexOf('…') === -1, 'เซลล์ตารางสไลด์ "' + sl.title + '" ถูกตัดเป็น …: ' + c); });
   });
 });
+
+// ช่วงข้อมูล: ไม่ได้เลือก = 12 เดือนล่าสุด แสดงทั้งบนปกและสไลด์รายเดือน
+assert(withM.slides[0].meta.some(function(t) { return /ช่วงข้อมูล: 12 เดือนล่าสุด/.test(t); }), 'ปกต้องบอกช่วงข้อมูล');
+assert(/^ช่วงข้อมูล: 12 เดือนล่าสุด/.test(ms.sub), 'สไลด์รายเดือนต้องบอกช่วงข้อมูล');
+// ยอดรวมบนหัวแท่ง = ผลรวมทุกไลน์ + ค่าสิ้นเปลือง ของเดือนนั้น
+assert.deepStrictEqual(ms.chart.totals.values, M.total.map(Math.round), 'ยอดรวมบนหัวแท่งต้องตรงกับแถวรวม');
+ms.chart.labels.forEach(function(_, i) {
+  const sum = ms.chart.series.reduce(function(a, se) { return a + se.values[i]; }, 0);
+  assert.strictEqual(sum, ms.chart.totals.values[i], 'แท่งซ้อนเดือนที่ ' + i + ' รวมได้เท่ายอดรวม');
+});
+// ไลน์ที่มูลค่าเป็น 0 ทั้งช่วง (เบิกแต่ไม่มีราคา) ต้องไม่มีแถว/สีในกราฟ
+const MZero = mod.xpDeckMonthlyIssue(mLogs.concat([{ timestamp: '2026-10-08 08:00:00', type: 'Output', process: 'H1', partName: 'Mystery', model: 'X', qty: 1 }]), mMaster, mMisc, NOW);
+const zeroSlide = slideOf(mod.xpBuildDeckModel(S, MZero), 'monthly');
+assert(zeroSlide.chart.series.every(function(se) { return se.name !== 'H1'; }), 'ไลน์ที่ไม่มีมูลค่าต้องไม่โผล่ในกราฟ/ตาราง');
+// เลือกช่วงวันที่เอง: แสดงวันที่ตามที่เลือก
+mod.setRange('2026-09-01', '2026-09-30');
+const rangeDeck = mod.xpBuildDeckModel(S, mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW));
+assert(rangeDeck.slides[0].meta.some(function(t) { return /ช่วงข้อมูล: 1 ก\.ย\. 2569 – 30 ก\.ย\. 2569/.test(t); }), 'ปกต้องบอกวันที่ที่เลือก: ' + rangeDeck.slides[0].meta.join(' | '));
+mod.setRange('', '');
 
 // ฉบับลูกค้า: เป็นตัวเลขเงิน ต้องไม่มี
 mod.setCustomer(true);

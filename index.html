@@ -27402,7 +27402,9 @@ if (dashboardPage) {
       'เริ่มสร้าง PowerPoint': 'Started building PowerPoint',
       'ดาวน์โหลด PowerPoint {n} สไลด์': 'Downloaded PowerPoint ({n} slides)',
       'อันดับอะไหล่ตามมูลค่าเบิก': 'Parts Ranked by Issued Value',
-      '{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%': '{a} – {b} · Total issued value {v} · Top 15 account for {p}%'
+      '{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%': '{a} – {b} · Total issued value {v} · Top 15 account for {p}%',
+      '12 เดือนล่าสุด ({a} – {b})': 'Last 12 months ({a} – {b})',
+      'ช่วงข้อมูล: {r}': 'Data period: {r}'
     };
     // ภาษาจีน (简体) — คีย์ชุดเดียวกับ XP_LANG_EN ทุกตัว (เทสต์บังคับให้ครบ) แปลจากฉบับอังกฤษ
     var XP_LANG_ZH = {
@@ -28016,7 +28018,9 @@ if (dashboardPage) {
       'เริ่มสร้าง PowerPoint': '开始生成 PowerPoint',
       'ดาวน์โหลด PowerPoint {n} สไลด์': '已下载 PowerPoint ({n} 张幻灯片)',
       'อันดับอะไหล่ตามมูลค่าเบิก': '按出库金额排名的备件',
-      '{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%': '{a} – {b} · 出库总金额 {v} · 前 15 名占 {p}%'
+      '{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%': '{a} – {b} · 出库总金额 {v} · 前 15 名占 {p}%',
+      '12 เดือนล่าสุด ({a} – {b})': '近 12 个月 ({a} – {b})',
+      'ช่วงข้อมูล: {r}': '数据期间：{r}'
     };
 
     // แปลข้อความที่จะลงไปในไฟล์ — vars ใช้แทนที่ {placeholder} ในข้อความ
@@ -31377,6 +31381,16 @@ if (dashboardPage) {
       return res;
     }
 
+    // ช่วงข้อมูลที่แสดงบนปก/สไลด์รายเดือน — ตามวันที่ที่เลือกในหน้า Export ถ้าไม่ได้เลือก = 12 เดือนล่าสุด
+    function xpDeckRangeText(M) {
+      function day(v) {
+        var m = xpS(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(xpLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+      }
+      if (xpFilters.from || xpFilters.to) return (day(xpFilters.from) || xpT('ตั้งแต่เริ่มระบบ')) + ' – ' + (day(xpFilters.to) || xpT('ล่าสุด'));
+      if (M && M.labels && M.labels.length) return xpT('12 เดือนล่าสุด ({a} – {b})', { a: M.labels[0], b: M.labels[M.labels.length - 1] });
+      return '';
+    }
     // ประกอบ "โครงสไลด์" เป็นข้อมูลล้วน (ไม่แตะ PptxGenJS) — แยกไว้ให้เทสต์ได้โดยไม่ต้องมีเบราว์เซอร์
     // ทุกข้อความผ่าน xpT แล้ว จึงได้ไฟล์ภาษาเดียวทั้งไฟล์ตามที่เลือก
     function xpBuildDeckModel(S, M) {
@@ -31386,13 +31400,14 @@ if (dashboardPage) {
       var lineKeys = Object.keys(lines).sort();
       var lineLabel = xpFilters.line || xpT('ทุกไลน์');
       var stamp = xpLocaleStamp();
+      var rangeText = xpDeckRangeText(M);
       var slides = [];
 
       slides.push({
         kind: 'cover',
         title: cm ? xpT('รายงานสถานะคลังอะไหล่') : xpT('รายงานสรุปคลังอะไหล่สำหรับผู้บริหาร'),
         sub: 'Spare Parts Portal · JR',
-        meta: [xpT('ข้อมูล ณ {t}', { t: stamp }), xpT('ไลน์: {l}', { l: lineLabel })],
+        meta: [xpT('ข้อมูล ณ {t}', { t: stamp }), xpT('ไลน์: {l}', { l: lineLabel })].concat(rangeText ? [xpT('ช่วงข้อมูล: {r}', { r: rangeText })] : []),
         badge: cm ? xpT('ฉบับสำหรับลูกค้า') : ''
       });
 
@@ -31486,7 +31501,9 @@ if (dashboardPage) {
       // ── มูลค่าการเบิกรายเดือน (ภายใน — เป็นตัวเลขเงิน ฉบับลูกค้าไม่มี) ──
       if (!cm && M && M.hasData) {
         var lineColors = ['2563EB', '0891B2', '7C3AED', 'D97706', '059669', 'E11D48'];
-        var mSeries = M.lines.map(function(ln, i) { return { name: ln, values: M.byLine[ln].map(Math.round), color: lineColors[i % lineColors.length] }; });
+        // ไลน์ที่ทั้งช่วงมูลค่าเป็น 0 (เช่น เบิกแต่ของไม่มีราคา) ไม่ต้องมีแถว/สีในกราฟ — เป็นแถวขีดล้วนเปล่าๆ
+        var mSeries = M.lines.filter(function(ln) { return M.byLine[ln].some(function(v) { return v > 0; }); })
+          .map(function(ln, i) { return { name: ln, values: M.byLine[ln].map(Math.round), color: lineColors[i % lineColors.length] }; });
         var hasMisc = M.misc.some(function(v) { return v > 0; });
         if (hasMisc) mSeries.push({ name: xpT('ค่าสิ้นเปลือง'), values: M.misc.map(Math.round), color: '94A3B8' });
         var momPct = M.prevMonth > 0 ? Math.round((M.thisMonth - M.prevMonth) / M.prevMonth * 100) : null;
@@ -31496,9 +31513,10 @@ if (dashboardPage) {
         slides.push({
           kind: 'monthly',
           title: xpT('มูลค่าการเบิกรายเดือน'),
-          sub: xpT('มูลค่า = จำนวนที่เบิก × ราคาต่อหน่วยล่าสุดใน Master') +
+          sub: (rangeText ? xpT('ช่วงข้อมูล: {r}', { r: rangeText }) + ' · ' : '') + xpT('มูลค่า = จำนวนที่เบิก × ราคาต่อหน่วยล่าสุดใน Master') +
             (M.unpricedItems > 0 ? ' · ' + xpT('ยังไม่มีราคา {n} รายการ ({q} ชิ้น) นับเป็น 0', { n: xpFmtInt(M.unpricedItems), q: xpFmtInt(M.unpricedQty) }) : ''),
-          chart: { type: 'stack', labels: M.labels, series: mSeries, valueLabels: false, axisFormat: '#,##0,"K"' },
+          chart: { type: 'stack', labels: M.labels, series: mSeries, valueLabels: false, axisFormat: '#,##0,"K"',
+            totals: { name: xpT('รวม'), values: M.total.map(Math.round), format: '#,##0.0,"K";;' } },
           stats: [
             { label: xpT('เดือนล่าสุด ({m})', { m: M.latestLabel }), value: xpDeckMoney(M.thisMonth), unit: '',
               note: momPct === null ? '—' : ((momPct > 0 ? '▲ +' : (momPct < 0 ? '▼ ' : '')) + momPct + '% ' + xpT('เทียบเดือนก่อน')), color: momPct > 0 ? 'E11D48' : '059669' },
@@ -31728,6 +31746,15 @@ if (dashboardPage) {
         if (c.axisFormat) base.valAxisLabelFormatCode = c.axisFormat;
         if (c.type === 'line') {
           slide.addChart(pptx.ChartType.line, data, Object.assign(base, { chartColors: colors, lineSize: 2.5, lineDataSymbol: 'circle', lineDataSymbolSize: 6, showLegend: true, legendPos: 'b' }));
+        } else if (c.type === 'stack' && c.totals) {
+          // ยอดรวมบนหัวแท่ง: แท่งซ้อน + เส้นล่องหน (ไม่มีเส้น/จุด) ที่โชว์ป้ายตัวเลขเหนือแท่ง
+          // PowerPoint ไม่มีป้าย "ยอดรวม" ของแท่งซ้อนให้ตรงๆ วิธีนี้คือวิธีมาตรฐาน และยังแก้ตัวเลขต่อได้
+          slide.addChart([
+            { type: pptx.ChartType.bar, data: data, options: { barDir: 'col', barGrouping: 'stacked', chartColors: colors, barGapWidthPct: 60 } },
+            { type: pptx.ChartType.line, data: [{ name: c.totals.name, labels: c.labels, values: c.totals.values }],
+              options: { chartColors: ['0F172A'], lineSize: 0, lineDataSymbol: 'none', showValue: true, dataLabelPosition: 't',
+                dataLabelColor: '0F172A', dataLabelFontSize: 9, dataLabelFontBold: true, dataLabelFormatCode: c.totals.format } }
+          ], Object.assign(base, { showLegend: true, legendPos: 'b' }));
         } else if (c.type === 'stack') {
           slide.addChart(pptx.ChartType.bar, data, Object.assign(base, { barDir: 'col', barGrouping: 'stacked', chartColors: colors, showLegend: true, legendPos: 'b', showValue: c.valueLabels !== false, dataLabelColor: 'FFFFFF', dataLabelFontSize: 9, barGapWidthPct: 60 }));
         } else if (c.type === 'hbar') {
