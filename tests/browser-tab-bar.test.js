@@ -85,7 +85,10 @@ assert(wco, 'ต้องมี CSS โหมด window-controls-overlay');
 assert(/#browserTabBar \{[^}]*position:fixed[^}]*env\(titlebar-area-x/.test(wco[0]), 'แถบแท็บต้องยึดตำแหน่งตาม titlebar-area');
 assert(/\.browser-tab \{[^}]*app-region:no-drag/.test(wco[0]), 'แท็บต้อง no-drag ไม่งั้นกดไม่ได้ (โดนจับเป็นที่ลากหน้าต่าง)');
 assert(/\.browser-tab-new \{[^}]*app-region:no-drag/.test(wco[0]), 'ปุ่ม + ต้อง no-drag');
-assert(/#stockStickyHeader, \.fcc-jump \{ top: var\(--titlebar-h\)/.test(wco[0]), 'header ที่ sticky ต้องเลื่อนลงพ้นแถบชื่อหน้าต่าง');
+// header ที่ sticky ต้องเลื่อนลงพ้นแถบชื่อหน้าต่าง — และต้องชนะกฎ .fcc-jump{top:0} ที่อยู่ท้ายไฟล์กว่า
+// (selector แค่ .fcc-jump เท่ากัน specificity → กฎหลังชนะ → แถบข้ามมุดใต้แถบแท็บตอนเลื่อนจอ)
+assert(/#stockStickyHeader, #dashboardPage \.fcc-jump \{ top: var\(--titlebar-h\)/.test(wco[0]), 'sticky header/jump bar ต้องเลื่อนลงพ้นแถบชื่อหน้าต่าง ด้วย selector ที่มี id');
+assert(/html \{ scroll-padding-top: var\(--titlebar-h\)/.test(wco[0]), 'scrollIntoView ต้องไม่พาหัวข้อไปจมใต้แถบชื่อหน้าต่าง');
 
 // ── deploy ต้องพาไฟล์ manifest ขึ้น GitHub Pages ด้วย (artifact copy เฉพาะไฟล์ที่ระบุ) ──
 const deployYml = fs.readFileSync('.github/workflows/deploy-pages.yml', 'utf8');
