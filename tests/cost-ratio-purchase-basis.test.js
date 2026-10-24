@@ -39,6 +39,21 @@ const render = extract('fccRenderCostRatio()');
 assert(render.includes('fccSpendRows(hist, grInfo)'), 'กราฟ % ต้นทุนต้องใช้ยอดสั่งซื้อ (ผ่าน fccSpendRows ที่สลับเป็น GR หลังวันเริ่มระบบ PR ใหม่)');
 assert(extract('fccSpendRows(hist, gr)').includes('return fccPurchaseSpendRows(hist);'), 'ยังไม่เปิดระบบ PR ใหม่ = ใช้ยอดสั่งซื้อแบบเดิม');
 assert(!render.includes('fccExpenseValidRows('), 'กราฟ % ต้นทุนต้องไม่คิดจากยอดเบิกแล้ว');
+// ค่าเบิกแสดงเทียบกับยอดขายแยก (แท่ง + เส้น % ของตัวเอง) แต่ห้ามบวกเข้ารายจ่าย/อัตราต้นทุน
+assert(render.includes('fccCostRatioIssueByMonth(fccLast.Logs, line, isAll)'), 'ต้องดึงค่าเบิกรายเดือนมาเทียบ');
+assert(render.includes('var ratio = sales > 0 ? (expense / sales * 100) : null;'), 'อัตราต้นทุนยังคิดจากยอดสั่งซื้อ/GR');
+assert(!/spendByMonth\[[^\]]+\] = \(spendByMonth\[[^\]]+\] \|\| 0\) \+ issue/.test(render), 'ค่าเบิกห้ามบวกเข้ารายจ่าย');
+const combo = extract('fccRenderCostRatioCombo(perMonth, targetPct)');
+assert(combo.includes("label: 'ค่าเบิกอะไหล่ (ค่าซ่อม)'") && combo.includes("stack: 'issue'"), 'ต้องมีแท่งค่าเบิกแยกกลุ่ม');
+assert(combo.includes("d.issueRatio.toFixed(0) + '%'"), 'หัวแท่งค่าเบิกต้องบอก % ของยอดขาย');
+assert(!combo.includes("yAxisID: 'yBahtSales'"), 'ยอดขายต้องอยู่แกนบาทเดียวกับแท่ง ถึงจะเทียบความสูงกันได้');
+assert(html.includes('ค่าเบิกอะไหล่ (ค่าซ่อม)</th>'), 'ตารางต้องมีคอลัมน์ค่าเบิก');
+const issueApi = new Function('fccExpenseValidRows', extract('fccCostRatioIssueByMonth(logs, line, isAll)') + '\nreturn fccCostRatioIssueByMonth;')(function() {
+  return [{ month: '2026-09', line: 'H9', amount: 100 }, { month: '2026-09', line: 'Coil Winding', amount: 40 }, { month: '2026-10', line: 'H9', amount: 0 }];
+});
+assert.deepStrictEqual(issueApi([], 'H9', false), { '2026-09': 100 }, 'กรองตามไลน์ + ข้ามรายการไม่มีราคา');
+assert.deepStrictEqual(issueApi([], '', true), { '2026-09': 140 }, 'ทุกไลน์ต้องรวมกัน');
+assert.deepStrictEqual(issueApi(null, 'H9', false), {}, 'ยังโหลด log ไม่เสร็จ = ว่าง');
 assert(html.includes('<th style="padding:6px 10px;text-align:right;">ยอดสั่งซื้อ (PR)</th>'), 'หัวคอลัมน์ต้องบอกว่าเป็นยอดสั่งซื้อ');
 
 console.log('Cost ratio purchase-basis checks passed');

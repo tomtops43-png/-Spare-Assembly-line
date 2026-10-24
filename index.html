@@ -12684,14 +12684,36 @@ function inferRequestPriority(stock, min) {
           fccShowFloatEl(targetLabelEl);
         }
       };
+      // ป้าย "% ของยอดขาย" บนหัวแท่งค่าเบิก — ไม่ทำเป็นเส้นบนแกน % เพราะค่าเบิกมัก 50–200% ของยอดขาย
+      // จะดึงแกน % ยืดจนเส้นอัตราต้นทุน/เป้าหมาย 5% แบนติดพื้น
+      var fccIssueLabelPlugin = {
+        id: 'fccCostRatioIssueLabels',
+        afterDatasetsDraw: function(chart) {
+          var idx = chart.data.datasets.findIndex(function(ds) { return ds.stack === 'issue'; });
+          if (idx < 0 || !chart.isDatasetVisible(idx)) return;
+          var meta = chart.getDatasetMeta(idx), c = chart.ctx;
+          c.save();
+          c.font = '700 10.5px ' + FONT;
+          c.fillStyle = '#0F766E';
+          c.textAlign = 'center';
+          c.textBaseline = 'bottom';
+          meta.data.forEach(function(bar, i) {
+            var d = perMonth[i];
+            if (!d || d.issueRatio == null || !bar) return;
+            c.fillText(d.issueRatio.toFixed(0) + '%', bar.x, bar.y - 3);
+          });
+          c.restore();
+        }
+      };
       fccCostRatioChart = new Chart(canvas.getContext('2d'), {
-        plugins: [fccTargetLabelPlugin],
+        plugins: [fccTargetLabelPlugin, fccIssueLabelPlugin],
         data: {
           labels: perMonth.map(function(d) { return d.label; }),
           datasets: [
             { type: 'line', label: 'ยอดขาย', data: perMonth.map(function(d) { return d.sales; }),
               borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.08)', fill: true,
-              yAxisID: 'yBahtSales', borderWidth: 2, pointRadius: 1.5, pointHoverRadius: 4, order: 2 },
+              // แกนบาทเดียวกับแท่งรายจ่าย/ค่าเบิก — ความสูงเทียบกันตรงๆ ได้ (stack ของตัวเอง ไม่ซ้อนบนแท่ง)
+              yAxisID: 'yBahtSpend', stack: 'sales', borderWidth: 2, pointRadius: 1.5, pointHoverRadius: 4, order: 2 },
             { type: 'bar', label: 'งบ Spare part', data: perMonth.map(function(d) { return d.budget; }), stack: 'budget',
               backgroundColor: '#CBD5E1', hoverBackgroundColor: '#94A3B8',
               yAxisID: 'yBahtSpend', borderRadius: 4, order: 4, categoryPercentage: 0.64, barPercentage: 0.94 },
@@ -12702,6 +12724,10 @@ function inferRequestPriority(stock, min) {
             { type: 'bar', label: 'ของสิ้นเปลือง (ซื้อนอกระบบ)', data: perMonth.map(function(d) { return d.expenseMisc; }),
               backgroundColor: '#8B5CF6', hoverBackgroundColor: '#7C3AED',
               yAxisID: 'yBahtSpend', stack: 'spend', borderRadius: 4, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
+            // ค่าเบิกอะไหล่ (ค่าซ่อม) — แท่งแยกกลุ่ม (stack ของตัวเอง) วางข้างยอดสั่งซื้อ เทียบกับยอดขายได้ตรงๆ
+            { type: 'bar', label: 'ค่าเบิกอะไหล่ (ค่าซ่อม)', data: perMonth.map(function(d) { return d.issue; }), stack: 'issue',
+              backgroundColor: '#14B8A6', hoverBackgroundColor: '#0D9488',
+              yAxisID: 'yBahtSpend', borderRadius: 4, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
             { type: 'line', label: 'อัตราต้นทุน (%)', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#111827', backgroundColor: '#111827', yAxisID: 'yPct', cubicInterpolationMode: 'monotone', borderWidth: 2.2, order: 1, spanGaps: true,
               pointRadius: function(c) { return c.raw != null ? 3 : 0; }, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
               pointBackgroundColor: function(c) { var v = c.raw; return (v != null && tgt != null && v > tgt) ? '#EF4444' : '#22C55E'; } },
@@ -12710,13 +12736,12 @@ function inferRequestPriority(stock, min) {
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          layout: { padding: { top: 12, right: 8, bottom: 4, left: 4 } },
+          layout: { padding: { top: 22, right: 8, bottom: 4, left: 4 } },
           animation: { duration: 700, easing: 'easeOutQuart' },
           interaction: { mode: 'index', intersect: false },
           scales: {
             x: { stacked: true, grid: { display: false }, ticks: { font: { family: FONT, size: 11 }, color: '#64748b', padding: 10 } },
-            yBahtSpend: { stacked: true, position: 'left', beginAtZero: true, title: { display: true, text: 'รายจ่าย / งบประมาณ (บาท)', font: { family: FONT, size: 11 }, color: '#475569' }, grid: { color: '#E5E7EB' }, ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return '฿' + fccMoney(v); } } },
-            yBahtSales: { position: 'right', beginAtZero: true, display: false, grid: { drawOnChartArea: false } },
+            yBahtSpend: { stacked: true, position: 'left', beginAtZero: true, title: { display: true, text: 'ยอดขาย / รายจ่าย / ค่าเบิก (บาท)', font: { family: FONT, size: 11 }, color: '#475569' }, grid: { color: '#E5E7EB' }, ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return '฿' + fccMoney(v); } } },
             yPct: { position: 'right', beginAtZero: true, title: { display: true, text: 'สัดส่วนต้นทุน (%)', font: { family: FONT, size: 11 }, color: '#111827' }, grid: { drawOnChartArea: false }, ticks: { font: { family: FONT, size: 10 }, color: '#111827', callback: function(v) { return v + '%'; } } }
           },
           plugins: {
@@ -12743,6 +12768,7 @@ function inferRequestPriority(stock, min) {
                 html += row('ค่าใช้จ่ายอะไหล่', '฿' + fccInt(d.expense), (d.budget != null && d.expense > d.budget) ? '#EF4444' : '#F59E0B');
                 if (d.expenseMisc > 0) html += row('• ของซื้อนอกระบบ', '฿' + fccInt(d.expenseMisc), '#8B5CF6');
                 if (d.ratio != null) html += row('อัตราต้นทุน', d.ratio.toFixed(1) + '%', '#111827');
+                if (d.issue > 0) html += row('ค่าเบิกอะไหล่ (ค่าซ่อม)', '฿' + fccInt(d.issue) + (d.issueRatio != null ? ' · ' + d.issueRatio.toFixed(1) + '% ของยอดขาย' : ''), '#0D9488');
                 if (d.ratio != null && tgt != null) {
                   var over = d.ratio > tgt;
                   html += '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:16px;align-items:center;"><span style="color:#94a3b8;">สถานะ</span><b style="color:' + (over ? '#EF4444' : '#16A34A') + ';">' + (over ? '🔴 เกินเป้า' : '🟢 อยู่ในเป้า') + '</b></div>';
@@ -13717,6 +13743,18 @@ function inferRequestPriority(stock, min) {
     }
 
     /* ── Cost Ratio (รายจ่ายอะไหล่ / มูลค่าผลิต) ──────────────────────── */
+    // ค่าเบิกอะไหล่ (ค่าซ่อม) รายเดือน = เบิกจริง × ราคาต่อหน่วย (ชุดเดียวกับกราฟค่าซ่อม ทุกประเภทงาน)
+    // แสดงคู่กับยอดขายในกราฟ Cost Ratio เป็นข้อมูลเทียบ — ไม่เอาไปบวกรายจ่าย/อัตราต้นทุน (ฐานยังเป็นยอดสั่งซื้อ/GR)
+    function fccCostRatioIssueByMonth(logs, line, isAll) {
+      var out = {};
+      if (!Array.isArray(logs)) return out;
+      fccExpenseValidRows(logs).forEach(function(r) {
+        if (!r || !(r.amount > 0)) return;
+        if (!isAll && r.line !== line) return;
+        out[r.month] = (out[r.month] || 0) + r.amount;
+      });
+      return out;
+    }
     function fccRenderCostRatio() {
       var tableEl = document.getElementById('fccCostRatioTable');
       var sub = document.getElementById('fccCostRatioSub');
@@ -13795,7 +13833,8 @@ function inferRequestPriority(stock, min) {
       });
       var hasAutoSync = Object.keys(sourceByMonth).some(function(k) { return sourceByMonth[k] === 'auto'; });
       var hasPrice = Object.keys(valueByMonth).length > 0;
-      var months = Array.from(new Set(Object.keys(spendByMonth).concat(Object.keys(qtyByMonth)))).sort().reverse();
+      var issueByMonth = fccCostRatioIssueByMonth(fccLast.Logs, line, isAll);
+      var months = Array.from(new Set(Object.keys(spendByMonth).concat(Object.keys(qtyByMonth), Object.keys(issueByMonth)))).sort().reverse();
       if (!months.length) {
         tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลยอดผลิต/รายจ่ายของ Line นี้ — เพิ่มยอดผลิตด้านล่างเพื่อเริ่มคำนวณ</div>';
         if (fccCostRatioChart) { fccCostRatioChart.destroy(); fccCostRatioChart = null; } // ล้างกราฟ แต่คง <canvas> ไว้ให้ render รอบถัดไป
@@ -13813,7 +13852,9 @@ function inferRequestPriority(stock, min) {
         // งบ Spare part: มุมมอง "รวม" ใช้ผลรวมงบของแต่ละไลน์ (ตามเป้าหมาย % ของไลน์นั้นๆ) ส่วนมุมมองไลน์เดียวคูณตรงจากเป้าหมายที่ตั้งไว้
         var budget = isAll ? (budgetByMonth[m] !== undefined ? budgetByMonth[m] : null) : ((targetPct > 0 && sales > 0) ? sales * targetPct / 100 : null);
         var expenseMisc = miscByMonth[m] || 0;
-        return { label: fccMonthLabel(m), sales: sales, expense: expense, expenseMisc: expenseMisc, expenseParts: Math.max(0, expense - expenseMisc), ratio: ratio, budget: budget };
+        var issue = issueByMonth[m] || 0;   // ค่าเบิกอะไหล่ (ค่าซ่อม) — เทียบกับยอดขายแยกเส้น
+        var issueRatio = (sales > 0 && issue > 0) ? (issue / sales * 100) : null;
+        return { label: fccMonthLabel(m), sales: sales, expense: expense, expenseMisc: expenseMisc, expenseParts: Math.max(0, expense - expenseMisc), ratio: ratio, budget: budget, issue: issue, issueRatio: issueRatio };
       });
       fccRenderCostRatioCombo(perMonth, targetPct);
       var rowsHtml = months.map(function(m) {
@@ -13836,6 +13877,10 @@ function inferRequestPriority(stock, min) {
         var unpSpendTip = unpricedWithdrawQtyByMonth[m] ? '<span title="รายการสั่งซื้อที่ยังไม่มีราคา (TBC) ไม่รวมในยอดสั่งซื้อ" style="margin-left:4px;font-size:9px;color:#dc2626;cursor:help;">⚠︎ ' + fccInt(unpricedWithdrawQtyByMonth[m]) + ' ชิ้นไม่มีราคา</span>' : '';
         var budgetDetail = isAll && budgetDetailByMonth[m] ? Object.keys(budgetDetailByMonth[m]).map(function(ln) { return ln + ': ฿' + fccInt(budgetDetailByMonth[m][ln]); }).join(' | ') : '';
         var budgetTitle = budgetDetail ? ' title="แยกตามไลน์: ' + fccEsc(budgetDetail) + '"' : '';
+        var issueAmt = issueByMonth[m] || 0;
+        var issueCell = issueAmt > 0
+          ? '฿' + fccInt(issueAmt) + (value > 0 ? '<div style="font-size:9px;color:#0f766e;font-weight:700;">' + (issueAmt / value * 100).toFixed(1) + '% ของยอดขาย</div>' : '')
+          : '<span style="color:#94a3b8;">—</span>';
         var miscTip = miscByMonth[m] ? '<div title="ของซื้อนอกระบบอะไหล่ (น็อต/เครื่องมือ/วัสดุสิ้นเปลือง)" style="font-size:9px;color:#7c3aed;">รวมของสิ้นเปลือง ฿' + fccInt(miscByMonth[m]) + ' (' + miscCountByMonth[m] + ' รายการ)</div>' : '';
         return '<tr style="border-bottom:1px solid #f1f5f9;">' +
           '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccMonthLabel(m)) + srcBadge + '</td>' +
@@ -13843,12 +13888,13 @@ function inferRequestPriority(stock, min) {
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(value) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;"' + budgetTitle + '>' + (budgetCap !== null ? '฿' + fccInt(budgetCap) : '<span style="color:#94a3b8;">—</span>') + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(spend) + unpSpendTip + miscTip + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;color:#0f766e;">' + issueCell + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + statusHtml + '</td>' +
           '</tr>';
       }).join('');
       tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
         '<thead><tr style="border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;">' +
-        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต (ยอดขาย)</th><th style="padding:6px 10px;text-align:right;">งบ Spare part</th><th style="padding:6px 10px;text-align:right;">ยอดสั่งซื้อ (PR)</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
+        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต (ยอดขาย)</th><th style="padding:6px 10px;text-align:right;">งบ Spare part</th><th style="padding:6px 10px;text-align:right;">ยอดสั่งซื้อ (PR)</th><th style="padding:6px 10px;text-align:right;color:#0f766e;">ค่าเบิกอะไหล่ (ค่าซ่อม)</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>';
       // แจ้งรุ่นที่ยังจับคู่ราคาไม่ได้ (ถ้ามี) เพื่อให้ผู้ใช้ไปแก้ชื่อรุ่น/เพิ่มราคาในชีต
       var unpKeys = Object.keys(unpricedModels).sort(function(a, b) { return unpricedModels[b] - unpricedModels[a]; });
@@ -13866,7 +13912,7 @@ function inferRequestPriority(stock, min) {
       var basisTxt = grInfo.cutoverAt
         ? '📦 รายจ่าย = ยอดสั่งซื้อ (PR) ก่อน ' + grInfo.cutoverAt.slice(0, 10) + ' · ตั้งแต่วันนั้นนับจากยอดรับของจริง (GR) + ของสิ้นเปลือง'
         : '📦 รายจ่าย = ยอดสั่งซื้อ (PR ไม่นับที่ยกเลิก) + ของสิ้นเปลืองที่ซื้อนอกระบบ';
-      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + basisTxt + ' · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + basisTxt + ' · 🔧 ค่าเบิก = เบิกจริง × ราคา (แท่งเขียวอมฟ้า เทียบแยก ไม่รวมในอัตราต้นทุน) · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
       if (grInfo.cutoverAt && committed > 0) {
         tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;color:#1e40af;">⏳ ยอดผูกพัน (PR อนุมัติแล้ว รอของเข้า) ฿' + fccMoney(committed) + ' — ยังไม่นับในรายจ่าย จะนับเมื่อรับของเข้า</div>';
       }
