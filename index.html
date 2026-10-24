@@ -12067,6 +12067,41 @@ function inferRequestPriority(stock, min) {
     function fccPartKey(line, name, model) {
       return [fccLineOf(line), String(name || '').trim().toLowerCase(), String(model || '').trim().toLowerCase()].join('||');
     }
+    // รุ่นที่ใช้ระบุตัวอะไหล่ได้จริง — สั้นเกิน/ขีด/N/A ไม่นับ (ซ้ำกันข้ามรายการได้ง่าย)
+    function fccModelKey(model) {
+      var m = String(model || '').trim().toLowerCase();
+      return (m.length >= 3 && !/^(-+|n\/?a|none|null|ไม่มี|ไม่ระบุ)$/.test(m)) ? m : '';
+    }
+    // ชื่ออะไหล่ใน Log คือชื่อ ณ วันที่เบิก — ถ้าแก้ชื่อใน Master ทีหลัง (เช่น "ไฟสี่เหลี่ยม" → "Camera square flash")
+    // Log เก่าจะจับคู่ด้วย ชื่อ+รุ่น ไม่เจอ แล้วยอด/มูลค่าเบิกย้อนหลังหายจาก Dashboard/รายงาน/PowerPoint
+    // จึงให้ Log ที่หาไม่เจอใช้ชื่อปัจจุบันใน Master เมื่อ "รุ่นนั้นในไลน์เดียวกันมีอะไหล่ชื่อเดียว"
+    // (รุ่นเดียวมีหลายชื่อ = เดาไม่ได้ว่าตัวไหน ปล่อยตามเดิมดีกว่าจับผิดตัว) ชื่อเดิมเก็บไว้ใน partNameAtIssue
+    function fccCanonicalLogs(logs, master) {
+      var known = {}, byModel = {};
+      (master || []).forEach(function(p) {
+        var name = String(p.name || '').trim();
+        known[fccPartKey(p.line, name, p.model)] = true;
+        var mk = fccModelKey(p.model);
+        if (!mk || !name) return;
+        var k = fccLineOf(p.line) + '||' + mk;
+        if (!byModel[k]) byModel[k] = {};
+        byModel[k][name.toLowerCase()] = name;
+      });
+      return (logs || []).map(function(r) {
+        var line = r.process || r.line;
+        var name = String(r.partName || r.name || '').trim();
+        if (known[fccPartKey(line, name, r.model)]) return r;
+        var mk = fccModelKey(r.model);
+        var cand = mk ? byModel[fccLineOf(line) + '||' + mk] : null;
+        var names = cand ? Object.keys(cand) : [];
+        if (names.length !== 1) return r;
+        var copy = Object.assign({}, r);
+        copy.partName = cand[names[0]];
+        if (copy.name !== undefined) copy.name = copy.partName;
+        copy.partNameAtIssue = name;
+        return copy;
+      });
+    }
     function fccRelTime(ts) {
       var t = new Date(ts).getTime();
       if (!t || isNaN(t)) return '-';
@@ -12625,7 +12660,7 @@ function inferRequestPriority(stock, min) {
         priceMap[k] = price;
       });
 
-      return (logs || []).map(function(r) {
+      return fccCanonicalLogs(logs, partsList).map(function(r) {
         var t = String(r.type || r.txnType || '').toLowerCase();
         var isOut = t.indexOf('output') !== -1 || t.indexOf('issue') !== -1;
         if (!isOut) return null;
@@ -14660,7 +14695,7 @@ function inferRequestPriority(stock, min) {
       var token = ++fccRenderToken;
       fccEnsureAsync().then(function(A) {
         if (token !== fccRenderToken) return;
-        var L = fccCrunchLogs(A.logs, selLine);
+        var L = fccCrunchLogs(fccCanonicalLogs(A.logs, all), selLine);
         var R = fccCrunchRequests(A.requests, selLine);
         fccLast.L = L; fccLast.R = R;
         fccRenderHealth(P, R);
@@ -28156,21 +28191,44 @@ if (dashboardPage) {
     // คีย์ = ชื่อ+รุ่น เท่านั้น ห้ามข้ามไลน์ตามกฎเดิมของ Dashboard
     function xpPriceMap(master) {
       var map = {};
+      var modelNames = {};
       (master || []).forEach(function(it) {
         var price = xpN(it.unit_price);
+        // นับชื่อของแต่ละรุ่นจากทุกแถว (ไม่ใช่แค่แถวที่มีราคา) — ไว้ตัดสินว่ารุ่นนี้ชี้ตัวเดียวจริงไหม
+        var mk = xpModelKey(it.model);
+        if (mk) {
+          if (!modelNames[mk]) modelNames[mk] = {};
+          modelNames[mk][xpS(it.name).trim().toLowerCase()] = true;
+        }
         if (!price) return;
         var k = (xpS(it.name).trim() + '||' + xpS(it.model).trim()).toLowerCase();
         if (!map[k]) map[k] = price;
-        var byNo = 'no::' + xpS(it.no).trim() + '::' + xpS(it.__sheet);
-        if (!map[byNo]) map[byNo] = price;
+        if (xpS(it.no).trim()) {
+          var byNo = 'no::' + xpS(it.no).trim() + '::' + xpS(it.__sheet);
+          if (!map[byNo]) map[byNo] = price;
+        }
+        if (mk && !map['model::' + mk]) map['model::' + mk] = price;
+      });
+      // รุ่นที่มีหลายชื่อ = ระบุตัวไม่ได้ ห้ามใช้ราคาจากรุ่นอย่างเดียว
+      Object.keys(modelNames).forEach(function(mk) {
+        if (Object.keys(modelNames[mk]).length !== 1) delete map['model::' + mk];
       });
       return map;
     }
+    function xpModelKey(model) {
+      var m = xpS(model).trim().toLowerCase();
+      return (m.length >= 3 && !/^(-+|n\/?a|none|null|ไม่มี|ไม่ระบุ)$/.test(m)) ? m : '';
+    }
+    // ลำดับ: ชื่อ+รุ่น → เลขที่ในชีต → รุ่นอย่างเดียว (กรณีแก้ชื่อใน Master ทีหลัง Log เก่ายังเป็นชื่อเดิม)
     function xpLookupPrice(map, name, model, partNo, sheet) {
       var k = (xpS(name).trim() + '||' + xpS(model).trim()).toLowerCase();
       if (map[k]) return map[k];
-      var byNo = 'no::' + xpS(partNo).trim() + '::' + xpS(sheet);
-      return map[byNo] || 0;
+      if (xpS(partNo).trim()) {
+        var byNo = 'no::' + xpS(partNo).trim() + '::' + xpS(sheet);
+        if (map[byNo]) return map[byNo];
+      }
+      var mk = xpModelKey(model);
+      return (mk && map['model::' + mk]) || 0;
     }
 
     function xpFetchLogs() {
@@ -30860,6 +30918,8 @@ if (dashboardPage) {
         return Promise.all([xpFetchMaster(), xpFetchLogsSnapshot(), xpFetchOrderRequestsSnapshot()])
           .then(function(res) {
             // ctx ถูกกรองไลน์มาแล้ว จึงส่ง 'all' ให้ fccCrunch* ไม่ให้กรองซ้ำสองชั้น
+            // Log ที่ชื่อเก่า (แก้ชื่อใน Master ทีหลัง) ให้ใช้ชื่อปัจจุบัน — ตัวเดียวกับหน้า Dashboard
+            res[1] = fccCanonicalLogs(res[1] || [], res[0] || []);
             var P = fccCrunchParts(res[0] || []);
             var L = fccCrunchLogs(res[1] || [], 'all');
             var R = fccCrunchRequests(res[2] || [], 'all');
@@ -31288,6 +31348,7 @@ if (dashboardPage) {
     // ค่าสิ้นเปลือง (ซื้อนอกระบบสต็อก) แยกเป็นอีกชุด ไม่มีทางนับซ้ำกับยอดเบิกเพราะไม่ได้อยู่ใน Log
     function xpDeckMonthlyIssue(logs, master, misc, now) {
       now = now || new Date();
+      logs = fccCanonicalLogs(logs, master); // ชื่อเก่าใน Log → ชื่อปัจจุบัน ไม่ให้อันดับแตกเป็นสองแถว
       var priceMap = xpPriceMap(master || []);
       var hasRange = !!(xpFilters.from || xpFilters.to);
       var months = [];
