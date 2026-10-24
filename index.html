@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>H9 Spare Parts Portal</title>
+  <!-- ติดตั้งเป็นแอป (PWA): window-controls-overlay = เอาแถบแท็บขึ้นไปอยู่ในแถบชื่อหน้าต่าง -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#dbe4f0" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
@@ -352,6 +355,23 @@
     .browser-tab-close:hover { background:#e2e8f0; color:#0f172a; }
     .browser-tab-new { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; margin:0 0 2px 4px; border-radius:999px; color:#475569; font-size:20px; line-height:1; }
     .browser-tab-new:hover { background:rgba(255,255,255,.7); color:#1d4ed8; }
+    /* แอปที่ติดตั้ง (PWA) + เปิดโหมด Window Controls Overlay: ย้ายแถบแท็บขึ้นไปอยู่ในแถบชื่อหน้าต่าง
+       ระดับเดียวกับปุ่มย่อ/ขยาย/ปิด — env(titlebar-area-*) คือพื้นที่ว่างข้างปุ่มของระบบ
+       ตัวแถบลากย้ายหน้าต่างได้ (app-region: drag) ส่วนแท็บ/ปุ่มต้อง no-drag ไม่งั้นกดไม่ติด */
+    @media (display-mode: window-controls-overlay) {
+      :root { --titlebar-h: env(titlebar-area-height, 33px); }
+      body { padding-top: var(--titlebar-h); }
+      /* พื้นหลังแถบชื่อหน้าต่าง — มีตลอด (ก่อน login ด้วย) จะได้ลากหน้าต่างได้เสมอ */
+      body::before { content:''; position:fixed; z-index:8999; top:env(titlebar-area-y, 0); left:0; right:0; height:var(--titlebar-h); background:#dbe4f0; -webkit-app-region:drag; app-region:drag; }
+      #browserTabBar { position:fixed; z-index:9000; top:env(titlebar-area-y, 0); left:env(titlebar-area-x, 0); width:env(titlebar-area-width, 100%); height:var(--titlebar-h); margin:0; padding:4px 8px 0; border-radius:0; border-bottom:0; background:transparent; -webkit-app-region:drag; app-region:drag; }
+      #browserTabList { height:100%; }
+      .browser-tab { height:100%; -webkit-app-region:no-drag; app-region:no-drag; }
+      .browser-tab-new { width:26px; height:26px; margin-bottom:1px; -webkit-app-region:no-drag; app-region:no-drag; }
+      /* ของที่ยึดขอบบนจอ ต้องเลื่อนลงพ้นแถบชื่อหน้าต่าง */
+      #stockStickyHeader, .fcc-jump { top: var(--titlebar-h); }
+      #lineMenuDockToggle { top: calc(var(--titlebar-h) + 12px); }
+      #lineMenuPanel { top: var(--titlebar-h); height: calc(100% - var(--titlebar-h)); }
+    }
     /* ─── แท็บเมนูจัดกลุ่มเป็น dropdown (แก้ปัญหาแท็บล้นแนวนอน) ─── */
     #topNavTabs { overflow: visible; }
     .nav-group { position: relative; }
