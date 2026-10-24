@@ -52,6 +52,8 @@ jobs:
           cp index.html _site/index.html
           cp 404.html _site/404.html
           cp -r images _site/images
+          # manifest ต้องขึ้นไปด้วย ไม่งั้น Chrome ติดตั้งเป็นแอป (แท็บในแถบชื่อหน้าต่าง) ไม่ได้
+          cp manifest.webmanifest _site/manifest.webmanifest
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

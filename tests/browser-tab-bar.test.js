@@ -86,3 +86,8 @@ assert(/#browserTabBar \{[^}]*position:fixed[^}]*env\(titlebar-area-x/.test(wco[
 assert(/\.browser-tab \{[^}]*app-region:no-drag/.test(wco[0]), 'แท็บต้อง no-drag ไม่งั้นกดไม่ได้ (โดนจับเป็นที่ลากหน้าต่าง)');
 assert(/\.browser-tab-new \{[^}]*app-region:no-drag/.test(wco[0]), 'ปุ่ม + ต้อง no-drag');
 assert(/#stockStickyHeader, \.fcc-jump \{ top: var\(--titlebar-h\)/.test(wco[0]), 'header ที่ sticky ต้องเลื่อนลงพ้นแถบชื่อหน้าต่าง');
+
+// ── deploy ต้องพาไฟล์ manifest ขึ้น GitHub Pages ด้วย (artifact copy เฉพาะไฟล์ที่ระบุ) ──
+const deployYml = fs.readFileSync('.github/workflows/deploy-pages.yml', 'utf8');
+assert(/cp manifest\.webmanifest _site\//.test(deployYml), 'deploy-pages.yml ต้อง copy manifest.webmanifest ขึ้นเว็บ');
+assert(/cp -r images _site\/images/.test(deployYml), 'deploy-pages.yml ต้อง copy images (ไอคอนแอป) ขึ้นเว็บ');
