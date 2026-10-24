@@ -31943,13 +31943,30 @@ if (dashboardPage) {
       });
     }
     // เติมรูปให้สไลด์ภาคผนวก — ใช้ตัวดึงรูปชุดเดียวกับ Excel (ฝั่งเบราว์เซอร์ก่อน ไม่ได้ค่อยขอผ่านเซิร์ฟเวอร์)
+    var XP_DECK_IMAGE_TIMEOUT_MS = 60000;
     function xpDeckGalleryImages(model) {
       var gal = model.slides.filter(function(s) { return s.kind === 'gallery'; })[0];
       if (!gal) return Promise.resolve();
       var withUrl = gal.items.filter(function(it) { return it.imageUrl; });
       if (!withUrl.length) return Promise.resolve();
       xpProgressSet(75, 'กำลังดึงรูปอะไหล่สำหรับภาคผนวก...');
-      return xpFetchPartImages(withUrl.map(function(it) { return { image_main_url: it.imageUrl }; })).then(function(res) {
+      // เพดานเวลา: ทางเซิร์ฟเวอร์ (Apps Script อ่าน Drive) ช้าหรือไม่ตอบได้ — ห้ามให้หน้าจอค้างรอไม่รู้จบ
+      // เกินเวลาแล้วสร้างไฟล์ต่อเลย การ์ดที่ยังไม่ได้รูปขึ้น "ไม่มีรูป"
+      var timedOut = false;
+      var fetching = xpFetchPartImages(withUrl.map(function(it) { return { image_main_url: it.imageUrl }; }), function(done, total) {
+        if (!timedOut) xpProgressSet(75 + Math.round(done / Math.max(1, total) * 8), 'กำลังดึงรูปอะไหล่สำหรับภาคผนวก ' + done + '/' + total + '...');
+      });
+      var timeout = new Promise(function(resolve) {
+        setTimeout(function() {
+          timedOut = true;
+          resolve({ byId: {}, timedOut: true });
+        }, XP_DECK_IMAGE_TIMEOUT_MS);
+      });
+      return Promise.race([fetching, timeout]).then(function(res) {
+        if (res.timedOut) {
+          xpProgressLog('ดึงรูปอะไหล่นานเกิน ' + Math.round(XP_DECK_IMAGE_TIMEOUT_MS / 1000) + ' วินาที — สร้างไฟล์ต่อโดยไม่มีรูป (ภาคผนวกขึ้น "ไม่มีรูป")', 'fail');
+          return [];
+        }
         return Promise.all(withUrl.map(function(it) {
           var got = res.byId[extractDriveFileId(it.imageUrl)];
           if (!got || !got.dataUrl) return null;
@@ -31959,7 +31976,10 @@ if (dashboardPage) {
             it.imageW = sz.w;
             it.imageH = sz.h;
           });
-        }));
+        })).then(function() {
+          var ok = withUrl.filter(function(it) { return it.imageData; }).length;
+          xpProgressLog('รูปอะไหล่สำหรับภาคผนวก: ได้ ' + ok + '/' + withUrl.length + ' รูป', ok ? 'ok' : 'fail');
+        });
       }).catch(function(err) {
         // รูปเป็นของเสริม — ดึงไม่ได้ให้ยังได้ไฟล์ (การ์ดขึ้น "ไม่มีรูป")
         xpProgressLog('ดึงรูปอะไหล่ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'fail');

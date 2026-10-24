@@ -264,6 +264,9 @@ assert(/xpDeckGalleryImages\(model\)/.test(runSrc1), 'ต้องดึงร�
 const galSrc = grabFn('xpDeckGalleryImages');
 assert(/xpFetchPartImages\(/.test(galSrc), 'ใช้ตัวดึงรูปชุดเดียวกับ Excel');
 assert(/\.catch\(function\(err\)/.test(galSrc), 'ดึงรูปไม่ได้ต้องยังได้ไฟล์');
+// เคยค้างจริง: ทางเซิร์ฟเวอร์ไม่ตอบ หน้าจอค้างที่ "กำลังดึงรูปอะไหล่..." ไม่รู้จบ — ต้องมีเพดานเวลา
+assert(/Promise\.race\(\[fetching, timeout\]\)/.test(galSrc), 'ดึงรูปต้องมีเพดานเวลา ไม่งั้นหน้าจอค้างได้');
+assert(/var XP_DECK_IMAGE_TIMEOUT_MS = \d+;/.test(require('fs').readFileSync('index.html', 'utf8')), 'ต้องกำหนดเพดานเวลาดึงรูป');
 const renderSrc = grabFn('xpRenderDeck');
 assert(/hyperlink = \{ slide: opt\.linkSlide/.test(renderSrc), 'ตารางต้องผูกลิงก์กระโดดไปหน้าภาคผนวก');
 assert(/hyperlink: \{ slide: slideNo\[s\.backTo\]/.test(renderSrc), 'ภาคผนวกต้องมีลิงก์กลับ');
