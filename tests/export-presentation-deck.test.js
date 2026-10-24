@@ -13,7 +13,7 @@ const mod = buildModule(
     'var xpFilters = { customerMode: false, from: "", to: "", line: "", category: "", txnType: "", groupBy: "month", lang: "th" };',
     'var currentUser = { username: "manager01", role: "admin" };',
     grabFn('fccN'), grabFn('fccPrice'), grabFn('fccInt'), grabFn('fccMoney'),
-    grabFn('fccLineOf'), grabFn('fccPartKey'),
+    grabFn('fccLineOf'), grabFn('fccPartKey'), grabFn('fccModelKey'), grabFn('fccCanonicalLogs'),
     grabFn('fccCrunchParts'), grabFn('fccCrunchLogs'), grabFn('fccCrunchRequests'), grabFn('fccHealth'),
     grabFn('xpDashKpiRows'), grabFn('xpDashLineTable'), grabFn('xpDashCategoryTable'),
     grabFn('xpDeckMoney'), grabFn('xpDeckPct'), grabFn('xpDeckTopUsage'), grabFn('xpDeckTopValue'),

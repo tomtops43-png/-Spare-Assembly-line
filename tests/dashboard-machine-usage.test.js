@@ -35,6 +35,8 @@ const src = [
   grab(/^ {4}function fccInt\(n\) \{.*\}$/m, 'fccInt'),
   grab(/^ {4}function fccLineOf\(raw\) \{[\s\S]*?\n {4}\}/m, 'fccLineOf'),
   grab(/^ {4}function fccPartKey\(line, name, model\) \{[\s\S]*?\n {4}\}/m, 'fccPartKey'),
+  grab(/^ {4}function fccModelKey\(model\) \{[\s\S]*?\n {4}\}/m, 'fccModelKey'),
+  grab(/^ {4}function fccCanonicalLogs\(logs, master\) \{[\s\S]*?\n {4}\}/m, 'fccCanonicalLogs'),
   grab(/^ {4}function fccRelTime\(ts\) \{[\s\S]*?\n {4}\}/m, 'fccRelTime'),
   grab(/^ {4}function fccMonthKey\(raw\) \{[\s\S]*?\n {4}\}/m, 'fccMonthKey'),
   grab(/^ {4}function fccExpenseValidRows\(logs\) \{[\s\S]*?\n {4}\}/m, 'fccExpenseValidRows'),
