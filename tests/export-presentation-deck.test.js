@@ -212,6 +212,21 @@ assert.strictEqual(rankSlide.table.rows[0][1], 'Belt');
 assert.strictEqual(rankSlide.table.rows[rankSlide.table.rows.length - 1][8], '100.0%', 'แถวสุดท้าย % สะสมต้องครบ 100% เมื่อมีไม่ถึง 15 รายการ');
 assert(/คิดเป็น 100%/.test(rankSlide.sub), 'หัวสไลด์ต้องบอกสัดส่วนของ 15 อันดับแรก (มีแค่ 2 รายการ = 100%)');
 
+// ชื่อ/รุ่นในตารางต้องเต็ม ไม่ถูกตัดเป็น "…" (เคยตัดที่ 40 ตัวอักษร ผู้ใช้อ่านไม่ออกว่าอะไหล่ตัวไหน)
+const longName = 'MT PIN CWM Coil Winding Machine LP-2 Die Holder Assembly Left';
+const longModel = 'ME-ACCE-PIN-CWM-HRC-0042-LEFT';
+const MLong = mod.xpDeckMonthlyIssue([{ timestamp: '2026-10-03 08:00:00', type: 'Output', process: 'Coil Winding', partName: longName, model: longModel, qty: 2 }],
+  [{ name: longName, model: longModel, unit_price: 1000 }], [], NOW);
+const longDeck = mod.xpBuildDeckModel(S, MLong);
+const longText = allText(longDeck);
+assert(longText.indexOf(longName) > -1, 'ชื่ออะไหล่ยาวต้องแสดงเต็มในตาราง');
+assert(longText.indexOf(longModel) > -1, 'รุ่นยาวต้องแสดงเต็มในตาราง');
+longDeck.slides.forEach(function(sl) {
+  (sl.table ? sl.table.rows : []).forEach(function(r) {
+    r.forEach(function(c) { assert(String(c).indexOf('…') === -1, 'เซลล์ตารางสไลด์ "' + sl.title + '" ถูกตัดเป็น …: ' + c); });
+  });
+});
+
 // ฉบับลูกค้า: เป็นตัวเลขเงิน ต้องไม่มี
 mod.setCustomer(true);
 const custM = mod.xpBuildDeckModel(S, M);

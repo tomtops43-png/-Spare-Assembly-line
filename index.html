@@ -31252,6 +31252,8 @@ if (dashboardPage) {
       if (!out.length) out.push({ tone: '059669', text: xpT('ไม่พบความผิดปกติ — สต็อกทุกตัวอยู่ในเกณฑ์ปกติ') });
       return out;
     }
+    // ใช้กับป้ายกราฟเท่านั้น (กราฟตัดบรรทัดเองไม่ได้) — ในตารางให้แสดงชื่อ/รุ่นเต็ม แล้วให้เซลล์ตัดบรรทัดเอง
+    // (เคยตัดชื่อในตารางที่ 40 ตัวอักษร ผู้ใช้เห็นชื่ออะไหล่ขาดเป็น "...Di…" อ่านไม่รู้ว่าตัวไหน)
     function xpDeckCut(s, n) { s = xpS(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
     // ชื่อเดือนสั้นตามภาษาของไฟล์ (ต.ค. 69 / Oct 26)
     function xpDeckMonthLabel(key) {
@@ -31519,14 +31521,14 @@ if (dashboardPage) {
               headers: ['#', xpT('ชื่ออะไหล่'), xpT('รุ่น'), xpT('ไลน์'), xpT('เบิก (ชิ้น)'), xpT('จำนวนครั้ง'), xpT('มูลค่าเบิก'), xpT('% ของมูลค่ารวม'), xpT('% สะสม')],
               rows: top15.map(function(t, i) {
                 cum += t.value;
-                return [i + 1, xpDeckCut(t.name, 40), xpDeckCut(t.model, 20), t.line, t.qty, t.count, xpDeckMoney(t.value),
+                return [i + 1, xpS(t.name), xpS(t.model), t.line, t.qty, t.count, xpDeckMoney(t.value),
                   (M.issueSum > 0 ? (t.value / M.issueSum * 100).toFixed(1) : '0.0') + '%',
                   (M.issueSum > 0 ? (cum / M.issueSum * 100).toFixed(1) : '0.0') + '%'];
               }),
               numeric: [true, false, false, false, true, true, true, true, true]
             },
-            colW: [0.45, 3.45, 1.7, 1.35, 0.95, 0.95, 1.13, 1.15, 1.2],
-            fontSize: 10, rowH: 0.32
+            colW: [0.42, 3.75, 1.9, 1.2, 0.85, 0.85, 1.06, 1.1, 1.2],
+            fontSize: 9.5, rowH: 0.3
           });
         }
         if (M.top.length) {
@@ -31537,7 +31539,7 @@ if (dashboardPage) {
               (M.latestMisc > 0 ? ' · ' + xpT('ค่าสิ้นเปลือง {v}', { v: xpDeckMoney(M.latestMisc) }) : ''),
             table: {
               headers: ['#', xpT('ชื่ออะไหล่'), xpT('ไลน์'), xpT('เบิก (ชิ้น)'), xpT('มูลค่าเบิก')],
-              rows: M.top.map(function(t, i) { return [i + 1, xpDeckCut(t.name, 40), t.line, t.qty, t.value > 0 ? xpDeckMoney(t.value) : xpT('ยังไม่มีราคา')]; }),
+              rows: M.top.map(function(t, i) { return [i + 1, xpS(t.name), t.line, t.qty, t.value > 0 ? xpDeckMoney(t.value) : xpT('ยังไม่มีราคา')]; }),
               numeric: [true, false, false, true, true]
             },
             colW: [0.45, 3.85, 1.4, 1.0, 1.2],
@@ -31575,7 +31577,7 @@ if (dashboardPage) {
           sub: xpT('เรียงตามจำนวนชิ้นที่เบิกจริง'),
           table: {
             headers: ['#', xpT('ชื่ออะไหล่'), xpT('รุ่น'), xpT('ไลน์'), xpT('เบิก (ชิ้น)'), xpT('จำนวนครั้ง'), xpT('คงเหลือ')],
-            rows: top.map(function(t, i) { return [i + 1, xpDeckCut(t.name, 46), xpDeckCut(t.model, 24), t.line, t.qty, t.count, t.stock]; }),
+            rows: top.map(function(t, i) { return [i + 1, xpS(t.name), xpS(t.model), t.line, t.qty, t.count, t.stock]; }),
             numeric: [true, false, false, false, true, true, true]
           },
           colW: [0.5, 4.6, 2.4, 1.6, 1.2, 1.1, 1.0]
@@ -31592,7 +31594,7 @@ if (dashboardPage) {
             sub: xpT('มูลค่าคงคลังรวม {v} จาก {n} รายการที่มีราคา', { v: xpDeckMoney(P.value), n: xpFmtInt(P.pricedCount) }),
             table: {
               headers: ['#', xpT('ชื่ออะไหล่'), xpT('รุ่น'), xpT('ไลน์'), xpT('คงเหลือ'), xpT('มูลค่าคงคลัง')],
-              rows: topVal.map(function(t, i) { return [i + 1, xpDeckCut(t.name, 50), xpDeckCut(t.model, 26), t.line, t.stock, xpDeckMoney(t.value)]; }),
+              rows: topVal.map(function(t, i) { return [i + 1, xpS(t.name), xpS(t.model), t.line, t.stock, xpDeckMoney(t.value)]; }),
               numeric: [true, false, false, false, true, true]
             },
             colW: [0.5, 5.1, 2.6, 1.7, 1.1, 1.4]
@@ -31634,7 +31636,7 @@ if (dashboardPage) {
             sub: xpT('วิกฤต {a} · เร่งด่วน {b} · ควรเติม {c} รายการ (แสดง 12 อันดับแรก)', { a: queue.crit, b: queue.high, c: queue.med }),
             table: {
               headers: [xpT('ระดับ'), xpT('ชื่ออะไหล่'), xpT('รุ่น'), xpT('ไลน์'), xpT('คงเหลือ'), 'Min', xpT('ต้องสั่ง')],
-              rows: queue.rows.slice(0, 12).map(function(q) { return [q.level, xpDeckCut(q.name, 44), xpDeckCut(q.model, 24), q.line, q.stock, q.min, q.need]; }),
+              rows: queue.rows.slice(0, 12).map(function(q) { return [q.level, xpS(q.name), xpS(q.model), q.line, q.stock, q.min, q.need]; }),
               numeric: [false, false, false, false, true, true, true]
             },
             colW: [1.1, 4.4, 2.4, 1.6, 1.0, 0.9, 1.0],
