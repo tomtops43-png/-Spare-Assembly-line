@@ -69,3 +69,20 @@ const saved = JSON.parse(store.spare_browser_tabs);
 assert.strictEqual(saved.tabs[0].page, 'log');
 
 console.log('browser-tab-bar: ok');
+
+// ── แอปที่ติดตั้ง (PWA): แถบแท็บขึ้นไปอยู่ในแถบชื่อหน้าต่าง (Window Controls Overlay) ──
+assert(htmlLf.includes('<link rel="manifest" href="manifest.webmanifest"'), 'ต้องลิงก์ manifest');
+const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
+assert.strictEqual(manifest.display_override[0], 'window-controls-overlay', 'ต้องขอโหมด window-controls-overlay ก่อน');
+assert(manifest.start_url && manifest.scope, 'ต้องมี start_url/scope (relative เพราะ deploy ใต้ path ของ repo)');
+manifest.icons.forEach(function(icon) {
+  assert(fs.existsSync(icon.src), 'ไม่พบไฟล์ไอคอน ' + icon.src);
+});
+assert(manifest.icons.some(function(i) { return i.sizes === '192x192'; }) && manifest.icons.some(function(i) { return i.sizes === '512x512'; }),
+  'Chrome ต้องมีไอคอน 192 และ 512 ถึงจะให้ติดตั้งเป็นแอป');
+const wco = htmlLf.match(/@media \(display-mode: window-controls-overlay\) \{[\s\S]*?\n    \}\n/);
+assert(wco, 'ต้องมี CSS โหมด window-controls-overlay');
+assert(/#browserTabBar \{[^}]*position:fixed[^}]*env\(titlebar-area-x/.test(wco[0]), 'แถบแท็บต้องยึดตำแหน่งตาม titlebar-area');
+assert(/\.browser-tab \{[^}]*app-region:no-drag/.test(wco[0]), 'แท็บต้อง no-drag ไม่งั้นกดไม่ได้ (โดนจับเป็นที่ลากหน้าต่าง)');
+assert(/\.browser-tab-new \{[^}]*app-region:no-drag/.test(wco[0]), 'ปุ่ม + ต้อง no-drag');
+assert(/#stockStickyHeader, \.fcc-jump \{ top: var\(--titlebar-h\)/.test(wco[0]), 'header ที่ sticky ต้องเลื่อนลงพ้นแถบชื่อหน้าต่าง');
