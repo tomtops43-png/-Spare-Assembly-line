@@ -1210,8 +1210,11 @@
     .xp-btn-dash { display:flex; align-items:center; gap:11px; padding:14px 16px; border-radius:14px; border:none; font-size:14px; text-align:left; cursor:pointer; transition:transform .12s, box-shadow .12s; background:linear-gradient(135deg,#0891b2,#0e7490); color:#fff; }
     .xp-btn-dash:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,.22); }
     .xp-btn-dash:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
-    .xp-btn-dash b { display:block; font-weight:800; }
-    .xp-btn-dash small { display:block; font-size:11px; opacity:.85; font-weight:500; margin-top:2px; }
+    .xp-btn-ppt { display:flex; align-items:center; gap:11px; padding:14px 16px; border-radius:14px; border:none; font-size:14px; text-align:left; cursor:pointer; transition:transform .12s, box-shadow .12s; background:linear-gradient(135deg,#ea580c,#c2410c); color:#fff; }
+    .xp-btn-ppt:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,.22); }
+    .xp-btn-ppt:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+    .xp-btn-dash b, .xp-btn-ppt b { display:block; font-weight:800; }
+    .xp-btn-dash small, .xp-btn-ppt small { display:block; font-size:11px; opacity:.85; font-weight:500; margin-top:2px; }
     .xp-btn-secondary { background:linear-gradient(135deg,#4f46e5,#3730a3); color:#fff; }
     .xp-btn-ghost { background:rgba(255,255,255,.1); color:#e2e8f0; border:1px solid #475569; }
     .xp-card:not(.xp-card-hero) .xp-btn-ghost { background:#fff; color:#475569; border:1px solid #cbd5e1; }
@@ -3721,6 +3724,10 @@
           <button id="xpDashboardBtn" type="button" class="xp-btn-dash">
             <span class="xp-btn-ico">&#x1F4C8;</span>
             <span><b>Dashboard Snapshot</b><small>ภาพรวมโรงงานหน้าเดียว การ์ด KPI + กราฟ</small></span>
+          </button>
+          <button id="xpPptBtn" type="button" class="xp-btn-ppt">
+            <span class="xp-btn-ico">&#x1F4CA;</span>
+            <span><b>PowerPoint นำเสนอ</b><small>สไลด์ผู้บริหาร / ลูกค้า (ติ๊กโหมดลูกค้า) กราฟแก้ต่อได้</small></span>
           </button>
           <button id="xpJsonBundleBtn" type="button" class="xp-btn-ghost">
             <span class="xp-btn-ico">&#x1F5C3;&#xFE0F;</span>
@@ -27308,7 +27315,76 @@ if (dashboardPage) {
       'พรินต์ / บันทึกเป็น PDF': 'Print / Save as PDF',
       'ผู้ตรวจสอบ': 'Reviewed by',
       'ผู้อนุมัติ': 'Approved by',
-      'Executive Report': 'Executive Report'
+      'Executive Report': 'Executive Report',
+      // ── PowerPoint นำเสนอ ──
+      'วิกฤต': 'Critical',
+      'เร่งด่วน': 'Urgent',
+      'ควรเติม': 'Refill',
+      'หมดสต็อก {n} รายการ — ในจำนวนนี้ {m} รายการยังมีการเบิกใน 30 วัน ควรออกใบขอซื้อทันที': '{n} items out of stock — {m} of them were still issued in the last 30 days; raise purchase requests now',
+      '{n} รายการคาดว่าจะหมดภายใน 14 วัน (เร็วสุด "{name}" ราว {d} วัน)': '{n} items expected to run out within 14 days (soonest: "{name}" in about {d} days)',
+      'ไลน์ที่ต้องเฝ้าระวังมากสุด: {line} — Need PO {n} รายการ': 'Line to watch most: {line} — {n} items need a PO',
+      'คำขอซื้อค้างอนุมัติเกิน 7 วัน {n} คำขอ (เก่าสุด {d} วัน)': '{n} purchase requests pending approval for over 7 days (oldest {d} days)',
+      'Dead Stock {n} รายการ ไม่มีการเบิกใน 90 วัน มูลค่าราว {v}': '{n} dead-stock items with no issues in 90 days, worth about {v}',
+      '14 วันล่าสุดเบิกออก {o} ชิ้น รับเข้า {i} ชิ้น': 'Last 14 days: {o} pcs issued, {i} pcs received',
+      'ไม่พบความผิดปกติ — สต็อกทุกตัวอยู่ในเกณฑ์ปกติ': 'No issues found — all stock levels are within normal range',
+      'ทุกไลน์': 'All lines',
+      'รายงานสถานะคลังอะไหล่': 'Spare Parts Inventory Status',
+      'รายงานสรุปคลังอะไหล่สำหรับผู้บริหาร': 'Spare Parts Executive Review',
+      'ข้อมูล ณ {t}': 'Data as of {t}',
+      'ไลน์: {l}': 'Line: {l}',
+      'ฉบับสำหรับลูกค้า': 'Customer edition',
+      'ดูแล {n} ไลน์': 'Across {n} lines',
+      'พร้อมเบิกใช้งาน': 'Ready to issue',
+      'อัตราพร้อมใช้': 'Availability',
+      'รายการที่มีของในคลัง': 'Items with stock on hand',
+      'เบิกออก 14 วัน': 'Issued (14 days)',
+      'รับเข้า 14 วัน': 'Received (14 days)',
+      'ภาพรวมคลังอะไหล่': 'Inventory Overview',
+      'สถานะ ณ ปัจจุบัน — {l}': 'Current status — {l}',
+      'สถานะสต็อกแยกตามไลน์': 'Stock Status by Line',
+      'จำนวนรายการและความพร้อมใช้ของแต่ละไลน์': 'Item count and availability per line',
+      'จำนวนรายการที่พร้อมใช้ / ต่ำกว่า Min / หมดสต็อก ของแต่ละไลน์': 'Items in normal / below-Min / out-of-stock state per line',
+      'มีของ': 'In stock',
+      'รอเติม': 'Awaiting refill',
+      'ใหม่ในสัปดาห์นี้': 'New this week',
+      'เทียบ 7 วันก่อนหน้า': 'vs previous 7 days',
+      'การเบิก / รับเข้า 14 วันล่าสุด': 'Issues / Receipts — Last 14 Days',
+      'จำนวนชิ้นต่อวัน จากบันทึกรับเข้า-เบิกออกจริง': 'Pieces per day from actual transaction logs',
+      'เบิกออก 7 วันล่าสุด': 'Issued (last 7 days)',
+      'รับเข้า 7 วันล่าสุด': 'Received (last 7 days)',
+      'เบิกออก 30 วัน': 'Issued (30 days)',
+      'รับเข้า 30 วัน {n} ชิ้น': 'Received in 30 days: {n} pcs',
+      'หมวดอะไหล่ที่มีความเสี่ยง': 'Categories at Risk',
+      'จำนวนรายการที่หมดหรือต่ำกว่า Min แยกตามหมวด': 'Out-of-stock or below-Min items by category',
+      'อะไหล่ที่ใช้มากที่สุด 30 วัน': 'Most-Used Parts — Last 30 Days',
+      'เรียงตามจำนวนชิ้นที่เบิกจริง': 'Ranked by actual quantity issued',
+      'เบิก (ชิ้น)': 'Issued (pcs)',
+      'จำนวนครั้ง': 'Times',
+      'อะไหล่มูลค่าคงคลังสูงสุด': 'Highest-Value Inventory',
+      'มูลค่าคงคลังรวม {v} จาก {n} รายการที่มีราคา': 'Total inventory value {v} across {n} priced items',
+      'สถานะคำขอซื้อ (PR)': 'Purchase Request Status',
+      'คำขอทั้งหมด {n} รายการ — กำลังดำเนินการ {o} รายการ': '{n} requests in total — {o} in progress',
+      'ค้างเกิน 7 วัน': 'Pending > 7 days',
+      'เก่าสุด {d} วัน': 'Oldest {d} days',
+      'อนุมัติ / สั่งซื้อแล้ว': 'Approved / Ordered',
+      'รอของเข้า': 'Awaiting delivery',
+      'รับของแล้ว': 'Received',
+      'ปิดงานแล้ว': 'Completed',
+      'ประเด็นสำคัญ': 'Key Highlights',
+      'วิเคราะห์อัตโนมัติจากพฤติกรรมการเบิกจริงและสถานะสต็อก': 'Automatically analysed from actual usage and stock status',
+      'วิกฤต {a} · เร่งด่วน {b} · ควรเติม {c} รายการ (แสดง 12 อันดับแรก)': 'Critical {a} · Urgent {b} · Refill {c} items (top 12 shown)',
+      'ต้องสั่ง': 'To Order',
+      'ออกใบขอซื้อสำหรับรายการวิกฤต {n} รายการ': 'Raise purchase requests for {n} critical items',
+      'เร่งอนุมัติคำขอซื้อที่ค้างเกิน 7 วัน {n} คำขอ': 'Speed up approval of {n} requests pending over 7 days',
+      'เตรียมสั่งของ {n} รายการที่จะหมดภายใน 14 วัน': 'Prepare orders for {n} items running out within 14 days',
+      'ทบทวนค่า Min ของ Dead Stock {n} รายการ': 'Review Min levels for {n} dead-stock items',
+      'รักษาระดับสต็อกและติดตามการเบิกต่อเนื่อง': 'Maintain stock levels and keep monitoring usage',
+      'สิ่งที่ต้องทำต่อ': 'Next Steps',
+      'ขอบคุณ': 'Thank You',
+      'คลังอะไหล่พร้อมสนับสนุนการผลิตอย่างต่อเนื่อง': 'Our spare parts store is ready to support continuous production',
+      'ยังไม่มีคำขอซื้อ': 'No purchase requests yet',
+      'เริ่มสร้าง PowerPoint': 'Started building PowerPoint',
+      'ดาวน์โหลด PowerPoint {n} สไลด์': 'Downloaded PowerPoint ({n} slides)'
     };
 
     // แปลข้อความที่จะลงไปในไฟล์ — vars ใช้แทนที่ {placeholder} ในข้อความ
@@ -28292,7 +28368,7 @@ if (dashboardPage) {
     }
     function xpSetBusy(busy) {
       xpBusy = busy;
-      ['xpWorkbookBtn', 'xpPdfBtn', 'xpDashboardBtn', 'xpJsonBundleBtn', 'xpExportXlsxBtn', 'xpExportCsvBtn', 'xpExportJsonBtn'].forEach(function(id) {
+      ['xpWorkbookBtn', 'xpPdfBtn', 'xpDashboardBtn', 'xpPptBtn', 'xpJsonBundleBtn', 'xpExportXlsxBtn', 'xpExportCsvBtn', 'xpExportJsonBtn'].forEach(function(id) {
         var el = xpEl(id);
         if (el) el.disabled = busy;
       });
@@ -30397,6 +30473,534 @@ if (dashboardPage) {
         showQuickToast('สร้าง Dashboard Snapshot ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
       }).then(function() { xpSetBusy(false); });
     }
+    // ── PowerPoint สำหรับนำเสนอผู้บริหาร / ลูกค้า ────────────────────────
+    // สร้าง .pptx ในเบราว์เซอร์ด้วย PptxGenJS (โหลดตอนกดปุ่มครั้งแรก ไม่ถ่วงหน้าเว็บ)
+    // กราฟเป็นกราฟจริงของ PowerPoint (แก้ตัวเลข/สีต่อได้) ไม่ใช่รูปภาพ
+    // ตัวเลขทุกตัวมาจาก xpDashboardData() ชุดเดียวกับหน้า Dashboard จึงตรงกับหน้าจอ
+    // โหมดลูกค้า: ตัดเรื่องเงิน + เรื่องภายใน (คะแนนสุขภาพ, PR ค้าง, ของที่ต้องสั่ง, Insight) ออกทั้งสไลด์
+    var XP_PPTX_LIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js';
+    var xpPptxLibPromise = null;
+    function xpLoadPptxLib() {
+      if (window.PptxGenJS) return Promise.resolve(window.PptxGenJS);
+      if (xpPptxLibPromise) return xpPptxLibPromise;
+      xpPptxLibPromise = new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = XP_PPTX_LIB_URL;
+        s.onload = function() { window.PptxGenJS ? resolve(window.PptxGenJS) : reject(new Error('PptxGenJS โหลดแล้วแต่ไม่พบตัวไลบรารี')); };
+        s.onerror = function() { xpPptxLibPromise = null; reject(new Error('โหลดตัวสร้าง PowerPoint ไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง')); };
+        document.head.appendChild(s);
+      });
+      return xpPptxLibPromise;
+    }
+    // ฉบับอังกฤษใช้ THB — สัญลักษณ์ ฿ อยู่ในช่วงอักษรไทย บางฟอนต์ของลูกค้าต่างชาติแสดงเป็นกล่อง
+    function xpDeckMoney(v) {
+      var n = xpN(v), cur = xpIsEn() ? 'THB ' : '฿';
+      if (n >= 1e6) return cur + (n / 1e6).toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + 'M';
+      if (n >= 1e4) return cur + (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+      return cur + xpFmtInt(n);
+    }
+    function xpDeckPct(part, whole) { return whole > 0 ? Math.round(part / whole * 100) : 0; }
+    // อะไหล่ที่เบิกมากสุด 30 วัน — เกณฑ์เดียวกับ Top Intelligence บน Dashboard
+    function xpDeckTopUsage(S, limit) {
+      var L = S.L, out = [], seen = {};
+      if (!L || !L.hasData) return out;
+      S.P.rows.forEach(function(r) {
+        var k = fccPartKey(r.line, r.name, r.model);
+        var u = L.usage30[k];
+        if (!u || seen[k]) return;
+        seen[k] = true;
+        out.push({ name: xpS(r.name), model: xpS(r.model), line: fccLineOf(r.line), qty: u.qty, count: u.count, stock: xpN(r.stock) });
+      });
+      out.sort(function(a, b) { return b.qty - a.qty; });
+      return out.slice(0, limit || 10);
+    }
+    function xpDeckTopValue(S, limit) {
+      return (S.P.valued || []).filter(function(x) { return x.value > 0; }).sort(function(a, b) { return b.value - a.value; }).slice(0, limit || 10)
+        .map(function(x) { return { name: xpS(x.item.name), model: xpS(x.item.model), line: fccLineOf(x.item.line), stock: xpN(x.item.stock), value: x.value }; });
+    }
+    // มีของแต่ไม่มีการเบิกเลยใน 90 วัน = เงินจม (เกณฑ์เดียวกับ Dead Stock บน Dashboard)
+    function xpDeckDeadStock(S) {
+      var res = { count: 0, value: 0 };
+      if (!S.L || !S.L.hasData) return res;
+      var t90 = Date.now() - 90 * 86400000;
+      S.P.rows.forEach(function(r) {
+        if (xpN(r.stock) <= 0) return;
+        var last = S.L.lastUse[fccPartKey(r.line, r.name, r.model)] || 0;
+        if (last < t90) { res.count += 1; res.value += fccPrice(r.unit_price) * xpN(r.stock); }
+      });
+      return res;
+    }
+    // คาดว่าจะหมดภายใน 14 วัน จากอัตราเบิกจริง 30 วัน
+    function xpDeckRunningOut(S) {
+      var list = [];
+      if (!S.L || !S.L.hasData) return list;
+      S.P.rows.forEach(function(r) {
+        var u = S.L.usage30[fccPartKey(r.line, r.name, r.model)];
+        var stock = xpN(r.stock);
+        if (!u || u.qty <= 0 || stock <= 0) return;
+        var eta = Math.round(stock / (u.qty / 30));
+        if (eta <= 14) list.push({ name: xpS(r.name), line: fccLineOf(r.line), eta: eta });
+      });
+      return list.sort(function(a, b) { return a.eta - b.eta; });
+    }
+    // คิวสั่งซื้อ — แบ่งระดับแบบเดียวกับ Action Queue บน Dashboard
+    function xpDeckActionQueue(S) {
+      var groups = [[], [], []];
+      S.P.rows.forEach(function(r) {
+        var stock = xpN(r.stock), min = xpN(r.min);
+        if (min <= 0) return;
+        if (stock <= 0) groups[0].push(r);
+        else if (stock <= min * 0.5) groups[1].push(r);
+        else if (stock < min) groups[2].push(r);
+      });
+      function need(r) { return Math.max(1, xpN(r.min) - xpN(r.stock)); }
+      var levels = [xpT('วิกฤต'), xpT('เร่งด่วน'), xpT('ควรเติม')];
+      var rows = [];
+      groups.forEach(function(g, gi) {
+        g.sort(function(a, b) { return need(b) - need(a); }).forEach(function(r) {
+          rows.push({ level: levels[gi], name: xpS(r.name), model: xpS(r.model), line: fccLineOf(r.line), stock: xpN(r.stock), min: xpN(r.min), need: need(r) });
+        });
+      });
+      return { crit: groups[0].length, high: groups[1].length, med: groups[2].length, rows: rows };
+    }
+    // ประเด็นสำคัญสำหรับผู้บริหาร — ประโยคสั้นที่อ่านจบใน 5 วินาที
+    function xpDeckHighlights(S, queue, dead, soon) {
+      var P = S.P, L = S.L, R = S.R, out = [];
+      if (P.out > 0) {
+        var usedOut = 0;
+        if (L && L.hasData) {
+          P.rows.forEach(function(r) {
+            if (xpN(r.stock) > 0) return;
+            var u = L.usage30[fccPartKey(r.line, r.name, r.model)];
+            if (u && u.qty > 0) usedOut += 1;
+          });
+        }
+        out.push({ tone: 'E11D48', text: xpT('หมดสต็อก {n} รายการ — ในจำนวนนี้ {m} รายการยังมีการเบิกใน 30 วัน ควรออกใบขอซื้อทันที', { n: xpFmtInt(P.out), m: xpFmtInt(usedOut) }) });
+      }
+      if (soon.length) {
+        out.push({ tone: 'D97706', text: xpT('{n} รายการคาดว่าจะหมดภายใน 14 วัน (เร็วสุด "{name}" ราว {d} วัน)', { n: xpFmtInt(soon.length), name: soon[0].name, d: soon[0].eta }) });
+      }
+      var worst = null;
+      Object.keys(P.lines || {}).forEach(function(k) {
+        var ln = P.lines[k], n = ln.out + ln.low;
+        if (n > 0 && (!worst || n > worst.n)) worst = { name: ln.name, n: n };
+      });
+      if (worst) out.push({ tone: 'D97706', text: xpT('ไลน์ที่ต้องเฝ้าระวังมากสุด: {line} — Need PO {n} รายการ', { line: worst.name, n: xpFmtInt(worst.n) }) });
+      if (R && R.over7 > 0) {
+        out.push({ tone: '0891B2', text: xpT('คำขอซื้อค้างอนุมัติเกิน 7 วัน {n} คำขอ (เก่าสุด {d} วัน)', { n: xpFmtInt(R.over7), d: R.oldestPendingDays }) });
+      }
+      if (dead.count > 0) {
+        out.push({ tone: '7C3AED', text: xpT('Dead Stock {n} รายการ ไม่มีการเบิกใน 90 วัน มูลค่าราว {v}', { n: xpFmtInt(dead.count), v: xpDeckMoney(dead.value) }) });
+      }
+      if (L && L.hasData) {
+        out.push({ tone: '2563EB', text: xpT('14 วันล่าสุดเบิกออก {o} ชิ้น รับเข้า {i} ชิ้น', { o: xpFmtInt(L.out14), i: xpFmtInt(L.in14) }) });
+      }
+      if (!out.length) out.push({ tone: '059669', text: xpT('ไม่พบความผิดปกติ — สต็อกทุกตัวอยู่ในเกณฑ์ปกติ') });
+      return out;
+    }
+    function xpDeckCut(s, n) { s = xpS(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+    // ประกอบ "โครงสไลด์" เป็นข้อมูลล้วน (ไม่แตะ PptxGenJS) — แยกไว้ให้เทสต์ได้โดยไม่ต้องมีเบราว์เซอร์
+    // ทุกข้อความผ่าน xpT แล้ว จึงได้ไฟล์ภาษาเดียวทั้งไฟล์ตามที่เลือก
+    function xpBuildDeckModel(S) {
+      var P = S.P, L = S.L, R = S.R, H = S.H;
+      var cm = !!xpFilters.customerMode;
+      var lines = P.lines || {};
+      var lineKeys = Object.keys(lines).sort();
+      var lineLabel = xpFilters.line || xpT('ทุกไลน์');
+      var stamp = xpLocaleStamp();
+      var slides = [];
+
+      slides.push({
+        kind: 'cover',
+        title: cm ? xpT('รายงานสถานะคลังอะไหล่') : xpT('รายงานสรุปคลังอะไหล่สำหรับผู้บริหาร'),
+        sub: 'Spare Parts Portal · JR',
+        meta: [xpT('ข้อมูล ณ {t}', { t: stamp }), xpT('ไลน์: {l}', { l: lineLabel })],
+        badge: cm ? xpT('ฉบับสำหรับลูกค้า') : ''
+      });
+
+      // ── ภาพรวม ──
+      var cards;
+      if (cm) {
+        cards = [
+          { label: xpT('อะไหล่ทั้งหมด'), value: xpFmtInt(P.total), unit: xpT('รายการ'), note: xpT('ดูแล {n} ไลน์', { n: lineKeys.length }), color: '2563EB' },
+          { label: xpT('ชิ้นในคลัง'), value: xpFmtInt(P.stockQty), unit: xpT('ชิ้น'), note: xpT('พร้อมเบิกใช้งาน'), color: '059669' },
+          { label: xpT('อัตราพร้อมใช้'), value: String(xpDeckPct(P.total - P.out, P.total)), unit: '%', note: xpT('รายการที่มีของในคลัง'), color: '0891B2' },
+          { label: xpT('เบิกออก 14 วัน'), value: xpFmtInt(L.out14), unit: xpT('ชิ้น'), note: xpT('สัปดาห์นี้ {n} ชิ้น', { n: xpFmtInt(L.out7) }), color: '7C3AED' },
+          { label: xpT('รับเข้า 14 วัน'), value: xpFmtInt(L.in14), unit: xpT('ชิ้น'), note: xpT('สัปดาห์นี้ {n} ชิ้น', { n: xpFmtInt(L.in7) }), color: 'D97706' }
+        ];
+      } else {
+        var accent = ['2563EB', '059669', 'E11D48', 'D97706', '7C3AED', '0891B2', '2563EB', '059669'];
+        cards = xpDashKpiRows(S).filter(function(r) { return r[0] !== 'Factory Health Score'; }).map(function(r, i) {
+          return { label: xpT(r[0]), value: r[2] === 'บาท' ? xpDeckMoney(r[1]) : xpFmtInt(r[1]), unit: r[2] === 'บาท' ? '' : xpT(r[2]), note: r[3], color: accent[i % accent.length] };
+        });
+      }
+      slides.push({
+        kind: 'kpis',
+        title: xpT('ภาพรวมคลังอะไหล่'),
+        sub: xpT('สถานะ ณ ปัจจุบัน — {l}', { l: lineLabel }),
+        cards: cards,
+        gauge: cm ? null : {
+          score: H.score, grade: H.tone.g, color: String(H.tone.c1).replace('#', '').toUpperCase(),
+          notes: [
+            xpT('หักจากของหมดสต็อก') + ' −' + H.dOut,
+            xpT('หักจากของต่ำกว่า Min') + ' −' + H.dLow,
+            xpT('หักจาก PR ที่ค้างอยู่') + ' −' + H.dPr
+          ]
+        }
+      });
+
+      // ── ตามไลน์ ──
+      if (lineKeys.length) {
+        var lineTable = cm ? {
+          headers: [xpT('ไลน์'), xpT('จำนวน SKU'), xpT('ชิ้นในคลัง'), xpT('อัตราพร้อมใช้')],
+          rows: lineKeys.map(function(k) { var o = lines[k]; return [o.name, o.total, o.stockQty, xpDeckPct(o.total - o.out, o.total) + '%']; }),
+          numeric: [false, true, true, true]
+        } : {
+          // ตัวเลขชุดเดียวกับ xpDashLineTable แต่ย่อเงินเป็น ฿K/฿M ให้อ่านบนสไลด์ได้ (เลขเต็มยาวจนตัดบรรทัด)
+          headers: [xpT('ไลน์'), xpT('จำนวน SKU'), xpT('ชิ้นในคลัง'), xpT('มูลค่าคงคลัง'), xpT('หมดสต็อก'), xpT('ต่ำกว่า Min'), xpT('Need PO')],
+          rows: lineKeys.map(function(k) { var o = lines[k]; return [o.name, o.total, o.stockQty, xpDeckMoney(o.value), o.out, o.low, o.out + o.low]; }),
+          numeric: [false, true, true, true, true, true, true]
+        };
+        slides.push({
+          kind: 'lines',
+          title: xpT('สถานะสต็อกแยกตามไลน์'),
+          sub: cm ? xpT('จำนวนรายการและความพร้อมใช้ของแต่ละไลน์') : xpT('จำนวนรายการที่พร้อมใช้ / ต่ำกว่า Min / หมดสต็อก ของแต่ละไลน์'),
+          table: lineTable,
+          chart: {
+            type: 'stack', labels: lineKeys,
+            series: cm ? [
+              { name: xpT('มีของ'), values: lineKeys.map(function(k) { return lines[k].total - lines[k].out; }), color: '059669' },
+              { name: xpT('รอเติม'), values: lineKeys.map(function(k) { return lines[k].out; }), color: 'CBD5E1' }
+            ] : [
+              { name: xpT('ปกติ'), values: lineKeys.map(function(k) { return lines[k].total - lines[k].out - lines[k].low; }), color: '059669' },
+              { name: xpT('ต่ำกว่า Min'), values: lineKeys.map(function(k) { return lines[k].low; }), color: 'F59E0B' },
+              { name: xpT('หมดสต็อก'), values: lineKeys.map(function(k) { return lines[k].out; }), color: 'E11D48' }
+            ]
+          }
+        });
+      }
+
+      // ── เคลื่อนไหว 14 วัน ──
+      var days = L.days || [];
+      function trend(now, prev) {
+        if (!prev) return now > 0 ? xpT('ใหม่ในสัปดาห์นี้') : '—';
+        var d = Math.round((now - prev) / prev * 100);
+        return (d > 0 ? '▲ +' : (d < 0 ? '▼ ' : '')) + d + '% ' + xpT('เทียบ 7 วันก่อนหน้า');
+      }
+      slides.push({
+        kind: 'movement',
+        title: xpT('การเบิก / รับเข้า 14 วันล่าสุด'),
+        sub: xpT('จำนวนชิ้นต่อวัน จากบันทึกรับเข้า-เบิกออกจริง'),
+        chart: {
+          type: 'line', labels: days.map(function(d) { return d.label; }),
+          series: [
+            { name: xpT('เบิกออก (ชิ้น)'), values: days.map(function(d) { return d.out; }), color: '2563EB' },
+            { name: xpT('รับเข้า (ชิ้น)'), values: days.map(function(d) { return d.in; }), color: '059669' }
+          ]
+        },
+        stats: [
+          { label: xpT('เบิกออก 7 วันล่าสุด'), value: xpFmtInt(L.out7), unit: xpT('ชิ้น'), note: trend(L.out7, L.outPrev7), color: '2563EB' },
+          { label: xpT('รับเข้า 7 วันล่าสุด'), value: xpFmtInt(L.in7), unit: xpT('ชิ้น'), note: trend(L.in7, L.inPrev7), color: '059669' },
+          { label: xpT('เบิกออก 30 วัน'), value: xpFmtInt(L.out30Qty), unit: xpT('ชิ้น'), note: xpT('รับเข้า 30 วัน {n} ชิ้น', { n: xpFmtInt(L.in30Qty) }), color: '7C3AED' }
+        ]
+      });
+
+      // ── หมวดที่มีความเสี่ยง (ภายใน) ──
+      if (!cm) {
+        var cats = P.cats || {};
+        var catItems = Object.keys(cats).map(function(k) { return cats[k]; }).filter(function(c) { return c.risk > 0; })
+          .sort(function(a, b) { return b.risk - a.risk; }).slice(0, 10);
+        if (catItems.length) {
+          var catTable = xpDashCategoryTable(S);
+          catTable.rows = catTable.rows.slice(0, 10);
+          slides.push({
+            kind: 'risk',
+            title: xpT('หมวดอะไหล่ที่มีความเสี่ยง'),
+            sub: xpT('จำนวนรายการที่หมดหรือต่ำกว่า Min แยกตามหมวด'),
+            chart: { type: 'hbar', labels: catItems.map(function(c) { return xpDeckCut(c.name, 28); }).reverse(),
+              series: [{ name: xpT('รายการเสี่ยง'), values: catItems.map(function(c) { return c.risk; }).reverse(), color: 'E11D48' }] },
+            table: catTable
+          });
+        }
+      }
+
+      // ── ใช้มากสุด 30 วัน ──
+      var top = xpDeckTopUsage(S, 10);
+      if (top.length) {
+        slides.push({
+          kind: 'table',
+          title: xpT('อะไหล่ที่ใช้มากที่สุด 30 วัน'),
+          sub: xpT('เรียงตามจำนวนชิ้นที่เบิกจริง'),
+          table: {
+            headers: ['#', xpT('ชื่ออะไหล่'), xpT('รุ่น'), xpT('ไลน์'), xpT('เบิก (ชิ้น)'), xpT('จำนวนครั้ง'), xpT('คงเหลือ')],
+            rows: top.map(function(t, i) { return [i + 1, xpDeckCut(t.name, 46), xpDeckCut(t.model, 24), t.line, t.qty, t.count, t.stock]; }),
+            numeric: [true, false, false, false, true, true, true]
+          },
+          colW: [0.5, 4.6, 2.4, 1.6, 1.2, 1.1, 1.0]
+        });
+      }
+
+      if (!cm) {
+        // ── มูลค่าสูงสุด ──
+        var topVal = xpDeckTopValue(S, 10);
+        if (topVal.length) {
+          slides.push({
+            kind: 'table',
+            title: xpT('อะไหล่มูลค่าคงคลังสูงสุด'),
+            sub: xpT('มูลค่าคงคลังรวม {v} จาก {n} รายการที่มีราคา', { v: xpDeckMoney(P.value), n: xpFmtInt(P.pricedCount) }),
+            table: {
+              headers: ['#', xpT('ชื่ออะไหล่'), xpT('รุ่น'), xpT('ไลน์'), xpT('คงเหลือ'), xpT('มูลค่าคงคลัง')],
+              rows: topVal.map(function(t, i) { return [i + 1, xpDeckCut(t.name, 50), xpDeckCut(t.model, 26), t.line, t.stock, xpDeckMoney(t.value)]; }),
+              numeric: [true, false, false, false, true, true]
+            },
+            colW: [0.5, 5.1, 2.6, 1.7, 1.1, 1.4]
+          });
+        }
+
+        // ── คำขอซื้อ ──
+        var rc = R.counts || {};
+        var reqLabels = Object.keys(rc).filter(function(k) { return rc[k] > 0; });
+        slides.push({
+          kind: 'requests',
+          title: xpT('สถานะคำขอซื้อ (PR)'),
+          sub: xpT('คำขอทั้งหมด {n} รายการ — กำลังดำเนินการ {o} รายการ', { n: xpFmtInt(R.total), o: xpFmtInt(R.open) }),
+          chart: reqLabels.length ? { type: 'doughnut', labels: reqLabels, series: [{ name: xpT('จำนวน'), values: reqLabels.map(function(k) { return rc[k]; }) }] } : null,
+          stats: [
+            { label: xpT('PR รอดำเนินการ'), value: xpFmtInt(rc['Pending'] || 0), unit: xpT('คำขอ'), note: xpT('รออนุมัติ'), color: 'D97706' },
+            { label: xpT('ค้างเกิน 7 วัน'), value: xpFmtInt(R.over7), unit: xpT('คำขอ'), note: xpT('เก่าสุด {d} วัน', { d: R.oldestPendingDays }), color: 'E11D48' },
+            { label: xpT('อนุมัติ / สั่งซื้อแล้ว'), value: xpFmtInt((rc['Approved'] || 0) + (rc['Purchased'] || 0)), unit: xpT('คำขอ'), note: xpT('รอของเข้า'), color: '2563EB' },
+            { label: xpT('รับของแล้ว'), value: xpFmtInt((rc['Received'] || 0) + (rc['Closed'] || 0)), unit: xpT('คำขอ'), note: xpT('ปิดงานแล้ว'), color: '059669' }
+          ]
+        });
+
+        // ── ประเด็นสำคัญ ──
+        var queue = xpDeckActionQueue(S);
+        var dead = xpDeckDeadStock(S);
+        var soon = xpDeckRunningOut(S);
+        slides.push({
+          kind: 'bullets',
+          title: xpT('ประเด็นสำคัญ'),
+          sub: xpT('วิเคราะห์อัตโนมัติจากพฤติกรรมการเบิกจริงและสถานะสต็อก'),
+          items: xpDeckHighlights(S, queue, dead, soon)
+        });
+
+        // ── ต้องสั่งซื้อ ──
+        if (queue.rows.length) {
+          slides.push({
+            kind: 'table',
+            title: xpT('รายการที่ต้องสั่งซื้อ'),
+            sub: xpT('วิกฤต {a} · เร่งด่วน {b} · ควรเติม {c} รายการ (แสดง 12 อันดับแรก)', { a: queue.crit, b: queue.high, c: queue.med }),
+            table: {
+              headers: [xpT('ระดับ'), xpT('ชื่ออะไหล่'), xpT('รุ่น'), xpT('ไลน์'), xpT('คงเหลือ'), 'Min', xpT('ต้องสั่ง')],
+              rows: queue.rows.slice(0, 12).map(function(q) { return [q.level, xpDeckCut(q.name, 44), xpDeckCut(q.model, 24), q.line, q.stock, q.min, q.need]; }),
+              numeric: [false, false, false, false, true, true, true]
+            },
+            colW: [1.1, 4.4, 2.4, 1.6, 1.0, 0.9, 1.0],
+            levelColors: true
+          });
+        }
+
+        // ── สิ่งที่ต้องทำต่อ ──
+        var next = [];
+        if (queue.crit > 0) next.push(xpT('ออกใบขอซื้อสำหรับรายการวิกฤต {n} รายการ', { n: queue.crit }));
+        if (R.over7 > 0) next.push(xpT('เร่งอนุมัติคำขอซื้อที่ค้างเกิน 7 วัน {n} คำขอ', { n: R.over7 }));
+        if (soon.length) next.push(xpT('เตรียมสั่งของ {n} รายการที่จะหมดภายใน 14 วัน', { n: soon.length }));
+        if (dead.count > 0) next.push(xpT('ทบทวนค่า Min ของ Dead Stock {n} รายการ', { n: dead.count }));
+        if (!next.length) next.push(xpT('รักษาระดับสต็อกและติดตามการเบิกต่อเนื่อง'));
+        slides.push({ kind: 'closing', title: xpT('สิ่งที่ต้องทำต่อ'), items: next });
+      } else {
+        slides.push({ kind: 'closing', title: xpT('ขอบคุณ'), items: [xpT('คลังอะไหล่พร้อมสนับสนุนการผลิตอย่างต่อเนื่อง')] });
+      }
+
+      return {
+        title: slides[0].title,
+        footer: 'Spare Parts Portal · JR · ' + stamp + (cm ? ' · ' + xpT('ฉบับสำหรับลูกค้า') : ''),
+        slides: slides
+      };
+    }
+
+    // วาดโครงสไลด์ลง PowerPoint — ฟอนต์ Tahoma มีในทุกเครื่องที่มี Office และแสดงภาษาไทยได้
+    function xpRenderDeck(PptxGenJS, model, logoData) {
+      var pptx = new PptxGenJS();
+      pptx.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 นิ้ว (16:9)
+      pptx.title = model.title;
+      pptx.company = 'JR';
+      pptx.author = (currentUser && (currentUser.name || currentUser.username)) || 'Spare Parts Portal';
+      var F = 'Tahoma';
+      var INK = '0F172A', MUT = '64748B', LINE = 'E2E8F0';
+      pptx.defineSlideMaster({
+        title: 'XP_BODY',
+        background: { color: 'FFFFFF' },
+        objects: [
+          { rect: { x: 0, y: 0, w: 13.333, h: 0.1, fill: { color: '2563EB' } } },
+          { text: { text: model.footer, options: { x: 0.5, y: 7.05, w: 10, h: 0.3, fontFace: F, fontSize: 9, color: '94A3B8' } } }
+        ],
+        slideNumber: { x: 12.2, y: 7.05, w: 0.7, h: 0.3, fontFace: F, fontSize: 9, color: '94A3B8', align: 'right' }
+      });
+      function head(slide, s) {
+        slide.addText(s.title, { x: 0.5, y: 0.3, w: 12.3, h: 0.6, fontFace: F, fontSize: 24, bold: true, color: INK });
+        if (s.sub) slide.addText(s.sub, { x: 0.5, y: 0.88, w: 12.3, h: 0.4, fontFace: F, fontSize: 12, color: MUT });
+      }
+      function card(slide, c, x, y, w, h) {
+        slide.addShape(pptx.ShapeType.roundRect, { x: x, y: y, w: w, h: h, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: LINE, width: 1 } });
+        slide.addShape(pptx.ShapeType.rect, { x: x, y: y + 0.12, w: 0.06, h: h - 0.24, fill: { color: c.color }, line: { color: c.color, width: 0 } });
+        slide.addText(c.label, { x: x + 0.2, y: y + 0.1, w: w - 0.3, h: 0.32, fontFace: F, fontSize: 11, bold: true, color: MUT });
+        slide.addText([
+          { text: c.value, options: { fontSize: 26, bold: true, color: INK } },
+          { text: c.unit ? '  ' + c.unit : '', options: { fontSize: 11, color: MUT } }
+        ], { x: x + 0.2, y: y + 0.42, w: w - 0.3, h: 0.6, fontFace: F, valign: 'middle' });
+        if (c.note) slide.addText(c.note, { x: x + 0.2, y: y + h - 0.42, w: w - 0.3, h: 0.32, fontFace: F, fontSize: 9.5, color: MUT });
+      }
+      function table(slide, t, opt) {
+        var numeric = t.numeric || [];
+        var rows = [t.headers.map(function(h, i) {
+          return { text: xpS(h), options: { bold: true, color: 'FFFFFF', fill: { color: '1E293B' }, align: numeric[i] ? 'right' : 'left' } };
+        })];
+        (t.rows || []).forEach(function(r, ri) {
+          rows.push(r.map(function(v, i) {
+            var o = { align: numeric[i] ? 'right' : 'left', fill: { color: ri % 2 ? 'F8FAFC' : 'FFFFFF' }, color: INK };
+            if (opt.levelColors && i === 0) { o.bold = true; o.color = v === xpT('วิกฤต') ? 'E11D48' : (v === xpT('เร่งด่วน') ? 'D97706' : '0891B2'); }
+            return { text: typeof v === 'number' ? xpFmtInt(v) : xpS(v), options: o };
+          }));
+        });
+        slide.addTable(rows, { x: opt.x, y: opt.y, w: opt.w, colW: opt.colW, fontFace: F, fontSize: opt.fontSize || 10.5, rowH: opt.rowH || 0.34, valign: 'middle', margin: 0.06, border: { type: 'solid', pt: 0.5, color: LINE } });
+      }
+      function chart(slide, c, x, y, w, h) {
+        var data = c.series.map(function(s) { return { name: s.name, labels: c.labels, values: s.values }; });
+        var colors = c.series.map(function(s) { return s.color || '2563EB'; });
+        var base = { x: x, y: y, w: w, h: h, catAxisLabelFontFace: F, valAxisLabelFontFace: F, legendFontFace: F, dataLabelFontFace: F,
+          catAxisLabelFontSize: 10, valAxisLabelFontSize: 9, legendFontSize: 10, catAxisLabelColor: MUT, valAxisLabelColor: MUT,
+          valGridLine: { color: 'EEF2F7', style: 'solid', size: 0.75 }, catGridLine: { style: 'none' } };
+        if (c.type === 'line') {
+          slide.addChart(pptx.ChartType.line, data, Object.assign(base, { chartColors: colors, lineSize: 2.5, lineDataSymbol: 'circle', lineDataSymbolSize: 6, showLegend: true, legendPos: 'b' }));
+        } else if (c.type === 'stack') {
+          slide.addChart(pptx.ChartType.bar, data, Object.assign(base, { barDir: 'col', barGrouping: 'stacked', chartColors: colors, showLegend: true, legendPos: 'b', showValue: true, dataLabelColor: 'FFFFFF', dataLabelFontSize: 9, barGapWidthPct: 60 }));
+        } else if (c.type === 'hbar') {
+          slide.addChart(pptx.ChartType.bar, data, Object.assign(base, { barDir: 'bar', chartColors: colors, showLegend: false, showValue: true, dataLabelColor: INK, dataLabelFontSize: 10, dataLabelPosition: 'outEnd', barGapWidthPct: 45 }));
+        } else if (c.type === 'doughnut') {
+          slide.addChart(pptx.ChartType.doughnut, data, Object.assign(base, { chartColors: ['F59E0B', '2563EB', '7C3AED', '059669', '64748B', 'E11D48', '94A3B8'], holeSize: 58, showLegend: true, legendPos: 'r', showValue: true, showPercent: false, dataLabelColor: 'FFFFFF', dataLabelFontSize: 11 }));
+        }
+      }
+
+      model.slides.forEach(function(s) {
+        if (s.kind === 'cover') {
+          var cv = pptx.addSlide();
+          cv.background = { color: '0F172A' };
+          cv.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.35, h: 7.5, fill: { color: '2563EB' }, line: { color: '2563EB', width: 0 } });
+          if (logoData) {
+            cv.addShape(pptx.ShapeType.roundRect, { x: 0.9, y: 0.8, w: 2.0, h: 1.3, rectRadius: 0.1, fill: { color: 'FFFFFF' }, line: { color: 'FFFFFF', width: 0 } });
+            cv.addImage({ data: logoData, x: 1.0, y: 0.9, w: 1.8, h: 1.1, sizing: { type: 'contain', w: 1.8, h: 1.1 } });
+          }
+          cv.addText('SPARE PARTS OPERATIONS', { x: 0.9, y: 2.6, w: 11, h: 0.4, fontFace: F, fontSize: 13, bold: true, color: '93C5FD', charSpacing: 6 });
+          cv.addText(s.title, { x: 0.9, y: 3.0, w: 11.5, h: 1.3, fontFace: F, fontSize: 38, bold: true, color: 'FFFFFF', valign: 'top' });
+          cv.addText(s.sub, { x: 0.9, y: 4.35, w: 11, h: 0.45, fontFace: F, fontSize: 16, color: 'CBD5E1' });
+          cv.addText(s.meta.join('\n'), { x: 0.9, y: 5.4, w: 11, h: 0.9, fontFace: F, fontSize: 13, color: 'E2E8F0', valign: 'top', paraSpaceAfter: 4 });
+          if (s.badge) cv.addText(s.badge, { x: 10.2, y: 0.8, w: 2.4, h: 0.45, fontFace: F, fontSize: 12, bold: true, color: '92400E', fill: { color: 'FDE68A' }, align: 'center', valign: 'middle', rectRadius: 0.1, shape: pptx.ShapeType.roundRect });
+          return;
+        }
+        var slide = pptx.addSlide({ masterName: 'XP_BODY' });
+        if (s.kind === 'closing') {
+          slide.addText(s.title, { x: 0.5, y: 0.6, w: 12.3, h: 0.9, fontFace: F, fontSize: 32, bold: true, color: INK });
+          slide.addText(s.items.map(function(t) { return { text: t, options: { bullet: { code: '25B6' }, paraSpaceAfter: 14 } }; }),
+            { x: 0.8, y: 1.8, w: 11.6, h: 4.6, fontFace: F, fontSize: 20, color: INK, valign: 'top' });
+          return;
+        }
+        head(slide, s);
+        if (s.kind === 'kpis') {
+          var gx = 0.5;
+          if (s.gauge) {
+            slide.addShape(pptx.ShapeType.roundRect, { x: 0.5, y: 1.5, w: 3.6, h: 5.3, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: LINE, width: 1 } });
+            slide.addText('Factory Health Score', { x: 0.7, y: 1.6, w: 3.2, h: 0.35, fontFace: F, fontSize: 12, bold: true, color: INK });
+            slide.addChart(pptx.ChartType.doughnut, [{ name: 'score', labels: ['score', 'rest'], values: [s.gauge.score, 100 - s.gauge.score] }],
+              { x: 0.8, y: 2.0, w: 3.0, h: 3.0, holeSize: 72, chartColors: [s.gauge.color, 'E2E8F0'], showLegend: false, showValue: false, showPercent: false, showLabel: false });
+            slide.addText([
+              { text: s.gauge.score + '%', options: { fontSize: 34, bold: true, color: s.gauge.color, breakLine: true } },
+              { text: s.gauge.grade, options: { fontSize: 11, bold: true, color: MUT, charSpacing: 3 } }
+            ], { x: 0.8, y: 3.0, w: 3.0, h: 1.0, fontFace: F, align: 'center', valign: 'middle' });
+            slide.addText(s.gauge.notes.join('\n'), { x: 0.75, y: 5.2, w: 3.2, h: 1.3, fontFace: F, fontSize: 10.5, color: MUT, valign: 'top', paraSpaceAfter: 4 });
+            gx = 4.35;
+          }
+          var cols = s.gauge ? 4 : (s.cards.length > 6 ? 4 : 3);
+          var gw = 12.83 - gx, gap = 0.2;
+          var cw = (gw - gap * (cols - 1)) / cols;
+          var rowsN = Math.ceil(s.cards.length / cols);
+          var ch = Math.min(2.4, (5.3 - gap * (rowsN - 1)) / rowsN);
+          s.cards.forEach(function(c, i) {
+            card(slide, c, gx + (i % cols) * (cw + gap), 1.5 + Math.floor(i / cols) * (ch + gap), cw, ch);
+          });
+        } else if (s.kind === 'lines') {
+          chart(slide, s.chart, 0.4, 1.4, 5.6, 5.4);
+          var lw = 6.6, lcols = s.table.headers.length;
+          table(slide, s.table, { x: 6.2, y: 1.5, w: lw, colW: [1.45].concat(Array(lcols - 1).fill((lw - 1.45) / (lcols - 1))), fontSize: lcols > 5 ? 10 : 12, rowH: 0.45 });
+        } else if (s.kind === 'movement') {
+          chart(slide, s.chart, 0.4, 1.4, 8.7, 5.4);
+          s.stats.forEach(function(c, i) { card(slide, c, 9.35, 1.5 + i * 1.8, 3.5, 1.6); });
+        } else if (s.kind === 'risk') {
+          chart(slide, s.chart, 0.4, 1.4, 6.6, 5.4);
+          table(slide, s.table, { x: 7.2, y: 1.5, w: 5.65, colW: [1.9, 1.0, 2.75], fontSize: 9.5, rowH: 0.3 });
+        } else if (s.kind === 'requests') {
+          if (s.chart) chart(slide, s.chart, 0.4, 1.4, 6.6, 5.4);
+          else slide.addText(xpT('ยังไม่มีคำขอซื้อ'), { x: 0.5, y: 3.5, w: 6.4, h: 0.6, fontFace: F, fontSize: 16, color: MUT, align: 'center' });
+          s.stats.forEach(function(c, i) { card(slide, c, 7.3 + (i % 2) * 2.85, 1.5 + Math.floor(i / 2) * 2.0, 2.7, 1.8); });
+        } else if (s.kind === 'bullets') {
+          s.items.forEach(function(it, i) {
+            var y = 1.5 + i * 0.86;
+            slide.addShape(pptx.ShapeType.roundRect, { x: 0.5, y: y, w: 12.33, h: 0.72, rectRadius: 0.06, fill: { color: 'F8FAFC' }, line: { color: LINE, width: 1 } });
+            slide.addShape(pptx.ShapeType.rect, { x: 0.5, y: y, w: 0.09, h: 0.72, fill: { color: it.tone }, line: { color: it.tone, width: 0 } });
+            slide.addText(it.text, { x: 0.8, y: y, w: 11.9, h: 0.72, fontFace: F, fontSize: 14, color: INK, valign: 'middle' });
+          });
+        } else if (s.kind === 'table') {
+          table(slide, s.table, { x: 0.5, y: 1.5, w: 12.33, colW: s.colW, levelColors: s.levelColors, fontSize: 11, rowH: 0.4 });
+        }
+      });
+      return pptx;
+    }
+    function xpDeckLogo() {
+      // โลโก้บนหน้าปก — ดึงไม่ได้ก็ทำสไลด์ต่อได้ (ไม่ใช่ข้อมูลสำคัญ)
+      return fetch('images/Logo JR.jpg').then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.blob();
+      }).then(function(blob) {
+        return new Promise(function(resolve) {
+          var fr = new FileReader();
+          fr.onload = function() { resolve(fr.result); };
+          fr.onerror = function() { resolve(null); };
+          fr.readAsDataURL(blob);
+        });
+      }).catch(function() { return null; });
+    }
+    function xpRunPptDeck() {
+      if (xpBusy) return;
+      xpSetBusy(true);
+      xpProgressShow(true);
+      xpProgressLog(xpT('เริ่มสร้าง PowerPoint'));
+      xpProgressSet(8, 'กำลังโหลดตัวสร้าง PowerPoint...');
+      var Pptx = null, model = null;
+      xpLoadPptxLib().then(function(lib) {
+        Pptx = lib;
+        xpProgressSet(25, 'กำลังดึงข้อมูลสถานะปัจจุบัน...');
+        return xpDashboardData();
+      }).then(function(S) {
+        xpProgressSet(65, 'กำลังจัดสไลด์...');
+        model = xpBuildDeckModel(S);
+        return xpDeckLogo();
+      }).then(function(logo) {
+        var pptx = xpRenderDeck(Pptx, model, logo);
+        xpProgressSet(85, 'กำลังเขียนไฟล์ .pptx...');
+        return pptx.write({ outputType: 'blob' });
+      }).then(function(blob) {
+        var fname = 'Spare-Parts-Presentation_' + xpFileStamp() + xpFileSuffix() + '.pptx';
+        xpDownloadBlob(blob, fname);
+        xpProgressSet(100, 'เสร็จแล้ว — ' + model.slides.length + ' สไลด์');
+        xpProgressLog(xpT('ดาวน์โหลด PowerPoint {n} สไลด์', { n: model.slides.length }), 'ok');
+        showQuickToast('ดาวน์โหลด PowerPoint แล้ว (' + model.slides.length + ' สไลด์)', 'success');
+        xpLogExport('presentation-deck', ['dashboardKpi'], model.slides.length, 'pptx');
+      }).catch(function(err) {
+        xpProgressLog('ล้มเหลว: ' + (err && err.message ? err.message : err), 'fail');
+        showQuickToast('สร้าง PowerPoint ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      }).then(function() { xpSetBusy(false); });
+    }
     // ── ระดับ 3: แสดงรายงานบนจอ + ดาวน์โหลด ──────────────────────────
     function xpRunReport(key) {
       if (xpBusy) return;
@@ -30794,6 +31398,8 @@ if (dashboardPage) {
       if (pdfBtn) pdfBtn.addEventListener('click', xpRunPdfReport);
       var dashBtn = xpEl('xpDashboardBtn');
       if (dashBtn) dashBtn.addEventListener('click', xpRunDashboardSnapshot);
+      var pptBtn = xpEl('xpPptBtn');
+      if (pptBtn) pptBtn.addEventListener('click', xpRunPptDeck);
       var jsonBtn = xpEl('xpJsonBundleBtn');
       if (jsonBtn) jsonBtn.addEventListener('click', xpRunJsonBundle);
       var xlsxBtn = xpEl('xpExportXlsxBtn');
