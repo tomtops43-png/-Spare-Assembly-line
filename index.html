@@ -31382,10 +31382,22 @@ if (dashboardPage) {
         return (!xpFilters.from || r.month >= xpFilters.from.slice(0, 7)) && (!xpFilters.to || r.month <= xpFilters.to.slice(0, 7));
       });
       if (hasRange) {
-        // ช่วงที่เลือกเอง: ใช้เฉพาะเดือนที่มีข้อมูลจริง เรียงตามเวลา (สูงสุด 24 เดือนล่าสุดให้กราฟยังอ่านออก)
-        var seen = {};
-        rows.concat(miscRows).forEach(function(r) { seen[r.month] = true; });
-        months = Object.keys(seen).sort().slice(-24);
+        // ช่วงที่เลือกเอง: ทุกเดือนตั้งแต่วันเริ่มถึงวันสิ้นสุดที่เลือก (เดือนที่ไม่มีเบิกก็แสดงเป็น 0)
+        // ไม่ระบุวันเริ่ม = เริ่มเดือนแรกที่มีข้อมูล, ไม่ระบุวันสิ้นสุด = เดือนปัจจุบัน · สูงสุด 24 เดือนล่าสุดให้กราฟยังอ่านออก
+        var dataMonths = rows.concat(miscRows).map(function(r) { return r.month; }).sort();
+        var startKey = xpFilters.from ? xpFilters.from.slice(0, 7) : (dataMonths[0] || '');
+        var endKey = xpFilters.to ? xpFilters.to.slice(0, 7) : now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2);
+        months = [];
+        if (startKey && endKey && startKey <= endKey) {
+          var cur = new Date(Number(startKey.slice(0, 4)), Number(startKey.slice(5, 7)) - 1, 1);
+          for (var guard = 0; guard < 600; guard += 1) {
+            var ck = cur.getFullYear() + '-' + ('0' + (cur.getMonth() + 1)).slice(-2);
+            if (ck > endKey) break;
+            months.push(ck);
+            cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+          }
+        }
+        months = months.slice(-24);
         idx = {};
         months.forEach(function(k, i) { idx[k] = i; });
       }
@@ -31467,12 +31479,18 @@ if (dashboardPage) {
     }
 
     // ช่วงข้อมูลที่แสดงบนปก/สไลด์รายเดือน — ตามวันที่ที่เลือกในหน้า Export ถ้าไม่ได้เลือก = 12 เดือนล่าสุด
-    function xpDeckRangeText(M) {
+    // ต้น/ปลายช่วงข้อมูลของสไลด์ — เลือกวันที่เอง = วันที่ที่เลือก ไม่ใช่เดือนแรก/สุดท้ายที่บังเอิญมีข้อมูล
+    function xpDeckRangeEnds(M) {
       function day(v) {
         var m = xpS(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
         return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(xpLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '';
       }
-      if (xpFilters.from || xpFilters.to) return (day(xpFilters.from) || xpT('ตั้งแต่เริ่มระบบ')) + ' – ' + (day(xpFilters.to) || xpT('ล่าสุด'));
+      if (xpFilters.from || xpFilters.to) return [day(xpFilters.from) || xpT('ตั้งแต่เริ่มระบบ'), day(xpFilters.to) || xpT('ล่าสุด')];
+      if (M && M.labels && M.labels.length) return [M.labels[0], M.labels[M.labels.length - 1]];
+      return ['', ''];
+    }
+    function xpDeckRangeText(M) {
+      if (xpFilters.from || xpFilters.to) return xpDeckRangeEnds(M).join(' – ');
       if (M && M.labels && M.labels.length) return xpT('12 เดือนล่าสุด ({a} – {b})', { a: M.labels[0], b: M.labels[M.labels.length - 1] });
       return '';
     }
@@ -31614,7 +31632,7 @@ if (dashboardPage) {
         });
         // ── อันดับอะไหล่ตามมูลค่าเบิกทั้งช่วง ──
         if (M.rankAll.length) {
-          var cum = 0, top15 = M.rankAll.slice(0, 15);
+          var cum = 0, top15 = M.rankAll.slice(0, 15), ends = xpDeckRangeEnds(M);
           var top15Sum = top15.reduce(function(a, x) { return a + x.value; }, 0);
           slides.push({
             kind: 'table',
@@ -31622,7 +31640,7 @@ if (dashboardPage) {
             linkCol: 1, linkTo: 'gallery', // คลิกชื่ออะไหล่ → ไปสไลด์รูปในภาคผนวก
             title: xpT('อันดับอะไหล่ตามมูลค่าเบิก'),
             sub: xpT('{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%', {
-              a: M.labels[0], b: M.labels[M.labels.length - 1], v: xpDeckMoney(M.issueSum), p: xpDeckPct(top15Sum, M.issueSum) }),
+              a: ends[0], b: ends[1], v: xpDeckMoney(M.issueSum), p: xpDeckPct(top15Sum, M.issueSum) }),
             table: {
               headers: ['#', xpT('ชื่ออะไหล่'), xpT('รุ่น'), xpT('ไลน์'), xpT('เบิก (ชิ้น)'), xpT('จำนวนครั้ง'), xpT('มูลค่าเบิก'), xpT('% ของมูลค่ารวม'), xpT('% สะสม')],
               rows: top15.map(function(t, i) {

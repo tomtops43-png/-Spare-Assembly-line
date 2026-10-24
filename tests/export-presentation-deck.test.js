@@ -18,7 +18,7 @@ const mod = buildModule(
     grabFn('xpDashKpiRows'), grabFn('xpDashLineTable'), grabFn('xpDashCategoryTable'),
     grabFn('xpDeckMoney'), grabFn('xpDeckPct'), grabFn('xpDeckTopUsage'), grabFn('xpDeckTopValue'),
     grabFn('xpDeckDeadStock'), grabFn('xpDeckRunningOut'), grabFn('xpDeckActionQueue'),
-    grabFn('xpDeckHighlights'), grabFn('xpDeckCut'), grabFn('xpDeckMonthLabel'), grabFn('xpDeckMonthlyIssue'), grabFn('xpDeckRangeText'), grabFn('xpBuildDeckModel')
+    grabFn('xpDeckHighlights'), grabFn('xpDeckCut'), grabFn('xpDeckMonthLabel'), grabFn('xpDeckMonthlyIssue'), grabFn('xpDeckRangeEnds'), grabFn('xpDeckRangeText'), grabFn('xpBuildDeckModel')
   ]),
   '{ fccCrunchParts: fccCrunchParts, fccCrunchLogs: fccCrunchLogs, fccCrunchRequests: fccCrunchRequests, fccHealth: fccHealth, xpBuildDeckModel: xpBuildDeckModel, xpDeckMonthlyIssue: xpDeckMonthlyIssue, setRange: function(f, t) { xpFilters.from = f; xpFilters.to = t; }, xpDeckActionQueue: xpDeckActionQueue, xpDeckMoney: xpDeckMoney, setLang: function(l) { xpFilters.lang = l; }, setCustomer: function(v) { xpFilters.customerMode = v; } }'
 );
@@ -292,6 +292,17 @@ mod.setRange('2026-09-01', '2026-09-30');
 const MR = mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW);
 assert.deepStrictEqual(MR.months, ['2026-09'], 'ใช้เฉพาะเดือนในช่วงที่เลือก');
 assert.strictEqual(MR.total[0], 500);
+// เคยเป็น: เลือก 1 ม.ค. – 24 ต.ค. แต่สไลด์ขึ้น "เม.ย. – ต.ค." เพราะใช้แค่เดือนที่บังเอิญมีข้อมูล
+mod.setRange('2026-07-01', '2026-10-24');
+const MR2 = mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW);
+assert.deepStrictEqual(MR2.months, ['2026-07', '2026-08', '2026-09', '2026-10'], 'ต้องมีทุกเดือนในช่วงที่เลือก แม้เดือนนั้นไม่มีเบิก');
+assert.strictEqual(MR2.total[0], 0, 'เดือนที่ไม่มีเบิก = 0');
+const rank2 = mod.xpBuildDeckModel(S, MR2).slides.filter(function(s) { return s.id === 'rank'; })[0];
+assert(/^1 ก\.ค\. 2569 – 24 ต\.ค\. 2569 · /.test(rank2.sub), 'สไลด์อันดับต้องบอกช่วงที่เลือก: ' + rank2.sub);
+mod.setRange('2026-08-15', '');
+const MR3 = mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW);
+assert.strictEqual(MR3.months[0], '2026-08');
+assert.strictEqual(MR3.months[MR3.months.length - 1], '2026-10', 'ไม่ระบุวันสิ้นสุด = ถึงเดือนปัจจุบัน');
 mod.setRange('', '');
 
 // ไม่มีการเบิกเลย = ไม่ใส่สไลด์ (ไม่ใช่กราฟศูนย์ทั้งแถว)
