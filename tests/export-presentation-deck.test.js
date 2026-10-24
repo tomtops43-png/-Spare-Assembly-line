@@ -132,12 +132,14 @@ assert(cust.slides[0].badge, 'ปกฉบับลูกค้าต้อง�
 assert(/ลูกค้า/.test(cust.footer), 'footer ทุกหน้าต้องบอกว่าเป็นฉบับลูกค้า');
 
 // ── ภาษาอังกฤษ: ไม่มีอักษรไทยหลุด ─────────────────────────────────────
-[false, true].forEach(function(cm) {
-  mod.setLang('en');
+[['en', false], ['en', true], ['zh', false], ['zh', true]].forEach(function(pair) {
+  const cm = pair[1];
+  mod.setLang(pair[0]);
   mod.setCustomer(cm);
   const m = mod.xpBuildDeckModel(S);
   const leaks = allText(m).filter(function(t) { return THAI.test(t); });
-  assert.strictEqual(leaks.length, 0, (cm ? 'ฉบับลูกค้า' : 'ฉบับผู้บริหาร') + ' ภาษาอังกฤษยังมีภาษาไทยหลุด:\n  ' + leaks.join('\n  '));
+  assert.strictEqual(leaks.length, 0, (cm ? 'ฉบับลูกค้า' : 'ฉบับผู้บริหาร') + ' ภาษา ' + pair[0] + ' ยังมีภาษาไทยหลุด:\n  ' + leaks.join('\n  '));
+  if (pair[0] === 'zh') assert(/[\u4e00-\u9fff]/.test(m.slides[1].title), 'ฉบับจีนต้องเป็นภาษาจีนจริง ไม่ใช่ตกไปใช้อังกฤษ');
   if (cm) assert(allText(m).join(' ').indexOf('THB') === -1, 'ฉบับลูกค้าภาษาอังกฤษก็ต้องไม่มีเงิน');
 });
 mod.setLang('en');
@@ -209,6 +211,9 @@ mod.setLang('en');
 const MEn = mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW);
 const enText = allText(mod.xpBuildDeckModel(S, MEn)).filter(function(t) { return THAI.test(t); });
 assert.strictEqual(enText.length, 0, 'สไลด์มูลค่ารายเดือนฉบับอังกฤษมีไทยหลุด:\n  ' + enText.join('\n  '));
+mod.setLang('zh');
+const zhText = allText(mod.xpBuildDeckModel(S, mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW))).filter(function(t) { return THAI.test(t); });
+assert.strictEqual(zhText.length, 0, 'สไลด์มูลค่ารายเดือนฉบับจีนมีไทยหลุด:\n  ' + zhText.join('\n  '));
 mod.setLang('th');
 
 // เลือกช่วงวันที่ในหน้า Export = ใช้ช่วงนั้นแทน 12 เดือน

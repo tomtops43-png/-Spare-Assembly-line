@@ -237,7 +237,8 @@ assert(!/EN/.test(mod.xpFileSuffix()), 'ไฟล์ภาษาไทยต้�
 assert(html.indexOf('id="xpLangFilter"') > -1, 'ต้องมีช่องเลือกภาษาในแถบตัวกรอง');
 assert(/<option value="en">/.test(html), 'ต้องมีตัวเลือกภาษาอังกฤษ');
 const readSrc = grabFn('xpReadFilterInputs');
-assert(/xpFilters\.lang = \(lg && lg\.value === 'en'\) \? 'en' : 'th'/.test(readSrc), 'ต้องอ่านค่าภาษาจากช่องเลือก');
+assert(/xpFilters\.lang = \(lg && \(lg\.value === 'en' \|\| lg\.value === 'zh'\)\) \? lg\.value : 'th'/.test(readSrc), 'ต้องอ่านค่าภาษาจากช่องเลือก (ไทย/อังกฤษ/จีน)');
+assert(/<option value="zh">/.test(html), 'ต้องมีตัวเลือกภาษาจีน');
 const initSrc = html.slice(html.indexOf('(function initExportCenter()'));
 assert(/'xpLangFilter'\]\.forEach/.test(initSrc) || /'xpCustomerMode', 'xpLangFilter'/.test(initSrc),
   'เปลี่ยนภาษาแล้วต้อง trigger xpReadFilterInputs (ผูก event ไว้)');
@@ -261,4 +262,40 @@ mod.setLang('th');
 assert.strictEqual(mod.xpT('คงเหลือ'), 'คงเหลือ', 'โหมดไทยต้องคืนข้อความไทย');
 assert.strictEqual(mod.xpT('เกินเป้า {n} จุด', { n: 3.5 }), 'เกินเป้า 3.5 จุด');
 
-console.log('export-language: OK (' + langKeys.length + ' คำแปล, ไม่มีภาษาไทยหลุดเข้าไฟล์อังกฤษ)');
+// ── ภาษาจีน: คีย์ครบเท่าอังกฤษ ไม่มีไทย placeholder ครบ ──────────────
+const XP_LANG_ZH = buildModule([grabVar('XP_LANG_ZH')], 'XP_LANG_ZH');
+const CJK = /[一-鿿]/;
+const zhMissing = langKeys.filter(function(k) { return XP_LANG_ZH[k] === undefined; });
+assert.strictEqual(zhMissing.length, 0, 'ตารางแปลจีนขาด ' + zhMissing.length + ' คีย์ (เพิ่มคำแปลอังกฤษแล้วต้องเพิ่มจีนด้วย):\n  ' + zhMissing.slice(0, 30).join('\n  '));
+Object.keys(XP_LANG_ZH).forEach(function(k) {
+  const v = XP_LANG_ZH[k];
+  assert(XP_LANG_EN[k] !== undefined, 'คีย์จีน "' + k + '" ไม่มีในตารางอังกฤษ (พิมพ์ผิด/คีย์ค้าง)');
+  assert(typeof v === 'string' && v.length, 'คำแปลจีนของ "' + k + '" ต้องไม่ว่าง');
+  assert(!THAI.test(v), 'คำแปลจีนของ "' + k + '" ยังมีอักษรไทย: ' + v);
+  (k.match(/\{(\w+)\}/g) || []).forEach(function(ph) {
+    assert(v.indexOf(ph) > -1, 'คำแปลจีนของ "' + k + '" ขาด placeholder ' + ph);
+  });
+});
+// รันจริงเป็นภาษาจีน — ไม่มีไทยหลุด และต้องเป็นจีนจริง (ไม่ใช่ตกไปใช้อังกฤษทั้งไฟล์)
+mod.setLang('zh');
+let zhLeaks = [];
+const zhKpis = mod.xpBuildKpis(ctx);
+zhLeaks = zhLeaks.concat(findThai(mod.xpKpiTable(zhKpis), 'KPI'));
+zhLeaks = zhLeaks.concat(findThai(mod.xpBuildTrend(ctx).table, 'Trend'));
+const zhLine = mod.xpBuildLineSummary(ctx);
+zhLeaks = zhLeaks.concat(findThai(zhLine, 'LineSummary'));
+mod.XP_REPORTS.forEach(function(rp) {
+  const built = rp.build(ctx);
+  zhLeaks = zhLeaks.concat(findThai(built.table, 'Report ' + rp.key));
+  if (built.note && THAI.test(built.note)) zhLeaks.push('Report ' + rp.key + ' note: ' + built.note);
+  if (THAI.test(mod.xpT(rp.name))) zhLeaks.push('Report name: ' + rp.name);
+});
+zhLeaks = zhLeaks.concat(findThai(mod.xpBuildCover([{ ds: { name: 'Master อะไหล่', sheetName: 'Master อะไหล่' }, table: { headers: ['a'], rows: [[1]] } }]), 'Cover'));
+assert.strictEqual(zhLeaks.length, 0, 'มีภาษาไทยหลุดเข้าไฟล์ภาษาจีน ' + zhLeaks.length + ' จุด:\n  ' + zhLeaks.slice(0, 40).join('\n  '));
+assert(zhLine.headers.some(function(h) { return CJK.test(h); }), 'โหมดจีนต้องได้หัวคอลัมน์ภาษาจีนจริง');
+assert.strictEqual(mod.xpT('คงเหลือ'), '库存数量');
+assert(/ZH/.test(mod.xpFileSuffix()), 'ไฟล์ภาษาจีนต้องมี ZH ในชื่อไฟล์');
+assert(!/EN/.test(mod.xpFileSuffix()), 'ไฟล์ภาษาจีนต้องไม่ติด EN');
+mod.setLang('th');
+
+console.log('export-language: OK (' + langKeys.length + ' คำแปล ×2 ภาษา, ไม่มีภาษาไทยหลุดเข้าไฟล์อังกฤษ/จีน)');
