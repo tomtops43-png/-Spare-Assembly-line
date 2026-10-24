@@ -41,7 +41,8 @@ const history = [
   { history_id: 'C', line: 'Coil Winding', part_id: '', part_name: 'Bearing', model: '6204-ZZ', unit_price: '80' },
   { history_id: 'D', line: 'Coil Winding', part_id: '', part_name: '-', model: '-', unit_price: '' },
   { history_id: 'E', line: 'Coil Winding', part_id: '', part_name: 'Belt', model: '-', unit_price: '' },
-  { history_id: 'F', line: 'Lug&Screw', part_id: '', part_name: 'Cutter', model: 'CT-1', unit_price: '' }
+  { history_id: 'F', line: 'Lug&Screw', part_id: '', part_name: 'Cutter', model: 'CT-1', unit_price: '' },
+  { history_id: 'G', line: '', part_id: '', part_name: 'Spindle', model: 'MF-DRWG-CWM-PF220-SPINDLE-20A', unit_price: '' }
 ];
 const plan = ctx.buildPurchaseHistoryPriceFills(history, parts);
 const byId = {};
@@ -54,11 +55,12 @@ assert(!byId.D, 'ไม่มีชื่อ/รุ่นให้เทีย�
 assert(!byId.E, 'อะไหล่ใน master ที่ยังไม่มีราคา เติมไม่ได้');
 assert(!byId.F, 'เจอหลายตัวที่ราคาไม่เท่ากัน = ไม่เดา');
 assert.strictEqual(plan.ambiguous, 1);
-assert.strictEqual(plan.noMatch, 2);
+assert(!byId.G, 'แถวที่ไม่มี Line ห้ามเติม — อาจได้ราคาของอีกไลน์');
+assert.strictEqual(plan.noMatch, 3);
 
 // ── โหลด master สด และกันเลข NO ซ้ำข้ามชีต ────────────────────────────────
 const loader = grab(html, 'loadPurchaseHistoryPriceMaster');
-assert(loader.includes('fetchSheetRows(sheetName, { lite: true })'), 'ต้องดึงราคาสดจากชีต ไม่ใช่แคชเก่า');
+assert(loader.includes('fetchSheetRows(sheetName, { lite: true, refresh: true })'), 'ต้องดึงราคาสดจากชีต ข้ามแคชฝั่ง backend');
 assert(loader.includes('line: lineKey'), 'ต้องติด line ตามไลน์ของชีต');
 assert(loader.includes("no: sheets.length > 1 ? '' : row.no"), 'ไลน์หลายชีตต้องไม่จับคู่ด้วยเลข NO');
 

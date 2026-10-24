@@ -14859,7 +14859,7 @@ function inferRequestPriority(stock, min) {
       realLineKeys().forEach(function(lineKey) {
         var sheets = getSheetOptionsForLine(lineKey);
         sheets.forEach(function(sheetName) {
-          jobs.push(fetchSheetRows(sheetName, { lite: true }).then(function(rows) {
+          jobs.push(fetchSheetRows(sheetName, { lite: true, refresh: true }).then(function(rows) {
             return (Array.isArray(rows) ? rows : []).map(function(row) {
               return Object.assign({}, row, { line: lineKey, no: sheets.length > 1 ? '' : row.no, part_id: '' });
             });
@@ -14875,6 +14875,8 @@ function inferRequestPriority(stock, min) {
       var result = { fills: [], noMatch: 0, ambiguous: 0 };
       (historyRows || []).forEach(function(history) {
         if (!isPurchaseHistoryPriceMissing(history)) return;
+        // ไม่รู้ Line = เทียบได้กับอะไหล่ทุกไลน์ เสี่ยงได้ราคาของอีกไลน์ → ไม่เติม
+        if (!normPhText(history.line)) { result.noMatch += 1; return; }
         var prices = {};
         priced.forEach(function(part) {
           if (!purchaseHistoryMatchesItem(history, part)) return;
