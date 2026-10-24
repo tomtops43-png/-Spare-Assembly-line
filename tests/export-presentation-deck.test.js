@@ -18,9 +18,9 @@ const mod = buildModule(
     grabFn('xpDashKpiRows'), grabFn('xpDashLineTable'), grabFn('xpDashCategoryTable'),
     grabFn('xpDeckMoney'), grabFn('xpDeckPct'), grabFn('xpDeckTopUsage'), grabFn('xpDeckTopValue'),
     grabFn('xpDeckDeadStock'), grabFn('xpDeckRunningOut'), grabFn('xpDeckActionQueue'),
-    grabFn('xpDeckHighlights'), grabFn('xpDeckCut'), grabFn('xpBuildDeckModel')
+    grabFn('xpDeckHighlights'), grabFn('xpDeckCut'), grabFn('xpDeckMonthLabel'), grabFn('xpDeckMonthlyIssue'), grabFn('xpBuildDeckModel')
   ]),
-  '{ fccCrunchParts: fccCrunchParts, fccCrunchLogs: fccCrunchLogs, fccCrunchRequests: fccCrunchRequests, fccHealth: fccHealth, xpBuildDeckModel: xpBuildDeckModel, xpDeckActionQueue: xpDeckActionQueue, xpDeckMoney: xpDeckMoney, setLang: function(l) { xpFilters.lang = l; }, setCustomer: function(v) { xpFilters.customerMode = v; } }'
+  '{ fccCrunchParts: fccCrunchParts, fccCrunchLogs: fccCrunchLogs, fccCrunchRequests: fccCrunchRequests, fccHealth: fccHealth, xpBuildDeckModel: xpBuildDeckModel, xpDeckMonthlyIssue: xpDeckMonthlyIssue, setRange: function(f, t) { xpFilters.from = f; xpFilters.to = t; }, xpDeckActionQueue: xpDeckActionQueue, xpDeckMoney: xpDeckMoney, setLang: function(l) { xpFilters.lang = l; }, setCustomer: function(v) { xpFilters.customerMode = v; } }'
 );
 
 // ── ข้อมูลตัวอย่าง (อังกฤษล้วน — อักษรไทยที่หลุดในโหมดอังกฤษจึงมาจากโค้ด) ──
@@ -145,6 +145,89 @@ mod.setCustomer(false);
 assert(/^THB /.test(mod.xpDeckMoney(1650)), 'ฉบับอังกฤษใช้ THB แทน ฿');
 mod.setLang('th');
 mod.setCustomer(false);
+
+// ── มูลค่าการเบิกรายเดือน ─────────────────────────────────────────────
+// ตั้ง "วันนี้" ตายตัว เพื่อให้รู้แน่ว่า 12 เดือนล่าสุดคือเดือนไหน
+const NOW = new Date(2026, 9, 24); // 24 ต.ค. 2026
+const mMaster = [
+  { name: 'Breaker', model: 'BK-10', unit_price: 100, no: '1', __sheet: 'Lug&Screw' },
+  { name: 'Belt', model: 'B-77', unit_price: 500, no: '2', __sheet: 'H9' },
+  { name: 'Mystery', model: 'X', unit_price: '', no: '3', __sheet: 'H9' }
+];
+const mLogs = [
+  { timestamp: '2026-10-03 08:00:00', type: 'Output', process: 'Lug&Screw', partName: 'Breaker', model: 'BK-10', qty: 3, category: 'Electrical' },
+  { timestamp: '2026-10-05 08:00:00', type: 'Output', process: 'H9', partName: 'Belt', model: 'B-77', qty: 2, category: 'Mechanical' },
+  { timestamp: '2026-10-06 08:00:00', type: 'Output', process: 'H9', partName: 'Mystery', model: 'X', qty: 4, category: 'Mechanical' },
+  { timestamp: '2026-10-07 08:00:00', type: 'Input', process: 'H9', partName: 'Belt', model: 'B-77', qty: 50 },
+  { timestamp: '2026-09-10 08:00:00', type: 'Output', process: 'H9', partName: 'Belt', model: 'B-77', qty: 1, category: 'Mechanical' },
+  { timestamp: '2025-10-31 08:00:00', type: 'Output', process: 'H9', partName: 'Belt', model: 'B-77', qty: 9 }, // พ้น 12 เดือนแล้ว
+  { timestamp: '2025-11-01 08:00:00', type: 'Output', process: 'H9', partName: 'Belt', model: 'B-77', qty: 1 }
+];
+const mMisc = [{ month: '2026-10', date: '2026-10-02', line: 'H9', total_amount: 250 }, { month: '2024-01', total_amount: 999 }];
+mod.setLang('th');
+mod.setCustomer(false);
+mod.setRange('', '');
+const M = mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW);
+assert.strictEqual(M.months.length, 12, 'ค่าเริ่มต้นต้องเป็น 12 เดือนล่าสุด');
+assert.strictEqual(M.months[0], '2025-11');
+assert.strictEqual(M.months[11], '2026-10', 'เดือนสุดท้ายต้องเป็นเดือนปัจจุบัน');
+assert.strictEqual(M.byLine['Lug&Screw'][11], 300, 'Breaker 3 × 100');
+assert.strictEqual(M.byLine['H9'][11], 1000, 'Belt 2 × 500 (Mystery ไม่มีราคา = 0, รับเข้าไม่นับ)');
+assert.strictEqual(M.misc[11], 250, 'ค่าสิ้นเปลืองแยกชุด');
+assert.strictEqual(M.total[11], 1550, 'รวม = เบิก 1,300 + สิ้นเปลือง 250');
+assert.strictEqual(M.byLine['H9'][10], 500, 'ก.ย. Belt 1 × 500');
+assert.strictEqual(M.byLine['H9'][0], 500, 'พ.ย. ปีก่อน ยังอยู่ใน 12 เดือน');
+assert.strictEqual(M.total.reduce(function(a, b) { return a + b; }, 0), 2550, 'ต.ค. ปีก่อน (พ้น 12 เดือน) และ misc ปี 2024 ต้องไม่ถูกนับ');
+assert.strictEqual(M.unpricedItems, 1, 'ต้องบอกว่ามีรายการไม่มีราคา');
+assert.strictEqual(M.unpricedQty, 4);
+assert.strictEqual(M.thisMonth, 1550);
+assert.strictEqual(M.prevMonth, 500);
+assert.strictEqual(M.ytd, 2050, 'สะสมปี 2026 = ก.ย. 500 + ต.ค. 1,550');
+assert.strictEqual(M.peak.value, 1550);
+assert.strictEqual(M.top[0].name, 'Belt', 'อันดับ 1 ของเดือนล่าสุดเรียงตามมูลค่า');
+assert.strictEqual(M.top[0].value, 1000);
+assert.deepStrictEqual(M.cats.map(function(c) { return c.name; }), ['Mechanical', 'Electrical']);
+
+const withM = mod.xpBuildDeckModel(S, M);
+const ms = slideOf(withM, 'monthly');
+assert(ms, 'ฉบับผู้บริหารต้องมีสไลด์มูลค่าการเบิกรายเดือน');
+assert(kinds(withM).indexOf('monthly') === kinds(withM).indexOf('movement') + 1, 'วางต่อจากสไลด์เบิก/รับ 14 วัน');
+assert(slideOf(withM, 'monthTop'), 'ต้องมีสไลด์เดือนล่าสุดเบิกอะไรไปบ้าง');
+assert.strictEqual(ms.chart.labels.length, 12);
+assert(ms.chart.series.some(function(se) { return se.name === 'ค่าสิ้นเปลือง'; }), 'ค่าสิ้นเปลืองต้องเป็นอีกชุดในกราฟ');
+assert(/ยังไม่มีราคา 1 รายการ/.test(ms.sub), 'ต้องเตือนเรื่องรายการที่ไม่มีราคา');
+assert.strictEqual(ms.table.rows[ms.table.rows.length - 1][0], 'รวม', 'แถวสุดท้ายของตารางเป็นยอดรวม');
+
+// ฉบับลูกค้า: เป็นตัวเลขเงิน ต้องไม่มี
+mod.setCustomer(true);
+const custM = mod.xpBuildDeckModel(S, M);
+assert(kinds(custM).indexOf('monthly') === -1 && kinds(custM).indexOf('monthTop') === -1, 'ฉบับลูกค้าต้องไม่มีสไลด์มูลค่าเบิก');
+mod.setCustomer(false);
+
+// ภาษาอังกฤษ: ชื่อเดือนและข้อความต้องไม่มีไทย
+mod.setLang('en');
+const MEn = mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW);
+const enText = allText(mod.xpBuildDeckModel(S, MEn)).filter(function(t) { return THAI.test(t); });
+assert.strictEqual(enText.length, 0, 'สไลด์มูลค่ารายเดือนฉบับอังกฤษมีไทยหลุด:\n  ' + enText.join('\n  '));
+mod.setLang('th');
+
+// เลือกช่วงวันที่ในหน้า Export = ใช้ช่วงนั้นแทน 12 เดือน
+mod.setRange('2026-09-01', '2026-09-30');
+const MR = mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW);
+assert.deepStrictEqual(MR.months, ['2026-09'], 'ใช้เฉพาะเดือนในช่วงที่เลือก');
+assert.strictEqual(MR.total[0], 500);
+mod.setRange('', '');
+
+// ไม่มีการเบิกเลย = ไม่ใส่สไลด์ (ไม่ใช่กราฟศูนย์ทั้งแถว)
+const MEmpty = mod.xpDeckMonthlyIssue([], mMaster, [], NOW);
+assert.strictEqual(MEmpty.hasData, false);
+assert(kinds(mod.xpBuildDeckModel(S, MEmpty)).indexOf('monthly') === -1, 'ไม่มีข้อมูลต้องไม่มีสไลด์รายเดือน');
+
+// ตัวเรียกใช้: ฉบับลูกค้าไม่ต้องดึง log/master เพิ่ม และค่าสิ้นเปลืองล้มต้องไม่ทำให้ทั้งไฟล์ล้ม
+const runSrc0 = grabFn('xpRunPptDeck');
+assert(/xpFilters\.customerMode\) return \[S, null\]/.test(runSrc0), 'ฉบับลูกค้าไม่ต้องคำนวณมูลค่าเบิก');
+assert(/xpFetchMiscExpenses\(\)\.catch/.test(runSrc0), 'ดึงค่าสิ้นเปลืองไม่ได้ต้องไปต่อได้');
+assert(/xpDeckMonthlyIssue\(/.test(runSrc0), 'ต้องคำนวณมูลค่ารายเดือนก่อนสร้างสไลด์');
 
 // ── ไม่มีข้อมูล log / PR ก็ต้องสร้างได้ ไม่ throw ──────────────────────
 const empty = mod.xpBuildDeckModel({ P: mod.fccCrunchParts([]), L: mod.fccCrunchLogs([], 'all'), R: mod.fccCrunchRequests([], 'all'), H: mod.fccHealth(mod.fccCrunchParts([]), mod.fccCrunchRequests([], 'all')) });
