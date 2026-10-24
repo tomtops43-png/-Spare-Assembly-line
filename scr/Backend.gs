@@ -760,6 +760,45 @@ function editPurchaseHistory(payload) {
   throw new Error('ไม่พบ Purchase History');
 }
 
+// เติมราคาย้อนหลังให้รายการที่ราคาหาย (Unit Price ว่าง) ด้วยราคาปัจจุบันจากทะเบียนอะไหล่
+// หน้าเว็บเป็นคนจับคู่กับ master แล้วส่ง { history_id, unit_price, currency } มาเป็นชุด
+// เขียนเฉพาะแถวที่ราคายังว่างอยู่จริง — แถวที่มีราคาแล้ว (เช่นมีคนแก้ระหว่างนั้น) ห้ามทับ
+function fillPurchaseHistoryPrices(payload) {
+  var user = requirePurchaseHistoryEditor({ authToken: payload.authToken });
+  var items = payload.items;
+  if (typeof items === 'string') items = JSON.parse(items || '[]');
+  if (!Array.isArray(items) || !items.length) return { status: 'success', updated: 0, skipped: 0 };
+  var priceById = {};
+  items.forEach(function(item) {
+    var id = String(item && item.history_id || '').trim();
+    var price = Number(item && item.unit_price);
+    if (!id || !isFinite(price) || price <= 0) return;
+    priceById[id] = { price: price, currency: String(item.currency || 'THB').trim() || 'THB' };
+  });
+  var sheet = getPurchaseHistorySheet();
+  var values = sheet.getDataRange().getValues();
+  var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var audits = [];
+  var updated = 0;
+  for (var i = 1; i < values.length; i += 1) {
+    var fill = priceById[String(values[i][0] || '')];
+    if (!fill || toBoolean(values[i][22], false)) continue;
+    if (String(values[i][12] === undefined || values[i][12] === null ? '' : values[i][12]).trim()) continue;
+    var oldObject = purchaseHistoryRowToObject(values[i]);
+    values[i][12] = fill.price; values[i][13] = fill.currency;
+    values[i][14] = calculatePurchaseHistoryTotal(values[i][10], fill.price);
+    values[i][28] = 'Master'; values[i][20] = user.username; values[i][24] = timestamp;
+    sheet.getRange(i + 1, 1, 1, PURCHASE_HISTORY_HEADERS.length).setValues([values[i].slice(0, PURCHASE_HISTORY_HEADERS.length)]);
+    audits.push([timestamp, user.username, values[i][0], 'PRICE_FILL', JSON.stringify(oldObject), JSON.stringify(purchaseHistoryRowToObject(values[i])), 'เติมราคาปัจจุบันจากทะเบียนอะไหล่']);
+    updated += 1;
+  }
+  if (audits.length) {
+    var auditSheet = getPurchaseHistoryAuditSheet();
+    auditSheet.getRange(auditSheet.getLastRow() + 1, 1, audits.length, audits[0].length).setValues(audits);
+  }
+  return { status: 'success', updated: updated, skipped: Object.keys(priceById).length - updated };
+}
+
 function deletePurchaseHistory(payload) {
   var user = requirePurchaseHistoryEditor({ authToken: payload.authToken });
   var historyId = String(payload.history_id || '').trim();
@@ -6529,6 +6568,7 @@ function doPost(e) {
     if (action === 'getPurchaseHistory') return respond(getPurchaseHistory(body), e);
     if (action === 'editPurchaseHistory') return respond(editPurchaseHistory(body), e);
     if (action === 'deletePurchaseHistory') return respond(deletePurchaseHistory(body), e);
+    if (action === 'fillPurchaseHistoryPrices') return respond(fillPurchaseHistoryPrices(body), e);
     if (action === 'getProductionVolume') return respond(getProductionVolume(body), e);
     if (action === 'upsertProductionVolume') return respond(upsertProductionVolume(body), e);
     if (action === 'getProductionCostConfig') return respond(getProductionCostConfig(body), e);

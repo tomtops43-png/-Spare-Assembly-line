@@ -3260,6 +3260,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
           <button id="purchaseHistoryReconcileBtn" type="button" class="pt-legacy-hide h-10 rounded-lg border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700" title="เทียบรายการที่ยังค้างอยู่กับประวัติการรับเข้าทั้งหมด (รวมรายการที่รับเข้าไปก่อนคำขอซื้อจะถูกสร้าง)">🔄 ตรวจสอบ/Reconcile</button>
+          <button id="purchaseHistoryFillPriceBtn" type="button" class="h-10 rounded-lg border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-700" title="รายการที่ Unit Price ว่าง จะเติมด้วยราคาปัจจุบันจากทะเบียนอะไหล่ (Line เดียวกัน) — ไม่ทับราคาที่มีอยู่แล้ว">💰 เติมราคาที่หาย</button>
           <button id="purchaseHistoryRefreshBtn" type="button" class="h-10 rounded-lg border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700">รีเฟรชข้อมูล</button>
         </div>
       </div>
@@ -3368,7 +3369,7 @@
       <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
         <div id="confirmDialogIcon" class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-2xl">🗑️</div>
         <h3 id="confirmDialogTitle" class="text-center text-lg font-bold text-slate-900">ยืนยันการลบ</h3>
-        <p id="confirmDialogMessage" class="mt-2 text-center text-sm text-slate-500"></p>
+        <p id="confirmDialogMessage" class="mt-2 whitespace-pre-line text-center text-sm text-slate-500"></p>
         <div class="mt-5 flex gap-3">
           <button id="confirmDialogCancel" type="button" style="flex:1;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;padding:10px;font-size:14px;font-weight:600;color:#374151;cursor:pointer;">ยกเลิก</button>
           <button id="confirmDialogOk" type="button" style="flex:1;border-radius:12px;border:none;background:#dc2626;padding:10px;font-size:14px;font-weight:700;color:#ffffff;cursor:pointer;">ยืนยัน</button>
@@ -14767,7 +14768,8 @@ function inferRequestPriority(stock, min) {
           '<td class="px-3 py-3 whitespace-nowrap hidden sm:table-cell">' + escapePurchaseHistoryText(item.model || '-') + '</td>' +
           '<td class="px-3 py-3 text-right font-semibold">' + Number(item.qty_ordered || 0).toLocaleString('th-TH') + '</td>' +
           '<td class="px-3 py-3 whitespace-nowrap hidden sm:table-cell">' + escapePurchaseHistoryText(item.unit || '-') + '</td>' +
-          '<td class="px-3 py-3 text-right whitespace-nowrap hidden md:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.unit_price, item.currency)) + '</td>' +
+          '<td class="px-3 py-3 text-right whitespace-nowrap hidden md:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.unit_price, item.currency)) +
+            (item.price_status === 'Master' ? '<div class="text-[10px] font-semibold text-amber-600" title="ราคาเดิมหาย — เติมด้วยราคาปัจจุบันจากทะเบียนอะไหล่">ราคาปัจจุบัน</div>' : '') + '</td>' +
           '<td class="px-3 py-3 text-right font-semibold whitespace-nowrap hidden lg:table-cell">' + escapePurchaseHistoryText(formatPurchaseHistoryMoney(item.total_amount, item.currency)) + '</td>' +
           '<td class="px-3 py-3 whitespace-nowrap">' + purchaseHistoryStatusBadge(item.status) + '</td>' +
           '<td class="px-3 py-3 whitespace-nowrap hidden md:table-cell">' + escapePurchaseHistoryText(item.requested_by || '-') + '</td>' +
@@ -14832,6 +14834,92 @@ function inferRequestPriority(stock, min) {
       purchaseHistoryEditRemark.value = item.remark || ''; purchaseHistoryEditReason.value = '';
       purchaseHistoryEditLabel.textContent = (item.part_name || '-') + ' • ' + (item.request_id || '-');
       purchaseHistoryEditModal.classList.remove('hidden'); purchaseHistoryEditModal.classList.add('flex');
+    }
+
+    // ── เติมราคาที่หายไปด้วยราคาปัจจุบันจากทะเบียนอะไหล่ ──
+    // รายการเก่าบางส่วนราคาหาย (Unit Price ว่าง → Total Amount เป็น "-") ดึงราคาที่ลงไว้ใน master
+    // ของ Line เดียวกันมาใส่ จับคู่ด้วยกติกาเดียวกับหน้า Detail (NO → รุ่น → ชื่อ+ยี่ห้อ)
+    function isPurchaseHistoryPriceMissing(item) {
+      var text = String(item && item.unit_price !== undefined && item.unit_price !== null ? item.unit_price : '').trim();
+      return !text || !Number.isFinite(Number(text));
+    }
+    function phMasterUnitPrice(part) {
+      var n = Number(String(part && part.unit_price !== undefined && part.unit_price !== null ? part.unit_price : '').replace(/,/g, ''));
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+    // โหลดอะไหล่ทุกไลน์สดจากชีต (ไม่ใช้แคช — ต้องเป็นราคาล่าสุด) และติด line ตามไลน์ของชีต
+    // เพราะคอลัมน์ line ในชีตบางแถวว่าง/ไม่ตรงชื่อไลน์ จะทำให้จับคู่ข้าม Line ผิด
+    function loadPurchaseHistoryPriceMaster() {
+      var jobs = [];
+      // ไลน์ที่มีหลายชีต (H9, Arc Chute) เลข NO ซ้ำกันข้ามชีตได้ → ตัด NO ทิ้ง ให้จับคู่ด้วยรุ่น/ชื่อแทน
+      // ไม่งั้น Part ID ของประวัติอาจไปชนอะไหล่คนละตัวในอีกชีตแล้วได้ราคาผิด
+      realLineKeys().forEach(function(lineKey) {
+        var sheets = getSheetOptionsForLine(lineKey);
+        sheets.forEach(function(sheetName) {
+          jobs.push(fetchSheetRows(sheetName, { lite: true }).then(function(rows) {
+            return (Array.isArray(rows) ? rows : []).map(function(row) {
+              return Object.assign({}, row, { line: lineKey, no: sheets.length > 1 ? '' : row.no, part_id: '' });
+            });
+          }));
+        });
+      });
+      return Promise.all(jobs).then(function(chunks) { return [].concat.apply([], chunks); });
+    }
+    // คืน { fills: [{history_id, unit_price, currency}], noMatch, ambiguous }
+    // เจอหลายตัวที่ราคาไม่เท่ากัน = ไม่เดา ปล่อยว่างไว้ให้คนเลือกเอง
+    function buildPurchaseHistoryPriceFills(historyRows, parts) {
+      var priced = (parts || []).filter(function(part) { return phMasterUnitPrice(part) > 0; });
+      var result = { fills: [], noMatch: 0, ambiguous: 0 };
+      (historyRows || []).forEach(function(history) {
+        if (!isPurchaseHistoryPriceMissing(history)) return;
+        var prices = {};
+        priced.forEach(function(part) {
+          if (!purchaseHistoryMatchesItem(history, part)) return;
+          var price = phMasterUnitPrice(part);
+          prices[price] = String(part.currency || 'THB').trim() || 'THB';
+        });
+        var keys = Object.keys(prices);
+        if (!keys.length) { result.noMatch += 1; return; }
+        if (keys.length > 1) { result.ambiguous += 1; return; }
+        result.fills.push({ history_id: history.history_id, unit_price: Number(keys[0]), currency: prices[keys[0]] });
+      });
+      return result;
+    }
+    function fillPurchaseHistoryMissingPrices() {
+      if (!canEditPurchaseHistory()) { showQuickToast('เฉพาะ Admin / Engineer เท่านั้นที่เติมราคาได้', 'warn'); return Promise.resolve(); }
+      var missing = purchaseHistoryCache.filter(isPurchaseHistoryPriceMissing);
+      if (!missing.length) { showQuickToast('ทุกรายการมีราคาแล้ว', 'info'); return Promise.resolve(); }
+      var btn = document.getElementById('purchaseHistoryFillPriceBtn');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังดึงราคา...'; }
+      if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = '💰 กำลังดึงราคาปัจจุบันจากทะเบียนอะไหล่ทุกไลน์...';
+      return loadPurchaseHistoryPriceMaster().then(function(parts) {
+        var plan = buildPurchaseHistoryPriceFills(missing, parts);
+        var notFound = plan.noMatch + plan.ambiguous;
+        if (!plan.fills.length) {
+          showQuickToast('ไม่พบราคาในทะเบียนอะไหล่สำหรับ ' + missing.length + ' รายการที่ราคาว่าง', 'warn');
+          return null;
+        }
+        return showConfirmDialog({
+          title: '💰 เติมราคาที่หาย',
+          message: 'รายการที่ราคาว่าง ' + missing.length + ' รายการ\n' +
+            '• เจอราคาปัจจุบันในทะเบียนอะไหล่: ' + plan.fills.length + ' รายการ\n' +
+            (notFound ? '• ยังเติมไม่ได้: ' + notFound + ' รายการ (ไม่เจออะไหล่ในทะเบียน / ไม่มีราคา' + (plan.ambiguous ? ' / เจอหลายราคา ' + plan.ambiguous : '') + ')\n' : '') +
+            '\nบันทึกราคาลงประวัติการสั่งซื้อเลยไหม? (ไม่ทับรายการที่มีราคาอยู่แล้ว)',
+          okLabel: 'เติมราคา ' + plan.fills.length + ' รายการ'
+        }).then(function(ok) {
+          if (!ok) return null;
+          if (btn) btn.textContent = '⏳ กำลังบันทึก...';
+          return requestApi(withAuthPayload({ action: 'fillPurchaseHistoryPrices', items: JSON.stringify(plan.fills) })).then(parseApiResponse).then(function(res) {
+            showQuickToast('✅ เติมราคาแล้ว ' + Number(res && res.updated || 0) + ' รายการ' + (notFound ? ' • ยังไม่มีราคา ' + notFound + ' รายการ' : ''), 'success');
+            return loadPurchaseHistory(true);
+          });
+        });
+      }).catch(function(err) {
+        showQuickToast('เติมราคาไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      }).finally(function() {
+        if (btn) { btn.disabled = false; btn.textContent = '💰 เติมราคาที่หาย'; }
+        renderPurchaseHistory();
+      });
     }
 
     function closePurchaseHistoryEdit() {
@@ -22834,6 +22922,8 @@ function inferRequestPriority(stock, min) {
       closeAllNavGroups();
     });
     if (purchaseHistoryRefreshBtn) purchaseHistoryRefreshBtn.addEventListener('click', function() { purchaseHistoryCurrentPage = 1; loadPurchaseHistory(true).catch(function() {}); });
+    var purchaseHistoryFillPriceBtn = document.getElementById('purchaseHistoryFillPriceBtn');
+    if (purchaseHistoryFillPriceBtn) purchaseHistoryFillPriceBtn.addEventListener('click', function() { fillPurchaseHistoryMissingPrices(); });
     var purchaseHistoryReconcileBtn = document.getElementById('purchaseHistoryReconcileBtn');
     var purchaseHistoryReconcileOverlay = document.getElementById('purchaseHistoryReconcileOverlay');
     if (purchaseHistoryReconcileBtn) purchaseHistoryReconcileBtn.addEventListener('click', function() {
