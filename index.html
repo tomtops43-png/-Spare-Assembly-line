@@ -368,7 +368,11 @@
       .browser-tab { height:100%; -webkit-app-region:no-drag; app-region:no-drag; }
       .browser-tab-new { width:26px; height:26px; margin-bottom:1px; -webkit-app-region:no-drag; app-region:no-drag; }
       /* ของที่ยึดขอบบนจอ ต้องเลื่อนลงพ้นแถบชื่อหน้าต่าง */
-      #stockStickyHeader, .fcc-jump { top: var(--titlebar-h); }
+      /* ใช้ #dashboardPage นำหน้า — กฎ .fcc-jump{top:0} อยู่ท้ายไฟล์กว่า ถ้า specificity เท่ากันจะทับกฎนี้ */
+      #stockStickyHeader, #dashboardPage .fcc-jump { top: var(--titlebar-h); }
+      #dashboardPage.fcc .fcc-card, #dashboardPage.fcc .fcc-exec { scroll-margin-top: calc(96px + var(--titlebar-h)); }
+      /* scrollIntoView(block:'start') ทั่วทั้งแอป ไม่ให้หัวข้อไปจมใต้แถบชื่อหน้าต่าง */
+      html { scroll-padding-top: var(--titlebar-h); }
       #lineMenuDockToggle { top: calc(var(--titlebar-h) + 12px); }
       #lineMenuPanel { top: var(--titlebar-h); height: calc(100% - var(--titlebar-h)); }
     }
