@@ -54,6 +54,8 @@ jobs:
           cp -r images _site/images
           # manifest ต้องขึ้นไปด้วย ไม่งั้น Chrome ติดตั้งเป็นแอป (แท็บในแถบชื่อหน้าต่าง) ไม่ได้
           cp manifest.webmanifest _site/manifest.webmanifest
+          # ไลบรารีที่เว็บโหลดเองตอนใช้งาน (เช่น ตัวสร้าง PowerPoint) — ไม่พึ่ง CDN ที่โรงงานอาจบล็อก
+          cp -r vendor _site/vendor
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

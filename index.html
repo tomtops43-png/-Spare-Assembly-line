@@ -30478,18 +30478,32 @@ if (dashboardPage) {
     // กราฟเป็นกราฟจริงของ PowerPoint (แก้ตัวเลข/สีต่อได้) ไม่ใช่รูปภาพ
     // ตัวเลขทุกตัวมาจาก xpDashboardData() ชุดเดียวกับหน้า Dashboard จึงตรงกับหน้าจอ
     // โหมดลูกค้า: ตัดเรื่องเงิน + เรื่องภายใน (คะแนนสุขภาพ, PR ค้าง, ของที่ต้องสั่ง, Insight) ออกทั้งสไลด์
-    var XP_PPTX_LIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js';
+    // ไฟล์ไลบรารีเก็บไว้ในเว็บเราเอง (vendor/) เป็นตัวแรก — เครือข่ายโรงงานบางที่บล็อก CDN
+    // (เคยเกิดจริง: โหลดจาก cdnjs ไม่ได้ กดแล้วขึ้น "โหลดตัวสร้าง PowerPoint ไม่สำเร็จ")
+    // ถ้าตัวในเว็บโหลดไม่ได้ค่อยลอง CDN ที่ระบุเวอร์ชันตรงกันทีละตัว
+    var XP_PPTX_LIB_URLS = [
+      'vendor/pptxgen.bundle.js',
+      'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js',
+      'https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'
+    ];
     var xpPptxLibPromise = null;
     function xpLoadPptxLib() {
       if (window.PptxGenJS) return Promise.resolve(window.PptxGenJS);
       if (xpPptxLibPromise) return xpPptxLibPromise;
-      xpPptxLibPromise = new Promise(function(resolve, reject) {
-        var s = document.createElement('script');
-        s.src = XP_PPTX_LIB_URL;
-        s.onload = function() { window.PptxGenJS ? resolve(window.PptxGenJS) : reject(new Error('PptxGenJS โหลดแล้วแต่ไม่พบตัวไลบรารี')); };
-        s.onerror = function() { xpPptxLibPromise = null; reject(new Error('โหลดตัวสร้าง PowerPoint ไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง')); };
-        document.head.appendChild(s);
-      });
+      function tryAt(i) {
+        if (i >= XP_PPTX_LIB_URLS.length) return Promise.reject(new Error('โหลดตัวสร้าง PowerPoint ไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง'));
+        return new Promise(function(resolve, reject) {
+          var s = document.createElement('script');
+          s.src = XP_PPTX_LIB_URLS[i];
+          s.onload = function() { window.PptxGenJS ? resolve(window.PptxGenJS) : reject(new Error('PptxGenJS โหลดแล้วแต่ไม่พบตัวไลบรารี')); };
+          s.onerror = function() { if (s.parentNode) s.parentNode.removeChild(s); reject(null); };
+          document.head.appendChild(s);
+        }).catch(function(err) {
+          if (err) throw err; // โหลดได้แต่ใช้ไม่ได้ ลองตัวอื่นก็ได้ผลเดิม
+          return tryAt(i + 1);
+        });
+      }
+      xpPptxLibPromise = tryAt(0).catch(function(err) { xpPptxLibPromise = null; throw err; });
       return xpPptxLibPromise;
     }
     // ฉบับอังกฤษใช้ THB — สัญลักษณ์ ฿ อยู่ในช่วงอักษรไทย บางฟอนต์ของลูกค้าต่างชาติแสดงเป็นกล่อง

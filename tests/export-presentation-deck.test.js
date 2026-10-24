@@ -160,9 +160,21 @@ assert(/xpFileSuffix\(\)/.test(runSrc), 'ชื่อไฟล์ต้องบ
 assert(/xpSetBusy\(false\)/.test(runSrc), 'ต้องปลดสถานะ busy เสมอแม้ล้มเหลว');
 
 // ไลบรารีโหลดตอนกดเท่านั้น จาก CDN ที่ระบุเวอร์ชันแน่นอน
-assert(/var XP_PPTX_LIB_URL = 'https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/pptxgenjs\/\d+\.\d+\.\d+\/pptxgen\.bundle\.js';/.test(html), 'ต้องโหลด PptxGenJS แบบระบุเวอร์ชัน');
+// ไลบรารีต้องมีสำเนาในเว็บเราเองเป็นตัวแรก (เครือข่ายโรงงานบล็อก CDN — เคยกดแล้วโหลดไม่ขึ้นจริง)
+const urls = buildModule([grabVar('XP_PPTX_LIB_URLS')], 'XP_PPTX_LIB_URLS');
+assert.strictEqual(urls[0], 'vendor/pptxgen.bundle.js', 'ตัวแรกต้องเป็นไฟล์ในเว็บเราเอง');
+const fs = require('fs');
+assert(fs.existsSync(urls[0]), 'ต้องมีไฟล์ ' + urls[0] + ' อยู่ใน repo');
+const vendorHead = fs.readFileSync(urls[0], 'utf8').slice(0, 80);
+const ver = (vendorHead.match(/PptxGenJS (\d+\.\d+\.\d+)/) || [])[1];
+assert(ver, 'ไฟล์ vendor ต้องเป็น PptxGenJS bundle');
+urls.slice(1).forEach(function(u) {
+  assert(/^https:\/\//.test(u) && u.indexOf('@' + ver + '/') > -1, 'CDN สำรองต้องเป็นเวอร์ชันเดียวกับไฟล์ vendor (' + ver + '): ' + u);
+});
+assert(/cp -r vendor _site\/vendor/.test(fs.readFileSync('.github/workflows/deploy-pages.yml', 'utf8')), 'deploy ต้อง copy โฟลเดอร์ vendor ขึ้นเว็บด้วย');
+assert(/return tryAt\(i \+ 1\)/.test(grabFn('xpLoadPptxLib')), 'โหลดตัวแรกไม่ได้ต้องลองตัวถัดไป');
 assert(!/<script src="[^"]*pptxgen/.test(html), 'ห้ามโหลด PptxGenJS ตอนเปิดเว็บ (หนัก ~500KB) — โหลดตอนกดปุ่มเท่านั้น');
-assert(/xpPptxLibPromise = null; reject/.test(grabFn('xpLoadPptxLib')), 'โหลดล้มเหลวต้องล้าง promise ให้กดลองใหม่ได้');
+assert(/xpPptxLibPromise = null; throw err/.test(grabFn('xpLoadPptxLib')), 'โหลดล้มเหลวต้องล้าง promise ให้กดลองใหม่ได้');
 
 // ── UI ────────────────────────────────────────────────────────────────
 assert(html.indexOf('id="xpPptBtn"') > -1, 'ต้องมีปุ่ม PowerPoint ในระดับ 1');
