@@ -30673,8 +30673,11 @@ if (dashboardPage) {
     }
 
     // ขอรูปเป็น base64 จาก Apps Script ทีละก้อน
+    // เหตุผลที่เซิร์ฟเวอร์ตอบกลับตอนดึงรูปไม่ได้ (รอบล่าสุด) — ไว้แสดงให้ผู้ใช้เห็นว่าทำไมไม่ได้รูป
+    var xpLastImageDiag = { failed: {}, error: '' };
     function xpLoadImagesViaServer(fileIds, onProgress) {
       var out = {};
+      xpLastImageDiag = { failed: {}, error: '' };
       var chunks = [];
       for (var i = 0; i < fileIds.length; i += XP_IMAGE_SERVER_CHUNK) {
         chunks.push(fileIds.slice(i, i + XP_IMAGE_SERVER_CHUNK));
@@ -30698,11 +30701,13 @@ if (dashboardPage) {
             }
             var got = res.images;
             Object.keys(got).forEach(function(id) { if (got[id]) out[id] = { dataUrl: got[id], width: 0, height: 0 }; });
+            Object.keys(res.failed || {}).forEach(function(id) { xpLastImageDiag.failed[id] = xpS(res.failed[id]); });
             if (onProgress) onProgress(Math.min(fileIds.length, idx * XP_IMAGE_SERVER_CHUNK), fileIds.length);
           })
           .catch(function(err) {
             // ก้อนไหนพังก็ข้ามไป รูปที่เหลือยังได้ — ดีกว่าไม่ได้รูปเลยทั้งไฟล์
             lastError = err;
+            xpLastImageDiag.error = xpS(err && err.message ? err.message : err);
             console.warn('exportPartImages chunk failed', err);
           })
           .then(next);
@@ -31978,7 +31983,13 @@ if (dashboardPage) {
           });
         })).then(function() {
           var ok = withUrl.filter(function(it) { return it.imageData; }).length;
-          xpProgressLog('รูปอะไหล่สำหรับภาคผนวก: ได้ ' + ok + '/' + withUrl.length + ' รูป', ok ? 'ok' : 'fail');
+          xpProgressLog('รูปอะไหล่สำหรับภาคผนวก: ได้ ' + ok + '/' + withUrl.length + ' รูป (' + (res.method || '-') + ')', ok ? 'ok' : 'fail');
+          // ได้ไม่ครบ: บอกเหตุผลที่เซิร์ฟเวอร์ตอบมา (ตัวอย่างแรก) — ไม่งั้นผู้ใช้เห็นแค่ "ไม่มีรูป" ไม่รู้จะแก้ตรงไหน
+          if (ok < withUrl.length) {
+            var reasons = Object.keys(xpLastImageDiag.failed).map(function(id) { return xpLastImageDiag.failed[id]; });
+            var why = xpLastImageDiag.error || reasons[0] || '';
+            if (why) xpProgressLog('สาเหตุที่ดึงรูปไม่ได้: ' + why + (reasons.length > 1 ? ' (และอีก ' + (reasons.length - 1) + ' รูป)' : ''), 'fail');
+          }
         });
       }).catch(function(err) {
         // รูปเป็นของเสริม — ดึงไม่ได้ให้ยังได้ไฟล์ (การ์ดขึ้น "ไม่มีรูป")
