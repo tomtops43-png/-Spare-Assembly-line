@@ -27404,7 +27404,13 @@ if (dashboardPage) {
       'อันดับอะไหล่ตามมูลค่าเบิก': 'Parts Ranked by Issued Value',
       '{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%': '{a} – {b} · Total issued value {v} · Top 15 account for {p}%',
       '12 เดือนล่าสุด ({a} – {b})': 'Last 12 months ({a} – {b})',
-      'ช่วงข้อมูล: {r}': 'Data period: {r}'
+      'ช่วงข้อมูล: {r}': 'Data period: {r}',
+      'ภาคผนวก: รูปอะไหล่ 15 อันดับมูลค่าเบิกสูงสุด': 'Appendix: Photos of the Top 15 Parts by Issued Value',
+      'คลิกชื่ออะไหล่เพื่อเปิดรูปขนาดเต็ม · {r}': 'Click a part name to open the full-size photo · {r}',
+      'ไม่มีรูป': 'No photo',
+      '← กลับตารางอันดับ': '← Back to ranking',
+      'ดูรูปอะไหล่ในภาคผนวก': 'See the part photo in the appendix',
+      'เปิดรูปขนาดเต็ม': 'Open full-size photo'
     };
     // ภาษาจีน (简体) — คีย์ชุดเดียวกับ XP_LANG_EN ทุกตัว (เทสต์บังคับให้ครบ) แปลจากฉบับอังกฤษ
     var XP_LANG_ZH = {
@@ -28020,7 +28026,13 @@ if (dashboardPage) {
       'อันดับอะไหล่ตามมูลค่าเบิก': '按出库金额排名的备件',
       '{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%': '{a} – {b} · 出库总金额 {v} · 前 15 名占 {p}%',
       '12 เดือนล่าสุด ({a} – {b})': '近 12 个月 ({a} – {b})',
-      'ช่วงข้อมูล: {r}': '数据期间：{r}'
+      'ช่วงข้อมูล: {r}': '数据期间：{r}',
+      'ภาคผนวก: รูปอะไหล่ 15 อันดับมูลค่าเบิกสูงสุด': '附录：出库金额前 15 名备件照片',
+      'คลิกชื่ออะไหล่เพื่อเปิดรูปขนาดเต็ม · {r}': '点击备件名称可打开原尺寸照片 · {r}',
+      'ไม่มีรูป': '无照片',
+      '← กลับตารางอันดับ': '← 返回排名表',
+      'ดูรูปอะไหล่ในภาคผนวก': '在附录中查看备件照片',
+      'เปิดรูปขนาดเต็ม': '打开原尺寸照片'
     };
 
     // แปลข้อความที่จะลงไปในไฟล์ — vars ใช้แทนที่ {placeholder} ในข้อความ
@@ -31357,10 +31369,17 @@ if (dashboardPage) {
         byCat[r.category] = (byCat[r.category] || 0) + r.value;
       });
       // อันดับทั้งช่วงที่แสดง: รวมมูลค่าเบิกต่ออะไหล่ (ไลน์ + ชื่อ + รุ่น) แล้วเรียงจากมากไปน้อย
+      // ลิงก์รูปจาก master (ชื่อ+รุ่น) — ใช้ทำสไลด์ภาคผนวกรูปอะไหล่
+      var imgMap = {};
+      (master || []).forEach(function(it) {
+        var u = xpS(it.image_main_url || it.photo || '').trim();
+        var k = xpPartKey(it.name, it.model);
+        if (u && !imgMap[k]) imgMap[k] = u;
+      });
       var rank = {}, issueSum = 0;
       rows.forEach(function(r) {
         var k = r.line + '||' + xpPartKey(r.name, r.model);
-        if (!rank[k]) rank[k] = { name: r.name, model: r.model, line: r.line, qty: 0, count: 0, value: 0 };
+        if (!rank[k]) rank[k] = { name: r.name, model: r.model, line: r.line, qty: 0, count: 0, value: 0, imageUrl: imgMap[xpPartKey(r.name, r.model)] || '' };
         rank[k].qty += r.qty;
         rank[k].count += 1;
         rank[k].value += r.value;
@@ -31402,6 +31421,7 @@ if (dashboardPage) {
       var stamp = xpLocaleStamp();
       var rangeText = xpDeckRangeText(M);
       var slides = [];
+      var appendix = []; // สไลด์ภาคผนวก ต่อท้ายหลังสไลด์ปิด
 
       slides.push({
         kind: 'cover',
@@ -31532,6 +31552,8 @@ if (dashboardPage) {
           var top15Sum = top15.reduce(function(a, x) { return a + x.value; }, 0);
           slides.push({
             kind: 'table',
+            id: 'rank',
+            linkCol: 1, linkTo: 'gallery', // คลิกชื่ออะไหล่ → ไปสไลด์รูปในภาคผนวก
             title: xpT('อันดับอะไหล่ตามมูลค่าเบิก'),
             sub: xpT('{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%', {
               a: M.labels[0], b: M.labels[M.labels.length - 1], v: xpDeckMoney(M.issueSum), p: xpDeckPct(top15Sum, M.issueSum) }),
@@ -31547,6 +31569,18 @@ if (dashboardPage) {
             },
             colW: [0.42, 3.75, 1.9, 1.2, 0.85, 0.85, 1.06, 1.1, 1.2],
             fontSize: 9.5, rowH: 0.3
+          });
+          appendix.push({
+            kind: 'gallery',
+            id: 'gallery',
+            backTo: 'rank',
+            title: xpT('ภาคผนวก: รูปอะไหล่ 15 อันดับมูลค่าเบิกสูงสุด'),
+            sub: xpT('คลิกชื่ออะไหล่เพื่อเปิดรูปขนาดเต็ม · {r}', { r: rangeText || (M.labels[0] + ' – ' + M.labels[M.labels.length - 1]) }),
+            items: top15.map(function(t, i) {
+              return { rank: i + 1, name: t.name, model: t.model, line: t.line, value: xpDeckMoney(t.value), imageUrl: t.imageUrl || '' };
+            }),
+            noPhoto: xpT('ไม่มีรูป'),
+            backText: xpT('← กลับตารางอันดับ')
           });
         }
         if (M.top.length) {
@@ -31674,6 +31708,7 @@ if (dashboardPage) {
         slides.push({ kind: 'closing', title: xpT('ขอบคุณ'), items: [xpT('คลังอะไหล่พร้อมสนับสนุนการผลิตอย่างต่อเนื่อง')] });
       }
 
+      slides = slides.concat(appendix);
       return {
         title: slides[0].title,
         footer: 'Spare Parts Portal · JR · ' + stamp + (cm ? ' · ' + xpT('ฉบับสำหรับลูกค้า') : ''),
@@ -31732,6 +31767,10 @@ if (dashboardPage) {
             var o = { align: numeric[i] ? 'right' : 'left', fill: { color: ri % 2 ? 'F8FAFC' : 'FFFFFF' }, color: INK };
             if (opt.boldLast && ri === t.rows.length - 1) { o.bold = true; o.fill = { color: 'E2E8F0' }; }
             if (opt.levelColors && i === 0) { o.bold = true; o.color = v === xpT('วิกฤต') ? 'E11D48' : (v === xpT('เร่งด่วน') ? 'D97706' : '0891B2'); }
+            if (opt.linkSlide && i === opt.linkCol) {
+              o.hyperlink = { slide: opt.linkSlide, tooltip: opt.linkTip || '' };
+              o.color = '1D4ED8';
+            }
             return { text: typeof v === 'number' ? xpFmtInt(v) : xpS(v), options: o };
           }));
         });
@@ -31764,6 +31803,9 @@ if (dashboardPage) {
         }
       }
 
+      // เลขหน้าของสไลด์ที่มี id (หน้าแรก = 1) ใช้ทำลิงก์กระโดดภายในไฟล์
+      var slideNo = {};
+      model.slides.forEach(function(s, i) { if (s.id) slideNo[s.id] = i + 1; });
       model.slides.forEach(function(s) {
         if (s.kind === 'cover') {
           var cv = pptx.addSlide();
@@ -31841,7 +31883,38 @@ if (dashboardPage) {
             slide.addText(it.text, { x: 0.8, y: y, w: 11.9, h: 0.72, fontFace: F, fontSize: 14, color: INK, valign: 'middle' });
           });
         } else if (s.kind === 'table') {
-          table(slide, s.table, { x: 0.5, y: 1.5, w: 12.33, colW: s.colW, levelColors: s.levelColors, fontSize: s.fontSize || 11, rowH: s.rowH || 0.4 });
+          table(slide, s.table, { x: 0.5, y: 1.5, w: 12.33, colW: s.colW, levelColors: s.levelColors, fontSize: s.fontSize || 11, rowH: s.rowH || 0.4,
+            linkCol: s.linkCol, linkSlide: s.linkTo ? slideNo[s.linkTo] : 0, linkTip: s.linkTo ? xpT('ดูรูปอะไหล่ในภาคผนวก') : '' });
+        } else if (s.kind === 'gallery') {
+          // 5 คอลัมน์ × 3 แถว — รูปย่อ (ย่อแบบคงสัดส่วน ไม่ยืด) + อันดับ/มูลค่า + ชื่อ (ลิงก์ไปรูปเต็มใน Drive)
+          var gcols = 5, gap = 0.15, gx0 = 0.5, gy0 = 1.4;
+          var cw = (12.33 - gap * (gcols - 1)) / gcols, chh = (5.45 - gap * 2) / 3;
+          s.items.forEach(function(it, i) {
+            var x = gx0 + (i % gcols) * (cw + gap), y = gy0 + Math.floor(i / gcols) * (chh + gap);
+            slide.addShape(pptx.ShapeType.roundRect, { x: x, y: y, w: cw, h: chh, rectRadius: 0.06, fill: { color: 'FFFFFF' }, line: { color: LINE, width: 1 } });
+            var bx = x + 0.08, by = y + 0.08, bw = cw - 0.16, bh = 0.98;
+            if (it.imageData) {
+              var iw = it.imageW || 1, ih = it.imageH || 1;
+              var sc = Math.min(bw / iw, bh / ih);
+              var dw = iw * sc, dh = ih * sc;
+              slide.addImage({ data: it.imageData, x: bx + (bw - dw) / 2, y: by + (bh - dh) / 2, w: dw, h: dh,
+                hyperlink: it.imageUrl ? { url: it.imageUrl, tooltip: it.name } : undefined });
+            } else {
+              slide.addShape(pptx.ShapeType.rect, { x: bx, y: by, w: bw, h: bh, fill: { color: 'F1F5F9' }, line: { color: 'F1F5F9', width: 0 } });
+              slide.addText(s.noPhoto, { x: bx, y: by, w: bw, h: bh, fontFace: F, fontSize: 9, color: '94A3B8', align: 'center', valign: 'middle' });
+            }
+            slide.addText([
+              { text: '#' + it.rank + '  ', options: { bold: true, color: '2563EB' } },
+              { text: it.value, options: { bold: true, color: INK } },
+              { text: '  ' + it.line, options: { color: MUT, fontSize: 8 } }
+            ], { x: x + 0.08, y: y + 1.08, w: cw - 0.16, h: 0.24, fontFace: F, fontSize: 9.5, valign: 'middle' });
+            slide.addText(it.name, { x: x + 0.08, y: y + 1.3, w: cw - 0.16, h: chh - 1.34, fontFace: F, fontSize: 8.5, valign: 'top',
+              color: it.imageUrl ? '1D4ED8' : INK, hyperlink: it.imageUrl ? { url: it.imageUrl, tooltip: xpT('เปิดรูปขนาดเต็ม') } : undefined });
+          });
+          if (s.backTo && slideNo[s.backTo]) {
+            slide.addText(s.backText, { x: 10.3, y: 0.88, w: 2.53, h: 0.4, fontFace: F, fontSize: 11, color: '1D4ED8', align: 'right',
+              hyperlink: { slide: slideNo[s.backTo], tooltip: s.backText } });
+          }
         }
       });
       return pptx;
@@ -31859,6 +31932,38 @@ if (dashboardPage) {
           fr.readAsDataURL(blob);
         });
       }).catch(function() { return null; });
+    }
+    // ขนาดจริงของรูป (px) — ใช้ย่อแบบคงสัดส่วนในการ์ด (รูปที่ได้จากเซิร์ฟเวอร์ไม่มีขนาดติดมา)
+    function xpImageSize(dataUrl) {
+      return new Promise(function(resolve) {
+        var im = new Image();
+        im.onload = function() { resolve({ w: im.naturalWidth || 1, h: im.naturalHeight || 1 }); };
+        im.onerror = function() { resolve(null); };
+        im.src = dataUrl;
+      });
+    }
+    // เติมรูปให้สไลด์ภาคผนวก — ใช้ตัวดึงรูปชุดเดียวกับ Excel (ฝั่งเบราว์เซอร์ก่อน ไม่ได้ค่อยขอผ่านเซิร์ฟเวอร์)
+    function xpDeckGalleryImages(model) {
+      var gal = model.slides.filter(function(s) { return s.kind === 'gallery'; })[0];
+      if (!gal) return Promise.resolve();
+      var withUrl = gal.items.filter(function(it) { return it.imageUrl; });
+      if (!withUrl.length) return Promise.resolve();
+      xpProgressSet(75, 'กำลังดึงรูปอะไหล่สำหรับภาคผนวก...');
+      return xpFetchPartImages(withUrl.map(function(it) { return { image_main_url: it.imageUrl }; })).then(function(res) {
+        return Promise.all(withUrl.map(function(it) {
+          var got = res.byId[extractDriveFileId(it.imageUrl)];
+          if (!got || !got.dataUrl) return null;
+          return xpImageSize(got.dataUrl).then(function(sz) {
+            if (!sz) return;
+            it.imageData = got.dataUrl;
+            it.imageW = sz.w;
+            it.imageH = sz.h;
+          });
+        }));
+      }).catch(function(err) {
+        // รูปเป็นของเสริม — ดึงไม่ได้ให้ยังได้ไฟล์ (การ์ดขึ้น "ไม่มีรูป")
+        xpProgressLog('ดึงรูปอะไหล่ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'fail');
+      });
     }
     function xpRunPptDeck() {
       if (xpBusy) return;
@@ -31880,7 +31985,7 @@ if (dashboardPage) {
       }).then(function(pair) {
         xpProgressSet(65, 'กำลังจัดสไลด์...');
         model = xpBuildDeckModel(pair[0], pair[1]);
-        return xpDeckLogo();
+        return xpDeckGalleryImages(model).then(function() { return xpDeckLogo(); });
       }).then(function(logo) {
         var pptx = xpRenderDeck(Pptx, model, logo);
         xpProgressSet(85, 'กำลังเขียนไฟล์ .pptx...');

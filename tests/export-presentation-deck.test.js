@@ -153,7 +153,7 @@ mod.setCustomer(false);
 const NOW = new Date(2026, 9, 24); // 24 ต.ค. 2026
 const mMaster = [
   { name: 'Breaker', model: 'BK-10', unit_price: 100, no: '1', __sheet: 'Lug&Screw' },
-  { name: 'Belt', model: 'B-77', unit_price: 500, no: '2', __sheet: 'H9' },
+  { name: 'Belt', model: 'B-77', unit_price: 500, no: '2', __sheet: 'H9', image_main_url: 'https://drive.google.com/file/d/BELT123/view' },
   { name: 'Mystery', model: 'X', unit_price: '', no: '3', __sheet: 'H9' }
 ];
 const mLogs = [
@@ -245,6 +245,28 @@ mod.setRange('2026-09-01', '2026-09-30');
 const rangeDeck = mod.xpBuildDeckModel(S, mod.xpDeckMonthlyIssue(mLogs, mMaster, mMisc, NOW));
 assert(rangeDeck.slides[0].meta.some(function(t) { return /ช่วงข้อมูล: 1 ก\.ย\. 2569 – 30 ก\.ย\. 2569/.test(t); }), 'ปกต้องบอกวันที่ที่เลือก: ' + rangeDeck.slides[0].meta.join(' | '));
 mod.setRange('', '');
+
+// ภาคผนวกรูปอะไหล่: อยู่ท้ายเล่ม (หลังสไลด์ปิด) ชื่อในตารางอันดับลิงก์ไปหาได้ และมีลิงก์กลับ
+const gal = slideOf(withM, 'gallery');
+assert(gal, 'ต้องมีสไลด์ภาคผนวกรูปอะไหล่');
+assert.strictEqual(withM.slides[withM.slides.length - 1], gal, 'ภาคผนวกต้องอยู่หน้าท้ายสุด');
+assert.strictEqual(withM.slides[withM.slides.length - 2].kind, 'closing', 'ภาคผนวกต่อจากสไลด์ปิด');
+assert.strictEqual(gal.id, 'gallery');
+assert.strictEqual(rankSlide.linkTo, 'gallery', 'ชื่อในตารางอันดับต้องผูกลิงก์ไปภาคผนวก');
+assert.strictEqual(rankSlide.linkCol, 1, 'ลิงก์อยู่ที่คอลัมน์ชื่ออะไหล่');
+assert.strictEqual(gal.backTo, rankSlide.id, 'ภาคผนวกต้องมีลิงก์กลับไปตารางอันดับ');
+assert.deepStrictEqual(gal.items.map(function(it) { return it.name; }), rankSlide.table.rows.map(function(r) { return r[1]; }), 'รูปเรียงตามอันดับเดียวกับตาราง');
+assert.strictEqual(gal.items[0].imageUrl, 'https://drive.google.com/file/d/BELT123/view', 'ลิงก์รูปมาจาก image_main_url ใน Master');
+assert.strictEqual(gal.items[1].imageUrl, '', 'ไม่มีรูปใน Master = ว่าง (การ์ดขึ้น "ไม่มีรูป")');
+assert(/ภาคผนวก/.test(gal.title));
+const runSrc1 = grabFn('xpRunPptDeck');
+assert(/xpDeckGalleryImages\(model\)/.test(runSrc1), 'ต้องดึงรูปก่อนวาดสไลด์');
+const galSrc = grabFn('xpDeckGalleryImages');
+assert(/xpFetchPartImages\(/.test(galSrc), 'ใช้ตัวดึงรูปชุดเดียวกับ Excel');
+assert(/\.catch\(function\(err\)/.test(galSrc), 'ดึงรูปไม่ได้ต้องยังได้ไฟล์');
+const renderSrc = grabFn('xpRenderDeck');
+assert(/hyperlink = \{ slide: opt\.linkSlide/.test(renderSrc), 'ตารางต้องผูกลิงก์กระโดดไปหน้าภาคผนวก');
+assert(/hyperlink: \{ slide: slideNo\[s\.backTo\]/.test(renderSrc), 'ภาคผนวกต้องมีลิงก์กลับ');
 
 // ฉบับลูกค้า: เป็นตัวเลขเงิน ต้องไม่มี
 mod.setCustomer(true);
