@@ -31721,6 +31721,17 @@ if (dashboardPage) {
       };
     }
 
+    // ลิงก์ที่ปลอดภัยสำหรับใส่ในไฟล์ PowerPoint
+    // PptxGenJS เขียน URL ลงไฟล์ .rels โดยไม่ escape '&' → XML เสีย PowerPoint ขึ้น "can't read" เปิดไม่ได้ทั้งไฟล์
+    // (เคยเกิดจริง: ลิงก์รูปใน Master เป็น drive.google.com/thumbnail?id=...&sz=w1200)
+    // จึงแปลงลิงก์ Drive เป็นหน้า view ที่ไม่มี '&' และลิงก์อื่นที่ยังมี '&' ไม่ใส่เลย
+    function xpDeckSafeLink(url) {
+      var u = xpS(url).trim();
+      if (!u) return '';
+      var m = u.match(/[?&]id=([A-Za-z0-9_-]+)/) || u.match(/\/file\/d\/([A-Za-z0-9_-]+)/);
+      if (m) return 'https://drive.google.com/file/d/' + m[1] + '/view';
+      return /^https?:\/\//.test(u) && !/[&<>"']/.test(u) ? u : '';
+    }
     // วาดโครงสไลด์ลง PowerPoint — ฟอนต์ Tahoma มีในทุกเครื่องที่มี Office และแสดงภาษาไทยได้
     function xpRenderDeck(PptxGenJS, model, logoData) {
       var pptx = new PptxGenJS();
@@ -31902,8 +31913,8 @@ if (dashboardPage) {
               var iw = it.imageW || 1, ih = it.imageH || 1;
               var sc = Math.min(bw / iw, bh / ih);
               var dw = iw * sc, dh = ih * sc;
-              slide.addImage({ data: it.imageData, x: bx + (bw - dw) / 2, y: by + (bh - dh) / 2, w: dw, h: dh,
-                hyperlink: it.imageUrl ? { url: it.imageUrl, tooltip: it.name } : undefined });
+              // ไม่ผูกลิงก์ที่ตัวรูป — PptxGenJS ไม่ escape '&' ในลิงก์ของรูป ไฟล์เสียเปิดไม่ได้ (ลิงก์อยู่ที่ชื่อด้านล่างแทน)
+              slide.addImage({ data: it.imageData, x: bx + (bw - dw) / 2, y: by + (bh - dh) / 2, w: dw, h: dh });
             } else {
               slide.addShape(pptx.ShapeType.rect, { x: bx, y: by, w: bw, h: bh, fill: { color: 'F1F5F9' }, line: { color: 'F1F5F9', width: 0 } });
               slide.addText(s.noPhoto, { x: bx, y: by, w: bw, h: bh, fontFace: F, fontSize: 9, color: '94A3B8', align: 'center', valign: 'middle' });
@@ -31913,8 +31924,9 @@ if (dashboardPage) {
               { text: it.value, options: { bold: true, color: INK } },
               { text: '  ' + it.line, options: { color: MUT, fontSize: 8 } }
             ], { x: x + 0.08, y: y + 1.08, w: cw - 0.16, h: 0.24, fontFace: F, fontSize: 9.5, valign: 'middle' });
+            var link = xpDeckSafeLink(it.imageUrl);
             slide.addText(it.name, { x: x + 0.08, y: y + 1.3, w: cw - 0.16, h: chh - 1.34, fontFace: F, fontSize: 8.5, valign: 'top',
-              color: it.imageUrl ? '1D4ED8' : INK, hyperlink: it.imageUrl ? { url: it.imageUrl, tooltip: xpT('เปิดรูปขนาดเต็ม') } : undefined });
+              color: link ? '1D4ED8' : INK, hyperlink: link ? { url: link, tooltip: xpT('เปิดรูปขนาดเต็ม') } : undefined });
           });
           if (s.backTo && slideNo[s.backTo]) {
             slide.addText(s.backText, { x: 10.3, y: 0.88, w: 2.53, h: 0.4, fontFace: F, fontSize: 11, color: '1D4ED8', align: 'right',

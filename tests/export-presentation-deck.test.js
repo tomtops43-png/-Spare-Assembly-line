@@ -335,6 +335,19 @@ assert(/return tryAt\(i \+ 1\)/.test(grabFn('xpLoadPptxLib')), 'โหลดต�
 assert(!/<script src="[^"]*pptxgen/.test(html), 'ห้ามโหลด PptxGenJS ตอนเปิดเว็บ (หนัก ~500KB) — โหลดตอนกดปุ่มเท่านั้น');
 assert(/xpPptxLibPromise = null; throw err/.test(grabFn('xpLoadPptxLib')), 'โหลดล้มเหลวต้องล้าง promise ให้กดลองใหม่ได้');
 
+// ── ลิงก์ในไฟล์ต้องไม่มี '&' ──────────────────────────────────────────
+// เคยเกิดจริง: PptxGenJS ไม่ escape '&' ในลิงก์ของรูป (.rels) → XML เสีย PowerPoint ขึ้น
+// "Sorry, PowerPoint can't read ..." เพราะลิงก์รูปใน Master เป็น thumbnail?id=...&sz=w1200
+const safeLink = buildModule(baseHelpers().concat([grabFn('xpDeckSafeLink')]), 'xpDeckSafeLink');
+assert.strictEqual(safeLink('https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUv&sz=w1200'), 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUv/view');
+assert.strictEqual(safeLink('https://drive.google.com/uc?export=view&id=1AbCdEfGhIjKlMnOpQrStUv'), 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUv/view');
+assert.strictEqual(safeLink('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUv/view?usp=sharing'), 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUv/view');
+assert.strictEqual(safeLink('https://example.com/a?b=1&c=2'), '', 'ลิงก์อื่นที่มี & ต้องไม่ใส่ (ไฟล์เสีย)');
+assert.strictEqual(safeLink(''), '');
+const renderSrc2 = grabFn('xpRenderDeck');
+assert(!/addImage\(\{[^}]*hyperlink/.test(renderSrc2), 'ห้ามผูกลิงก์ที่ตัวรูป (PptxGenJS ไม่ escape & ใน .rels)');
+assert(/hyperlink: link \?/.test(renderSrc2) && /xpDeckSafeLink\(it\.imageUrl\)/.test(renderSrc2), 'ลิงก์ชื่ออะไหล่ต้องผ่าน xpDeckSafeLink');
+
 // ── UI ────────────────────────────────────────────────────────────────
 assert(html.indexOf('id="xpPptBtn"') > -1, 'ต้องมีปุ่ม PowerPoint ในระดับ 1');
 const initSrc = html.slice(html.indexOf('(function initExportCenter()'));
