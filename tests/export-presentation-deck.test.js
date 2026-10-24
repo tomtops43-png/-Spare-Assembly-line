@@ -200,6 +200,18 @@ assert(ms.chart.series.some(function(se) { return se.name === 'ค่าสิ�
 assert(/ยังไม่มีราคา 1 รายการ/.test(ms.sub), 'ต้องเตือนเรื่องรายการที่ไม่มีราคา');
 assert.strictEqual(ms.table.rows[ms.table.rows.length - 1][0], 'รวม', 'แถวสุดท้ายของตารางเป็นยอดรวม');
 
+// อันดับตามมูลค่าเบิกทั้งช่วง: Belt (H9) 2+1+1 ชิ้น × 500 = 2,000 > Breaker 300, ไม่มีราคาไม่ติดอันดับ
+assert.deepStrictEqual(M.rankAll.map(function(x) { return x.name; }), ['Belt', 'Breaker'], 'เรียงจากมูลค่าเบิกมากไปน้อย ไม่รวมรายการไม่มีราคา');
+assert.strictEqual(M.rankAll[0].value, 2000);
+assert.strictEqual(M.rankAll[0].count, 3, 'นับจำนวนครั้งที่เบิก');
+assert.strictEqual(M.issueSum, 2300, 'มูลค่าเบิกรวมทั้งช่วง (ไม่รวมค่าสิ้นเปลือง)');
+const rankSlide = withM.slides.filter(function(sl) { return sl.title === 'อันดับอะไหล่ตามมูลค่าเบิก'; })[0];
+assert(rankSlide, 'ต้องมีสไลด์จัดอันดับตามมูลค่าเบิก');
+assert(kinds(withM).indexOf('monthTop') === withM.slides.indexOf(rankSlide) + 1, 'วางระหว่างสไลด์รายเดือนกับสไลด์เดือนล่าสุด');
+assert.strictEqual(rankSlide.table.rows[0][1], 'Belt');
+assert.strictEqual(rankSlide.table.rows[rankSlide.table.rows.length - 1][8], '100.0%', 'แถวสุดท้าย % สะสมต้องครบ 100% เมื่อมีไม่ถึง 15 รายการ');
+assert(/คิดเป็น 100%/.test(rankSlide.sub), 'หัวสไลด์ต้องบอกสัดส่วนของ 15 อันดับแรก (มีแค่ 2 รายการ = 100%)');
+
 // ฉบับลูกค้า: เป็นตัวเลขเงิน ต้องไม่มี
 mod.setCustomer(true);
 const custM = mod.xpBuildDeckModel(S, M);
