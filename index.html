@@ -27400,7 +27400,9 @@ if (dashboardPage) {
       'คลังอะไหล่พร้อมสนับสนุนการผลิตอย่างต่อเนื่อง': 'Our spare parts store is ready to support continuous production',
       'ยังไม่มีคำขอซื้อ': 'No purchase requests yet',
       'เริ่มสร้าง PowerPoint': 'Started building PowerPoint',
-      'ดาวน์โหลด PowerPoint {n} สไลด์': 'Downloaded PowerPoint ({n} slides)'
+      'ดาวน์โหลด PowerPoint {n} สไลด์': 'Downloaded PowerPoint ({n} slides)',
+      'อันดับอะไหล่ตามมูลค่าเบิก': 'Parts Ranked by Issued Value',
+      '{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%': '{a} – {b} · Total issued value {v} · Top 15 account for {p}%'
     };
     // ภาษาจีน (简体) — คีย์ชุดเดียวกับ XP_LANG_EN ทุกตัว (เทสต์บังคับให้ครบ) แปลจากฉบับอังกฤษ
     var XP_LANG_ZH = {
@@ -28012,7 +28014,9 @@ if (dashboardPage) {
       'คลังอะไหล่พร้อมสนับสนุนการผลิตอย่างต่อเนื่อง': '我们的备件库随时支持持续生产',
       'ยังไม่มีคำขอซื้อ': '暂无采购申请',
       'เริ่มสร้าง PowerPoint': '开始生成 PowerPoint',
-      'ดาวน์โหลด PowerPoint {n} สไลด์': '已下载 PowerPoint ({n} 张幻灯片)'
+      'ดาวน์โหลด PowerPoint {n} สไลด์': '已下载 PowerPoint ({n} 张幻灯片)',
+      'อันดับอะไหล่ตามมูลค่าเบิก': '按出库金额排名的备件',
+      '{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%': '{a} – {b} · 出库总金额 {v} · 前 15 名占 {p}%'
     };
 
     // แปลข้อความที่จะลงไปในไฟล์ — vars ใช้แทนที่ {placeholder} ในข้อความ
@@ -31346,6 +31350,20 @@ if (dashboardPage) {
         byPart[k].value += r.value;
         byCat[r.category] = (byCat[r.category] || 0) + r.value;
       });
+      // อันดับทั้งช่วงที่แสดง: รวมมูลค่าเบิกต่ออะไหล่ (ไลน์ + ชื่อ + รุ่น) แล้วเรียงจากมากไปน้อย
+      var rank = {}, issueSum = 0;
+      rows.forEach(function(r) {
+        var k = r.line + '||' + xpPartKey(r.name, r.model);
+        if (!rank[k]) rank[k] = { name: r.name, model: r.model, line: r.line, qty: 0, count: 0, value: 0 };
+        rank[k].qty += r.qty;
+        rank[k].count += 1;
+        rank[k].value += r.value;
+        issueSum += r.value;
+      });
+      res.issueSum = issueSum;
+      res.rankAll = Object.keys(rank).map(function(k) { return rank[k]; })
+        .filter(function(x) { return x.value > 0; })
+        .sort(function(a, b) { return b.value - a.value || b.qty - a.qty; });
       res.latestKey = latestKey;
       res.latestLabel = n ? res.labels[n - 1] : '';
       res.latestIssue = n ? res.total[n - 1] - res.misc[n - 1] : 0;
@@ -31488,6 +31506,29 @@ if (dashboardPage) {
           ],
           table: { headers: [xpT('ไลน์')].concat(M.labels), rows: mRows, numeric: [false].concat(M.labels.map(function() { return true; })) }
         });
+        // ── อันดับอะไหล่ตามมูลค่าเบิกทั้งช่วง ──
+        if (M.rankAll.length) {
+          var cum = 0, top15 = M.rankAll.slice(0, 15);
+          var top15Sum = top15.reduce(function(a, x) { return a + x.value; }, 0);
+          slides.push({
+            kind: 'table',
+            title: xpT('อันดับอะไหล่ตามมูลค่าเบิก'),
+            sub: xpT('{a} – {b} · มูลค่าเบิกรวม {v} · 15 อันดับแรกคิดเป็น {p}%', {
+              a: M.labels[0], b: M.labels[M.labels.length - 1], v: xpDeckMoney(M.issueSum), p: xpDeckPct(top15Sum, M.issueSum) }),
+            table: {
+              headers: ['#', xpT('ชื่ออะไหล่'), xpT('รุ่น'), xpT('ไลน์'), xpT('เบิก (ชิ้น)'), xpT('จำนวนครั้ง'), xpT('มูลค่าเบิก'), xpT('% ของมูลค่ารวม'), xpT('% สะสม')],
+              rows: top15.map(function(t, i) {
+                cum += t.value;
+                return [i + 1, xpDeckCut(t.name, 40), xpDeckCut(t.model, 20), t.line, t.qty, t.count, xpDeckMoney(t.value),
+                  (M.issueSum > 0 ? (t.value / M.issueSum * 100).toFixed(1) : '0.0') + '%',
+                  (M.issueSum > 0 ? (cum / M.issueSum * 100).toFixed(1) : '0.0') + '%'];
+              }),
+              numeric: [true, false, false, false, true, true, true, true, true]
+            },
+            colW: [0.45, 3.45, 1.7, 1.35, 0.95, 0.95, 1.13, 1.15, 1.2],
+            fontSize: 10, rowH: 0.32
+          });
+        }
         if (M.top.length) {
           slides.push({
             kind: 'monthTop',
@@ -31771,7 +31812,7 @@ if (dashboardPage) {
             slide.addText(it.text, { x: 0.8, y: y, w: 11.9, h: 0.72, fontFace: F, fontSize: 14, color: INK, valign: 'middle' });
           });
         } else if (s.kind === 'table') {
-          table(slide, s.table, { x: 0.5, y: 1.5, w: 12.33, colW: s.colW, levelColors: s.levelColors, fontSize: 11, rowH: 0.4 });
+          table(slide, s.table, { x: 0.5, y: 1.5, w: 12.33, colW: s.colW, levelColors: s.levelColors, fontSize: s.fontSize || 11, rowH: s.rowH || 0.4 });
         }
       });
       return pptx;
