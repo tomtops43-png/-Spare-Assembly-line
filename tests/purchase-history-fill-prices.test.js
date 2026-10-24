@@ -78,3 +78,23 @@ assert(fill.includes("values[i][28] = 'Master'"), 'ต้องบันทึ�
 assert(fill.includes("'PRICE_FILL'"), 'ต้องเก็บ audit');
 
 console.log('purchase-history-fill-prices OK');
+
+// ── ใบ PR ระบบใหม่ต้องโผล่ในหน้าประวัติด้วย (อ่านอย่างเดียว) ─────────────────
+assert(html.includes("action: 'getPurchaseHistory', include_pr_system: true"), 'หน้า Purchase History ต้องขอรวมใบ PR ระบบใหม่');
+assert(/var actions = item\.from_pr_system/.test(html), 'แถวจาก PR ระบบใหม่ต้องไม่มีปุ่มแก้/ลบ');
+assert(/if \(!item \|\| item\.from_pr_system \|\| !purchaseHistoryEditModal\) return;/.test(html), 'เปิดฟอร์มแก้แถว PR ระบบใหม่ไม่ได้');
+assert(/if \(!statusOk \|\| h\.from_pr_system\) return false;/.test(html), 'ห้ามเอาแถว PR ระบบใหม่ไปเตือนใบค้างซ้ำ');
+const getPh = grab(backend, 'getPurchaseHistory', '');
+assert(getPh.includes('toBoolean(payload.include_pr_system, false)'), 'Dashboard/Export ที่ไม่ขอ ต้องได้แค่ชีตเดิม (กันนับซ้ำกับ GR)');
+const prRows = grab(backend, 'listPrSystemPurchaseHistoryRows', '');
+assert(prRows.includes('prIsTracked(hIdx, hr)'), 'เอาเฉพาะใบระบบใหม่ — ใบเก่ามีในชีตอยู่แล้ว');
+assert(prRows.includes('buildPrSystemHistoryId(ln.pr_id, ln.line_no)'), 'history_id ต้องชี้กลับบรรทัด PR ได้');
+assert(prRows.includes('from_pr_system: true'));
+assert(prRows.includes("phStatus = 'Received'") && prRows.includes("phStatus = 'Partial Received'"), 'สถานะต้องคิดจากยอดรับจริง');
+const prFill = grab(backend, 'fillPrSystemLinePrices', '');
+assert(prFill.includes('Number(lData[i][lIdx.unit_price] || 0) > 0) continue;'), 'บรรทัด PR ที่มีราคาแล้วห้ามทับ');
+assert(prFill.includes('hIdx.total_amount'), 'ต้องอัปเดตยอดรวมหัวใบ');
+assert(prFill.includes('gIdx.amount'), 'ใบรับของที่รับไปแล้วด้วยราคา 0 ต้องได้มูลค่าใหม่');
+assert(fill.includes("id.indexOf('PRL-') === 0"), 'แถว PRL- ต้องไปเติมที่ PRLines');
+
+console.log('purchase-history pr-system rows OK');

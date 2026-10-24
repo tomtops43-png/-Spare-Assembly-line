@@ -3256,7 +3256,7 @@
         <div>
           <h2 class="text-xl font-bold text-slate-900">Purchase History</h2>
           <p class="text-sm text-slate-500">ประวัติการขอซื้อและสั่งซื้ออะไหล่สำหรับดูย้อนหลังและวิเคราะห์เบื้องต้น</p>
-          <p class="pt-legacy-note mt-1 rounded-lg px-2 py-1 text-xs font-semibold" style="background:#eff6ff;color:#1e40af;">📚 หน้านี้เป็นประวัติก่อนเริ่มระบบ PR ใหม่ (ดูอย่างเดียว) — PR / รับของใหม่ดูที่เมนู จัดซื้อ → 📦 ติดตาม PR</p>
+          <p class="pt-legacy-note mt-1 rounded-lg px-2 py-1 text-xs font-semibold" style="background:#eff6ff;color:#1e40af;">📚 ประวัติการสั่งซื้อ รวมใบ PR ระบบใหม่ (ป้าย 📦 — ดูอย่างเดียว) — รับของ / แก้ไขใบ PR ใหม่ที่เมนู จัดซื้อ → 📦 ติดตาม PR</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <button id="purchaseHistoryReconcileBtn" type="button" class="pt-legacy-hide h-10 rounded-lg border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700" title="เทียบรายการที่ยังค้างอยู่กับประวัติการรับเข้าทั้งหมด (รวมรายการที่รับเข้าไปก่อนคำขอซื้อจะถูกสร้าง)">🔄 ตรวจสอบ/Reconcile</button>
@@ -14758,7 +14758,9 @@ function inferRequestPriority(stock, min) {
       var start = (purchaseHistoryCurrentPage - 1) * PURCHASE_HISTORY_PAGE_SIZE;
       var pageRows = rows.slice(start, start + PURCHASE_HISTORY_PAGE_SIZE);
       purchaseHistoryTable.innerHTML = pageRows.length ? pageRows.map(function(item, index) {
-        var actions = canEditPurchaseHistory() ? '<div class="flex gap-1"><button type="button" data-ph-edit="' + escapePurchaseHistoryText(item.history_id) + '" class="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">Edit</button><button type="button" data-ph-delete="' + escapePurchaseHistoryText(item.history_id) + '" class="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">Delete</button></div>' : '-';
+        var actions = item.from_pr_system
+          ? '<span class="whitespace-nowrap text-[11px] font-semibold text-violet-600" title="ใบ PR ระบบใหม่ — แก้ไข/รับของที่เมนู จัดซื้อ → 📦 ติดตาม PR">📦 PR ระบบใหม่</span>'
+          : canEditPurchaseHistory() ? '<div class="flex gap-1"><button type="button" data-ph-edit="' + escapePurchaseHistoryText(item.history_id) + '" class="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">Edit</button><button type="button" data-ph-delete="' + escapePurchaseHistoryText(item.history_id) + '" class="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">Delete</button></div>' : '-';
         var sourceLabel = escapePurchaseHistoryText(item.source || '-') + ' • ' + escapePurchaseHistoryText(item.request_id || '-');
         return '<tr>' +
           '<td class="px-3 py-3 whitespace-nowrap">' + escapePurchaseHistoryText(formatPurchaseHistoryDateThai(item.date)) + '<div class="ph-sub text-xs text-gray-400" title="' + sourceLabel + '">' + sourceLabel + '</div></td>' +
@@ -14819,7 +14821,8 @@ function inferRequestPriority(stock, min) {
     function loadPurchaseHistory(forceRefresh) {
       if (purchaseHistoryLoaded && !forceRefresh) { renderPurchaseHistory(); return Promise.resolve(purchaseHistoryCache); }
       if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'กำลังโหลด Purchase History...';
-      return requestApi(withAuthPayload({ action: 'getPurchaseHistory' })).then(parseApiResponse).then(function(rows) {
+      // include_pr_system: รวมใบ PR ระบบใหม่ (อ่านอย่างเดียว) ให้ประวัติต่อเนื่องหลังเปิดระบบ PR → รับของ
+      return requestApi(withAuthPayload({ action: 'getPurchaseHistory', include_pr_system: true })).then(parseApiResponse).then(function(rows) {
         purchaseHistoryCache = Array.isArray(rows) ? rows : []; purchaseHistoryLoaded = true; populatePurchaseHistoryFilters(); renderPurchaseHistory(); return purchaseHistoryCache;
       }).catch(function(err) { if (purchaseHistoryMessage) purchaseHistoryMessage.textContent = 'โหลด Purchase History ไม่สำเร็จ: ' + (err && err.message ? err.message : err); throw err; });
     }
@@ -14827,7 +14830,7 @@ function inferRequestPriority(stock, min) {
     function openPurchaseHistoryEdit(historyId) {
       if (!canEditPurchaseHistory()) return;
       var item = purchaseHistoryCache.filter(function(row) { return row.history_id === historyId; })[0];
-      if (!item || !purchaseHistoryEditModal) return;
+      if (!item || item.from_pr_system || !purchaseHistoryEditModal) return;
       purchaseHistoryEditId.value = item.history_id; purchaseHistoryEditQty.value = item.qty_ordered || '';
       purchaseHistoryEditPrice.value = item.unit_price === undefined || item.unit_price === null ? '' : item.unit_price;
       purchaseHistoryEditCurrency.value = item.currency || 'THB'; purchaseHistoryEditStatus.value = item.status || 'Requested';
@@ -18638,7 +18641,8 @@ function inferRequestPriority(stock, min) {
     function findPendingPurchaseForItem(item) {
       var matches = (purchaseHistoryCache || []).filter(function(h) {
         var statusOk = PR_PENDING_STATUSES.indexOf(String(h.status || '').trim().toLowerCase()) > -1;
-        if (!statusOk) return false;
+        // แถวจากใบ PR ระบบใหม่มาแค่ตอนเปิดหน้า Purchase History — ไม่ใช้เตือนซ้ำ (ระบบใหม่มีตัวเช็คใบค้างของตัวเอง)
+        if (!statusOk || h.from_pr_system) return false;
         return purchaseHistoryMatchesItem(h, item);
       });
       if (!matches.length) return null;
