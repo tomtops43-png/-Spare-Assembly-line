@@ -338,6 +338,20 @@
     #prBudgetGateConfirm:hover { background-color: #be123c; }
     #prForceResaveBtn { color: #d97706; }
     #prForceResaveBtn:hover { color: #b45309; }
+    /* ─── แถบแท็บแบบ browser ด้านบนสุด: เปิดหลายหน้าค้างไว้แล้วสลับไปมาได้ ─── */
+    #browserTabBar { display:flex; align-items:flex-end; gap:2px; margin:0 0 10px; padding:6px 6px 0; border-radius:14px 14px 0 0; background:#dbe4f0; border-bottom:2px solid #fff; }
+    #browserTabList { display:flex; align-items:flex-end; gap:2px; min-width:0; overflow-x:auto; scrollbar-width:none; }
+    #browserTabList::-webkit-scrollbar { display:none; }
+    .browser-tab { position:relative; display:flex; align-items:center; gap:6px; flex:0 1 200px; min-width:92px; max-width:200px; height:34px; padding:0 6px 0 12px; border-radius:10px 10px 0 0; background:transparent; color:#475569; font-size:12.5px; font-weight:600; cursor:pointer; user-select:none; transition:background .15s; }
+    .browser-tab:hover { background:rgba(255,255,255,.55); }
+    .browser-tab.is-active { background:#fff; color:#0f172a; box-shadow:0 -2px 8px rgba(15,23,42,.08); }
+    .browser-tab:not(.is-active) + .browser-tab:not(.is-active)::before { content:''; position:absolute; left:-1px; top:9px; bottom:9px; width:1px; background:#94a3b8; opacity:.5; }
+    .browser-tab-icon { flex-shrink:0; font-size:14px; line-height:1; }
+    .browser-tab-title { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .browser-tab-close { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:999px; color:#64748b; font-size:15px; line-height:1; }
+    .browser-tab-close:hover { background:#e2e8f0; color:#0f172a; }
+    .browser-tab-new { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; margin:0 0 2px 4px; border-radius:999px; color:#475569; font-size:20px; line-height:1; }
+    .browser-tab-new:hover { background:rgba(255,255,255,.7); color:#1d4ed8; }
     /* ─── แท็บเมนูจัดกลุ่มเป็น dropdown (แก้ปัญหาแท็บล้นแนวนอน) ─── */
     #topNavTabs { overflow: visible; }
     .nav-group { position: relative; }
@@ -1287,6 +1301,11 @@
   </aside>
 
   <div id="appShell" class="hidden max-w-7xl mx-auto px-3 py-6 md:px-8 md:py-8">
+    <!-- แถบแท็บแบบ browser: + = เปิดแท็บใหม่, Ctrl/⌘+คลิก หรือคลิกกลางที่เมนู = เปิดหน้านั้นในแท็บใหม่ -->
+    <div id="browserTabBar" role="tablist" aria-label="แท็บที่เปิดอยู่">
+      <div id="browserTabList"></div>
+      <button id="browserTabNewBtn" type="button" class="browser-tab-new" title="เปิดแท็บใหม่ (Ctrl/⌘+คลิกที่เมนูก็ได้)" aria-label="เปิดแท็บใหม่">+</button>
+    </div>
     <header class="mb-3 md:mb-4">
       <div class="rounded-2xl border border-blue-100 bg-gradient-to-r from-white via-white to-blue-50 p-4 shadow-[0_8px_28px_rgba(15,23,42,0.10)] md:p-5">
         <div class="flex items-center justify-between gap-3">
@@ -8297,6 +8316,7 @@ function getIssueCartEntries() {
         applyAuthorizationUi();
         if (hasPermission('view_dashboard') && isAdminUser()) switchToDashboardPage();
         else switchToStockPage();
+        if (typeof window.browserTabsRestore === 'function') window.browserTabsRestore();
         return data;
       }
       return postJson(payload)
@@ -8328,6 +8348,7 @@ function getIssueCartEntries() {
           currentUser = data.user;
           applyAuthorizationUi();
           switchToStockPage();
+          if (typeof window.browserTabsRestore === 'function') window.browserTabsRestore();
           return data.user;
         });
     }
@@ -9632,6 +9653,7 @@ function getIssueCartEntries() {
       if (stockCountPage) stockCountPage.classList.toggle('hidden', active !== 'stock-count');
       updateRequestOrderBadgeUI(requestOrderBadgeCount);
       if (typeof updateNavGroups === 'function') updateNavGroups(active);
+      if (typeof window.browserTabsOnPageChange === 'function') window.browserTabsOnPageChange(active);
     }
 
     function switchToStockPage() {
@@ -22967,6 +22989,176 @@ function inferRequestPriority(stock, min) {
       });
     }
     window.updateNavGroups = updateNavGroups;
+
+    // ============ แถบแท็บแบบ browser (ด้านบนสุด) ============
+    // แต่ละแท็บจำ "หน้า" ของตัวเอง — สลับแท็บ = กดปุ่มเมนูของหน้านั้นแทนผู้ใช้
+    // จึงใช้ logic เปลี่ยนหน้า/เช็คสิทธิ์เดิมทั้งหมด ไม่ต้องเขียนซ้ำ
+    var BROWSER_TAB_PAGES = {
+      'stock': { btn: 'tabStock', label: 'Stock', icon: '📦' },
+      'dashboard': { btn: 'tabDashboard', label: 'Dashboard', icon: '📊' },
+      'machine-status': { btn: 'tabMachineStatus', label: 'เครื่องจักร', icon: '🖥️' },
+      'txn': { btn: 'tabTxn', label: 'รับเข้า', icon: '📥' },
+      'stock-count': { btn: 'tabStockCount', label: 'เช็คสต็อก', icon: '✅' },
+      'log': { btn: 'tabLog', label: 'Log', icon: '📜' },
+      'request-order': { btn: 'requestOrderNavBtn', label: 'ขอซื้อ', icon: '🛒' },
+      'pr': { btn: 'tabPrReport', label: 'PR Report', icon: '📄' },
+      'pr-tracking': { btn: 'tabPrTracking', label: 'ติดตาม PR', icon: '🚚' },
+      'purchase-history': { btn: 'tabPurchaseHistory', label: 'Purchase History', icon: '💳' },
+      'misc-expense': { btn: 'tabMiscExpense', label: 'ค่าใช้จ่ายสิ้นเปลือง', icon: '🧾' },
+      'manage': { btn: 'tabManage', label: 'เพิ่มรายการ', icon: '➕' },
+      'export': { btn: 'tabExport', label: 'Export', icon: '⬇️' },
+      'admin': { btn: 'tabAdmin', label: 'Admin', icon: '⚙️' }
+    };
+    var BROWSER_TABS_STORAGE_KEY = 'spare_browser_tabs';
+    var BROWSER_TABS_MAX = 12;
+    var browserTabsState = { tabs: [], activeId: '' };
+    var browserTabsReady = false; // ก่อน restore เสร็จ ไม่บันทึกหน้าที่ระบบเปิดเองตอนบูต (กันทับแท็บที่จำไว้)
+    var browserTabsSeq = 0;
+    var browserTabsCurrentPage = 'stock';
+
+    function browserTabNewId() { browserTabsSeq += 1; return 'bt' + Date.now().toString(36) + browserTabsSeq; }
+    function browserTabFind(id) {
+      for (var i = 0; i < browserTabsState.tabs.length; i++) if (browserTabsState.tabs[i].id === id) return browserTabsState.tabs[i];
+      return null;
+    }
+    function browserTabsSave() {
+      try { localStorage.setItem(BROWSER_TABS_STORAGE_KEY, JSON.stringify(browserTabsState)); } catch (e) {}
+    }
+    function browserTabsLoad() {
+      try {
+        var raw = JSON.parse(localStorage.getItem(BROWSER_TABS_STORAGE_KEY) || 'null');
+        if (!raw || !Array.isArray(raw.tabs)) return;
+        var tabs = raw.tabs.filter(function(t) { return t && t.id && BROWSER_TAB_PAGES[t.page]; }).slice(0, BROWSER_TABS_MAX);
+        if (!tabs.length) return;
+        browserTabsState.tabs = tabs.map(function(t) { return { id: String(t.id), page: t.page }; });
+        browserTabsState.activeId = browserTabFind(raw.activeId) ? raw.activeId : tabs[0].id;
+      } catch (e) {}
+    }
+    function renderBrowserTabs() {
+      var list = document.getElementById('browserTabList');
+      if (!list) return;
+      var single = browserTabsState.tabs.length <= 1;
+      list.innerHTML = browserTabsState.tabs.map(function(t) {
+        var meta = BROWSER_TAB_PAGES[t.page] || BROWSER_TAB_PAGES.stock;
+        var active = t.id === browserTabsState.activeId;
+        return '<div class="browser-tab' + (active ? ' is-active' : '') + '" role="tab" aria-selected="' + active + '" data-browser-tab="' + escHtml(t.id) + '" title="' + escHtml(meta.label) + '">' +
+          '<span class="browser-tab-icon">' + meta.icon + '</span>' +
+          '<span class="browser-tab-title">' + escHtml(meta.label) + '</span>' +
+          (single ? '' : '<span class="browser-tab-close" data-browser-tab-close="' + escHtml(t.id) + '" title="ปิดแท็บ" aria-label="ปิดแท็บ">×</span>') +
+        '</div>';
+      }).join('');
+      var activeEl = list.querySelector('.browser-tab.is-active');
+      // เลื่อนเฉพาะแนวนอนของแถบให้เห็นแท็บที่ active (ไม่ใช้ scrollIntoView — มันลากทั้งหน้าขึ้นไปด้วย)
+      if (activeEl) {
+        var left = activeEl.offsetLeft - list.offsetLeft;
+        if (left < list.scrollLeft) list.scrollLeft = left;
+        else if (left + activeEl.offsetWidth > list.scrollLeft + list.clientWidth) list.scrollLeft = left + activeEl.offsetWidth - list.clientWidth;
+      }
+      var newBtn = document.getElementById('browserTabNewBtn');
+      if (newBtn) newBtn.disabled = browserTabsState.tabs.length >= BROWSER_TABS_MAX;
+    }
+    // เปิดหน้าของแท็บ — ถ้าไม่มีสิทธิ์ (ปุ่มถูกซ่อน/ไม่มี) ตกไปหน้า Stock
+    function browserTabOpenPage(page) {
+      var meta = BROWSER_TAB_PAGES[page];
+      var btn = meta ? document.getElementById(meta.btn) : null;
+      if (!btn || btn.classList.contains('hidden')) btn = document.getElementById('tabStock');
+      if (btn) btn.click();
+    }
+    function activateBrowserTab(id) {
+      var tab = browserTabFind(id);
+      if (!tab) return;
+      browserTabsState.activeId = id;
+      renderBrowserTabs();
+      browserTabsSave();
+      if (tab.page !== browserTabsCurrentPage) browserTabOpenPage(tab.page);
+    }
+    function openNewBrowserTab(page) {
+      if (browserTabsState.tabs.length >= BROWSER_TABS_MAX) {
+        if (typeof showQuickToast === 'function') showQuickToast('เปิดได้สูงสุด ' + BROWSER_TABS_MAX + ' แท็บ — ปิดแท็บที่ไม่ใช้ก่อน', 'warn');
+        return;
+      }
+      var tab = { id: browserTabNewId(), page: BROWSER_TAB_PAGES[page] ? page : 'stock' };
+      var idx = browserTabsState.tabs.indexOf(browserTabFind(browserTabsState.activeId));
+      browserTabsState.tabs.splice(idx < 0 ? browserTabsState.tabs.length : idx + 1, 0, tab);
+      activateBrowserTab(tab.id);
+    }
+    function closeBrowserTab(id) {
+      if (browserTabsState.tabs.length <= 1) return;
+      var idx = browserTabsState.tabs.indexOf(browserTabFind(id));
+      if (idx < 0) return;
+      browserTabsState.tabs.splice(idx, 1);
+      if (browserTabsState.activeId === id) {
+        var next = browserTabsState.tabs[Math.min(idx, browserTabsState.tabs.length - 1)];
+        activateBrowserTab(next.id);
+      } else {
+        renderBrowserTabs();
+        browserTabsSave();
+      }
+    }
+    // เรียกจาก setTabStyles ทุกครั้งที่เปลี่ยนหน้า — แท็บที่ active อยู่จะเปลี่ยนตามหน้าที่ผู้ใช้เลือก
+    window.browserTabsOnPageChange = function(page) {
+      if (!BROWSER_TAB_PAGES[page]) return;
+      browserTabsCurrentPage = page;
+      if (!browserTabsReady) return;
+      var tab = browserTabFind(browserTabsState.activeId);
+      if (!tab || tab.page === page) return;
+      tab.page = page;
+      renderBrowserTabs();
+      browserTabsSave();
+    };
+    // เรียกหลัง login/เช็ค session เสร็จ — คืนแท็บที่เปิดค้างไว้รอบก่อน แล้วพาไปหน้าของแท็บที่ active
+    window.browserTabsRestore = function() {
+      browserTabsLoad();
+      if (!browserTabsState.tabs.length) {
+        browserTabsState.tabs = [{ id: browserTabNewId(), page: browserTabsCurrentPage }];
+        browserTabsState.activeId = browserTabsState.tabs[0].id;
+      }
+      browserTabsReady = true;
+      activateBrowserTab(browserTabsState.activeId);
+    };
+    var browserTabListEl = document.getElementById('browserTabList');
+    if (browserTabListEl) {
+      browserTabListEl.addEventListener('click', function(e) {
+        var closeEl = e.target && e.target.closest ? e.target.closest('[data-browser-tab-close]') : null;
+        if (closeEl) { e.stopPropagation(); closeBrowserTab(closeEl.getAttribute('data-browser-tab-close')); return; }
+        var tabEl = e.target && e.target.closest ? e.target.closest('[data-browser-tab]') : null;
+        if (tabEl) activateBrowserTab(tabEl.getAttribute('data-browser-tab'));
+      });
+      // คลิกกลางที่แท็บ = ปิด (เหมือน browser)
+      browserTabListEl.addEventListener('auxclick', function(e) {
+        if (e.button !== 1) return;
+        var tabEl = e.target && e.target.closest ? e.target.closest('[data-browser-tab]') : null;
+        if (tabEl) { e.preventDefault(); closeBrowserTab(tabEl.getAttribute('data-browser-tab')); }
+      });
+    }
+    var browserTabNewBtnEl = document.getElementById('browserTabNewBtn');
+    if (browserTabNewBtnEl) browserTabNewBtnEl.addEventListener('click', function() { openNewBrowserTab('stock'); });
+    // Ctrl/⌘+คลิก หรือคลิกกลางที่ปุ่มเมนู = เปิดหน้านั้นในแท็บใหม่
+    function browserTabPageOfNavButton(el) {
+      var btn = el && el.closest ? el.closest('#topNavTabs .eng-tab[id]') : null;
+      if (!btn) return '';
+      for (var key in BROWSER_TAB_PAGES) if (BROWSER_TAB_PAGES[key].btn === btn.id) return key;
+      return '';
+    }
+    var topNavTabsEl = document.getElementById('topNavTabs');
+    if (topNavTabsEl) {
+      topNavTabsEl.addEventListener('click', function(e) {
+        if (!(e.ctrlKey || e.metaKey) || !browserTabsReady) return;
+        var page = browserTabPageOfNavButton(e.target);
+        if (!page) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        closeAllNavGroups();
+        openNewBrowserTab(page);
+      }, true);
+      topNavTabsEl.addEventListener('auxclick', function(e) {
+        if (e.button !== 1 || !browserTabsReady) return;
+        var page = browserTabPageOfNavButton(e.target);
+        if (!page) return;
+        e.preventDefault();
+        openNewBrowserTab(page);
+      });
+    }
     // คลิก trigger = toggle เมนู; คลิกที่อื่น (เลือกหน้า/นอกเมนู) = ปิดทุกเมนู
     document.addEventListener('click', function(e) {
       var trig = e.target && e.target.closest ? e.target.closest('[data-nav-toggle]') : null;
