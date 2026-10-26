@@ -1727,6 +1727,17 @@
                 <input id="roNewItemModel" placeholder="รุ่น / Model" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" />
                 <input id="roNewItemBrand" placeholder="แบรนด์" class="h-10 rounded-xl border border-slate-300 px-3 text-sm" />
               </div>
+              <!-- ของที่ไม่ใช่อะไหล่ของไลน์ใดไลน์หนึ่ง (แบตโน้ตบุ๊ก/อุปกรณ์สำนักงาน) เลือก "ส่วนกลาง"
+                   จะไม่ไปตัดงบ Spare part ของไลน์ไหน — เหมือนหน้าค่าใช้จ่ายสิ้นเปลือง -->
+              <label class="block text-xs font-semibold text-slate-600">ไลน์ที่ขอซื้อ *
+                <select id="roNewItemLine" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                  <option value="H9">H9</option>
+                  <option value="Arc Chute">Arc Chute</option>
+                  <option value="Coil Winding">Coil Winding</option>
+                  <option value="Lug&amp;Screw">Lug&amp;Screw</option>
+                  <option value="ส่วนกลาง">ส่วนกลาง (ไม่ใช่อะไหล่ของไลน์ใด เช่น อุปกรณ์สำนักงาน)</option>
+                </select>
+              </label>
             </div>
             <!-- Selected part card -->
             <div id="roSelectedCard" class="hidden rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm"></div>
@@ -1750,10 +1761,10 @@
             <input id="roRemark" placeholder="หมายเหตุ (ไม่บังคับ)" class="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
             <!-- Attachment -->
             <label class="block">
-              <span class="text-xs font-semibold text-slate-600">แนบรูปภาพ <span class="text-slate-400">(ไม่บังคับ)</span></span>
-              <input id="roAttachmentFile" type="file" accept="image/*" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm" />
+              <span class="text-xs font-semibold text-slate-600">แนบรูปภาพ / PDF <span class="text-slate-400">(ไม่บังคับ · PDF ไม่เกิน 8MB)</span></span>
+              <input id="roAttachmentFile" type="file" accept="image/*,application/pdf,.pdf" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm" />
             </label>
-            <p id="roAttachmentInfo" class="text-[11px] text-slate-400">ยังไม่ได้แนบรูป</p>
+            <p id="roAttachmentInfo" class="text-[11px] text-slate-400">ยังไม่ได้แนบไฟล์</p>
             <img id="roAttachmentPreview" class="hidden h-20 w-20 rounded-xl border object-cover" />
             <button id="roSubmitBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition disabled:opacity-70 disabled:cursor-not-allowed">
               <svg id="roSubmitIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
@@ -7895,6 +7906,21 @@ function getIssueCartEntries() {
       else el.removeAttribute('href');
     }
 
+    var RO_ATTACH_PDF_MAX_BYTES = 8 * 1024 * 1024;
+    function isPdfFile(file) {
+      return !!file && (String(file.type || '').toLowerCase() === 'application/pdf' || /\.pdf$/i.test(String(file.name || '')));
+    }
+    // ไฟล์แนบคำขอซื้อที่เป็นรูปเก็บเป็นลิงก์ uc?export=view (ใช้ใน <img> ได้)
+    // ส่วน PDF เก็บเป็นลิงก์ /file/d/<id>/view — ห้ามเอาไปใส่ <img> หรือใช้เป็นรูปอะไหล่ใน PR
+    function isRequestAttachmentDoc(url) {
+      return /drive\.google\.com\/file\/d\//i.test(String(url || ''));
+    }
+    // "ส่วนกลาง" = ของที่ไม่ใช่อะไหล่ของไลน์ใด (เช่น อุปกรณ์สำนักงาน) ต้องคงชื่อนี้ไว้
+    // ห้ามผ่าน canonicalLineName เพราะ mapLine จะเดาเป็น H9 แล้วไปกินงบ H9
+    function isSharedLineName(value) {
+      return String(value || '').trim() === 'ส่วนกลาง';
+    }
+
     function uploadRequestAttachmentData(dataUrl, fileName, mimeType) {
       if (!dataUrl) return Promise.resolve({ status: 'success', attachment_url: '' });
       var payload = new URLSearchParams();
@@ -11896,7 +11922,9 @@ function getIssueCartEntries() {
         }
         if (hasPermission('request_order_convert_pr')) acts.push('<button data-id="'+r.request_id+'" data-act="convert" class="rounded-xl border border-purple-300 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100">📋 แปลงเป็น PR</button>');
         if (hasPermission('request_order_close') && s!=='Closed') acts.push('<button data-id="'+r.request_id+'" data-act="closeOrderRequest" class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">🔒 ปิดรายการ</button>');
-        var imgHtml = (r.attachment_url || r.image_main_url)
+        var imgHtml = isRequestAttachmentDoc(r.attachment_url)
+          ? '<div class="mt-2"><a href="' + escHtml(r.attachment_url) + '" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700">📄 เปิดไฟล์แนบ (PDF)</a></div>'
+          : (r.attachment_url || r.image_main_url)
           ? '<div class="flex items-center gap-2 mt-2"><img src="' + (r.attachment_url||r.image_main_url) + '" class="h-16 w-16 rounded-xl border object-cover" onerror="this.style.display=\'none\'"/><button type="button" data-view-image="' + (r.attachment_url||r.image_main_url) + '" class="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700">🔍 ดูรูปขนาดใหญ่</button></div>'
           : '<p class="text-[11px] text-slate-400 mt-1">ไม่มีรูปแนบ</p>';
         return '<div class="rounded-2xl border ' + border + ' bg-white p-4 shadow-sm' + (invalid?' ring-2 ring-rose-300':'') + '">' +
@@ -18703,12 +18731,14 @@ function inferRequestPriority(stock, min) {
             var critical = priorityRaw === 'urgent' || priorityRaw === 'critical' ? 'Critical' : priorityRaw === 'high' ? 'High' : 'Medium';
             var qty = Number(r.request_qty || 0) || 1;
             var noKey = String(r.item_id || '').trim();
-            var noKeyComposite = canonicalLineName(r.line || activeRealLine()) + '::' + noKey;
+            var reqLine = isSharedLineName(r.line) ? 'ส่วนกลาง' : canonicalLineName(r.line || activeRealLine());
+            var noKeyComposite = reqLine + '::' + noKey;
+            var reqAttachImage = isRequestAttachmentDoc(r.attachment_url) ? '' : (r.attachment_url || '');
             return {
               id: 'REQ-' + (r.request_id || r.item_id || r.item_name),
               request_id: r.request_id || '',
               selected: true, no: r.item_id || '-', name: r.item_name || '-', model: r.model || '-', brand: r.brand || '-',
-              category: r.category || '-', line: canonicalLineName(r.line || activeRealLine()), subLine: r.line || '-',
+              category: r.category || '-', line: reqLine, subLine: r.line || '-',
               location: r.location || '-', unit: r.unit || 'PCS', stock: Number(r.stock || 0), min: Number(r.min || 0), max: Number(r.max || 0),
               need: qty, suggestedQty: qty, recentUsage: 0, critical: critical, priority: critical,
               reason: 'REQ', requestedBy: r.requested_by || '-', requestStatus: r.status || 'Pending',
@@ -18717,7 +18747,7 @@ function inferRequestPriority(stock, min) {
               // ถ้าอะไหล่มีอยู่ในสต็อกอยู่แล้ว (จับคู่ no+line เจอ) ต้องใช้รูปแคตตาล็อกของสต็อกเป็นหลัก
               // เพราะเป็นรูปที่ยืนยันแล้วว่าตรงกับอะไหล่จริง — รูปแนบของคำขอ (attachment_url) มักเป็นรูป
               // อ้างอิง/สภาพหน้างานที่อาจไม่ตรงกับอะไหล่เป๊ะ ใช้เป็น fallback เฉพาะรายการใหม่ที่ยังไม่มีในสต็อกเท่านั้น
-              mainImage: (noKey && imageByNo[noKeyComposite]) || r.attachment_url || '', drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
+              mainImage: (noKey && imageByNo[noKeyComposite]) || reqAttachImage, drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
               drawingRevision: '', drawing_revision: '', drawingStatus: '', drawing_status: '',
               datasheetUrl: '', quotationUrl: ''
             };
@@ -25951,7 +25981,33 @@ if (dashboardPage) {
     if (roAttachmentFile && roAttachmentPreview) {
       roAttachmentFile.addEventListener('change', function() {
         var file = roAttachmentFile.files && roAttachmentFile.files[0];
-        if (!file) { roAttachmentDataUrl = ''; roAttachmentPreview.classList.add('hidden'); if (roAttachmentInfo) roAttachmentInfo.textContent = 'ยังไม่ได้แนบรูป'; return; }
+        if (!file) { roAttachmentDataUrl = ''; roAttachmentPreview.classList.add('hidden'); if (roAttachmentInfo) roAttachmentInfo.textContent = 'ยังไม่ได้แนบไฟล์'; return; }
+        // PDF (เอกสารประกอบการขอซื้อ/ใบเสนอราคา) ส่งไฟล์เดิมทั้งก้อน — บีบอัดแบบรูปไม่ได้
+        if (isPdfFile(file)) {
+          roAttachmentPreview.classList.add('hidden');
+          if (file.size > RO_ATTACH_PDF_MAX_BYTES) {
+            roAttachmentDataUrl = '';
+            roAttachmentFile.value = '';
+            if (roAttachmentInfo) roAttachmentInfo.textContent = 'ยังไม่ได้แนบไฟล์';
+            showQuickToast('ไฟล์ PDF ใหญ่เกิน 8MB (' + formatBytes(file.size) + ') — ลดขนาดไฟล์ก่อนแนบ', 'warn');
+            return;
+          }
+          if (roAttachmentInfo) roAttachmentInfo.textContent = 'กำลังอ่านไฟล์ PDF...';
+          var pdfReader = new FileReader();
+          pdfReader.onload = function() {
+            roAttachmentDataUrl = String(pdfReader.result || '');
+            roAttachmentMimeType = 'application/pdf';
+            roAttachmentFileName = file.name || ('request-' + Date.now() + '.pdf');
+            if (roAttachmentInfo) roAttachmentInfo.textContent = '📄 ' + roAttachmentFileName + ' (' + formatBytes(file.size) + ')';
+          };
+          pdfReader.onerror = function() {
+            roAttachmentDataUrl = '';
+            if (roAttachmentInfo) roAttachmentInfo.textContent = 'แนบไฟล์ไม่สำเร็จ';
+            showQuickToast('อ่านไฟล์ PDF ไม่สำเร็จ กรุณาเลือกไฟล์ใหม่', 'warn');
+          };
+          pdfReader.readAsDataURL(file);
+          return;
+        }
         if (roAttachmentInfo) roAttachmentInfo.textContent = 'ระบบกำลังบีบอัดรูปภาพก่อนส่ง...';
         resizeImageForUpload(file).then(function(dataUrl) {
           roAttachmentDataUrl = String(dataUrl || '');
@@ -25978,11 +26034,16 @@ if (dashboardPage) {
       var roNewItemNameEl = document.getElementById('roNewItemName');
       if (roNewItemNameEl) roNewItemNameEl.required = isNewMode;
       if (isNewMode) {
+        // ตั้งต้นที่ไลน์ที่ดูอยู่ — เปลี่ยนเป็น "ส่วนกลาง" ได้เองถ้าไม่ใช่ของไลน์ไหน
+        var roNewItemLineEl = document.getElementById('roNewItemLine');
+        if (roNewItemLineEl && !roNewItemLineEl.dataset.touched) roNewItemLineEl.value = canonicalLineName(activeRealLine());
         roSelectedItem = null;
         renderRoSelectedCard(null);
         if (roItemSearchResults) roItemSearchResults.innerHTML = '';
       }
     }
+    var roNewItemLineSel = document.getElementById('roNewItemLine');
+    if (roNewItemLineSel) roNewItemLineSel.addEventListener('change', function() { roNewItemLineSel.dataset.touched = '1'; });
     if (roRequestType) {
       roRequestType.addEventListener('change', applyRoRequestTypeUi);
       applyRoRequestTypeUi();
@@ -26137,7 +26198,7 @@ if (dashboardPage) {
         model: isNewItemMode ? document.getElementById('roNewItemModel').value : roSelectedItem.model,
         brand: isNewItemMode ? document.getElementById('roNewItemBrand').value : roSelectedItem.brand,
         category: isNewItemMode ? '' : roSelectedItem.category,
-        line: isNewItemMode ? activeRealLine() : (roSelectedItem.line || formLineDefault(roSelectedItem)),
+        line: isNewItemMode ? (document.getElementById('roNewItemLine').value || activeRealLine()) : (roSelectedItem.line || formLineDefault(roSelectedItem)),
         current_stock: isNewItemMode ? 0 : roSelectedItem.stock,
         min: isNewItemMode ? 0 : roSelectedItem.min,
         max: isNewItemMode ? 0 : roSelectedItem.max,
@@ -26188,7 +26249,7 @@ if (dashboardPage) {
         clearRoSubmitTicket();
         // ถ้าอะไหล่ตัวนี้ติดดาวไว้ ให้ติดป้าย "ส่งคำขอแล้ว" — คงดาว+โน๊ตไว้ให้ตามสถานะต่อได้
         markStarredAsRequested(roSelectedItem);
-        e.target.reset(); roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests(); refreshRequestOrderBadgeCount();
+        e.target.reset(); if (roNewItemLineSel) delete roNewItemLineSel.dataset.touched; roSelectedItem = null; roAttachmentDataUrl = ''; if (roAttachmentInfo) roAttachmentInfo.textContent = 'ยังไม่ได้แนบไฟล์'; if (roAttachmentPreview) roAttachmentPreview.classList.add('hidden'); renderRoSelectedCard(null); applyRoRequestTypeUi(); loadOrderRequests(); refreshRequestOrderBadgeCount();
       }
       submitPromise.then(function(res){
         if (res && res.status === 'error') throw new Error(res.message || 'ส่งคำขอไม่สำเร็จ');
