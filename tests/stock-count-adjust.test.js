@@ -254,7 +254,7 @@ assert(/sheet: it\.sheet \|\| ''/.test(approveBlock), 'approveStockCount ต้�
 // เจอลำดับในจอไม่ตรงกับใบ ต้องไล่หาทีละบรรทัด ต้องเรียง pool ตั้งแต่ตอนเปิด session เลย
 assert(startBlock.indexOf('pool.sort(function(a, b)') > -1,
   'ตอนเปิด session ต้องเรียง pool ก่อนสร้าง items ไม่งั้นตารางในจอกับใบที่ปริ้นคนละลำดับกัน');
-assert(startBlock.indexOf("localeCompare(lb, 'th')") > -1 && startBlock.indexOf("localeCompare(String(b.name||''), 'th')") > -1,
+assert(startBlock.indexOf('compareItemLocation(a, b)') > -1 && startBlock.indexOf("localeCompare(String(b.name||''), 'th')") > -1,
   'ต้องเรียงด้วย comparator เดียวกับ scSortedForPrint (ตำแหน่งเก็บ แล้วชื่อ)');
 assert(startBlock.indexOf('pool.sort(function(a, b)') < startBlock.indexOf('scSession = {'),
   'ต้องเรียงก่อนสร้าง scSession.items ไม่งั้นลำดับที่เห็นในตารางยังเป็นลำดับดิบ');

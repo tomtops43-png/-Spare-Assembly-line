@@ -5724,6 +5724,22 @@
       var loc = String((item && item.location) || '').trim();
       return !!loc && loc !== '-';
     }
+    // เรียง Location แบบตัวเลข (A2 ก่อน A10) และเอารายการที่ยังไม่มี Location ไปไว้ท้ายสุด
+    // ใช้ทั้งตอนเริ่มรอบนับและใบนับที่พิมพ์ ลำดับในเว็บกับในกระดาษจะได้ตรงกัน
+    function compareItemLocation(a, b) {
+      var ha = hasItemLocation(a), hb = hasItemLocation(b);
+      if (ha !== hb) return ha ? -1 : 1;
+      if (!ha) return 0;
+      return String(a.location).trim().localeCompare(String(b.location).trim(), 'th', { numeric: true, sensitivity: 'base' });
+    }
+    // ป้าย 📍 Location ที่อ่านง่ายบนจอมือถือหน้างาน (ตัวใหญ่ขึ้น สีเข้ม พื้นสี) — ใช้ inline style
+    // เพราะ Tailwind 2.2.19 ที่โหลดไม่มีชุดสี slate/indigo บางเฉด
+    function renderLocationChip(item, extraStyle) {
+      if (!hasItemLocation(item)) return '';
+      return '<span class="inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[12px] font-bold" ' +
+        'style="background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;' + (extraStyle || '') + '">' +
+        '<span aria-hidden="true">📍</span><span class="truncate">' + escHtml(String(item.location).trim()) + '</span></span>';
+    }
     // รูปแบบเดียวกันทั้งระบบ: ตัดช่องว่างหัวท้าย/ซ้อน + ตัวพิมพ์ใหญ่ — "a1-1" กับ "A1-1" ต้องเป็นช่องเดียวกัน
     // ไม่งั้นใบนับสต็อก (จัดกลุ่มตาม Location) จะแตกเป็นคนละกลุ่ม
     function normalizeLocationValue(value) {
@@ -7199,6 +7215,8 @@
             '<div class="min-w-0 flex-1">' +
               '<p class="truncate text-sm font-semibold text-slate-900">' + (starred ? '⭐ ' : '') + item.name + '</p>' +
               '<p class="truncate text-xs text-slate-500">' + (item.model || '-') + '</p>' +
+              // ตะกร้าเบิกหลายตัว = เดินหยิบหลายช่อง ต้องเห็นว่าแต่ละตัวอยู่ไหนโดยไม่ต้องเปิดดูทีละตัว
+              (hasItemLocation(item) ? '<div class="mt-0.5">' + renderLocationChip(item) + '</div>' : '') +
               '<p class="text-xs text-slate-500">Stock: ' + item.stock + '</p>' +
               priceHtml +
               tagHintHtml +
@@ -10196,9 +10214,7 @@ function getIssueCartEntries() {
         // กับใบที่ปริ้นให้ช่างนับ (เรียงตามตำแหน่งเก็บ+ชื่อ) จะคนละลำดับกัน คีย์ยอดตามใบยากเพราะเลข
         // ในตารางไม่ตรงกับเลขในใบ
         pool.sort(function(a, b) {
-          var la = String(a.location||'-'), lb = String(b.location||'-');
-          if (la !== lb) return la.localeCompare(lb, 'th');
-          return String(a.name||'').localeCompare(String(b.name||''), 'th');
+          return compareItemLocation(a, b) || String(a.name||'').localeCompare(String(b.name||''), 'th');
         });
 
         // ยอดของรอบก่อนหน้า map ด้วยคีย์เดียวกับที่ Backend ใช้จับคู่ (ชื่อ+รุ่น+ชีทต้นทาง)
@@ -10553,9 +10569,7 @@ function getIssueCartEntries() {
     function scSortedForPrint() {
       var items = scGetFilteredItems().slice();
       items.sort(function(a, b) {
-        var la = String(a.location||'-'), lb = String(b.location||'-');
-        if (la !== lb) return la.localeCompare(lb, 'th');
-        return String(a.name||'').localeCompare(String(b.name||''), 'th');
+        return compareItemLocation(a, b) || String(a.name||'').localeCompare(String(b.name||''), 'th');
       });
       return items;
     }
@@ -21598,7 +21612,7 @@ function inferRequestPriority(stock, min) {
               (brandVal ? '<span class="rounded-md px-2 py-0.5 text-[11px] font-bold" style="background:#eff6ff;color:#1d4ed8;">' + brandVal + '</span>' : '') +
               renderCardLineBadge(item, false) +
             '</div>' +
-            (locationTxt ? '<div class="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400"><svg xmlns=\'http://www.w3.org/2000/svg\' class=\'h-3 w-3 shrink-0\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' stroke-width=\'2\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M15 11a3 3 0 11-6 0 3 3 0 016 0z\'/></svg>' + locationTxt + '</div>' : '') +
+            (locationTxt ? '<div class="mt-2">' + renderLocationChip(item) + '</div>' : '') +
             '<div class="mt-3 rounded-xl px-3 py-2.5 flex items-center justify-between" style="' + qtyBg + '">' +
               '<div>' +
                 '<p class="text-[10px] font-bold uppercase tracking-widest" style="' + qtyColor + ';opacity:0.7">คงเหลือ</p>' +
