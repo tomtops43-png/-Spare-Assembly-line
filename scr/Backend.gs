@@ -2962,15 +2962,16 @@ function uploadOrderRequestAttachmentToDrive(payload) {
   if (!dataUrl) return '';
   var mimeType = getDataUrlMimeType(dataUrl);
   if (!mimeType) throw new Error('รูปแบบไฟล์แนบไม่ถูกต้อง');
-  var allowed = { 'image/jpeg': true, 'image/png': true, 'image/webp': true };
-  if (!allowed[mimeType]) throw new Error('ไฟล์แนบรองรับเฉพาะ jpg, png, webp');
+  // PDF = เอกสารประกอบการขอซื้อ/ใบเสนอราคา ของที่ไม่มีในระบบ (เช่น แบตโน้ตบุ๊ก)
+  var allowed = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' };
+  if (!allowed[mimeType]) throw new Error('ไฟล์แนบรองรับเฉพาะ jpg, png, webp, pdf');
 
   var root = DriveApp.getFolderById('1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3');
   var reqRoot = getOrCreateChildFolder(root, 'order-requests');
   var lineFolder = getOrCreateChildFolder(reqRoot, String(payload.line || 'UnknownLine'));
   var requesterFolder = getOrCreateChildFolder(lineFolder, String(payload.requestedBy || 'unknown-user'));
 
-  var ext = mimeType === 'image/png' ? 'png' : (mimeType === 'image/webp' ? 'webp' : 'jpg');
+  var ext = allowed[mimeType];
   var fileName = String(payload.requestId || ('REQ-' + Date.now())) + '-' + Date.now() + '.' + ext;
   var base64Content = dataUrl.split(',')[1] || '';
   var blob = Utilities.newBlob(Utilities.base64Decode(base64Content), mimeType, fileName);
@@ -2980,6 +2981,8 @@ function uploadOrderRequestAttachmentToDrive(payload) {
   } catch (err) {
     Logger.log('uploadOrderRequestAttachmentToDrive setSharing warning: ' + (err && err.message ? err.message : err));
   }
+  // PDF ใช้ลิงก์หน้าดูไฟล์ของ Drive (เปิดอ่านได้) — หน้าเว็บแยกจากรูปด้วยรูปแบบลิงก์ /file/d/
+  if (ext === 'pdf') return 'https://drive.google.com/file/d/' + file.getId() + '/view';
   return 'https://drive.google.com/uc?export=view&id=' + file.getId();
 }
 
@@ -2996,7 +2999,7 @@ function uploadRequestAttachment(payload) {
     line: payload.line || '',
     requestedBy: user.username || ''
   });
-  var fileIdMatch = attachmentUrl.match(/id=([^&]+)/);
+  var fileIdMatch = attachmentUrl.match(/id=([^&]+)/) || attachmentUrl.match(/\/file\/d\/([^/]+)/);
   return {
     status: 'success',
     attachment_url: attachmentUrl,
