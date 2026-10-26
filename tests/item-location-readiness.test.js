@@ -63,4 +63,25 @@ assert(!/setLocationOverride\(sheetName, noValue, values\.location\)/.test(backe
 assert(backend.includes("if (key === 'location' && String(nextValue || '').trim() === '') continue;"), 'Location ว่าง = ไม่ลบของเดิม');
 assert(backend.includes("location: normalizeLocationText(payload.location),"));
 
+// ── ชุดที่ 2: เรียงแบบตัวเลข + ป้าย 📍 บนการ์ด/ตะกร้าเบิก ───────────────────────────
+const web2 = new Function([
+  grab(htmlLf, 'hasItemLocation'),
+  grab(htmlLf, 'compareItemLocation'),
+  grab(htmlLf, 'escHtml'),
+  grab(htmlLf, 'renderLocationChip'),
+  'return { compareItemLocation, renderLocationChip };'
+].join('\n'))();
+const sorted = [{ location: 'A10' }, { location: '-' }, { location: 'a2' }, { location: 'A1' }, { location: '' }]
+  .sort(web2.compareItemLocation).map(function(x) { return x.location; });
+assert.deepStrictEqual(sorted.slice(0, 3), ['A1', 'a2', 'A10'], 'A2 ต้องมาก่อน A10');
+assert(sorted.slice(3).every(function(l) { return l === '-' || l === ''; }), 'รายการที่ยังไม่มี Location ต้องอยู่ท้าย');
+// หน้านับสต็อก: ลำดับตอนเริ่มรอบนับกับใบที่พิมพ์ต้องใช้ตัวเรียงเดียวกัน
+assert.strictEqual((htmlLf.match(/return compareItemLocation\(a, b\) \|\| String\(a\.name\|\|''\)\.localeCompare/g) || []).length, 2);
+
+assert.strictEqual(web2.renderLocationChip({ location: '-' }), '');
+const chip = web2.renderLocationChip({ location: 'SP-H9-A1-1<b>' });
+assert(chip.includes('📍') && chip.includes('SP-H9-A1-1&lt;b&gt;'), 'ป้ายต้องมี 📍 และ escape ข้อความ');
+assert(htmlLf.includes(`(locationTxt ? '<div class="mt-2">' + renderLocationChip(item) + '</div>' : '') +`), 'การ์ด Stock ต้องใช้ป้ายแบบใหม่');
+assert(htmlLf.includes(`(hasItemLocation(item) ? '<div class="mt-0.5">' + renderLocationChip(item) + '</div>' : '') +`), 'ตะกร้าเบิกต้องโชว์ Location');
+
 console.log('Item location readiness checks passed');
