@@ -230,10 +230,18 @@ function setLocationOverride(sheetName, noValue, locationValue) {
   props.setProperty(key, normalized);
 }
 
-function getLocationOverride(sheetName, noValue) {
-  var props = PropertiesService.getScriptProperties();
-  var key = getLocationOverrideKey(sheetName, noValue);
-  return String(props.getProperty(key) || '').trim();
+// รูปแบบ Location เดียวกับหน้าเว็บ: ช่องว่างซ้อน → ตัวเดียว, ตัดหัวท้าย, ตัวพิมพ์ใหญ่
+function normalizeLocationText(value) {
+  return String(value === undefined || value === null ? '' : value).replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+// ชีตคือที่เก็บ Location ตัวจริง — ค่าใน Script Properties (override รุ่นเก่า) ใช้เป็นตัวสำรอง
+// เฉพาะแถวที่ช่อง Location ในชีตยังว่างเท่านั้น ไม่งั้นแก้ Location ในชีตตรงๆ จะไม่มีผล
+function resolveItemLocation(sheetValue, overrideValue) {
+  var fromSheet = String(sheetValue === undefined || sheetValue === null ? '' : sheetValue).trim();
+  if (fromSheet && fromSheet !== '-') return fromSheet;
+  var fromOverride = String(overrideValue || '').trim();
+  return fromOverride || fromSheet || '-';
 }
 
 function ensureLocationColumnForSheet(sheetName) {
@@ -5999,7 +6007,7 @@ function upsertMainItem(payload) {
     name: payload.name || '',
     model: payload.model || '',
     line: payload.line || '',
-    location: payload.location || '',
+    location: normalizeLocationText(payload.location),
     category: payload.category || '',
     brand: payload.brand || '',
     photo: payload.photo || '',
@@ -6028,7 +6036,6 @@ function upsertMainItem(payload) {
     machines: payload.machines !== undefined ? payload.machines : ''
   };
   Logger.log('[upsertMainItem] sheet=%s no=%s location=%s', sheetName, noValue, values.location);
-  setLocationOverride(sheetName, noValue, values.location);
 
   if (targetIndex > -1) {
     var sheetRow = ctx.headerRowIndex + 2 + targetIndex;
@@ -6083,6 +6090,8 @@ function upsertMainItem(payload) {
         if (key === 'coil_size' && String(nextValue || '').trim() === '') continue;
         if (imageValueKeys[key] && String(nextValue || '').trim() === '') continue;
         if (detailValueKeys[key] && String(nextValue || '').trim() === '') continue;
+        // Location ว่าง = ไม่เปลี่ยน (ฟอร์ม/ทางเข้าที่ไม่ได้ส่ง Location มาต้องไม่ลบของเดิม) — ล้างจริงให้ใส่ "-"
+        if (key === 'location' && String(nextValue || '').trim() === '') continue;
         if (ITEM_AUDIT_FIELDS.indexOf(key) > -1 && !itemAuditValueEquals(oldRow[fieldCols[key]], nextValue)) {
           auditChanges[key] = { old: oldRow[fieldCols[key]], new: nextValue };
         }
@@ -6096,6 +6105,8 @@ function upsertMainItem(payload) {
       action: auditChanges.stock ? 'STOCK_EDIT' : 'UPDATE',
       changes: auditChanges
     });
+    // เขียนลงชีตแล้ว — ลบ override รุ่นเก่าทิ้ง ให้เหลือที่เก็บเดียวคือชีต
+    if (String(values.location || '').trim()) setLocationOverride(sheetName, noValue, '');
     invalidateSparePartsLiteCache(sheetName);
     return { status: 'success', mode: 'update', no: noValue, sheet: sheetName, location: values.location, warning: stockWarning, changed: Object.keys(auditChanges).length };
   }
@@ -6478,6 +6489,9 @@ function doGet(e) {
     var rows = ctx.rows;
     if (!rows.length) return respond([], e);
 
+    // อ่าน override ทั้งก้อนครั้งเดียว — เดิมเรียก getProperty ทีละแถว (ช้าเมื่อรายการเยอะ)
+    var locationOverrides = {};
+    try { locationOverrides = PropertiesService.getScriptProperties().getProperties() || {}; } catch (propsErr) {}
     var result = rows.map(function (row, index) {
       var stockValue = Number(pickRowValue(row, map, ['stockqty', 'qtystock', 'qoh', 'stock'], 0)) || 0;
       var minValue = Number(pickRowValue(row, map, ['min', 'qtymin'], 0)) || 0;
@@ -6485,7 +6499,7 @@ function doGet(e) {
 
       var noText = String(pickRowValue(row, map, ['no'], index + 1));
       var rawLocation = pickRowValue(row, map, ['location', 'jrlocation'], '-');
-      var locationOverride = getLocationOverride(sheetName, noText);
+      var locationOverride = locationOverrides[getLocationOverrideKey(sheetName, noText)] || '';
       var photoValue = pickRowValue(row, map, ['sparepartsphotos', 'photo', 'photourl', 'image', 'imageurl', 'picture', 'pic'], '');
       var mainFileIdValue = pickRowValue(row, map, ['image_main_file_id', 'imagemainfileid'], '');
       var installFileIdValue = pickRowValue(row, map, ['image_install_file_id', 'imageinstallfileid'], '');
@@ -6497,7 +6511,7 @@ function doGet(e) {
         name: pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '-'),
         model: pickRowValue(row, map, ['model', 'codeno', 'jrcodeno'], '-'),
         line: pickRowValue(row, map, ['mainline', 'line', 'process', 'ไลน์'], '-'),
-        location: locationOverride || rawLocation,
+        location: resolveItemLocation(rawLocation, locationOverride),
         category: pickRowValue(row, map, ['category'], 'General'),
         brand: pickRowValue(row, map, ['brand'], '-'),
         stock: stockValue,

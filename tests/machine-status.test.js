@@ -194,6 +194,7 @@ const web = new Function('partsData', [
   grabVar('MS_ISSUE_STATUSES', html),
   grabFn('safeNum'),
   grabFn('getItemIdentityKey'),
+  grabFn('normalizeItemIdentityKey'),
   grabFn('findItemByIdentityKey'),
   grabFn('msParseTime'),
   grabFn('msDuration'),

@@ -1545,6 +1545,8 @@
               </select>
               <!-- กรองเร็ว: เฉพาะรายการที่ยังไม่มีราคา — หนุนเป้าหมายให้ทุกรายการมีราคาครบ -->
               <button id="noPriceFilterBtn" type="button" class="h-10 rounded-xl border border-yellow-300 bg-yellow-50 px-3 text-xs font-bold text-yellow-700 hover:bg-yellow-100 transition whitespace-nowrap">❓ ยังไม่มีราคา</button>
+              <!-- กรองเร็ว: เฉพาะรายการที่ยังไม่มี Location — ไว้ตามเติมให้ครบทุกรายการ -->
+              <button id="noLocationFilterBtn" type="button" class="h-10 rounded-xl border border-violet-300 bg-violet-50 px-3 text-xs font-bold text-violet-700 hover:bg-violet-100 transition whitespace-nowrap">📍 ยังไม่มี Location</button>
               <!-- กรองเร็ว: เฉพาะของที่เพิ่งรับเข้าใน 7 วัน (ตัวเดียวกับที่ทำให้การ์ดเรืองแสง) -->
               <button id="newArrivalFilterBtn" type="button" class="h-10 rounded-xl border border-amber-300 bg-amber-50 px-3 text-xs font-bold text-amber-700 hover:bg-amber-100 transition whitespace-nowrap">🆕 ของใหม่</button>
               <button id="refreshStockDataBtn" type="button" class="h-10 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 flex items-center gap-1.5 hover:bg-blue-100 transition-all">
@@ -2538,6 +2540,8 @@
             <label class="block text-xs font-semibold text-slate-600">ตำแหน่งจัดเก็บ / Location
               <input id="mLocation" type="text" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" placeholder="เช่น SP-H9-A1-1" />
             </label>
+            <!-- ตัวเลือก Location ที่มีอยู่แล้ว ใช้ร่วมกันทั้งฟอร์มเพิ่ม (mLocation) และแก้ไข (eLocation) -->
+            <datalist id="locationSuggestions"></datalist>
           </div>
           <!-- Coil Size (hidden by default) -->
           <div id="mCoilSizeWrap" class="hidden mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -4241,7 +4245,7 @@
               <input id="eCoilSizeOther" type="text" class="mt-1.5 hidden w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" placeholder="กรอก Coil Size" />
             </div>
             <div><label class="text-xs font-medium text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
-            <div><label class="text-xs font-medium text-slate-500">Location</label><input id="eLocation" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Location</label><input id="eLocation" placeholder="เช่น SP-H9-A1-1" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
             <div><label class="text-xs font-medium text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
             <div><label class="text-xs font-medium text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
           </div>
@@ -5658,16 +5662,23 @@
     function formatBangkokDateTime(value) {
       return formatThaiDateTime(value);
     }
+    // ไม่เอา location มาปนในคีย์ — ไม่งั้นแค่ย้ายที่เก็บ/เติม Location ดาว⭐ ตะกร้าเบิก
+    // และอะไหล่ที่ผูกกับเครื่องจักรจะจับคู่กับอะไหล่ตัวเดิมไม่เจอ
     function getItemIdentityKey(item) {
       var no = item && item.no !== undefined ? String(item.no).trim() : '';
       var sub = item ? String(item.subLine || item.__sourceSheet || '').trim() : '';
       var model = item && item.model !== undefined ? String(item.model).trim() : '';
       var name = item && item.name !== undefined ? String(item.name).trim() : '';
-      var location = item && item.location !== undefined ? String(item.location).trim() : '';
-      return [no, sub, model, name, location].join('::');
+      return [no, sub, model, name].join('::');
+    }
+    // คีย์รุ่นเก่ามี location ต่อท้ายเป็นช่องที่ 5 (ดาวใน localStorage / อะไหล่ที่บันทึกกับเครื่องจักร)
+    // ตัดช่องนั้นทิ้งให้เทียบกับคีย์ปัจจุบันได้
+    function normalizeItemIdentityKey(key) {
+      var parts = String(key || '').trim().split('::');
+      return (parts.length > 4 ? parts.slice(0, 4) : parts).join('::');
     }
     function findItemByIdentityKey(key) {
-      var target = String(key || '').trim();
+      var target = normalizeItemIdentityKey(key);
       if (!target) return null;
       for (var i = 0; i < partsData.length; i += 1) {
         if (getItemIdentityKey(partsData[i]) === target) return partsData[i];
@@ -5705,13 +5716,23 @@
       return String((item && (item.subLine || item.__sourceSheet || item.sourceSheet)) || '').trim();
     }
 
-    // สตริงสำหรับค้นหา (ชื่อ+รุ่น+แบรนด์+Coil Size) — จำไว้ในตัว item เลย ไม่ต้องต่อสตริง+toLowerCase
+    // สตริงสำหรับค้นหา (ชื่อ+รุ่น+แบรนด์+Coil Size+Location) — จำไว้ในตัว item เลย ไม่ต้องต่อสตริง+toLowerCase
     // ใหม่ทุกตัวทุกครั้งที่กดคีย์ พิมพ์ยาวๆ ทีนึงเดิมคิดซ้ำเท่ากับ (จำนวนอะไหล่ × จำนวนตัวอักษร)
     // ปลอดภัยเพราะ partsData ถูกสร้างใหม่ทั้งชุดผ่าน normalizeRecord() ทุกครั้งที่โหลดข้อมูล
     // ของเก่าจึงถูกทิ้งไปพร้อมกัน ไม่มีสิทธิ์ค้างเป็นค่าเดิมที่ผิด
+    function hasItemLocation(item) {
+      var loc = String((item && item.location) || '').trim();
+      return !!loc && loc !== '-';
+    }
+    // รูปแบบเดียวกันทั้งระบบ: ตัดช่องว่างหัวท้าย/ซ้อน + ตัวพิมพ์ใหญ่ — "a1-1" กับ "A1-1" ต้องเป็นช่องเดียวกัน
+    // ไม่งั้นใบนับสต็อก (จัดกลุ่มตาม Location) จะแตกเป็นคนละกลุ่ม
+    function normalizeLocationValue(value) {
+      return String(value === undefined || value === null ? '' : value).replace(/\s+/g, ' ').trim().toUpperCase();
+    }
     function getItemSearchText(item) {
       if (item.__searchText === undefined) {
-        item.__searchText = [item.name, item.model, item.brand, item.coil_size].join(' ').toLowerCase();
+        // Location ด้วย — พิมพ์ "A1-1" แล้วต้องเห็นว่าช่องนั้นมีอะไรบ้าง
+        item.__searchText = [item.name, item.model, item.brand, item.coil_size, hasItemLocation(item) ? item.location : ''].join(' ').toLowerCase();
       }
       return item.__searchText;
     }
@@ -6179,6 +6200,16 @@
         var raw = localStorage.getItem(STARRED_STORAGE_KEY);
         var parsed = raw ? JSON.parse(raw) : null;
         starredState = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+        // ดาวที่ติดไว้ก่อนเลิกเอา location ไปปนในคีย์ — ย้ายไปคีย์ใหม่ ไม่งั้นดาวหายจากการ์ด
+        var migrated = false;
+        Object.keys(starredState).forEach(function(oldKey) {
+          var newKey = normalizeItemIdentityKey(oldKey);
+          if (newKey === oldKey) return;
+          if (!starredState[newKey]) starredState[newKey] = starredState[oldKey];
+          delete starredState[oldKey];
+          migrated = true;
+        });
+        if (migrated) saveStarredToStorage();
       } catch (err) {
         starredState = {};
       }
@@ -20978,7 +21009,7 @@ function inferRequestPriority(stock, min) {
         name: document.getElementById('eName').value.trim(),
         model: document.getElementById('eModel').value.trim(),
         line: document.getElementById('eLine').value.trim(),
-        location: document.getElementById('eLocation').value.trim(),
+        location: normalizeLocationValue(document.getElementById('eLocation').value),
         category: document.getElementById('eCategory').value.trim(),
         brand: document.getElementById('eBrand').value.trim(),
         photo: oldItem.image_main_url || oldItem.image_main || oldItem.photo || '',
@@ -21237,7 +21268,7 @@ function inferRequestPriority(stock, min) {
         name: document.getElementById('mName').value.trim(),
         model: document.getElementById('mModel').value.trim(),
         line: selectedManageLine,
-        location: document.getElementById('mLocation').value.trim(),
+        location: normalizeLocationValue(document.getElementById('mLocation').value),
         category: document.getElementById('mCategory').value.trim(),
         brand: document.getElementById('mBrand').value.trim(),
         photo: '',
@@ -22136,11 +22167,13 @@ function inferRequestPriority(stock, min) {
           if (!hitStatus) return false;
         }
         if (noPriceOnlyState && getItemUnitPrice(item) !== null) return false;
+        if (noLocationOnlyState && hasItemLocation(item)) return false;
         if (newArrivalOnlyState && !isNewArrival(item)) return false;
         if (hasKeyword && getItemSearchText(item).indexOf(keyword) === -1) return false;
         return true;
       });
       updateNoPriceFilterBtn();
+      updateNoLocationFilterBtn();
       updateNewArrivalFilterBtn();
 
       var selectedSort = (window.innerWidth >= 1024 ? sortFilter.value : sortFilterMobile.value) || 'default';
@@ -22183,6 +22216,47 @@ function inferRequestPriority(stock, min) {
         applyFilters();
       });
     })();
+    // ปุ่มกรอง "ยังไม่มี Location" — นับจากทุกรายการของไลน์ปัจจุบัน กดสลับเปิด/ปิดการกรอง
+    var noLocationOnlyState = false;
+    function updateNoLocationFilterBtn() {
+      var btn = document.getElementById('noLocationFilterBtn');
+      if (!btn) return;
+      var count = (partsData || []).filter(function(p) { return !hasItemLocation(p); }).length;
+      btn.textContent = (noLocationOnlyState ? '✕ ' : '📍 ') + 'ยังไม่มี Location (' + count + ')';
+      btn.classList.toggle('bg-violet-500', noLocationOnlyState);
+      btn.classList.toggle('text-white', noLocationOnlyState);
+      btn.classList.toggle('bg-violet-50', !noLocationOnlyState);
+      btn.classList.toggle('text-violet-700', !noLocationOnlyState);
+    }
+    (function() {
+      var btn = document.getElementById('noLocationFilterBtn');
+      if (btn) btn.addEventListener('click', function() {
+        noLocationOnlyState = !noLocationOnlyState;
+        applyFilters();
+      });
+    })();
+    // รายการ Location ที่มีอยู่แล้วให้เลือก (datalist) — พิมพ์ตรงกันง่าย ไม่ต้องจำรูปแบบเอง
+    // อัปเดตตอนโฟกัสช่อง เพราะ partsData เปลี่ยนตามไลน์ที่เปิดอยู่
+    function refreshLocationSuggestions() {
+      var list = document.getElementById('locationSuggestions');
+      if (!list) return;
+      var seen = {};
+      (partsData || []).forEach(function(p) {
+        if (!hasItemLocation(p)) return;
+        seen[normalizeLocationValue(p.location)] = true;
+      });
+      list.innerHTML = Object.keys(seen).sort(function(a, b) { return a.localeCompare(b, 'th', { numeric: true }); })
+        .map(function(loc) { return '<option value="' + escHtml(loc) + '"></option>'; }).join('');
+    }
+    ['eLocation', 'mLocation'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.setAttribute('list', 'locationSuggestions');
+      el.setAttribute('autocomplete', 'off');
+      el.setAttribute('autocapitalize', 'characters');
+      el.addEventListener('focus', refreshLocationSuggestions);
+      el.addEventListener('blur', function() { el.value = normalizeLocationValue(el.value); });
+    });
     // ปุ่มกรอง "ของใหม่" — เฉพาะของที่เพิ่งรับเข้าภายใน 7 วัน (isNewArrival ตัวเดียวกับที่ทำให้การ์ดเรืองแสง)
     var newArrivalOnlyState = false;
     function updateNewArrivalFilterBtn() {
