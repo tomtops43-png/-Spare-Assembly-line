@@ -44,9 +44,9 @@ assert.strictEqual(web.getItemSearchText({ name: 'X', location: '-' }).indexOf('
 assert(htmlLf.includes('id="noLocationFilterBtn"'));
 assert(htmlLf.includes('if (noLocationOnlyState && hasItemLocation(item)) return false;'));
 assert(htmlLf.includes("'ยังไม่มี Location (' + count + ')'"));
-// มีรายการ Location เดิมให้เลือก + บันทึกเป็นรูปแบบเดียวกัน
-assert(htmlLf.includes('<datalist id="locationSuggestions"></datalist>'));
-assert(/\['eLocation', 'mLocation'\]\.forEach[\s\S]{0,200}setAttribute\('list', 'locationSuggestions'\)/.test(htmlLf));
+// ช่อง Location เป็น Dropdown (ดู location-plan-by-category.test.js) + บันทึกเป็นรูปแบบเดียวกัน
+assert(htmlLf.includes('<select id="mLocation"'));
+assert(htmlLf.includes('<select id="eLocation"'));
 assert(htmlLf.includes("location: normalizeLocationValue(document.getElementById('eLocation').value),"));
 assert(htmlLf.includes("location: normalizeLocationValue(document.getElementById('mLocation').value),"));
 
