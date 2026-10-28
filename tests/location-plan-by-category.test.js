@@ -79,3 +79,8 @@ assert.strictEqual((htmlLf.match(/<option value="location_asc">📍 Location<\/o
 assert(htmlLf.includes("if (selectedSort === 'location_asc') filtered.sort(function(a,b){ return compareItemLocation(a, b)"));
 
 console.log('location-plan-by-category: ok');
+
+// Tailwind 2.2 (CDN) ไม่มีสี violet — ปุ่มยืนยันเคยเป็นตัวขาวบนพื้นขาว มองไม่เห็น
+const locPanel = htmlLf.slice(htmlLf.indexOf('<!-- จัด Location ตามหมวด'), htmlLf.indexOf('id="locPlanMessage"'));
+assert(!/class="[^"]*violet-/.test(locPanel), 'แผงจัด Location ห้ามใช้คลาสสี violet');
+assert(/id="locPlanApplyBtn"[^>]*bg-indigo-600/.test(locPanel), 'ปุ่มยืนยันต้องมีพื้นสีที่ Tailwind 2 มีจริง');

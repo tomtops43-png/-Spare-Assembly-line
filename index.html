@@ -4135,7 +4135,8 @@
         <p id="backupStatusMessage" class="text-xs text-slate-500"></p>
       </section>
       <!-- จัด Location ตามหมวด — ทุกไลน์มีชั้นอะไหล่ 3 ช่อง แยก Pneumatic / Electrical / Mechanical -->
-      <section class="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
+      <!-- ใช้ indigo ไม่ใช่ violet: Tailwind 2.2 (CDN) ไม่มีสี violet — ปุ่ม bg-violet-600 จะเป็นตัวขาวบนพื้นขาว มองไม่เห็น -->
+      <section class="rounded-2xl border border-indigo-200 bg-white p-4 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
           <div>
             <h3 class="text-sm font-bold text-slate-900">📍 จัด Location ตามหมวด (ทุกไลน์)</h3>
@@ -4143,8 +4144,8 @@
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <label class="inline-flex items-center gap-1.5 text-xs text-slate-600"><input id="locPlanKeepExisting" type="checkbox" class="rounded" /> ไม่ทับรายการที่มี Location แล้ว</label>
-            <button id="locPlanPreviewBtn" type="button" class="h-9 rounded-xl border border-violet-300 bg-violet-50 px-4 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-40">ดูตัวอย่าง</button>
-            <button id="locPlanApplyBtn" type="button" class="hidden h-9 rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-40">ยืนยันใส่ Location</button>
+            <button id="locPlanPreviewBtn" type="button" class="h-9 rounded-xl border border-indigo-300 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-40">ดูตัวอย่าง</button>
+            <button id="locPlanApplyBtn" type="button" class="hidden h-9 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-40">✅ ยืนยันใส่ Location</button>
           </div>
         </div>
         <div id="locPlanTable" class="overflow-x-auto"></div>
@@ -18459,7 +18460,7 @@ function inferRequestPriority(stock, min) {
         return '<tr class="border-t border-slate-100 align-top">' +
           '<td class="px-3 py-2 font-semibold">' + escHtml(line) + '</td>' +
           '<td class="px-3 py-2">' + locText + '</td>' +
-          '<td class="px-3 py-2 text-center font-bold text-violet-700">' + g.assign + (g.overwrite ? '<div class="text-[11px] font-normal text-slate-500">(ทับของเดิม ' + g.overwrite + ')</div>' : '') + '</td>' +
+          '<td class="px-3 py-2 text-center font-bold text-indigo-700">' + g.assign + (g.overwrite ? '<div class="text-[11px] font-normal text-slate-500">(ทับของเดิม ' + g.overwrite + ')</div>' : '') + '</td>' +
           '<td class="px-3 py-2 text-center">' + g.same + '</td>' +
           '<td class="px-3 py-2 text-center">' + g.kept + '</td>' +
           '<td class="px-3 py-2">' + skippedText + '</td></tr>';
