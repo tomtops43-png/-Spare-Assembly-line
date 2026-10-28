@@ -4249,7 +4249,8 @@
             <div><label class="text-xs font-medium text-slate-500">Sheet</label><input id="eSheet" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-500" readonly /></div>
             <div class="sm:col-span-2 md:col-span-1"><label class="text-xs font-medium text-slate-500">Name / Description</label><input id="eName" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" required /></div>
             <div><label class="text-xs font-medium text-slate-500">Model</label><input id="eModel" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
-            <div>
+            <!-- Coil Size ใช้เฉพาะไลน์ Coil Winding — ไลน์อื่นซ่อน (syncEditCoilSizeVisibility) -->
+            <div id="eCoilSizeWrap">
               <label class="text-xs font-medium text-slate-500">Machine Model / Coil Size</label>
               <select id="eCoilSize" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition">
                 <option value="">เลือก Coil Size</option>
@@ -21019,6 +21020,7 @@ function inferRequestPriority(stock, min) {
       document.getElementById('eLine').value = item.line || '';
       document.getElementById('eCategory').value = item.category || '';
       fillLocationSelect(document.getElementById('eLocation'), lineOfItem(item), item.category, item.location);
+      syncEditCoilSizeVisibility();
       document.getElementById('eBrand').value = item.brand || '';
       renderEditMachinesCheckboxes(item.line || '', String(item.machines || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean));
       document.getElementById('eImageMainFile').value = '';
@@ -22411,11 +22413,19 @@ function inferRequestPriority(stock, min) {
       var sheet = String((document.getElementById('eSheet') || {}).value || '').trim();
       return SHEET_LINE_MAP[sheet] || canonicalLineName((document.getElementById('eLine') || {}).value);
     }
+    // Coil Size มีความหมายเฉพาะไลน์ Coil Winding — ไลน์อื่นไม่ต้องเห็นช่องนี้ (เหมือนฟอร์มเพิ่มอะไหล่)
+    // ซ่อนอย่างเดียว ไม่ล้างค่า: บันทึกค่าว่าง = ไม่เปลี่ยน ของเดิมในชีตจึงไม่หาย
+    function syncEditCoilSizeVisibility() {
+      var wrap = document.getElementById('eCoilSizeWrap');
+      if (wrap) wrap.classList.toggle('hidden', editFormLineKey() !== 'Coil Winding');
+    }
     function manageFormLineKey() {
       var sheet = String((document.getElementById('mSheet') || {}).value || '').trim();
       return SHEET_LINE_MAP[sheet] || String((document.getElementById('mLine') || {}).value || '').trim() || currentLine;
     }
     (function initLocationSelects() {
+      var eLineEl = document.getElementById('eLine');
+      if (eLineEl) eLineEl.addEventListener('change', syncEditCoilSizeVisibility);
       var eCat = document.getElementById('eCategory');
       if (eCat) eCat.addEventListener('change', function() {
         syncLocationSelectToCategory(document.getElementById('eLocation'), editFormLineKey(), eCat.value);
