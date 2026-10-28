@@ -84,3 +84,36 @@ console.log('location-plan-by-category: ok');
 const locPanel = htmlLf.slice(htmlLf.indexOf('<!-- จัด Location ตามหมวด'), htmlLf.indexOf('id="locPlanMessage"'));
 assert(!/class="[^"]*violet-/.test(locPanel), 'แผงจัด Location ห้ามใช้คลาสสี violet');
 assert(/id="locPlanApplyBtn"[^>]*bg-indigo-600/.test(locPanel), 'ปุ่มยืนยันต้องมีพื้นสีที่ Tailwind 2 มีจริง');
+
+// ── ฟอร์มเพิ่ม/แก้ไข: Location เป็น Dropdown ตามแผน ไลน์ × หมวด ─────────────────────────
+const webPlanSrc = htmlLf.match(/^ {4}var LOCATION_PLAN_BY_LINE = \{[\s\S]*?\n {4}\};/m);
+assert(webPlanSrc, 'หน้าเว็บต้องมี LOCATION_PLAN_BY_LINE');
+const ui = new Function([
+  webPlanSrc[0],
+  grab(htmlLf, 'escHtml'),
+  grab(htmlLf, 'normalizeLocationValue'),
+  grab(htmlLf, 'locationPlanCategoryKey'),
+  grab(htmlLf, 'suggestedLocationFor'),
+  "var LOC_CATEGORY_LABELS = { pneumatic: 'Pneumatic', electrical: 'Electrical', mechanical: 'Mechanical' };",
+  grab(htmlLf, 'buildLocationOptions'),
+  'return { LOCATION_PLAN_BY_LINE, suggestedLocationFor, buildLocationOptions };'
+].join('\n'))();
+Object.keys(P).forEach(function(line) {
+  assert.deepStrictEqual(ui.LOCATION_PLAN_BY_LINE[line], P[line].locations, 'แผน Location หน้าเว็บกับ Backend ต้องตรงกัน: ' + line);
+});
+assert.strictEqual(ui.suggestedLocationFor('Coil Winding', 'Machanical'), 'SP-CL-A1-01');
+assert.strictEqual(ui.suggestedLocationFor('Arc Chute', 'General'), '');
+// ยังไม่มี Location → เลือกตามหมวดให้ · ไลน์ของรายการอยู่กลุ่มแรก
+let o = ui.buildLocationOptions('Arc Chute', 'Pneumatic', '-');
+assert.strictEqual(o.value, 'SP-AC-A3-02');
+assert.strictEqual(o.groups[0].label, 'Arc Chute (ไลน์นี้)');
+assert.deepStrictEqual(o.groups[0].options.map(function(x) { return x.value; }), ['SP-AC-A3-01', 'SP-AC-A3-02', 'SP-AC-A3-03']);
+assert.strictEqual(o.groups.length, 4, 'ไลน์อื่นยังเลือกได้');
+// มี Location อยู่แล้ว → คงค่าเดิม แม้ไม่อยู่ในแผน (ไม่ทิ้งข้อมูล)
+o = ui.buildLocationOptions('H9', 'Electrical', 'old-1');
+assert.strictEqual(o.value, 'OLD-1');
+assert.deepStrictEqual(o.extra, [{ value: 'OLD-1', label: 'OLD-1 (เดิม)' }]);
+o = ui.buildLocationOptions('H9', 'General', '');
+assert.strictEqual(o.value, '', 'หมวดอื่นไม่เดาให้');
+assert(htmlLf.includes("fillLocationSelect(document.getElementById('eLocation'), lineOfItem(item), item.category, item.location);"));
+assert(/\['mCategory', 'mLine', 'mSheet'\]\.forEach[\s\S]{0,120}addEventListener\('change', syncManage\)/.test(htmlLf));

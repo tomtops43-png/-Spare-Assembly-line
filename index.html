@@ -2540,10 +2540,9 @@
               <input id="mCategory" type="text" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" placeholder="เช่น Mechanical, Electrical" />
             </label>
             <label class="block text-xs font-semibold text-slate-600">ตำแหน่งจัดเก็บ / Location
-              <input id="mLocation" type="text" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" placeholder="เช่น SP-H9-A1-1" />
+              <!-- ตัวเลือกมาจาก LOCATION_PLAN_BY_LINE (ไลน์ × หมวด) — เลือกหมวดแล้วเติมให้เอง -->
+              <select id="mLocation" class="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"></select>
             </label>
-            <!-- ตัวเลือก Location ที่มีอยู่แล้ว ใช้ร่วมกันทั้งฟอร์มเพิ่ม (mLocation) และแก้ไข (eLocation) -->
-            <datalist id="locationSuggestions"></datalist>
           </div>
           <!-- Coil Size (hidden by default) -->
           <div id="mCoilSizeWrap" class="hidden mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -4264,7 +4263,7 @@
               <input id="eCoilSizeOther" type="text" class="mt-1.5 hidden w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" placeholder="กรอก Coil Size" />
             </div>
             <div><label class="text-xs font-medium text-slate-500">Line</label><input id="eLine" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
-            <div><label class="text-xs font-medium text-slate-500">Location</label><input id="eLocation" placeholder="เช่น SP-H9-A1-1" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
+            <div><label class="text-xs font-medium text-slate-500">Location</label><select id="eLocation" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition"></select></div>
             <div><label class="text-xs font-medium text-slate-500">Category</label><input id="eCategory" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
             <div><label class="text-xs font-medium text-slate-500">Brand</label><input id="eBrand" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition" /></div>
           </div>
@@ -4902,6 +4901,13 @@
       if (key === ALL_LINES_KEY) return;
       LINE_SHEET_OPTIONS[key].forEach(function(sheet) { if (!SHEET_LINE_MAP[sheet]) SHEET_LINE_MAP[sheet] = key; });
     });
+    // ช่องเก็บอะไหล่ของแต่ละไลน์ แยกตามหมวด — ต้องตรงกับ LOCATION_PLAN_BY_LINE ใน Backend.gs
+    var LOCATION_PLAN_BY_LINE = {
+      'H9': { pneumatic: 'SP-H9-A4-01', electrical: 'SP-H9-A4-02', mechanical: 'SP-H9-A4-03' },
+      'Arc Chute': { electrical: 'SP-AC-A3-01', pneumatic: 'SP-AC-A3-02', mechanical: 'SP-AC-A3-03' },
+      'Lug&Screw': { electrical: 'SP-LS-A2-01', pneumatic: 'SP-LS-A2-02', mechanical: 'SP-LS-A2-03' },
+      'Coil Winding': { mechanical: 'SP-CL-A1-01', electrical: 'SP-CL-A1-02', pneumatic: 'SP-CL-A1-03' }
+    };
     function isAllLinesMode() { return currentLine === ALL_LINES_KEY; }
     function realLineKeys() {
       return Object.keys(LINE_SHEET_OPTIONS).filter(function(key) { return key !== ALL_LINES_KEY; });
@@ -21011,8 +21017,8 @@ function inferRequestPriority(stock, min) {
         }
       }
       document.getElementById('eLine').value = item.line || '';
-      document.getElementById('eLocation').value = item.location || '';
       document.getElementById('eCategory').value = item.category || '';
+      fillLocationSelect(document.getElementById('eLocation'), lineOfItem(item), item.category, item.location);
       document.getElementById('eBrand').value = item.brand || '';
       renderEditMachinesCheckboxes(item.line || '', String(item.machines || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean));
       document.getElementById('eImageMainFile').value = '';
@@ -22347,28 +22353,82 @@ function inferRequestPriority(stock, min) {
         applyFilters();
       });
     })();
-    // รายการ Location ที่มีอยู่แล้วให้เลือก (datalist) — พิมพ์ตรงกันง่าย ไม่ต้องจำรูปแบบเอง
-    // อัปเดตตอนโฟกัสช่อง เพราะ partsData เปลี่ยนตามไลน์ที่เปิดอยู่
-    function refreshLocationSuggestions() {
-      var list = document.getElementById('locationSuggestions');
-      if (!list) return;
-      var seen = {};
-      (partsData || []).forEach(function(p) {
-        if (!hasItemLocation(p)) return;
-        seen[normalizeLocationValue(p.location)] = true;
-      });
-      list.innerHTML = Object.keys(seen).sort(function(a, b) { return a.localeCompare(b, 'th', { numeric: true }); })
-        .map(function(loc) { return '<option value="' + escHtml(loc) + '"></option>'; }).join('');
+    // ── Location แบบ Dropdown: ตัวเลือกมาจาก LOCATION_PLAN_BY_LINE (ไลน์ × หมวด) ─────────────
+    // หมวดในชีตพิมพ์ไม่ตรงกันบ้าง (Machanical, Electric) — แปลงเป็นคีย์เดียวกับ Backend
+    function locationPlanCategoryKey(category) {
+      var t = String(category || '').toLowerCase().replace(/[^a-z]/g, '');
+      if (!t) return '';
+      if (t.indexOf('pneumatic') === 0) return 'pneumatic';
+      if (t.indexOf('electric') === 0) return 'electrical';
+      if (t.indexOf('mechanical') === 0 || t.indexOf('machanical') === 0) return 'mechanical';
+      return '';
     }
-    ['eLocation', 'mLocation'].forEach(function(id) {
-      var el = document.getElementById(id);
+    // Location ที่ควรเป็นตามไลน์ + หมวด ('' = หมวดนี้ไม่มีช่องเก็บประจำ)
+    function suggestedLocationFor(lineKey, category) {
+      var locs = LOCATION_PLAN_BY_LINE[lineKey] || {};
+      return locs[locationPlanCategoryKey(category)] || '';
+    }
+    var LOC_CATEGORY_LABELS = { pneumatic: 'Pneumatic', electrical: 'Electrical', mechanical: 'Mechanical' };
+    // สร้างตัวเลือก: ไลน์ของรายการขึ้นก่อน ตามด้วยไลน์อื่น · ค่าเดิมที่ไม่อยู่ในแผนยังเลือกได้ (ไม่ทิ้งข้อมูล)
+    // ยังไม่มี Location + หมวดตรง → เลือกช่องตามหมวดให้เลย
+    function buildLocationOptions(lineKey, category, currentValue) {
+      var current = normalizeLocationValue(currentValue);
+      if (current === '-') current = '';
+      var value = current || suggestedLocationFor(lineKey, category);
+      var known = {};
+      var lines = Object.keys(LOCATION_PLAN_BY_LINE);
+      if (LOCATION_PLAN_BY_LINE[lineKey]) lines = [lineKey].concat(lines.filter(function(l) { return l !== lineKey; }));
+      var groups = lines.map(function(line) {
+        var locs = LOCATION_PLAN_BY_LINE[line];
+        var opts = Object.keys(locs).map(function(k) { known[locs[k]] = true; return { value: locs[k], label: locs[k] + ' · ' + LOC_CATEGORY_LABELS[k] }; })
+          .sort(function(a, b) { return a.value.localeCompare(b.value, 'th', { numeric: true }); });
+        return { label: line === lineKey ? line + ' (ไลน์นี้)' : line, options: opts };
+      });
+      var extra = (current && !known[current]) ? [{ value: current, label: current + ' (เดิม)' }] : [];
+      return { value: value, extra: extra, groups: groups };
+    }
+    function fillLocationSelect(el, lineKey, category, currentValue) {
       if (!el) return;
-      el.setAttribute('list', 'locationSuggestions');
-      el.setAttribute('autocomplete', 'off');
-      el.setAttribute('autocapitalize', 'characters');
-      el.addEventListener('focus', refreshLocationSuggestions);
-      el.addEventListener('blur', function() { el.value = normalizeLocationValue(el.value); });
-    });
+      var data = buildLocationOptions(lineKey, category, currentValue);
+      el.innerHTML = '<option value="">— เลือก Location —</option>' +
+        data.extra.map(function(o) { return '<option value="' + escHtml(o.value) + '">' + escHtml(o.label) + '</option>'; }).join('') +
+        data.groups.map(function(g) {
+          return '<optgroup label="' + escHtml(g.label) + '">' + g.options.map(function(o) {
+            return '<option value="' + escHtml(o.value) + '">' + escHtml(o.label) + '</option>';
+          }).join('') + '</optgroup>';
+        }).join('');
+      el.value = data.value;
+    }
+    // เปลี่ยนหมวดแล้วช่องเก็บตามหมวดเปลี่ยนตาม — เว้นแต่ผู้ใช้เลือกค่าอื่นที่ไม่ใช่ช่องประจำของไลน์นี้ไว้เอง
+    function syncLocationSelectToCategory(el, lineKey, category) {
+      if (!el) return;
+      var locs = LOCATION_PLAN_BY_LINE[lineKey] || {};
+      var isPlanValue = Object.keys(locs).some(function(k) { return locs[k] === el.value; });
+      if (el.value && !isPlanValue) return;
+      fillLocationSelect(el, lineKey, category, '');
+    }
+    function editFormLineKey() {
+      var sheet = String((document.getElementById('eSheet') || {}).value || '').trim();
+      return SHEET_LINE_MAP[sheet] || canonicalLineName((document.getElementById('eLine') || {}).value);
+    }
+    function manageFormLineKey() {
+      var sheet = String((document.getElementById('mSheet') || {}).value || '').trim();
+      return SHEET_LINE_MAP[sheet] || String((document.getElementById('mLine') || {}).value || '').trim() || currentLine;
+    }
+    (function initLocationSelects() {
+      var eCat = document.getElementById('eCategory');
+      if (eCat) eCat.addEventListener('change', function() {
+        syncLocationSelectToCategory(document.getElementById('eLocation'), editFormLineKey(), eCat.value);
+      });
+      var mLoc = document.getElementById('mLocation');
+      var mCat = document.getElementById('mCategory');
+      function syncManage() { syncLocationSelectToCategory(mLoc, manageFormLineKey(), mCat ? mCat.value : ''); }
+      ['mCategory', 'mLine', 'mSheet'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('change', syncManage);
+      });
+      fillLocationSelect(mLoc, manageFormLineKey(), mCat ? mCat.value : '', '');
+    })();
     // ปุ่มกรอง "ของใหม่" — เฉพาะของที่เพิ่งรับเข้าภายใน 7 วัน (isNewArrival ตัวเดียวกับที่ทำให้การ์ดเรืองแสง)
     var newArrivalOnlyState = false;
     function updateNewArrivalFilterBtn() {
