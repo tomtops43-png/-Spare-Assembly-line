@@ -1611,6 +1611,7 @@
             <option value="needpo_desc">Need to PO มากสุด</option>
             <option value="stock_asc">Stock น้อยสุด</option>
             <option value="name_asc">ชื่อ A-Z</option>
+            <option value="location_asc">📍 Location</option>
           </select>
         </div>
 
@@ -1644,6 +1645,7 @@
             <option value="needpo_desc">Need to PO มากสุด</option>
             <option value="stock_asc">Stock น้อยสุด</option>
             <option value="name_asc">ชื่อ A-Z</option>
+            <option value="location_asc">📍 Location</option>
           </select>
         </div>
 
@@ -4131,6 +4133,22 @@
           </div>
         </div>
         <p id="backupStatusMessage" class="text-xs text-slate-500"></p>
+      </section>
+      <!-- จัด Location ตามหมวด — ทุกไลน์มีชั้นอะไหล่ 3 ช่อง แยก Pneumatic / Electrical / Mechanical -->
+      <section class="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">📍 จัด Location ตามหมวด (ทุกไลน์)</h3>
+            <p class="text-xs text-slate-500 mt-0.5">ใส่ Location ให้อะไหล่ทุกรายการตามไลน์ + หมวด · กด "ดูตัวอย่าง" ก่อน ยังไม่เขียนลงชีตจนกว่าจะกดยืนยัน</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-600"><input id="locPlanKeepExisting" type="checkbox" class="rounded" /> ไม่ทับรายการที่มี Location แล้ว</label>
+            <button id="locPlanPreviewBtn" type="button" class="h-9 rounded-xl border border-violet-300 bg-violet-50 px-4 text-sm font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-40">ดูตัวอย่าง</button>
+            <button id="locPlanApplyBtn" type="button" class="hidden h-9 rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-40">ยืนยันใส่ Location</button>
+          </div>
+        </div>
+        <div id="locPlanTable" class="overflow-x-auto"></div>
+        <p id="locPlanMessage" class="mt-2 text-xs text-slate-500"></p>
       </section>
       </div>
     </section>
@@ -18417,6 +18435,83 @@ function inferRequestPriority(stock, min) {
       });
     })();
 
+    // ── จัด Location ตามหมวด: ดูตัวอย่าง (dryRun) ก่อน แล้วค่อยยืนยันเขียนลงชีต ─────────────
+    var LOC_PLAN_CATEGORY_LABELS = { pneumatic: 'Pneumatic', electrical: 'Electrical', mechanical: 'Mechanical' };
+    function renderLocationPlanSummary(res) {
+      var sheets = (res && res.sheets) || [];
+      var plan = (res && res.plan) || {};
+      var byLine = {};
+      sheets.forEach(function(s) {
+        var g = byLine[s.line] || (byLine[s.line] = { assign: 0, overwrite: 0, same: 0, kept: 0, skipped: [] });
+        g.assign += s.assign; g.overwrite += s.overwrite; g.same += s.same; g.kept += s.kept;
+        (s.skipped || []).forEach(function(k) { g.skipped.push(Object.assign({ sheet: s.sheet }, k)); });
+      });
+      var rows = Object.keys(plan).map(function(line) {
+        var g = byLine[line] || { assign: 0, overwrite: 0, same: 0, kept: 0, skipped: [] };
+        var locs = (plan[line] && plan[line].locations) || {};
+        var locText = Object.keys(locs).map(function(k) {
+          return '<div class="whitespace-nowrap">' + escHtml(LOC_PLAN_CATEGORY_LABELS[k] || k) + ' → <b class="font-mono">' + escHtml(locs[k]) + '</b></div>';
+        }).join('');
+        var skippedText = g.skipped.length
+          ? '<details><summary class="cursor-pointer text-amber-700">' + g.skipped.length + ' รายการ</summary><div class="mt-1 max-h-40 overflow-auto text-[11px] text-slate-600">' +
+            g.skipped.map(function(k) { return escHtml(k.sheet + ' #' + k.no + ' ' + k.name + ' (' + k.category + ')'); }).join('<br>') + '</div></details>'
+          : '-';
+        return '<tr class="border-t border-slate-100 align-top">' +
+          '<td class="px-3 py-2 font-semibold">' + escHtml(line) + '</td>' +
+          '<td class="px-3 py-2">' + locText + '</td>' +
+          '<td class="px-3 py-2 text-center font-bold text-violet-700">' + g.assign + (g.overwrite ? '<div class="text-[11px] font-normal text-slate-500">(ทับของเดิม ' + g.overwrite + ')</div>' : '') + '</td>' +
+          '<td class="px-3 py-2 text-center">' + g.same + '</td>' +
+          '<td class="px-3 py-2 text-center">' + g.kept + '</td>' +
+          '<td class="px-3 py-2">' + skippedText + '</td></tr>';
+      }).join('');
+      return '<table class="min-w-full text-xs"><thead class="bg-slate-50 text-slate-500"><tr>' +
+        '<th class="px-3 py-2 text-left">ไลน์</th><th class="px-3 py-2 text-left">หมวด → Location</th>' +
+        '<th class="px-3 py-2">จะใส่</th><th class="px-3 py-2">ตรงอยู่แล้ว</th><th class="px-3 py-2">คงของเดิม</th>' +
+        '<th class="px-3 py-2 text-left">ข้าม (หมวดอื่น/ว่าง)</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+    (function initLocationPlanPanel() {
+      var previewBtn = document.getElementById('locPlanPreviewBtn');
+      var applyBtn = document.getElementById('locPlanApplyBtn');
+      var keepEl = document.getElementById('locPlanKeepExisting');
+      var tableEl = document.getElementById('locPlanTable');
+      var msgEl = document.getElementById('locPlanMessage');
+      if (!previewBtn || !applyBtn) return;
+      var pendingTotal = 0;
+      function run(dryRun) {
+        return postJson(withAuthPayload({ action: 'bulkAssignLocationsByCategory', dryRun: dryRun, keepExisting: !!(keepEl && keepEl.checked) })).then(parseApiResponse);
+      }
+      // เปลี่ยนตัวเลือกแล้วตัวอย่างเดิมไม่ตรง — ต้องกดดูใหม่ก่อนยืนยัน
+      if (keepEl) keepEl.addEventListener('change', function() { applyBtn.classList.add('hidden'); });
+      previewBtn.addEventListener('click', function() {
+        previewBtn.disabled = true;
+        applyBtn.classList.add('hidden');
+        msgEl.textContent = 'กำลังอ่านทุกชีต...';
+        run(true).then(function(res) {
+          tableEl.innerHTML = renderLocationPlanSummary(res);
+          pendingTotal = (res.sheets || []).reduce(function(sum, s) { return sum + s.assign; }, 0);
+          msgEl.textContent = pendingTotal ? ('จะใส่ Location ทั้งหมด ' + pendingTotal + ' รายการ') : 'ทุกรายการมี Location ตรงตามหมวดแล้ว';
+          applyBtn.classList.toggle('hidden', !pendingTotal);
+        }).catch(function(err) {
+          msgEl.textContent = 'ดูตัวอย่างไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+        }).finally(function() { previewBtn.disabled = false; });
+      });
+      applyBtn.addEventListener('click', function() {
+        showConfirmDialog({ title: 'ยืนยันใส่ Location', message: 'เขียน Location ลงชีต ' + pendingTotal + ' รายการ ตามตารางด้านบน?', okLabel: 'ใส่ Location' }).then(function(ok) {
+          if (!ok) return;
+          applyBtn.disabled = true; previewBtn.disabled = true;
+          msgEl.textContent = 'กำลังเขียนลงชีต...';
+          run(false).then(function(res) {
+            showQuickToast('ใส่ Location แล้ว ' + (res.written || 0) + ' รายการ', 'success');
+            msgEl.textContent = 'ใส่ Location แล้ว ' + (res.written || 0) + ' รายการ (ดูย้อนหลังได้ที่ทะเบียนการแก้ไข)';
+            applyBtn.classList.add('hidden');
+            loadPartsData();
+          }).catch(function(err) {
+            msgEl.textContent = 'ใส่ Location ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+          }).finally(function() { applyBtn.disabled = false; previewBtn.disabled = false; });
+        });
+      });
+    })();
+
     /* ── ทะเบียนการแก้ไขข้อมูลอะไหล่ (ItemAudit) ────────────────────────────────
        เดิมการแก้ Min/Max/ราคา/ยอดคงเหลือ เขียนทับชีตเงียบๆ ไม่มีร่องรอย
        ตอนนี้ backend ลงทะเบียนทุกครั้ง ส่วนตรงนี้คือหน้าจออ่านย้อนหลังของ Admin    */
@@ -22194,6 +22289,8 @@ function inferRequestPriority(stock, min) {
       if (selectedSort === 'needpo_desc') filtered.sort(function(a,b){ return getNeedToOrder(b) - getNeedToOrder(a); });
       if (selectedSort === 'stock_asc') filtered.sort(function(a,b){ return safeNum(a.stock) - safeNum(b.stock); });
       if (selectedSort === 'name_asc') filtered.sort(function(a,b){ return String(a.name).localeCompare(String(b.name)); });
+      // เรียงตามช่องเก็บ (A2 ก่อน A10, ยังไม่มี Location ไปท้าย) — เดินหยิบของตามชั้นได้ทีละช่อง
+      if (selectedSort === 'location_asc') filtered.sort(function(a,b){ return compareItemLocation(a, b) || String(a.name||'').localeCompare(String(b.name||''), 'th'); });
 
       if (resetPage) currentPage = 1;
       renderFilteredResults(filtered);

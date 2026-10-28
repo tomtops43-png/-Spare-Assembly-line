@@ -75,8 +75,8 @@ const sorted = [{ location: 'A10' }, { location: '-' }, { location: 'a2' }, { lo
   .sort(web2.compareItemLocation).map(function(x) { return x.location; });
 assert.deepStrictEqual(sorted.slice(0, 3), ['A1', 'a2', 'A10'], 'A2 ต้องมาก่อน A10');
 assert(sorted.slice(3).every(function(l) { return l === '-' || l === ''; }), 'รายการที่ยังไม่มี Location ต้องอยู่ท้าย');
-// หน้านับสต็อก: ลำดับตอนเริ่มรอบนับกับใบที่พิมพ์ต้องใช้ตัวเรียงเดียวกัน
-assert.strictEqual((htmlLf.match(/return compareItemLocation\(a, b\) \|\| String\(a\.name\|\|''\)\.localeCompare/g) || []).length, 2);
+// หน้านับสต็อก: ลำดับตอนเริ่มรอบนับกับใบที่พิมพ์ต้องใช้ตัวเรียงเดียวกัน (+ ตัวเลือกเรียง 📍 Location หน้า Stock)
+assert.strictEqual((htmlLf.match(/return compareItemLocation\(a, b\) \|\| String\(a\.name\|\|''\)\.localeCompare/g) || []).length, 3);
 
 assert.strictEqual(web2.renderLocationChip({ location: '-' }), '');
 const chip = web2.renderLocationChip({ location: 'SP-H9-A1-1<b>' });

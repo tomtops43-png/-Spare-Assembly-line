@@ -263,6 +263,124 @@ function ensureLocationColumnsForAllKnownSheets() {
   });
 }
 
+// ── จัด Location ตามหมวด (ไลน์ × หมวด → ช่องเก็บ) ──────────────────────────────
+// แต่ละไลน์มีชั้นอะไหล่ 3 ช่อง แยกตามหมวด Pneumatic / Electrical / Mechanical
+// ชีต → ไลน์ ต้องตรงกับ LINE_SHEET_OPTIONS ฝั่งหน้าเว็บ
+var LOCATION_PLAN_BY_LINE = {
+  'H9': {
+    sheets: ['Main List Stock', 'Stock for MC'],
+    locations: { pneumatic: 'SP-H9-A4-01', electrical: 'SP-H9-A4-02', mechanical: 'SP-H9-A4-03' }
+  },
+  'Arc Chute': {
+    sheets: ['Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)'],
+    locations: { electrical: 'SP-AC-A3-01', pneumatic: 'SP-AC-A3-02', mechanical: 'SP-AC-A3-03' }
+  },
+  'Lug&Screw': {
+    sheets: ['Lug&Screw'],
+    locations: { electrical: 'SP-LS-A2-01', pneumatic: 'SP-LS-A2-02', mechanical: 'SP-LS-A2-03' }
+  },
+  'Coil Winding': {
+    sheets: ['Coil Winding'],
+    locations: { mechanical: 'SP-CL-A1-01', electrical: 'SP-CL-A1-02', pneumatic: 'SP-CL-A1-03' }
+  }
+};
+
+// หมวดในชีตพิมพ์ไม่ตรงกันบ้าง (machanical, Electric, PNEUMATIC ) — แปลงเป็นคีย์เดียว ไม่เข้าใจ = ''
+function locationPlanCategoryKey(category) {
+  var t = String(category || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (!t) return '';
+  if (t.indexOf('pneumatic') === 0) return 'pneumatic';
+  if (t.indexOf('electric') === 0) return 'electrical';
+  if (t.indexOf('mechanical') === 0 || t.indexOf('machanical') === 0) return 'mechanical';
+  return '';
+}
+
+// คำนวณว่าแถวไหนต้องได้ Location อะไร (ไม่แตะชีต — ทดสอบได้)
+// rows: [{ no, name, category, location }] · keepExisting = ไม่ทับรายการที่มี Location แล้ว
+function planLocationsForRows(rows, locations, keepExisting) {
+  var out = { assign: [], same: 0, kept: 0, skipped: [] };
+  (rows || []).forEach(function(r, index) {
+    var key = locationPlanCategoryKey(r.category);
+    if (!key || !locations[key]) {
+      out.skipped.push({ no: r.no, name: r.name, category: String(r.category || '').trim() || '-' });
+      return;
+    }
+    var target = locations[key];
+    var current = normalizeLocationText(r.location);
+    var hasCurrent = !!current && current !== '-';
+    if (current === target) { out.same += 1; return; }
+    if (hasCurrent && keepExisting) { out.kept += 1; return; }
+    out.assign.push({ index: index, no: r.no, name: r.name, category: key, from: hasCurrent ? current : '', to: target });
+  });
+  return out;
+}
+
+// dryRun = แค่สรุปให้ดูก่อน · ไม่ dryRun = เขียนลงชีต (ชีตละ 1 ครั้ง) + ลงทะเบียนการแก้ไข
+function bulkAssignLocationsByCategory(payload) {
+  var user = requireAdminUser(payload);
+  var dryRun = String(payload.dryRun) === 'true' || payload.dryRun === true;
+  var keepExisting = String(payload.keepExisting) === 'true' || payload.keepExisting === true;
+  var overrides = {};
+  try { overrides = PropertiesService.getScriptProperties().getProperties() || {}; } catch (propsErr) {}
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var now = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+  var auditRows = [];
+  var summary = [];
+  Object.keys(LOCATION_PLAN_BY_LINE).forEach(function(lineKey) {
+    var plan = LOCATION_PLAN_BY_LINE[lineKey];
+    plan.sheets.forEach(function(sheetName) {
+      if (!spreadsheet.getSheetByName(sheetName)) return;
+      var ctx = getMainSheetContext(sheetName);
+      if (!ctx.rows.length) return;
+      var map = ctx.map;
+      var locCol = map.location !== undefined ? map.location : map.jrlocation;
+      var rows = ctx.rows.map(function(row, index) {
+        var no = String(pickRowValue(row, map, ['no'], '')).trim();
+        var name = String(pickRowValue(row, map, ['namedescriptions', 'name', 'description', 'partname', 'jrpartname', 'jrpartnameolderp'], '')).trim();
+        // แถวว่างท้ายชีต — ไม่ใช่อะไหล่ ไม่ต้องนับ
+        if (!no && !name) return { no: '', name: '', category: '__blank__', location: '' };
+        var sheetLoc = locCol !== undefined ? row[locCol] : '';
+        return {
+          no: no || String(index + 1), name: name,
+          category: pickRowValue(row, map, ['category'], ''),
+          location: resolveItemLocation(sheetLoc, overrides[getLocationOverrideKey(sheetName, no || String(index + 1))] || '')
+        };
+      });
+      var result = planLocationsForRows(rows, plan.locations, keepExisting);
+      result.skipped = result.skipped.filter(function(s) { return s.category !== '__blank__'; });
+      summary.push({
+        line: lineKey, sheet: sheetName, assign: result.assign.length, same: result.same, kept: result.kept,
+        overwrite: result.assign.filter(function(a) { return !!a.from; }).length,
+        skipped: result.skipped
+      });
+      if (dryRun || !result.assign.length) return;
+      if (locCol === undefined) {
+        locCol = ensureColumnInContext(ctx, 'Location', ['location', 'jrlocation']);
+        map = ctx.map;
+      }
+      var colValues = ctx.rows.map(function(row) { return [row[locCol] === undefined ? '' : row[locCol]]; });
+      result.assign.forEach(function(a) {
+        colValues[a.index][0] = a.to;
+        auditRows.push([now, user.username, normalizeRole(user.role), sheetName, a.no, a.name, '', 'UPDATE',
+          ITEM_AUDIT_FIELD_LABELS.location || 'location', JSON.stringify({ location: a.from }), JSON.stringify({ location: a.to })]);
+        // ชีตเป็นที่เก็บเดียว — override รุ่นเก่าของแถวนี้ไม่ต้องใช้แล้ว
+        if (overrides[getLocationOverrideKey(sheetName, a.no)]) setLocationOverride(sheetName, a.no, '');
+      });
+      ctx.sheet.getRange(ctx.headerRowIndex + 2, locCol + 1, colValues.length, 1).setValues(colValues);
+      invalidateSparePartsLiteCache(sheetName);
+    });
+  });
+  if (auditRows.length) {
+    try {
+      var auditSheet = getItemAuditSheet();
+      auditSheet.getRange(auditSheet.getLastRow() + 1, 1, auditRows.length, auditRows[0].length).setValues(auditRows);
+    } catch (auditErr) {
+      Logger.log('bulkAssignLocationsByCategory audit warning: ' + (auditErr && auditErr.message ? auditErr.message : auditErr));
+    }
+  }
+  return { status: 'success', dryRun: dryRun, keepExisting: keepExisting, plan: LOCATION_PLAN_BY_LINE, sheets: summary, written: auditRows.length };
+}
+
 
 function ensurePriceColumnsForSheet(sheetName) {
   var targetSheet = String(sheetName || '').trim();
@@ -6647,6 +6765,7 @@ function doPost(e) {
     if (action === 'getItemAudit') return respond(getItemAudit(body), e);
     if (action === 'getBackupStatus') return respond(getBackupStatus(body), e);
     if (action === 'runBackupNow') return respond(runBackupNow(body), e);
+    if (action === 'bulkAssignLocationsByCategory') return respond(bulkAssignLocationsByCategory(body), e);
     if (action === 'addMachine') return respond(addMachine(body), e);
     if (action === 'updateMachine') return respond(updateMachine(body), e);
     if (action === 'deleteMachine') return respond(deleteMachine(body), e);
