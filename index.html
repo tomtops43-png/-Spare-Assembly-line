@@ -936,6 +936,11 @@
     .cs-chip em { font-style: normal; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: #f1f5f9; font-size: 11px; }
     .cs-chip.is-active { background: #f59e0b; border-color: #f59e0b; color: #fff; }
     .cs-chip.is-active em { background: rgba(255,255,255,.25); }
+    .cs-subchips { padding-top: 2px; }
+    .cs-subchips .cs-chip { padding: 5px 11px; font-size: 12px; background: #fffbeb; border-color: #fde68a; color: #92400e; }
+    .cs-subchips .cs-chip.is-active { background: #0f172a; border-color: #0f172a; color: #fff; }
+    .cs-subchips .cs-sep { flex-shrink: 0; width: 1px; margin: 4px 2px; background: #e2e8f0; }
+    .cs-subtag { display: inline-block; align-self: flex-start; margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: #fff7ed; color: #c2410c; font-size: 10px; font-weight: 800; }
     .cs-fav { margin-top: 10px; padding: 10px 12px; border-radius: 16px; background: linear-gradient(90deg, #eef2ff, #f5f3ff); border: 1px solid #e0e7ff; }
     .cs-fav-title { font-size: 12px; font-weight: 800; color: #4338ca; margin-bottom: 6px; }
     .cs-fav-list { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
@@ -3660,6 +3665,7 @@
       <div data-cs-panel="shop">
         <input id="csSearch" type="search" class="cs-input cs-search" placeholder="🔍 ค้นหา ชื่อ / สเปค / ช่องเก็บ — หรือสแกนรหัส (CS0001) แล้วกด Enter" autocomplete="off" />
         <div id="csCatChips" class="cs-chips"></div>
+        <div id="csSubChips" class="cs-chips cs-subchips hidden"></div>
         <div id="csFavWrap" class="cs-fav hidden">
           <div class="cs-fav-title">⚡ เบิกบ่อยของฉัน — แตะเพื่อใส่ตะกร้า</div>
           <div id="csFavList" class="cs-fav-list"></div>
@@ -16162,6 +16168,8 @@ function inferRequestPriority(stock, min) {
     var csLoadingPromise = null;
     var csCart = {};
     var csCategory = 'all';
+    var csSubType = 'all';
+    var csConn = 'all';
     var csView = 'shop';
     var csCheckoutLine = '';
     var csCheckoutPurpose = '';
@@ -16334,18 +16342,87 @@ function inferRequestPriority(stock, min) {
         '<div class="cs-stat"><b>' + csMoney(monthAmount) + '</b><span>เบิกเดือนนี้</span></div>';
     }
 
+    // ── ชนิดย่อยของฟิตติ้งลม — แยกจากชื่อ+สเปคอัตโนมัติ ไม่ต้องกรอกเพิ่ม (ลำดับกฎสำคัญ: Y ก่อน T, ตัวอุดก่อนทุกอย่าง) ──
+    var CS_FITTING_CATEGORY = 'ฟิตติ้งลม/สายลม';
+    var CS_FITTING_TYPES = [
+      { key: 'plug', label: 'ตัวอุด', icon: '⛔', re: /ตัวอุด|ปลั๊กอุด|\bplug\b/i },
+      { key: 'tee-y', label: 'สามทาง Y', icon: '🔀', re: /สามทาง\s*y|y\s*-?\s*(type|piece|union)|\bpy\s?\d|ข้อต่อ\s*y\b|(^|\s)y\s*ø/i },
+      { key: 'tee-t', label: 'สามทาง T', icon: '🔱', re: /สามทาง|\btee\b|\bpe\s?\d|ข้อต่อ\s*t\b|(^|\s)t\s*ø/i },
+      { key: 'elbow', label: 'ข้องอ', icon: '↪️', re: /ข้องอ|งอ\s*90|งอ\s*45|elbow|\bpl\s?\d/i },
+      { key: 'reducer', label: 'ข้อลด', icon: '🔻', re: /ข้อลด|ลดขนาด|reduc|→/i },
+      { key: 'straight', label: 'ต่อตรง', icon: '🔧', re: /ต่อตรง|ข้อต่อตรง|straight|union|\bpc\s?\d|\bpu\s?\d|\bpg\s?\d/i },
+      { key: 'tube', label: 'สายลม', icon: '🌀', re: /สายลม|ท่อลม|\btube\b|สาย\s*pu/i }
+    ];
+    // ลำดับที่โชว์ (ต่างจากลำดับกฎตรวจจับด้านบน) — ไล่จากชิ้นที่ใช้บ่อย
+    var CS_FITTING_DISPLAY_ORDER = ['straight', 'reducer', 'elbow', 'tee-t', 'tee-y', 'plug', 'tube', 'other'];
+    function csFittingType(item) {
+      if (!item || item.category !== CS_FITTING_CATEGORY) return '';
+      var text = String(item.name || '') + ' ' + String(item.spec || '');
+      for (var i = 0; i < CS_FITTING_TYPES.length; i++) if (CS_FITTING_TYPES[i].re.test(text)) return CS_FITTING_TYPES[i].key;
+      return 'other';
+    }
+    // แบบการต่อ: เกลียว (M5, 1/8, 1/4 ...) หรือ สาย-สาย (เสียบสายทั้งสองด้าน)
+    function csFittingConn(item) {
+      if (!item || item.category !== CS_FITTING_CATEGORY) return '';
+      var text = String(item.name || '') + ' ' + String(item.spec || '');
+      if (/เกลียว|\bm\d+\b|\b\d\/\d+\b|\bnpt\b|\bbsp/i.test(text)) return 'thread';
+      if (/สาย\s*-\s*สาย|เสียบสาย|push\s*-?\s*in/i.test(text) || csFittingType(item) !== 'tube') return 'tube';
+      return '';
+    }
+    function csFittingTypeMeta(key) {
+      return CS_FITTING_TYPES.filter(function(t) { return t.key === key; })[0] || { key: 'other', label: 'อื่นๆ', icon: '📦' };
+    }
+    function csFittingOrder(item) {
+      var key = csFittingType(item);
+      if (!key) return 99;
+      return CS_FITTING_DISPLAY_ORDER.indexOf(key);
+    }
+
     function csFilteredShopItems() {
       var kw = String((csEl('csSearch') || {}).value || '').trim().toLowerCase();
       return csItems.filter(function(it) {
         if (!it.active) return false;
         if (csCategory === '__low__') { if (csStockLevel(it).level === 'ok') return false; }
         else if (csCategory !== 'all' && it.category !== csCategory) return false;
+        if (csCategory === CS_FITTING_CATEGORY) {
+          if (csSubType !== 'all' && csFittingType(it) !== csSubType) return false;
+          if (csConn !== 'all' && csFittingConn(it) !== csConn) return false;
+        }
         if (!kw) return true;
         return [it.item_id, it.name, it.spec, it.location, it.category].join(' ').toLowerCase().indexOf(kw) > -1;
       }).sort(function(a, b) {
         return CS_CATEGORIES.indexOf(a.category) - CS_CATEGORIES.indexOf(b.category) ||
+          csFittingOrder(a) - csFittingOrder(b) ||
           String(a.name).localeCompare(String(b.name), 'th') || String(a.spec).localeCompare(String(b.spec), 'th', { numeric: true });
       });
+    }
+
+    // แถบชิปย่อย โผล่เมื่อเลือกหมวดฟิตติ้งลม — ชนิด (ต่อตรง/ข้อลด/ข้องอ/สามทาง T/Y/ตัวอุด) + แบบการต่อ
+    function renderCsSubChips(active) {
+      var el = csEl('csSubChips');
+      if (!el) return;
+      var show = csCategory === CS_FITTING_CATEGORY;
+      el.classList.toggle('hidden', !show);
+      if (!show) { el.innerHTML = ''; return; }
+      var fittings = active.filter(function(it) { return it.category === CS_FITTING_CATEGORY; });
+      var typeCounts = {}, connCounts = {};
+      fittings.forEach(function(it) {
+        var t = csFittingType(it);
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
+        if (csSubType === 'all' || t === csSubType) { var c = csFittingConn(it); if (c) connCounts[c] = (connCounts[c] || 0) + 1; }
+      });
+      var chip = function(attr, val, cur, label, n) {
+        return '<button type="button" class="cs-chip' + (cur === val ? ' is-active' : '') + '" ' + attr + '="' + val + '">' + label + (n !== undefined ? '<em>' + n + '</em>' : '') + '</button>';
+      };
+      var html = chip('data-cs-sub', 'all', csSubType, 'ทุกชนิด', fittings.length);
+      CS_FITTING_DISPLAY_ORDER.map(csFittingTypeMeta).forEach(function(t) {
+        if (typeCounts[t.key]) html += chip('data-cs-sub', t.key, csSubType, t.icon + ' ' + t.label, typeCounts[t.key]);
+      });
+      if (connCounts.thread && connCounts.tube) {
+        html += '<span class="cs-sep"></span>' + chip('data-cs-conn', 'all', csConn, 'ทุกแบบการต่อ') +
+          chip('data-cs-conn', 'tube', csConn, '➖ สาย-สาย', connCounts.tube) + chip('data-cs-conn', 'thread', csConn, '🔩 เกลียว', connCounts.thread);
+      }
+      el.innerHTML = html;
     }
 
     function renderCsShop() {
@@ -16363,6 +16440,7 @@ function inferRequestPriority(stock, min) {
         });
         chips.innerHTML = html;
       }
+      renderCsSubChips(active);
       renderCsFavorites();
       var grid = csEl('csGrid');
       if (!grid) return;
@@ -16399,6 +16477,7 @@ function inferRequestPriority(stock, min) {
           '<div class="cs-card-top"><div class="cs-card-ico' + (hasImg ? ' has-img" data-cs-zoom="' + escHtml(it.item_id) + '" title="ดูรูปใหญ่' : '') + '">' + csVisual(it, 300) + '</div>' + (it.location ? '<span class="cs-loc">📍 ' + escHtml(it.location) + '</span>' : '') + '</div>' +
           '<div class="cs-card-name">' + escHtml(it.name) + '</div>' +
           (it.spec ? '<div class="cs-card-spec">' + escHtml(it.spec) + '</div>' : '') +
+          (csFittingType(it) && csFittingType(it) !== 'other' ? '<span class="cs-subtag">' + csFittingTypeMeta(csFittingType(it)).icon + ' ' + escHtml(csFittingTypeMeta(csFittingType(it)).label) + '</span>' : '') +
           '<div class="cs-card-meta">' + escHtml(it.item_id) + (it.unit_price ? ' · ' + csMoney(it.unit_price) + '/' + escHtml(it.unit) : '') + '</div>' +
           '<div class="cs-bar cs-lv-' + lv.level + '"><i style="width:' + lv.pct + '%"></i></div>' +
           '<div class="cs-qty-line"><span><b>' + csNum(it.qty) + '</b> ' + escHtml(it.unit) + '</span>' + tag + '</div>' +
@@ -16911,6 +16990,7 @@ function inferRequestPriority(stock, min) {
     // เดาหมวด/ไอคอนจากคำในชื่อ+หมวดย่อย เมื่อ category ในไฟล์ไม่ใช่หมวดของระบบ
     var CS_IMPORT_GUESS = [
       { re: /ตัวอุด|ปลั๊กอุด/, cat: 'ฟิตติ้งลม/สายลม', icon: '⛔' },
+      { re: /สามทาง\s*y|y\s*-?\s*(type|piece|union)/i, cat: 'ฟิตติ้งลม/สายลม', icon: '🔀' },
       { re: /สามทาง|tee/i, cat: 'ฟิตติ้งลม/สายลม', icon: '🔱' },
       { re: /ข้องอ|งอ ?90|elbow/i, cat: 'ฟิตติ้งลม/สายลม', icon: '↪️' },
       { re: /ข้อลด|reduc/i, cat: 'ฟิตติ้งลม/สายลม', icon: '🔻' },
@@ -17116,7 +17196,9 @@ function inferRequestPriority(stock, min) {
         var a;
         if ((a = t.getAttribute('data-cs-close'))) return csCloseModal(a);
         if ((a = t.getAttribute('data-cs-view'))) { csView = a; return renderConsumables(); }
-        if ((a = t.getAttribute('data-cs-cat'))) { csCategory = a; return renderCsShop(); }
+        if ((a = t.getAttribute('data-cs-cat'))) { csCategory = a; csSubType = 'all'; csConn = 'all'; return renderCsShop(); }
+        if ((a = t.getAttribute('data-cs-sub'))) { csSubType = a; csConn = 'all'; return renderCsShop(); }
+        if ((a = t.getAttribute('data-cs-conn'))) { csConn = a; return renderCsShop(); }
         if ((a = t.getAttribute('data-cs-inc'))) return csCartAdd(a, 1);
         if ((a = t.getAttribute('data-cs-dec'))) return csCartAdd(a, -1);
         if ((a = t.getAttribute('data-cs-line'))) { csCheckoutLine = a; renderCsCheckout(); return csLoadMachineOptions(); }
