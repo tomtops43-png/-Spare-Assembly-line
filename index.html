@@ -948,7 +948,20 @@
     .cs-card.is-out { background: #f8fafc; }
     .cs-card.is-out .cs-card-ico { filter: grayscale(1); opacity: .5; }
     .cs-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
-    .cs-card-ico { display: flex; height: 54px; width: 54px; align-items: center; justify-content: center; border-radius: 16px; background: linear-gradient(135deg, #fff7ed, #ffedd5); font-size: 30px; }
+    .cs-card-ico { display: flex; height: 54px; width: 54px; align-items: center; justify-content: center; border-radius: 16px; background: linear-gradient(135deg, #fff7ed, #ffedd5); font-size: 30px; overflow: hidden; }
+    .cs-card-ico.has-img { height: 84px; width: 84px; background: #fff; border: 1px solid #f1f5f9; cursor: zoom-in; }
+    .cs-card-ico img, .cs-li-ico img, .cs-thumb img { height: 100%; width: 100%; object-fit: cover; }
+    .cs-li-ico, .cs-thumb { display: inline-flex; height: 34px; width: 34px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 10px; overflow: hidden; vertical-align: middle; }
+    .cs-card-admin { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0; }
+    .cs-card-admin button { flex: 1; height: 32px; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 12px; font-weight: 700; color: #334155; cursor: pointer; white-space: nowrap; }
+    .cs-card-admin button:hover { background: #fff7ed; border-color: #fdba74; color: #c2410c; }
+    .cs-img-field { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+    .cs-img-preview { display: flex; height: 88px; width: 88px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 16px; border: 2px dashed #cbd5e1; background: #f8fafc; font-size: 30px; overflow: hidden; }
+    .cs-img-preview img { height: 100%; width: 100%; object-fit: cover; }
+    .cs-img-actions { display: flex; flex-wrap: wrap; gap: 6px; font-weight: 400; }
+    .cs-img-actions label { display: inline-flex; align-items: center; height: 38px; padding: 0 14px; border-radius: 12px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .cs-img-zoom { position: fixed; inset: 0; z-index: 145; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,.8); cursor: zoom-out; }
+    .cs-img-zoom img { max-height: 90vh; max-width: 92vw; border-radius: 18px; background: #fff; box-shadow: 0 30px 60px rgba(0,0,0,.45); }
     .cs-loc { padding: 2px 7px; border-radius: 8px; background: #ecfeff; color: #0e7490; font-size: 10px; font-weight: 800; }
     .cs-card-name { margin-top: 10px; font-size: 14px; font-weight: 800; color: #0f172a; line-height: 1.25; }
     .cs-card-spec { margin-top: 2px; font-size: 12px; font-weight: 600; color: #ea580c; }
@@ -999,7 +1012,7 @@
     .cs-pill.is-active { background: #fff7ed; border-color: #f59e0b; color: #c2410c; box-shadow: 0 0 0 2px rgba(245,158,11,.25); }
     .cs-cart-lines { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
     .cs-cart-line { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; background: #f8fafc; }
-    .cs-cart-line .cs-li-ico { font-size: 24px; }
+    .cs-cart-line .cs-li-ico { font-size: 24px; height: 40px; width: 40px; }
     .cs-cart-line .cs-li-txt { flex: 1; min-width: 0; font-size: 13px; line-height: 1.25; }
     .cs-cart-line .cs-li-txt b { display: block; color: #0f172a; }
     .cs-cart-line .cs-li-txt small { color: #64748b; }
@@ -1076,6 +1089,7 @@
       .cs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .cs-card { padding: 11px; }
       .cs-card-ico { height: 46px; width: 46px; font-size: 26px; }
+      .cs-card-ico.has-img { height: 72px; width: 72px; }
       .cs-insight, .cs-kpis { grid-template-columns: 1fr 1fr; }
       .cs-panel { grid-column: 1 / -1; }
       .cs-hist-filters { grid-template-columns: 1fr 1fr; }
@@ -3751,7 +3765,21 @@
           <label class="cs-field" id="csItemQtyWrap">ยอดตั้งต้น<input id="csItemQty" type="number" min="0" step="any" class="cs-input" placeholder="0" /></label>
           <label class="cs-field">ใช้งาน<select id="csItemActive" class="cs-select"><option value="true">เปิดให้เบิก</option><option value="false">ปิด (ซ่อนจากหน้าเบิก)</option></select></label>
         </div>
-        <div class="cs-field">ไอคอน<input id="csItemIcon" class="cs-input" maxlength="8" placeholder="เลือกด้านล่าง หรือพิมพ์ emoji" aria-label="ไอคอน" /><div id="csEmojiPick" class="cs-emoji-pick"></div></div>
+        <div class="cs-field">รูปสินค้า
+          <div class="cs-img-field">
+            <div id="csItemImagePreview" class="cs-img-preview">📷</div>
+            <div>
+              <div class="cs-img-actions">
+                <input id="csItemImageFile" type="file" accept="image/*" class="sr-only" style="position:absolute;width:1px;height:1px;opacity:0" />
+                <label for="csItemImageFile">📷 แนบ / ถ่ายรูป</label>
+                <button type="button" class="cs-btn" id="csItemImageClear" style="height:38px">🗑️ ลบรูป</button>
+              </div>
+              <p id="csItemImageStatus" class="cs-msg" style="margin-top:6px">รูปจะขึ้นบนการ์ดแทนไอคอน — ช่วยให้หยิบถูกตัว</p>
+            </div>
+          </div>
+          <input type="hidden" id="csItemImage" />
+        </div>
+        <div class="cs-field">ไอคอน (ใช้เมื่อไม่มีรูป)<input id="csItemIcon" class="cs-input" maxlength="8" placeholder="เลือกด้านล่าง หรือพิมพ์ emoji" aria-label="ไอคอน" /><div id="csEmojiPick" class="cs-emoji-pick"></div></div>
         <div class="cs-actions"><button type="submit" class="cs-btn cs-btn-primary" id="csItemSaveBtn">💾 บันทึก</button></div>
       </form>
     </div>
@@ -16158,6 +16186,33 @@ function inferRequestPriority(stock, min) {
     }
     function csMoney(n) { return '฿' + Math.round(Number(n) || 0).toLocaleString('th-TH'); }
     function csIcon(item) { return (item && item.icon) || CS_CATEGORY_ICONS[item && item.category] || '📦'; }
+    // รูป (ถ้ามี) หรือไอคอน — ลิงก์ Drive แปลงเป็น thumbnail ขนาดพอดีการ์ด โหลดเร็วกว่ารูปเต็ม
+    function csImageSrc(item, size) {
+      var raw = String(item && item.image_url || '').trim();
+      if (!raw) return '';
+      return (typeof normalizeDriveImageUrl === 'function' && normalizeDriveImageUrl(raw, size || 400)) || raw;
+    }
+    function csVisual(item, size) {
+      var src = csImageSrc(item, size);
+      return src ? '<img src="' + escHtml(src) + '" alt="' + escHtml(item.name || '') + '" loading="lazy" decoding="async" />' : escHtml(csIcon(item));
+    }
+    function csZoomImage(item) {
+      var src = csImageSrc(item, 1200);
+      if (!src) return;
+      var box = document.createElement('div');
+      box.className = 'cs-img-zoom';
+      var img = document.createElement('img');
+      img.src = src;
+      img.alt = item.name || '';
+      box.appendChild(img);
+      box.addEventListener('click', function() { if (box.parentNode) box.parentNode.removeChild(box); });
+      document.body.appendChild(box);
+    }
+    function csSetItemImage(url) {
+      csEl('csItemImage').value = url || '';
+      csEl('csItemImagePreview').innerHTML = url ? csVisual({ image_url: url, name: csEl('csItemName').value }, 300) : '📷';
+      csEl('csItemImageClear').classList.toggle('hidden', !url);
+    }
     function csItemLabel(item) { return item.name + (item.spec ? ' ' + item.spec : ''); }
     function csDayKey(d) {
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -16320,6 +16375,7 @@ function inferRequestPriority(stock, min) {
       var list = csFilteredShopItems();
       if (!list.length) { grid.innerHTML = '<div class="cs-empty" style="grid-column:1/-1"><b>🔎</b>ไม่พบรายการที่ค้นหา</div>'; return; }
       var canWithdraw = csCanWithdraw();
+      var canKeep = csCanKeep();
       var issued30 = csIssuedByItem(csLogs, 30, new Date());
       grid.innerHTML = list.map(function(it) {
         var lv = csStockLevel(it);
@@ -16333,14 +16389,20 @@ function inferRequestPriority(stock, min) {
             '<input type="number" min="0" step="any" inputmode="decimal" value="' + inCart + '" data-cs-qty="' + escHtml(it.item_id) + '" aria-label="จำนวนที่เบิก" />' +
             '<button type="button" data-cs-inc="' + escHtml(it.item_id) + '"' + (inCart >= it.qty ? ' disabled' : '') + '>+</button></div>'
           : '<button type="button" class="cs-add" data-cs-inc="' + escHtml(it.item_id) + '"' + (lv.level === 'out' ? ' disabled' : '') + '>' + (lv.level === 'out' ? 'ของหมด' : '+ ใส่ตะกร้า') + '</button>');
+        var hasImg = !!csImageSrc(it);
+        // Admin / Leader แก้ชื่อ-รายละเอียด เติม และนับปรับยอด ได้จากการ์ดตรงนี้เลย ไม่ต้องสลับไปแท็บจัดการคลัง
+        var admin = !canKeep ? '' : '<div class="cs-card-admin">' +
+          '<button type="button" data-cs-edit="' + escHtml(it.item_id) + '" title="แก้ชื่อ / รายละเอียด / รูป">✏️ แก้ไข</button>' +
+          '<button type="button" data-cs-restock="' + escHtml(it.item_id) + '" title="เติมของเข้าคลัง">➕ เติม</button>' +
+          '<button type="button" data-cs-adjust="' + escHtml(it.item_id) + '" title="นับของจริงแล้วตั้งยอดใหม่">🔢 นับ</button></div>';
         return '<div class="cs-card' + (inCart ? ' in-cart' : '') + (lv.level === 'out' ? ' is-out' : '') + '">' +
-          '<div class="cs-card-top"><div class="cs-card-ico">' + escHtml(csIcon(it)) + '</div>' + (it.location ? '<span class="cs-loc">📍 ' + escHtml(it.location) + '</span>' : '') + '</div>' +
+          '<div class="cs-card-top"><div class="cs-card-ico' + (hasImg ? ' has-img" data-cs-zoom="' + escHtml(it.item_id) + '" title="ดูรูปใหญ่' : '') + '">' + csVisual(it, 300) + '</div>' + (it.location ? '<span class="cs-loc">📍 ' + escHtml(it.location) + '</span>' : '') + '</div>' +
           '<div class="cs-card-name">' + escHtml(it.name) + '</div>' +
           (it.spec ? '<div class="cs-card-spec">' + escHtml(it.spec) + '</div>' : '') +
           '<div class="cs-card-meta">' + escHtml(it.item_id) + (it.unit_price ? ' · ' + csMoney(it.unit_price) + '/' + escHtml(it.unit) : '') + '</div>' +
           '<div class="cs-bar cs-lv-' + lv.level + '"><i style="width:' + lv.pct + '%"></i></div>' +
           '<div class="cs-qty-line"><span><b>' + csNum(it.qty) + '</b> ' + escHtml(it.unit) + '</span>' + tag + '</div>' +
-          action +
+          action + admin +
         '</div>';
       }).join('');
     }
@@ -16423,7 +16485,7 @@ function inferRequestPriority(stock, min) {
       if (linesEl) {
         linesEl.innerHTML = entries.length ? entries.map(function(e) {
           var it = e.item;
-          return '<div class="cs-cart-line"><span class="cs-li-ico">' + escHtml(csIcon(it)) + '</span>' +
+          return '<div class="cs-cart-line"><span class="cs-li-ico">' + csVisual(it, 120) + '</span>' +
             '<span class="cs-li-txt"><b>' + escHtml(csItemLabel(it)) + '</b><small>เหลือ ' + csNum(it.qty) + ' ' + escHtml(it.unit) + (it.location ? ' · 📍 ' + escHtml(it.location) : '') + '</small></span>' +
             '<div class="cs-step"><button type="button" data-cs-dec="' + escHtml(it.item_id) + '">−</button>' +
             '<input type="number" min="0" step="any" inputmode="decimal" value="' + e.qty + '" data-cs-qty="' + escHtml(it.item_id) + '" aria-label="จำนวน" />' +
@@ -16718,7 +16780,7 @@ function inferRequestPriority(stock, min) {
         var lv = csStockLevel(it);
         var tag = lv.level === 'out' ? ' <span class="cs-tag cs-tag-out">หมด</span>' : (lv.level === 'low' ? ' <span class="cs-tag cs-tag-low">ใกล้หมด</span>' : '');
         return '<tr class="' + (it.active ? '' : 'is-inactive') + '"><td style="font-family:monospace">' + escHtml(it.item_id) + '</td>' +
-          '<td>' + escHtml(csIcon(it)) + ' <b>' + escHtml(it.name) + '</b>' + (it.spec ? ' <span style="color:#ea580c">' + escHtml(it.spec) + '</span>' : '') + (it.active ? '' : ' (ปิด)') + '</td>' +
+          '<td><span class="cs-thumb">' + csVisual(it, 120) + '</span> <b>' + escHtml(it.name) + '</b>' + (it.spec ? ' <span style="color:#ea580c">' + escHtml(it.spec) + '</span>' : '') + (it.active ? '' : ' (ปิด)') + '</td>' +
           '<td>' + escHtml(it.category) + '</td><td>' + escHtml(it.location || '-') + '</td>' +
           '<td style="text-align:right"><b>' + csNum(it.qty) + '</b> ' + escHtml(it.unit) + tag + '</td>' +
           '<td style="text-align:right">' + csNum(it.min) + ' / ' + csNum(it.max) + '</td>' +
@@ -16758,6 +16820,8 @@ function inferRequestPriority(stock, min) {
       csEl('csItemQtyWrap').classList.toggle('hidden', !!item);
       csEl('csItemActive').value = item && !item.active ? 'false' : 'true';
       csEl('csItemIcon').value = item ? item.icon : '';
+      csEl('csItemImageStatus').textContent = 'รูปจะขึ้นบนการ์ดแทนไอคอน — ช่วยให้หยิบถูกตัว';
+      csSetItemImage(item ? item.image_url : '');
       csEl('csEmojiPick').innerHTML = CS_EMOJIS.map(function(e) { return '<button type="button" data-cs-emoji="' + e + '">' + e + '</button>'; }).join('');
       csOpenModal('csItemModal');
       setTimeout(function() { csEl('csItemName').focus(); }, 50);
@@ -16771,7 +16835,8 @@ function inferRequestPriority(stock, min) {
         action: 'upsertConsumable', item_id: csEl('csItemId').value, name: csEl('csItemName').value, spec: csEl('csItemSpec').value,
         category: csEl('csItemCategory').value, unit: csEl('csItemUnit').value, icon: csEl('csItemIcon').value,
         min: csEl('csItemMin').value, max: csEl('csItemMax').value, location: csEl('csItemLocation').value,
-        unit_price: csEl('csItemPrice').value, qty: csEl('csItemQty').value, active: csEl('csItemActive').value
+        unit_price: csEl('csItemPrice').value, qty: csEl('csItemQty').value, active: csEl('csItemActive').value,
+        image_url: csEl('csItemImage').value
       })).then(parseApiResponse).then(function() {
         showQuickToast('บันทึกรายการแล้ว', 'success');
         csCloseModal('csItemModal');
@@ -17013,6 +17078,25 @@ function inferRequestPriority(stock, min) {
       csEl('csImportSubmitBtn').addEventListener('click', submitCsImport);
       csEl('csReorderCopyBtn').addEventListener('click', function() { copyTextToClipboard(csReorderText(), 'คัดลอกรายการที่ต้องสั่งแล้ว วางในกลุ่มได้เลย'); });
       csEl('csItemForm').addEventListener('submit', saveCsItem);
+      csEl('csItemImageClear').addEventListener('click', function() { csSetItemImage(''); });
+      var imageFile = csEl('csItemImageFile');
+      imageFile.addEventListener('change', function() {
+        var file = imageFile.files && imageFile.files[0];
+        if (!file) return;
+        var status = csEl('csItemImageStatus');
+        var saveBtn = csEl('csItemSaveBtn');
+        status.textContent = '⏳ กำลังอัปโหลดรูป...';
+        saveBtn.disabled = true;
+        // ย่อรูปก่อนส่งเสมอ — รูปมือถือหลาย MB ส่งตรงไป Apps Script จะช้า/timeout
+        compressImageToDataUrl(file, { maxDim: 900, targetBytes: 250 * 1024 }).then(function(dataUrl) {
+          return postFormResilient(withAuthPayload({ action: 'uploadConsumableImage', dataUrl: dataUrl, item_id: csEl('csItemId').value }));
+        }).then(parseApiResponse).then(function(res) {
+          csSetItemImage((res && res.image_url) || '');
+          status.textContent = '✅ แนบรูปแล้ว — กด 💾 บันทึก เพื่อใช้รูปนี้';
+        }).catch(function(err) {
+          status.textContent = '⚠️ อัปโหลดรูปไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+        }).then(function() { saveBtn.disabled = false; imageFile.value = ''; });
+      });
       csEl('csStockForm').addEventListener('submit', saveCsStock);
       csEl('csPrintSlipBtn').addEventListener('click', function() { if (csLastTicket) csPrintSlip(csLastTicket.ticket_no); });
       csEl('csCopySlipBtn').addEventListener('click', function() { if (csLastTicket) copyTextToClipboard(csTicketText(csLastTicket.ticket_no), 'คัดลอกใบเบิกแล้ว วางในกลุ่มได้เลย'); });
@@ -17023,6 +17107,8 @@ function inferRequestPriority(stock, min) {
       function onDelegatedClick(e) {
         var t = e.target.closest ? e.target.closest('button') : null;
         if (!t) {
+          var zoom = e.target.closest ? e.target.closest('[data-cs-zoom]') : null;
+          if (zoom) return csZoomImage(csFindItem(zoom.getAttribute('data-cs-zoom')));
           var stat = e.target.closest ? e.target.closest('[data-cs-goto-low]') : null;
           if (stat && csAttentionItems().length) { csView = 'shop'; csCategory = '__low__'; renderConsumables(); }
           return;

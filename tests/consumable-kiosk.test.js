@@ -129,3 +129,26 @@ assert(importFn.includes('requireConsumableKeeper') && importFn.includes('LockSe
 assert(importFn.includes('if (seen[key]) { skipped.push('), 'ชื่อ+สเปคซ้ำของเดิมต้องข้าม (ทยอยเพิ่มไฟล์เดิมซ้ำได้)');
 assert(backend.includes("if (action === 'importConsumables') return respond(importConsumables(body), e);"));
 assert(backend.includes("if (action === 'importConsumables') return respond(importConsumables(e.parameter), e);"));
+
+// ── แก้ไข/เติม/นับ จากการ์ดหน้าเบิก + รูปสินค้า ─────────────────────────────────
+const shopSrc = grab(htmlLf, /^ {4}function renderCsShop\(\) \{[\s\S]*?\n {4}\}/m, 'renderCsShop');
+assert(shopSrc.includes('var canKeep = csCanKeep();') && /var admin = !canKeep \? '' :/.test(shopSrc), 'ปุ่มจัดการบนการ์ดต้องโผล่เฉพาะ Admin/Leader');
+['data-cs-edit', 'data-cs-restock', 'data-cs-adjust'].forEach(function(attr) {
+  assert(shopSrc.includes(attr + '="'), 'การ์ดหน้าเบิกต้องมีปุ่ม ' + attr);
+});
+assert(shopSrc.includes('action + admin +'), 'ปุ่มจัดการต้องอยู่บนการ์ดแม้ของหมด (เติมได้ทันที)');
+assert(shopSrc.includes('csVisual(it, 300)'), 'การ์ดต้องโชว์รูปแทนไอคอนเมื่อมีรูป');
+assert(htmlLf.includes('id="csItemImageFile"') && htmlLf.includes("action: 'uploadConsumableImage'"), 'ฟอร์มแก้ไขต้องแนบรูปได้');
+assert(htmlLf.includes("image_url: csEl('csItemImage').value"), 'บันทึกรายการต้องส่งลิงก์รูปไปด้วย');
+assert(/compressImageToDataUrl\(file, \{ maxDim: 900/.test(htmlLf), 'ต้องย่อรูปก่อนอัปโหลด');
+
+assert(backend.includes("'Created By', 'Created At', 'Image URL'];"), 'คอลัมน์รูปต้องต่อท้าย (ห้ามแทรกกลาง เพราะอ่านตามตำแหน่ง)');
+assert(backend.includes("image_url: String(row[16] || '')"));
+assert(/function uploadConsumableImage\(payload\) \{\n  var user = requireConsumableKeeper\(/.test(backend), 'อัปโหลดรูปต้อง Admin/Leader');
+assert(backend.includes("if (action === 'uploadConsumableImage') return respond(uploadConsumableImage(body), e);"));
+// ทุกที่ที่สร้างแถวใหม่ต้องเขียนครบทุกคอลัมน์ (setValues ช่วงกว้าง CONSUMABLE_HEADERS.length)
+const headerCount = new Function(grab(backend, /^var CONSUMABLE_HEADERS = [^\n]*$/m, 'headers') + '\nreturn CONSUMABLE_HEADERS.length;')();
+assert.strictEqual(headerCount, 17);
+assert(backend.includes("timestamp, user.username || '', timestamp, ''];"), 'ชุดเริ่มต้นต้องมีช่องรูป (ว่าง)');
+assert(backend.includes('timestamp, user.username || \'\', timestamp, f.imageUrl];'), 'นำเข้าต้องมีช่องรูป');
+assert(backend.includes('existing.created_by, existing.created_at, f.imageUrl'), 'แก้ไขต้องเขียนช่องรูป');
