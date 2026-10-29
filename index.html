@@ -3811,6 +3811,7 @@
         </div>
         <div class="cs-tabs" style="margin:12px 0 6px">
           <button type="button" class="cs-btn" id="csImportPresetBtn">🔧 ใส่ชุดฟิตติ้งลม (24 รายการ)</button>
+          <button type="button" class="cs-btn" id="csImportPresetNutBtn">🔩 ใส่ชุดตู้น็อต (45 รายการ)</button>
         </div>
         <textarea id="csImportText" class="cs-input" style="height:170px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px" placeholder="name,category,spec,unit,min_stock,max,location,unit_price,qty"></textarea>
         <p class="cs-msg" style="margin-top:6px">คอลัมน์ที่รู้จัก: <b>name</b> (บังคับ), category, spec, unit, min / min_stock, max, location, unit_price, qty (ยอดตั้งต้น), icon — คอลัมน์อื่นจะถูกข้าม · ถ้า category ไม่ใช่หมวดของระบบ จะเก็บไว้เป็นสเปคแล้วเดาหมวดให้</p>
@@ -16406,7 +16407,8 @@ function inferRequestPriority(stock, min) {
       }).sort(function(a, b) {
         return CS_CATEGORIES.indexOf(a.category) - CS_CATEGORIES.indexOf(b.category) ||
           csFittingOrder(a) - csFittingOrder(b) ||
-          String(a.name).localeCompare(String(b.name), 'th') || String(a.spec).localeCompare(String(b.spec), 'th', { numeric: true });
+          // numeric: M3 x 6 < M3 x 12 < M10 (เรียงตามขนาดจริง ไม่ใช่ตามตัวอักษร)
+          String(a.name).localeCompare(String(b.name), 'th', { numeric: true }) || String(a.spec).localeCompare(String(b.spec), 'th', { numeric: true });
       });
     }
 
@@ -17013,6 +17015,31 @@ function inferRequestPriority(stock, min) {
       '2,ตัวอุด,ตัวอุด ø6,ø6,-,10', '2,ตัวอุด,ตัวอุด ø8,ø8,-,5'
     ].join('\n');
     // เดาหมวด/ไอคอนจากคำในชื่อ+หมวดย่อย เมื่อ category ในไฟล์ไม่ใช่หมวดของระบบ
+    // ตู้ลิ้นชักน็อต (8 แถว × 4 ช่อง) — ลิ้นชักที่รวมหลายขนาดแตกเป็น 1 รายการต่อ 1 ขนาด
+    // Location = ตู้น็อต-<แถว A-H บน→ล่าง><ช่อง 1-4 ซ้าย→ขวา> ให้หยิบถูกลิ้นชัก
+    var CS_PRESET_NUT_CABINET = (function() {
+      var drawers = [
+        ['A1', 'cap', 3, [6, 8, 12]], ['A2', 'cap', 3, [16, 20]], ['A3', 'cap', 4, [8, 12, 15]], ['A4', 'cap', 4, [25]],
+        ['B1', 'cap', 5, [8, 10, 12]], ['B2', 'cap', 5, [15]], ['B3', 'cap', 5, [20]], ['B4', 'cap', 5, [25]],
+        ['C1', 'cap', 6, [6, 8, 10]], ['C2', 'cap', 6, [16]], ['C3', 'cap', 6, [25]],
+        ['D1', 'cap', 8, [6, 10, 12]], ['D2', 'cap', 8, [16, 20]], ['D3', 'cap', 8, [25]], ['D4', 'cap', 8, [35]],
+        ['E1', 'cap', 10, [15]], ['E2', 'cap', 10, [20]], ['E3', 'cap', 10, [40]], ['E4', 'cap', 12, [20]],
+        ['F1', 'cap', 12, [25]], ['F2', 'cap', 12, [35]], ['F3', 'cap', 12, [40]],
+        ['G1', 'nut', 3, ['']], ['G1', 'nut', 4, ['']], ['G1', 'nut', 5, ['']], ['G2', 'nut', 6, ['1.0']], ['G3', 'nut', 10, ['1.50']],
+        ['H1', 'washer', 4, ['']], ['H1', 'washer', 5, ['']], ['H1', 'washer', 6, ['']], ['H2', 'washer', 8, ['']], ['H3', 'washer', 10, ['']], ['H4', 'washer', 12, ['']]
+      ];
+      var rows = ['name,category,spec,unit,location,icon'];
+      drawers.forEach(function(d) {
+        d[3].forEach(function(v) {
+          var name, spec, icon;
+          if (d[1] === 'cap') { name = 'น็อตหัวจม M' + d[2] + ' x ' + v; spec = 'หัวจมหกเหลี่ยม · ยาว ' + v + ' มม'; icon = '🔩'; }
+          else if (d[1] === 'nut') { name = 'หัวน็อตมิลดำ M' + d[2]; spec = 'หัวน็อต' + (v ? ' · เกลียว ' + v : ''); icon = '⚙️'; }
+          else { name = 'แหวนเหล็ก ' + d[2] + ' มม'; spec = 'แหวนอีแปะ'; icon = '⭕'; }
+          rows.push([name, 'น็อต/สกรู/แหวน', spec, 'ตัว', 'ตู้น็อต-' + d[0], icon].join(','));
+        });
+      });
+      return rows.join('\n');
+    })();
     var CS_IMPORT_GUESS = [
       { re: /ตัวอุด|ปลั๊กอุด/, cat: 'ฟิตติ้งลม/สายลม', icon: '⛔' },
       { re: /สามทาง\s*y|y\s*-?\s*(type|piece|union)/i, cat: 'ฟิตติ้งลม/สายลม', icon: '🔀' },
@@ -17191,6 +17218,7 @@ function inferRequestPriority(stock, min) {
       csEl('csImportBtn').addEventListener('click', openCsImportModal);
       csEl('csImportText').addEventListener('input', renderCsImportPreview);
       csEl('csImportPresetBtn').addEventListener('click', function() { csEl('csImportText').value = CS_PRESET_PNEUMATIC_FITTINGS; renderCsImportPreview(); });
+      csEl('csImportPresetNutBtn').addEventListener('click', function() { csEl('csImportText').value = CS_PRESET_NUT_CABINET; renderCsImportPreview(); });
       csEl('csImportSubmitBtn').addEventListener('click', submitCsImport);
       csEl('csReorderCopyBtn').addEventListener('click', function() { copyTextToClipboard(csReorderText(), 'คัดลอกรายการที่ต้องสั่งแล้ว วางในกลุ่มได้เลย'); });
       csEl('csItemForm').addEventListener('submit', saveCsItem);
