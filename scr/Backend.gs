@@ -25,6 +25,9 @@ SPARE_APP_CONFIG.itemAuditSheetName = SPARE_APP_CONFIG.itemAuditSheetName || 'It
 // ที่ Dashboard คำนวณจาก Log — ดู getMiscExpenses() และ fccMiscExpenseRows() ฝั่งเว็บ
 SPARE_APP_CONFIG.miscExpenseSheetName = SPARE_APP_CONFIG.miscExpenseSheetName || 'MiscExpenses';
 SPARE_APP_CONFIG.miscExpenseAuditSheetName = SPARE_APP_CONFIG.miscExpenseAuditSheetName || 'MiscExpenseLog';
+// คลังของสิ้นเปลือง (ฟิตติ้ง/น็อต/สตัด/เทป/ถุงมือ) — มียอดคงเหลือจริง เบิกแล้วตัดทันที ดู withdrawConsumables()
+SPARE_APP_CONFIG.consumableSheetName = SPARE_APP_CONFIG.consumableSheetName || 'Consumables';
+SPARE_APP_CONFIG.consumableLogSheetName = SPARE_APP_CONFIG.consumableLogSheetName || 'ConsumableLog';
 // ทะเบียนชิ้น (Part Tag) — ตอนเบิกออก ระบบออก "เลขประจำชิ้น" วิ่งให้อัตโนมัติ 1 เลขต่อ 1 ชิ้น
 // เพื่อให้ตามได้ว่าชิ้นนั้นออกไปวันไหน ใครเบิก ใส่เครื่องไหน และตอนนี้สถานะอะไร
 // PartTagConfig = ตั้งค่าว่า Category ไหนต้องออกเลข (บังคับเฉพาะบางประเภท) และใช้ prefix อะไร
@@ -92,6 +95,37 @@ var MISC_EXPENSE_CATEGORIES = ['น็อต/สกรู/ฮาร์ดแว�
 // เจตนา: ไม่ปันส่วนอัตโนมัติ เพราะตัวเลขที่เฉลี่ยเองอธิบายกับหน้างานไม่ได้ว่ามาจากไหน
 var MISC_EXPENSE_LINES = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw', 'ส่วนกลาง'];
 var MISC_EXPENSE_SHARED_LINE = 'ส่วนกลาง';
+// คลังของสิ้นเปลือง — คอลัมน์ใหม่เพิ่มต่อท้ายเท่านั้น (โค้ดอ่านตามตำแหน่งคอลัมน์)
+var CONSUMABLE_HEADERS = ['Item ID', 'Name', 'Category', 'Spec', 'Unit', 'Icon', 'Qty', 'Min', 'Max', 'Location', 'Unit Price', 'Active', 'Updated By', 'Updated At', 'Created By', 'Created At'];
+var CONSUMABLE_LOG_HEADERS = ['Txn ID', 'Ticket No', 'Date Time', 'Type', 'Item ID', 'Item Name', 'Category', 'Qty', 'Unit', 'Unit Price', 'Amount', 'Line', 'Machine', 'Purpose', 'Requester', 'Recorded By', 'Balance After', 'Remark'];
+var CONSUMABLE_CATEGORIES = ['ฟิตติ้งลม/สายลม', 'น็อต/สกรู/แหวน', 'สตัด/เกลียว', 'เทป/กาว/ซิลิโคน', 'สายรัด/ท่อหด', 'ถุงมือ/PPE', 'น้ำมัน/สเปรย์/จารบี', 'ผ้า/ทำความสะอาด', 'ใบมีด/ดอกสว่าน', 'อื่นๆ'];
+// ชุดเริ่มต้น: [ชื่อ, หมวด, สเปค, หน่วย, ไอคอน, Min, Max]
+var CONSUMABLE_STARTER_KIT = [
+  ['ฟิตติ้งตรง เสียบสาย', 'ฟิตติ้งลม/สายลม', 'PC 6-01', 'ตัว', '🔧', 20, 100],
+  ['ฟิตติ้งตรง เสียบสาย', 'ฟิตติ้งลม/สายลม', 'PC 8-02', 'ตัว', '🔧', 20, 100],
+  ['ฟิตติ้งงอ 90°', 'ฟิตติ้งลม/สายลม', 'PL 6-01', 'ตัว', '↪️', 20, 100],
+  ['ข้อต่อสามทาง', 'ฟิตติ้งลม/สายลม', 'PE 6', 'ตัว', '🔱', 10, 50],
+  ['สายลม PU', 'ฟิตติ้งลม/สายลม', 'Ø6 mm', 'เมตร', '🌀', 20, 100],
+  ['น็อตหกเหลี่ยม', 'น็อต/สกรู/แหวน', 'M6', 'ตัว', '🔩', 100, 500],
+  ['น็อตหกเหลี่ยม', 'น็อต/สกรู/แหวน', 'M8', 'ตัว', '🔩', 100, 500],
+  ['สกรูหัวจม', 'น็อต/สกรู/แหวน', 'M5 x 12', 'ตัว', '🪛', 100, 500],
+  ['แหวนอีแปะ', 'น็อต/สกรู/แหวน', 'M6', 'ตัว', '⭕', 100, 500],
+  ['แหวนสปริง', 'น็อต/สกรู/แหวน', 'M8', 'ตัว', '➰', 100, 500],
+  ['สตัดเกลียวตลอด', 'สตัด/เกลียว', 'M8 x 1 m', 'เส้น', '📏', 5, 20],
+  ['สตัดสองหัว', 'สตัด/เกลียว', 'M10 x 50', 'ตัว', '🔗', 10, 50],
+  ['เทปพันเกลียว', 'เทป/กาว/ซิลิโคน', '12 mm', 'ม้วน', '🧻', 10, 40],
+  ['เทปพันสายไฟ', 'เทป/กาว/ซิลิโคน', 'ดำ', 'ม้วน', '⚫', 10, 40],
+  ['น้ำยาล็อกเกลียว', 'เทป/กาว/ซิลิโคน', 'Loctite 243', 'หลอด', '🧪', 2, 10],
+  ['เคเบิ้ลไทร์', 'สายรัด/ท่อหด', '4 นิ้ว', 'ถุง', '🎗️', 5, 20],
+  ['ท่อหด', 'สายรัด/ท่อหด', 'Ø6 mm', 'เมตร', '🧵', 10, 50],
+  ['ถุงมือผ้า', 'ถุงมือ/PPE', 'ฟรีไซซ์', 'คู่', '🧤', 50, 200],
+  ['ที่อุดหู', 'ถุงมือ/PPE', 'โฟม', 'คู่', '🦻', 50, 200],
+  ['สเปรย์หล่อลื่นกันสนิม', 'น้ำมัน/สเปรย์/จารบี', 'WD-40', 'กระป๋อง', '🧴', 5, 20],
+  ['จารบี', 'น้ำมัน/สเปรย์/จารบี', 'ทนร้อน', 'หลอด', '🛢️', 3, 12],
+  ['ผ้าเช็ดเครื่อง', 'ผ้า/ทำความสะอาด', 'คละสี', 'กก.', '🧽', 5, 20],
+  ['ดอกสว่าน HSS', 'ใบมีด/ดอกสว่าน', 'Ø5 mm', 'ดอก', '🪚', 5, 20],
+  ['ใบตัดเหล็ก', 'ใบมีด/ดอกสว่าน', '4 นิ้ว', 'ใบ', '💿', 10, 40]
+];
 // เครื่องจักรของแต่ละไลน์ (master list ให้ Admin กรอกเอง) — อะไหล่แต่ละชิ้นผูกได้หลายเครื่องจักร
 // โดยเก็บชื่อเครื่องจักรแบบ comma-separated ไว้ในคอลัมน์ "Machines" ของชีตอะไหล่แต่ละไลน์
 var MACHINE_HEADERS = ['Machine ID', 'Line', 'Machine Name', 'Active', 'Created By', 'Created At', 'Updated By', 'Updated At'];
@@ -2738,6 +2772,328 @@ function uploadMiscExpenseReceipt(payload) {
     Logger.log('uploadMiscExpenseReceipt setSharing warning: ' + (err && err.message ? err.message : err));
   }
   return { status: 'success', receipt_url: 'https://drive.google.com/uc?export=view&id=' + file.getId(), file_id: file.getId() };
+}
+
+// =============================
+// CONSUMABLES — คลังของสิ้นเปลือง (ฟิตติ้ง/น็อต/สตัด/เทป/ถุงมือ ฯลฯ) แบบเบิก-จ่ายจริง
+// ต่างจาก MiscExpenses (ตัดเป็นค่าใช้จ่ายตอนซื้อ ไม่มีสต็อก) — ตรงนี้มียอดคงเหลือ เบิกแล้วตัดทันที
+// Consumables = 1 แถวต่อ 1 รายการ (ยอดคงเหลือล่าสุด) / ConsumableLog = ทุกความเคลื่อนไหว
+// (ISSUE เบิก / RESTOCK เติม / ADJUST นับปรับยอด) ใช้ทำประวัติ ใบเบิก และกราฟ Insight
+// =============================
+
+function getConsumableSheet() {
+  var sheet = getOrCreateSheet(SpreadsheetApp.getActiveSpreadsheet(), SPARE_APP_CONFIG.consumableSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(CONSUMABLE_HEADERS);
+  else if (sheet.getLastColumn() < CONSUMABLE_HEADERS.length) sheet.getRange(1, 1, 1, CONSUMABLE_HEADERS.length).setValues([CONSUMABLE_HEADERS]);
+  return sheet;
+}
+
+function getConsumableLogSheet() {
+  var sheet = getOrCreateSheet(SpreadsheetApp.getActiveSpreadsheet(), SPARE_APP_CONFIG.consumableLogSheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(CONSUMABLE_LOG_HEADERS);
+  else if (sheet.getLastColumn() < CONSUMABLE_LOG_HEADERS.length) sheet.getRange(1, 1, 1, CONSUMABLE_LOG_HEADERS.length).setValues([CONSUMABLE_LOG_HEADERS]);
+  return sheet;
+}
+
+function consumableRowToObject(row) {
+  return {
+    item_id: String(row[0] || ''), name: String(row[1] || ''), category: String(row[2] || ''), spec: String(row[3] || ''),
+    unit: String(row[4] || ''), icon: String(row[5] || ''), qty: Number(row[6] || 0), min: Number(row[7] || 0), max: Number(row[8] || 0),
+    location: String(row[9] || ''), unit_price: Number(row[10] || 0), active: toBoolean(row[11], true),
+    updated_by: String(row[12] || ''), updated_at: formatPurchaseHistoryDate(row[13], true),
+    created_by: String(row[14] || ''), created_at: formatPurchaseHistoryDate(row[15], true)
+  };
+}
+
+function consumableLogRowToObject(row) {
+  return {
+    txn_id: String(row[0] || ''), ticket_no: String(row[1] || ''), date_time: formatPurchaseHistoryDate(row[2], true),
+    type: String(row[3] || ''), item_id: String(row[4] || ''), item_name: String(row[5] || ''), category: String(row[6] || ''),
+    qty: Number(row[7] || 0), unit: String(row[8] || ''), unit_price: Number(row[9] || 0), amount: Number(row[10] || 0),
+    line: String(row[11] || ''), machine: String(row[12] || ''), purpose: String(row[13] || ''),
+    requester: String(row[14] || ''), recorded_by: String(row[15] || ''), balance_after: Number(row[16] || 0), remark: String(row[17] || '')
+  };
+}
+
+// เติม/แก้แคตตาล็อก/นับปรับยอด = Admin หรือ Leader (คนดูแลคลังหน้างาน) — ส่วนเบิกให้ทุกคนที่ทำงานคลังได้
+function requireConsumableKeeper(payload) {
+  var session = getSessionUser(payload);
+  var user = findUserByUsername(session.user.username);
+  var role = normalizeRole(user && user.role);
+  if (role !== 'admin' && role !== 'leader') throw new Error('เฉพาะ Admin / Leader เท่านั้นที่จัดการคลังของสิ้นเปลืองได้');
+  return user;
+}
+
+function parseConsumableItemsPayload(raw) {
+  var items = raw;
+  if (typeof items === 'string') {
+    try { items = JSON.parse(items); } catch (err) { throw new Error('รูปแบบรายการไม่ถูกต้อง'); }
+  }
+  if (!items || !items.length) throw new Error('ต้องมีอย่างน้อย 1 รายการ');
+  if (items.length > 60) throw new Error('ทำได้สูงสุด 60 รายการต่อครั้ง');
+  return items;
+}
+
+// รวมรายการซ้ำ (กดใส่ตะกร้า 2 รอบ) แล้วเช็คยอดทั้งชุดก่อนเขียน — ของไม่พอแม้ตัวเดียวก็ไม่ตัดอะไรเลย
+// คืน { lines: [{ item, qty, balance }] } หรือ throw พร้อมรายชื่อที่ไม่พอ
+function planConsumableWithdraw(itemsById, requested) {
+  var merged = {};
+  var order = [];
+  requested.forEach(function(req, index) {
+    var id = String(req && (req.item_id || req.itemId) || '').trim();
+    var qty = Number(req && req.qty);
+    if (!id) throw new Error('รายการที่ ' + (index + 1) + ': ไม่พบรหัสของ');
+    if (!isFinite(qty) || qty <= 0) throw new Error('รายการที่ ' + (index + 1) + ': จำนวนต้องมากกว่า 0');
+    if (!merged[id]) { merged[id] = 0; order.push(id); }
+    merged[id] += qty;
+  });
+  var shortages = [];
+  var lines = order.map(function(id) {
+    var item = itemsById[id];
+    if (!item || !item.active) throw new Error('ไม่พบรายการ ' + id + ' ในคลัง (อาจถูกปิดใช้งาน)');
+    var qty = Math.round(merged[id] * 1000) / 1000;
+    if (qty > item.qty) shortages.push(item.name + ' (เหลือ ' + item.qty + ' ' + (item.unit || '') + ' / ขอ ' + qty + ')');
+    return { item: item, qty: qty, balance: Math.round((item.qty - qty) * 1000) / 1000 };
+  });
+  if (shortages.length) throw new Error('ของไม่พอเบิก: ' + shortages.join(' · '));
+  return { lines: lines };
+}
+
+// เลขใบเบิกอ่านง่าย พูดต่อกันทางวิทยุได้: CS-yyMMdd-001 วิ่งใหม่ทุกวัน
+function nextConsumableTicketNo(prefix, existingTickets) {
+  var maxSeq = 0;
+  (existingTickets || []).forEach(function(t) {
+    var s = String(t || '');
+    if (s.indexOf(prefix + '-') !== 0) return;
+    var n = parseInt(s.slice(prefix.length + 1), 10);
+    if (isFinite(n) && n > maxSeq) maxSeq = n;
+  });
+  return prefix + '-' + ('00' + (maxSeq + 1)).slice(-3);
+}
+
+function readConsumableItems(sheet) {
+  var values = sheet.getDataRange().getValues();
+  var byId = {};
+  var rowIndexById = {};
+  for (var i = 1; i < values.length; i += 1) {
+    var obj = consumableRowToObject(values[i]);
+    if (!obj.item_id) continue;
+    byId[obj.item_id] = obj;
+    rowIndexById[obj.item_id] = i + 1;
+  }
+  return { values: values, byId: byId, rowIndexById: rowIndexById };
+}
+
+function consumableLogRow(o) {
+  return [
+    'CL-' + Utilities.getUuid(), o.ticketNo || '', o.timestamp, o.type, o.item.item_id, o.item.name, o.item.category,
+    o.qty, o.item.unit, o.item.unit_price, Math.round(o.qty * (o.item.unit_price || 0) * 100) / 100,
+    o.line || '', o.machine || '', o.purpose || '', o.requester || '', o.recordedBy || '', o.balance, o.remark || ''
+  ];
+}
+
+// ประวัติย้อนหลังส่งไปแค่ช่วงที่หน้าเว็บใช้จริง (ประวัติ/Insight/พยากรณ์วันหมด) — กันชีตโตแล้วโหลดช้า
+function getConsumables(payload) {
+  requirePermission({ authToken: payload.authToken }, 'view');
+  var items = readConsumableItems(getConsumableSheet());
+  var list = Object.keys(items.byId).map(function(id) { return items.byId[id]; });
+  var days = Math.min(Math.max(Number(payload.days || 120), 7), 400);
+  var cutoff = Utilities.formatDate(new Date(Date.now() - days * 24 * 60 * 60 * 1000), 'Asia/Bangkok', 'yyyy-MM-dd');
+  var logValues = getConsumableLogSheet().getDataRange().getValues();
+  var logs = [];
+  for (var i = logValues.length - 1; i >= 1 && logs.length < 5000; i -= 1) {
+    var log = consumableLogRowToObject(logValues[i]);
+    if (!log.txn_id) continue;
+    if (String(log.date_time).slice(0, 10) < cutoff) continue;
+    logs.push(log);
+  }
+  return { status: 'success', items: list, logs: logs, days: days };
+}
+
+function withdrawConsumables(payload) {
+  var user = requireWarehouseWriter({ authToken: payload.authToken }, 'view');
+  var requested = parseConsumableItemsPayload(payload.items);
+  var line = normalizeMiscExpenseLine(payload.line);
+  if (!line) throw new Error('กรุณาเลือก Line ที่นำของไปใช้ (หรือ ' + MISC_EXPENSE_SHARED_LINE + ')');
+  var purpose = String(payload.purpose || '').trim();
+  if (!purpose) throw new Error('กรุณาเลือกงานที่นำไปใช้');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sheet = getConsumableSheet();
+    var items = readConsumableItems(sheet);
+    var plan = planConsumableWithdraw(items.byId, requested);
+    var now = new Date();
+    var timestamp = Utilities.formatDate(now, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    var logSheet = getConsumableLogSheet();
+    var prefix = 'CS-' + Utilities.formatDate(now, 'Asia/Bangkok', 'yyMMdd');
+    var lastRow = logSheet.getLastRow();
+    // เลขใบเบิกของวันนี้อยู่ท้ายชีตเสมอ (เขียนต่อท้ายตามเวลา) — อ่านแค่ 400 แถวท้ายพอ ไม่ต้องอ่านทั้งชีต
+    var tail = lastRow > 1 ? logSheet.getRange(Math.max(2, lastRow - 399), 2, Math.min(400, lastRow - 1), 1).getValues() : [];
+    var ticketNo = nextConsumableTicketNo(prefix, tail.map(function(r) { return r[0]; }));
+    var requester = String(payload.requester || '').trim() || user.username || '';
+    var logRows = plan.lines.map(function(l) {
+      sheet.getRange(items.rowIndexById[l.item.item_id], 7).setValue(l.balance);
+      sheet.getRange(items.rowIndexById[l.item.item_id], 13, 1, 2).setValues([[user.username || '', timestamp]]);
+      return consumableLogRow({
+        ticketNo: ticketNo, timestamp: timestamp, type: 'ISSUE', item: l.item, qty: l.qty, balance: l.balance,
+        line: line, machine: String(payload.machine || '').trim(), purpose: purpose,
+        requester: requester, recordedBy: user.username || '', remark: String(payload.remark || '').trim()
+      });
+    });
+    logSheet.getRange(logSheet.getLastRow() + 1, 1, logRows.length, CONSUMABLE_LOG_HEADERS.length).setValues(logRows);
+    var lowStock = plan.lines.filter(function(l) { return l.item.min > 0 && l.balance <= l.item.min; })
+      .map(function(l) { return { item_id: l.item.item_id, name: l.item.name, qty: l.balance, min: l.item.min, unit: l.item.unit }; });
+    return { status: 'success', ticket_no: ticketNo, date_time: timestamp, logs: logRows.map(consumableLogRowToObject), low_stock: lowStock };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function restockConsumables(payload) {
+  var user = requireConsumableKeeper({ authToken: payload.authToken });
+  var requested = parseConsumableItemsPayload(payload.items);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sheet = getConsumableSheet();
+    var items = readConsumableItems(sheet);
+    var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    var remark = String(payload.remark || '').trim();
+    var logRows = requested.map(function(req, index) {
+      var id = String(req.item_id || req.itemId || '').trim();
+      var item = items.byId[id];
+      var qty = Number(req.qty);
+      if (!item) throw new Error('รายการที่ ' + (index + 1) + ': ไม่พบของในคลัง');
+      if (!isFinite(qty) || qty <= 0) throw new Error('รายการที่ ' + (index + 1) + ': จำนวนต้องมากกว่า 0');
+      var price = req.unit_price === undefined || req.unit_price === '' ? item.unit_price : Number(req.unit_price);
+      if (!isFinite(price) || price < 0) throw new Error('รายการที่ ' + (index + 1) + ': ราคาต่อหน่วยไม่ถูกต้อง');
+      item.unit_price = price;
+      item.qty = Math.round((item.qty + qty) * 1000) / 1000;
+      var rowIndex = items.rowIndexById[id];
+      sheet.getRange(rowIndex, 7).setValue(item.qty);
+      sheet.getRange(rowIndex, 11).setValue(price);
+      sheet.getRange(rowIndex, 13, 1, 2).setValues([[user.username || '', timestamp]]);
+      return consumableLogRow({ timestamp: timestamp, type: 'RESTOCK', item: item, qty: qty, balance: item.qty, recordedBy: user.username || '', requester: user.username || '', remark: remark });
+    });
+    var logSheet = getConsumableLogSheet();
+    logSheet.getRange(logSheet.getLastRow() + 1, 1, logRows.length, CONSUMABLE_LOG_HEADERS.length).setValues(logRows);
+    return { status: 'success', count: logRows.length, logs: logRows.map(consumableLogRowToObject) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// นับของจริงแล้วยอดไม่ตรง → ตั้งยอดใหม่ + เก็บส่วนต่างไว้ใน Log (ต้องมีเหตุผลเสมอ)
+function adjustConsumableStock(payload) {
+  var user = requireConsumableKeeper({ authToken: payload.authToken });
+  var id = String(payload.item_id || payload.itemId || '').trim();
+  var newQty = Number(payload.qty);
+  if (!isFinite(newQty) || newQty < 0) throw new Error('ยอดที่นับได้ต้องเป็นตัวเลขไม่ติดลบ');
+  var reason = String(payload.reason || '').trim();
+  if (!reason) throw new Error('กรุณาระบุเหตุผลการปรับยอด');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sheet = getConsumableSheet();
+    var items = readConsumableItems(sheet);
+    var item = items.byId[id];
+    if (!item) throw new Error('ไม่พบของในคลัง');
+    var delta = Math.round((newQty - item.qty) * 1000) / 1000;
+    var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    sheet.getRange(items.rowIndexById[id], 7).setValue(newQty);
+    sheet.getRange(items.rowIndexById[id], 13, 1, 2).setValues([[user.username || '', timestamp]]);
+    var row = consumableLogRow({ timestamp: timestamp, type: 'ADJUST', item: item, qty: delta, balance: newQty, recordedBy: user.username || '', requester: user.username || '', remark: reason });
+    getConsumableLogSheet().appendRow(row);
+    return { status: 'success', item_id: id, qty: newQty, delta: delta, log: consumableLogRowToObject(row) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function buildConsumableFields(payload, existing) {
+  var pick = function(key, fallback) { return payload[key] !== undefined && payload[key] !== null ? payload[key] : fallback; };
+  var name = String(pick('name', existing ? existing.name : '') || '').trim();
+  if (!name) throw new Error('กรุณาระบุชื่อของ');
+  var category = String(pick('category', existing ? existing.category : '') || '').trim();
+  if (CONSUMABLE_CATEGORIES.indexOf(category) === -1) category = 'อื่นๆ';
+  var num = function(key, fallback, label) {
+    var raw = pick(key, fallback);
+    var n = raw === '' || raw === undefined || raw === null ? 0 : Number(raw);
+    if (!isFinite(n) || n < 0) throw new Error(label + ' ต้องเป็นตัวเลขไม่ติดลบ');
+    return n;
+  };
+  return {
+    name: name, category: category,
+    spec: String(pick('spec', existing ? existing.spec : '') || '').trim(),
+    unit: String(pick('unit', existing ? existing.unit : '') || '').trim() || 'ชิ้น',
+    icon: String(pick('icon', existing ? existing.icon : '') || '').trim().slice(0, 8),
+    min: num('min', existing ? existing.min : 0, 'Min'),
+    max: num('max', existing ? existing.max : 0, 'Max'),
+    location: String(pick('location', existing ? existing.location : '') || '').trim(),
+    unitPrice: num('unit_price', existing ? existing.unit_price : 0, 'ราคาต่อหน่วย'),
+    active: toBoolean(pick('active', existing ? existing.active : true), true)
+  };
+}
+
+// เพิ่ม/แก้ข้อมูลของ — ยอดคงเหลือแก้ตรงนี้ไม่ได้ (ต้องผ่านเติม/นับปรับยอด ที่มีร่องรอยใน Log)
+// ยกเว้นตอนสร้างใหม่ ใส่ยอดตั้งต้นได้ และจะถูกบันทึกเป็น RESTOCK "ยอดตั้งต้น"
+function upsertConsumable(payload) {
+  var user = requireConsumableKeeper({ authToken: payload.authToken });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sheet = getConsumableSheet();
+    var items = readConsumableItems(sheet);
+    var id = String(payload.item_id || payload.itemId || '').trim();
+    var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    if (id && items.byId[id]) {
+      var existing = items.byId[id];
+      var f = buildConsumableFields(payload, existing);
+      var rowIndex = items.rowIndexById[id];
+      sheet.getRange(rowIndex, 1, 1, CONSUMABLE_HEADERS.length).setValues([[
+        id, f.name, f.category, f.spec, f.unit, f.icon, existing.qty, f.min, f.max, f.location, f.unitPrice, f.active,
+        user.username || '', timestamp, existing.created_by, existing.created_at
+      ]]);
+      return { status: 'success', item: consumableRowToObject(sheet.getRange(rowIndex, 1, 1, CONSUMABLE_HEADERS.length).getValues()[0]) };
+    }
+    var fields = buildConsumableFields(payload, null);
+    var initialQty = Number(payload.qty || 0);
+    if (!isFinite(initialQty) || initialQty < 0) throw new Error('ยอดตั้งต้นต้องเป็นตัวเลขไม่ติดลบ');
+    var newId = id || ('CS' + ('0000' + (Object.keys(items.byId).length + 1)).slice(-4));
+    while (items.byId[newId]) newId = 'CS' + Utilities.getUuid().slice(0, 6).toUpperCase();
+    var row = [
+      newId, fields.name, fields.category, fields.spec, fields.unit, fields.icon, initialQty, fields.min, fields.max, fields.location, fields.unitPrice, fields.active,
+      user.username || '', timestamp, user.username || '', timestamp
+    ];
+    sheet.appendRow(row);
+    var item = consumableRowToObject(row);
+    if (initialQty > 0) {
+      getConsumableLogSheet().appendRow(consumableLogRow({ timestamp: timestamp, type: 'RESTOCK', item: item, qty: initialQty, balance: initialQty, recordedBy: user.username || '', requester: user.username || '', remark: 'ยอดตั้งต้น' }));
+    }
+    return { status: 'success', item: item };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// แคตตาล็อกเริ่มต้น 1 คลิก (เฉพาะตอนคลังยังว่าง) — ยอด 0 ทั้งหมด ให้ไปเติมยอดจริงเอง
+function seedConsumables(payload) {
+  var user = requireConsumableKeeper({ authToken: payload.authToken });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sheet = getConsumableSheet();
+    if (sheet.getLastRow() > 1) throw new Error('คลังมีรายการอยู่แล้ว — สร้างชุดเริ่มต้นได้เฉพาะตอนคลังว่าง');
+    var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    var rows = CONSUMABLE_STARTER_KIT.map(function(s, index) {
+      return ['CS' + ('0000' + (index + 1)).slice(-4), s[0], s[1], s[2], s[3], s[4], 0, s[5], s[6], '', 0, true, user.username || '', timestamp, user.username || '', timestamp];
+    });
+    sheet.getRange(2, 1, rows.length, CONSUMABLE_HEADERS.length).setValues(rows);
+    return { status: 'success', count: rows.length };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ไฟล์แนบของ Purchase History (รูปบิล/ใบเสนอราคา/ใบส่งของ) — เก็บใน Drive แยกโฟลเดอร์ของตัวเอง
@@ -6475,6 +6831,12 @@ function doGet(e) {
     if (action === 'addMiscExpenseBatch') return respond(addMiscExpenseBatch(e.parameter), e);
     if (action === 'updateMiscExpense') return respond(updateMiscExpense(e.parameter), e);
     if (action === 'deleteMiscExpense') return respond(deleteMiscExpense(e.parameter), e);
+    if (action === 'getConsumables') return respond(getConsumables(e.parameter), e);
+    if (action === 'withdrawConsumables') return respond(withdrawConsumables(e.parameter), e);
+    if (action === 'restockConsumables') return respond(restockConsumables(e.parameter), e);
+    if (action === 'adjustConsumableStock') return respond(adjustConsumableStock(e.parameter), e);
+    if (action === 'upsertConsumable') return respond(upsertConsumable(e.parameter), e);
+    if (action === 'seedConsumables') return respond(seedConsumables(e.parameter), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(e.parameter), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
@@ -6824,6 +7186,12 @@ function doPost(e) {
     if (action === 'addMiscExpenseBatch') return respond(addMiscExpenseBatch(body), e);
     if (action === 'updateMiscExpense') return respond(updateMiscExpense(body), e);
     if (action === 'deleteMiscExpense') return respond(deleteMiscExpense(body), e);
+    if (action === 'getConsumables') return respond(getConsumables(body), e);
+    if (action === 'withdrawConsumables') return respond(withdrawConsumables(body), e);
+    if (action === 'restockConsumables') return respond(restockConsumables(body), e);
+    if (action === 'adjustConsumableStock') return respond(adjustConsumableStock(body), e);
+    if (action === 'upsertConsumable') return respond(upsertConsumable(body), e);
+    if (action === 'seedConsumables') return respond(seedConsumables(body), e);
     if (action === 'uploadMiscExpenseReceipt') return respond(uploadMiscExpenseReceipt(body), e);
     if (action === 'importPurchaseHistoryPdfBatch') return respond(importPurchaseHistoryPdfBatch(body), e);
     if (action === 'createPurchaseHistoryBatch') return respond(createPurchaseHistoryBatch(body), e);
