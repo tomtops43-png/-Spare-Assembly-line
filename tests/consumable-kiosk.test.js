@@ -235,3 +235,14 @@ nutRows.rows.forEach(function(r) {
   assert(/^M\d+$/.test(fit.size(r)), r.name + ' ต้องอ่านขนาดได้');
 });
 assert(/if \(CS_SUBTYPE_CONFIG\[csCategory\]\) \{[\s\S]{0,200}csFacetOf\(it\) !== csConn/.test(htmlLf), 'ตัวกรองย่อยต้องใช้ได้ทุกหมวดที่ตั้งค่าไว้');
+
+// ── ชุดสามทาง Y: นำเข้าแล้วต้องเข้าชิป "สามทาง Y" ไม่ใช่ T ───────────────────────
+const teeY = imp.parse(new Function(grab(htmlLf, /^ {4}var CS_PRESET_TEE_Y = \[[\s\S]*?\]\.join\('\\n'\);/m, 'tee Y preset') + '\nreturn CS_PRESET_TEE_Y;')());
+assert.strictEqual(teeY.rows.length, 4);
+teeY.rows.forEach(function(r) {
+  assert.strictEqual(r.category, 'ฟิตติ้งลม/สายลม');
+  assert.strictEqual(fit.type(r), 'tee-y', r.name + ' ต้องเป็นสามทาง Y');
+  assert.strictEqual(fit.conn(r), 'tube');
+});
+assert.deepStrictEqual(teeY.rows.map(r => r.min), ['10', '10', '5', '5']);
+assert(htmlLf.includes('id="csImportPresetTeeYBtn"'));
