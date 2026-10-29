@@ -95,3 +95,37 @@ assert(/function switchToConsumablePage\(\)[\s\S]{0,700}mxHidePage\(\);[\s\S]{0,
 assert(/function renderAuthUserBox\(\)[\s\S]{0,400}if \(!currentUser\) \{[\s\S]{0,120}csSyncSideEntry\(\);/.test(htmlLf), 'ออกจากระบบต้องล้างตะกร้าและซ่อนปุ่ม');
 assert(/function csCanWithdraw\(\) \{ return canWriteWarehouse\(\); \}/.test(htmlLf), 'ฝั่งเว็บต้องสะท้อนด่าน requireWarehouseWriter');
 assert(htmlLf.includes(".cs-cartbar.hidden") || htmlLf.includes('#consumablePage .hidden'), 'คลาส cs-* ที่ตั้ง display เองต้องยังซ่อนด้วย .hidden ได้');
+
+// ── นำเข้า CSV: ชุดฟิตติ้งลมต้องแปลงครบ 24 รายการ เดาหมวด/ไอคอนถูก และทยอยเพิ่มซ้ำได้ ─────
+const imp = new Function([
+  grab(htmlLf, /^ {4}var CS_CATEGORY_ICONS = \{[\s\S]*?\n {4}\};/m, 'CS_CATEGORY_ICONS'),
+  'var CS_CATEGORIES = Object.keys(CS_CATEGORY_ICONS);',
+  grab(htmlLf, /^ {4}var CS_PRESET_PNEUMATIC_FITTINGS = \[[\s\S]*?\]\.join\('\\n'\);/m, 'preset'),
+  grab(htmlLf, /^ {4}var CS_IMPORT_GUESS = \[[\s\S]*?\n {4}\];/m, 'CS_IMPORT_GUESS'),
+  grab(htmlLf, /^ {4}function csSplitCsvLine\(line, sep\) \{[\s\S]*?\n {4}\}/m, 'csSplitCsvLine'),
+  grab(htmlLf, /^ {4}function csParseImportCsv\(text\) \{[\s\S]*?\n {4}\}/m, 'csParseImportCsv')
+].join('\n') + '\nreturn { preset: CS_PRESET_PNEUMATIC_FITTINGS, parse: csParseImportCsv };')();
+const presetRows = imp.parse(imp.preset);
+assert.strictEqual(presetRows.errors.length, 0);
+assert.strictEqual(presetRows.rows.length, 24, 'ชุดฟิตติ้งลมต้องครบ 24 รายการ');
+assert(presetRows.rows.every(r => r.category === 'ฟิตติ้งลม/สายลม' && r.unit === 'ตัว'), 'ฟิตติ้งทุกตัวต้องเข้าหมวดฟิตติ้งลม');
+const byName = {};
+presetRows.rows.forEach(r => { byName[r.name] = r; });
+assert.strictEqual(byName['ข้อต่อตรง ø6'].min, '20', 'min_stock ต้องไปเป็น Min');
+assert.strictEqual(byName['ข้อต่อตรง ø4 x M5'].spec, 'ข้อต่อตรง เกลียวนอก', 'หมวดย่อยในไฟล์เก็บไว้เป็นสเปค');
+assert.strictEqual(byName['ข้อลด ø8-ø6'].icon, '🔻');
+assert.strictEqual(byName['ข้องอ 90 ø6 x 1/4'].icon, '↪️');
+assert.strictEqual(byName['สามทาง ø8'].icon, '🔱');
+assert.strictEqual(byName['ตัวอุด ø6'].icon, '⛔');
+// ก๊อปจาก Excel = แยกด้วย tab, มีเครื่องหมายคำพูด/คอมมาในช่อง, หมวดของระบบตรงๆ
+const tsv = imp.parse('name\tcategory\tspec\tmin\tqty\nน็อต M10\tน็อต/สกรู/แหวน\t"M10, ชุบซิงค์"\t50\t120\n\tอื่นๆ\t\t\t');
+assert.strictEqual(tsv.rows.length, 1);
+assert.deepStrictEqual([tsv.rows[0].category, tsv.rows[0].spec, tsv.rows[0].qty], ['น็อต/สกรู/แหวน', 'M10, ชุบซิงค์', '120']);
+assert.strictEqual(tsv.errors.length, 1, 'แถวไม่มีชื่อต้องถูกรายงาน');
+assert(/ไม่พบคอลัมน์ name/.test(imp.parse('foo,bar\n1,2').errors[0]));
+
+const importFn = grab(backend, /^function importConsumables\(payload\) \{[\s\S]*?\n\}/m, 'importConsumables');
+assert(importFn.includes('requireConsumableKeeper') && importFn.includes('LockService.getScriptLock()'), 'นำเข้าต้อง Admin/Leader และเขียนใต้ Lock');
+assert(importFn.includes('if (seen[key]) { skipped.push('), 'ชื่อ+สเปคซ้ำของเดิมต้องข้าม (ทยอยเพิ่มไฟล์เดิมซ้ำได้)');
+assert(backend.includes("if (action === 'importConsumables') return respond(importConsumables(body), e);"));
+assert(backend.includes("if (action === 'importConsumables') return respond(importConsumables(e.parameter), e);"));
