@@ -154,12 +154,8 @@ assert(backend.includes('timestamp, user.username || \'\', timestamp, f.imageUrl
 assert(backend.includes('existing.created_by, existing.created_at, f.imageUrl'), 'แก้ไขต้องเขียนช่องรูป');
 
 // ── ฟิตติ้งลม: แยกชนิดย่อยจากชื่อ+สเปคอัตโนมัติ ──────────────────────────────────
-const fit = new Function([
-  grab(htmlLf, /^ {4}var CS_FITTING_CATEGORY = [^\n]*$/m, 'CS_FITTING_CATEGORY'),
-  grab(htmlLf, /^ {4}var CS_FITTING_TYPES = \[[\s\S]*?\n {4}\];/m, 'CS_FITTING_TYPES'),
-  grab(htmlLf, /^ {4}function csFittingType\(item\) \{[\s\S]*?\n {4}\}/m, 'csFittingType'),
-  grab(htmlLf, /^ {4}function csFittingConn\(item\) \{[\s\S]*?\n {4}\}/m, 'csFittingConn')
-].join('\n') + '\nreturn { type: csFittingType, conn: csFittingConn };')();
+const subtypeSrc = grab(htmlLf, /^ {4}\/\/ ── ชนิดย่อยของฟิตติ้งลม[\s\S]*?\n {4}function csSizeNum\(item\) \{[^\n]*\n/m, 'subtype block');
+const fit = new Function(subtypeSrc + '\nreturn { type: csFittingType, conn: csFittingConn, sub: csSubTypeOf, size: csNutSize, order: csSubOrder };')();
 const F = (name, spec) => ({ name: name, spec: spec || '', category: 'ฟิตติ้งลม/สายลม' });
 [
   [F('ข้อต่อตรง ø6', 'ข้อต่อตรง สาย-สาย'), 'straight', 'tube'],
@@ -214,3 +210,28 @@ assert.strictEqual(nutByName['แหวนเหล็ก 12 มม'].location, 
 assert.strictEqual(new Set(nutRows.rows.map(r => r.name + '|' + r.spec)).size, 45, 'ห้ามมีชื่อ+สเปคซ้ำในชุด');
 assert(htmlLf.includes('id="csImportPresetNutBtn"'));
 assert(htmlLf.includes("String(a.name).localeCompare(String(b.name), 'th', { numeric: true })"), 'การ์ดต้องเรียงตามขนาดจริง (M3 ก่อน M10)');
+
+// ── น็อต: แยกหัวจม / หัวน็อต / แหวน + ขนาด M ──────────────────────────────────
+const N = (name, spec) => ({ name: name, spec: spec || '', category: 'น็อต/สกรู/แหวน' });
+[
+  [N('น็อตหัวจม M3 x 6', 'หัวจมหกเหลี่ยม · ยาว 6 มม'), 'cap', 'M3'],
+  [N('น็อตหัวจม M12 x 40', 'หัวจมหกเหลี่ยม · ยาว 40 มม'), 'cap', 'M12'],
+  [N('หัวน็อตมิลดำ M10', 'หัวน็อต · เกลียว 1.50'), 'nut', 'M10'],
+  [N('แหวนเหล็ก 8 มม', 'แหวนอีแปะ'), 'washer', 'M8'],
+  [N('แหวนอีแปะ', 'M6'), 'washer', 'M6'],
+  [N('แหวนสปริง', 'M8'), 'washer', 'M8'],
+  [N('สกรูหัวจม', 'M5 x 12'), 'cap', 'M5'],
+  [N('น็อตหกเหลี่ยม', 'M8'), 'hex', 'M8'],
+  [N('สกรูเกลียวปล่อย', '#8'), 'screw', '']
+].forEach(function(c) {
+  assert.strictEqual(fit.sub(c[0]), c[1], 'ประเภทของ "' + c[0].name + ' ' + c[0].spec + '" ต้องเป็น ' + c[1]);
+  assert.strictEqual(fit.size(c[0]), c[2], 'ขนาดของ "' + c[0].name + ' ' + c[0].spec + '" ต้องเป็น ' + (c[2] || '(ไม่มี)'));
+});
+assert(fit.order(N('น็อตหัวจม M3 x 6')) < fit.order(N('หัวน็อตมิลดำ M3')) && fit.order(N('หัวน็อตมิลดำ M3')) < fit.order(N('แหวนเหล็ก 4 มม')), 'เรียง หัวจม → หัวน็อต → แหวน');
+assert.strictEqual(fit.sub({ name: 'แหวน', category: 'อื่นๆ' }), '', 'หมวดที่ไม่ได้ตั้งค่าต้องไม่แยกประเภท');
+// ชุดตู้น็อตทั้ง 45 รายการต้องแยกประเภทได้ครบ ไม่มีตกไป "อื่นๆ"
+nutRows.rows.forEach(function(r) {
+  assert.notStrictEqual(fit.sub(r), 'other', r.name + ' ต้องแยกประเภทได้');
+  assert(/^M\d+$/.test(fit.size(r)), r.name + ' ต้องอ่านขนาดได้');
+});
+assert(/if \(CS_SUBTYPE_CONFIG\[csCategory\]\) \{[\s\S]{0,200}csFacetOf\(it\) !== csConn/.test(htmlLf), 'ตัวกรองย่อยต้องใช้ได้ทุกหมวดที่ตั้งค่าไว้');

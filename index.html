@@ -16369,11 +16369,29 @@ function inferRequestPriority(stock, min) {
     ];
     // ลำดับที่โชว์ (ต่างจากลำดับกฎตรวจจับด้านบน) — ไล่จากชิ้นที่ใช้บ่อย
     var CS_FITTING_DISPLAY_ORDER = ['straight', 'reducer', 'elbow', 'tee-t', 'tee-y', 'plug', 'tube', 'other'];
-    function csFittingType(item) {
-      if (!item || item.category !== CS_FITTING_CATEGORY) return '';
+    // ── ชนิดย่อยของน็อต — หัวจม / หัวน็อต / แหวน (ลำดับกฎสำคัญ: แหวนก่อน เพราะ "แหวน M8" มี M8 เหมือนน็อต) ──
+    var CS_NUT_CATEGORY = 'น็อต/สกรู/แหวน';
+    var CS_NUT_TYPES = [
+      { key: 'washer', label: 'แหวน', icon: '⭕', re: /แหวน|washer/i },
+      { key: 'nut', label: 'หัวน็อต', icon: '⚙️', re: /หัวน็อต|น็อตตัวเมีย|\bnut\b/i },
+      { key: 'cap', label: 'หัวจม', icon: '🔩', re: /หัวจม|socket|allen/i },
+      { key: 'hex', label: 'หัวหกเหลี่ยม', icon: '🔩', re: /หกเหลี่ยม|hex/i },
+      { key: 'screw', label: 'สกรู', icon: '🪛', re: /สกรู|screw/i }
+    ];
+    // แต่ละหมวดที่แยกชนิดย่อยได้: กฎตรวจจับ + ลำดับที่โชว์ (ไล่จากชิ้นที่ใช้บ่อย)
+    var CS_SUBTYPE_CONFIG = {};
+    CS_SUBTYPE_CONFIG[CS_FITTING_CATEGORY] = { types: CS_FITTING_TYPES, order: CS_FITTING_DISPLAY_ORDER, all: 'ทุกชนิด' };
+    CS_SUBTYPE_CONFIG[CS_NUT_CATEGORY] = { types: CS_NUT_TYPES, order: ['cap', 'hex', 'screw', 'nut', 'washer', 'other'], all: 'ทุกประเภท' };
+    // ชนิดย่อยจากชื่อ+สเปค — '' ถ้าหมวดนี้ไม่แยกชนิดย่อย
+    function csSubTypeOf(item) {
+      var cfg = item && CS_SUBTYPE_CONFIG[item.category];
+      if (!cfg) return '';
       var text = String(item.name || '') + ' ' + String(item.spec || '');
-      for (var i = 0; i < CS_FITTING_TYPES.length; i++) if (CS_FITTING_TYPES[i].re.test(text)) return CS_FITTING_TYPES[i].key;
+      for (var i = 0; i < cfg.types.length; i++) if (cfg.types[i].re.test(text)) return cfg.types[i].key;
       return 'other';
+    }
+    function csFittingType(item) {
+      return item && item.category === CS_FITTING_CATEGORY ? csSubTypeOf(item) : '';
     }
     // แบบการต่อ: เกลียว (M5, 1/8, 1/4 ...) หรือ สาย-สาย (เสียบสายทั้งสองด้าน)
     function csFittingConn(item) {
@@ -16383,14 +16401,31 @@ function inferRequestPriority(stock, min) {
       if (/สาย\s*-\s*สาย|เสียบสาย|push\s*-?\s*in/i.test(text) || csFittingType(item) !== 'tube') return 'tube';
       return '';
     }
-    function csFittingTypeMeta(key) {
-      return CS_FITTING_TYPES.filter(function(t) { return t.key === key; })[0] || { key: 'other', label: 'อื่นๆ', icon: '📦' };
+    // ขนาดเกลียวน็อต (M3, M8 ...) — แหวนเขียนเป็น "แหวนเหล็ก 8 มม" ก็นับเป็น M8 ให้หยิบคู่กันได้
+    function csNutSize(item) {
+      if (!item || item.category !== CS_NUT_CATEGORY) return '';
+      var text = String(item.name || '') + ' ' + String(item.spec || '');
+      var m = text.match(/\bM\s?(\d+(?:\.\d+)?)/i) || (csSubTypeOf(item) === 'washer' ? text.match(/(\d+(?:\.\d+)?)\s*มม/) : null);
+      return m ? 'M' + m[1] : '';
     }
-    function csFittingOrder(item) {
-      var key = csFittingType(item);
+    // ตัวกรองแถวที่สองของหมวด: ฟิตติ้ง = แบบการต่อ, น็อต = ขนาด
+    function csFacetOf(item) {
+      if (!item) return '';
+      if (item.category === CS_FITTING_CATEGORY) return csFittingConn(item);
+      if (item.category === CS_NUT_CATEGORY) return csNutSize(item);
+      return '';
+    }
+    function csSubTypeMeta(category, key) {
+      var cfg = CS_SUBTYPE_CONFIG[category];
+      return (cfg && cfg.types.filter(function(t) { return t.key === key; })[0]) || { key: 'other', label: 'อื่นๆ', icon: '📦' };
+    }
+    function csFittingTypeMeta(key) { return csSubTypeMeta(CS_FITTING_CATEGORY, key); }
+    function csSubOrder(item) {
+      var key = csSubTypeOf(item);
       if (!key) return 99;
-      return CS_FITTING_DISPLAY_ORDER.indexOf(key);
+      return CS_SUBTYPE_CONFIG[item.category].order.indexOf(key);
     }
+    function csSizeNum(item) { var n = parseFloat(String(csNutSize(item)).slice(1)); return isFinite(n) ? n : 999; }
 
     function csFilteredShopItems() {
       var kw = String((csEl('csSearch') || {}).value || '').trim().toLowerCase();
@@ -16398,44 +16433,53 @@ function inferRequestPriority(stock, min) {
         if (!it.active) return false;
         if (csCategory === '__low__') { if (csStockLevel(it).level === 'ok') return false; }
         else if (csCategory !== 'all' && it.category !== csCategory) return false;
-        if (csCategory === CS_FITTING_CATEGORY) {
-          if (csSubType !== 'all' && csFittingType(it) !== csSubType) return false;
-          if (csConn !== 'all' && csFittingConn(it) !== csConn) return false;
+        if (CS_SUBTYPE_CONFIG[csCategory]) {
+          if (csSubType !== 'all' && csSubTypeOf(it) !== csSubType) return false;
+          if (csConn !== 'all' && csFacetOf(it) !== csConn) return false;
         }
         if (!kw) return true;
         return [it.item_id, it.name, it.spec, it.location, it.category].join(' ').toLowerCase().indexOf(kw) > -1;
       }).sort(function(a, b) {
         return CS_CATEGORIES.indexOf(a.category) - CS_CATEGORIES.indexOf(b.category) ||
-          csFittingOrder(a) - csFittingOrder(b) ||
+          csSubOrder(a) - csSubOrder(b) ||
+          csSizeNum(a) - csSizeNum(b) ||
           // numeric: M3 x 6 < M3 x 12 < M10 (เรียงตามขนาดจริง ไม่ใช่ตามตัวอักษร)
           String(a.name).localeCompare(String(b.name), 'th', { numeric: true }) || String(a.spec).localeCompare(String(b.spec), 'th', { numeric: true });
       });
     }
 
-    // แถบชิปย่อย โผล่เมื่อเลือกหมวดฟิตติ้งลม — ชนิด (ต่อตรง/ข้อลด/ข้องอ/สามทาง T/Y/ตัวอุด) + แบบการต่อ
+    // แถบชิปย่อย โผล่เมื่อเลือกหมวดที่แยกชนิดได้ — ชนิด + ตัวกรองแถวสอง (ฟิตติ้ง: แบบการต่อ / น็อต: ขนาด M)
     function renderCsSubChips(active) {
       var el = csEl('csSubChips');
       if (!el) return;
-      var show = csCategory === CS_FITTING_CATEGORY;
-      el.classList.toggle('hidden', !show);
-      if (!show) { el.innerHTML = ''; return; }
-      var fittings = active.filter(function(it) { return it.category === CS_FITTING_CATEGORY; });
-      var typeCounts = {}, connCounts = {};
-      fittings.forEach(function(it) {
-        var t = csFittingType(it);
+      var cfg = CS_SUBTYPE_CONFIG[csCategory];
+      el.classList.toggle('hidden', !cfg);
+      if (!cfg) { el.innerHTML = ''; return; }
+      var inCat = active.filter(function(it) { return it.category === csCategory; });
+      var typeCounts = {}, facetCounts = {};
+      inCat.forEach(function(it) {
+        var t = csSubTypeOf(it);
         typeCounts[t] = (typeCounts[t] || 0) + 1;
-        if (csSubType === 'all' || t === csSubType) { var c = csFittingConn(it); if (c) connCounts[c] = (connCounts[c] || 0) + 1; }
+        if (csSubType === 'all' || t === csSubType) { var f = csFacetOf(it); if (f) facetCounts[f] = (facetCounts[f] || 0) + 1; }
       });
       var chip = function(attr, val, cur, label, n) {
-        return '<button type="button" class="cs-chip' + (cur === val ? ' is-active' : '') + '" ' + attr + '="' + val + '">' + label + (n !== undefined ? '<em>' + n + '</em>' : '') + '</button>';
+        return '<button type="button" class="cs-chip' + (cur === val ? ' is-active' : '') + '" ' + attr + '="' + escHtml(val) + '">' + label + (n !== undefined ? '<em>' + n + '</em>' : '') + '</button>';
       };
-      var html = chip('data-cs-sub', 'all', csSubType, 'ทุกชนิด', fittings.length);
-      CS_FITTING_DISPLAY_ORDER.map(csFittingTypeMeta).forEach(function(t) {
+      var html = chip('data-cs-sub', 'all', csSubType, cfg.all, inCat.length);
+      cfg.order.map(function(k) { return csSubTypeMeta(csCategory, k); }).forEach(function(t) {
         if (typeCounts[t.key]) html += chip('data-cs-sub', t.key, csSubType, t.icon + ' ' + t.label, typeCounts[t.key]);
       });
-      if (connCounts.thread && connCounts.tube) {
-        html += '<span class="cs-sep"></span>' + chip('data-cs-conn', 'all', csConn, 'ทุกแบบการต่อ') +
-          chip('data-cs-conn', 'tube', csConn, '➖ สาย-สาย', connCounts.tube) + chip('data-cs-conn', 'thread', csConn, '🔩 เกลียว', connCounts.thread);
+      if (csCategory === CS_FITTING_CATEGORY) {
+        if (facetCounts.thread && facetCounts.tube) {
+          html += '<span class="cs-sep"></span>' + chip('data-cs-conn', 'all', csConn, 'ทุกแบบการต่อ') +
+            chip('data-cs-conn', 'tube', csConn, '➖ สาย-สาย', facetCounts.tube) + chip('data-cs-conn', 'thread', csConn, '🔩 เกลียว', facetCounts.thread);
+        }
+      } else {
+        var sizes = Object.keys(facetCounts).sort(function(a, b) { return parseFloat(a.slice(1)) - parseFloat(b.slice(1)); });
+        if (sizes.length > 1) {
+          html += '<span class="cs-sep"></span>' + chip('data-cs-conn', 'all', csConn, 'ทุกขนาด');
+          sizes.forEach(function(sz) { html += chip('data-cs-conn', sz, csConn, sz, facetCounts[sz]); });
+        }
       }
       el.innerHTML = html;
     }
@@ -16493,7 +16537,7 @@ function inferRequestPriority(stock, min) {
           '<div class="cs-card-top"><div class="cs-card-ico' + (hasImg ? ' has-img" data-cs-zoom="' + escHtml(it.item_id) + '" title="ดูรูปใหญ่' : '') + '">' + csVisual(it, 300) + '</div>' + (it.location ? '<span class="cs-loc">📍 ' + escHtml(it.location) + '</span>' : '') + '</div>' +
           '<div class="cs-card-name">' + escHtml(it.name) + '</div>' +
           (it.spec ? '<div class="cs-card-spec">' + escHtml(it.spec) + '</div>' : '') +
-          (csFittingType(it) && csFittingType(it) !== 'other' ? '<span class="cs-subtag">' + csFittingTypeMeta(csFittingType(it)).icon + ' ' + escHtml(csFittingTypeMeta(csFittingType(it)).label) + '</span>' : '') +
+          (csSubTypeOf(it) && csSubTypeOf(it) !== 'other' ? '<span class="cs-subtag">' + csSubTypeMeta(it.category, csSubTypeOf(it)).icon + ' ' + escHtml(csSubTypeMeta(it.category, csSubTypeOf(it)).label) + '</span>' : '') +
           '<div class="cs-card-meta">' + escHtml(it.item_id) + (it.unit_price ? ' · ' + csMoney(it.unit_price) + '/' + escHtml(it.unit) : '') + '</div>' +
           '<div class="cs-bar cs-lv-' + lv.level + '"><i style="width:' + lv.pct + '%"></i></div>' +
           '<div class="cs-qty-line"><span><b>' + csNum(it.qty) + '</b> ' + escHtml(it.unit) + '</span>' + tag + '</div>' +
