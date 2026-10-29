@@ -197,3 +197,20 @@ const openModalSrc = grab(htmlLf, /^ {4}function openCsItemModal\(item, copyFrom
 assert(openModalSrc.includes("csEl('csItemId').value = item ? item.item_id : '';") && openModalSrc.includes('if (copyFrom) item = null;'), 'คัดลอกต้องสร้างเป็นรายการใหม่ (ไม่มีรหัสเดิม)');
 assert(openModalSrc.includes("csSetItemImage(src ? src.image_url : '');"), 'คัดลอกต้องพารูปเดิมมาด้วย');
 assert(/function saveCsItem\(e\) \{[\s\S]{0,600}it\.item_id !== editingId && csImportKey\(it\.name, it\.spec\) === key/.test(htmlLf), 'บันทึกต้องกันชื่อ+สเปคซ้ำกับรายการอื่น');
+
+// ── ชุดตู้น็อต: แตกลิ้นชักหลายขนาดเป็นรายการละขนาด + Location ตามลิ้นชัก ─────────
+const nutPreset = new Function(grab(htmlLf, /^ {4}var CS_PRESET_NUT_CABINET = \(function\(\) \{[\s\S]*?\n {4}\}\)\(\);/m, 'nut preset') + '\nreturn CS_PRESET_NUT_CABINET;')();
+const nutRows = imp.parse(nutPreset);
+assert.strictEqual(nutRows.errors.length, 0);
+assert.strictEqual(nutRows.rows.length, 45, 'ตู้น็อตต้องแตกได้ 45 รายการ');
+assert(nutRows.rows.every(r => r.category === 'น็อต/สกรู/แหวน'), 'ทุกตัวต้องอยู่หมวดน็อต');
+const nutByName = {};
+nutRows.rows.forEach(r => { nutByName[r.name] = r; });
+assert.strictEqual(nutByName['น็อตหัวจม M3 x 8'].location, 'ตู้น็อต-A1', 'ลิ้นชัก 3 x (6,8,12) ต้องแตกเป็นรายการละขนาดที่ลิ้นชักเดียวกัน');
+assert.strictEqual(nutByName['น็อตหัวจม M8 x 6'].location, 'ตู้น็อต-D1', 'ป้าย 8 x (3→6, 10, 12) ใช้ 6 ตามที่แก้มือ');
+assert.strictEqual(nutByName['น็อตหัวจม M12 x 40'].location, 'ตู้น็อต-F3');
+assert.strictEqual(nutByName['หัวน็อตมิลดำ M10'].spec, 'หัวน็อต · เกลียว 1.50');
+assert.strictEqual(nutByName['แหวนเหล็ก 12 มม'].location, 'ตู้น็อต-H4');
+assert.strictEqual(new Set(nutRows.rows.map(r => r.name + '|' + r.spec)).size, 45, 'ห้ามมีชื่อ+สเปคซ้ำในชุด');
+assert(htmlLf.includes('id="csImportPresetNutBtn"'));
+assert(htmlLf.includes("String(a.name).localeCompare(String(b.name), 'th', { numeric: true })"), 'การ์ดต้องเรียงตามขนาดจริง (M3 ก่อน M10)');
