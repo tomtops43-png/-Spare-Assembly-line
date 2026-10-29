@@ -3812,6 +3812,7 @@
         <div class="cs-tabs" style="margin:12px 0 6px">
           <button type="button" class="cs-btn" id="csImportPresetBtn">🔧 ใส่ชุดฟิตติ้งลม (24 รายการ)</button>
           <button type="button" class="cs-btn" id="csImportPresetNutBtn">🔩 ใส่ชุดตู้น็อต (45 รายการ)</button>
+          <button type="button" class="cs-btn" id="csImportPresetTeeYBtn">🔀 ใส่สามทาง Y (4 รายการ)</button>
         </div>
         <textarea id="csImportText" class="cs-input" style="height:170px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px" placeholder="name,category,spec,unit,min_stock,max,location,unit_price,qty"></textarea>
         <p class="cs-msg" style="margin-top:6px">คอลัมน์ที่รู้จัก: <b>name</b> (บังคับ), category, spec, unit, min / min_stock, max, location, unit_price, qty (ยอดตั้งต้น), icon — คอลัมน์อื่นจะถูกข้าม · ถ้า category ไม่ใช่หมวดของระบบ จะเก็บไว้เป็นสเปคแล้วเดาหมวดให้</p>
@@ -17059,6 +17060,15 @@ function inferRequestPriority(stock, min) {
       '2,ตัวอุด,ตัวอุด ø6,ø6,-,10', '2,ตัวอุด,ตัวอุด ø8,ø8,-,5'
     ].join('\n');
     // เดาหมวด/ไอคอนจากคำในชื่อ+หมวดย่อย เมื่อ category ในไฟล์ไม่ใช่หมวดของระบบ
+    // สามทาง Y สาย-สาย — แยกเป็นชุดของตัวเอง (ไม่รวมในชุดฟิตติ้งเดิม) เพื่อนำเข้าเพิ่มได้โดยไม่ไปชน
+    // ตัว T ที่ผู้ใช้แก้สเปคไปแล้ว (คีย์กันซ้ำคือ ชื่อ+สเปค — สเปคเปลี่ยน = ถูกมองเป็นรายการใหม่)
+    var CS_PRESET_TEE_Y = [
+      'name,category,spec,unit,min,icon',
+      'สามทาง Y ø4,ฟิตติ้งลม/สายลม,สามทาง สาย-สาย (Y),ตัว,10,🔀',
+      'สามทาง Y ø6,ฟิตติ้งลม/สายลม,สามทาง สาย-สาย (Y),ตัว,10,🔀',
+      'สามทาง Y ø8,ฟิตติ้งลม/สายลม,สามทาง สาย-สาย (Y),ตัว,5,🔀',
+      'สามทาง Y ø10,ฟิตติ้งลม/สายลม,สามทาง สาย-สาย (Y),ตัว,5,🔀'
+    ].join('\n');
     // ตู้ลิ้นชักน็อต (8 แถว × 4 ช่อง) — ลิ้นชักที่รวมหลายขนาดแตกเป็น 1 รายการต่อ 1 ขนาด
     // Location = ตู้น็อต-<แถว A-H บน→ล่าง><ช่อง 1-4 ซ้าย→ขวา> ให้หยิบถูกลิ้นชัก
     var CS_PRESET_NUT_CABINET = (function() {
@@ -17263,6 +17273,7 @@ function inferRequestPriority(stock, min) {
       csEl('csImportText').addEventListener('input', renderCsImportPreview);
       csEl('csImportPresetBtn').addEventListener('click', function() { csEl('csImportText').value = CS_PRESET_PNEUMATIC_FITTINGS; renderCsImportPreview(); });
       csEl('csImportPresetNutBtn').addEventListener('click', function() { csEl('csImportText').value = CS_PRESET_NUT_CABINET; renderCsImportPreview(); });
+      csEl('csImportPresetTeeYBtn').addEventListener('click', function() { csEl('csImportText').value = CS_PRESET_TEE_Y; renderCsImportPreview(); });
       csEl('csImportSubmitBtn').addEventListener('click', submitCsImport);
       csEl('csReorderCopyBtn').addEventListener('click', function() { copyTextToClipboard(csReorderText(), 'คัดลอกรายการที่ต้องสั่งแล้ว วางในกลุ่มได้เลย'); });
       csEl('csItemForm').addEventListener('submit', saveCsItem);
