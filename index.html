@@ -927,7 +927,7 @@
     .cs-tab { padding: 8px 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; font-size: 14px; font-weight: 700; color: #475569; cursor: pointer; }
     .cs-tab.is-active { background: #0f172a; border-color: #0f172a; color: #fff; }
     .cs-tab-refresh { margin-left: auto; padding: 8px 12px; border-radius: 12px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 700; cursor: pointer; }
-    .cs-input, .cs-select { height: 42px; width: 100%; border-radius: 12px; border: 1px solid #cbd5e1; background: #fff; padding: 0 12px; font-size: 14px; }
+    .cs-input, .cs-select { box-sizing: border-box; height: 42px; width: 100%; border-radius: 12px; border: 1px solid #cbd5e1; background: #fff; padding: 0 12px; font-size: 14px; }
     .cs-input:focus, .cs-select:focus { outline: none; border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.2); }
     .cs-search { height: 50px; font-size: 16px; border-radius: 16px; border-width: 2px; }
     .cs-chips { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 4px; scrollbar-width: none; }
@@ -3671,6 +3671,7 @@
         <div class="cs-tabs" style="margin-top:0">
           <button type="button" class="cs-btn cs-btn-primary" id="csAddItemBtn">+ เพิ่มรายการ</button>
           <button type="button" class="cs-btn" id="csSeedBtn">🌱 สร้างชุดเริ่มต้น</button>
+          <button type="button" class="cs-btn" id="csImportBtn">📥 นำเข้า CSV</button>
           <button type="button" class="cs-btn" id="csReorderCopyBtn">📋 คัดลอกรายการที่ต้องสั่ง</button>
         </div>
         <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:16px;">
@@ -3753,6 +3754,23 @@
         <div class="cs-field">ไอคอน<input id="csItemIcon" class="cs-input" maxlength="8" placeholder="เลือกด้านล่าง หรือพิมพ์ emoji" aria-label="ไอคอน" /><div id="csEmojiPick" class="cs-emoji-pick"></div></div>
         <div class="cs-actions"><button type="submit" class="cs-btn cs-btn-primary" id="csItemSaveBtn">💾 บันทึก</button></div>
       </form>
+    </div>
+
+    <!-- นำเข้าหลายรายการ: วาง CSV / ก๊อปจาก Excel — ชื่อ+สเปคซ้ำของเดิมจะถูกข้าม ทยอยเพิ่มได้เรื่อยๆ -->
+    <div id="csImportModal" class="cs-modal" role="dialog" aria-modal="true">
+      <div class="cs-modal-box" style="max-width:760px">
+        <div class="cs-modal-head">
+          <div><h3>📥 นำเข้ารายการของสิ้นเปลือง</h3><p>วาง CSV หรือก๊อปตารางจาก Excel (แถวแรกเป็นหัวคอลัมน์) — รายการที่ชื่อ+สเปคซ้ำของเดิมจะถูกข้ามให้อัตโนมัติ</p></div>
+          <button type="button" class="cs-x" data-cs-close="csImportModal">×</button>
+        </div>
+        <div class="cs-tabs" style="margin:12px 0 6px">
+          <button type="button" class="cs-btn" id="csImportPresetBtn">🔧 ใส่ชุดฟิตติ้งลม (24 รายการ)</button>
+        </div>
+        <textarea id="csImportText" class="cs-input" style="height:170px;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px" placeholder="name,category,spec,unit,min_stock,max,location,unit_price,qty"></textarea>
+        <p class="cs-msg" style="margin-top:6px">คอลัมน์ที่รู้จัก: <b>name</b> (บังคับ), category, spec, unit, min / min_stock, max, location, unit_price, qty (ยอดตั้งต้น), icon — คอลัมน์อื่นจะถูกข้าม · ถ้า category ไม่ใช่หมวดของระบบ จะเก็บไว้เป็นสเปคแล้วเดาหมวดให้</p>
+        <div id="csImportPreview" style="margin-top:8px;max-height:260px;overflow:auto;border:1px solid #e2e8f0;border-radius:14px"></div>
+        <div class="cs-actions"><button type="button" class="cs-btn cs-btn-primary" id="csImportSubmitBtn" disabled>📥 นำเข้า</button></div>
+      </div>
     </div>
 
     <!-- เติมของ / นับปรับยอด (Admin / Leader) -->
@@ -16808,6 +16826,125 @@ function inferRequestPriority(stock, min) {
       });
     }
 
+    // ── นำเข้า CSV ──
+    // ชุดฟิตติ้งลมที่หน้างานใช้จริง (ข้อต่อ/ข้อลด/ข้องอ/สามทาง/ตัวอุด) — กดใส่แล้วนำเข้าได้ทันที
+    var CS_PRESET_PNEUMATIC_FITTINGS = [
+      'priority,category,name,tube_od,thread,min_stock',
+      '1,ข้อต่อตรง สาย-สาย,ข้อต่อตรง ø4,ø4,-,10', '1,ข้อต่อตรง สาย-สาย,ข้อต่อตรง ø6,ø6,-,20',
+      '1,ข้อต่อตรง สาย-สาย,ข้อต่อตรง ø8,ø8,-,10', '1,ข้อต่อตรง สาย-สาย,ข้อต่อตรง ø10,ø10,-,5',
+      '1,ข้อลด สาย-สาย,ข้อลด ø6-ø4,ø6→ø4,-,10', '1,ข้อลด สาย-สาย,ข้อลด ø8-ø6,ø8→ø6,-,10', '1,ข้อลด สาย-สาย,ข้อลด ø10-ø8,ø10→ø8,-,5',
+      '1,ข้อต่อตรง เกลียวนอก,ข้อต่อตรง ø4 x M5,ø4,M5,10', '1,ข้อต่อตรง เกลียวนอก,ข้อต่อตรง ø4 x 1/8,ø4,1/8,10',
+      '1,ข้อต่อตรง เกลียวนอก,ข้อต่อตรง ø6 x 1/8,ø6,1/8,20', '1,ข้อต่อตรง เกลียวนอก,ข้อต่อตรง ø6 x 1/4,ø6,1/4,20',
+      '1,ข้อต่อตรง เกลียวนอก,ข้อต่อตรง ø8 x 1/4,ø8,1/4,10', '1,ข้อต่อตรง เกลียวนอก,ข้อต่อตรง ø8 x 3/8,ø8,3/8,5',
+      '1,ข้อต่อตรง เกลียวนอก,ข้อต่อตรง ø10 x 3/8,ø10,3/8,5',
+      '2,ข้องอ เกลียวนอก,ข้องอ 90 ø4 x M5,ø4,M5,10', '2,ข้องอ เกลียวนอก,ข้องอ 90 ø6 x 1/8,ø6,1/8,10',
+      '2,ข้องอ เกลียวนอก,ข้องอ 90 ø6 x 1/4,ø6,1/4,10', '2,ข้องอ เกลียวนอก,ข้องอ 90 ø8 x 1/4,ø8,1/4,5',
+      '2,ข้องอ สาย-สาย,ข้องอ 90 ø6,ø6,-,10', '2,ข้องอ สาย-สาย,ข้องอ 90 ø8,ø8,-,5',
+      '2,สามทาง สาย-สาย,สามทาง ø6,ø6,-,10', '2,สามทาง สาย-สาย,สามทาง ø8,ø8,-,5',
+      '2,ตัวอุด,ตัวอุด ø6,ø6,-,10', '2,ตัวอุด,ตัวอุด ø8,ø8,-,5'
+    ].join('\n');
+    // เดาหมวด/ไอคอนจากคำในชื่อ+หมวดย่อย เมื่อ category ในไฟล์ไม่ใช่หมวดของระบบ
+    var CS_IMPORT_GUESS = [
+      { re: /ตัวอุด|ปลั๊กอุด/, cat: 'ฟิตติ้งลม/สายลม', icon: '⛔' },
+      { re: /สามทาง|tee/i, cat: 'ฟิตติ้งลม/สายลม', icon: '🔱' },
+      { re: /ข้องอ|งอ ?90|elbow/i, cat: 'ฟิตติ้งลม/สายลม', icon: '↪️' },
+      { re: /ข้อลด|reduc/i, cat: 'ฟิตติ้งลม/สายลม', icon: '🔻' },
+      { re: /ข้อต่อ|ฟิตติ้ง|fitting|สายลม|ท่อลม/i, cat: 'ฟิตติ้งลม/สายลม', icon: '🔧' },
+      { re: /สตัด|stud|เกลียวตลอด/i, cat: 'สตัด/เกลียว', icon: '📏' },
+      { re: /น็อต|สกรู|แหวน|โบลท์|bolt|nut|screw|washer/i, cat: 'น็อต/สกรู/แหวน', icon: '🔩' },
+      { re: /เทป|กาว|ซิลิโคน|tape/i, cat: 'เทป/กาว/ซิลิโคน', icon: '🧻' },
+      { re: /เคเบิ้ลไทร์|ท่อหด|สายรัด/i, cat: 'สายรัด/ท่อหด', icon: '🎗️' },
+      { re: /ถุงมือ|หน้ากาก|แว่น|ที่อุดหู|ppe/i, cat: 'ถุงมือ/PPE', icon: '🧤' },
+      { re: /น้ำมัน|สเปรย์|จารบี|grease|oil/i, cat: 'น้ำมัน/สเปรย์/จารบี', icon: '🧴' }
+    ];
+    function csSplitCsvLine(line, sep) {
+      var out = [], cur = '', quoted = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (quoted) {
+          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (ch === '"') quoted = false;
+          else cur += ch;
+        } else if (ch === '"') quoted = true;
+        else if (ch === sep) { out.push(cur.trim()); cur = ''; }
+        else cur += ch;
+      }
+      out.push(cur.trim());
+      return out;
+    }
+    // แปลงข้อความ CSV/TSV (ก๊อปจาก Excel เป็น tab) → แถวพร้อมส่ง importConsumables
+    function csParseImportCsv(text) {
+      var lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/).filter(function(l) { return l.trim(); });
+      if (lines.length < 2) return { rows: [], errors: ['ต้องมีหัวคอลัมน์ + อย่างน้อย 1 แถว'] };
+      var sep = lines[0].indexOf('\t') > -1 ? '\t' : ',';
+      var head = csSplitCsvLine(lines[0], sep).map(function(h) { return h.toLowerCase().replace(/\s+/g, '_'); });
+      var col = function(names) { for (var i = 0; i < names.length; i++) { var k = head.indexOf(names[i]); if (k > -1) return k; } return -1; };
+      var c = {
+        name: col(['name', 'ชื่อ', 'รายการ']), category: col(['category', 'หมวด']), spec: col(['spec', 'สเปค', 'ขนาด']),
+        unit: col(['unit', 'หน่วย']), min: col(['min', 'min_stock', 'ขั้นต่ำ']), max: col(['max', 'max_stock']),
+        location: col(['location', 'ช่องเก็บ']), price: col(['unit_price', 'price', 'ราคา']), qty: col(['qty', 'stock', 'คงเหลือ']), icon: col(['icon', 'ไอคอน'])
+      };
+      if (c.name < 0) return { rows: [], errors: ['ไม่พบคอลัมน์ name (ชื่อรายการ)'] };
+      var rows = [], errors = [];
+      lines.slice(1).forEach(function(line, i) {
+        var v = csSplitCsvLine(line, sep);
+        var get = function(k) { return c[k] > -1 ? String(v[c[k]] || '').trim() : ''; };
+        var name = get('name');
+        if (!name) { errors.push('แถวที่ ' + (i + 2) + ': ไม่มีชื่อ'); return; }
+        var rawCat = get('category');
+        var known = CS_CATEGORIES.indexOf(rawCat) > -1;
+        var spec = get('spec') || (known ? '' : rawCat);
+        var guess = CS_IMPORT_GUESS.filter(function(g) { return g.re.test(rawCat + ' ' + name); })[0];
+        rows.push({
+          name: name, spec: spec, category: known ? rawCat : (guess ? guess.cat : 'อื่นๆ'),
+          unit: get('unit') || 'ตัว', icon: get('icon') || (guess ? guess.icon : ''),
+          min: get('min'), max: get('max'), location: get('location'), unit_price: get('price'), qty: get('qty')
+        });
+      });
+      return { rows: rows, errors: errors };
+    }
+    function csImportKey(name, spec) {
+      return String(name || '').replace(/\s+/g, ' ').trim().toLowerCase() + '|' + String(spec || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    }
+    function renderCsImportPreview() {
+      var parsed = csParseImportCsv(csEl('csImportText').value);
+      var existing = {};
+      csItems.forEach(function(it) { existing[csImportKey(it.name, it.spec)] = true; });
+      var fresh = parsed.rows.filter(function(r) { return !existing[csImportKey(r.name, r.spec)]; });
+      var box = csEl('csImportPreview');
+      var btn = csEl('csImportSubmitBtn');
+      btn.disabled = !fresh.length;
+      btn.textContent = fresh.length ? '📥 นำเข้า ' + fresh.length + ' รายการใหม่' : '📥 นำเข้า';
+      if (!String(csEl('csImportText').value || '').trim()) { box.innerHTML = ''; return; }
+      box.innerHTML = (parsed.errors.length ? '<div class="cs-warn" style="margin:8px">' + parsed.errors.map(escHtml).join('<br>') + '</div>' : '') +
+        (parsed.rows.length ? '<table class="cs-table" style="min-width:560px"><thead><tr><th></th><th>ชื่อ</th><th>สเปค</th><th>หมวด</th><th style="text-align:right">Min</th><th>สถานะ</th></tr></thead><tbody>' +
+        parsed.rows.map(function(r) {
+          var dup = existing[csImportKey(r.name, r.spec)];
+          return '<tr class="' + (dup ? 'is-inactive' : '') + '"><td>' + escHtml(r.icon || CS_CATEGORY_ICONS[r.category] || '📦') + '</td><td><b>' + escHtml(r.name) + '</b></td><td>' + escHtml(r.spec) + '</td><td>' + escHtml(r.category) + '</td>' +
+            '<td style="text-align:right">' + escHtml(r.min || '0') + '</td><td>' + (dup ? '<span class="cs-tag cs-tag-low">มีแล้ว · ข้าม</span>' : '<span class="cs-tag" style="background:#dcfce7;color:#15803d">ใหม่</span>') + '</td></tr>';
+        }).join('') + '</tbody></table>' : '');
+    }
+    function openCsImportModal() {
+      renderCsImportPreview();
+      csOpenModal('csImportModal');
+    }
+    function submitCsImport() {
+      var parsed = csParseImportCsv(csEl('csImportText').value);
+      if (!parsed.rows.length) return;
+      var btn = csEl('csImportSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ กำลังนำเข้า...';
+      postJson(withAuthPayload({ action: 'importConsumables', items: JSON.stringify(parsed.rows) })).then(parseApiResponse).then(function(res) {
+        showQuickToast('นำเข้า ' + res.added + ' รายการ' + ((res.skipped || []).length ? ' · ข้ามที่มีอยู่แล้ว ' + res.skipped.length + ' รายการ' : ''), 'success');
+        csEl('csImportText').value = '';
+        csCloseModal('csImportModal');
+        return loadConsumables(true);
+      }).catch(function(err) {
+        showQuickToast('นำเข้าไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        renderCsImportPreview();
+      });
+    }
+
     function switchToConsumablePage() {
       if (!hasPermission('view')) return switchToStockPage();
       stockPage.classList.add('hidden');
@@ -16870,12 +17007,16 @@ function inferRequestPriority(stock, min) {
       csEl('csClearCartBtn').addEventListener('click', function() { csCart = {}; csCloseModal('csCheckoutModal'); renderConsumables(); });
       csEl('csAddItemBtn').addEventListener('click', function() { openCsItemModal(null); });
       csEl('csSeedBtn').addEventListener('click', csSeedStarterKit);
+      csEl('csImportBtn').addEventListener('click', openCsImportModal);
+      csEl('csImportText').addEventListener('input', renderCsImportPreview);
+      csEl('csImportPresetBtn').addEventListener('click', function() { csEl('csImportText').value = CS_PRESET_PNEUMATIC_FITTINGS; renderCsImportPreview(); });
+      csEl('csImportSubmitBtn').addEventListener('click', submitCsImport);
       csEl('csReorderCopyBtn').addEventListener('click', function() { copyTextToClipboard(csReorderText(), 'คัดลอกรายการที่ต้องสั่งแล้ว วางในกลุ่มได้เลย'); });
       csEl('csItemForm').addEventListener('submit', saveCsItem);
       csEl('csStockForm').addEventListener('submit', saveCsStock);
       csEl('csPrintSlipBtn').addEventListener('click', function() { if (csLastTicket) csPrintSlip(csLastTicket.ticket_no); });
       csEl('csCopySlipBtn').addEventListener('click', function() { if (csLastTicket) copyTextToClipboard(csTicketText(csLastTicket.ticket_no), 'คัดลอกใบเบิกแล้ว วางในกลุ่มได้เลย'); });
-      ['csCheckoutModal', 'csSuccessModal', 'csItemModal', 'csStockModal'].forEach(function(id) {
+      ['csCheckoutModal', 'csSuccessModal', 'csItemModal', 'csStockModal', 'csImportModal'].forEach(function(id) {
         bindBackdropClose(csEl(id), function() { csCloseModal(id); });
       });
       // ปุ่ม/ช่องในการ์ดถูกวาดใหม่ตลอด — ผูก event ที่ตัวแม่ครั้งเดียว (ทั้งหน้าและ modal ยืนยันเบิก)
@@ -16906,14 +17047,14 @@ function inferRequestPriority(stock, min) {
         var id = e.target.getAttribute && e.target.getAttribute('data-cs-qty');
         if (id) csCartSet(id, e.target.value);
       }
-      [page, csEl('csCheckoutModal'), csEl('csSuccessModal'), csEl('csItemModal'), csEl('csStockModal')].forEach(function(root) {
+      [page, csEl('csCheckoutModal'), csEl('csSuccessModal'), csEl('csItemModal'), csEl('csStockModal'), csEl('csImportModal')].forEach(function(root) {
         if (!root) return;
         root.addEventListener('click', onDelegatedClick);
         root.addEventListener('change', onDelegatedQty);
       });
       document.addEventListener('keydown', function(e) {
         if (e.key !== 'Escape') return;
-        ['csStockModal', 'csItemModal', 'csSuccessModal', 'csCheckoutModal'].some(function(id) {
+        ['csImportModal', 'csStockModal', 'csItemModal', 'csSuccessModal', 'csCheckoutModal'].some(function(id) {
           var m = csEl(id);
           if (m && m.classList.contains('is-open')) { csCloseModal(id); return true; }
           return false;

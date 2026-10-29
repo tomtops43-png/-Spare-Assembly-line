@@ -3077,6 +3077,57 @@ function upsertConsumable(payload) {
   }
 }
 
+// นำเข้าหลายรายการทีเดียว (วาง CSV จากหน้าเว็บ) — ทยอยเพิ่มได้เรื่อยๆ: รายการที่ ชื่อ+สเปค ตรงกับของเดิม
+// จะถูกข้าม ไม่สร้างซ้ำ จึงวางไฟล์เดิมที่มีแถวใหม่ต่อท้ายซ้ำได้ปลอดภัย
+function consumableDedupKey(name, spec) {
+  return String(name || '').replace(/\s+/g, ' ').trim().toLowerCase() + '|' + String(spec || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function importConsumables(payload) {
+  var user = requireConsumableKeeper({ authToken: payload.authToken });
+  var rawItems = payload.items;
+  if (typeof rawItems === 'string') {
+    try { rawItems = JSON.parse(rawItems); } catch (err) { throw new Error('รูปแบบรายการไม่ถูกต้อง'); }
+  }
+  if (!rawItems || !rawItems.length) throw new Error('ไม่มีรายการให้นำเข้า');
+  if (rawItems.length > 300) throw new Error('นำเข้าได้สูงสุด 300 รายการต่อครั้ง');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sheet = getConsumableSheet();
+    var items = readConsumableItems(sheet);
+    var seen = {};
+    Object.keys(items.byId).forEach(function(id) { seen[consumableDedupKey(items.byId[id].name, items.byId[id].spec)] = true; });
+    var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
+    var seq = Object.keys(items.byId).length;
+    var rows = [], logRows = [], skipped = [];
+    // ตรวจทุกแถวก่อน แล้วค่อยเขียนทีเดียว — แถวเสียแถวเดียวไม่ทำให้ได้ข้อมูลครึ่งๆ กลางๆ
+    rawItems.forEach(function(raw, index) {
+      var f;
+      try { f = buildConsumableFields(raw || {}, null); } catch (err) { throw new Error('แถวที่ ' + (index + 1) + ': ' + (err && err.message ? err.message : err)); }
+      var key = consumableDedupKey(f.name, f.spec);
+      if (seen[key]) { skipped.push(f.name + (f.spec ? ' ' + f.spec : '')); return; }
+      seen[key] = true;
+      var qty = Number(raw.qty || 0);
+      if (!isFinite(qty) || qty < 0) throw new Error('แถวที่ ' + (index + 1) + ': ยอดตั้งต้นต้องเป็นตัวเลขไม่ติดลบ');
+      var id;
+      do { seq += 1; id = 'CS' + ('0000' + seq).slice(-4); } while (items.byId[id]);
+      var row = [id, f.name, f.category, f.spec, f.unit, f.icon, qty, f.min, f.max, f.location, f.unitPrice, f.active,
+        user.username || '', timestamp, user.username || '', timestamp];
+      rows.push(row);
+      if (qty > 0) logRows.push(consumableLogRow({ timestamp: timestamp, type: 'RESTOCK', item: consumableRowToObject(row), qty: qty, balance: qty, recordedBy: user.username || '', requester: user.username || '', remark: 'ยอดตั้งต้น (นำเข้า)' }));
+    });
+    if (rows.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, CONSUMABLE_HEADERS.length).setValues(rows);
+    if (logRows.length) {
+      var logSheet = getConsumableLogSheet();
+      logSheet.getRange(logSheet.getLastRow() + 1, 1, logRows.length, CONSUMABLE_LOG_HEADERS.length).setValues(logRows);
+    }
+    return { status: 'success', added: rows.length, skipped: skipped };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // แคตตาล็อกเริ่มต้น 1 คลิก (เฉพาะตอนคลังยังว่าง) — ยอด 0 ทั้งหมด ให้ไปเติมยอดจริงเอง
 function seedConsumables(payload) {
   var user = requireConsumableKeeper({ authToken: payload.authToken });
@@ -6837,6 +6888,7 @@ function doGet(e) {
     if (action === 'adjustConsumableStock') return respond(adjustConsumableStock(e.parameter), e);
     if (action === 'upsertConsumable') return respond(upsertConsumable(e.parameter), e);
     if (action === 'seedConsumables') return respond(seedConsumables(e.parameter), e);
+    if (action === 'importConsumables') return respond(importConsumables(e.parameter), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(e.parameter), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
@@ -7192,6 +7244,7 @@ function doPost(e) {
     if (action === 'adjustConsumableStock') return respond(adjustConsumableStock(body), e);
     if (action === 'upsertConsumable') return respond(upsertConsumable(body), e);
     if (action === 'seedConsumables') return respond(seedConsumables(body), e);
+    if (action === 'importConsumables') return respond(importConsumables(body), e);
     if (action === 'uploadMiscExpenseReceipt') return respond(uploadMiscExpenseReceipt(body), e);
     if (action === 'importPurchaseHistoryPdfBatch') return respond(importPurchaseHistoryPdfBatch(body), e);
     if (action === 'createPurchaseHistoryBatch') return respond(createPurchaseHistoryBatch(body), e);
