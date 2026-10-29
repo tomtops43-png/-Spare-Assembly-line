@@ -152,3 +152,34 @@ assert.strictEqual(headerCount, 17);
 assert(backend.includes("timestamp, user.username || '', timestamp, ''];"), 'ชุดเริ่มต้นต้องมีช่องรูป (ว่าง)');
 assert(backend.includes('timestamp, user.username || \'\', timestamp, f.imageUrl];'), 'นำเข้าต้องมีช่องรูป');
 assert(backend.includes('existing.created_by, existing.created_at, f.imageUrl'), 'แก้ไขต้องเขียนช่องรูป');
+
+// ── ฟิตติ้งลม: แยกชนิดย่อยจากชื่อ+สเปคอัตโนมัติ ──────────────────────────────────
+const fit = new Function([
+  grab(htmlLf, /^ {4}var CS_FITTING_CATEGORY = [^\n]*$/m, 'CS_FITTING_CATEGORY'),
+  grab(htmlLf, /^ {4}var CS_FITTING_TYPES = \[[\s\S]*?\n {4}\];/m, 'CS_FITTING_TYPES'),
+  grab(htmlLf, /^ {4}function csFittingType\(item\) \{[\s\S]*?\n {4}\}/m, 'csFittingType'),
+  grab(htmlLf, /^ {4}function csFittingConn\(item\) \{[\s\S]*?\n {4}\}/m, 'csFittingConn')
+].join('\n') + '\nreturn { type: csFittingType, conn: csFittingConn };')();
+const F = (name, spec) => ({ name: name, spec: spec || '', category: 'ฟิตติ้งลม/สายลม' });
+[
+  [F('ข้อต่อตรง ø6', 'ข้อต่อตรง สาย-สาย'), 'straight', 'tube'],
+  [F('ข้อต่อตรง ø4 x M5', 'ข้อต่อตรง เกลียวนอก'), 'straight', 'thread'],
+  [F('ข้อลด ø8-ø6', 'ข้อลด สาย-สาย'), 'reducer', 'tube'],
+  [F('ข้องอ 90 ø6 x 1/4', 'ข้องอ เกลียวนอก'), 'elbow', 'thread'],
+  [F('สามทาง ø6', 'สามทาง สาย-สาย'), 'tee-t', 'tube'],
+  [F('สามทาง T ø8'), 'tee-t', 'tube'],
+  [F('สามทาง Y ø6'), 'tee-y', 'tube'],
+  [F('ข้อต่อ Y-Union', 'PY 8'), 'tee-y', 'tube'],
+  [F('ตัวอุด ø6', 'ตัวอุด'), 'plug', 'tube'],
+  [F('ฟิตติ้งตรง เสียบสาย', 'PC 6-01'), 'straight', 'tube'],
+  [F('ฟิตติ้งงอ 90°', 'PL 6-01'), 'elbow', 'tube'],
+  [F('ข้อต่อสามทาง', 'PE 6'), 'tee-t', 'tube'],
+  [F('สายลม PU', 'Ø6 mm'), 'tube', ''],
+  [F('อะไรสักอย่าง'), 'other', 'tube']
+].forEach(function(c) {
+  assert.strictEqual(fit.type(c[0]), c[1], 'ชนิดของ "' + c[0].name + ' ' + c[0].spec + '" ต้องเป็น ' + c[1]);
+  assert.strictEqual(fit.conn(c[0]), c[2], 'แบบการต่อของ "' + c[0].name + ' ' + c[0].spec + '" ต้องเป็น ' + (c[2] || '(ไม่มี)'));
+});
+assert.strictEqual(fit.type({ name: 'สามทาง', category: 'อื่นๆ' }), '', 'หมวดอื่นต้องไม่ถูกแยกชนิด');
+assert(htmlLf.includes('id="csSubChips"'), 'ต้องมีแถบชิปชนิดย่อย');
+assert(/if \(\(a = t\.getAttribute\('data-cs-cat'\)\)\) \{ csCategory = a; csSubType = 'all'; csConn = 'all';/.test(htmlLf), 'เปลี่ยนหมวดต้องรีเซ็ตตัวกรองย่อย');
