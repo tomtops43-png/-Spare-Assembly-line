@@ -96,7 +96,7 @@ var MISC_EXPENSE_CATEGORIES = ['น็อต/สกรู/ฮาร์ดแว�
 var MISC_EXPENSE_LINES = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw', 'ส่วนกลาง'];
 var MISC_EXPENSE_SHARED_LINE = 'ส่วนกลาง';
 // คลังของสิ้นเปลือง — คอลัมน์ใหม่เพิ่มต่อท้ายเท่านั้น (โค้ดอ่านตามตำแหน่งคอลัมน์)
-var CONSUMABLE_HEADERS = ['Item ID', 'Name', 'Category', 'Spec', 'Unit', 'Icon', 'Qty', 'Min', 'Max', 'Location', 'Unit Price', 'Active', 'Updated By', 'Updated At', 'Created By', 'Created At'];
+var CONSUMABLE_HEADERS = ['Item ID', 'Name', 'Category', 'Spec', 'Unit', 'Icon', 'Qty', 'Min', 'Max', 'Location', 'Unit Price', 'Active', 'Updated By', 'Updated At', 'Created By', 'Created At', 'Image URL'];
 var CONSUMABLE_LOG_HEADERS = ['Txn ID', 'Ticket No', 'Date Time', 'Type', 'Item ID', 'Item Name', 'Category', 'Qty', 'Unit', 'Unit Price', 'Amount', 'Line', 'Machine', 'Purpose', 'Requester', 'Recorded By', 'Balance After', 'Remark'];
 var CONSUMABLE_CATEGORIES = ['ฟิตติ้งลม/สายลม', 'น็อต/สกรู/แหวน', 'สตัด/เกลียว', 'เทป/กาว/ซิลิโคน', 'สายรัด/ท่อหด', 'ถุงมือ/PPE', 'น้ำมัน/สเปรย์/จารบี', 'ผ้า/ทำความสะอาด', 'ใบมีด/ดอกสว่าน', 'อื่นๆ'];
 // ชุดเริ่มต้น: [ชื่อ, หมวด, สเปค, หน่วย, ไอคอน, Min, Max]
@@ -2801,7 +2801,8 @@ function consumableRowToObject(row) {
     unit: String(row[4] || ''), icon: String(row[5] || ''), qty: Number(row[6] || 0), min: Number(row[7] || 0), max: Number(row[8] || 0),
     location: String(row[9] || ''), unit_price: Number(row[10] || 0), active: toBoolean(row[11], true),
     updated_by: String(row[12] || ''), updated_at: formatPurchaseHistoryDate(row[13], true),
-    created_by: String(row[14] || ''), created_at: formatPurchaseHistoryDate(row[15], true)
+    created_by: String(row[14] || ''), created_at: formatPurchaseHistoryDate(row[15], true),
+    image_url: String(row[16] || '')
   };
 }
 
@@ -3032,7 +3033,8 @@ function buildConsumableFields(payload, existing) {
     max: num('max', existing ? existing.max : 0, 'Max'),
     location: String(pick('location', existing ? existing.location : '') || '').trim(),
     unitPrice: num('unit_price', existing ? existing.unit_price : 0, 'ราคาต่อหน่วย'),
-    active: toBoolean(pick('active', existing ? existing.active : true), true)
+    active: toBoolean(pick('active', existing ? existing.active : true), true),
+    imageUrl: String(pick('image_url', existing ? existing.image_url : '') || '').trim()
   };
 }
 
@@ -3053,7 +3055,7 @@ function upsertConsumable(payload) {
       var rowIndex = items.rowIndexById[id];
       sheet.getRange(rowIndex, 1, 1, CONSUMABLE_HEADERS.length).setValues([[
         id, f.name, f.category, f.spec, f.unit, f.icon, existing.qty, f.min, f.max, f.location, f.unitPrice, f.active,
-        user.username || '', timestamp, existing.created_by, existing.created_at
+        user.username || '', timestamp, existing.created_by, existing.created_at, f.imageUrl
       ]]);
       return { status: 'success', item: consumableRowToObject(sheet.getRange(rowIndex, 1, 1, CONSUMABLE_HEADERS.length).getValues()[0]) };
     }
@@ -3064,7 +3066,7 @@ function upsertConsumable(payload) {
     while (items.byId[newId]) newId = 'CS' + Utilities.getUuid().slice(0, 6).toUpperCase();
     var row = [
       newId, fields.name, fields.category, fields.spec, fields.unit, fields.icon, initialQty, fields.min, fields.max, fields.location, fields.unitPrice, fields.active,
-      user.username || '', timestamp, user.username || '', timestamp
+      user.username || '', timestamp, user.username || '', timestamp, fields.imageUrl
     ];
     sheet.appendRow(row);
     var item = consumableRowToObject(row);
@@ -3113,7 +3115,7 @@ function importConsumables(payload) {
       var id;
       do { seq += 1; id = 'CS' + ('0000' + seq).slice(-4); } while (items.byId[id]);
       var row = [id, f.name, f.category, f.spec, f.unit, f.icon, qty, f.min, f.max, f.location, f.unitPrice, f.active,
-        user.username || '', timestamp, user.username || '', timestamp];
+        user.username || '', timestamp, user.username || '', timestamp, f.imageUrl];
       rows.push(row);
       if (qty > 0) logRows.push(consumableLogRow({ timestamp: timestamp, type: 'RESTOCK', item: consumableRowToObject(row), qty: qty, balance: qty, recordedBy: user.username || '', requester: user.username || '', remark: 'ยอดตั้งต้น (นำเข้า)' }));
     });
@@ -3128,6 +3130,28 @@ function importConsumables(payload) {
   }
 }
 
+// รูปของสิ้นเปลือง — หน้างานจำของจากรูปได้เร็วกว่าชื่อ (ฟิตติ้งหน้าตาคล้ายกันหมด)
+// เก็บใน Drive โฟลเดอร์ consumables/ แยกจากไฟล์แนบอื่น หน้าเว็บย่อรูปก่อนส่งแล้ว
+function uploadConsumableImage(payload) {
+  var user = requireConsumableKeeper({ authToken: payload.authToken });
+  var dataUrl = String(payload.dataUrl || payload.fileBase64 || '');
+  if (!dataUrl) throw new Error('ไม่พบข้อมูลรูปภาพ');
+  var mimeType = getDataUrlMimeType(dataUrl);
+  var allowed = { 'image/jpeg': true, 'image/png': true, 'image/webp': true };
+  if (!mimeType || !allowed[mimeType]) throw new Error('รูปรองรับเฉพาะ jpg, png, webp');
+  var folder = getOrCreateChildFolder(DriveApp.getFolderById(DRIVE_ROOT_FOLDER_ID), 'consumables');
+  var ext = mimeType === 'image/png' ? 'png' : (mimeType === 'image/webp' ? 'webp' : 'jpg');
+  var itemId = String(payload.item_id || payload.itemId || 'new').replace(/[^A-Za-z0-9_-]/g, '') || 'new';
+  var fileName = itemId + '-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + (user.username || 'user') + '.' + ext;
+  var file = folder.createFile(Utilities.newBlob(Utilities.base64Decode(dataUrl.split(',')[1] || ''), mimeType, fileName));
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    Logger.log('uploadConsumableImage setSharing warning: ' + (err && err.message ? err.message : err));
+  }
+  return { status: 'success', image_url: 'https://drive.google.com/uc?export=view&id=' + file.getId(), file_id: file.getId() };
+}
+
 // แคตตาล็อกเริ่มต้น 1 คลิก (เฉพาะตอนคลังยังว่าง) — ยอด 0 ทั้งหมด ให้ไปเติมยอดจริงเอง
 function seedConsumables(payload) {
   var user = requireConsumableKeeper({ authToken: payload.authToken });
@@ -3138,7 +3162,7 @@ function seedConsumables(payload) {
     if (sheet.getLastRow() > 1) throw new Error('คลังมีรายการอยู่แล้ว — สร้างชุดเริ่มต้นได้เฉพาะตอนคลังว่าง');
     var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
     var rows = CONSUMABLE_STARTER_KIT.map(function(s, index) {
-      return ['CS' + ('0000' + (index + 1)).slice(-4), s[0], s[1], s[2], s[3], s[4], 0, s[5], s[6], '', 0, true, user.username || '', timestamp, user.username || '', timestamp];
+      return ['CS' + ('0000' + (index + 1)).slice(-4), s[0], s[1], s[2], s[3], s[4], 0, s[5], s[6], '', 0, true, user.username || '', timestamp, user.username || '', timestamp, ''];
     });
     sheet.getRange(2, 1, rows.length, CONSUMABLE_HEADERS.length).setValues(rows);
     return { status: 'success', count: rows.length };
@@ -6889,6 +6913,7 @@ function doGet(e) {
     if (action === 'upsertConsumable') return respond(upsertConsumable(e.parameter), e);
     if (action === 'seedConsumables') return respond(seedConsumables(e.parameter), e);
     if (action === 'importConsumables') return respond(importConsumables(e.parameter), e);
+    if (action === 'uploadConsumableImage') return respond(uploadConsumableImage(e.parameter), e);
     if (action === 'bulkUpdateOrderRequestStatus') return respond(bulkUpdateOrderRequestStatus(e.parameter), e);
     if (action === 'ensureOrderRequestsSheet') return respond(ensureOrderRequestsSheetReady(e.parameter), e);
     if (action === 'approveOrderRequest') return respond(approveOrderRequest(e.parameter), e);
@@ -7245,6 +7270,7 @@ function doPost(e) {
     if (action === 'upsertConsumable') return respond(upsertConsumable(body), e);
     if (action === 'seedConsumables') return respond(seedConsumables(body), e);
     if (action === 'importConsumables') return respond(importConsumables(body), e);
+    if (action === 'uploadConsumableImage') return respond(uploadConsumableImage(body), e);
     if (action === 'uploadMiscExpenseReceipt') return respond(uploadMiscExpenseReceipt(body), e);
     if (action === 'importPurchaseHistoryPdfBatch') return respond(importPurchaseHistoryPdfBatch(body), e);
     if (action === 'createPurchaseHistoryBatch') return respond(createPurchaseHistoryBatch(body), e);
