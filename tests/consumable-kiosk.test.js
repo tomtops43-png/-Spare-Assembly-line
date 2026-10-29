@@ -189,3 +189,11 @@ assert(htmlLf.includes('id="csCartHideBtn"') && htmlLf.includes('id="csCartClear
 assert(/\.cs-cartbar\.is-min \{[^}]*right: 18px/.test(htmlLf), 'ย่อแล้วต้องเหลือปุ่มเล็กมุมขวา');
 assert(/function renderCsCartBar\(\) \{[\s\S]{0,400}if \(!entries\.length\) \{ csCartMinimized = false; return; \}[\s\S]{0,200}bar\.classList\.toggle\('is-min', csCartMinimized\);/.test(htmlLf), 'ตะกร้าว่างต้องรีเซ็ตสถานะย่อ');
 assert(htmlLf.includes('.cs-page { padding-bottom: 120px; }'), 'ท้ายหน้าต้องเว้นที่ให้เลื่อนการ์ดแถวล่างพ้นแถบตะกร้า');
+
+// ── คัดลอกรายการเป็นตัวใหม่ ─────────────────────────────────────────────────────
+assert((htmlLf.match(/data-cs-copy-item="/g) || []).length >= 2, 'ต้องมีปุ่มคัดลอกทั้งบนการ์ดและในตารางจัดการคลัง');
+assert(htmlLf.includes("if ((a = t.getAttribute('data-cs-copy-item'))) return openCsItemModal(null, csFindItem(a));"));
+const openModalSrc = grab(htmlLf, /^ {4}function openCsItemModal\(item, copyFrom\) \{[\s\S]*?\n {4}\}/m, 'openCsItemModal');
+assert(openModalSrc.includes("csEl('csItemId').value = item ? item.item_id : '';") && openModalSrc.includes('if (copyFrom) item = null;'), 'คัดลอกต้องสร้างเป็นรายการใหม่ (ไม่มีรหัสเดิม)');
+assert(openModalSrc.includes("csSetItemImage(src ? src.image_url : '');"), 'คัดลอกต้องพารูปเดิมมาด้วย');
+assert(/function saveCsItem\(e\) \{[\s\S]{0,600}it\.item_id !== editingId && csImportKey\(it\.name, it\.spec\) === key/.test(htmlLf), 'บันทึกต้องกันชื่อ+สเปคซ้ำกับรายการอื่น');

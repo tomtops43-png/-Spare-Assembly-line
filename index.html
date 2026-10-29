@@ -957,8 +957,9 @@
     .cs-card-ico.has-img { height: 84px; width: 84px; background: #fff; border: 1px solid #f1f5f9; cursor: zoom-in; }
     .cs-card-ico img, .cs-li-ico img, .cs-thumb img { height: 100%; width: 100%; object-fit: cover; }
     .cs-li-ico, .cs-thumb { display: inline-flex; height: 34px; width: 34px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 10px; overflow: hidden; vertical-align: middle; }
-    .cs-card-admin { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0; }
+    .cs-card-admin { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0; }
     .cs-card-admin button { flex: 1; height: 32px; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 12px; font-weight: 700; color: #334155; cursor: pointer; white-space: nowrap; }
+    .cs-card-admin button { min-width: 0; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
     .cs-card-admin button:hover { background: #fff7ed; border-color: #fdba74; color: #c2410c; }
     .cs-img-field { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
     .cs-img-preview { display: flex; height: 88px; width: 88px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 16px; border: 2px dashed #cbd5e1; background: #f8fafc; font-size: 30px; overflow: hidden; }
@@ -16482,9 +16483,10 @@ function inferRequestPriority(stock, min) {
         var hasImg = !!csImageSrc(it);
         // Admin / Leader แก้ชื่อ-รายละเอียด เติม และนับปรับยอด ได้จากการ์ดตรงนี้เลย ไม่ต้องสลับไปแท็บจัดการคลัง
         var admin = !canKeep ? '' : '<div class="cs-card-admin">' +
-          '<button type="button" data-cs-edit="' + escHtml(it.item_id) + '" title="แก้ชื่อ / รายละเอียด / รูป">✏️ แก้ไข</button>' +
           '<button type="button" data-cs-restock="' + escHtml(it.item_id) + '" title="เติมของเข้าคลัง">➕ เติม</button>' +
-          '<button type="button" data-cs-adjust="' + escHtml(it.item_id) + '" title="นับของจริงแล้วตั้งยอดใหม่">🔢 นับ</button></div>';
+          '<button type="button" data-cs-adjust="' + escHtml(it.item_id) + '" title="นับของจริงแล้วตั้งยอดใหม่">🔢 นับ</button>' +
+          '<button type="button" data-cs-edit="' + escHtml(it.item_id) + '" title="แก้ชื่อ / รายละเอียด / รูป">✏️ แก้ไข</button>' +
+          '<button type="button" data-cs-copy-item="' + escHtml(it.item_id) + '" title="คัดลอกเป็นรายการใหม่ (เช่น ขนาดอื่น)">📄 คัดลอก</button></div>';
         return '<div class="cs-card' + (inCart ? ' in-cart' : '') + (lv.level === 'out' ? ' is-out' : '') + '">' +
           '<div class="cs-card-top"><div class="cs-card-ico' + (hasImg ? ' has-img" data-cs-zoom="' + escHtml(it.item_id) + '" title="ดูรูปใหญ่' : '') + '">' + csVisual(it, 300) + '</div>' + (it.location ? '<span class="cs-loc">📍 ' + escHtml(it.location) + '</span>' : '') + '</div>' +
           '<div class="cs-card-name">' + escHtml(it.name) + '</div>' +
@@ -16880,7 +16882,8 @@ function inferRequestPriority(stock, min) {
           '<td style="text-align:right">' + (it.unit_price ? csMoney(it.unit_price) : '-') + '</td>' +
           '<td style="white-space:nowrap"><button type="button" class="cs-mini" data-cs-restock="' + escHtml(it.item_id) + '">➕ เติม</button> ' +
           '<button type="button" class="cs-mini" data-cs-adjust="' + escHtml(it.item_id) + '">🔢 นับ</button> ' +
-          '<button type="button" class="cs-mini" data-cs-edit="' + escHtml(it.item_id) + '">✏️</button></td></tr>';
+          '<button type="button" class="cs-mini" data-cs-edit="' + escHtml(it.item_id) + '" title="แก้ไข">✏️</button> ' +
+          '<button type="button" class="cs-mini" data-cs-copy-item="' + escHtml(it.item_id) + '" title="คัดลอกเป็นรายการใหม่">📄 คัดลอก</button></td></tr>';
       }).join('') : '<tr><td colspan="8" style="padding:28px;text-align:center;color:#94a3b8">ยังไม่มีรายการ — กด "🌱 สร้างชุดเริ่มต้น" หรือ "+ เพิ่มรายการ"</td></tr>';
     }
 
@@ -16897,31 +16900,39 @@ function inferRequestPriority(stock, min) {
         .join('\n');
     }
 
-    function openCsItemModal(item) {
-      csEl('csItemModalTitle').textContent = item ? 'แก้ไข ' + item.item_id : 'เพิ่มรายการของสิ้นเปลือง';
+    // copyFrom = คัดลอกรายการเดิมเป็นตัวใหม่ (ข้อมูล/รูป/หมวดเหมือนเดิม แค่แก้ชื่อ-ขนาด) — ยอดไม่ติดมาด้วย
+    function openCsItemModal(item, copyFrom) {
+      if (copyFrom) item = null;
+      var src = item || copyFrom || null;
+      csEl('csItemModalTitle').textContent = item ? 'แก้ไข ' + item.item_id : (copyFrom ? 'คัดลอกจาก ' + copyFrom.item_id + ' — แก้ชื่อ/ขนาดแล้วบันทึก' : 'เพิ่มรายการของสิ้นเปลือง');
       csEl('csItemCategory').innerHTML = CS_CATEGORIES.map(function(c) { return '<option value="' + escHtml(c) + '">' + CS_CATEGORY_ICONS[c] + ' ' + escHtml(c) + '</option>'; }).join('');
       csEl('csItemId').value = item ? item.item_id : '';
-      csEl('csItemName').value = item ? item.name : '';
-      csEl('csItemSpec').value = item ? item.spec : '';
-      csEl('csItemCategory').value = item ? item.category : CS_CATEGORIES[0];
-      csEl('csItemUnit').value = item ? item.unit : 'ตัว';
-      csEl('csItemMin').value = item ? item.min : '';
-      csEl('csItemMax').value = item ? item.max : '';
-      csEl('csItemLocation').value = item ? item.location : '';
-      csEl('csItemPrice').value = item ? item.unit_price : '';
+      csEl('csItemName').value = src ? src.name : '';
+      csEl('csItemSpec').value = src ? src.spec : '';
+      csEl('csItemCategory').value = src ? src.category : CS_CATEGORIES[0];
+      csEl('csItemUnit').value = src ? src.unit : 'ตัว';
+      csEl('csItemMin').value = src ? src.min : '';
+      csEl('csItemMax').value = src ? src.max : '';
+      csEl('csItemLocation').value = src ? src.location : '';
+      csEl('csItemPrice').value = src ? src.unit_price : '';
       csEl('csItemQty').value = '';
       csEl('csItemQtyWrap').classList.toggle('hidden', !!item);
       csEl('csItemActive').value = item && !item.active ? 'false' : 'true';
-      csEl('csItemIcon').value = item ? item.icon : '';
+      csEl('csItemIcon').value = src ? src.icon : '';
       csEl('csItemImageStatus').textContent = 'รูปจะขึ้นบนการ์ดแทนไอคอน — ช่วยให้หยิบถูกตัว';
-      csSetItemImage(item ? item.image_url : '');
+      csSetItemImage(src ? src.image_url : '');
       csEl('csEmojiPick').innerHTML = CS_EMOJIS.map(function(e) { return '<button type="button" data-cs-emoji="' + e + '">' + e + '</button>'; }).join('');
       csOpenModal('csItemModal');
-      setTimeout(function() { csEl('csItemName').focus(); }, 50);
+      setTimeout(function() { var n = csEl('csItemName'); n.focus(); if (copyFrom) n.select(); }, 50);
     }
 
     function saveCsItem(e) {
       e.preventDefault();
+      // กันคัดลอกแล้วลืมแก้ชื่อ/ขนาด จนได้รายการซ้ำกัน 2 ตัว (เบิกสลับตัว ยอดเพี้ยน)
+      var editingId = csEl('csItemId').value;
+      var key = csImportKey(csEl('csItemName').value, csEl('csItemSpec').value);
+      var dup = csItems.filter(function(it) { return it.item_id !== editingId && csImportKey(it.name, it.spec) === key; })[0];
+      if (dup) { showQuickToast('มี "' + csItemLabel(dup) + '" อยู่แล้ว (' + dup.item_id + ') — แก้ชื่อหรือสเปคก่อนบันทึก', 'warn'); return; }
       var btn = csEl('csItemSaveBtn');
       btn.disabled = true;
       postJson(withAuthPayload({
@@ -17234,6 +17245,7 @@ function inferRequestPriority(stock, min) {
         if ((a = t.getAttribute('data-cs-restock'))) return openCsStockModal(csFindItem(a), 'restock');
         if ((a = t.getAttribute('data-cs-adjust'))) return openCsStockModal(csFindItem(a), 'adjust');
         if ((a = t.getAttribute('data-cs-edit'))) return openCsItemModal(csFindItem(a));
+        if ((a = t.getAttribute('data-cs-copy-item'))) return openCsItemModal(null, csFindItem(a));
         if ((a = t.getAttribute('data-cs-emoji'))) { csEl('csItemIcon').value = a; return; }
       }
       function onDelegatedQty(e) {
