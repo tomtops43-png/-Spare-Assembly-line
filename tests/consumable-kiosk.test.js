@@ -183,3 +183,9 @@ const F = (name, spec) => ({ name: name, spec: spec || '', category: 'ฟิต�
 assert.strictEqual(fit.type({ name: 'สามทาง', category: 'อื่นๆ' }), '', 'หมวดอื่นต้องไม่ถูกแยกชนิด');
 assert(htmlLf.includes('id="csSubChips"'), 'ต้องมีแถบชิปชนิดย่อย');
 assert(/if \(\(a = t\.getAttribute\('data-cs-cat'\)\)\) \{ csCategory = a; csSubType = 'all'; csConn = 'all';/.test(htmlLf), 'เปลี่ยนหมวดต้องรีเซ็ตตัวกรองย่อย');
+
+// ── แถบตะกร้าลอยต้องย่อ/ล้างได้ ไม่บังการ์ดค้าง ─────────────────────────────────
+assert(htmlLf.includes('id="csCartHideBtn"') && htmlLf.includes('id="csCartClearBtn"') && htmlLf.includes('id="csCartMinToggle"'), 'แถบตะกร้าต้องมีปุ่มย่อ/ล้าง');
+assert(/\.cs-cartbar\.is-min \{[^}]*right: 18px/.test(htmlLf), 'ย่อแล้วต้องเหลือปุ่มเล็กมุมขวา');
+assert(/function renderCsCartBar\(\) \{[\s\S]{0,400}if \(!entries\.length\) \{ csCartMinimized = false; return; \}[\s\S]{0,200}bar\.classList\.toggle\('is-min', csCartMinimized\);/.test(htmlLf), 'ตะกร้าว่างต้องรีเซ็ตสถานะย่อ');
+assert(htmlLf.includes('.cs-page { padding-bottom: 120px; }'), 'ท้ายหน้าต้องเว้นที่ให้เลื่อนการ์ดแถวล่างพ้นแถบตะกร้า');
