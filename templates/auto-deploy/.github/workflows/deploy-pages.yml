@@ -1,0 +1,87 @@
+name: Deploy to GitHub Pages
+
+# deploy หน้าเว็บขึ้น GitHub Pages อัตโนมัติทุกครั้งที่ push เข้า main
+# ตั้งค่าครั้งเดียว: repo → Settings → Pages → Source = "GitHub Actions"
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+env:
+  TZ: Asia/Bangkok
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ไม่มี package.json หรือไม่มีสคริปต์ test → ข้ามไปเฉยๆ ไม่ล้ม
+      - name: Run tests (ถ้ามี)
+        run: |
+          if [ -f package.json ]; then
+            npm test --if-present
+          else
+            echo "ไม่มี package.json — ข้ามเทสต์"
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      # คัดลอกทั้ง repo ขึ้นเว็บ ยกเว้นไฟล์ที่ไม่ควรเปิดสาธารณะ (โค้ด GAS, เทสต์, config)
+      # ถ้าเว็บอยู่ในโฟลเดอร์เดียว (เช่น public/) ให้เปลี่ยนเป็น: cp -r public/. _site/
+      - name: Prepare static site artifact
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          rsync -a ./ _site/ \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '_site' \
+            --exclude 'gas' \
+            --exclude 'tests' \
+            --exclude 'node_modules' \
+            --exclude 'package.json' \
+            --exclude 'package-lock.json' \
+            --exclude '*.md'
+          ls -la _site
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
