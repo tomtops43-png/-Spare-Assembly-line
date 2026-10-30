@@ -5241,7 +5241,7 @@
         </button>
       </div>
       <div class="overflow-y-auto p-4" style="max-height:60vh">
-        <!-- กราฟงบ Spare part สแนปช็อตตอนคนส่งกดส่งอนุมัติ — ให้หัวหน้าเห็นภาพรวมงบตรงนี้เลย ไม่ต้องเปิดหน้า PR builder เอง -->
+        <!-- งบ Spare part คำนวณสดจากรายการใน PR ใบนี้ — ให้หัวหน้าเห็นภาพรวมงบตรงนี้เลย ไม่ต้องเปิดหน้า PR builder เอง -->
         <div id="prApprovalBudgetSnapshot" class="hidden mb-3"></div>
         <!-- เอกสารแนบที่คนส่งแนบมากับ PR (ใบเสนอราคา/รูป/สเปก) -->
         <div id="prApprovalAttachments" class="hidden mb-3 rounded-xl border border-violet-200 bg-violet-50 p-3"></div>
@@ -21053,25 +21053,30 @@ function inferRequestPriority(stock, min) {
       prPendingUsageCache.pending = requestApi(withAuthPayload({ action: 'getPendingPrUsage' }))
         .then(function(res) {
           var list = (res && res.status === 'success' && Array.isArray(res.pending)) ? res.pending : [];
-          var map = {}; // {yyyy-MM: {line: amount}}
-          list.forEach(function(p) {
-            var m = String(p.month || '');
-            if (!/^\d{4}-\d{2}$/.test(m)) return;
-            var ln = fccLineOf(p.line);
-            (map[m] = map[m] || {});
-            map[m][ln] = (map[m][ln] || 0) + fccN(p.amount);
-          });
-          prPendingUsageCache.data = map; prPendingUsageCache.at = Date.now(); prPendingUsageCache.pending = null;
-          return map;
+          prPendingUsageCache.data = list; prPendingUsageCache.at = Date.now(); prPendingUsageCache.pending = null;
+          return list;
         })
-        .catch(function() { prPendingUsageCache.pending = null; return prPendingUsageCache.data || {}; });
+        .catch(function() { prPendingUsageCache.pending = null; return prPendingUsageCache.data || []; });
       return prPendingUsageCache.pending;
+    }
+    // {yyyy-MM: {line: amount}} ของ PR รออนุมัติ — excludePrId = ใบที่กำลังตรวจอยู่ (นับเป็น "PR ใบนี้" แยกแล้ว ห้ามนับซ้ำใน "รอ")
+    function prPendingUsageMap(list, excludePrId) {
+      var map = {};
+      (list || []).forEach(function(p) {
+        if (excludePrId && String(p.pr_id || '') === String(excludePrId)) return;
+        var m = String(p.month || '');
+        if (!/^\d{4}-\d{2}$/.test(m)) return;
+        var ln = fccLineOf(p.line);
+        (map[m] = map[m] || {});
+        map[m][ln] = (map[m][ln] || 0) + fccN(p.amount);
+      });
+      return map;
     }
     // งบต่อไลน์ของเดือนเป้าหมาย — รองรับ carry-over (ยกงบเหลือจากเดือนก่อนๆ มาสะสม)
     // และรวม PR ที่ยังรออนุมัติเข้าใน used ; budget = งบใช้ได้จริง (ฐาน + ยกมา), used = จ่ายจริง + รออนุมัติ
-    function prComputeBudget(monthKey) {
+    function prComputeBudget(monthKey, excludePrId) {
       return Promise.all([fccEnsureAsync(), prEnsurePendingUsage()]).then(function(arr) {
-        var A = arr[0], pendingMap = arr[1] || {};
+        var A = arr[0], pendingMap = prPendingUsageMap(arr[1], excludePrId);
         var carry = prCarryOverEnabled();
         var targetByLine = {};
         (A.prodConfig || []).forEach(function(c) { if (String(c.line) === 'ALL') return; targetByLine[fccLineOf(c.line)] = fccN(c.target_pct); });
@@ -21164,6 +21169,62 @@ function inferRequestPriority(stock, min) {
         '<div class="h-2.5" style="width:' + prFill + '%;background:' + color + '"></div>' +
       '</div>';
     }
+    // HTML แผงงบ Spare part (ใช้ทั้งหน้า PR builder และหน้าตรวจ+แก้ยอด PR) — คืน { html, anyOver }
+    function prBudgetPanelHtml(B, rows, monthKey, carry, toggleHtml, overLabel) {
+      var money = function(n) { return '฿' + Math.round(n).toLocaleString('th-TH'); };
+      var totBudget = 0, totSpent = 0, totPending = 0, totPr = 0, anyOver = false, anyPending = false, anyCarry = false;
+      var body = rows.map(function(r) {
+        totBudget += r.budget; totSpent += r.spent; totPending += r.pending; totPr += r.prAmount;
+        if (r.over > 0) anyOver = true;
+        if (r.pending > 0) anyPending = true;
+        if (r.carryIn > 0) anyCarry = true;
+        var pctUsed = r.budget > 0 ? Math.round((r.used + r.prAmount) / r.budget * 100) : 0;
+        var statusHtml, statusColor;
+        if (!r.hasBudget) { statusHtml = 'ยังไม่ได้ตั้งงบ'; statusColor = 'text-gray-400'; }
+        else if (r.over > 0) { statusHtml = '⚠️ เกินงบ ' + money(r.over); statusColor = 'text-rose-600'; }
+        else { statusHtml = (pctUsed >= 80 ? '🟠' : '✅') + ' เหลือ ' + money(r.afterPr) + ' (' + pctUsed + '%)'; statusColor = pctUsed >= 80 ? 'text-amber-600' : 'text-emerald-600'; }
+        var subBits = [];
+        if (r.hasBudget) subBits.push('งบ ' + money(r.budget) + (carry && r.carryIn > 0 ? ' (ฐาน ' + money(r.base) + '+ยกมา ' + money(r.carryIn) + ')' : ''));
+        subBits.push('ใช้ ' + money(r.used) + (r.pending > 0 ? ' (จ่าย ' + money(r.spent) + '+รอ ' + money(r.pending) + ')' : ''));
+        subBits.push('PR ' + money(r.prAmount));
+        return '<div class="py-1.5 border-b border-gray-100 last:border-0">' +
+          '<div class="flex items-center justify-between gap-2">' +
+            '<span class="text-xs font-bold text-gray-700">' + escHtml(r.line) + '</span>' +
+            '<span class="text-xs font-bold ' + statusColor + '">' + statusHtml + '</span>' +
+          '</div>' +
+          prBudgetBarHtml(r, money) +
+          '<div class="mt-0.5 text-[9px] text-gray-400">' + subBits.join(' · ') + '</div>' +
+        '</div>';
+      }).join('');
+      var totUsed = totSpent + totPending;
+      var totRemainAfter = totBudget - totUsed - totPr;
+      var totPct = totBudget > 0 ? Math.round((totUsed + totPr) / totBudget * 100) : 0;
+      var totColor = anyOver ? '#ef4444' : (totPct >= 80 ? '#f59e0b' : '#22c55e');
+      var totFill = Math.max(0, Math.min(100, totPct));
+      var totStatus = anyOver
+        ? '<span class="font-bold text-rose-600">⚠️ ' + escHtml(overLabel || 'มีไลน์เกินงบ · ห้ามส่ง PR') + '</span>'
+        : (totBudget > 0 ? '<span class="font-bold text-emerald-600">✅ รวมเหลือ ' + money(totRemainAfter) + ' (' + totPct + '%)</span>' : '<span class="text-gray-400">—</span>');
+      var noteBits = ['งบ = มูลค่าผลิต × เป้าหมาย %'];
+      if (anyPending) noteBits.push('รวม PR รออนุมัติ');
+      if (carry && anyCarry) noteBits.push('ยกงบเหลือข้ามเดือน');
+      var html =
+        '<div class="rounded-xl border-2 ' + (anyOver ? 'border-rose-300 bg-rose-50' : 'border-gray-200 bg-white') + ' p-3 shadow-md">' +
+          '<div class="mb-2 flex flex-wrap items-center justify-between gap-2">' +
+            '<p class="text-xs font-bold text-gray-700">💰 งบ Spare part — เดือน ' + escHtml(monthKey) + '</p>' +
+            toggleHtml +
+          '</div>' +
+          '<div>' +
+            '<div class="flex items-center justify-between gap-2">' +
+              '<span class="text-xs font-bold text-gray-800">รวมทุกไลน์</span>' + totStatus +
+            '</div>' +
+            '<div class="mt-1 h-2.5 w-full rounded-full bg-gray-100 overflow-hidden"><div class="h-2.5 rounded-full" style="width:' + totFill + '%;background:' + totColor + '"></div></div>' +
+            '<div class="mt-0.5 text-[9px] text-gray-400">งบรวม ' + money(totBudget) + ' · ใช้ไปแล้ว ' + money(totUsed) + ' · PR ใบนี้ ' + money(totPr) + '</div>' +
+          '</div>' +
+          '<div class="mt-2 pt-2 border-t border-gray-200">' + body + '</div>' +
+          '<p class="mt-1.5 text-[10px] text-gray-400">' + noteBits.join(' · ') + '</p>' +
+        '</div>';
+      return { html: html, anyOver: anyOver };
+    }
     function renderPrBudgetPanel() {
       var el = document.getElementById('prBudgetPanel');
       if (!el) return;
@@ -21186,58 +21247,9 @@ function inferRequestPriority(stock, min) {
           bindToggle();
           return;
         }
-        var money = function(n) { return '฿' + Math.round(n).toLocaleString('th-TH'); };
-        var totBudget = 0, totSpent = 0, totPending = 0, totPr = 0, anyOver = false, anyPending = false, anyCarry = false;
-        var body = rows.map(function(r) {
-          totBudget += r.budget; totSpent += r.spent; totPending += r.pending; totPr += r.prAmount;
-          if (r.over > 0) anyOver = true;
-          if (r.pending > 0) anyPending = true;
-          if (r.carryIn > 0) anyCarry = true;
-          var pctUsed = r.budget > 0 ? Math.round((r.used + r.prAmount) / r.budget * 100) : 0;
-          var statusHtml, statusColor;
-          if (!r.hasBudget) { statusHtml = 'ยังไม่ได้ตั้งงบ'; statusColor = 'text-gray-400'; }
-          else if (r.over > 0) { statusHtml = '⚠️ เกินงบ ' + money(r.over); statusColor = 'text-rose-600'; }
-          else { statusHtml = (pctUsed >= 80 ? '🟠' : '✅') + ' เหลือ ' + money(r.afterPr) + ' (' + pctUsed + '%)'; statusColor = pctUsed >= 80 ? 'text-amber-600' : 'text-emerald-600'; }
-          var subBits = [];
-          if (r.hasBudget) subBits.push('งบ ' + money(r.budget) + (carry && r.carryIn > 0 ? ' (ฐาน ' + money(r.base) + '+ยกมา ' + money(r.carryIn) + ')' : ''));
-          subBits.push('ใช้ ' + money(r.used) + (r.pending > 0 ? ' (จ่าย ' + money(r.spent) + '+รอ ' + money(r.pending) + ')' : ''));
-          subBits.push('PR ' + money(r.prAmount));
-          return '<div class="py-1.5 border-b border-gray-100 last:border-0">' +
-            '<div class="flex items-center justify-between gap-2">' +
-              '<span class="text-xs font-bold text-gray-700">' + escHtml(r.line) + '</span>' +
-              '<span class="text-xs font-bold ' + statusColor + '">' + statusHtml + '</span>' +
-            '</div>' +
-            prBudgetBarHtml(r, money) +
-            '<div class="mt-0.5 text-[9px] text-gray-400">' + subBits.join(' · ') + '</div>' +
-          '</div>';
-        }).join('');
-        var totUsed = totSpent + totPending;
-        var totRemainAfter = totBudget - totUsed - totPr;
-        var totPct = totBudget > 0 ? Math.round((totUsed + totPr) / totBudget * 100) : 0;
-        var totColor = anyOver ? '#ef4444' : (totPct >= 80 ? '#f59e0b' : '#22c55e');
-        var totFill = Math.max(0, Math.min(100, totPct));
-        var totStatus = anyOver
-          ? '<span class="font-bold text-rose-600">⚠️ มีไลน์เกินงบ · ห้ามส่ง PR</span>'
-          : (totBudget > 0 ? '<span class="font-bold text-emerald-600">✅ รวมเหลือ ' + money(totRemainAfter) + ' (' + totPct + '%)</span>' : '<span class="text-gray-400">—</span>');
-        var noteBits = ['งบ = มูลค่าผลิต × เป้าหมาย %'];
-        if (anyPending) noteBits.push('รวม PR รออนุมัติ');
-        if (carry && anyCarry) noteBits.push('ยกงบเหลือข้ามเดือน');
-        el.innerHTML =
-          '<div class="rounded-xl border-2 ' + (anyOver ? 'border-rose-300 bg-rose-50' : 'border-gray-200 bg-white') + ' p-3 shadow-md">' +
-            '<div class="mb-2 flex flex-wrap items-center justify-between gap-2">' +
-              '<p class="text-xs font-bold text-gray-700">💰 งบ Spare part — เดือน ' + escHtml(monthKey) + '</p>' +
-              toggleHtml +
-            '</div>' +
-            '<div>' +
-              '<div class="flex items-center justify-between gap-2">' +
-                '<span class="text-xs font-bold text-gray-800">รวมทุกไลน์</span>' + totStatus +
-              '</div>' +
-              '<div class="mt-1 h-2.5 w-full rounded-full bg-gray-100 overflow-hidden"><div class="h-2.5 rounded-full" style="width:' + totFill + '%;background:' + totColor + '"></div></div>' +
-              '<div class="mt-0.5 text-[9px] text-gray-400">งบรวม ' + money(totBudget) + ' · ใช้ไปแล้ว ' + money(totUsed) + ' · PR ใบนี้ ' + money(totPr) + '</div>' +
-            '</div>' +
-            '<div class="mt-2 pt-2 border-t border-gray-200">' + body + '</div>' +
-            '<p class="mt-1.5 text-[10px] text-gray-400">' + noteBits.join(' · ') + '</p>' +
-          '</div>';
+        var built = prBudgetPanelHtml(B, rows, monthKey, carry, toggleHtml);
+        var anyOver = built.anyOver;
+        el.innerHTML = built.html;
         bindToggle();
         prBudgetLoadingState = false;
         prBudgetOverState = anyOver;
@@ -24707,12 +24719,9 @@ function inferRequestPriority(stock, min) {
         if (!res || res.status !== 'success') throw new Error((res && res.message) || 'โหลด PR ไม่สำเร็จ');
         prApprovalState = res;
         if (meta) meta.textContent = res.header.pr_id + ' · โดย ' + (res.header.created_by || '-') + ' · ไลน์ ' + (res.header.line || '-') + ' · ' + res.lines.length + ' รายการ';
-        // กราฟงบ Spare part ตอนคนส่งกดส่งอนุมัติ — สแนปช็อต HTML ตรงๆ จากตอนสร้าง PR ให้เห็นภาพเดียวกัน
-        if (budgetSnapshotEl) {
-          var snapshotHtml = String((res.header && res.header.budget_snapshot_html) || '').trim();
-          if (snapshotHtml) { budgetSnapshotEl.innerHTML = snapshotHtml; budgetSnapshotEl.classList.remove('hidden'); }
-          else { budgetSnapshotEl.innerHTML = ''; budgetSnapshotEl.classList.add('hidden'); }
-        }
+        // งบ Spare part คำนวณสดจากรายการใน PR ใบนี้ (ไม่ใช้สแนปช็อตตอนส่ง — ใบเก่าบางใบเก็บยอดผิดไว้
+        // และงบเปลี่ยนตามเวลา) ใช้สูตรเดียวกับหน้า PR builder / การ์ด Cost Ratio
+        renderPrApprovalBudget();
         var attachList = (res.header && res.header.attachments) || [];
         if (attachEl && attachList.length) {
           attachEl.innerHTML = '<div class="mb-1.5 text-xs font-bold text-violet-700">📎 เอกสารแนบจากผู้ส่ง (' + attachList.length + ')</div><div class="flex flex-wrap gap-2">' +
@@ -24747,6 +24756,51 @@ function inferRequestPriority(stock, min) {
         if (body) body.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-500">⚠️ ' + escHtml(err && err.message ? err.message : String(err)) + '</td></tr>';
       });
     }
+    // ยอด PR ใบที่กำลังตรวจ = จำนวนอนุมัติ (ตามช่องที่แก้อยู่) × ราคา ลงไลน์ของหัว PR
+    // (แบบเดียวกับที่ getPendingPrUsage นับ PR รออนุมัติทั้งใบเข้าไลน์ของหัว PR)
+    function prApprovalAmountByLine(state, qtyByLineNo) {
+      var byLine = {};
+      if (!state || !state.header) return byLine;
+      var ln = fccLineOf(state.header.line);
+      (state.lines || []).forEach(function(l) {
+        var qty = qtyByLineNo && qtyByLineNo[l.line_no] !== undefined ? qtyByLineNo[l.line_no] : fccN(l.qty_approved);
+        byLine[ln] = (byLine[ln] || 0) + fccN(qty) * fccN(l.unit_price);
+      });
+      return byLine;
+    }
+    function prApprovalMonthKey(state) {
+      var m = String((state && state.header && state.header.created_at) || '').slice(0, 7);
+      return /^\d{4}-\d{2}$/.test(m) ? m : prBudgetMonthKey();
+    }
+    var prApprovalBudgetTimer = null;
+    function renderPrApprovalBudget() {
+      var el = document.getElementById('prApprovalBudgetSnapshot');
+      var state = prApprovalState;
+      if (!el || !state || !state.header) return;
+      var monthKey = prApprovalMonthKey(state);
+      var prId = state.header.pr_id;
+      var qtyByLineNo = {};
+      collectApprovalEdits().forEach(function(e) { qtyByLineNo[e.line_no] = e.qty_approved; });
+      if (!el.innerHTML) el.innerHTML = '<div class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-400 shadow-sm">⏳ กำลังคำนวณงบ Spare part เดือน ' + escHtml(monthKey) + '...</div>';
+      el.classList.remove('hidden');
+      var carry = prCarryOverEnabled();
+      prComputeBudget(monthKey, prId).then(function(B) {
+        if (prApprovalState !== state) return; // ปิด/เปิดใบอื่นไปแล้ว
+        var rows = prBudgetRows(B, prApprovalAmountByLine(state, qtyByLineNo)).filter(function(r) { return r.hasBudget || r.prAmount > 0; });
+        if (!rows.length) { el.innerHTML = ''; el.classList.add('hidden'); return; }
+        var note = '<span class="text-[11px] font-semibold text-gray-400 whitespace-nowrap">คำนวณสด · ตามจำนวนอนุมัติ</span>';
+        el.innerHTML = prBudgetPanelHtml(B, rows, monthKey, carry, note, 'มีไลน์เกินงบ').html;
+      }).catch(function() {
+        if (prApprovalState !== state) return;
+        el.innerHTML = '<div class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-400 shadow-sm">ดึงข้อมูลงบ Spare part ไม่สำเร็จ</div>';
+      });
+    }
+    // แก้จำนวนอนุมัติ → คำนวณงบใหม่ (หน่วงไว้ไม่ให้ยิงทุกตัวอักษร — ข้อมูลมาจากแคชเดียวกันอยู่แล้ว)
+    document.addEventListener('input', function(e) {
+      if (!e.target || !e.target.matches || !e.target.matches('#prApprovalLines input[data-appr-line]')) return;
+      clearTimeout(prApprovalBudgetTimer);
+      prApprovalBudgetTimer = setTimeout(renderPrApprovalBudget, 300);
+    });
     function closePrApproval() {
       var modal = document.getElementById('prApprovalModal');
       if (modal) modal.classList.add('hidden');

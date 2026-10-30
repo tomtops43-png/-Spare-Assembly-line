@@ -31,3 +31,26 @@ assert.deepStrictEqual(api.byLine(), { H9: 200, 'Coil Winding': 500000, 'Lug&Scr
 assert(/function prSubmitCreatePr\(\)\s*\{\s*var selected = getFilteredPrCandidates\(true\);/.test(html), 'ส่ง PR ใช้รายการชุดเดียวกับแผงงบ');
 
 console.log('PR budget matches cost ratio checks passed');
+
+// ---- หน้าตรวจ + แก้ยอด PR: คำนวณงบสดจากรายการในใบ ไม่ใช้สแนปช็อต ----
+const appr = new Function(
+  'function fccN(v) { var n = Number(v); return isFinite(n) ? n : 0; }\n' +
+  'function fccLineOf(l) { return String(l || "").trim(); }\n' +
+  'function prBudgetMonthKey() { return "2099-01"; }\n' +
+  ['prPendingUsageMap', 'prApprovalAmountByLine', 'prApprovalMonthKey'].map(n => grabFn(n)).join('\n') +
+  '\nreturn { pending: prPendingUsageMap, amount: prApprovalAmountByLine, month: prApprovalMonthKey };'
+)();
+const state = { header: { pr_id: 'PR-2610-009', line: 'H9', created_at: '2026-10-28 10:00:00' },
+  lines: [{ line_no: 1, qty_approved: 2, unit_price: 100 }, { line_no: 2, qty_approved: 1, unit_price: 50 }] };
+assert.deepStrictEqual(appr.amount(state), { H9: 250 }, 'PR ใบนี้ = จำนวนอนุมัติ × ราคา ลงไลน์ของหัว PR');
+assert.deepStrictEqual(appr.amount(state, { 1: 5 }), { H9: 550 }, 'แก้จำนวนในช่องแล้วยอดตามทันที');
+assert.strictEqual(appr.month(state), '2026-10', 'ใช้งบของเดือนที่สร้าง PR');
+const pendingList = [
+  { pr_id: 'PR-2610-009', line: 'H9', month: '2026-10', amount: 250 },
+  { pr_id: 'PR-2610-010', line: 'H9', month: '2026-10', amount: 40 }
+];
+assert.deepStrictEqual(appr.pending(pendingList), { '2026-10': { H9: 290 } });
+assert.deepStrictEqual(appr.pending(pendingList, 'PR-2610-009'), { '2026-10': { H9: 40 } }, 'ใบที่กำลังตรวจต้องไม่ถูกนับซ้ำใน "รอ"');
+assert(grabFn('prComputeBudget').includes('prPendingUsageMap(arr[1], excludePrId)'));
+assert(grabFn('renderPrApprovalBudget').includes('prComputeBudget(monthKey, prId)'));
+console.log('PR approval live budget checks passed');

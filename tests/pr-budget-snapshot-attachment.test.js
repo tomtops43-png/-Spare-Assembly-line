@@ -53,8 +53,9 @@ const openPrApprovalBody = (function() {
   assert(start > -1 && end > start, 'can slice openPrApproval body');
   return html.slice(start, end);
 })();
-assert(openPrApprovalBody.includes('res.header && res.header.budget_snapshot_html'), 'openPrApproval reads the snapshot from the PR header response');
-assert(/budgetSnapshotEl\.innerHTML = snapshotHtml; budgetSnapshotEl\.classList\.remove\('hidden'\)/.test(openPrApprovalBody), 'openPrApproval shows the container when a snapshot exists');
-assert(/budgetSnapshotEl\.innerHTML = ''; budgetSnapshotEl\.classList\.add\('hidden'\)/.test(openPrApprovalBody), 'openPrApproval hides/clears the container when there is no snapshot (older PRs)');
+// หน้าตรวจคำนวณงบสดจากรายการใน PR (สแนปช็อตเก่าบางใบเก็บยอดผิด) — สแนปช็อตยังเก็บไว้ใน PR เป็นหลักฐาน
+assert(openPrApprovalBody.includes('renderPrApprovalBudget();'), 'openPrApproval renders a live budget panel for this PR');
+assert(!openPrApprovalBody.includes('budgetSnapshotEl.innerHTML = snapshotHtml'), 'openPrApproval no longer shows the stored snapshot');
+assert(/budgetSnapshotEl\.innerHTML = ''; budgetSnapshotEl\.classList\.add\('hidden'\)/.test(openPrApprovalBody), 'openPrApproval clears the container before loading');
 
 console.log('pr-budget-snapshot-attachment: all assertions passed');
