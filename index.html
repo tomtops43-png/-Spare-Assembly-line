@@ -4021,10 +4021,11 @@
               <input id="miscExpenseVatPercent" type="number" min="0" max="100" step="any" value="7" class="h-9 w-16 rounded-lg border border-slate-300 px-2 text-xs" />
               <span class="text-xs text-slate-400">%</span>
             </div>
+            <p id="miscExpenseVatHint" class="hidden text-[11px] font-semibold text-blue-700 sm:col-span-2">🏪 ฮาร์ดแวร์เฮาส์: กรอกราคาตามบิล (รวม VAT แล้ว) — ระบบถอด VAT ออกให้แบบเดียวกับท้ายบิล ยอดรวมไม่เพิ่ม</p>
           </div>
           <div class="mt-3 space-y-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2">
             <div class="flex items-center justify-between text-xs text-slate-500">
-              <span>รวมเป็นเงิน</span>
+              <span id="miscExpenseSubtotalLabel">รวมเป็นเงิน</span>
               <output id="miscExpenseSubtotal">฿0.00</output>
             </div>
             <div id="miscExpenseVatRow" class="hidden flex items-center justify-between text-xs text-slate-500">
@@ -17556,6 +17557,17 @@ function inferRequestPriority(stock, min) {
 
     // ค่าจัดส่ง + VAT ไม่ใช่แถวที่กรอกเอง แต่คิดแยกต่างหากแล้วค่อยแปลงเป็นรายการ
     // "ค่าจัดส่ง" / "ภาษีมูลค่าเพิ่ม" ตอนส่งขึ้นเซิร์ฟเวอร์ — เหมือนบิลร้านค้าจริงที่แยกบรรทัดนี้ไว้ต่างหาก
+    // ร้านที่พิมพ์ราคาสินค้า "รวม VAT แล้ว" แล้วถอด VAT ออกมาโชว์ท้ายบิล (ฮาร์ดแวร์เฮาส์):
+    // รวมยอดขาย = ยอดจ่าย ÷ 1.07 (ปัด 2 ตำแหน่ง) / VAT = ยอดจ่าย − รวมยอดขาย → ยอดจ่ายไม่เพิ่ม
+    function mxIsVatInclusiveVendor(vendor) {
+      var v = String(vendor || '').toLowerCase().replace(/[\s\-_.()]/g, '');
+      return v.indexOf('hardwarehouse') > -1 || v.indexOf('ฮาร์ดแวร์เฮาส์') > -1 || v.indexOf('ฮาร์ดแวร์เฮ้าส์') > -1;
+    }
+    function mxVatInclusiveMode() {
+      var vendorEl = mxEl('miscExpenseVendor');
+      return !mxEditMode() && mxIsVatInclusiveVendor(vendorEl ? vendorEl.value : '');
+    }
+
     function mxExtraCharges(itemsSubtotal) {
       var shippingEl = mxEl('miscExpenseShipping');
       var shipping = shippingEl ? Number(shippingEl.value) : 0;
@@ -17567,8 +17579,13 @@ function inferRequestPriority(stock, min) {
       var vatPercent = vatPercentEl ? Number(vatPercentEl.value) : 0;
       if (!isFinite(vatPercent) || vatPercent < 0) vatPercent = 0;
       var vatBase = itemsSubtotal + shipping;
+      if (vatEnabled && mxVatInclusiveMode()) {
+        var gross = Math.round(vatBase * 100) / 100;
+        var exVat = Math.round(gross * 100 / (100 + vatPercent) * 100) / 100;
+        return { shipping: shipping, vatEnabled: true, vatPercent: vatPercent, vatAmount: Math.round((gross - exVat) * 100) / 100, subtotal: exVat, inclusive: true, gross: gross };
+      }
       var vatAmount = vatEnabled ? Math.round(vatBase * vatPercent) / 100 : 0;
-      return { shipping: shipping, vatEnabled: vatEnabled, vatPercent: vatPercent, vatAmount: vatAmount, subtotal: vatBase };
+      return { shipping: shipping, vatEnabled: vatEnabled, vatPercent: vatPercent, vatAmount: vatAmount, subtotal: vatBase, inclusive: false };
     }
 
     function mxRecalcTotals() {
@@ -17584,12 +17601,16 @@ function inferRequestPriority(stock, min) {
       });
       var extra = mxExtraCharges(grand);
       grand = extra.subtotal + extra.vatAmount;
+      var subtotalLabel = mxEl('miscExpenseSubtotalLabel');
+      if (subtotalLabel) subtotalLabel.textContent = extra.inclusive ? 'รวมยอดขาย (ก่อน VAT)' : 'รวมเป็นเงิน';
+      var vatHint = mxEl('miscExpenseVatHint');
+      if (vatHint) vatHint.classList.toggle('hidden', !mxVatInclusiveMode());
       var subtotalEl = mxEl('miscExpenseSubtotal');
       if (subtotalEl) subtotalEl.textContent = '฿' + extra.subtotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       var vatRow = mxEl('miscExpenseVatRow');
       if (vatRow) vatRow.classList.toggle('hidden', !extra.vatEnabled);
       var vatLabel = mxEl('miscExpenseVatLabel');
-      if (vatLabel) vatLabel.textContent = 'ภาษีมูลค่าเพิ่ม ' + extra.vatPercent + '%';
+      if (vatLabel) vatLabel.textContent = 'ภาษีมูลค่าเพิ่ม ' + extra.vatPercent + '%' + (extra.inclusive ? ' (รวมในราคาแล้ว)' : '');
       var vatAmountEl = mxEl('miscExpenseVatAmount');
       if (vatAmountEl) vatAmountEl.textContent = '฿' + extra.vatAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       var totalEl = mxEl('miscExpenseGrandTotal');
@@ -17812,6 +17833,18 @@ function inferRequestPriority(stock, min) {
       var extra = mxExtraCharges(itemsSubtotal);
       if (extra.shipping > 0) {
         items.push({ category: 'ค่าจัดส่ง', item_name: 'ค่าจัดส่ง', qty: 1, unit: 'ครั้ง', total_amount: extra.shipping });
+      }
+      if (extra.inclusive && extra.gross > 0) {
+        // ราคาที่กรอกรวม VAT แล้ว — เก็บแต่ละแถวเป็นยอดก่อน VAT ให้รวมได้ "รวมยอดขาย" ตรงบิล
+        // เศษสตางค์จากการปัดโยนไปแถวที่ยอดมากสุด เพื่อให้ รวมยอดขาย + VAT = ยอดจ่ายจริงเป๊ะ
+        var exSum = 0, biggest = 0;
+        items.forEach(function(it, idx) {
+          it.total_amount = Math.round(Number(it.total_amount || 0) * 100 / (100 + extra.vatPercent) * 100) / 100;
+          exSum += it.total_amount;
+          if (it.total_amount > items[biggest].total_amount) biggest = idx;
+        });
+        var diff = Math.round((extra.subtotal - exSum) * 100) / 100;
+        if (diff && items.length) items[biggest].total_amount = Math.round((items[biggest].total_amount + diff) * 100) / 100;
       }
       if (extra.vatAmount > 0) {
         items.push({ category: 'ภาษีมูลค่าเพิ่ม (VAT)', item_name: 'ภาษีมูลค่าเพิ่ม ' + extra.vatPercent + '%', qty: 1, unit: 'ครั้ง', total_amount: extra.vatAmount });
@@ -18232,6 +18265,17 @@ function inferRequestPriority(stock, min) {
       ['miscExpenseShipping', 'miscExpenseVatEnabled', 'miscExpenseVatPercent'].forEach(function(id) {
         var el = mxEl(id);
         if (el) el.addEventListener('input', mxRecalcTotals);
+      });
+      // พิมพ์ชื่อร้านฮาร์ดแวร์เฮาส์ → ติ๊ก VAT 7% ให้เอง (บิลร้านนี้มี VAT รวมในราคาทุกใบ)
+      var vendorInput = mxEl('miscExpenseVendor');
+      if (vendorInput) vendorInput.addEventListener('input', function() {
+        var vatEl = mxEl('miscExpenseVatEnabled');
+        if (mxVatInclusiveMode() && vatEl && !vatEl.checked) {
+          vatEl.checked = true;
+          var pctEl = mxEl('miscExpenseVatPercent');
+          if (pctEl && !(Number(pctEl.value) > 0)) pctEl.value = '7';
+        }
+        mxRecalcTotals();
       });
       ['miscExpenseClose', 'miscExpenseCancel'].forEach(function(id) {
         var el = mxEl(id);
