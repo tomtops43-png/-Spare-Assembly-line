@@ -102,7 +102,7 @@ assert(runtimeSrc.includes('var total = Math.round((sub + vat - wht) * 100) / 10
 assert(htmlLf.includes(`'<script>(' + mxVoucherEditorRuntime.toString() + ')(' + mxBahtText.toString() + ');<\\/script></body></html>'`));
 assert(htmlLf.includes('<button id="mxAddRow" type="button">+ เพิ่มแถวรายการ</button>'));
 // ต้องให้แก้ก่อน — ห้ามเด้งหน้าต่างพิมพ์เองทันทีที่เปิด
-const printFn = grab(/^ {4}function printMiscExpenseVoucher\(expenseId\) \{[\s\S]*?\n {4}\}/m, 'printMiscExpenseVoucher');
+const printFn = grab(/^ {4}function printMiscExpenseVoucher\(expenseId, previewRows\) \{[\s\S]*?\n {4}\}/m, 'printMiscExpenseVoucher');
 assert(!printFn.includes('win.print()'), 'ห้ามสั่งพิมพ์อัตโนมัติ ต้องรอผู้ใช้แก้แล้วกดพิมพ์เอง');
 
 console.log('misc-expense-voucher: ok');
