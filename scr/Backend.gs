@@ -56,7 +56,10 @@ SPARE_APP_CONFIG.productionLogSources = SPARE_APP_CONFIG.productionLogSources ||
   // altQtyCol = คอลัมน์ยอดสำรอง (Actual Scan) — ต่อแถว เอาค่ามากสุดระหว่าง Actual กับ Actual Scan
   // (ห้ามบวกกัน เพราะเป็นยอดงานเดียวกันที่บันทึกซ้ำ 2 ทาง ไม่ใช่ยอดคนละก้อน)
   'H9': { id: '1PYcAatoJ4QX28uQ_LF8dDC6oTiMWbfPs5TZDfGJVa4U', sheet: 'Plan', dateCol: 'Date วันที่', qtyCol: 'Actual', altQtyCol: 'Actual Scan', modelCol: 'Order model' },
-  'Coil Winding': { id: '11NGAEXnTZIXMseO_0vfA-yRWxBXEiWpNkCIdIQq2ftQ', sheet: 'Production_Data', dateCol: 'Date', qtyCol: 'FG', modelCol: 'Product' }
+  'Coil Winding': { id: '11NGAEXnTZIXMseO_0vfA-yRWxBXEiWpNkCIdIQq2ftQ', sheet: 'Production_Data', dateCol: 'Date', qtyCol: 'FG', modelCol: 'Product' },
+  // Arc Chute (ไฟล์ Assembly-M-C-Management) — แถว ActualQty ติดลบคือบันทึกงานเสีย ระบบข้ามให้เอง
+  // priceSheet = ชีตราคาในไฟล์ต้นทางเอง ใช้เมื่อชีตราคากลางจับคู่รุ่นไม่ได้ (ชีตกลางยังไม่มีรุ่น Arc Chute ครบ)
+  'Arc Chute': { id: '1tz5Unlu2W5Zz5AUCfD1vBTdyj-FPLzOpEaUibOyhcfM', sheet: 'ProductionLog', dateCol: 'Date', qtyCol: 'ActualQty', modelCol: 'ProductCode', priceSheet: 'Products', priceSpecCol: 'ProductCode', priceCol: 'UnitPrice' }
 };
 // ชีตราคาต่อชิ้นล่าสุด (ทุกไลน์รวมกัน) — ใช้จับคู่กับ Model ของแต่ละไลน์เพื่อคำนวณมูลค่าผลิต
 // อัตโนมัติ ไม่ต้องกรอกราคาเอง ชื่อรหัสรุ่นในชีตนี้อาจไม่ตรงกับชีตผลิตเป๊ะ (เช่น H9 ในชีตผลิต
@@ -1120,7 +1123,10 @@ function normalizeProductionSourceConfig(raw) {
     dateCol: raw.dateCol || 'Date',
     qtyCol: raw.qtyCol || 'ActualQty',
     altQtyCol: raw.altQtyCol || '',
-    modelCol: raw.modelCol || ''
+    modelCol: raw.modelCol || '',
+    priceSheet: raw.priceSheet || '',
+    priceSpecCol: raw.priceSpecCol || '',
+    priceCol: raw.priceCol || ''
   };
 }
 
@@ -1200,7 +1206,19 @@ function getExternalProductionVolumeForLine(line) {
 function getUnitPriceMap() {
   var cfg = SPARE_APP_CONFIG.unitPriceSource;
   if (!cfg || !cfg.id) return null;
-  var cacheKey = 'unit_price_map::' + cfg.id;
+  return readUnitPriceMap(cfg.id, cfg.sheet, cfg.specCol, cfg.priceCol);
+}
+
+// ราคาต่อชิ้นจากชีตในไฟล์ผลิตของไลน์นั้นเอง (ถ้าตั้ง priceSheet ไว้) — ใช้สำรองเมื่อชีตราคากลางไม่มีรุ่น
+function getSourceUnitPriceMap(line) {
+  var cfg = normalizeProductionSourceConfig((SPARE_APP_CONFIG.productionLogSources || {})[line]);
+  if (!cfg || !cfg.id || !cfg.priceSheet || !cfg.priceSpecCol || !cfg.priceCol) return null;
+  return readUnitPriceMap(cfg.id, cfg.priceSheet, cfg.priceSpecCol, cfg.priceCol);
+}
+
+function readUnitPriceMap(id, sheetName, specColName, priceColName) {
+  var cfg = { id: id, sheet: sheetName, specCol: specColName, priceCol: priceColName };
+  var cacheKey = 'unit_price_map::' + cfg.id + '::' + cfg.sheet;
   try {
     var cached = CacheService.getScriptCache().get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -1224,7 +1242,7 @@ function getUnitPriceMap() {
     for (var r = 1; r < values.length; r += 1) {
       var spec = String(values[r][specCol] || '').trim();
       var price = Number(values[r][priceCol] || 0);
-      if (!spec) continue;
+      if (!spec || !isFinite(price)) continue;
       map[spec.toUpperCase()] = { spec: spec, price: price };
     }
     try { CacheService.getScriptCache().put(cacheKey, JSON.stringify(map), 1800); }
@@ -1279,6 +1297,7 @@ function getProductionVolume(payload) {
   Object.keys(SPARE_APP_CONFIG.productionLogSources || {}).forEach(function(line) {
     var external = getExternalProductionVolumeForLine(line);
     if (!external) return;
+    var sourcePriceUpper = getSourceUnitPriceMap(line); // null ถ้าไลน์นี้ไม่มีชีตราคาของตัวเอง
     external.forEach(function(row) {
       var idx = -1;
       for (var i = 0; i < manual.length; i += 1) {
@@ -1286,11 +1305,11 @@ function getProductionVolume(payload) {
       }
       var entry = { month: row.month, line: line, actual_qty: row.actual_qty, updated_by: 'ProductionLog (auto)', updated_at: '', source: 'auto' };
       // คำนวณมูลค่าผลิต = ผลรวม (ยอดแต่ละรุ่น × ราคาที่จับคู่ได้) จาก breakdown รายรุ่น
-      if (row.by_model && priceUpper) {
+      if (row.by_model && (priceUpper || sourcePriceUpper)) {
         var value = 0, unpricedQty = 0, unpriced = {};
         Object.keys(row.by_model).forEach(function(model) {
           var q = Number(row.by_model[model] || 0);
-          var hit = matchModelPrice(model, priceUpper);
+          var hit = matchModelPrice(model, priceUpper) || matchModelPrice(model, sourcePriceUpper);
           if (hit) value += q * hit.price;
           else { unpricedQty += q; unpriced[model] = q; }
         });
