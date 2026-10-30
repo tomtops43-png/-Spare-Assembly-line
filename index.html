@@ -22903,6 +22903,8 @@ function inferRequestPriority(stock, min) {
       editMessage.className = 'mt-3 text-sm text-emerald-600';
       editMessage.textContent = 'เข้าคิวบันทึกรายการแล้ว ระบบจะอัปโหลดต่อเบื้องหลัง';
       closeEditModal();
+      // การ์ดเปลี่ยนตามค่าที่แก้ทันที ไม่ต้องรอคิวอัปโหลด + เซิร์ฟเวอร์ตอบ (หลายวินาที)
+      applyLocalItemEdit(oldItem, payload);
       enqueueUploadJob({
         label: 'Edit #' + itemNo,
         run: function(setProgress) {
@@ -22931,9 +22933,48 @@ function inferRequestPriority(stock, min) {
             if (!res || res.status !== 'success') throw new Error((res && res.message) || 'บันทึกไม่สำเร็จ');
             setProgress(100);
             loadPartsData();
+          }).catch(function(err) {
+            // แสดงค่าใหม่ไปก่อนแล้ว แต่บันทึกไม่ผ่าน — ดึงข้อมูลจริงจากเซิร์ฟเวอร์กลับมาแทน ไม่ให้ค้างค่าที่ไม่ได้บันทึก
+            loadPartsData({ skipCache: true });
+            alert('บันทึก #' + itemNo + ' ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+            throw err;
           });
         }
       });
+    }
+
+    // แพตช์รายการที่เพิ่งแก้ในหน้า + แคช (หน่วยความจำ/localStorage) ด้วยค่าจากฟอร์ม แล้ววาดการ์ดใหม่ทันที
+    // ต้องแพตช์แคชด้วย ไม่งั้น loadPartsData() หลังบันทึกเสร็จจะหยิบแคชเก่ามาโชว์ ราคาเดิมเด้งกลับมาก่อน
+    var LOCAL_EDIT_FIELDS = ['name', 'model', 'line', 'location', 'category', 'brand', 'max', 'min', 'unit', 'stock',
+      'unit_price', 'currency', 'supplier', 'price_updated_at', 'price_remark', 'drawing_url', 'drawing_file_name',
+      'drawing_revision', 'drawing_status', 'datasheet_url', 'quotation_url', 'coil_size', 'machines',
+      'photo', 'image_main', 'image_main_url', 'image_main_file_id'];
+    function applyLocalItemEdit(oldItem, payload) {
+      if (!oldItem || oldItem.no === undefined || oldItem.no === '') return 0;
+      var targetKey = getItemIdentityKey(oldItem);
+      function patchItem(item) {
+        var merged = Object.assign({}, item);
+        LOCAL_EDIT_FIELDS.forEach(function(f) { if (payload[f] !== undefined) merged[f] = payload[f]; });
+        return Object.assign({}, item, normalizeRecord(merged, 0));
+      }
+      function patchList(list) {
+        var hits = 0;
+        for (var i = 0; i < list.length; i += 1) {
+          if (getItemIdentityKey(list[i]) !== targetKey) continue;
+          list[i] = patchItem(list[i]);
+          hits += 1;
+        }
+        return hits;
+      }
+      var patched = patchList(partsData);
+      Object.keys(stockSheetMemoryCache).forEach(function(cacheKey) {
+        var entry = stockSheetMemoryCache[cacheKey];
+        if (!entry || !Array.isArray(entry.items) || !patchList(entry.items)) return;
+        try { localStorage.setItem(cacheKey, JSON.stringify(entry)); }
+        catch (err) { console.warn('applyLocalItemEdit cache write failed', err); }
+      });
+      if (patched) applyLoadedPartsData(partsData);
+      return patched;
     }
 
     function deleteEditModalItem() {
