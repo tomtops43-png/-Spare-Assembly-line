@@ -21029,7 +21029,7 @@ function inferRequestPriority(stock, min) {
     }
 
     /* ── งบ Spare part control สำหรับ PR (ใช้ข้อมูลชุดเดียวกับ Cost Ratio บน Dashboard) ──
-       งบต่อไลน์ = มูลค่าผลิต(เดือนนั้น) × เป้าหมาย % ; รายจ่ายที่บันทึกแล้ว = Purchase History
+       งบต่อไลน์ = มูลค่าผลิต(เดือนนั้น) × เป้าหมาย % ; รายจ่ายที่บันทึกแล้ว = PR/GR + ของสิ้นเปลือง (fccSpendRows)
        คงเหลือ = งบ − รายจ่ายที่บันทึกแล้ว ; ถ้า PR ใบนี้ทำให้ (รายจ่าย+PR) > งบ ⇒ เกินงบ ต้อง Bypass
        — ค่าตรงกับที่โชว์บนการ์ด Cost Ratio เป๊ะ เพราะดึงจาก fccEnsureAsync() แคชเดียวกัน */
     function prBudgetMonthKey() {
@@ -21081,7 +21081,11 @@ function inferRequestPriority(stock, min) {
           var m = fccMonthKey(v.month), ln = fccLineOf(v.line);
           (salesBML[m] = salesBML[m] || {}); salesBML[m][ln] = (salesBML[m][ln] || 0) + fccN(v.production_value);
         });
-        fccExpenseValidRows(A.logs).forEach(function(r) {
+        // รายจ่ายนับแบบเดียวกับการ์ด Cost Ratio เป๊ะ = ยอดสั่งซื้อ (PR) ก่อนวันเริ่มระบบ / ยอดรับจริง (GR) หลังวันเริ่ม
+        // ไม่ใช่ค่าเบิก (เบิกจริง × ราคา) — การ์ดแยกค่าเบิกไว้เทียบเฉยๆ ไม่นับในงบ ถ้าที่นี่นับค่าเบิก
+        // งบที่เหลือในหน้า PR จะไม่ตรงกับ "เหลืองบ" บนการ์ด
+        fccSpendRows(A.hist, A.gr).forEach(function(r) {
+          if (!(r.amount > 0)) return;
           (spentBML[r.month] = spentBML[r.month] || {}); spentBML[r.month][r.line] = (spentBML[r.month][r.line] || 0) + r.amount;
         });
         // ค่าใช้จ่ายสิ้นเปลืองก็กินงบเดือนนั้นของไลน์ด้วย — ไลน์ 'ส่วนกลาง' จะกลายเป็น key ที่ไม่มีงบ
@@ -21114,10 +21118,11 @@ function inferRequestPriority(stock, min) {
         return { month: monthKey, carry: carry, byLine: byLine };
       });
     }
+    // ยอด PR ต่อไลน์ = รายการที่จะถูกส่งจริง (ตามแท็บไลน์/ตัวกรองที่เปิดอยู่ แบบเดียวกับ prSubmitCreatePr)
+    // ไม่ใช่ทุกรายการที่ติ๊กไว้ในทุกไลน์ — ไม่งั้นแผงงบ (และสแนปช็อตที่แนบไปให้ผู้อนุมัติ) จะโชว์ยอดไลน์อื่นที่ไม่ได้อยู่ใน PR
     function prSelectedAmountByLine() {
       var byLine = {};
-      (prCandidateState || []).forEach(function(c) {
-        if (!c.selected) return;
+      getFilteredPrCandidates(true).forEach(function(c) {
         var ln = fccLineOf(c.line);
         byLine[ln] = (byLine[ln] || 0) + fccN(c.suggestedQty) * fccN(c.unitPrice);
       });
