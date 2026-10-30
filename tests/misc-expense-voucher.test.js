@@ -16,6 +16,7 @@ const src = [
   grab(/^ {4}var MX_VOUCHER_COMPANY_TH[\s\S]*?\n {4}var MX_VOUCHER_LINE_DEPT = [^\n]*/m, 'ค่าคงที่ใบเบิก'),
   grab(/^ {4}function mxBahtText\(amount\) \{[\s\S]*?\n {4}\}/m, 'mxBahtText'),
   grab(/^ {4}function mxVoucherMoney\(n\) \{[\s\S]*?\n {4}\}/m, 'mxVoucherMoney'),
+  grab(/^ {4}function mxIsVatInclusiveVendor\(vendor\) \{[\s\S]*?\n {4}\}/m, 'mxIsVatInclusiveVendor'),
   grab(/^ {4}function mxVoucherData\(rows\) \{[\s\S]*?\n {4}\}/m, 'mxVoucherData'),
   grab(/^ {4}function mxVoucherHtml\(d, appDate\) \{[\s\S]*?\n {4}\}/m, 'mxVoucherHtml')
 ].join('\n');
