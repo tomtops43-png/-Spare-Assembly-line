@@ -19636,6 +19636,56 @@ function inferRequestPriority(stock, min) {
       if (page && !page.classList.contains('hidden')) ptLoad(true);
     }
 
+    /* ── ป้าย "กำลังสั่ง" บนการ์ดหน้า Stock — ดึงรายการค้างรับจากระบบติดตาม PR (อนุมัติแล้ว/สั่งซื้อแล้ว/รับบางส่วน)
+       จับคู่อะไหล่แบบเดียวกับ Backend (prLineMatchesReceivedPart): รุ่นก่อน ถ้าไม่มีรุ่นค่อยเทียบชื่อ  */
+    var ptOnOrderFetch = { at: 0, loading: false };
+    function ptEnsureOnOrderLoaded() {
+      // ptData / ptOnOrderFetch ประกาศช่วงท้ายสคริปต์ — หน้า Stock อาจ render ก่อนบรรทัดนั้นจะรัน
+      if (!ptData || !ptOnOrderFetch || !authToken || ptOnOrderFetch.loading) return;
+      if (ptData.open && Date.now() - ptOnOrderFetch.at < 60000) return;
+      ptOnOrderFetch.loading = true;
+      ptApi({ action: 'getOpenPrLines' }).then(function(r) {
+        ptData.open = r.lines || [];
+      }).catch(function() {
+        if (!ptData.open) ptData.open = [];
+      }).finally(function() {
+        ptOnOrderFetch.loading = false;
+        ptOnOrderFetch.at = Date.now();
+        if (stockPage && !stockPage.classList.contains('hidden')) applyFilters(false);
+      });
+    }
+    function ptOnOrderLinesForItem(item) {
+      var open = (ptData && ptData.open) || [];
+      if (!open.length || !item) return [];
+      var itemModelOk = isMeaningfulPhModel(item.model);
+      return open.filter(function(l) {
+        if (itemModelOk && isMeaningfulPhModel(l.model)) return normPhModel(l.model) === normPhModel(item.model);
+        return normPhText(l.part_name) === normPhText(item.name);
+      });
+    }
+    function ptOnOrderBadgeHtml(item, compact) {
+      var lines = ptOnOrderLinesForItem(item);
+      if (!lines.length) return '';
+      var first = lines[0];
+      var qty = lines.reduce(function(s, l) { return s + Number(l.qty_outstanding || 0); }, 0);
+      var tip = lines.map(function(l) {
+        return l.pr_id + ' รายการ ' + l.line_no + ' · ' + ((PT_STATUS[l.pr_status] || {}).label || l.pr_status) +
+          ' · ค้างรับ ' + ptFmtNum(l.qty_outstanding) + ' ' + (l.unit || 'PCS') +
+          (l.pr_line ? ' · ไลน์ ' + l.pr_line : '') + (l.po_no ? ' · PO ' + l.po_no : '') +
+          (l.days_waiting !== null && l.days_waiting !== undefined ? ' · รอมาแล้ว ' + l.days_waiting + ' วัน' : '');
+      }).join('\n');
+      var pos = compact ? 'bottom-1.5 left-1.5 right-1.5 px-1.5 py-1 text-[10px]' : 'bottom-2 left-2 right-2 px-2 py-1.5 text-xs';
+      return '<button type="button" data-onorder-pr="' + escHtml(first.pr_id) + '" title="' + escHtml(tip) + '" class="absolute z-20 flex items-center justify-center gap-1 rounded-lg font-bold text-white shadow-md ' + pos + '" style="background:linear-gradient(135deg,#2563eb,#1d4ed8)">' +
+        '<span>🚚</span><span class="truncate">กำลังสั่ง ' + ptFmtNum(qty) + ' ' + escHtml(first.unit || 'PCS') +
+        (compact ? '' : ' · ' + escHtml(first.pr_id) + (lines.length > 1 ? ' +' + (lines.length - 1) : '') + ' · ' + escHtml((PT_STATUS[first.pr_status] || {}).label || first.pr_status)) +
+        '</span></button>';
+    }
+    function bindOnOrderBadges(container) {
+      Array.prototype.slice.call(container.querySelectorAll('[data-onorder-pr]')).forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); ptOpenDetail(btn.getAttribute('data-onorder-pr')); });
+      });
+    }
+
     /* ── หน้า "ติดตาม PR" ── */
     function switchToPrTrackingPage() {
       if (!hasPermission('view')) return switchToStockPage();
@@ -23326,6 +23376,7 @@ function inferRequestPriority(stock, min) {
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-xl') + '</div>' : '') +
             '<div class="absolute top-2 left-2 flex flex-col items-start gap-1">' + renderNewArrivalBadge(item, false) + drawingBadge + '</div>' +
             '<div class="absolute top-2 right-2">' + renderCoilAmpBadge(item, false) + '</div>' +
+            ptOnOrderBadgeHtml(item, false) +
           '</div>' +
           '<div class="flex flex-1 flex-col px-3.5 pt-3 pb-2 ' + visualState.contentClass + '">' +
             '<p class="font-extrabold text-[15px] leading-snug text-slate-900" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.name + '</p>' +
@@ -23437,6 +23488,7 @@ function inferRequestPriority(stock, min) {
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-base') + '</div>' : '') +
             (visualState.isNewArrival ? '<div class="absolute top-1.5 left-1.5">' + renderNewArrivalBadge(item, true) + '</div>' : '') +
             '<div class="absolute top-1.5 right-1.5">' + renderCoilAmpBadge(item, true) + '</div>' +
+            ptOnOrderBadgeHtml(item, true) +
           '</div>' +
           '<div class="flex flex-1 flex-col px-2.5 pt-2.5 pb-1 ' + visualState.contentClass + '">' +
             '<p class="font-extrabold text-[13px] leading-snug text-slate-900" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + item.name + '</p>' +
@@ -23853,8 +23905,11 @@ function inferRequestPriority(stock, min) {
     function renderFilteredResults(filtered) {
       var start = (currentPage - 1) * pageSize;
       var paged = filtered.slice(start, start + pageSize);
+      ptEnsureOnOrderLoaded();
       renderTable(paged);
       renderMobileCards(paged);
+      bindOnOrderBadges(desktopCardGrid);
+      bindOnOrderBadges(mobileCardList);
       renderPagination(filtered.length);
       renderStats(filtered);
     }
