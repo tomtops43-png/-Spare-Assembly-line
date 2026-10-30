@@ -3914,6 +3914,15 @@ function createPRUnlocked(payload) {
   var prId = tracked ? generatePrRunningId(hData, hIdx, new Date()) : (String(payload.pr_id || '').trim() ||
     ('PR-' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd-HHmmss') + '-' + Math.floor(Math.random() * 900 + 100)));
   if (findPrHeaderRow(hData, hIdx, prId) !== -1) throw new Error('pr_id ซ้ำในระบบ: ' + prId);
+  // แก้ไขแล้วส่งใหม่จาก PR ที่ถูกตีกลับ — เช็คใบเดิมก่อนสร้าง (ต้องเป็นของตัวเองและยังอยู่สถานะตีกลับ)
+  // สร้างใบใหม่เสร็จแล้วค่อยปิดใบเดิมเป็นยกเลิก ใบเดิมจะได้ไม่ค้างอยู่ในแท็บ "ถูกตีกลับ"
+  var resubmitOf = String(payload.resubmit_of || '').trim();
+  if (resubmitOf) {
+    var oldRow = findPrHeaderRow(hData, hIdx, resubmitOf);
+    if (oldRow === -1) throw new Error('ไม่พบ PR เดิมที่จะส่งใหม่: ' + resubmitOf);
+    if (prStr(hData[oldRow][hIdx.created_by]) !== user.username) throw new Error('ส่งใหม่ได้เฉพาะ PR ที่ตัวเองสร้าง');
+    if (prStr(hData[oldRow][hIdx.status]) !== 'REJECTED') throw new Error('PR ' + resubmitOf + ' ไม่ได้อยู่สถานะตีกลับแล้ว');
+  }
 
   var linesSheet = getPrLinesSheet();
   var lHeaderRow = linesSheet.getRange(1, 1, 1, linesSheet.getLastColumn()).getValues()[0];
@@ -3990,7 +3999,18 @@ function createPRUnlocked(payload) {
     if (overInfo) bypassDetail += ' | ' + overInfo;
     appendPrAudit(prId, 'BUDGET_BYPASS', user.username, headerLine, '', '', bypassDetail);
   }
-  return { status: 'success', pr_id: prId, pr_status: 'PENDING', item_count: lines.length, total_amount: totalAmount };
+  var resubmitWarning = '';
+  if (resubmitOf) {
+    appendPrAudit(prId, 'RESUBMIT', user.username, headerLine, '', '', 'แก้ไขแล้วส่งใหม่จาก ' + resubmitOf);
+    // ใบใหม่ถูกบันทึกไปแล้ว — ปิดใบเดิมพลาดห้าม throw (ไม่งั้นคนกดซ้ำแล้วได้ PR ใหม่เบิ้ล) ส่งคำเตือนกลับแทน
+    try {
+      cancelPRUnlocked({ authToken: payload.authToken, pr_id: resubmitOf, reason: 'แก้ไขแล้วส่งใหม่เป็น ' + prId });
+    } catch (resubmitErr) {
+      resubmitWarning = 'ส่ง PR ใหม่แล้ว แต่ปิดใบเดิม ' + resubmitOf + ' ไม่สำเร็จ: ' + (resubmitErr && resubmitErr.message ? resubmitErr.message : resubmitErr);
+      Logger.log('createPR resubmit warning: ' + resubmitWarning);
+    }
+  }
+  return { status: 'success', pr_id: prId, pr_status: 'PENDING', item_count: lines.length, total_amount: totalAmount, resubmit_of: resubmitOf, warning: resubmitWarning };
 }
 
 // ดึง PR ใบเดียว (header + lines) สำหรับหน้าตรวจ+แก้ยอด
@@ -4203,7 +4223,8 @@ function getInbox(payload) {
   var canViewPr = !!(user.permissions && (user.permissions.pr_view_all || user.permissions.pr_view_own || user.permissions.pr_approve));
   var prPending = canViewPr ? listPrCardsForUser(user, ['PENDING']) : [];
   var prApproved = canViewPr ? listPrCardsForUser(user, ['APPROVED']) : [];
-  var prRejected = canViewPr ? listPrCardsForUser(user, ['REJECTED']) : [];
+  // ถูกตีกลับ = งานของคนส่ง (ต้องแก้แล้วส่งใหม่ หรือยกเลิก) จึงโชว์เฉพาะใบที่ตัวเองสร้าง
+  var prRejected = canViewPr ? listPrCardsForUser(user, ['REJECTED']).filter(function(c) { return c.created_by === user.username; }) : [];
   var anomalies = [];
   try {
     anomalies = getIssueAnomalies({ authToken: payload.authToken }).anomalies || [];
@@ -4275,6 +4296,7 @@ function getInbox(payload) {
 
   var tabs = {
     pr_pending: prPending.length,
+    pr_rejected: prRejected.length,
     issue_anomaly: anomalies.length,
     budget_bypass: budgetBypasses.length,
     stock_below_min: belowMin.length,
@@ -4282,7 +4304,7 @@ function getInbox(payload) {
   };
   // badge นับเฉพาะงานที่ต้องจัดการ (PR รอ/เบิกผิดปกติ/Bypass) — สองแท็บหลังเป็นสถานะคงค้าง
   // ถ้านับรวมตัวเลขจะค้างสูงตลอดจนคนเลิกสนใจ badge
-  var total = tabs.pr_pending + tabs.issue_anomaly + tabs.budget_bypass;
+  var total = tabs.pr_pending + tabs.pr_rejected + tabs.issue_anomaly + tabs.budget_bypass;
   return {
     status: 'success',
     role: user.role,

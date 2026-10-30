@@ -3321,6 +3321,8 @@
       </div>
 
       <!-- 📌 แผงงบ Spare part แบบ Dashboard — อยู่นิ่งตามลำดับเนื้อหาปกติ (ไม่ sticky ตามการเลื่อนจอแล้ว) -->
+      <!-- แก้ไข PR ที่ถูกตีกลับ — บอกว่ากำลังแก้ใบไหน + เหตุผลที่ถูกตีกลับ (ส่งแล้วใบเดิมถูกยกเลิกให้อัตโนมัติ) -->
+      <div id="prResubmitBanner" class="hidden rounded-2xl border-2 border-violet-300 bg-violet-50 p-3 text-sm text-violet-800"></div>
       <div id="prBudgetSticky" class="hidden rounded-2xl bg-gray-50 p-2 shadow-lg ring-1 ring-gray-200">
         <!-- งบ Spare part control (ดึงจาก Cost Ratio: มูลค่าผลิต × เป้าหมาย % − รายจ่ายที่บันทึกแล้ว) -->
         <div id="prBudgetPanel"></div>
@@ -19599,7 +19601,7 @@ function inferRequestPriority(stock, min) {
     var PT_AUDIT_LABEL = {
       CREATE: '📝 สร้าง PR', APPROVE: '✅ อนุมัติ', EDIT_QTY: '✏️ แก้ยอดอนุมัติ', REJECT: '↩️ ตีกลับ',
       ORDER: '🛒 สั่งซื้อแล้ว', RECEIVE: '📥 รับของ', RECEIVE_REVERSED: '↩️ คืนรายการรับ',
-      CLOSE_LINE: '⛔ ปิดยอดค้าง', CANCEL: '🗑️ ยกเลิก', BUDGET_BYPASS: '⚠️ เปิดเกินงบ'
+      CLOSE_LINE: '⛔ ปิดยอดค้าง', CANCEL: '🗑️ ยกเลิก', BUDGET_BYPASS: '⚠️ เปิดเกินงบ', RESUBMIT: '✏️ แก้ไขแล้วส่งใหม่'
     };
     var ptState = { enabled: false, cutoverAt: '', checkedAt: 0, loading: null };
     var ptData = { open: null, prs: null, grs: null };
@@ -20528,6 +20530,96 @@ function inferRequestPriority(stock, min) {
       // เข้าหน้าใหม่ = ข้อมูลของแท็บที่เปิดต้องสดเสมอ (แท็บอื่นค่อยโหลดตอนกด)
       adminTabLoaded = {};
       switchAdminTab(adminCurrentTab);
+    }
+
+    // ── แก้ไข PR ที่ถูกตีกลับแล้วส่งใหม่ ──
+    // ดึงรายการเดิมกลับเข้าหน้า PR builder (จำนวน/ราคา/หมายเหตุเดิม) ให้แก้แล้วกดส่งอนุมัติได้เลย
+    // ตอนส่ง backend สร้างใบใหม่แล้วยกเลิกใบเดิมให้เอง (resubmit_of)
+    var prResubmitState = null; // { pr_id, reason, line }
+    function clearPrResubmit() {
+      prResubmitState = null;
+      var banner = document.getElementById('prResubmitBanner');
+      if (banner) { banner.innerHTML = ''; banner.classList.add('hidden'); }
+    }
+    function prResubmitCandidates(header, lines, liveItems) {
+      var byNameModel = {};
+      (liveItems || []).forEach(function(it) {
+        var k = String(it.name || '').trim().toLowerCase() + '::' + String(it.model || '').trim().toLowerCase();
+        if (k !== '::' && !byNameModel[k]) byNameModel[k] = it;
+      });
+      var line = canonicalLineName(header.line || activeRealLine());
+      return (lines || []).map(function(ln, i) {
+        var live = byNameModel[String(ln.part_name || '').trim().toLowerCase() + '::' + String(ln.model || '').trim().toLowerCase()] || null;
+        var src = live || {};
+        var stock = live ? Number(live.stock || 0) : 0, min = live ? Number(live.min || 0) : 0, max = live ? Number(live.max || 0) : 0;
+        return {
+          id: 'RESUB-' + header.pr_id + '-' + (ln.line_no || i + 1),
+          selected: true,
+          no: ln.part_no || (live && live.no) || '-',
+          name: ln.part_name || '-',
+          model: ln.model || '-',
+          brand: ln.brand || src.brand || '-',
+          category: ln.category || src.category || '-',
+          line: line,
+          subLine: src.subLine || src.__sourceSheet || '-',
+          location: src.location || '-',
+          unit: ln.unit || src.unit || 'PCS',
+          stock: stock, min: min, max: max, need: Math.max((max || min) - stock, 0),
+          // ยอดเดิมที่หัวหน้าเห็นตอนตีกลับคือยอดที่ขอ — เริ่มจากตัวนั้นให้แก้ต่อ
+          suggestedQty: Number(ln.qty_requested || ln.qty_approved || 0),
+          recentUsage: 0, usageTier: 'none',
+          critical: 'Medium', priority: 'Medium',
+          reason: 'RESUBMIT', pendingOrder: null,
+          unitPrice: Number(ln.unit_price || 0) || Number(src.unit_price || 0),
+          currency: src.currency || 'THB', supplier: src.supplier || '',
+          priceUpdatedAt: src.price_updated_at || '', priceRemark: src.price_remark || '',
+          machineStation: '', purpose: ln.remark || '',
+          mainImage: ln.image_url || src.image_main_url || '',
+          drawingUrl: src.drawing_url || '', drawing_url: src.drawing_url || '',
+          drawingFileName: src.drawing_file_name || '', drawing_file_name: src.drawing_file_name || '',
+          drawingRevision: src.drawing_revision || '', drawing_revision: src.drawing_revision || '',
+          drawingStatus: live ? normalizeDrawingStatus(live) : '', drawing_status: live ? normalizeDrawingStatus(live) : '',
+          datasheetUrl: src.datasheet_url || '', quotationUrl: src.quotation_url || ''
+        };
+      });
+    }
+    function openPrResubmit(prId) {
+      if (!hasPermission('view_logs')) { showQuickToast('ไม่มีสิทธิ์เข้าหน้า PR Report', 'error'); return; }
+      showQuickToast('กำลังดึงรายการจาก ' + prId + '...', 'info');
+      requestApi(withAuthPayload({ action: 'getPRForApproval', pr_id: prId })).then(function(res) {
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'โหลด PR ไม่สำเร็จ');
+        if (res.header.status !== 'REJECTED') throw new Error(prId + ' ไม่ได้อยู่สถานะตีกลับแล้ว');
+        return loadPrSourceItems('assembly_monthly', 'all').catch(function() { return partsData.slice(); }).then(function(items) {
+          return { res: res, items: items };
+        });
+      }).then(function(o) {
+        var header = o.res.header;
+        closeInbox();
+        switchToPrReportPage();
+        if (typeof window.__applyPrPreset === 'function') window.__applyPrPreset('assembly_monthly');
+        prLineTabState = 'all';
+        prCandidateState = prResubmitCandidates(header, o.res.lines, o.items);
+        prHistoryBatchId = 'RESUB-' + Date.now();
+        prResubmitState = { pr_id: header.pr_id, reason: header.reject_reason || '', line: header.line || '' };
+        window._currentPrNumber = header.pr_id;
+        var numDisplay = document.getElementById('prNumberDisplay');
+        if (numDisplay) { numDisplay.textContent = '✏️ แก้ไขจาก ' + header.pr_id; numDisplay.classList.remove('hidden'); }
+        var banner = document.getElementById('prResubmitBanner');
+        if (banner) {
+          banner.innerHTML = '<div class="font-bold">✏️ กำลังแก้ไข ' + escHtml(header.pr_id) + ' ที่ถูกตีกลับ</div>' +
+            '<div class="mt-1"><b>เหตุผล:</b> ' + escHtml(header.reject_reason || '-') + '</div>' +
+            '<div class="mt-1 text-xs text-violet-600">แก้จำนวน/ราคา/รายการได้ตามปกติ แล้วกด "ส่งอนุมัติ" — ระบบจะออกเลข PR ใหม่และยกเลิกใบเดิมให้อัตโนมัติ (กด "โหลดรายการที่ต้องสั่ง" = เลิกแก้ใบนี้)</div>';
+          banner.classList.remove('hidden');
+        }
+        resetPrRecordedHint();
+        var s3 = document.getElementById('prStep3'); if (s3) s3.classList.remove('hidden');
+        var s4 = document.getElementById('prStep4'); if (s4) s4.classList.remove('hidden');
+        var sticky = document.getElementById('prBudgetSticky'); if (sticky) sticky.classList.remove('hidden');
+        renderPrCandidates();
+        loadPrApproverHint();
+      }).catch(function(err) {
+        showQuickToast('⚠️ ' + (err && err.message ? err.message : err), 'warn');
+      });
     }
 
     function switchToPrReportPage() {
@@ -24455,6 +24547,7 @@ function inferRequestPriority(stock, min) {
     var INBOX_TABS = [
       { key: 'all', label: 'ทั้งหมด', icon: '📥' },
       { key: 'pr_pending', label: 'PR รออนุมัติ', icon: '📝' },
+      { key: 'pr_rejected', label: 'PR ถูกตีกลับ', icon: '↩️' },
       { key: 'issue_anomaly', label: 'เบิกผิดปกติ', icon: '🕵️' },
       { key: 'budget_bypass', label: 'เปิด PR เกินงบ (Bypass)', icon: '🚧', highRoleOnly: true },
       // แท็บยืม/โอน, ยืมค้าง, อะไหล่รอเช็ค ถูกถอดออก — ไม่มีฟีเจอร์รองรับ แท็บเปล่าสร้างความสับสน
@@ -24542,6 +24635,13 @@ function inferRequestPriority(stock, min) {
       var tabDef = INBOX_TABS.filter(function(t) { return t.key === inboxActiveTab; })[0] || INBOX_TABS[0];
       if (titleEl) titleEl.textContent = tabDef.label;
 
+      if (inboxActiveTab === 'pr_rejected') {
+        var rejectedOnly = (inboxData && inboxData.pr_rejected) || [];
+        listEl.innerHTML = rejectedOnly.length
+          ? rejectedOnly.map(inboxRejectedPrCardHtml).join('')
+          : '<div class="p-6 text-center text-slate-400">ไม่มี PR ที่ถูกตีกลับ 🎉</div>';
+        return;
+      }
       if (inboxActiveTab === 'pr_pending' || inboxActiveTab === 'all') {
         var pending = (inboxData && inboxData.pr_pending) || [];
         var approved = (inboxData && inboxData.pr_approved) || [];
@@ -24555,6 +24655,12 @@ function inferRequestPriority(stock, min) {
           html += approved.map(function(c) { return inboxPrCardHtml(c, true); }).join('');
         }
         if (inboxActiveTab === 'all') {
+          // ถูกตีกลับนับใน badge รวมแล้ว — ต้องเห็นในแท็บรวมด้วย ไม่งั้นเห็นเลขแต่หารายการไม่เจอ
+          var allRejected = (inboxData && inboxData.pr_rejected) || [];
+          if (allRejected.length) {
+            html += '<div class="mt-4 mb-2 text-xs font-bold text-slate-400">↩️ PR ถูกตีกลับ (ของคุณ)</div>';
+            html += allRejected.map(inboxRejectedPrCardHtml).join('');
+          }
           var allAnomalies = (inboxData && inboxData.anomalies) || [];
           if (allAnomalies.length) {
             html += '<div class="mt-4 mb-2 text-xs font-bold text-slate-400">🕵️ การเบิกผิดปกติ</div>';
@@ -24681,6 +24787,23 @@ function inferRequestPriority(stock, min) {
       '</div>';
     }
 
+    // การ์ด PR ที่ถูกตีกลับ (เห็นเฉพาะคนส่ง) — เหตุผลขึ้นเด่น + แก้ไขแล้วส่งใหม่ / ยกเลิก
+    function inboxRejectedPrCardHtml(c) {
+      return '<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm border-l-4 border-rose-500">' +
+        '<div class="min-w-0 flex-1">' +
+          '<div class="flex items-center gap-2"><span class="font-bold text-slate-800">' + escHtml(c.pr_id) + '</span>' +
+            '<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">↩ ตีกลับ</span>' +
+            (c.line ? '<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-500">' + escHtml(c.line) + '</span>' : '') + '</div>' +
+          '<div class="mt-1 text-xs text-slate-500">ส่งเมื่อ ' + escHtml(c.created_at || '-') + ' · ' + Number(c.item_count || 0) + ' รายการ · รวม ' + inboxMoney(c.total_amount) + ' ฿' +
+            (c.updated_at ? ' · ตีกลับเมื่อ ' + escHtml(String(c.updated_at).slice(0, 16)) : '') + '</div>' +
+          '<div class="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700"><b>เหตุผล:</b> ' + escHtml(c.reject_reason || '-') + '</div>' +
+        '</div>' +
+        '<div class="flex shrink-0 flex-col gap-2">' +
+          '<button data-inbox-resubmit="' + escHtml(c.pr_id) + '" class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700">✏️ แก้ไขแล้วส่งใหม่</button>' +
+          '<button data-inbox-cancel-rejected="' + escHtml(c.pr_id) + '" class="rounded-xl border border-slate-300 bg-white px-4 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50">🗑️ ยกเลิกใบนี้</button>' +
+        '</div>' +
+      '</div>';
+    }
     function inboxPrCardHtml(c, isApproved) {
       var days = inboxDaysWaiting(c.created_at);
       var urg = isApproved ? { bar: 'border-l-4 border-emerald-500', chip: 'bg-emerald-100 text-emerald-700' } : inboxUrgency(days);
@@ -25114,6 +25237,21 @@ function inferRequestPriority(stock, min) {
       if (review) { openPrApproval(review.getAttribute('data-inbox-review')); return; }
       var print = e.target && e.target.closest ? e.target.closest('[data-inbox-print]') : null;
       if (print) { inboxPrintApprovedPr(print.getAttribute('data-inbox-print')); return; }
+      var resubmit = e.target && e.target.closest ? e.target.closest('[data-inbox-resubmit]') : null;
+      if (resubmit) { openPrResubmit(resubmit.getAttribute('data-inbox-resubmit')); return; }
+      var cancelRej = e.target && e.target.closest ? e.target.closest('[data-inbox-cancel-rejected]') : null;
+      if (cancelRej) {
+        var cancelId = cancelRej.getAttribute('data-inbox-cancel-rejected');
+        showConfirmDialog({ title: 'ยกเลิก PR', message: 'ยกเลิก ' + cancelId + ' ทั้งใบ (ไม่ส่งใหม่)?', okLabel: 'ยกเลิก PR' }).then(function(ok) {
+          if (!ok) return;
+          cancelRej.disabled = true;
+          postJson(withAuthPayload({ action: 'cancelPR', pr_id: cancelId, reason: 'คนส่งยกเลิกหลังถูกตีกลับ' }))
+            .then(parseApiResponse)
+            .then(function() { showQuickToast('🗑️ ยกเลิก ' + cancelId + ' แล้ว', 'success'); loadInbox(); })
+            .catch(function(err) { showQuickToast('⚠️ ยกเลิกไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn'); cancelRej.disabled = false; });
+        });
+        return;
+      }
       var ack = e.target && e.target.closest ? e.target.closest('[data-anomaly-ack]') : null;
       if (ack) {
         ack.disabled = true;
@@ -26958,6 +27096,7 @@ if (dashboardPage) {
       });
     }
     if (prRunBtn) prRunBtn.addEventListener('click', function() {
+      clearPrResubmit(); // Generate ใหม่ = เริ่ม PR ใบใหม่ ไม่ใช่แก้ใบที่ถูกตีกลับแล้ว
       var mode = prMode ? prMode.value : 'assembly_monthly';
       var line = prLineFilter ? prLineFilter.value : 'all';
       var prNum = generatePrNumber(mode, line);
@@ -27906,10 +28045,17 @@ if (dashboardPage) {
           var prBudgetPanelEl = document.getElementById('prBudgetPanel');
           if (prBudgetPanelEl) payload.budget_snapshot_html = prBudgetPanelEl.innerHTML;
           if (prAttachments.length) payload.attachments_json = JSON.stringify(prAttachments);
+          var resubmitOf = prResubmitState ? prResubmitState.pr_id : '';
+          if (resubmitOf) payload.resubmit_of = resubmitOf;
           postJson(withAuthPayload(payload))
             .then(parseApiResponse).then(function(res) {
               showQuickToast('✅ ส่ง PR ' + (res.pr_id || prNumber) + ' รออนุมัติแล้ว (' + (res.item_count || lines.length) + ' รายการ)' + (assignTo ? ' · ส่งให้ ' + assignTo : '') + (gate.bypass ? ' · บันทึก Bypass งบแล้ว' : ''), 'success');
               prAttachments = []; prRenderAttachments(); // ส่งแล้ว — ไม่ให้ไฟล์ติดไปกับ PR ใบถัดไป
+              if (resubmitOf) {
+                clearPrResubmit();
+                if (res.warning) showQuickToast('⚠️ ' + res.warning, 'warn');
+                else showQuickToast('🗑️ ยกเลิกใบเดิม ' + resubmitOf + ' ให้แล้ว', 'info');
+              }
               if (typeof prInvalidatePendingUsage === 'function') prInvalidatePendingUsage();
               if (typeof loadInboxBadge === 'function') loadInboxBadge();
             }).catch(function(err) {

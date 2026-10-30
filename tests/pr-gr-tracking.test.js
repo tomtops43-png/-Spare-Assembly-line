@@ -106,7 +106,7 @@ function makeBackend(stock) {
 
   const fnNames = [
     'prStr', 'getPrSheetWithHeaders', 'getPrHeaderSheet', 'getPrLinesSheet', 'getPrAuditSheet', 'prIndexMap', 'appendPrAudit',
-    'parsePrLinesInput', 'prUserCanAccessLine', 'prHeaderRowToCard', 'findPrHeaderRow', 'parsePrAttachmentsInput', 'createPRUnlocked', 'approvePRUnlocked',
+    'parsePrLinesInput', 'prUserCanAccessLine', 'prHeaderRowToCard', 'findPrHeaderRow', 'parsePrAttachmentsInput', 'createPRUnlocked', 'approvePRUnlocked', 'rejectPRUnlocked',
     'getPRForApproval', 'toBoolean', 'normalizeRole', 'normalizeLogTimestamp',
     'normalizePurchaseHistoryModel', 'isMeaningfulPurchaseHistoryModel', 'normalizePurchaseHistoryName',
     'getGrLogSheet', 'getPrGrCutoverAt', 'isPrGrSystemEnabled', 'prNowText', 'getPrGrSystemStatus', 'startPrGrSystem',
@@ -259,6 +259,30 @@ function lineOf(api, prId, lineNo) {
   assert.throws(function() { receive(api, { prId: 'PR-OLD-1', prLineNo: 1 }, 1, '2026-10-10 10:00:00'); }, /ใบระบบเก่า/);
 })();
 
+// ---- PR ถูกตีกลับ → แก้ไขแล้วส่งใหม่: ออกใบใหม่ + ยกเลิกใบเดิมให้อัตโนมัติ ----
+(function resubmitRejected() {
+  const api = makeBackend();
+  api.startPrGrSystem({ authToken: 'tok-admin' });
+  const first = api.createPRUnlocked({ authToken: 'tok-tech', line: 'STAR', lines_json: LINES });
+  assert.throws(function() {
+    api.createPRUnlocked({ authToken: 'tok-tech', line: 'STAR', lines_json: LINES, resubmit_of: first.pr_id });
+  }, /ไม่ได้อยู่สถานะตีกลับ/, 'ใบที่ยังรออนุมัติส่งใหม่ทับไม่ได้');
+  api.rejectPRUnlocked({ authToken: 'tok-admin', pr_id: first.pr_id, reject_reason: 'ราคาไม่ถูก' });
+  assert.throws(function() {
+    api.createPRUnlocked({ authToken: 'tok-admin', line: 'STAR', lines_json: LINES, resubmit_of: first.pr_id });
+  }, /เฉพาะ PR ที่ตัวเองสร้าง/, 'คนอื่นส่งใหม่แทนไม่ได้');
+  const again = api.createPRUnlocked({ authToken: 'tok-tech', line: 'STAR', lines_json: LINES, resubmit_of: first.pr_id });
+  assert.notStrictEqual(again.pr_id, first.pr_id, 'ได้เลข PR ใหม่');
+  assert.strictEqual(again.resubmit_of, first.pr_id);
+  assert.strictEqual(again.warning, '');
+  const oldDetail = api.getPRDetail({ authToken: 'tok-admin', pr_id: first.pr_id });
+  assert.strictEqual(oldDetail.header.status, 'CANCELLED', 'ใบเดิมถูกยกเลิกอัตโนมัติ');
+  assert.strictEqual(oldDetail.header.close_reason, 'แก้ไขแล้วส่งใหม่เป็น ' + again.pr_id);
+  const newDetail = api.getPRDetail({ authToken: 'tok-admin', pr_id: again.pr_id });
+  assert.strictEqual(newDetail.header.status, 'PENDING');
+  assert(newDetail.timeline.some(function(t) { return t.action === 'RESUBMIT' && t.detail.indexOf(first.pr_id) > -1; }), 'ใบใหม่บันทึกว่าแก้จากใบไหน');
+})();
+
 // ---- สถานะใบคำนวณจากบรรทัด (pure) ----
 (function headerStatusRules() {
   const api = makeBackend();
@@ -293,6 +317,8 @@ function lineOf(api, prId, lineNo) {
 
   const inbox = backend.slice(backend.indexOf('function getInbox(payload)'), backend.indexOf('function listBudgetBypasses('));
   assert(/if \(isPrGrSystemEnabled\(\)\) \{[\s\S]*?listOpenPrLines\(\{\}\)/.test(inbox), 'Inbox ของรอเข้าอ่านจาก PR ค้างรับเมื่อเปิดระบบ');
+  assert(inbox.includes("listPrCardsForUser(user, ['REJECTED']).filter(function(c) { return c.created_by === user.username; })"), 'แท็บถูกตีกลับเห็นเฉพาะใบของตัวเอง');
+  assert(inbox.includes('pr_rejected: prRejected.length') && inbox.includes('tabs.pr_pending + tabs.pr_rejected'), 'ถูกตีกลับนับใน badge');
 
   ['getPrGrSystemStatus', 'startPrGrSystem', 'markPROrdered', 'cancelPR', 'closePrLine', 'listPRs', 'getPRDetail', 'getGrLog', 'getOpenPrLines'].forEach(function(action) {
     assert(backend.includes("if (action === '" + action + "') return respond(" + action + "(e.parameter), e);"), 'doGet routes ' + action);

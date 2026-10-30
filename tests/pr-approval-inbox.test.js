@@ -73,3 +73,35 @@ assert(html.includes('id="uLine"'), 'user form has line input');
 assert(html.includes("line: (document.getElementById('uLine') || {}).value || ''"), 'upsertUser sends line');
 
 console.log('PR approval + Inbox contract checks passed');
+
+// ---- PR ถูกตีกลับ: แท็บใน Inbox ของคนส่ง + แก้ไขแล้วส่งใหม่ ----
+assert(html.includes("{ key: 'pr_rejected', label: 'PR ถูกตีกลับ', icon: '↩️' }"), 'Inbox มีแท็บ PR ถูกตีกลับ');
+assert(html.includes('function inboxRejectedPrCardHtml(c)') && html.includes("escHtml(c.reject_reason || '-')"), 'การ์ดโชว์เหตุผลที่ตีกลับ');
+assert(html.includes('data-inbox-resubmit=') && html.includes("openPrResubmit(resubmit.getAttribute('data-inbox-resubmit'))"), 'ปุ่มแก้ไขแล้วส่งใหม่');
+assert(html.includes("if (resubmitOf) payload.resubmit_of = resubmitOf;"), 'ส่ง PR พร้อมเลขใบเดิม');
+assert(/prRunBtn\.addEventListener\('click', function\(\) \{\s*clearPrResubmit\(\);/.test(html), 'Generate ใหม่ = เลิกแก้ใบเดิม');
+console.log('PR rejected inbox + resubmit wiring passed');
+
+// แปลงรายการ PR เดิมกลับเป็นรายการในหน้า PR builder — คงจำนวน/ราคา/หมายเหตุเดิม ไลน์ตามหัว PR
+(function resubmitCandidates() {
+  const { grabFn } = require('./_export-extract');
+  const fn = new Function(
+    'function canonicalLineName(v) { return String(v || "").trim(); }\n' +
+    'function activeRealLine() { return "H9"; }\n' +
+    'function normalizeDrawingStatus() { return "Available"; }\n' +
+    grabFn('prResubmitCandidates') + '\nreturn prResubmitCandidates;'
+  )();
+  const out = fn({ pr_id: 'PR-2610-009', line: 'H9' },
+    [{ line_no: 1, part_name: 'Air Cylinder', model: 'MGPM16-50Z', qty_requested: 3, qty_approved: 3, unit_price: 3437.25, remark: 'เปลี่ยนตัวเสีย', unit: 'PCS' },
+     { line_no: 2, part_name: 'Unknown', model: 'X', qty_requested: 2, unit_price: 0 }],
+    [{ name: 'Air Cylinder', model: 'MGPM16-50Z', no: 110, stock: 0, min: 2, max: 5, unit_price: 3660, location: 'SP-H9-A4-01' }]);
+  assert.strictEqual(out.length, 2);
+  assert.strictEqual(out[0].suggestedQty, 3);
+  assert.strictEqual(out[0].unitPrice, 3437.25, 'ใช้ราคาในใบเดิม');
+  assert.strictEqual(out[0].purpose, 'เปลี่ยนตัวเสีย');
+  assert.strictEqual(out[0].line, 'H9');
+  assert.strictEqual(out[0].location, 'SP-H9-A4-01', 'เติมข้อมูลสดจากสต็อก');
+  assert.strictEqual(out[1].selected, true);
+  assert.strictEqual(out[1].unitPrice, 0, 'ไม่มีราคา = 0 (ไม่เดา)');
+})();
+console.log('PR resubmit candidate mapping passed');
