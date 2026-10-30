@@ -13178,6 +13178,17 @@ function inferRequestPriority(stock, min) {
       return fccPurchaseSpendRows(before).concat(fccGrSpendRows(gr.receipts));
     }
 
+    // ยอดผูกพัน = PR อนุมัติแล้วแต่ของยังไม่เข้า (ค้างรับ × ราคา) — นับเป็นรายจ่ายของเดือนที่อนุมัติทันที
+    // (กันเปิด PR เกินงบ) พอรับของเข้า ยอดค้างรับลดลง และย้ายไปนับเป็น GR ของเดือนที่รับแทน จึงไม่นับซ้ำ
+    function fccCommittedRows(openPr) {
+      return (Array.isArray(openPr) ? openPr : []).map(function(l) {
+        var amount = fccN(l.qty_outstanding) * fccN(l.unit_price);
+        var month = fccMonthKey(l.approved_at || l.created_at);
+        if (!(amount > 0) || !/^\d{4}-\d{2}$/.test(month)) return null;
+        return { month: month, line: fccLineOf(l.pr_line), amount: amount, qty: fccN(l.qty_outstanding), source: 'committed' };
+      }).filter(function(r) { return r !== null; });
+    }
+
     function fccExpenseValidRows(logs) {
       var priceMap = {};
       var partsList = (dashboardAllPartsData && dashboardAllPartsData.length) ? dashboardAllPartsData : (Array.isArray(partsData) ? partsData : []);
@@ -14406,6 +14417,13 @@ function inferRequestPriority(stock, min) {
         }
       });
 
+      // ยอดผูกพัน (PR อนุมัติแล้ว รอของเข้า) นับรวมในรายจ่ายของเดือนที่อนุมัติ — โชว์แยกในช่องให้เห็นว่าค้างรับเท่าไร
+      var committedByMonth = {};
+      fccCommittedRows(fccLast.OpenPr).filter(function(r) { return isAll ? true : r.line === line; }).forEach(function(r) {
+        spendByMonth[r.month] = (spendByMonth[r.month] || 0) + r.amount;
+        committedByMonth[r.month] = (committedByMonth[r.month] || 0) + r.amount;
+      });
+
       // ค่าใช้จ่ายสิ้นเปลือง (ของซื้อนอกระบบอะไหล่) — บวกเข้ายอดรายจ่ายของเดือนนั้นตรงๆ
       // เพราะตัดจ่ายทันทีวันที่ซื้อ ไม่มีขั้นตอนเบิกออกให้ไปนับซ้ำ
       // ไลน์ 'ส่วนกลาง' ไม่ตรงกับไลน์ไหน จึงถูกนับเฉพาะมุมมอง "ทุกไลน์ (รวม)" ตามที่ตั้งใจ
@@ -14497,13 +14515,14 @@ function inferRequestPriority(stock, min) {
         var issueCell = issueAmt > 0
           ? '฿' + fccInt(issueAmt) + (value > 0 ? '<div style="font-size:9px;color:#0f766e;font-weight:700;">' + (issueAmt / value * 100).toFixed(1) + '% ของยอดขาย</div>' : '')
           : '<span style="color:#94a3b8;">—</span>';
+        var committedTip = committedByMonth[m] ? '<div title="PR อนุมัติแล้ว รอของเข้า — นับรวมในยอดนี้แล้ว" style="font-size:9px;color:#1d4ed8;">รวมค้างรับ ฿' + fccInt(committedByMonth[m]) + '</div>' : '';
         var miscTip = miscByMonth[m] ? '<div title="ของซื้อนอกระบบอะไหล่ (น็อต/เครื่องมือ/วัสดุสิ้นเปลือง)" style="font-size:9px;color:#7c3aed;">รวมของสิ้นเปลือง ฿' + fccInt(miscByMonth[m]) + ' (' + miscCountByMonth[m] + ' รายการ)</div>' : '';
         return '<tr style="border-bottom:1px solid #f1f5f9;">' +
           '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccMonthLabel(m)) + srcBadge + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + fccInt(qty) + ' ชิ้น' + unpTip + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(value) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;"' + budgetTitle + '>' + (budgetCap !== null ? '฿' + fccInt(budgetCap) : '<span style="color:#94a3b8;">—</span>') + '</td>' +
-          '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(spend) + unpSpendTip + miscTip + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(spend) + unpSpendTip + committedTip + miscTip + '</td>' +
           '<td style="padding:8px 10px;text-align:right;color:#0f766e;">' + issueCell + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + statusHtml + '</td>' +
           '</tr>';
@@ -14522,15 +14541,15 @@ function inferRequestPriority(stock, min) {
       if (unpWithdrawKeys.length) {
         tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:11px;color:#991b1b;">⚠︎ ' + unpWithdrawKeys.length + ' รุ่นที่สั่งซื้อยังไม่มีราคา (ไม่รวมในยอดสั่งซื้อ): ' + unpWithdrawKeys.slice(0, 12).map(function(m) { return fccEsc(m) + ' (' + fccInt(unpricedWithdrawModels[m]) + ' ชิ้น)'; }).join(', ') + (unpWithdrawKeys.length > 12 ? ' …' : '') + '</div>';
       }
-      // ยอดผูกพัน = PR ที่อนุมัติแล้วแต่ของยังไม่เข้า (ค้างรับ × ราคา) — ยังไม่ใช่รายจ่าย แต่จะกลายเป็นรายจ่ายเมื่อของเข้า
+      // ยอดผูกพันรวมทั้งหมด (ทุกเดือน) — นับในยอดสั่งซื้อของเดือนที่อนุมัติไปแล้วข้างบน แถบนี้แค่สรุปให้เห็นว่ายังค้างรับเท่าไร
       var committed = (fccLast.OpenPr || []).filter(function(l) { return isAll ? true : fccLineOf(l.pr_line) === line; })
         .reduce(function(s, l) { return s + fccN(l.qty_outstanding) * fccN(l.unit_price); }, 0);
       var basisTxt = grInfo.cutoverAt
-        ? '📦 รายจ่าย = ยอดสั่งซื้อ (PR) ก่อน ' + grInfo.cutoverAt.slice(0, 10) + ' · ตั้งแต่วันนั้นนับจากยอดรับของจริง (GR) + ของสิ้นเปลือง'
+        ? '📦 รายจ่าย = ยอดสั่งซื้อ (PR) ก่อน ' + grInfo.cutoverAt.slice(0, 10) + ' · ตั้งแต่วันนั้นนับ PR ที่อนุมัติแล้ว (รับแล้ว + ค้างรับ) + ของสิ้นเปลือง'
         : '📦 รายจ่าย = ยอดสั่งซื้อ (PR ไม่นับที่ยกเลิก) + ของสิ้นเปลืองที่ซื้อนอกระบบ';
       if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + basisTxt + ' · 🔧 ค่าเบิก = เบิกจริง × ราคา (แท่งเขียวอมฟ้า เทียบแยก ไม่รวมในอัตราต้นทุน) · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
       if (grInfo.cutoverAt && committed > 0) {
-        tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;color:#1e40af;">⏳ ยอดผูกพัน (PR อนุมัติแล้ว รอของเข้า) ฿' + fccMoney(committed) + ' — ยังไม่นับในรายจ่าย จะนับเมื่อรับของเข้า</div>';
+        tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;color:#1e40af;">⏳ ยอดผูกพัน (PR อนุมัติแล้ว รอของเข้า) ฿' + fccMoney(committed) + ' — นับรวมในยอดสั่งซื้อของเดือนที่อนุมัติแล้ว</div>';
       }
     }
     function fccRenderTops(P, L) {
@@ -21089,7 +21108,7 @@ function inferRequestPriority(stock, min) {
         // รายจ่ายนับแบบเดียวกับการ์ด Cost Ratio เป๊ะ = ยอดสั่งซื้อ (PR) ก่อนวันเริ่มระบบ / ยอดรับจริง (GR) หลังวันเริ่ม
         // ไม่ใช่ค่าเบิก (เบิกจริง × ราคา) — การ์ดแยกค่าเบิกไว้เทียบเฉยๆ ไม่นับในงบ ถ้าที่นี่นับค่าเบิก
         // งบที่เหลือในหน้า PR จะไม่ตรงกับ "เหลืองบ" บนการ์ด
-        fccSpendRows(A.hist, A.gr).forEach(function(r) {
+        fccSpendRows(A.hist, A.gr).concat(fccCommittedRows(A.openPr)).forEach(function(r) {
           if (!(r.amount > 0)) return;
           (spentBML[r.month] = spentBML[r.month] || {}); spentBML[r.month][r.line] = (spentBML[r.month][r.line] || 0) + r.amount;
         });
