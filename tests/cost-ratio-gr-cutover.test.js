@@ -55,3 +55,24 @@ assert(render.includes('ยอดผูกพัน (PR อนุมัติแ
 assert(grabFn('ptAfterReceive').includes('fccInvalidateAsyncCache()'), 'รับของแล้วต้องล้างแคช Dashboard');
 
 console.log('Cost ratio GR cutover checks passed');
+
+// ---- PR อนุมัติแล้วแต่ของยังไม่เข้า (ยอดผูกพัน) นับเป็นรายจ่ายของเดือนที่อนุมัติ ----
+const committedApi = new Function(
+  'function fccN(v) { var n = Number(String(v == null ? "" : v).replace(/,/g, "")); return isFinite(n) ? n : 0; }\n' +
+  'function fccLineOf(l) { return String(l || "").trim(); }\n' +
+  ['fccMonthKey', 'fccCommittedRows'].map(function(n) { return grabFn(n); }).join('\n') +
+  '\nreturn fccCommittedRows;'
+)();
+const committedRows = committedApi([
+  { pr_line: 'Coil Winding', approved_at: '2026-10-22 09:00:00', qty_outstanding: 12, unit_price: 100 },
+  { pr_line: 'Arc Chute', approved_at: '', created_at: '2026-10-20 09:00:00', qty_outstanding: 1, unit_price: 3000 },
+  { pr_line: 'H9', approved_at: '2026-10-22 09:00:00', qty_outstanding: 3, unit_price: 0 } // ไม่มีราคา = ไม่นับ
+]);
+assert.deepStrictEqual(committedRows.map(function(r) { return [r.month, r.line, r.amount]; }),
+  [['2026-10', 'Coil Winding', 1200], ['2026-10', 'Arc Chute', 3000]]);
+assert.deepStrictEqual(committedApi(null), []);
+const renderCR = grabFn('fccRenderCostRatio');
+assert(renderCR.includes('fccCommittedRows(fccLast.OpenPr)'), 'การ์ดนับยอดผูกพันรวมในรายจ่าย');
+assert(renderCR.includes('รวมค้างรับ'), 'ช่องยอดสั่งซื้อโชว์ยอดค้างรับแยกให้เห็น');
+assert(grabFn('prComputeBudget').includes('fccCommittedRows(A.openPr)'), 'แผงงบ PR นับยอดผูกพันเหมือนการ์ด');
+console.log('Cost ratio committed PR checks passed');
