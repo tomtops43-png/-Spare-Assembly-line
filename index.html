@@ -17834,19 +17834,9 @@ function inferRequestPriority(stock, min) {
       if (extra.shipping > 0) {
         items.push({ category: 'ค่าจัดส่ง', item_name: 'ค่าจัดส่ง', qty: 1, unit: 'ครั้ง', total_amount: extra.shipping });
       }
-      if (extra.inclusive && extra.gross > 0) {
-        // ราคาที่กรอกรวม VAT แล้ว — เก็บแต่ละแถวเป็นยอดก่อน VAT ให้รวมได้ "รวมยอดขาย" ตรงบิล
-        // เศษสตางค์จากการปัดโยนไปแถวที่ยอดมากสุด เพื่อให้ รวมยอดขาย + VAT = ยอดจ่ายจริงเป๊ะ
-        var exSum = 0, biggest = 0;
-        items.forEach(function(it, idx) {
-          it.total_amount = Math.round(Number(it.total_amount || 0) * 100 / (100 + extra.vatPercent) * 100) / 100;
-          exSum += it.total_amount;
-          if (it.total_amount > items[biggest].total_amount) biggest = idx;
-        });
-        var diff = Math.round((extra.subtotal - exSum) * 100) / 100;
-        if (diff && items.length) items[biggest].total_amount = Math.round((items[biggest].total_amount + diff) * 100) / 100;
-      }
-      if (extra.vatAmount > 0) {
+      // ราคารวม VAT แล้ว (ฮาร์ดแวร์เฮาส์) — เก็บแต่ละแถวตามราคาในบิลเป๊ะ ไม่เพิ่มแถว VAT
+      // (VAT อยู่ในราคาแล้ว ถ้าเพิ่มแถวจะนับเงินซ้ำ) ใบเบิกจ่ายถอด VAT ออกมาโชว์ท้ายใบเอง (mxVoucherData)
+      if (extra.vatAmount > 0 && !extra.inclusive) {
         items.push({ category: 'ภาษีมูลค่าเพิ่ม (VAT)', item_name: 'ภาษีมูลค่าเพิ่ม ' + extra.vatPercent + '%', qty: 1, unit: 'ครั้ง', total_amount: extra.vatAmount });
       }
       return items;
@@ -17995,7 +17985,17 @@ function inferRequestPriority(stock, min) {
       });
       var subtotal = items.reduce(function(s, it) { return s + it.amount; }, 0);
       var total = Math.round((subtotal + vat) * 100) / 100;
+      // บิลร้านที่ราคารวม VAT แล้ว (ไม่มีแถว VAT) — รายการคงราคาตามบิล ท้ายใบถอด VAT แบบท้ายบิลร้าน:
+      // รวมไม่รวมภาษี = ยอดจ่าย ÷ 1.07 / Vat = ส่วนต่าง / ยอดรวม = ยอดจ่ายเท่าเดิม
+      var vatInclusive = !vat && items.length > 0 && mxIsVatInclusiveVendor(first.vendor);
+      if (vatInclusive) {
+        total = Math.round(subtotal * 100) / 100;
+        subtotal = Math.round(total * 100 / 107 * 100) / 100;
+        vat = Math.round((total - subtotal) * 100) / 100;
+        vatLabel = '7%';
+      }
       return {
+        vatInclusive: vatInclusive,
         vendor: String(first.vendor || ''),
         receiptNo: String(first.receipt_no || ''),
         date: String(first.date || '').slice(0, 10),
@@ -18042,7 +18042,7 @@ function inferRequestPriority(stock, min) {
       }).join('');
       // อัตรา VAT ไว้ให้คิด VAT ใหม่อัตโนมัติเมื่อแก้รายการ (บิลที่ไม่มี VAT = 0 → พิมพ์ยอด VAT เองได้)
       var vatRate = d.vat ? (parseFloat(d.vatLabel) || 0) : 0;
-      return '<div class="sheet" data-vat-rate="' + vatRate + '">' +
+      return '<div class="sheet" data-vat-rate="' + vatRate + '"' + (d.vatInclusive ? ' data-vat-inclusive="1"' : '') + '>' +
         '<div class="co">' + e(MX_VOUCHER_COMPANY_TH) + '<br>' + e(MX_VOUCHER_COMPANY_CN) + '</div>' +
         '<div class="ttl">ใบเบิกจ่าย/ 付款申请单</div>' +
         '<div class="appdate">申请日期/Date: <u' + ed('', e(appDate || '')) + '</u></div>' +
@@ -18083,6 +18083,7 @@ function inferRequestPriority(stock, min) {
       var sheet = document.querySelector('.sheet');
       if (!sheet) return;
       var rate = Number(sheet.getAttribute('data-vat-rate')) || 0;
+      var inclusive = sheet.getAttribute('data-vat-inclusive') === '1';
       var vatManual = false;
       function num(t) { var m = String(t || '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/); return m ? Number(m[0]) : NaN; }
       function money(n) { return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -18096,8 +18097,12 @@ function inferRequestPriority(stock, min) {
           tr.querySelector('.no').textContent = filled ? String(no += 1) : '';
         });
         var vatEl = field(sheet, 'vat');
-        if (!vatManual && rate > 0) vatEl.textContent = any ? money(Math.round(sub * rate) / 100) : '';
+        var gross = sub;
+        // ราคารวม VAT แล้ว: ถอด VAT ออกจากยอดรายการ แทนการบวกเพิ่ม
+        if (inclusive && !vatManual) vatEl.textContent = any ? money(Math.round((gross - Math.round(gross * 100 / (100 + rate) * 100) / 100) * 100) / 100) : '';
+        else if (!inclusive && !vatManual && rate > 0) vatEl.textContent = any ? money(Math.round(sub * rate) / 100) : '';
         var vat = num(vatEl.textContent) || 0, wht = num(field(sheet, 'wht').textContent) || 0;
+        if (inclusive) sub = Math.round((gross - vat) * 100) / 100;
         var total = Math.round((sub + vat - wht) * 100) / 100;
         var show = any || vat || wht;
         field(sheet, 'sub').textContent = any ? money(sub) : '';

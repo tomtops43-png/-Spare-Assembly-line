@@ -28,13 +28,29 @@ assert.strictEqual(ex.subtotal, 544.86, 'รวมยอดขาย ตรง�
 assert.strictEqual(ex.vatAmount, 38.14, 'VAT 7% ตรงบิล');
 assert.strictEqual(Math.round((ex.subtotal + ex.vatAmount) * 100) / 100, 583, 'ยอดเงินรวมทั้งสิ้น = ยอดจ่ายจริง');
 
-// รายการที่ส่งขึ้นเซิร์ฟเวอร์ = แถวก่อน VAT + แถว VAT → รวมได้ 583 เป๊ะ (ไม่มีเศษสตางค์เพี้ยน)
+// รายการที่ส่งขึ้นเซิร์ฟเวอร์ = ราคาตามบิลเป๊ะ ไม่มีแถว VAT (VAT อยู่ในราคาแล้ว ห้ามนับซ้ำ) → รวม 583
 const items = api.collect();
-const vatRow = items.filter(function(it) { return it.category === 'ภาษีมูลค่าเพิ่ม (VAT)'; })[0];
-assert.strictEqual(vatRow.total_amount, 38.14);
-const goods = items.filter(function(it) { return it !== vatRow; });
-assert.strictEqual(Math.round(goods.reduce(function(s, it) { return s + it.total_amount; }, 0) * 100) / 100, 544.86);
-assert.strictEqual(Math.round(items.reduce(function(s, it) { return s + it.total_amount; }, 0) * 100) / 100, 583);
+assert.deepStrictEqual(items.map(function(it) { return it.total_amount; }), [268, 105, 210]);
+assert(!items.some(function(it) { return it.category === 'ภาษีมูลค่าเพิ่ม (VAT)'; }), 'ห้ามเพิ่มแถว VAT ซ้ำ');
+
+// ใบเบิกจ่าย: รายการคงราคาตามบิล ท้ายใบถอด VAT แบบท้ายบิล
+const voucherSrc = ['mxIsVatInclusiveVendor', 'mxBahtText', 'mxVoucherData'].map(function(n) { return grabFn(n); }).join('\n');
+const mxVoucherData = new Function('MX_VOUCHER_LINE_DEPT', voucherSrc + '\nreturn mxVoucherData;')({});
+const saved = items.map(function(it) { return Object.assign({ vendor: 'ฮาร์ดแวร์เฮาส์', receipt_no: 'CS4691029-0433', line: 'H9' }, it); });
+const d = mxVoucherData(saved);
+assert.deepStrictEqual(d.items.map(function(it) { return [it.unitPrice, it.amount]; }), [[134, 268], [105, 105], [21, 210]], 'ราคาต่อหน่วย/จำนวนเงินตามบิล');
+assert.strictEqual(d.vatInclusive, true);
+assert.strictEqual(d.subtotal, 544.86, 'รวมไม่รวมภาษี');
+assert.strictEqual(d.vat, 38.14, 'Vat 7%');
+assert.strictEqual(d.total, 583, 'ยอดรวม');
+assert.strictEqual(d.totalText, 'ห้าร้อยแปดสิบสามบาทถ้วน');
+// ร้านอื่นที่ไม่มีแถว VAT = ไม่มี VAT เหมือนเดิม
+const plain = mxVoucherData(saved.map(function(r) { return Object.assign({}, r, { vendor: 'ร้านไทยวัสดุ' }); }));
+assert.strictEqual(plain.vat, 0);
+assert.strictEqual(plain.total, 583);
+// แก้ตัวเลขในหน้าต่างพิมพ์ก็ต้องถอด VAT แบบเดียวกัน
+assert(grabFn('mxVoucherHtml').includes('data-vat-inclusive="1"'));
+assert(grabFn('mxVoucherEditorRuntime').includes("sheet.getAttribute('data-vat-inclusive') === '1'"));
 
 // ร้านอื่นยังคิด VAT บวกเพิ่มแบบเดิม
 const other = build(Object.assign({}, hwFields, { miscExpenseVendor: 'ร้านไทยวัสดุ' }), false, billRows).extra(583);
