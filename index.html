@@ -3386,33 +3386,6 @@
       <!-- Step 4: Build & Export -->
       <div id="prStep4" class="hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
         <p class="text-xs font-bold uppercase tracking-widest text-emerald-600 mb-3">ขั้นตอนที่ 4 — สร้าง & ส่งออก PDF</p>
-        <div class="flex flex-wrap items-center gap-3 mb-3">
-          <div class="flex flex-wrap gap-2 text-xs">
-            <label class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 cursor-pointer">
-              <input id="prIncludeAnnexC" type="checkbox" checked class="h-3.5 w-3.5" /> รูปอะไหล่ (Annex C)
-            </label>
-            <label class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 cursor-pointer">
-              <input id="prIncludeAnnexD" type="checkbox" checked class="h-3.5 w-3.5" /> Drawing List (Annex D)
-            </label>
-            <label class="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-700 cursor-pointer">
-              <input id="prPrintFullDrawings" type="checkbox" class="h-3.5 w-3.5" /> แนบ Drawing เต็มหน้า
-            </label>
-            <label class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 cursor-pointer">
-              <input id="prAttachDrawingsSeparately" type="checkbox" class="h-3.5 w-3.5" /> Drawing แยกท้ายเล่ม
-            </label>
-          </div>
-          <div class="flex gap-2 ml-auto">
-            <select id="prAnnexMode" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs">
-              <option value="important">Annex C: สำคัญเท่านั้น</option>
-              <option value="all" selected>Annex C: ทุกรายการ</option>
-            </select>
-            <select id="prAnnexLimit" class="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs">
-              <option value="24">จำกัด 24 รูป</option>
-              <option value="100">จำกัด 100 รูป</option>
-              <option value="0" selected>ไม่จำกัด</option>
-            </select>
-          </div>
-        </div>
         <!-- โซนหลัก: ส่งอนุมัติ — เลือกผู้อนุมัติ + ปุ่มส่ง อยู่แถวเดียวแนวเดียวกัน hint รวมไว้ใต้แถวเดียว -->
         <div class="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
           <div class="flex flex-wrap items-end gap-3">
@@ -5531,12 +5504,6 @@
     var prCostSummary = document.getElementById('prCostSummary');
     var prCandidateList = document.getElementById('prCandidateList');
     var prReportPreview = document.getElementById('prReportPreview');
-    var prAnnexMode = document.getElementById('prAnnexMode');
-    var prIncludeAnnexC = document.getElementById('prIncludeAnnexC');
-    var prIncludeAnnexD = document.getElementById('prIncludeAnnexD');
-    var prPrintFullDrawings = document.getElementById('prPrintFullDrawings');
-    var prAttachDrawingsSeparately = document.getElementById('prAttachDrawingsSeparately');
-    var prAnnexLimit = document.getElementById('prAnnexLimit');
     var detailAddToCartBtn = document.getElementById('detailAddToCartBtn');
     var uploadQueuePanel = document.getElementById('uploadQueuePanel');
     var uploadQueueBadge = document.getElementById('uploadQueueBadge');
@@ -21260,7 +21227,7 @@ function inferRequestPriority(stock, min) {
     // และรวม PR ที่ยังรออนุมัติเข้าใน used ; budget = งบใช้ได้จริง (ฐาน + ยกมา), used = จ่ายจริง + รออนุมัติ
     function prComputeBudget(monthKey, excludePrId) {
       return Promise.all([fccEnsureAsync(), prEnsurePendingUsage()]).then(function(arr) {
-        var A = arr[0], pendingMap = prPendingUsageMap(arr[1], excludePrId);
+        var A = prBudgetDataWithoutPr(arr[0], excludePrId), pendingMap = prPendingUsageMap(arr[1], excludePrId);
         var carry = prCarryOverEnabled();
         var targetByLine = {};
         (A.prodConfig || []).forEach(function(c) { if (String(c.line) === 'ALL') return; targetByLine[fccLineOf(c.line)] = fccN(c.target_pct); });
@@ -21289,8 +21256,9 @@ function inferRequestPriority(stock, min) {
         Object.keys(targetByLine).forEach(function(l) { lineSet[l] = true; });
         months.forEach(function(m) { [salesBML[m], spentBML[m], pendingMap[m]].forEach(function(o) { if (o) Object.keys(o).forEach(function(l) { lineSet[l] = true; }); }); });
         var byLine = {};
+        var qKey = fccQuarterKey(monthKey); // ยอดสะสมของไตรมาส (นับถึงเดือนเป้าหมาย) — ไว้โชว์ในเอกสาร PR
         Object.keys(lineSet).forEach(function(ln) {
-          var target = targetByLine[ln] || 0, prevLeftover = 0, rec = null;
+          var target = targetByLine[ln] || 0, prevLeftover = 0, rec = null, qBudget = 0, qUsed = 0;
           months.forEach(function(m) {
             var sales = (salesBML[m] || {})[ln] || 0;
             var base = (target > 0 && sales > 0) ? sales * target / 100 : 0;
@@ -21300,11 +21268,70 @@ function inferRequestPriority(stock, min) {
             var pending = (pendingMap[m] || {})[ln] || 0;
             var used = spent + pending;
             prevLeftover = Math.max(0, effective - used);
+            if (fccQuarterKey(m) === qKey) { qBudget += base; qUsed += used; }
             if (m === monthKey) rec = { sales: sales, targetPct: target, base: base, carryIn: carryIn, budget: effective, spent: spent, pending: pending, used: used };
           });
           byLine[ln] = rec || { sales: 0, targetPct: target, base: 0, carryIn: 0, budget: 0, spent: 0, pending: 0, used: 0 };
+          byLine[ln].quarter = { key: qKey, budget: qBudget, used: qUsed };
         });
         return { month: monthKey, carry: carry, byLine: byLine };
+      });
+    }
+    // ตัดรายการของ PR ใบที่กำลังดู (excludePrId) ออกจากยอดผูกพัน (ค้างรับ) และยอดรับของ (GR)
+    // ใบที่อนุมัติแล้วถูกนับในรายจ่ายไปแล้ว — ถ้าไม่ตัดออก ตอนโชว์ "PR ใบนี้" แยกจะนับซ้ำสองรอบ
+    function prBudgetDataWithoutPr(A, excludePrId) {
+      if (!excludePrId || !A) return A;
+      var notThis = function(r) { return String((r && r.pr_id) || '') !== String(excludePrId); };
+      var out = Object.assign({}, A);
+      out.openPr = (A.openPr || []).filter(notThis);
+      if (A.gr) out.gr = Object.assign({}, A.gr, { receipts: (A.gr.receipts || []).filter(notThis) });
+      return out;
+    }
+    // ── งบสำหรับลงเอกสาร PR (ส่วน "Spare Part Budget") ──────────────────────
+    // แถวต่อไลน์ของ PR ใบนี้: m = รายเดือน, q = รายไตรมาส (นับถึงเดือนที่ขอ) ; used ไม่รวมใบนี้ ; pr = ยอดใบนี้
+    function prDocBudgetRows(B, prByLine) {
+      var order = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+      var lines = Object.keys(prByLine || {}).filter(function(l) { return prByLine[l] > 0; });
+      if (!lines.length) lines = Object.keys((B && B.byLine) || {}).filter(function(l) { return B.byLine[l].budget > 0; });
+      lines.sort(function(a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib); });
+      return lines.map(function(ln) {
+        var rec = (B && B.byLine && B.byLine[ln]) || { budget: 0, used: 0, targetPct: 0 };
+        var q = rec.quarter || { budget: 0, used: 0 };
+        var pr = (prByLine && prByLine[ln]) || 0;
+        return { line: ln, targetPct: rec.targetPct || 0, m: { budget: rec.budget || 0, used: rec.used || 0, pr: pr }, q: { budget: q.budget || 0, used: q.used || 0, pr: pr } };
+      });
+    }
+    function prDocMonthFromDate(value) {
+      var m = String(value || '').match(/^(\d{4})-(\d{2})/);
+      if (m) return m[1] + '-' + m[2];
+      var d = String(value || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/); // dd/mm/yyyy
+      return d ? d[3] + '-' + d[2] : prBudgetMonthKey();
+    }
+    // คำนวณงบ (+ โหลดสต็อกทุกไลน์ไว้ให้ตาราง On hand/Min/Max) แล้วคืน opts ชุดใหม่ที่มี budgetDoc
+    // ดึงงบไม่ได้ ⇒ budgetDoc = null (เอกสารยังออกได้ แค่ขึ้นว่าไม่มีข้อมูลงบ)
+    function prDocAttachBudget(opts, items, monthKey, prId) {
+      var prByLine = {};
+      (items || []).forEach(function(c) {
+        var ln = fccLineOf(canonicalLineName(c.line || '-'));
+        prByLine[ln] = (prByLine[ln] || 0) + Math.max(1, fccN(c.suggestedQty || c.qty)) * fccN(firstDefined([c.unit_price, c.unitPrice, c.price], 0));
+      });
+      var partsReady = (Array.isArray(dashboardAllPartsData) && dashboardAllPartsData.length) || typeof loadDashboardAllPartsData !== 'function'
+        ? Promise.resolve()
+        : Promise.resolve().then(loadDashboardAllPartsData).catch(function() {});
+      var budgetReady = prComputeBudget(monthKey, prId).catch(function() { return null; });
+      return Promise.all([budgetReady, partsReady]).then(function(arr) {
+        var B = arr[0];
+        var out = Object.assign({}, opts);
+        if (!B) { out.budgetDoc = null; return out; }
+        var p = monthKey.split('-'), mo = Number(p[1]), qNo = Math.ceil(mo / 3);
+        out.budgetDoc = {
+          month: monthKey,
+          monthLabel: PR_DOC_EN_MONTHS[mo - 1] + ' ' + p[0],
+          quarterLabel: 'Q' + qNo + ' ' + p[0],
+          quarterRange: PR_DOC_EN_MONTHS[(qNo - 1) * 3] + '–' + PR_DOC_EN_MONTHS[(qNo - 1) * 3 + 2],
+          rows: prDocBudgetRows(B, prByLine)
+        };
+        return out;
       });
     }
     // ยอด PR ต่อไลน์ = รายการที่จะถูกส่งจริง (ตามแท็บไลน์/ตัวกรองที่เปิดอยู่ แบบเดียวกับ prSubmitCreatePr)
@@ -25093,7 +25120,7 @@ function inferRequestPriority(stock, min) {
           category: ln.category || '', unit: ln.unit || 'PCS', line: header.line || '-',
           suggestedQty: Number(ln.qty_approved || 0), unit_price: ln.unit_price,
           reason: ln.remark || '', purpose: ln.remark || '',
-          // รูปที่สแนปช็อตไว้ตอนสร้าง PR — ต้องส่งต่อให้ Annex C ด้วย
+          // รูปที่สแนปช็อตไว้ตอนสร้าง PR — ต้องส่งต่อให้ช่องรูปในตารางรายการด้วย
           // ไม่งั้นช่อง Picture จะขึ้น "No image available" ทุกแถว เพราะตัว report
           // หารูปได้แค่จาก master (partsData) ซึ่งตอนปริ้นจาก Inbox มักเป็นคนละไลน์/ยังไม่โหลด
           mainImage: ln.image_url || '',
@@ -25118,9 +25145,7 @@ function inferRequestPriority(stock, min) {
         approvedAtOverride: approvedAtLabel ? approvedAtLabel.slice(0, 16) : '',
         // ปริ้นจาก Inbox = จัดกลุ่มตามไลน์จริงของรายการ ไม่ยึด prLineFilter ในฟอร์ม
         isLineSpecificOverride: false,
-        selectedLineOverride: 'all',
-        includeAnnexC: true, includeAnnexD: true, annexMode: 'all', annexLimit: 0,
-        printFullDrawings: false, attachDrawingsSeparately: false
+        selectedLineOverride: 'all'
       };
       // เปิดหน้าต่างแก้ไขก่อนปริ้น — แก้แล้วค่อย build รายงานใหม่ ยอดรวมทุกส่วนจะคิดใหม่จากค่าที่แก้
       openPrPrintEditor(header, items, opts);
@@ -25213,7 +25238,11 @@ function inferRequestPriority(stock, min) {
           var edited = collectPrPrintEdits(wrap, items, opts, removed);
           if (!edited.items.length) { showQuickToast('⚠️ ต้องเหลืออย่างน้อย 1 รายการ', 'warn'); return; }
           wrap.remove();
-          printPrDocument(header, edited.items, edited.opts);
+          // คำนวณงบสดตามจำนวนที่แก้แล้ว ก่อนสร้างเอกสาร (ปริ้นผ่าน iframe จึงรอ async ได้ ไม่โดน popup blocker)
+          showQuickToast('⏳ กำลังเตรียมเอกสาร PR...', 'info');
+          prDocAttachBudget(edited.opts, edited.items, prDocMonthFromDate(header.created_at), header.pr_id).then(function(o) {
+            printPrDocument(header, edited.items, o);
+          });
         }
       });
     }
@@ -25256,7 +25285,7 @@ function inferRequestPriority(stock, min) {
       doc.write('<html lang="th"><head><meta charset="utf-8"/><title>PR ' + escHtml(header.pr_id) + '</title>' +
         '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet"><style>' + css + '</style></head><body>' + html + '</body></html>');
       doc.close();
-      // หน่วงให้ font โหลดก่อนเหมือนเดิม แล้วรอรูปใน Annex C โหลดครบจริงๆ ก่อนเปิด dialog ปริ้น
+      // หน่วงให้ font โหลดก่อนเหมือนเดิม แล้วรอรูปในเอกสาร (โลโก้ + รูปอะไหล่) โหลดครบจริงๆ ก่อนเปิด dialog ปริ้น
       // — 500ms ตายตัวไม่พอสำหรับ thumbnail จาก Google Drive ทำให้ได้ PDF ที่ช่องรูปว่าง
       // เก็บ iframe ทิ้งหลังผู้ใช้ปิด dialog ปริ้น
       setTimeout(function() {
@@ -27242,17 +27271,28 @@ if (dashboardPage) {
       }
       if (e.target.dataset.prQty !== undefined || e.target.dataset.prPrice !== undefined || e.target.dataset.prSelect !== undefined) livePatchPrTotals(idx);
     });
+    // ใบ PR แบบใหม่ไม่มีภาคผนวกรูป/Drawing ให้เลือกแล้ว (รูปอยู่ในตารางรายการเลย) — คงฟังก์ชันไว้ให้ผู้เรียกเดิม
     function getPrReportOptions(allSelectedMode) {
-      return {
-        annexMode: allSelectedMode ? 'all' : ((prAnnexMode && prAnnexMode.value) || 'all'),
-        annexLimit: Number((prAnnexLimit && prAnnexLimit.value) || 0),
-        includeAnnexC: !prIncludeAnnexC || prIncludeAnnexC.checked !== false,
-        includeAnnexD: !prIncludeAnnexD || prIncludeAnnexD.checked !== false,
-        printFullDrawings: !!(prPrintFullDrawings && prPrintFullDrawings.checked),
-        attachDrawingsSeparately: !!(prAttachDrawingsSeparately && prAttachDrawingsSeparately.checked)
-      };
+      return {};
     }
 
+    // ใบ PR (เอกสารปริ้น/PDF) — ภาษาอังกฤษล้วน เน้น 2 ส่วนหลัก:
+    //   1) รายการขอซื้อ: รูป + รายการ + ราคา + สถานะสต็อกปัจจุบัน (คงเหลือ / Min / Max)
+    //   2) งบ Spare part จากการ์ด Cost Ratio: งบ / ใช้ไปแล้ว / PR ใบนี้ / คงเหลือ ทั้งรายเดือนและรายไตรมาส → ซื้อได้หรือเกินงบ
+    // ข้อมูลงบต้องคำนวณไว้ก่อน (async) แล้วส่งมาทาง options.budgetDoc — ดู prDocAttachBudget()
+    var PR_DOC_LOGO_PATH = 'images/Logo JR.jpg';
+    var PR_DOC_EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    function prDocLogoUrl() {
+      // เอกสารถูกเขียนลง iframe/หน้าต่าง about:blank — ใช้ URL เต็ม รูปถึงจะโหลดได้แน่นอน
+      try { return new URL(PR_DOC_LOGO_PATH, window.location.href).href; } catch (e) { return PR_DOC_LOGO_PATH; }
+    }
+    // สถานะสต็อกปัจจุบันของแต่ละรายการ: out = หมด, low = ต่ำกว่า Min, ok = ปกติ, unknown = ไม่รู้ข้อมูลสต็อก
+    function prDocStockStatus(item) {
+      if (!item || !item.stockKnown) return 'unknown';
+      if (item.stock <= 0) return 'out';
+      if (item.min > 0 && item.stock < item.min) return 'low';
+      return 'ok';
+    }
     function buildDocumentGradeReport(selected, options) {
       function esc(v) {
         return String(v === undefined || v === null ? '' : v)
@@ -27260,102 +27300,54 @@ if (dashboardPage) {
           .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
       function asNum(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
-      function money(v) { return Number(v || 0).toLocaleString(); }
+      function money(v) { return Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+      function qtyTxt(v) { return Number(v || 0).toLocaleString('en-US'); }
       function normalizeImageUrl(url) {
         var raw = String(url || '').trim();
         if (!raw) return '';
         var m = raw.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
         return m && m[1] ? ('https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w400') : raw;
       }
-      function normalizeCategory(rawCategory) {
-        var raw = String(rawCategory || '').trim();
-        if (!raw) return 'General';
-        var t = raw.toLowerCase();
-        if (t === 'machanical') return 'Mechanical';
-        var map = [
-          ['electrical', 'Electrical'], ['mechanical', 'Mechanical'], ['pneumatic', 'Pneumatic'],
-          ['sensor / vision', 'Sensor / Vision'], ['sensor/vision', 'Sensor / Vision'], ['sensor', 'Sensor / Vision'], ['vision', 'Sensor / Vision'],
-          ['tooling / jig', 'Tooling / Jig'], ['tooling/jig', 'Tooling / Jig'], ['jig', 'Tooling / Jig'],
-          ['maintenance tools', 'Maintenance Tools'], ['production support', 'Production Support'],
-          ['consumable', 'Consumable'], ['general', 'General']
-        ];
-        for (var i = 0; i < map.length; i += 1) { if (t === map[i][0]) return map[i][1]; }
-        return raw;
-      }
-      function reasonCodeText(reasonCodes) {
-        var arr = String(reasonCodes || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
-        return arr.join(' | ');
-      }
-      function reasonPurpose(c) {
-        if (c.purpose && String(c.purpose).trim()) return c.purpose;
-        var txt = reasonCodeText(c.reasonCodes || c.reason || '');
-        return txt || '-';
-      }
-      function compactDrawingStatus(status) {
-        var normalizedStatus = String(status || '').trim().toLowerCase();
-        if (normalizedStatus === 'available') return 'Available';
-        if (normalizedStatus === 'not required') return 'Not Required';
-        if (normalizedStatus === 'access required') return 'Access Required';
-        return 'Missing';
-      }
-      function normalizePrDrawingStatus(item, drawingUrl) {
-        if (String(drawingUrl || '').trim()) return 'Available';
-        var normalizedStatus = normalizeDrawingStatus({ drawing_status: item && (item.drawingStatus || item.drawing_status), drawing_url: '', category: item && item.category, name: item && item.name, model: item && item.model, brand: item && item.brand });
-        return normalizedStatus === 'Not Required' ? 'Not Required' : 'Missing';
-      }
-      function getDrawingFileExt(item) {
-        var raw = String((item && (item.drawingFileName || item.drawingUrl)) || '').toLowerCase();
-        var match = raw.match(/\.([a-z0-9]+)(?:[?#].*)?$/);
-        return match ? match[1] : '';
-      }
-      function isPrintableDrawing(item) {
-        var ext = getDrawingFileExt(item);
-        return ['pdf', 'jpg', 'jpeg', 'png'].indexOf(ext) > -1;
-      }
-      function isImageDrawing(item) {
-        var ext = getDrawingFileExt(item);
-        return ['jpg', 'jpeg', 'png'].indexOf(ext) > -1;
-      }
-
-      options = options || {};
-      var annexMode = String(options.annexMode || 'all');
-      var includeAnnexC = options.includeAnnexC !== false;
-      var includeAnnexD = options.includeAnnexD !== false;
-      var printFullDrawings = options.printFullDrawings === true;
-      var attachDrawingsSeparately = options.attachDrawingsSeparately === true;
-      var annexLimit = Number(options.annexLimit === undefined ? 0 : options.annexLimit);
-      if (!Number.isFinite(annexLimit) || annexLimit < 0) annexLimit = 24;
-      // override ได้จาก options — ตอนปริ้นใบอนุมัติแล้วจาก Inbox ต้องใช้ข้อมูลของใบ PR จริง
-      // ไม่ใช่ค่าที่ค้างอยู่ในฟอร์ม builder (ซึ่งอาจเป็นของ PR คนละใบ)
-      var period = (options && options.periodOverride) || document.getElementById('prPeriod').value || 'Monthly Purchase Request / End of Month';
-      var preparedBy = (options && options.preparedByOverride) || String((document.getElementById('prPreparedBy')||{}).value || '').trim() || '-';
-      var department = (options && options.departmentOverride) || (document.getElementById('prDepartment')||{}).value || 'Assembly Line';
-      var nowTs = new Date();
-      var submissionDate = (options && options.submissionDateOverride) || nowTs.toISOString().slice(0,10);
-      var generatedAt = nowTs.toLocaleString('en-GB', { hour12: false });
-      // สถานะ+ผู้อนุมัติ override ตอนปริ้นใบที่อนุมัติแล้วจาก Inbox — ใบจริงต้องขึ้น APPROVED ไม่ใช่ Pending
-      var statusLabel = (options && options.statusOverride) || 'Pending Approval';
-      var statusColor = (options && options.statusOverride) ? '#059669' : '#dc2626';
-      var approvedByName = (options && options.approvedByOverride) || '';
-      var approvedAtLabel = (options && options.approvedAtOverride) || '';
-      var modeNow = String((document.getElementById('prMode')||{}).value || 'assembly_monthly');
-      // ตอนปริ้นจาก Inbox บังคับ line จาก options — ไม่ให้ยึด prLineFilter ในฟอร์ม (อาจเป็นคนละใบ)
-      var selectedLineNow = (options && options.selectedLineOverride !== undefined) ? String(options.selectedLineOverride) : String((document.getElementById('prLineFilter')||{}).value || 'all');
-      var isLineSpecific = (options && options.isLineSpecificOverride !== undefined) ? !!options.isLineSpecificOverride : (modeNow === 'line_specific' && selectedLineNow !== 'all');
       function strictPartKey(value) {
         var key = String(value || '').trim().toLowerCase();
         if (!key || key === '-' || key === 'n/a' || key === 'na' || key === 'unknown') return '';
         return key;
       }
-      var masterById = {};
-      var masterByLineAndId = {};
-      var masterByLineAndModel = {};
-      (partsData || []).forEach(function(item){
+      function monthLabel(key) {
+        var p = String(key || '').split('-');
+        var mo = Number(p[1]);
+        return (mo >= 1 && mo <= 12) ? PR_DOC_EN_MONTHS[mo - 1] + ' ' + p[0] : String(key || '-');
+      }
+
+      options = options || {};
+      // override ได้จาก options — ตอนปริ้นใบอนุมัติแล้วจาก Inbox ต้องใช้ข้อมูลของใบ PR จริง
+      // ไม่ใช่ค่าที่ค้างอยู่ในฟอร์ม builder (ซึ่งอาจเป็นของ PR คนละใบ)
+      var period = options.periodOverride || (document.getElementById('prPeriod') || {}).value || '';
+      var preparedBy = options.preparedByOverride || String((document.getElementById('prPreparedBy') || {}).value || '').trim() || '-';
+      var department = options.departmentOverride || (document.getElementById('prDepartment') || {}).value || 'Assembly Line';
+      var nowTs = new Date();
+      var submissionDate = options.submissionDateOverride || nowTs.toISOString().slice(0, 10);
+      var generatedAt = nowTs.toLocaleString('en-GB', { hour12: false });
+      // สถานะ+ผู้อนุมัติ override ตอนปริ้นใบที่อนุมัติแล้วจาก Inbox — ใบจริงต้องขึ้น APPROVED ไม่ใช่ Pending
+      var isApproved = !!options.statusOverride;
+      var statusLabel = options.statusOverride || 'PENDING APPROVAL';
+      var approvedByName = options.approvedByOverride || '';
+      var approvedAtLabel = options.approvedAtOverride || '';
+      var modeNow = String((document.getElementById('prMode') || {}).value || 'assembly_monthly');
+      // ตอนปริ้นจาก Inbox บังคับ line จาก options — ไม่ให้ยึด prLineFilter ในฟอร์ม (อาจเป็นคนละใบ)
+      var selectedLineNow = options.selectedLineOverride !== undefined ? String(options.selectedLineOverride) : String((document.getElementById('prLineFilter') || {}).value || 'all');
+      var isLineSpecific = options.isLineSpecificOverride !== undefined ? !!options.isLineSpecificOverride : (modeNow === 'line_specific' && selectedLineNow !== 'all');
+
+      // master = ข้อมูลอะไหล่ปัจจุบัน (สต็อก/Min/Max/รูป) — รวม partsData กับ dashboardAllPartsData (ทุกไลน์)
+      // เพราะตอนปริ้นจาก Inbox ไลน์ของ PR มักไม่ใช่ไลน์ที่โหลดอยู่ในหน้า Stock
+      var masterById = {}, masterByLineAndId = {}, masterByLineAndModel = {};
+      var masterList = (Array.isArray(partsData) ? partsData : []).concat(Array.isArray(dashboardAllPartsData) ? dashboardAllPartsData : []);
+      masterList.forEach(function(item) {
         var k = strictPartKey(item.no || item.id || '');
         var modelKey = strictPartKey(item.model || item.partNo || item.part_no || '');
         var ln = canonicalLineName(item.line || item.mainLine || '-');
         if (k && !masterById[k]) masterById[k] = item;
-        if (k && ln) masterByLineAndId[ln + '|' + k] = item;
+        if (k && ln && !masterByLineAndId[ln + '|' + k]) masterByLineAndId[ln + '|' + k] = item;
         if (modelKey && ln && !masterByLineAndModel[ln + '|' + modelKey]) masterByLineAndModel[ln + '|' + modelKey] = item;
       });
 
@@ -27374,379 +27366,172 @@ if (dashboardPage) {
           if (weak && canonicalLineName(weak.line || weak.mainLine || '-') === itemLine) master = weak;
         }
         var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.photoUrl, master.picture, master.driveUrl, master.imageLink, master.image_main_file_id], '') : '';
-        // PR drawing references must come from this selected item row only.
-        // Never borrow/fallback to master/other rows, because that can attach another item's drawing.
-        var drawingUrl = String(firstDefined([c.drawingUrl, c.drawing_url], '') || '').trim();
-        var drawingStatus = normalizePrDrawingStatus({ category: c.category, name: c.name, model: c.model, brand: c.brand, drawingStatus: firstDefined([c.drawingStatus, c.drawing_status], '') }, drawingUrl);
         var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
         var normalizedImage = normalizeImageUrl(firstDefined([selectedImg, masterImg], ''));
+        // สต็อก "ปัจจุบัน" — ใช้ master ก่อน (สดกว่าค่าที่ติดมากับ candidate ตอน Generate) แล้วค่อย fallback
+        var rawStock = firstDefined([master && master.stock, c.stock], '');
         return {
-          id: String(c.no || c.id || c.name || '-'),
           no: c.no || '-',
-          category: normalizeCategory(c.category || '-'),
-          line: canonicalLineName(c.line || '-'),
-          subLine: String(firstDefined([c.subLine, c.__sourceSheet, master && (master.__sourceSheet || master.subLine), '-'], '-')),
+          line: itemLine,
           name: c.name || '-',
-          brand: c.brand || '-',
-          model: c.model || c.no || '-',
+          brand: c.brand || '',
+          model: c.model || c.no || '',
           qty: qty,
           unit: String(firstDefined([c.unit, master && master.unit], 'PCS') || 'PCS').trim() || 'PCS',
-          critical: c.critical || '-',
           unitPrice: price,
           amount: price === null ? null : qty * price,
-          reasonCodes: c.reason || '-',
-          purpose: c.purpose || '',
-          // stock/min: ถ้า candidate ไม่มี (เช่นปริ้นจาก Inbox ที่ line มาจาก PR ไม่ใช่ partsData) เติมจาก master
-          stock: asNum(firstDefined([c.stock, master && master.stock], 0)),
-          min: asNum(firstDefined([c.min, master && master.min], 0)),
-          image: normalizedImage,
-          hasImage: !!normalizedImage,
-          drawingUrl: drawingUrl,
-          drawingFileName: drawingUrl ? firstDefined([c.drawingFileName, c.drawing_file_name], '') : '',
-          drawingRevision: drawingUrl ? firstDefined([c.drawingRevision, c.drawing_revision], '') : '',
-          drawingStatus: drawingStatus,
-          drawingCompactStatus: compactDrawingStatus(drawingStatus)
+          stockKnown: rawStock !== '',
+          stock: asNum(rawStock),
+          min: asNum(firstDefined([master && master.min, c.min], 0)),
+          max: asNum(firstDefined([master && master.max, master && master.qtyMax, c.max, c.qtyMax], 0)),
+          image: normalizedImage
         };
       });
 
-      var lines = Array.from(new Set(normalized.map(function(c){ return c.line; }))).filter(Boolean);
-      if (isLineSpecific) lines = [canonicalLineName(selectedLineNow)];
-      var lineLabel = lines.join(' / ') || '-';
-
-      var confirmed = normalized.filter(function(c){ return c.unitPrice !== null; });
-      var tbc = normalized.filter(function(c){ return c.unitPrice === null; });
-      var totalAmount = confirmed.reduce(function(sum, c){ return sum + c.amount; }, 0);
-      // นับ Out of Stock เฉพาะรายการที่รู้ข้อมูล stock จริง (มี min ตั้งไว้) — กันเคสปริ้นข้ามไลน์ที่
-      // master ไม่ถูกโหลด แล้ว stock=0 ปลอมทำให้ทุกรายการโชว์ว่าหมดสต็อก
-      var outCount = normalized.filter(function(c){ return c.min > 0 && c.stock <= 0; }).length;
-      // ต้องนับตาม label "Below Min — Reorder Required" จริงๆ คือของเหลือน้อยกว่า min แต่ยังไม่หมด (0 < stock < min)
-      // ไม่ใช่นับจาก priority level (เดิมนับ High/Critical priority ซึ่งเป็นคนละความหมายกับ label ทำให้ตัวเลขดูขัดแย้งกับ Out of Stock)
-      var highCriticalCount = normalized.filter(function(c){ return c.stock > 0 && c.min > 0 && c.stock < c.min; }).length;
-
-      var urgentItems = normalized.slice().sort(function(a,b){
-        function score(x){
-          var lv=String(x.critical||'').toLowerCase(); var s=0;
-          if (x.stock<=0 && lv.indexOf('critical')>-1) s+=100;
-          if (lv.indexOf('critical')>-1) s+=60;
-          if (lv.indexOf('high')>-1) s+=40;
-          if (x.amount!==null) s += Math.min(30, x.amount/2000);
-          if (String(x.reasonCodes||'').toUpperCase().indexOf('REP')>-1) s+=10;
-          return s;
-        }
-        return score(b)-score(a);
-      }).slice(0,8);
-
-      function detailTableRows(items, includeLine) {
-        if (!items.length) return '<tr><td colspan="'+(includeLine?10:9)+'" class="empty">No items</td></tr>';
-        return items.map(function(c, i){
-          var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
-          var cols = ['<td>'+ (i+1) +'</td>','<td>'+esc(c.category)+'</td>','<td>'+itemModel+'</td>'];
-          if (includeLine) cols.push('<td>'+esc(c.line)+'</td>');
-          cols = cols.concat([
-            '<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.critical)+'</td>','<td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td>','<td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td>','<td>'+esc(c.drawingCompactStatus || compactDrawingStatus(c.drawingStatus))+'</td>','<td>'+esc(reasonPurpose(c))+'</td>'
-          ]);
-          return '<tr>'+cols.join('')+'</tr>';
-        }).join('');
-      }
-      function detailColgroup(includeLine) {
-        if (includeLine) {
-          return '<colgroup>' +
-            '<col style="width:5%"><col style="width:9%"><col style="width:25%"><col style="width:6%"><col style="width:5%"><col style="width:9%"><col style="width:9%"><col style="width:10%"><col style="width:9%"><col style="width:13%">' +
-          '</colgroup>';
-        }
-        return '<colgroup>' +
-          '<col style="width:6%"><col style="width:10%"><col style="width:31%"><col style="width:6%"><col style="width:10%"><col style="width:9%"><col style="width:10%"><col style="width:8%"><col style="width:10%">' +
-        '</colgroup>';
-      }
-      function annexRows(items, includeLine, counter) {
-        if (!items.length) return '<tr><td colspan="9" class="empty">No critical reference pictures</td></tr>';
-        counter = counter || { n: 0 };
-        return items.map(function(c){
-          var remark = [];
-          var lv = String(c.critical || '').toLowerCase();
-          var txt = (String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||'')).toLowerCase();
-          var reasonTxt = String(c.reasonCodes || '').toUpperCase();
-          var custom = /(custom|made-to-order|special)/.test(txt);
-          var highAmount = (c.amount !== null && c.amount >= 5000);
-          var needsVisual = !String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''));
-          if (lv.indexOf('critical')>-1) remark.push('Critical spare');
-          if (c.stock <= 0) remark.push('Out of stock');
-          if (highAmount) remark.push('High value item');
-          if (custom) remark.push('Custom-made part');
-          if (c.unitPrice === null) remark.push('TBC item needs visual identification');
-          if (needsVisual) remark.push('Need picture for purchasing identification');
-          // เอกสารสำหรับปริ้น/PDF ห้ามใส่ decoding="async" และห้ามใส่ loading="lazy" —
-          // ต้องให้รูปโหลด+decode เสร็จก่อนสั่งปริ้น ไม่งั้นได้ PDF ที่ช่องรูปว่าง
-          // (lazy อันตรายที่สุด เพราะเราปริ้นผ่าน iframe ขนาด 0x0 ที่ซ่อนอยู่ — รูป lazy จะไม่เข้า viewport
-          //  แล้วไม่โหลดเลยสักรูป) ตัว export รอ event load ของรูปอยู่แล้วก่อนปริ้น
-          // onerror ต้องใช้ &quot; ไม่ใช่ \" — เดิม \" ไปปิด attribute กลางคัน ทำให้ handler พัง
-          var imgHtml = c.image ? '<img src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.onerror=null;this.replaceWith(document.createTextNode(&quot;No image available&quot;));" />' : 'No image available';
-          counter.n += 1;
-          var cols = ['<td class="num">'+counter.n+'</td>','<td>' + imgHtml + '</td>','<td>'+esc(c.name)+'</td>','<td>'+esc(c.line)+'</td>','<td>'+esc(c.brand)+'</td>','<td>'+esc(c.model || c.no)+'</td>','<td class="num">'+esc(c.qty)+'</td>','<td>'+esc(c.unit || 'PCS')+'</td>','<td>'+esc(remark.join(', ') || 'Reference')+'</td>'];
-          return '<tr>' + cols.join('') + '</tr>';
-        }).join('');
-      }
-      function annexRowsByModelGroup(items, includeLine, counter) {
-        if (!items.length) return '<tr><td colspan="9" class="empty">No critical reference pictures</td></tr>';
-        counter = counter || { n: 0 };
-        var groupOrder = [];
-        var grouped = {};
-        items.forEach(function(it){
-          var g = detectCoilReportGroup(it);
-          (grouped[g] = grouped[g] || []).push(it);
-        });
-        groupOrder = Object.keys(grouped).sort(function(a,b){
-          var preferred = ['10A','16A','20A','32A','Other'];
-          var ia = preferred.indexOf(a), ib = preferred.indexOf(b);
-          if (ia !== -1 || ib !== -1) {
-            if (ia === -1) return 1;
-            if (ib === -1) return -1;
-            return ia - ib;
-          }
-          return a.localeCompare(b);
-        });
-        var html = '';
-        groupOrder.forEach(function(g){
-          var arr = grouped[g] || [];
-          if (!arr.length) return;
-          html += '<tr><td colspan="9" style="background:#f8fafc;font-weight:700">Stock Page: '+esc(g)+' ('+arr.length+' items)</td></tr>';
-          html += annexRows(arr, includeLine, counter);
-        });
-        return html || annexRows(items, includeLine, counter);
-      }
-
-      var includeLineColumn = !isLineSpecific;
-      var detailHead = includeLineColumn
-        ? '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Line</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Drawing</th><th>Reason</th></tr>'
-        : '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Drawing</th><th>Reason</th></tr>';
-      var detailHeadGrouped = '<tr><th>No.</th><th>Category</th><th>Item / Model</th><th>Qty</th><th>Critical Level</th><th>Unit Price</th><th>Total Amount</th><th>Drawing</th><th>Reason</th></tr>';
-
-      var annexCandidates = normalized.filter(function(c){
-        var lv=String(c.critical||'').toLowerCase();
-        var custom=/(custom|made-to-order|special)/i.test(String(c.category||'')+' '+String(c.name||'')+' '+String(c.model||''));
-        var needsVisual = !String(c.model||'').trim() || /(assy|part|item|spare)$/i.test(String(c.name||''));
-        var highAmount = (c.amount!==null && c.amount>=5000);
-        var important = lv.indexOf('critical')>-1 || Number(c.stock||0)<=0 || highAmount || custom || c.unitPrice===null || needsVisual;
-        if (annexMode === 'all') return true;
-        if (!important) return false;
-        if (c.hasImage) return true;
-        return lv.indexOf('critical')>-1 || Number(c.stock||0)<=0 || c.unitPrice===null || custom;
+      var lineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
+      var lines = Array.from(new Set(normalized.map(function(c) { return c.line; }))).filter(Boolean).sort(function(a, b) {
+        var ia = lineOrder.indexOf(a), ib = lineOrder.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
       });
-      var annexItems = annexLimit > 0 ? annexCandidates.slice(0, annexLimit) : annexCandidates;
+      var lineLabel = isLineSpecific ? canonicalLineName(selectedLineNow) : (lines.join(' / ') || '-');
+      var confirmed = normalized.filter(function(c) { return c.unitPrice !== null; });
+      var tbcCount = normalized.length - confirmed.length;
+      var totalAmount = confirmed.reduce(function(sum, c) { return sum + c.amount; }, 0);
+      var statusCount = { out: 0, low: 0, ok: 0, unknown: 0 };
+      normalized.forEach(function(c) { statusCount[prDocStockStatus(c)] += 1; });
+      var prNumber = options.prNumber ? String(options.prNumber) : ('PR-' + generatedAt.replace(/[^0-9]/g, '').substring(0, 6) + '-MON-' + Math.floor(Math.random() * 900 + 100));
 
-
-      function canShowDrawingLink(item) {
-        var drawingUrl = String((item && item.drawingUrl) || '').trim();
-        var status = normalizePrDrawingStatus(item, drawingUrl);
-        return !!drawingUrl && (status === 'Available' || status === 'Access Required');
+      // ── 1) รายการขอซื้อ ─────────────────────────────────────────
+      var STATUS_PILL = {
+        out: '<span class="pill pill-out">Out of Stock</span>',
+        low: '<span class="pill pill-low">Below Min</span>',
+        ok: '<span class="pill pill-ok">In Stock</span>',
+        unknown: '<span class="pill pill-na">N/A</span>'
+      };
+      var rowNo = 0;
+      function itemRow(c) {
+        rowNo += 1;
+        // เอกสารสำหรับปริ้น/PDF ห้ามใส่ decoding="async" และห้ามใส่ loading="lazy" —
+        // เราปริ้นผ่าน iframe ขนาด 0x0 ที่ซ่อนอยู่ รูป lazy จะไม่เข้า viewport แล้วไม่โหลดเลย
+        // onerror ต้องใช้ &quot; ไม่ใช่ \" — \" จะไปปิด attribute กลางคัน ทำให้ handler พัง
+        var imgHtml = c.image ? '<img src="'+esc(c.image)+'" alt="'+esc(c.name)+'" onerror="this.onerror=null;this.replaceWith(document.createTextNode(&quot;No image&quot;));" />' : '<span class="noimg">No image</span>';
+        var st = prDocStockStatus(c);
+        var known = c.stockKnown;
+        var overMax = known && c.max > 0 && (c.stock + c.qty) > c.max;
+        var sub = [c.brand, c.model].filter(function(x) { return x && x !== '-'; }).join(' / ');
+        return '<tr>' +
+          '<td class="c">' + rowNo + '</td>' +
+          '<td class="pic">' + imgHtml + '</td>' +
+          '<td><div class="iname">' + esc(c.name) + '</div>' + (sub ? '<div class="isub">' + esc(sub) + '</div>' : '') + '<div class="isub">Unit: ' + esc(c.unit) + '</div></td>' +
+          '<td class="c">' + STATUS_PILL[st] + '</td>' +
+          '<td class="n' + (st === 'out' ? ' t-out' : st === 'low' ? ' t-low' : '') + '"><b>' + (known ? qtyTxt(c.stock) : '-') + '</b></td>' +
+          '<td class="n">' + (c.min > 0 ? qtyTxt(c.min) : '-') + '</td>' +
+          '<td class="n">' + (c.max > 0 ? qtyTxt(c.max) : '-') + '</td>' +
+          '<td class="n"><b>' + qtyTxt(c.qty) + '</b>' + (overMax ? '<div class="isub t-low">exceeds Max</div>' : '') + '</td>' +
+          '<td class="n">' + (c.unitPrice === null ? '<span class="t-tbc">TBC</span>' : money(c.unitPrice)) + '</td>' +
+          '<td class="n"><b>' + (c.amount === null ? '<span class="t-tbc">TBC</span>' : money(c.amount)) + '</b></td>' +
+          '</tr>';
       }
-      function annexDrawingRows(items) {
-        if (!items.length) return '<tr><td colspan="10" class="empty">No drawing references</td></tr>';
-        return items.map(function(c, i) {
-          var status = normalizePrDrawingStatus(c, c.drawingUrl);
-          var link = canShowDrawingLink(c) ? '<a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a>' : '-';
-          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(status)+'</td><td>'+esc(c.drawingRevision || '-')+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td>'+link+'</td></tr>';
-        }).join('');
-      }
-      function drawingAttachmentRows(items) {
-        var withLinks = items.filter(canShowDrawingLink);
-        if (!withLinks.length) return '<tr><td colspan="7" class="empty">No drawing files to attach separately</td></tr>';
-        return withLinks.map(function(c, i) {
-          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.line)+'</td><td>'+esc(c.name)+'</td><td>'+esc(c.brand)+'</td><td>'+esc(c.model || c.no)+'</td><td>'+esc(c.drawingFileName || '-')+'</td><td><a href="'+esc(c.drawingUrl)+'" target="_blank" rel="noopener">Open drawing</a></td></tr>';
-        }).join('');
-      }
-      function drawingPreviewUrl(item) {
-        var raw = String((item && item.drawingUrl) || '').trim();
-        if (!raw) return '';
-        var fileId = extractDriveFileId(raw);
-        if (fileId) return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w2000';
-        return isImageDrawing(item) ? raw : '';
-      }
-      function fullDrawingPages(items) {
-        if (!printFullDrawings) return '';
-        var printable = items.filter(function(item) { return canShowDrawingLink(item) && isPrintableDrawing(item); });
-        if (!printable.length) return '<h2 class="section-table">Drawing Attachments</h2><p class="empty">No PDF/JPG/PNG drawing files available to open inside this PR report.</p>';
-        return '<h2 class="section-table">Drawing Attachments (Opened Files)</h2>' + printable.map(function(c, i) {
-          var previewUrl = drawingPreviewUrl(c);
-          var header = '<div class="drawing-page" style="page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px"><h3>Drawing ' + (i + 1) + ': ' + esc(c.name || '-') + '</h3>' +
-            '<p class="sub">Line: ' + esc(c.line || '-') + ' | Brand: ' + esc(c.brand || '-') + ' | Model / Part No.: ' + esc(c.model || c.no || '-') + ' | Rev: ' + esc(c.drawingRevision || '-') + ' | File: ' + esc(c.drawingFileName || '-') + '</p>';
-          if (previewUrl) return header + '<img class="drawing-full-image" data-drawing-url="' + esc(c.drawingUrl) + '" style="display:block;width:100%;height:auto;max-height:900px;object-fit:contain" src="' + esc(previewUrl) + '" alt="Drawing file" />' +
-            '<p class="sub">If the drawing image does not print clearly, open the source file: <a href="' + esc(c.drawingUrl) + '" target="_blank" rel="noopener">Open drawing</a></p></div>';
-          return header + '<div class="drawing-link-fallback" style="border:1px dashed #94a3b8;padding:18px;text-align:center;color:#334155">Drawing preview image is not available for PDF export. Open/attach the source file separately: <a href="' + esc(c.drawingUrl) + '" target="_blank" rel="noopener">Open drawing</a></div></div>';
-        }).join('');
-      }
-
-      var reportLineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
-      var activeLines = reportLineOrder.filter(function(ln){ return normalized.some(function(c){ return String(c.line||'') === ln; }); });
-      if (!activeLines.length) activeLines = lines.slice();
-      function detailTableRowsGrouped(items) {
-        if (!items.length) return '';
-        return items.map(function(c, i){
-          var itemModel = esc(c.name) + '<br><span class="sub">' + esc(c.brand + ' / ' + c.model) + '</span>';
-          return '<tr><td>'+(i+1)+'</td><td>'+esc(c.category)+'</td><td>'+itemModel+'</td><td class="num">'+esc(c.qty)+'</td><td>'+esc(c.critical)+'</td><td class="num">'+(c.unitPrice===null?'TBC':money(c.unitPrice))+'</td><td class="num">'+(c.amount===null?'TBC':money(c.amount))+'</td><td>'+esc(c.drawingCompactStatus || compactDrawingStatus(c.drawingStatus))+'</td><td>'+esc(reasonPurpose(c))+'</td></tr>';
-        }).join('');
-      }
-      function detectCoilReportGroup(item) {
-        var sheet = String(item.subLine || '').trim();
-        if (sheet && sheet !== '-') return sheet;
-        var txt = String(item.model || item.name || '').toUpperCase();
-        var m = txt.match(/\b(10A|16A|20A|32A)\b/);
-        return m ? m[1] : 'Other';
-      }
-      function renderCoilGroupedTables(sectionNo, titleSuffix, items) {
-        if (!items.length) return '';
-        var groupOrder = [];
-        var map = {};
-        items.forEach(function(it){ var g = detectCoilReportGroup(it); (map[g] = map[g] || []).push(it); });
-        groupOrder = Object.keys(map).sort(function(a,b){
-          var preferred = ['10A','16A','20A','32A','Other'];
-          var ia = preferred.indexOf(a), ib = preferred.indexOf(b);
-          if (ia !== -1 || ib !== -1) {
-            if (ia === -1) return 1;
-            if (ib === -1) return -1;
-            return ia - ib;
-          }
-          return a.localeCompare(b);
-        });
-        return '<p class="subhead">'+sectionNo+titleSuffix+'</p>' + groupOrder.map(function(g){
-          var arr = map[g] || [];
-          if (!arr.length) return '';
-          return '<p class="subhead">Stock Page: '+g+' ('+arr.length+' items)</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(arr)+'</tbody></table>';
-        }).join('');
-      }
-      function buildLineSections() {
-        return activeLines.map(function(ln, idx){
-          var lineItems = normalized.filter(function(c){ return String(c.line||'') === ln; });
-          if (!lineItems.length) return '';
-          var lineConfirmed = lineItems.filter(function(c){ return c.unitPrice !== null; });
-          var lineTbc = lineItems.filter(function(c){ return c.unitPrice === null; });
-          var lineConfirmedAmount = lineConfirmed.reduce(function(sum, c){ return sum + Number(c.amount || 0); }, 0);
-          var lineTotalQty = lineItems.reduce(function(sum, c){ return sum + Number(c.qty || 0); }, 0);
-          var sectionNo = '10.' + (idx + 1);
-          var html = '<h3>'+sectionNo+' '+esc(ln)+'</h3>';
-          html += '<table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>' +
-            '<tr><td>Confirmed Price Items</td><td>'+lineConfirmed.length+'</td></tr>' +
-            '<tr><td>TBC Items</td><td>'+lineTbc.length+'</td></tr>' +
-            '<tr><td>Confirmed Amount (THB)</td><td>'+(lineConfirmed.length ? money(lineConfirmedAmount) : '0')+'</td></tr>' +
-            '<tr><td>Total Qty</td><td>'+lineTotalQty+'</td></tr>' +
-            '<tr><td>Total Item Count</td><td>'+lineItems.length+'</td></tr>' +
-            '</tbody></table>';
-          if (ln === 'Coil Winding') {
-            if (lineConfirmed.length) html += renderCoilGroupedTables(sectionNo, '.1 Confirmed Price Items', lineConfirmed);
-            if (lineTbc.length) html += renderCoilGroupedTables(sectionNo, '.2 Price Confirmation Required / TBC Items', lineTbc);
-          } else {
-            if (lineConfirmed.length) html += '<p class="subhead">'+sectionNo+'.1 Confirmed Price Items</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
-            if (lineTbc.length) html += '<p class="subhead">'+sectionNo+'.2 Price Confirmation Required / TBC Items</p><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
-          }
-          return html;
-        }).join('');
-      }
-      function buildLineSpecificSections() {
-        var targetLine = canonicalLineName(selectedLineNow);
-        var lineItems = normalized.filter(function(c){ return String(c.line||'') === targetLine; });
-        if (!lineItems.length) lineItems = normalized.slice();
-        var lineConfirmed = lineItems.filter(function(c){ return c.unitPrice !== null; });
-        var lineTbc = lineItems.filter(function(c){ return c.unitPrice === null; });
-        var html = '';
-        if (targetLine === 'Coil Winding') {
-          if (lineConfirmed.length) html += renderCoilGroupedTables('6', '. Confirmed Price Items', lineConfirmed);
-          if (lineTbc.length) html += renderCoilGroupedTables('7', '. Price Confirmation Required / TBC Items', lineTbc);
-        } else {
-          if (lineConfirmed.length) html += '<h2>6. Confirmed Price Items</h2><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineConfirmed)+'</tbody></table>';
-          if (lineTbc.length) html += '<h2>7. Price Confirmation Required / TBC Items</h2><table class="pr-items">'+detailColgroup(false)+'<thead>'+detailHeadGrouped+'</thead><tbody>'+detailTableRowsGrouped(lineTbc)+'</tbody></table>';
+      var itemBody = '';
+      lines.forEach(function(ln) {
+        var arr = normalized.filter(function(c) { return c.line === ln; });
+        if (!arr.length) return;
+        if (lines.length > 1) {
+          var lnAmt = arr.reduce(function(s, c) { return s + (c.amount || 0); }, 0);
+          itemBody += '<tr class="band"><td colspan="10">Line: ' + esc(ln) + ' &nbsp;·&nbsp; ' + arr.length + ' item(s) &nbsp;·&nbsp; THB ' + money(lnAmt) + '</td></tr>';
         }
-        return html;
+        itemBody += arr.map(itemRow).join('');
+      });
+      var itemsHtml =
+        '<h2>1. Requested Items</h2>' +
+        '<div class="chips">' +
+          '<span class="chip chip-out">Out of Stock: <b>' + statusCount.out + '</b></span>' +
+          '<span class="chip chip-low">Below Min: <b>' + statusCount.low + '</b></span>' +
+          '<span class="chip chip-ok">In Stock: <b>' + statusCount.ok + '</b></span>' +
+          '<span class="chip">Total: <b>' + normalized.length + '</b> item(s)</span>' +
+        '</div>' +
+        '<table class="items"><colgroup><col style="width:4%"><col style="width:11%"><col style="width:25%"><col style="width:11%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:8%"><col style="width:10%"><col style="width:12%"></colgroup>' +
+        '<thead><tr><th>#</th><th>Picture</th><th>Item / Model</th><th>Stock Status</th><th>On Hand</th><th>Min</th><th>Max</th><th>Order Qty</th><th>Unit Price (THB)</th><th>Amount (THB)</th></tr></thead>' +
+        '<tbody>' + itemBody + '</tbody>' +
+        '<tfoot><tr><td colspan="9" class="n">Total Amount (THB)' + (tbcCount ? ' — excludes ' + tbcCount + ' TBC item(s)' : '') + '</td><td class="n grand">' + money(totalAmount) + '</td></tr></tfoot>' +
+        '</table>' +
+        (tbcCount ? '<p class="note">TBC = price to be confirmed before purchase.</p>' : '');
+
+      // ── 2) งบ Spare part (Cost Ratio) ────────────────────────────
+      var B = options.budgetDoc || null;
+      function budgetCells(p) {
+        if (!(p.budget > 0)) return '<td class="n">-</td><td class="n">' + money(p.used) + '</td><td class="n">' + money(p.pr) + '</td><td class="n t-na">No budget set</td>';
+        var remain = p.budget - p.used - p.pr;
+        return '<td class="n">' + money(p.budget) + '</td><td class="n">' + money(p.used) + '</td><td class="n"><b>' + money(p.pr) + '</b></td>' +
+          '<td class="n ' + (remain < 0 ? 't-out' : 't-ok') + '"><b>' + (remain < 0 ? '-' : '') + money(Math.abs(remain)) + '</b>' + (remain < 0 ? '<div class="isub t-out">over budget</div>' : '') + '</td>';
+      }
+      function sumPart(rows, key) {
+        return rows.reduce(function(acc, r) { acc.budget += r[key].budget; acc.used += r[key].used; acc.pr += r[key].pr; return acc; }, { budget: 0, used: 0, pr: 0 });
+      }
+      function usageBar(title, p) {
+        if (!(p.budget > 0)) return '';
+        var usedPct = Math.min(100, p.used / p.budget * 100);
+        var prPct = Math.max(0, Math.min(100 - usedPct, p.pr / p.budget * 100));
+        var remain = p.budget - p.used - p.pr;
+        var usePctTotal = (p.used + p.pr) / p.budget * 100;
+        return '<div class="bar-wrap"><div class="bar-head"><b>' + esc(title) + '</b><span>' + usePctTotal.toFixed(1) + '% of budget used incl. this PR</span></div>' +
+          '<div class="bar"><i class="b-used" style="width:' + usedPct.toFixed(2) + '%"></i><i class="b-pr' + (remain < 0 ? ' b-over' : '') + '" style="width:' + prPct.toFixed(2) + '%"></i></div>' +
+          '<div class="bar-legend"><span><i class="b-used"></i>Used ' + money(p.used) + '</span><span><i class="b-pr"></i>This PR ' + money(p.pr) + '</span><span><i class="' + (remain < 0 ? 'b-over' : 'b-rem') + '"></i>' + (remain < 0 ? 'Over by ' + money(-remain) : 'Remaining ' + money(remain)) + '</span></div></div>';
+      }
+      var budgetHtml = '<h2>2. Spare Part Budget — Cost Ratio &amp; Expense Control</h2>';
+      if (!B || !B.rows || !B.rows.length) {
+        budgetHtml += '<p class="note">Budget data was not available when this document was generated.</p>';
+      } else {
+        var mTot = sumPart(B.rows, 'm'), qTot = sumPart(B.rows, 'q');
+        var overLines = B.rows.filter(function(r) { return r.m.budget > 0 && (r.m.budget - r.m.used - r.m.pr) < 0; });
+        var noBudget = B.rows.every(function(r) { return !(r.m.budget > 0); });
+        var mRemain = mTot.budget - mTot.used - mTot.pr;
+        var qRemain = qTot.budget - qTot.used - qTot.pr;
+        var verdict;
+        if (noBudget) verdict = '<div class="verdict v-na"><div class="v-t">NO BUDGET SET</div><div class="v-d">No production value / target % for ' + esc(B.monthLabel) + ' yet — budget cannot be checked.</div></div>';
+        else if (overLines.length) {
+          var overAmt = overLines.reduce(function(s, r) { return s + (r.m.used + r.m.pr - r.m.budget); }, 0);
+          verdict = '<div class="verdict v-over"><div class="v-t">OVER BUDGET</div><div class="v-d">This PR exceeds the ' + esc(B.monthLabel) + ' budget by <b>THB ' + money(overAmt) + '</b>' + (B.rows.length > 1 ? ' (' + overLines.map(function(r) { return esc(r.line); }).join(', ') + ')' : '') + ' — management approval required.</div></div>';
+        } else verdict = '<div class="verdict v-ok"><div class="v-t">WITHIN BUDGET — OK TO PURCHASE</div><div class="v-d">Remaining ' + esc(B.monthLabel) + ' budget after this PR: <b>THB ' + money(mRemain) + '</b>' + (qTot.budget > 0 ? ' &nbsp;·&nbsp; ' + esc(B.quarterLabel) + ': <b>THB ' + money(qRemain) + '</b>' : '') + '</div></div>';
+        var rowsHtml = B.rows.map(function(r) {
+          return '<tr><td><b>' + esc(r.line) + '</b>' + (r.targetPct > 0 ? '<div class="isub">Target ' + r.targetPct + '%</div>' : '') + '</td>' + budgetCells(r.m) + budgetCells(r.q) + '</tr>';
+        }).join('');
+        if (B.rows.length > 1) rowsHtml += '<tr class="tot"><td><b>Total</b></td>' + budgetCells(mTot) + budgetCells(qTot) + '</tr>';
+        budgetHtml += verdict +
+          '<table class="budget"><colgroup><col style="width:12%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"></colgroup>' +
+          '<thead><tr><th rowspan="2">Line</th><th colspan="4">Monthly — ' + esc(B.monthLabel) + '</th><th colspan="4">Quarterly — ' + esc(B.quarterLabel) + ' (' + esc(B.quarterRange) + ', to date)</th></tr>' +
+          '<tr><th>Budget</th><th>Used</th><th>This PR</th><th>Remaining</th><th>Budget</th><th>Used</th><th>This PR</th><th>Remaining</th></tr></thead>' +
+          '<tbody>' + rowsHtml + '</tbody></table>' +
+          '<div class="bars">' + usageBar('Monthly — ' + B.monthLabel, mTot) + usageBar('Quarterly — ' + B.quarterLabel, qTot) + '</div>' +
+          '<p class="note">Budget = production value × target % (Cost Ratio &amp; Expense Control). Used = purchases / goods received, consumables and other pending PRs, excluding this PR. Amounts in THB.</p>';
       }
 
-      function annexRowsByLine(items) {
-        if (!items.length) return annexRows(items, true);
-        var lineOrder = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'];
-        var grouped = {};
-        items.forEach(function(it){ var ln = String(it.line || '-').trim() || '-'; (grouped[ln] = grouped[ln] || []).push(it); });
-        var orderedKeys = Object.keys(grouped).sort(function(a, b){
-          var ia = lineOrder.indexOf(a), ib = lineOrder.indexOf(b);
-          if (ia !== -1 || ib !== -1) { if (ia === -1) return 1; if (ib === -1) return -1; return ia - ib; }
-          return a.localeCompare(b);
-        });
-        var html = '';
-        var counter = { n: 0 };
-        orderedKeys.forEach(function(ln){
-          var arr = grouped[ln] || [];
-          if (!arr.length) return;
-          html += '<tr><td colspan="9" style="background:#e2e8f0;font-weight:800">Line: '+esc(ln)+' ('+arr.length+' items)</td></tr>';
-          html += ln === 'Coil Winding' ? annexRowsByModelGroup(arr, true, counter) : annexRows(arr, true, counter);
-        });
-        return html || annexRows(items, true);
-      }
-      var annexCHtml = includeAnnexC ? ('<h2 class="section-table">' + (isLineSpecific ? '9' : '8') + '. Annex C: Critical Item Reference Pictures ('+annexItems.length+' items)</h2><table class="annex-table annex-table-pics"><thead><tr><th>No.</th><th>Picture</th><th>Description</th><th>Line</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>' + (isLineSpecific ? annexRows(annexItems, true) : annexRowsByLine(annexItems)) + '</tbody></table>') : '';
-      var annexDNumber = (isLineSpecific ? (includeAnnexC ? '10' : '9') : (includeAnnexC ? '9' : '8'));
-      var annexDHtml = includeAnnexD ? ('<h2 class="section-table">' + annexDNumber + '. Annex D: Drawing Reference List</h2><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Qty</th><th>Drawing Status</th><th>Drawing Revision</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + annexDrawingRows(normalized) + '</tbody></table>') : '';
-      var separateDrawingHtml = attachDrawingsSeparately ? ('<h2 class="section-table">Drawing Files to Attach Separately</h2><p class="sub">Use these source links to attach drawing files outside the main PR PDF package.</p><table class="annex-table"><thead><tr><th>No.</th><th>Line</th><th>Description</th><th>Brand</th><th>Model / Part No.</th><th>Drawing File Name</th><th>Drawing Link</th></tr></thead><tbody>' + drawingAttachmentRows(normalized) + '</tbody></table>') : '';
-      var fullDrawingsHtml = fullDrawingPages(normalized);
+      // ── 3) ลายเซ็น ─────────────────────────────────────────────
+      var signHtml =
+        '<h2>3. Approval</h2>' +
+        '<div class="signs">' +
+          '<div class="sign"><div class="s-role">Requested by</div><div class="s-line">' + (isApproved ? '<span class="s-ok">Submitted</span>' : '') + '</div><div class="s-name">' + esc(preparedBy) + '</div><div class="s-date">Date: ' + esc(submissionDate) + '</div></div>' +
+          '<div class="sign"><div class="s-role">Approved by</div><div class="s-line">' + (approvedByName ? '<span class="s-ok">&#10004; APPROVED</span>' : '') + '</div><div class="s-name">' + (approvedByName ? esc(approvedByName) : '&nbsp;') + '</div><div class="s-date">Date: ' + (approvedAtLabel ? esc(approvedAtLabel) : '____________') + '</div></div>' +
+        '</div>';
 
-      var prNumber = (options && options.prNumber) ? String(options.prNumber) : ('PR-' + generatedAt.replace(/[^0-9]/g,'').substring(0,6) + '-MON-' + Math.floor(Math.random()*900+100));
-      var urgentCount = urgentItems.length;
-      var critLabel = urgentCount > 0 ? '⚠️ มีรายการด่วน ' + urgentCount + ' รายการ — ต้องอนุมัติเร่งด่วน' : '✅ ไม่มีรายการที่หยุดไลน์ได้ทันที';
-      var sectionOffset = isLineSpecific ? 1 : 0;
+      var metaCells = [
+        ['Line / Area', lineLabel], ['Department', department],
+        ['Requested by', preparedBy], ['Request Date', submissionDate],
+        ['Budget Period', B ? B.monthLabel + ' / ' + B.quarterLabel : (period || '-')], ['Total Amount', 'THB ' + money(totalAmount) + (tbcCount ? ' (+' + tbcCount + ' TBC)' : '')]
+      ];
       return '<div class="pr-doc">' +
-        // ─── COVER BLOCK ───────────────────────────────────────────────────
-        '<div class="doc-head">ใบขออนุมัติสั่งซื้ออะไหล่ | Purchase Request Supporting Report</div>' +
-        '<div style="text-align:center;border-bottom:3px solid #1f4e78;padding-bottom:12px;margin-bottom:16px;">' +
-          '<p style="font-size:11px;color:#475569;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">Purchase Request Supporting Report — Spare Parts & Maintenance Tools</p>' +
-          '<h1 style="font-size:26px;margin:4px 0;">PURCHASE REQUEST</h1>' +
-          '<p style="font-size:13px;color:#334155;margin:4px 0;">Spare Parts, Maintenance Tools and Production Support Materials</p>' +
-          '<p style="font-size:14px;font-weight:bold;color:#1f4e78;margin-top:8px;">Line / Area: ' + esc(lineLabel) + '</p>' +
+        '<div class="doc-top">' +
+          '<img class="doc-logo" src="' + esc(prDocLogoUrl()) + '" alt="JR" onerror="this.style.display=&quot;none&quot;" />' +
+          '<div class="doc-title"><div class="t1">PURCHASE REQUEST</div><div class="t2">Spare Parts &amp; Maintenance Materials</div></div>' +
+          '<div class="doc-no"><div class="lbl">Document No.</div><div class="val">' + esc(prNumber) + '</div><span class="badge ' + (isApproved ? 'badge-ok' : 'badge-wait') + '">' + esc(statusLabel) + '</span></div>' +
         '</div>' +
-        '<table class="meta" style="margin-bottom:16px;"><thead><tr><th>Field</th><th>Detail</th><th>Field</th><th>Detail</th></tr></thead><tbody>' +
-        '<tr><td><b>Document No.</b></td><td style="color:#1f4e78;font-weight:bold;">' + esc(prNumber) + '</td><td>Line / Area</td><td>' + esc(lineLabel) + '</td></tr>' +
-        '<tr><td>Request Period</td><td>' + esc(period) + '</td><td>Department</td><td>' + esc(department) + '</td></tr>' +
-        '<tr><td>Prepared by</td><td>' + esc(preparedBy) + '</td><td>Date</td><td>' + esc(submissionDate) + '</td></tr>' +
-        '<tr><td>Generated at</td><td>' + esc(generatedAt) + '</td><td>Status</td><td style="color:' + statusColor + ';font-weight:bold;">' + esc(statusLabel) + '</td></tr>' +
+        '<table class="meta"><tbody>' +
+          [0, 2, 4].map(function(i) {
+            return '<tr><th>' + esc(metaCells[i][0]) + '</th><td>' + esc(metaCells[i][1]) + '</td><th>' + esc(metaCells[i + 1][0]) + '</th><td>' + esc(metaCells[i + 1][1]) + '</td></tr>';
+          }).join('') +
         '</tbody></table>' +
-        '<h2 class="section-table" style="color:#991b1b;page-break-before:avoid;">1. Executive Summary</h2>' +
-        '<div style="border:2px solid #fca5a5;border-radius:8px;padding:12px;background:#fff7f7;margin-bottom:12px;">' +
-          '<p style="font-size:13px;font-weight:bold;color:#dc2626;margin:0 0 8px 0;">' + (urgentCount > 0 ? '⚠️ URGENT: ' + urgentCount + ' item(s) require immediate approval — production line at risk' : '✅ No critical items requiring immediate action') + '</p>' +
-          '<table style="width:100%;border-collapse:collapse;table-layout:auto;"><tbody>' +
-            '<tr>' +
-              '<td style="padding:6px 10px;border:1px solid #fca5a5;background:#fee2e2;font-weight:bold;">🔴 Out of Stock (= 0)</td>' +
-              '<td style="padding:6px 10px;border:1px solid #fca5a5;font-weight:bold;font-size:18px;white-space:nowrap;text-align:right;width:120px;">' + outCount + ' item(s)</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;background:#fef3c7;font-weight:bold;">🟡 Below Min — Reorder Required</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:bold;font-size:18px;white-space:nowrap;text-align:right;width:120px;">' + highCriticalCount + ' item(s)</td>' +
-            '</tr>' +
-            '<tr>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;background:#eff6ff;">📦 Total Requested Items</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:bold;font-size:18px;white-space:nowrap;text-align:right;width:120px;">' + normalized.length + ' item(s)</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;background:#f0fdf4;">💰 Total Amount (Confirmed)</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:bold;font-size:15px;white-space:nowrap;text-align:right;width:120px;">' + (confirmed.length ? money(totalAmount) + ' THB' : 'TBC') + '</td>' +
-            '</tr>' +
-            '<tr>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;">✅ Confirmed Price Items</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;white-space:nowrap;text-align:right;width:120px;">' + confirmed.length + ' item(s)</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;">❓ TBC Price Items</td>' +
-              '<td style="padding:6px 10px;border:1px solid #e2e8f0;white-space:nowrap;text-align:right;width:120px;">' + tbc.length + ' item(s)' + (tbc.length > 0 ? ' *' : '') + '</td>' +
-            '</tr>' +
-          '</tbody></table>' +
-          (tbc.length > 0 ? '<p style="font-size:10px;color:#92400e;margin:4px 0 0 0;">* Price confirmation required before final approval.</p>' : '') +
-        '</div>' +
-        '<h2 class="section-table" style="page-break-before:avoid;">2. Approval Signatures</h2>' +
-        '<table><thead><tr><th style="width:20%">Role</th><th style="width:22%">Name</th><th style="width:20%">Position</th><th style="width:18%">Date</th><th style="width:20%">Signature</th></tr></thead><tbody>' +
-        '<tr><td>Prepared by</td><td>'+esc(preparedBy)+'</td><td>Engineer</td><td>'+esc(submissionDate)+'</td><td>___________________</td></tr>' +
-        // ใบที่อนุมัติแล้วจาก Inbox เติมชื่อผู้อนุมัติ+วันที่จริง แทนช่องว่างให้เซ็น
-        '<tr><td>Approved by</td><td>'+(approvedByName ? esc(approvedByName) : '___________________')+'</td><td>Manager</td><td>'+(approvedAtLabel ? esc(approvedAtLabel) : '___________________')+'</td><td>'+(approvedByName ? '✔ APPROVED' : '___________________')+'</td></tr>' +
-        '</tbody></table>' +
-        (urgentItems.length ? '<h2 class="section-table">3. Top Urgent Items — Immediate Action Required</h2><p style="color:#dc2626;font-size:12px;margin-bottom:6px;">Items below have Stock = 0 or Critical level — production may be affected if not approved promptly.</p><table class="pr-items">'+detailColgroup(includeLineColumn)+'<thead>'+detailHead+'</thead><tbody>'+detailTableRows(urgentItems, includeLineColumn)+'</tbody></table>' : '') +
-        (isLineSpecific
-          ? buildLineSpecificSections()
-          : ('<h2 class="section-table">' + (urgentItems.length ? '4' : '3') + '. Detailed Requested Item List by Line</h2>' + buildLineSections())
-        ) +
-        annexCHtml.replace(/\d+\. (ภาคผนวก ก \()?Annex C(\))?/, (isLineSpecific ? '9' : (urgentItems.length ? '5' : '4')) + '. Annex C: Reference Pictures') +
-        annexDHtml.replace(/\d+\. (ภาคผนวก ข \()?Annex D(\))?/, (isLineSpecific ? '10' : (urgentItems.length ? '6' : '5')) + '. Annex D: Drawing Reference List') +
-        separateDrawingHtml +
-        fullDrawingsHtml +
-        '<div style="text-align:center;margin:24px 0 8px 0;padding-top:12px;border-top:1px solid #cbd5e1;font-size:11px;color:#94a3b8;">' +
-          'Generated by Spare Parts Portal | Doc No: ' + esc(prNumber) + ' | ' + esc(generatedAt) +
-          '<br/>Confidential — For internal approval use only.' +
-        '</div>' +
+        itemsHtml + budgetHtml + signHtml +
+        '<div class="doc-foot">Generated by Spare Parts Portal &nbsp;|&nbsp; ' + esc(prNumber) + ' &nbsp;|&nbsp; ' + esc(generatedAt) + ' &nbsp;|&nbsp; Internal use only</div>' +
         '</div>';
     }
     function recordAutoPrPurchaseHistory(selected) {
@@ -27778,35 +27563,41 @@ if (dashboardPage) {
     }
 
     function getPrDocCss() {
-      return '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap\");' +
-        'body{margin:0;padding:16px;background:#f8fafc;}' +
-        '.pr-doc{font-family:\"Noto Sans Thai\",\"Sarabun\",\"Prompt\",Arial,sans-serif;color:#1e293b;max-width:960px;margin:0 auto;line-height:1.5;font-size:13px;}' +
-        '.pr-doc .doc-head{text-align:right;font-size:10px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;}' +
-        '.pr-doc h1{text-align:center;color:#1e3a5f;margin:6px 0;font-size:22px;font-weight:700;letter-spacing:0.5px;}' +
-        '.pr-doc h2{color:#1e3a5f;border-left:4px solid #1e3a5f;padding:4px 0 4px 10px;margin-top:20px;margin-bottom:8px;font-size:14px;font-weight:700;background:#f0f4f8;}' +
-        '.pr-doc h3{color:#1e3a5f;margin-top:12px;font-size:13px;font-weight:600;}' +
-        '.pr-doc .sub{font-size:10px;color:#64748b;}.pr-doc .subhead{font-weight:700;color:#1e3a5f;margin:10px 0 4px;font-size:12px;}' +
-        '.pr-doc .center{text-align:center;}' +
+      return '@import url(\"https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap\");' +
+        'body{margin:0;padding:16px;background:#f1f5f9;}' +
+        '.pr-doc{font-family:\"Noto Sans Thai\",\"Sarabun\",Arial,sans-serif;color:#0f172a;max-width:980px;margin:0 auto;background:#fff;padding:22px 26px;line-height:1.45;font-size:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+        '.pr-doc .doc-top{display:flex;align-items:center;gap:16px;border-bottom:3px solid #1e3a5f;padding-bottom:12px;margin-bottom:12px;}' +
+        '.pr-doc .doc-logo{width:auto;height:58px;max-width:120px;object-fit:contain;}' +
+        '.pr-doc .doc-title{flex:1;}.pr-doc .doc-title .t1{font-size:24px;font-weight:700;color:#1e3a5f;letter-spacing:1.5px;line-height:1.1;}.pr-doc .doc-title .t2{font-size:12px;color:#64748b;margin-top:2px;}' +
+        '.pr-doc .doc-no{text-align:right;}.pr-doc .doc-no .lbl{font-size:9.5px;color:#64748b;text-transform:uppercase;letter-spacing:1px;}.pr-doc .doc-no .val{font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:4px;}' +
+        '.pr-doc .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.5px;}.pr-doc .badge-ok{background:#dcfce7;color:#166534;border:1px solid #86efac;}.pr-doc .badge-wait{background:#fef3c7;color:#92400e;border:1px solid #fcd34d;}' +
+        '.pr-doc h2{color:#1e3a5f;border-left:4px solid #1e3a5f;background:#f1f5f9;padding:5px 10px;margin:18px 0 8px;font-size:13.5px;font-weight:700;}' +
         '.pr-doc table{width:100%;border-collapse:collapse;margin:6px 0;table-layout:fixed;}' +
-        '.pr-doc th,.pr-doc td{border:1px solid #cbd5e1;padding:5px 7px;font-size:11.5px;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;}' +
-        '.pr-doc th{background:#1e3a5f;color:#fff;font-weight:600;font-size:11px;}' +
-        '.pr-doc tr:nth-child(even){background:#f8fafc;}' +
-        '.pr-doc .meta td:first-child{background:#f1f5f9;font-weight:600;color:#334155;width:22%;}' +
-        '.pr-doc .pr-items th:first-child,.pr-doc .pr-items td:first-child{text-align:center;white-space:nowrap;word-break:keep-all;width:40px;}' +
-        '.pr-doc .pr-items td:nth-child(5),.pr-doc .pr-items td:nth-child(6){text-align:center;}' +
-        '.pr-doc .pr-items td:nth-last-child(3),.pr-doc .pr-items td:nth-last-child(2){text-align:right;}' +
-        '.pr-doc img{width:90px;height:65px;object-fit:contain;}' +
-        '.pr-doc .annex-table td:first-child{text-align:center;padding:4px;width:34px;}' +
-        '.pr-doc .annex-table-pics td:nth-child(2){text-align:center;padding:4px;width:100px;}' +
-        '.pr-doc .annex-table-pics td:nth-child(2) img{display:block;margin:0 auto;width:72px;height:52px;object-fit:contain;border-radius:2px;}' +
-        '.pr-doc .empty{text-align:center;color:#94a3b8;font-style:italic;}' +
-        '.pr-doc .drawing-page{page-break-before:always;border:1px solid #cbd5e1;padding:10px;margin-top:12px;}' +
-        '.pr-doc .drawing-full-image{display:block;width:100%;height:auto;max-height:900px;object-fit:contain;}' +
-        '.pr-doc .drawing-pdf-frame{width:100%;height:900px;border:1px solid #cbd5e1;}' +
-        '@media print{@page{size:A4 portrait;margin:14mm 12mm;}body{padding:0;background:#fff;}.pr-doc{max-width:none;}' +
-        // ไม่บังคับขึ้นหน้าใหม่ทุกหัวข้อ — ให้หัวข้อต่อกันเพื่อประหยัดกระดาษ (หัวข้อไม่ค้างท้ายหน้า, หัวตารางซ้ำเมื่อข้ามหน้า)
-        '.pr-doc h2.section-table{page-break-before:auto;}' +
-        '.pr-doc h2,.pr-doc h3,.pr-doc .subhead{page-break-after:avoid;break-after:avoid;}thead{display:table-header-group;}tr,td,th{page-break-inside:avoid;}}';
+        '.pr-doc th,.pr-doc td{border:1px solid #cbd5e1;padding:5px 6px;font-size:11px;vertical-align:middle;word-break:break-word;overflow-wrap:anywhere;}' +
+        '.pr-doc thead th{background:#1e3a5f;color:#fff;font-weight:600;font-size:10.5px;text-align:center;}' +
+        '.pr-doc .meta th{background:#f1f5f9;color:#475569;font-weight:600;text-align:left;width:16%;}.pr-doc .meta td{width:34%;font-weight:600;}' +
+        '.pr-doc .c{text-align:center;}.pr-doc .n{text-align:right;white-space:nowrap;}' +
+        '.pr-doc .items tbody tr:nth-child(even){background:#f8fafc;}.pr-doc .items .band td{background:#e2e8f0;font-weight:700;color:#1e3a5f;}' +
+        '.pr-doc .pic{text-align:center;padding:3px;}.pr-doc .pic img{display:block;margin:0 auto;width:84px;height:64px;object-fit:contain;}.pr-doc .noimg{font-size:9.5px;color:#94a3b8;}' +
+        '.pr-doc .iname{font-weight:600;}.pr-doc .isub{font-size:9.5px;color:#64748b;white-space:normal;}' +
+        '.pr-doc .pill{display:inline-block;padding:2px 7px;border-radius:999px;font-size:9.5px;font-weight:700;white-space:nowrap;}.pr-doc .pill-out{background:#fee2e2;color:#b91c1c;}.pr-doc .pill-low{background:#fef3c7;color:#b45309;}.pr-doc .pill-ok{background:#dcfce7;color:#15803d;}.pr-doc .pill-na{background:#f1f5f9;color:#64748b;}' +
+        '.pr-doc .t-out{color:#b91c1c;}.pr-doc .t-low{color:#b45309;}.pr-doc .t-ok{color:#15803d;}.pr-doc .t-tbc{color:#b45309;font-weight:700;}.pr-doc .t-na{color:#94a3b8;font-style:italic;}' +
+        '.pr-doc tfoot td{background:#f1f5f9;font-weight:700;}.pr-doc tfoot .grand{font-size:13px;color:#1e3a5f;}' +
+        '.pr-doc .chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px;}.pr-doc .chip{border:1px solid #cbd5e1;border-radius:999px;padding:2px 10px;font-size:10.5px;background:#fff;}.pr-doc .chip-out{border-color:#fca5a5;background:#fef2f2;color:#b91c1c;}.pr-doc .chip-low{border-color:#fcd34d;background:#fffbeb;color:#b45309;}.pr-doc .chip-ok{border-color:#86efac;background:#f0fdf4;color:#15803d;}' +
+        '.pr-doc .verdict{border-radius:8px;padding:10px 14px;margin:6px 0 8px;border:2px solid;}.pr-doc .verdict .v-t{font-size:15px;font-weight:700;letter-spacing:.5px;}.pr-doc .verdict .v-d{font-size:11.5px;margin-top:2px;}' +
+        '.pr-doc .v-ok{background:#f0fdf4;border-color:#4ade80;color:#166534;}.pr-doc .v-over{background:#fef2f2;border-color:#f87171;color:#991b1b;}.pr-doc .v-na{background:#f8fafc;border-color:#cbd5e1;color:#475569;}' +
+        '.pr-doc .budget .tot td{background:#f1f5f9;}' +
+        '.pr-doc .bars{display:flex;gap:14px;margin:8px 0 4px;}.pr-doc .bar-wrap{flex:1;}.pr-doc .bar-head{display:flex;justify-content:space-between;font-size:10.5px;color:#475569;margin-bottom:3px;}' +
+        '.pr-doc .bar{display:flex;height:12px;border-radius:6px;background:#dcfce7;overflow:hidden;border:1px solid #cbd5e1;}.pr-doc .bar i{display:block;height:100%;}' +
+        '.pr-doc .b-used{background:#64748b;}.pr-doc .b-pr{background:#2563eb;}.pr-doc .b-over{background:#dc2626;}.pr-doc .b-rem{background:#dcfce7;border:1px solid #86efac;}' +
+        '.pr-doc .bar-legend{display:flex;gap:10px;font-size:9.5px;color:#475569;margin-top:3px;}.pr-doc .bar-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:-1px;}' +
+        '.pr-doc .note{font-size:9.5px;color:#64748b;margin:4px 0;}' +
+        '.pr-doc .signs{display:flex;gap:20px;margin-top:6px;}.pr-doc .sign{flex:1;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;text-align:center;}' +
+        '.pr-doc .s-role{font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:1px;text-align:left;}.pr-doc .s-line{height:40px;border-bottom:1px dashed #94a3b8;margin:4px 10px 4px;display:flex;align-items:flex-end;justify-content:center;}' +
+        '.pr-doc .s-ok{color:#15803d;font-weight:700;font-size:12px;padding-bottom:4px;}.pr-doc .s-name{font-weight:700;}.pr-doc .s-date{font-size:10.5px;color:#475569;}' +
+        '.pr-doc .doc-foot{text-align:center;margin-top:18px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:9.5px;color:#94a3b8;}' +
+        '@media print{@page{size:A4 portrait;margin:12mm 10mm;}body{padding:0;background:#fff;}.pr-doc{max-width:none;padding:0;}' +
+        '.pr-doc h2{page-break-after:avoid;break-after:avoid;}.pr-doc .verdict,.pr-doc .bars,.pr-doc .signs{page-break-inside:avoid;}thead{display:table-header-group;}tr,td,th{page-break-inside:avoid;}}';
     }
 
     var prSimulateFitBtn = document.getElementById('prSimulateFitBtn');
@@ -27822,17 +27613,24 @@ if (dashboardPage) {
         var allSelectedMode = totalFiltered > 0 && selected.length === totalFiltered;
         var opts = getPrReportOptions(allSelectedMode);
         opts.prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
-        var docHtml = buildDocumentGradeReport(selected, opts);
-        var previewBanner = '<div style="position:sticky;top:0;z-index:999;background:#fef3c7;border-bottom:3px solid #f59e0b;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-family:sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.1);">' +
+        var previewBanner = '<div class="preview-banner" style="position:sticky;top:0;z-index:999;background:#fef3c7;border-bottom:3px solid #f59e0b;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-family:sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.1);">' +
           '<span style="font-size:13px;font-weight:700;color:#92400e;">👁 ตัวอย่างรายงาน (PREVIEW) — ยังไม่ได้บันทึก Purchase History</span>' +
           '<span style="font-size:12px;color:#78350f;">ปิดหน้าต่างนี้ แล้วกด "📄 Export PDF (ยืนยัน)" เมื่อพร้อมส่งอนุมัติ</span>' +
           '</div>';
         var css = getPrDocCss();
-        var extraCss = '.preview-banner{} @media print { .preview-banner { display:none !important; } }';
+        var extraCss = '@media print { .preview-banner { display:none !important; } }';
+        // เปิดหน้าต่างทันทีใน click (กัน popup blocker) แล้วค่อยเขียนเอกสารหลังคำนวณงบเสร็จ
         var win = window.open('', '_blank');
         if (!win) { showQuickToast('กรุณาอนุญาต popup เพื่อดูตัวอย่าง', 'warn'); return; }
-        win.document.write('<html lang="th"><head><meta charset="utf-8"/><title>PREVIEW — ' + escHtml(opts.prNumber) + '</title><style>' + css + extraCss + '</style></head><body>' + previewBanner + docHtml + '</body></html>');
-        win.document.close();
+        win.document.write('<p style="font-family:sans-serif;padding:24px;color:#475569;">⏳ กำลังเตรียมเอกสาร PR...</p>');
+        prDocAttachBudget(opts, selected, prBudgetMonthKey(), '').then(function(docOpts) {
+          var docHtml = buildDocumentGradeReport(selected, docOpts);
+          win.document.open();
+          win.document.write('<html lang="th"><head><meta charset="utf-8"/><title>PREVIEW — ' + escHtml(opts.prNumber) + '</title><style>' + css + extraCss + '</style></head><body>' + previewBanner + docHtml + '</body></html>');
+          win.document.close();
+        }).catch(function(err) {
+          showQuickToast('เกิดข้อผิดพลาด: ' + (err && err.message ? err.message : String(err)), 'error');
+        });
       } catch(err) {
         showQuickToast('เกิดข้อผิดพลาด: ' + (err && err.message ? err.message : String(err)), 'error');
       }

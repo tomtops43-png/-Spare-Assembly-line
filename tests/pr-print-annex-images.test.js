@@ -3,7 +3,7 @@ const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
 const backend = fs.readFileSync('scr/Backend.gs', 'utf8');
 
-// ---- รูปใน Annex C ของใบ PR ที่ปริ้นจาก Inbox ต้องขึ้นจริง ----
+// ---- รูปอะไหล่ในตารางรายการของใบ PR ที่ปริ้นจาก Inbox ต้องขึ้นจริง ----
 // เคสจริง: PR-202608-STAR-189 ปริ้นออกมาแล้วช่อง Picture ขึ้น "No image available" ทั้ง 19 แถว
 
 // 1) server ส่ง image_url มากับทุกบรรทัด PR อยู่แล้ว
@@ -21,13 +21,14 @@ assert(/var selectedImg = firstDefined\(\[c\.mainImage, c\.image_main_url/.test(
 assert(html.includes('firstDefined([selectedImg, masterImg]'), 'report falls back to master image');
 
 // 4) รูปในเอกสารปริ้นห้าม lazy — เราปริ้นผ่าน iframe 0x0 ที่ซ่อนอยู่ รูป lazy จะไม่โหลดเลย
-const annexImg = html.slice(html.indexOf('var imgHtml = c.image ?'), html.indexOf('counter.n += 1;'));
+const annexImg = html.slice(html.indexOf('var imgHtml = c.image ?'), html.indexOf('var st = prDocStockStatus(c);'));
+assert(annexImg.length > 0 && annexImg.length < 600, 'can slice the item picture cell');
 assert(!annexImg.includes('loading="lazy"'), 'annex picture must not be lazy-loaded');
 assert(!annexImg.includes('decoding="async"'), 'annex picture must not decode async');
 
 // 5) onerror ต้องไม่ทำ attribute พัง (เดิมใช้ \" ซึ่งปิด attribute กลางคัน)
 assert(!/onerror="[^"]*\\"/.test(annexImg), 'annex onerror must not embed a raw double quote');
-assert(annexImg.includes('&quot;No image available&quot;'), 'annex onerror uses entity-escaped fallback text');
+assert(annexImg.includes('&quot;No image&quot;'), 'picture onerror uses entity-escaped fallback text');
 
 // 6) ต้องรอรูปโหลดครบก่อนเปิด dialog ปริ้น ไม่ใช่หน่วงตายตัว 500ms
 assert(html.includes('function waitForPrintImages(win, timeoutMs)'), 'image wait helper exists');
