@@ -113,7 +113,7 @@ function makeBackend(stock) {
     'generatePrRunningId', 'prLineIsClosed', 'prLineOutstanding', 'prLineStatusFromQty', 'computePrHeaderStatus', 'prIsTracked',
     'prLineRowToObject', 'refreshPrHeaderStatus', 'findPrLineRow', 'prLineMatchesReceivedPart', 'resolvePrReceiptForTransaction',
     'buildGrId', 'grLogRef', 'postPrGoodsReceipt', 'reversePrGoodsReceiptForLog', 'markPROrderedUnlocked', 'cancelPRUnlocked',
-    'closePrLineUnlocked', 'listPRs', 'getPRDetail', 'grRowToObject', 'listGrRows', 'getGrLog', 'listOpenPrLines', 'getOpenPrLines',
+    'closePrLineUnlocked', 'prNetAmountById', 'listPRs', 'getPRDetail', 'grRowToObject', 'listGrRows', 'getGrLog', 'listOpenPrLines', 'getOpenPrLines',
     'listPendingPrPartKeys', 'runAutoPrJob'
   ];
   const src = [
@@ -256,6 +256,19 @@ function lineOf(api, prId, lineNo) {
   // PR เก่าก่อนเปิดระบบยังอยู่ครบ ดูย้อนหลังได้ แต่รับของตามใบเก่าไม่ได้
   const all = api.listPRs({ authToken: 'tok-admin' }).prs.map(function(c) { return c.pr_id + ':' + c.gr_tracked; });
   assert.deepStrictEqual(all.sort(), ['PR-2610-001:true', 'PR-2610-002:true', 'PR-OLD-1:false']);
+
+  // ยอดเงินสุทธิ: บรรทัดที่ปิดยอดค้างนับเฉพาะที่รับแล้ว / ใบยกเลิก = 0 / ยอดตอนอนุมัติยังเก็บไว้เทียบ
+  const cards = {};
+  api.listPRs({ authToken: 'tok-admin' }).prs.forEach(function(c) { cards[c.pr_id] = c; });
+  const d1 = api.getPRDetail({ authToken: 'tok-admin', pr_id: 'PR-2610-001' });
+  const expectNet = d1.lines.reduce(function(s, l) {
+    const closed = l.line_status === 'CLOSED' || l.line_status === 'CANCELLED';
+    return s + (closed ? l.qty_received : Math.max(l.qty_approved, l.qty_received)) * l.unit_price;
+  }, 0);
+  assert.strictEqual(cards['PR-2610-001'].net_amount, expectNet);
+  assert(cards['PR-2610-001'].net_amount < cards['PR-2610-001'].total_amount, 'ปิดยอดค้างแล้วยอดสุทธิต้องลดลง');
+  assert.strictEqual(cards['PR-2610-002'].net_amount, 0, 'PR ที่ยกเลิกไม่นับยอดเงิน');
+  assert.strictEqual(cards['PR-OLD-1'].net_amount, cards['PR-OLD-1'].total_amount, 'ใบระบบเก่าใช้ยอดเดิม');
   assert.throws(function() { receive(api, { prId: 'PR-OLD-1', prLineNo: 1 }, 1, '2026-10-10 10:00:00'); }, /ใบระบบเก่า/);
 })();
 

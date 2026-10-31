@@ -4816,6 +4816,22 @@ function closePrLineUnlocked(payload) {
   return { status: 'success', pr_id: prId, line_no: lineNo, pr_status: prStatus };
 }
 
+// ยอดสุทธิต่อใบจากทุกบรรทัด: บรรทัดที่ปิดยอดค้าง/ยกเลิก = นับเฉพาะที่รับเข้าแล้ว,
+// บรรทัดที่ยังเปิด = ยอดอนุมัติ (ถ้ารับเกินนับตามที่รับจริง) — ตรงกับที่งบนับ (GR + ค้างรับ)
+function prNetAmountById() {
+  var lData = getPrLinesSheet().getDataRange().getValues();
+  var out = {};
+  if (lData.length <= 1) return out;
+  var lIdx = prIndexMap(lData[0]);
+  for (var i = 1; i < lData.length; i += 1) {
+    var ln = prLineRowToObject(lIdx, lData[i]);
+    if (!ln.pr_id) continue;
+    var qty = prLineIsClosed(ln.line_status) ? ln.qty_received : Math.max(ln.qty_approved, ln.qty_received);
+    out[ln.pr_id] = (out[ln.pr_id] || 0) + qty * (Number(ln.unit_price) || 0);
+  }
+  return out;
+}
+
 // รายการ PR ทั้งหมด (ทั้งใบใหม่ที่ติดตาม และใบเก่า) กรองตามสถานะ/ไลน์/เดือนที่สร้าง ตามสิทธิ์ผู้ใช้
 function listPRs(payload) {
   var user = requirePermission({ authToken: payload.authToken }, 'view');
@@ -4826,11 +4842,15 @@ function listPRs(payload) {
   var data = sheet.getDataRange().getValues();
   if (data.length <= 1) return { status: 'success', cutover_at: getPrGrCutoverAt(), prs: [] };
   var hIdx = prIndexMap(data[0]);
+  var netById = prNetAmountById();
   var out = [];
   for (var i = 1; i < data.length; i += 1) {
     var row = data[i];
     if (!prStr(row[hIdx.pr_id])) continue;
     var card = prHeaderRowToCard(hIdx, row);
+    // ยอดสุทธิ (ใบระบบใหม่): หักส่วนที่ปิดยอดค้าง/ยกเลิกออก — total_amount ยังเป็นยอดตอนอนุมัติไว้เทียบ
+    card.net_amount = card.status === 'CANCELLED' ? 0
+      : (card.gr_tracked && netById.hasOwnProperty(card.pr_id) ? netById[card.pr_id] : card.total_amount);
     if (wantStatus && card.status !== wantStatus) continue;
     if (wantLine && card.line !== wantLine) continue;
     // ค่าวันที่ในชีทอาจถูก Google Sheets แปลงเป็น Date — normalize ก่อนเทียบ/เรียง
