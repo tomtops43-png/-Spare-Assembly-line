@@ -18,8 +18,8 @@ const api = new Function('partsData', 'dashboardAllPartsData',
   grab('function firstDefined(values, fallbackValue)') + '\n' + consts +
   grab('function prDocLogoUrl()') + '\n' + grab('function prDocStockStatus(item)') + '\n' +
   grab('function buildDocumentGradeReport(selected, options)') + '\n' +
-  grab('function prDocBudgetRows(B, prByLine)') + '\n' + grab('function prBudgetDataWithoutPr(A, excludePrId)') + '\n' +
-  'return { build: buildDocumentGradeReport, status: prDocStockStatus, rows: prDocBudgetRows, without: prBudgetDataWithoutPr, logo: prDocLogoUrl };'
+  grab('function prDocBudgetRows(B, prByLine)') + '\n' + grab('function prDocBudgetHistory(B, lines, monthKey, prByLine)') + '\n' + grab('function prBudgetDataWithoutPr(A, excludePrId)') + '\n' +
+  'return { build: buildDocumentGradeReport, status: prDocStockStatus, rows: prDocBudgetRows, history: prDocBudgetHistory, without: prBudgetDataWithoutPr, logo: prDocLogoUrl };'
 );
 const master = [
   { no: 'P1', line: 'H9', name: 'Sensor', model: 'E3Z', stock: 0, min: 2, max: 6 },
@@ -60,13 +60,36 @@ assert(doc.includes('&#10004; APPROVED') && doc.includes('Boss'));
 // ส่วนเก่าต้องหายไปหมด
 ['Annex', 'Drawing', 'Executive Summary', 'Critical Level', 'ใบขออนุมัติ'].forEach(function(t) { assert(!doc.includes(t), 'ต้องไม่มี ' + t + ' แล้ว'); });
 
-const over = fn.build(items, { budgetDoc: Object.assign({}, budgetDoc, { rows: [{ line: 'H9', targetPct: 5, m: { budget: 10000, used: 5000, pr: 7000 }, q: { budget: 30000, used: 5000, pr: 7000 } }] }) });
+const over = fn.build(items, { budgetDoc: Object.assign({}, budgetDoc, { rows: [{ line: 'H9', targetPct: 5, m: { budget: 10000, used: 5000, pr: 7000 }, q: { budget: 10000, used: 5000, pr: 7000 } }] }) });
 assert(over.includes('OVER BUDGET') && over.includes('THB 2,000.00'), 'เกินงบ 2,000');
 assert(over.includes('PENDING APPROVAL'));
 assert(fn.build(items, {}).includes('Budget data was not available'), 'ไม่มีข้อมูลงบ ยังออกเอกสารได้');
 
+// เกินงบรายเดือน แต่ไตรมาสยังไม่เกิน → ต้องบอกให้ชัด (กล่องสีเหลือง)
+const warn = fn.build(items, { budgetDoc: Object.assign({}, budgetDoc, { rows: [{ line: 'H9', targetPct: 5, m: { budget: 10000, used: 5000, pr: 7000 }, q: { budget: 30000, used: 5000, pr: 7000 } }] }) });
+assert(warn.includes('OVER MONTHLY BUDGET — STILL WITHIN QUARTERLY BUDGET') && warn.includes('THB 18,000.00'), 'เกินเดือน 2,000 แต่ไตรมาสเหลือ 18,000');
+assert(over.includes('OVER BUDGET — MONTHLY &amp; QUARTERLY'), 'เกินทั้งเดือนและไตรมาส');
+assert(!warn.includes('MONTHLY &amp; QUARTERLY'), 'ไตรมาสไม่เกิน ห้ามขึ้นว่าเกินทั้งคู่');
+
+// กราฟควบคุมงบ: 6 เดือน (ไตรมาสก่อน + ไตรมาสนี้) แถบสรุปไตรมาส + เส้นงบ + PR ใบนี้
+const hB = { byLine: { H9: { history: [{ month: '2026-07', budget: 100, used: 80 }, { month: '2026-10', budget: 100, used: 30 }, { month: '2026-11', budget: 100, used: 90 }] } } };
+const slots = fn.history(hB, ['H9'], '2026-11', { H9: 40 });
+assert.deepStrictEqual(slots.map(function(x) { return x.month; }), ['2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12']);
+assert.strictEqual(slots[4].pr, 40, 'ยอดใบนี้อยู่ที่เดือนที่ขอ');
+assert.strictEqual(slots[3].pr, 0);
+assert(slots[5].future && !slots[4].future && slots[4].current);
+assert.strictEqual(fn.history(hB, ['H9'], '2026-01', {})[0].month, '2025-10', 'ข้ามปีได้');
+const chartDoc = fn.build(items, { budgetDoc: Object.assign({}, budgetDoc, { month: '2026-11', history: slots, rows: [{ line: 'H9', targetPct: 5, m: { budget: 100, used: 90, pr: 40 }, q: { budget: 200, used: 120, pr: 40 } }] }) });
+assert(chartDoc.includes('<svg class="trend"'), 'มีกราฟ SVG');
+assert(chartDoc.includes('Q4 2026 (to date) — 80% of budget · WITHIN'), 'แถบไตรมาสบอก % และสถานะ (30+90+40)/200');
+assert(chartDoc.includes('Q3 2026 — 80% of budget · WITHIN'));
+assert(chartDoc.includes('130 · 130%'), 'แท่งเดือน Nov = 90 + 40 เทียบงบ 100');
+assert(chartDoc.includes('▲ this PR') && chartDoc.includes('upcoming'));
+assert(chartDoc.includes('OVER MONTHLY BUDGET — STILL WITHIN QUARTERLY BUDGET'));
+
 // งบต่อไลน์ของ PR ใบนี้
 const B = { byLine: { H9: { budget: 100, used: 40, targetPct: 5, quarter: { budget: 300, used: 90 } }, 'Arc Chute': { budget: 50, used: 0, targetPct: 4 } } };
+assert(grab('function prComputeBudget(monthKey, excludePrId)').includes('byLine[ln].history = history;'), 'เก็บประวัติรายเดือนไว้วาดกราฟ');
 assert.deepStrictEqual(fn.rows(B, { H9: 30 }), [{ line: 'H9', targetPct: 5, m: { budget: 100, used: 40, pr: 30 }, q: { budget: 300, used: 90, pr: 30 } }]);
 assert.strictEqual(fn.rows(B, {}).length, 2, 'ไม่มียอด PR = โชว์ทุกไลน์ที่มีงบ');
 

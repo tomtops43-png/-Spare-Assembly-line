@@ -21258,7 +21258,7 @@ function inferRequestPriority(stock, min) {
         var byLine = {};
         var qKey = fccQuarterKey(monthKey); // ยอดสะสมของไตรมาส (นับถึงเดือนเป้าหมาย) — ไว้โชว์ในเอกสาร PR
         Object.keys(lineSet).forEach(function(ln) {
-          var target = targetByLine[ln] || 0, prevLeftover = 0, rec = null, qBudget = 0, qUsed = 0;
+          var target = targetByLine[ln] || 0, prevLeftover = 0, rec = null, qBudget = 0, qUsed = 0, history = [];
           months.forEach(function(m) {
             var sales = (salesBML[m] || {})[ln] || 0;
             var base = (target > 0 && sales > 0) ? sales * target / 100 : 0;
@@ -21269,10 +21269,12 @@ function inferRequestPriority(stock, min) {
             var used = spent + pending;
             prevLeftover = Math.max(0, effective - used);
             if (fccQuarterKey(m) === qKey) { qBudget += base; qUsed += used; }
+            history.push({ month: m, budget: base, used: used }); // ไว้วาดกราฟงบย้อนหลังในเอกสาร PR
             if (m === monthKey) rec = { sales: sales, targetPct: target, base: base, carryIn: carryIn, budget: effective, spent: spent, pending: pending, used: used };
           });
           byLine[ln] = rec || { sales: 0, targetPct: target, base: 0, carryIn: 0, budget: 0, spent: 0, pending: 0, used: 0 };
           byLine[ln].quarter = { key: qKey, budget: qBudget, used: qUsed };
+          byLine[ln].history = history;
         });
         return { month: monthKey, carry: carry, byLine: byLine };
       });
@@ -21301,6 +21303,26 @@ function inferRequestPriority(stock, min) {
         return { line: ln, targetPct: rec.targetPct || 0, m: { budget: rec.budget || 0, used: rec.used || 0, pr: pr }, q: { budget: q.budget || 0, used: q.used || 0, pr: pr } };
       });
     }
+    // ข้อมูลกราฟงบในเอกสาร PR: 6 ช่อง = ไตรมาสก่อนหน้า + ไตรมาสปัจจุบัน (รายเดือน) รวมเฉพาะไลน์ของ PR ใบนี้
+    // เดือนหลังเดือนที่ขอ = future (ยังไม่มีงบ/รายจ่าย) ; pr = ยอดใบนี้ (บวกเฉพาะเดือนที่ขอ)
+    function prDocBudgetHistory(B, lines, monthKey, prByLine) {
+      var p = String(monthKey || '').split('-'), y = Number(p[0]), mo = Number(p[1]);
+      if (!y || !(mo >= 1 && mo <= 12)) return [];
+      var startIdx = y * 12 + (Math.ceil(mo / 3) - 1) * 3 - 3; // เดือนแรกของไตรมาสก่อนหน้า (นับเป็น index 0-based)
+      var prTotal = (lines || []).reduce(function(s, ln) { return s + ((prByLine && prByLine[ln]) || 0); }, 0);
+      var slots = [];
+      for (var i = 0; i < 6; i += 1) {
+        var idx = startIdx + i, sy = Math.floor(idx / 12), sm = idx % 12 + 1;
+        var key = sy + '-' + String(sm).padStart(2, '0');
+        var slot = { month: key, quarter: 'Q' + Math.ceil(sm / 3) + ' ' + sy, budget: 0, used: 0, pr: key === monthKey ? prTotal : 0, future: key > monthKey, current: key === monthKey };
+        (lines || []).forEach(function(ln) {
+          var rec = B && B.byLine && B.byLine[ln];
+          (rec && rec.history || []).forEach(function(h) { if (h.month === key) { slot.budget += h.budget; slot.used += h.used; } });
+        });
+        slots.push(slot);
+      }
+      return slots;
+    }
     function prDocMonthFromDate(value) {
       var m = String(value || '').match(/^(\d{4})-(\d{2})/);
       if (m) return m[1] + '-' + m[2];
@@ -21324,12 +21346,14 @@ function inferRequestPriority(stock, min) {
         var out = Object.assign({}, opts);
         if (!B) { out.budgetDoc = null; return out; }
         var p = monthKey.split('-'), mo = Number(p[1]), qNo = Math.ceil(mo / 3);
+        var docRows = prDocBudgetRows(B, prByLine);
         out.budgetDoc = {
           month: monthKey,
           monthLabel: PR_DOC_EN_MONTHS[mo - 1] + ' ' + p[0],
           quarterLabel: 'Q' + qNo + ' ' + p[0],
           quarterRange: PR_DOC_EN_MONTHS[(qNo - 1) * 3] + '–' + PR_DOC_EN_MONTHS[(qNo - 1) * 3 + 2],
-          rows: prDocBudgetRows(B, prByLine)
+          rows: docRows,
+          history: prDocBudgetHistory(B, docRows.map(function(r) { return r.line; }), monthKey, prByLine)
         };
         return out;
       });
@@ -27474,9 +27498,74 @@ if (dashboardPage) {
         var prPct = Math.max(0, Math.min(100 - usedPct, p.pr / p.budget * 100));
         var remain = p.budget - p.used - p.pr;
         var usePctTotal = (p.used + p.pr) / p.budget * 100;
-        return '<div class="bar-wrap"><div class="bar-head"><b>' + esc(title) + '</b><span>' + usePctTotal.toFixed(1) + '% of budget used incl. this PR</span></div>' +
+        return '<div class="bar-wrap"><div class="bar-head"><b>' + esc(title) + ' <span class="tag ' + (remain < 0 ? 'tag-over' : 'tag-ok') + '">' + (remain < 0 ? 'OVER' : 'WITHIN') + '</span></b><span>' + usePctTotal.toFixed(1) + '% of budget used incl. this PR</span></div>' +
           '<div class="bar"><i class="b-used" style="width:' + usedPct.toFixed(2) + '%"></i><i class="b-pr' + (remain < 0 ? ' b-over' : '') + '" style="width:' + prPct.toFixed(2) + '%"></i></div>' +
           '<div class="bar-legend"><span><i class="b-used"></i>Used ' + money(p.used) + '</span><span><i class="b-pr"></i>This PR ' + money(p.pr) + '</span><span><i class="' + (remain < 0 ? 'b-over' : 'b-rem') + '"></i>' + (remain < 0 ? 'Over by ' + money(-remain) : 'Remaining ' + money(remain)) + '</span></div></div>';
+      }
+      function kTxt(v) {
+        var a = Math.abs(v);
+        if (a >= 1000000) return (v / 1000000).toFixed(a >= 10000000 ? 0 : 1) + 'M';
+        if (a >= 1000) return (v / 1000).toFixed(a >= 100000 ? 0 : 1) + 'K';
+        return String(Math.round(v));
+      }
+      // กราฟควบคุมงบ (SVG ล้วน — ปริ้นได้ทุกเครื่อง ไม่ต้องพึ่ง Chart.js ใน iframe)
+      // แท่ง = รายจ่ายรายเดือน (เทา) + PR ใบนี้ (น้ำเงิน) ส่วนที่ทะลุงบเป็นแดง ; เส้นประเขียว = งบของเดือนนั้น
+      // แถบหัวกราฟ = สรุปทั้งไตรมาส (ใช้ไปกี่ % ของงบไตรมาส เกิน/ไม่เกิน) — เห็นทันทีว่าเกินรายเดือนแต่ไตรมาสยังไหว
+      function trendSvg(slots) {
+        if (!slots || !slots.length) return '';
+        var W = 920, H = 270, L = 58, R = 14, T = 46, Bm = 40;
+        var plotW = W - L - R, plotH = H - T - Bm, slotW = plotW / slots.length, barW = Math.min(46, slotW * 0.38);
+        var maxV = Math.max.apply(null, slots.map(function(s) { return Math.max(s.budget, s.used + s.pr); }).concat([1])) * 1.18;
+        var yOf = function(v) { return T + plotH - (v / maxV) * plotH; };
+        var svg = '<svg class="trend" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans Thai, Arial, sans-serif">';
+        // แถบไตรมาส (ไตรมาสละ 3 ช่อง)
+        for (var qi = 0; qi * 3 < slots.length; qi += 1) {
+          var qs = slots.slice(qi * 3, qi * 3 + 3), past = qs.filter(function(s) { return !s.future; });
+          var qBud = past.reduce(function(a, s) { return a + s.budget; }, 0), qUse = past.reduce(function(a, s) { return a + s.used + s.pr; }, 0);
+          var isCur = qs.some(function(s) { return s.current; });
+          var x0 = L + qi * 3 * slotW, w = qs.length * slotW;
+          var over = qBud > 0 && qUse > qBud;
+          var head = qs[0].quarter + (isCur ? ' (to date)' : '') + ' — ' + (qBud > 0 ? (qUse / qBud * 100).toFixed(0) + '% of budget · ' + (over ? 'OVER' : 'WITHIN') : 'no budget');
+          svg += '<rect x="' + (x0 + 2) + '" y="6" width="' + (w - 4) + '" height="' + (H - 8) + '" rx="8" fill="' + (isCur ? '#eef4ff' : '#f8fafc') + '" stroke="' + (isCur ? '#bfdbfe' : '#e2e8f0') + '"/>';
+          svg += '<rect x="' + (x0 + 10) + '" y="12" width="' + (w - 20) + '" height="22" rx="11" fill="' + (qBud > 0 ? (over ? '#fee2e2' : '#dcfce7') : '#f1f5f9') + '"/>';
+          svg += '<text x="' + (x0 + w / 2) + '" y="27.5" text-anchor="middle" font-size="12" font-weight="700" fill="' + (qBud > 0 ? (over ? '#b91c1c' : '#15803d') : '#64748b') + '">' + esc(head) + '</text>';
+        }
+        // เส้นกริด + ตัวเลขแกน Y
+        for (var g = 0; g <= 4; g += 1) {
+          var gv = maxV / 1.18 * g / 4, gy = yOf(gv);
+          svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + gy + '" y2="' + gy + '" stroke="#e2e8f0" stroke-width="1"/>';
+          svg += '<text x="' + (L - 6) + '" y="' + (gy + 4) + '" text-anchor="end" font-size="10" fill="#64748b">' + kTxt(gv) + '</text>';
+        }
+        slots.forEach(function(s, i) {
+          var cx = L + slotW * i + slotW / 2, bx = cx - barW / 2;
+          var p = String(s.month).split('-');
+          var lbl = PR_DOC_EN_MONTHS[Number(p[1]) - 1] + ' ' + p[0];
+          svg += '<text x="' + cx + '" y="' + (H - Bm + 16) + '" text-anchor="middle" font-size="11" font-weight="' + (s.current ? '700' : '400') + '" fill="' + (s.current ? '#1d4ed8' : '#475569') + '">' + lbl + '</text>';
+          if (s.current) svg += '<text x="' + cx + '" y="' + (H - Bm + 30) + '" text-anchor="middle" font-size="9.5" font-weight="700" fill="#2563eb">▲ this PR</text>';
+          if (s.future) {
+            svg += '<rect x="' + bx + '" y="' + (T + plotH - 24) + '" width="' + barW + '" height="24" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>';
+            svg += '<text x="' + cx + '" y="' + (T + plotH - 30) + '" text-anchor="middle" font-size="9.5" fill="#94a3b8">upcoming</text>';
+            return;
+          }
+          var total = s.used + s.pr, base = T + plotH;
+          var yUsed = yOf(s.used), yTot = yOf(total);
+          if (s.used > 0) svg += '<rect x="' + bx + '" y="' + yUsed + '" width="' + barW + '" height="' + (base - yUsed) + '" fill="#94a3b8"/>';
+          if (s.pr > 0) svg += '<rect x="' + bx + '" y="' + yTot + '" width="' + barW + '" height="' + (yUsed - yTot) + '" fill="#2563eb"/>';
+          if (s.budget > 0 && total > s.budget) {
+            var yB = yOf(s.budget);
+            svg += '<rect x="' + bx + '" y="' + yTot + '" width="' + barW + '" height="' + (yB - yTot) + '" fill="#dc2626" fill-opacity="0.85"/>';
+          }
+          if (s.budget > 0) {
+            var yb = yOf(s.budget);
+            svg += '<line x1="' + (cx - slotW * 0.4) + '" x2="' + (cx + slotW * 0.4) + '" y1="' + yb + '" y2="' + yb + '" stroke="#16a34a" stroke-width="2.5" stroke-dasharray="6 4"/>';
+          }
+          var over = s.budget > 0 && total > s.budget;
+          var pct = s.budget > 0 ? ' · ' + (total / s.budget * 100).toFixed(0) + '%' : '';
+          if (total > 0 || s.budget > 0) svg += '<text x="' + cx + '" y="' + (Math.min(yTot, s.budget > 0 ? yOf(s.budget) : yTot) - 6) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="' + (over ? '#b91c1c' : '#0f172a') + '">' + kTxt(total) + pct + '</text>';
+        });
+        svg += '</svg>';
+        return '<div class="trend-wrap"><div class="trend-title">Budget Control — monthly spend vs budget, with quarterly totals</div>' + svg +
+          '<div class="bar-legend trend-legend"><span><i class="b-used" style="background:#94a3b8"></i>Spent / committed</span><span><i class="b-pr"></i>This PR</span><span><i class="b-over"></i>Over monthly budget</span><span><i class="lg-budget"></i>Monthly budget</span><span><i class="lg-q"></i>Quarter summary (% of quarterly budget used)</span></div></div>';
       }
       var budgetHtml = '<h2>2. Spare Part Budget — Cost Ratio &amp; Expense Control</h2>';
       if (!B || !B.rows || !B.rows.length) {
@@ -27489,15 +27578,19 @@ if (dashboardPage) {
         var qRemain = qTot.budget - qTot.used - qTot.pr;
         var verdict;
         if (noBudget) verdict = '<div class="verdict v-na"><div class="v-t">NO BUDGET SET</div><div class="v-d">No production value / target % for ' + esc(B.monthLabel) + ' yet — budget cannot be checked.</div></div>';
-        else if (overLines.length) {
+        else if (overLines.length && qTot.budget > 0 && qRemain >= 0) {
+          // เกินงบรายเดือน แต่ทั้งไตรมาสยังมีงบเหลือ — ผู้อนุมัติชั่งได้ว่าจะอนุมัติโดยใช้งบไตรมาสหรือไม่
+          var overAmtM = overLines.reduce(function(s, r) { return s + (r.m.used + r.m.pr - r.m.budget); }, 0);
+          verdict = '<div class="verdict v-warn"><div class="v-t">OVER MONTHLY BUDGET — STILL WITHIN QUARTERLY BUDGET</div><div class="v-d">Exceeds the ' + esc(B.monthLabel) + ' budget by <b>THB ' + money(overAmtM) + '</b>, but ' + esc(B.quarterLabel) + ' still has <b>THB ' + money(qRemain) + '</b> remaining after this PR.</div></div>';
+        } else if (overLines.length) {
           var overAmt = overLines.reduce(function(s, r) { return s + (r.m.used + r.m.pr - r.m.budget); }, 0);
-          verdict = '<div class="verdict v-over"><div class="v-t">OVER BUDGET</div><div class="v-d">This PR exceeds the ' + esc(B.monthLabel) + ' budget by <b>THB ' + money(overAmt) + '</b>' + (B.rows.length > 1 ? ' (' + overLines.map(function(r) { return esc(r.line); }).join(', ') + ')' : '') + ' — management approval required.</div></div>';
+          verdict = '<div class="verdict v-over"><div class="v-t">OVER BUDGET' + (qTot.budget > 0 ? ' — MONTHLY &amp; QUARTERLY' : '') + '</div><div class="v-d">This PR exceeds the ' + esc(B.monthLabel) + ' budget by <b>THB ' + money(overAmt) + '</b>' + (B.rows.length > 1 ? ' (' + overLines.map(function(r) { return esc(r.line); }).join(', ') + ')' : '') + ' — management approval required.</div></div>';
         } else verdict = '<div class="verdict v-ok"><div class="v-t">WITHIN BUDGET — OK TO PURCHASE</div><div class="v-d">Remaining ' + esc(B.monthLabel) + ' budget after this PR: <b>THB ' + money(mRemain) + '</b>' + (qTot.budget > 0 ? ' &nbsp;·&nbsp; ' + esc(B.quarterLabel) + ': <b>THB ' + money(qRemain) + '</b>' : '') + '</div></div>';
         var rowsHtml = B.rows.map(function(r) {
           return '<tr><td><b>' + esc(r.line) + '</b>' + (r.targetPct > 0 ? '<div class="isub">Target ' + r.targetPct + '%</div>' : '') + '</td>' + budgetCells(r.m) + budgetCells(r.q) + '</tr>';
         }).join('');
         if (B.rows.length > 1) rowsHtml += '<tr class="tot"><td><b>Total</b></td>' + budgetCells(mTot) + budgetCells(qTot) + '</tr>';
-        budgetHtml += verdict +
+        budgetHtml += verdict + trendSvg(B.history) +
           '<table class="budget"><colgroup><col style="width:12%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"></colgroup>' +
           '<thead><tr><th rowspan="2">Line</th><th colspan="4">Monthly — ' + esc(B.monthLabel) + '</th><th colspan="4">Quarterly — ' + esc(B.quarterLabel) + ' (' + esc(B.quarterRange) + ', to date)</th></tr>' +
           '<tr><th>Budget</th><th>Used</th><th>This PR</th><th>Remaining</th><th>Budget</th><th>Used</th><th>This PR</th><th>Remaining</th></tr></thead>' +
@@ -27587,6 +27680,11 @@ if (dashboardPage) {
         '.pr-doc .verdict{border-radius:8px;padding:10px 14px;margin:6px 0 8px;border:2px solid;}.pr-doc .verdict .v-t{font-size:15px;font-weight:700;letter-spacing:.5px;}.pr-doc .verdict .v-d{font-size:11.5px;margin-top:2px;}' +
         '.pr-doc .v-ok{background:#f0fdf4;border-color:#4ade80;color:#166534;}.pr-doc .v-over{background:#fef2f2;border-color:#f87171;color:#991b1b;}.pr-doc .v-na{background:#f8fafc;border-color:#cbd5e1;color:#475569;}' +
         '.pr-doc .budget .tot td{background:#f1f5f9;}' +
+        '.pr-doc .v-warn{background:#fffbeb;border-color:#f59e0b;color:#92400e;}' +
+        '.pr-doc .trend-wrap{border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px 6px;margin:8px 0;page-break-inside:avoid;}.pr-doc .trend-title{font-size:11px;font-weight:700;color:#1e3a5f;margin-bottom:2px;}' +
+        '.pr-doc .trend{display:block;width:100%;height:auto;}.pr-doc .trend-legend{flex-wrap:wrap;justify-content:center;}' +
+        '.pr-doc .lg-budget{background:none !important;border-top:2.5px dashed #16a34a;height:0 !important;width:16px !important;vertical-align:3px !important;}.pr-doc .lg-q{background:#dcfce7;border:1px solid #86efac;}' +
+        '.pr-doc .tag{display:inline-block;padding:0 7px;border-radius:999px;font-size:9px;font-weight:700;margin-left:4px;vertical-align:1px;}.pr-doc .tag-ok{background:#dcfce7;color:#15803d;}.pr-doc .tag-over{background:#fee2e2;color:#b91c1c;}' +
         '.pr-doc .bars{display:flex;gap:14px;margin:8px 0 4px;}.pr-doc .bar-wrap{flex:1;}.pr-doc .bar-head{display:flex;justify-content:space-between;font-size:10.5px;color:#475569;margin-bottom:3px;}' +
         '.pr-doc .bar{display:flex;height:12px;border-radius:6px;background:#dcfce7;overflow:hidden;border:1px solid #cbd5e1;}.pr-doc .bar i{display:block;height:100%;}' +
         '.pr-doc .b-used{background:#64748b;}.pr-doc .b-pr{background:#2563eb;}.pr-doc .b-over{background:#dc2626;}.pr-doc .b-rem{background:#dcfce7;border:1px solid #86efac;}' +
