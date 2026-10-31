@@ -57,3 +57,8 @@ assert.deepStrictEqual(issueApi(null, 'H9', false), {}, 'ยังโหลด l
 assert(html.includes('<th style="padding:6px 10px;text-align:right;">ยอดสั่งซื้อ (PR)</th>'), 'หัวคอลัมน์ต้องบอกว่าเป็นยอดสั่งซื้อ');
 
 console.log('Cost ratio purchase-basis checks passed');
+
+// กราฟมีเส้น % แยก 2 เส้น: ยอดสั่งซื้อ (PR) ต่อยอดขาย กับ ค่าเบิกอะไหล่ (ค่าซ่อม) ต่อยอดขาย
+assert(combo.includes("label: '% ยอดสั่งซื้อ (PR) ต่อยอดขาย', data: perMonth.map(function(d) { return d.ratio; })"), 'เส้น % ยอดสั่งซื้อ');
+assert(combo.includes("label: '% ค่าเบิกอะไหล่ (ค่าซ่อม) ต่อยอดขาย', data: perMonth.map(function(d) { return d.issueRatio; })"), 'เส้น % ค่าเบิก');
+console.log('Cost ratio two-line checks passed');
