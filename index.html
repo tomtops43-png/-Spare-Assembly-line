@@ -2330,6 +2330,10 @@
               <div class="fcc-card-sub" id="fccCostRatioSub">เทียบยอดขายกับค่าใช้จ่าย Spare Part และงบ Spare part ที่สั่งได้แต่ละเดือน</div>
             </div>
             <div class="fcc-controls">
+              <select id="fccCostRatioPeriod" class="fcc-select fcc-select-sm" aria-label="ดู Cost Ratio รายเดือน/รายไตรมาส">
+                <option value="month">รายเดือน</option>
+                <option value="quarter">รายไตรมาส</option>
+              </select>
               <select id="fccCostRatioLineFilter" class="fcc-select fcc-select-sm" aria-label="เลือก Line สำหรับ Cost Ratio">
                 <option value="__all__">ทุกไลน์ (รวม)</option>
                 <option value="Lug&Screw">Lug&amp;Screw</option>
@@ -14384,6 +14388,38 @@ function inferRequestPriority(stock, min) {
       });
       return out;
     }
+    // มุมมองรายไตรมาส: key 'YYYY-Qn' (เรียงตามตัวอักษรแล้วลำดับถูกเหมือน key เดือน 'YYYY-MM')
+    function fccQuarterKey(monthKey) {
+      var parts = String(monthKey || '').split('-');
+      var y = Number(parts[0]), mo = Number(parts[1]);
+      if (!y || !(mo >= 1 && mo <= 12)) return String(monthKey || '');
+      return y + '-Q' + Math.ceil(mo / 3);
+    }
+    function fccPeriodLabel(key) {
+      var q = /^(\d{4})-Q([1-4])$/.exec(String(key || ''));
+      if (!q) return fccMonthLabel(key);
+      return 'Q' + q[2] + ' ' + q[1];
+    }
+    // ช่วงเดือนของไตรมาส เช่น "ก.ค.–ก.ย." (โชว์ใต้ชื่อไตรมาสในตาราง)
+    function fccQuarterRangeLabel(key) {
+      var q = /^(\d{4})-Q([1-4])$/.exec(String(key || ''));
+      if (!q) return '';
+      var first = (Number(q[2]) - 1) * 3;
+      return FCC_TH_MONTHS[first] + '–' + FCC_TH_MONTHS[first + 2];
+    }
+    // รวมยอดรายเดือน { 'YYYY-MM': n } เป็นรายไตรมาส { 'YYYY-Qn': ผลรวม }
+    function fccRollupByQuarter(map) {
+      var out = {};
+      Object.keys(map || {}).forEach(function(m) {
+        var k = fccQuarterKey(m);
+        out[k] = (out[k] || 0) + (Number(map[m]) || 0);
+      });
+      return out;
+    }
+    function fccCostRatioPeriodMode() {
+      var el = document.getElementById('fccCostRatioPeriod');
+      return el && el.value === 'quarter' ? 'quarter' : 'month';
+    }
     function fccRenderCostRatio() {
       var tableEl = document.getElementById('fccCostRatioTable');
       var sub = document.getElementById('fccCostRatioSub');
@@ -14470,6 +14506,34 @@ function inferRequestPriority(stock, min) {
       var hasAutoSync = Object.keys(sourceByMonth).some(function(k) { return sourceByMonth[k] === 'auto'; });
       var hasPrice = Object.keys(valueByMonth).length > 0;
       var issueByMonth = fccCostRatioIssueByMonth(fccLast.Logs, line, isAll);
+      // รายไตรมาส: รวมยอดรายเดือนทุกตัวเป็นไตรมาส แล้วใช้โค้ดกราฟ/ตารางชุดเดิม (ตัวแปรยังชื่อ ...ByMonth แต่ key เป็นไตรมาส)
+      var isQuarter = fccCostRatioPeriodMode() === 'quarter';
+      if (isQuarter) {
+        spendByMonth = fccRollupByQuarter(spendByMonth);
+        committedByMonth = fccRollupByQuarter(committedByMonth);
+        miscByMonth = fccRollupByQuarter(miscByMonth);
+        miscCountByMonth = fccRollupByQuarter(miscCountByMonth);
+        qtyByMonth = fccRollupByQuarter(qtyByMonth);
+        valueByMonth = fccRollupByQuarter(valueByMonth);
+        unpricedQtyByMonth = fccRollupByQuarter(unpricedQtyByMonth);
+        unpricedWithdrawQtyByMonth = fccRollupByQuarter(unpricedWithdrawQtyByMonth);
+        budgetByMonth = fccRollupByQuarter(budgetByMonth);
+        issueByMonth = fccRollupByQuarter(issueByMonth);
+        var qDetail = {};
+        Object.keys(budgetDetailByMonth).forEach(function(m) {
+          var k = fccQuarterKey(m);
+          if (!qDetail[k]) qDetail[k] = {};
+          Object.keys(budgetDetailByMonth[m]).forEach(function(ln) { qDetail[k][ln] = (qDetail[k][ln] || 0) + budgetDetailByMonth[m][ln]; });
+        });
+        budgetDetailByMonth = qDetail;
+        var qSource = {};
+        Object.keys(sourceByMonth).forEach(function(m) {
+          var k = fccQuarterKey(m);
+          if (sourceByMonth[m] === 'auto') qSource[k] = 'auto';
+          else if (!qSource[k]) qSource[k] = sourceByMonth[m];
+        });
+        sourceByMonth = qSource;
+      }
       var months = Array.from(new Set(Object.keys(spendByMonth).concat(Object.keys(qtyByMonth), Object.keys(issueByMonth)))).sort().reverse();
       if (!months.length) {
         tableEl.innerHTML = '<div class="fcc-empty">ยังไม่มีข้อมูลยอดผลิต/รายจ่ายของ Line นี้ — เพิ่มยอดผลิตด้านล่างเพื่อเริ่มคำนวณ</div>';
@@ -14480,7 +14544,7 @@ function inferRequestPriority(stock, min) {
         return;
       }
       // กราฟอ่านง่ายกว่าถ้าเรียงจากเก่าไปใหม่ (ซ้าย→ขวา) ต่างจากตารางที่เรียงเดือนล่าสุดไว้บนสุด
-      var chartMonths = months.slice().reverse().slice(-12);
+      var chartMonths = months.slice().reverse().slice(isQuarter ? -8 : -12);
       var perMonth = chartMonths.map(function(m) {
         var sales = valueByMonth[m] || 0;   // ยอดขาย = มูลค่าผลิต
         var expense = spendByMonth[m] || 0;  // ค่าใช้จ่าย Spare Part จริง
@@ -14490,7 +14554,7 @@ function inferRequestPriority(stock, min) {
         var expenseMisc = miscByMonth[m] || 0;
         var issue = issueByMonth[m] || 0;   // ค่าเบิกอะไหล่ (ค่าซ่อม) — เทียบกับยอดขายแยกเส้น
         var issueRatio = (sales > 0 && issue > 0) ? (issue / sales * 100) : null;
-        return { label: fccMonthLabel(m), sales: sales, expense: expense, expenseMisc: expenseMisc, expenseParts: Math.max(0, expense - expenseMisc), ratio: ratio, budget: budget, issue: issue, issueRatio: issueRatio };
+        return { label: fccPeriodLabel(m), sales: sales, expense: expense, expenseMisc: expenseMisc, expenseParts: Math.max(0, expense - expenseMisc), ratio: ratio, budget: budget, issue: issue, issueRatio: issueRatio };
       });
       fccRenderCostRatioCombo(perMonth, targetPct);
       var rowsHtml = months.map(function(m) {
@@ -14520,7 +14584,7 @@ function inferRequestPriority(stock, min) {
         var committedTip = committedByMonth[m] ? '<div title="PR อนุมัติแล้ว รอของเข้า — นับรวมในยอดนี้แล้ว" style="font-size:9px;color:#1d4ed8;">รวมค้างรับ ฿' + fccInt(committedByMonth[m]) + '</div>' : '';
         var miscTip = miscByMonth[m] ? '<div title="ของซื้อนอกระบบอะไหล่ (น็อต/เครื่องมือ/วัสดุสิ้นเปลือง)" style="font-size:9px;color:#7c3aed;">รวมของสิ้นเปลือง ฿' + fccInt(miscByMonth[m]) + ' (' + miscCountByMonth[m] + ' รายการ)</div>' : '';
         return '<tr style="border-bottom:1px solid #f1f5f9;">' +
-          '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccMonthLabel(m)) + srcBadge + '</td>' +
+          '<td style="padding:8px 10px;font-weight:600;">' + fccEsc(fccPeriodLabel(m)) + srcBadge + (isQuarter ? '<div style="font-size:9px;color:#94a3b8;font-weight:400;">' + fccEsc(fccQuarterRangeLabel(m)) + '</div>' : '') + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">' + fccInt(qty) + ' ชิ้น' + unpTip + '</td>' +
           '<td style="padding:8px 10px;text-align:right;">฿' + fccInt(value) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;"' + budgetTitle + '>' + (budgetCap !== null ? '฿' + fccInt(budgetCap) : '<span style="color:#94a3b8;">—</span>') + '</td>' +
@@ -14531,7 +14595,7 @@ function inferRequestPriority(stock, min) {
       }).join('');
       tableEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
         '<thead><tr style="border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;">' +
-        '<th style="padding:6px 10px;text-align:left;">เดือน</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต (ยอดขาย)</th><th style="padding:6px 10px;text-align:right;">งบ Spare part</th><th style="padding:6px 10px;text-align:right;">ยอดสั่งซื้อ (PR)</th><th style="padding:6px 10px;text-align:right;color:#0f766e;">ค่าเบิกอะไหล่ (ค่าซ่อม)</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
+        '<th style="padding:6px 10px;text-align:left;">' + (isQuarter ? 'ไตรมาส' : 'เดือน') + '</th><th style="padding:6px 10px;text-align:right;">ยอดผลิต</th><th style="padding:6px 10px;text-align:right;">มูลค่าผลิต (ยอดขาย)</th><th style="padding:6px 10px;text-align:right;">งบ Spare part</th><th style="padding:6px 10px;text-align:right;">ยอดสั่งซื้อ (PR)</th><th style="padding:6px 10px;text-align:right;color:#0f766e;">ค่าเบิกอะไหล่ (ค่าซ่อม)</th><th style="padding:6px 10px;text-align:right;">% ต่อมูลค่าผลิต</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>';
       // แจ้งรุ่นที่ยังจับคู่ราคาไม่ได้ (ถ้ามี) เพื่อให้ผู้ใช้ไปแก้ชื่อรุ่น/เพิ่มราคาในชีต
       var unpKeys = Object.keys(unpricedModels).sort(function(a, b) { return unpricedModels[b] - unpricedModels[a]; });
@@ -14549,7 +14613,7 @@ function inferRequestPriority(stock, min) {
       var basisTxt = grInfo.cutoverAt
         ? '📦 รายจ่าย = ยอดสั่งซื้อ (PR) ก่อน ' + grInfo.cutoverAt.slice(0, 10) + ' · ตั้งแต่วันนั้นนับ PR ที่อนุมัติแล้ว (รับแล้ว + ค้างรับ) + ของสิ้นเปลือง'
         : '📦 รายจ่าย = ยอดสั่งซื้อ (PR ไม่นับที่ยกเลิก) + ของสิ้นเปลืองที่ซื้อนอกระบบ';
-      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + basisTxt + ' · 🔧 ค่าเบิก = เบิกจริง × ราคา (แท่งเขียวอมฟ้า เทียบแยก ไม่รวมในอัตราต้นทุน) · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + basisTxt + ' · 🔧 ค่าเบิก = เบิกจริง × ราคา (แท่งเขียวอมฟ้า เทียบแยก ไม่รวมในอัตราต้นทุน) · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (isQuarter ? ' · รายไตรมาส' : '') + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
       if (grInfo.cutoverAt && committed > 0) {
         tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;color:#1e40af;">⏳ ยอดผูกพัน (PR อนุมัติแล้ว รอของเข้า) ฿' + fccMoney(committed) + ' — นับรวมในยอดสั่งซื้อของเดือนที่อนุมัติแล้ว</div>';
       }
@@ -26452,6 +26516,15 @@ function inferRequestPriority(stock, min) {
     if (dashboardLineFilter) dashboardLineFilter.addEventListener('change', renderDashboardPhase1);
     var fccCostRatioLineFilterEl = document.getElementById('fccCostRatioLineFilter');
     if (fccCostRatioLineFilterEl) fccCostRatioLineFilterEl.addEventListener('change', fccRenderCostRatio);
+    // รายเดือน / รายไตรมาส — จำค่าที่เลือกไว้ในเครื่อง เปิดหน้าใหม่ไม่ต้องเลือกซ้ำ
+    var fccCostRatioPeriodEl = document.getElementById('fccCostRatioPeriod');
+    if (fccCostRatioPeriodEl) {
+      try { if (localStorage.getItem('fccCostRatioPeriod') === 'quarter') fccCostRatioPeriodEl.value = 'quarter'; } catch (e) {}
+      fccCostRatioPeriodEl.addEventListener('change', function() {
+        try { localStorage.setItem('fccCostRatioPeriod', fccCostRatioPeriodEl.value); } catch (e) {}
+        fccRenderCostRatio();
+      });
+    }
     // ── ค่าซ่อม (Repair Cost): เปลี่ยนตัวกรองแล้วคำนวณใหม่ทันที (ใช้ข้อมูลที่โหลดไว้แล้ว ไม่ยิง API ซ้ำ) ──
     ['fccRepairReasonFilter', 'fccRepairRangeFilter', 'fccRepairLineFilter', 'fccRepairMonthFilter'].forEach(function(id) {
       var el = document.getElementById(id);
