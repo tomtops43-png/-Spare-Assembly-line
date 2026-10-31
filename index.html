@@ -19937,6 +19937,15 @@ function inferRequestPriority(stock, min) {
       }).join('');
     }
 
+    // ยอดเงินในตาราง PR = ยอดสุทธิ (หักรายการที่ปิดยอดค้าง/ยกเลิกแล้ว) — ถ้าต่างจากยอดตอนอนุมัติ แสดงยอดเดิมขีดฆ่าไว้ใต้
+    function ptMoneyCell(p) {
+      var orig = Number(p.total_amount || 0);
+      var net = p.net_amount === undefined || p.net_amount === null ? orig : Number(p.net_amount || 0);
+      if (Math.abs(net - orig) < 0.005) return ptFmtMoney(orig);
+      return '<div class="font-semibold">' + ptFmtMoney(net) + '</div>' +
+        '<div class="text-[11px] text-slate-400 line-through" title="ยอดตอนอนุมัติ (ก่อนปิดยอดค้าง/ยกเลิก)">' + ptFmtMoney(orig) + '</div>';
+    }
+
     function ptRenderList(line, status) {
       var rows = (ptData.prs || []).filter(function(p) {
         return (!line || p.line === line) && (!status || p.status === status) && ptSearchMatch([p.pr_id, p.created_by, p.po_no, p.vendor].join(' '));
@@ -19952,7 +19961,7 @@ function inferRequestPriority(stock, min) {
             '<td class="py-2 pr-3">' + escHtml(p.created_by || '-') + '</td>' +
             '<td class="py-2 pr-3 whitespace-nowrap">' + escHtml(String(p.created_at || '').slice(0, 10)) + '</td>' +
             '<td class="py-2 pr-3 text-right">' + ptFmtNum(p.item_count) + '</td>' +
-            '<td class="py-2 pr-3 text-right">' + ptFmtMoney(p.total_amount) + '</td>' +
+            '<td class="py-2 pr-3 text-right whitespace-nowrap">' + ptMoneyCell(p) + '</td>' +
             '<td class="py-2">' + escHtml(p.po_no || '') + '</td></tr>';
         }).join('') + '</tbody></table></div>';
     }
