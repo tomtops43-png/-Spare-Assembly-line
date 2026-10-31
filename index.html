@@ -13204,7 +13204,7 @@ function inferRequestPriority(stock, min) {
     // วาดกราฟแท่ง (รายจ่ายจริง สีแดงถ้าเกินงบ/สีน้ำเงินถ้าอยู่ในงบ) + เส้นประ (งบต้นทุนเป้าหมาย)
     // ใช้สเกลแกน Y เดียวกันทั้งสองชุดข้อมูล เพื่อให้เทียบแท่งกับเส้นได้ตรงๆ ด้วยตา
     // Combo chart (Chart.js): แท่งน้ำเงิน=Sales, แท่งแดง=Spare Expense (แกนซ้าย บาท) +
-    // เส้นดำ=Cost Ratio %, เส้นเขียวประ=Target % (แกนขวา %) — ผู้บริหารอ่านจบใน 5 วินาที
+    // เส้นส้ม=% ยอดสั่งซื้อ (PR) ต่อยอดขาย, เส้นเขียวอมฟ้า=% ค่าเบิก (ค่าซ่อม), เส้นเขียวประ=Target % (แกนขวา %) — ผู้บริหารอ่านจบใน 5 วินาที
     // perMonth = [{ label, sales, expense, ratio(|null), budget(|null) }] เรียงเก่า→ใหม่
     // สำคัญ: ป้ายลอยพวกนี้เป็น position:absolute บน body — ถ้าซ่อนแค่ opacity:0
     // ตัว element ยังค้างที่พิกัดลึกและ "ยืดความสูงหน้า" ทุกหน้าให้เลื่อนเกินเนื้อหา
@@ -13284,8 +13284,7 @@ function inferRequestPriority(stock, min) {
           fccShowFloatEl(targetLabelEl);
         }
       };
-      // ป้าย "% ของยอดขาย" บนหัวแท่งค่าเบิก — ไม่ทำเป็นเส้นบนแกน % เพราะค่าเบิกมัก 50–200% ของยอดขาย
-      // จะดึงแกน % ยืดจนเส้นอัตราต้นทุน/เป้าหมาย 5% แบนติดพื้น
+      // ป้าย "% ของยอดขาย" บนหัวแท่งค่าเบิก (มีเส้น % ค่าเบิกแยกบนแกนขวาด้วย)
       var fccIssueLabelPlugin = {
         id: 'fccCostRatioIssueLabels',
         afterDatasetsDraw: function(chart) {
@@ -13328,9 +13327,13 @@ function inferRequestPriority(stock, min) {
             { type: 'bar', label: 'ค่าเบิกอะไหล่ (ค่าซ่อม)', data: perMonth.map(function(d) { return d.issue; }), stack: 'issue',
               backgroundColor: '#14B8A6', hoverBackgroundColor: '#0D9488',
               yAxisID: 'yBahtSpend', borderRadius: 4, order: 3, categoryPercentage: 0.64, barPercentage: 0.94 },
-            { type: 'line', label: 'อัตราต้นทุน (%)', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#111827', backgroundColor: '#111827', yAxisID: 'yPct', cubicInterpolationMode: 'monotone', borderWidth: 2.2, order: 1, spanGaps: true,
-              pointRadius: function(c) { return c.raw != null ? 3 : 0; }, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
-              pointBackgroundColor: function(c) { var v = c.raw; return (v != null && tgt != null && v > tgt) ? '#EF4444' : '#22C55E'; } },
+            // เส้น % แยก 2 เส้น สีตรงกับแท่งของตัวเอง: ส้ม = ยอดสั่งซื้อ (PR + ของสิ้นเปลือง) ต่อยอดขาย ใช้เทียบเป้าหมาย
+            // เขียวอมฟ้า (จุดข้าวหลามตัด) = ค่าเบิกอะไหล่ (ค่าซ่อม) ต่อยอดขาย ไว้เทียบเฉยๆ ไม่นับในอัตราต้นทุน
+            { type: 'line', label: '% ยอดสั่งซื้อ (PR) ต่อยอดขาย', data: perMonth.map(function(d) { return d.ratio; }), borderColor: '#D97706', backgroundColor: '#D97706', yAxisID: 'yPct', cubicInterpolationMode: 'monotone', borderWidth: 2.6, order: 1, spanGaps: true,
+              pointRadius: function(c) { return c.raw != null ? 3.5 : 0; }, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.5,
+              pointBackgroundColor: function(c) { var v = c.raw; return (v != null && tgt != null && v > tgt) ? '#EF4444' : '#D97706'; } },
+            { type: 'line', label: '% ค่าเบิกอะไหล่ (ค่าซ่อม) ต่อยอดขาย', data: perMonth.map(function(d) { return d.issueRatio; }), borderColor: '#0D9488', backgroundColor: '#0D9488', yAxisID: 'yPct', cubicInterpolationMode: 'monotone', borderWidth: 2.2, order: 1, spanGaps: true,
+              pointStyle: 'rectRot', pointRadius: function(c) { return c.raw != null ? 4 : 0; }, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 1.2, pointBackgroundColor: '#0D9488' },
             { type: 'line', label: 'เป้าหมาย (%)', data: perMonth.map(function() { return tgt; }), borderColor: 'rgba(34,197,94,.6)', yAxisID: 'yPct', borderDash: [6, 4], borderWidth: 2, order: 2, pointRadius: 0, pointHoverRadius: 0, spanGaps: true, fill: false }
           ]
         },
@@ -13342,7 +13345,7 @@ function inferRequestPriority(stock, min) {
           scales: {
             x: { stacked: true, grid: { display: false }, ticks: { font: { family: FONT, size: 11 }, color: '#64748b', padding: 10 } },
             yBahtSpend: { stacked: true, position: 'left', beginAtZero: true, title: { display: true, text: 'ยอดขาย / รายจ่าย / ค่าเบิก (บาท)', font: { family: FONT, size: 11 }, color: '#475569' }, grid: { color: '#E5E7EB' }, ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return '฿' + fccMoney(v); } } },
-            yPct: { position: 'right', beginAtZero: true, title: { display: true, text: 'สัดส่วนต้นทุน (%)', font: { family: FONT, size: 11 }, color: '#111827' }, grid: { drawOnChartArea: false }, ticks: { font: { family: FONT, size: 10 }, color: '#111827', callback: function(v) { return v + '%'; } } }
+            yPct: { position: 'right', beginAtZero: true, title: { display: true, text: '% ต่อยอดขาย', font: { family: FONT, size: 11 }, color: '#475569' }, grid: { drawOnChartArea: false }, ticks: { font: { family: FONT, size: 10 }, color: '#475569', callback: function(v) { return v + '%'; } } }
           },
           plugins: {
             legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 16, font: { family: FONT, size: 11 }, color: '#475569',
@@ -13367,7 +13370,7 @@ function inferRequestPriority(stock, min) {
                 if (d.budget != null) html += row('งบ Spare part', '฿' + fccInt(d.budget), '#64748b');
                 html += row('ค่าใช้จ่ายอะไหล่', '฿' + fccInt(d.expense), (d.budget != null && d.expense > d.budget) ? '#EF4444' : '#F59E0B');
                 if (d.expenseMisc > 0) html += row('• ของซื้อนอกระบบ', '฿' + fccInt(d.expenseMisc), '#8B5CF6');
-                if (d.ratio != null) html += row('อัตราต้นทุน', d.ratio.toFixed(1) + '%', '#111827');
+                if (d.ratio != null) html += row('% ยอดสั่งซื้อ (PR) ต่อยอดขาย', d.ratio.toFixed(1) + '%', '#D97706');
                 if (d.issue > 0) html += row('ค่าเบิกอะไหล่ (ค่าซ่อม)', '฿' + fccInt(d.issue) + (d.issueRatio != null ? ' · ' + d.issueRatio.toFixed(1) + '% ของยอดขาย' : ''), '#0D9488');
                 if (d.ratio != null && tgt != null) {
                   var over = d.ratio > tgt;
@@ -14580,7 +14583,7 @@ function inferRequestPriority(stock, min) {
       var basisTxt = grInfo.cutoverAt
         ? '📦 รายจ่าย = ยอดสั่งซื้อ (PR) ก่อน ' + grInfo.cutoverAt.slice(0, 10) + ' · ตั้งแต่วันนั้นนับ PR ที่อนุมัติแล้ว (รับแล้ว + ค้างรับ) + ของสิ้นเปลือง'
         : '📦 รายจ่าย = ยอดสั่งซื้อ (PR ไม่นับที่ยกเลิก) + ของสิ้นเปลืองที่ซื้อนอกระบบ';
-      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + basisTxt + ' · 🔧 ค่าเบิก = เบิกจริง × ราคา (แท่งเขียวอมฟ้า เทียบแยก ไม่รวมในอัตราต้นทุน) · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (isQuarter ? ' · รายไตรมาส' : '') + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
+      if (sub) sub.textContent = (hasAutoSync ? '🔄 ยอดผลิต auto · ' : '') + basisTxt + ' · 🔧 ค่าเบิก = เบิกจริง × ราคา (แท่ง + เส้นเขียวอมฟ้า เทียบแยก ไม่รวมในอัตราต้นทุน) · ' + (isAll ? 'ทุกไลน์ (รวม)' : line) + (isQuarter ? ' · รายไตรมาส' : '') + (targetPct > 0 ? ' · เป้าหมายควบคุม ' + targetPct + '%' : '');
       if (grInfo.cutoverAt && committed > 0) {
         tableEl.innerHTML += '<div style="margin-top:8px;padding:8px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;color:#1e40af;">⏳ ยอดผูกพัน (PR อนุมัติแล้ว รอของเข้า) ฿' + fccMoney(committed) + ' — นับรวมในยอดสั่งซื้อของเดือนที่อนุมัติแล้ว</div>';
       }
