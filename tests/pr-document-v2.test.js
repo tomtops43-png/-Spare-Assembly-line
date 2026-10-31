@@ -65,6 +65,11 @@ assert(over.includes('OVER BUDGET') && over.includes('THB 2,000.00'), 'เกิ
 assert(over.includes('PENDING APPROVAL'));
 assert(fn.build(items, {}).includes('Budget data was not available'), 'ไม่มีข้อมูลงบ ยังออกเอกสารได้');
 
+const salesDoc = fn.build(items, { budgetDoc: Object.assign({}, budgetDoc, { rows: [{ line: 'H9', targetPct: 5, m: { sales: 400000, budget: 20000, used: 5000, pr: 7000 }, q: { sales: 1200000, budget: 60000, used: 5000, pr: 7000 } }] }) });
+assert(salesDoc.includes('<th>Production Value (Sales)</th><th>Budget</th>'), 'คอลัมน์มูลค่าผลิตอยู่หน้างบ');
+assert(salesDoc.includes('400,000.00') && salesDoc.includes('1,200,000.00'), 'แสดงมูลค่าผลิตเดือน + ไตรมาส');
+assert(grab('function prComputeBudget(monthKey, excludePrId)').includes('sales: qSales'));
+
 // เกินงบรายเดือน แต่ไตรมาสยังไม่เกิน → ต้องบอกให้ชัด (กล่องสีเหลือง)
 const warn = fn.build(items, { budgetDoc: Object.assign({}, budgetDoc, { rows: [{ line: 'H9', targetPct: 5, m: { budget: 10000, used: 5000, pr: 7000 }, q: { budget: 30000, used: 5000, pr: 7000 } }] }) });
 assert(warn.includes('OVER MONTHLY BUDGET — STILL WITHIN QUARTERLY BUDGET') && warn.includes('THB 18,000.00'), 'เกินเดือน 2,000 แต่ไตรมาสเหลือ 18,000');
@@ -88,9 +93,9 @@ assert(chartDoc.includes('▲ this PR') && chartDoc.includes('upcoming'));
 assert(chartDoc.includes('OVER MONTHLY BUDGET — STILL WITHIN QUARTERLY BUDGET'));
 
 // งบต่อไลน์ของ PR ใบนี้
-const B = { byLine: { H9: { budget: 100, used: 40, targetPct: 5, quarter: { budget: 300, used: 90 } }, 'Arc Chute': { budget: 50, used: 0, targetPct: 4 } } };
+const B = { byLine: { H9: { sales: 2000, budget: 100, used: 40, targetPct: 5, quarter: { budget: 300, used: 90, sales: 6000 } }, 'Arc Chute': { budget: 50, used: 0, targetPct: 4 } } };
 assert(grab('function prComputeBudget(monthKey, excludePrId)').includes('byLine[ln].history = history;'), 'เก็บประวัติรายเดือนไว้วาดกราฟ');
-assert.deepStrictEqual(fn.rows(B, { H9: 30 }), [{ line: 'H9', targetPct: 5, m: { budget: 100, used: 40, pr: 30 }, q: { budget: 300, used: 90, pr: 30 } }]);
+assert.deepStrictEqual(fn.rows(B, { H9: 30 }), [{ line: 'H9', targetPct: 5, m: { sales: 2000, budget: 100, used: 40, pr: 30 }, q: { sales: 6000, budget: 300, used: 90, pr: 30 } }], 'มีมูลค่าผลิต (ยอดขาย) ทั้งรายเดือน/ไตรมาส');
 assert.strictEqual(fn.rows(B, {}).length, 2, 'ไม่มียอด PR = โชว์ทุกไลน์ที่มีงบ');
 
 // ใบที่อนุมัติแล้วต้องไม่ถูกนับซ้ำ (ค้างรับ/รับของของใบนี้ตัดออก)
@@ -103,7 +108,7 @@ assert.strictEqual(fn.without(A, ''), A);
 
 // ผูกเข้ากับจุดปริ้นจริง
 assert(grab('function prComputeBudget(monthKey, excludePrId)').includes('prBudgetDataWithoutPr(arr[0], excludePrId)'));
-assert(grab('function prComputeBudget(monthKey, excludePrId)').includes('byLine[ln].quarter = { key: qKey, budget: qBudget, used: qUsed };'));
+assert(grab('function prComputeBudget(monthKey, excludePrId)').includes('byLine[ln].quarter = { key: qKey, budget: qBudget, used: qUsed, sales: qSales };'));
 assert(html.includes('prDocAttachBudget(edited.opts, edited.items, prDocMonthFromDate(header.created_at), header.pr_id)'), 'ปริ้นจาก Inbox คำนวณงบก่อน');
 assert(html.includes("prDocAttachBudget(opts, selected, prBudgetMonthKey(), '')"), 'Preview คำนวณงบก่อน');
 assert(!html.includes('id="prIncludeAnnexD"'), 'ตัวเลือก Drawing/Annex ถูกเอาออก');

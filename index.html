@@ -21258,7 +21258,7 @@ function inferRequestPriority(stock, min) {
         var byLine = {};
         var qKey = fccQuarterKey(monthKey); // ยอดสะสมของไตรมาส (นับถึงเดือนเป้าหมาย) — ไว้โชว์ในเอกสาร PR
         Object.keys(lineSet).forEach(function(ln) {
-          var target = targetByLine[ln] || 0, prevLeftover = 0, rec = null, qBudget = 0, qUsed = 0, history = [];
+          var target = targetByLine[ln] || 0, prevLeftover = 0, rec = null, qBudget = 0, qUsed = 0, qSales = 0, history = [];
           months.forEach(function(m) {
             var sales = (salesBML[m] || {})[ln] || 0;
             var base = (target > 0 && sales > 0) ? sales * target / 100 : 0;
@@ -21268,12 +21268,12 @@ function inferRequestPriority(stock, min) {
             var pending = (pendingMap[m] || {})[ln] || 0;
             var used = spent + pending;
             prevLeftover = Math.max(0, effective - used);
-            if (fccQuarterKey(m) === qKey) { qBudget += base; qUsed += used; }
+            if (fccQuarterKey(m) === qKey) { qBudget += base; qUsed += used; qSales += sales; }
             history.push({ month: m, budget: base, used: used }); // ไว้วาดกราฟงบย้อนหลังในเอกสาร PR
             if (m === monthKey) rec = { sales: sales, targetPct: target, base: base, carryIn: carryIn, budget: effective, spent: spent, pending: pending, used: used };
           });
           byLine[ln] = rec || { sales: 0, targetPct: target, base: 0, carryIn: 0, budget: 0, spent: 0, pending: 0, used: 0 };
-          byLine[ln].quarter = { key: qKey, budget: qBudget, used: qUsed };
+          byLine[ln].quarter = { key: qKey, budget: qBudget, used: qUsed, sales: qSales };
           byLine[ln].history = history;
         });
         return { month: monthKey, carry: carry, byLine: byLine };
@@ -21297,10 +21297,11 @@ function inferRequestPriority(stock, min) {
       if (!lines.length) lines = Object.keys((B && B.byLine) || {}).filter(function(l) { return B.byLine[l].budget > 0; });
       lines.sort(function(a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib); });
       return lines.map(function(ln) {
-        var rec = (B && B.byLine && B.byLine[ln]) || { budget: 0, used: 0, targetPct: 0 };
-        var q = rec.quarter || { budget: 0, used: 0 };
+        var rec = (B && B.byLine && B.byLine[ln]) || { budget: 0, used: 0, targetPct: 0, sales: 0 };
+        var q = rec.quarter || { budget: 0, used: 0, sales: 0 };
         var pr = (prByLine && prByLine[ln]) || 0;
-        return { line: ln, targetPct: rec.targetPct || 0, m: { budget: rec.budget || 0, used: rec.used || 0, pr: pr }, q: { budget: q.budget || 0, used: q.used || 0, pr: pr } };
+        // sales = มูลค่าผลิต (ยอดขาย) — ฐานของงบ (งบ = sales × เป้าหมาย %)
+        return { line: ln, targetPct: rec.targetPct || 0, m: { sales: rec.sales || 0, budget: rec.budget || 0, used: rec.used || 0, pr: pr }, q: { sales: q.sales || 0, budget: q.budget || 0, used: q.used || 0, pr: pr } };
       });
     }
     // ข้อมูลกราฟงบในเอกสาร PR: 6 ช่อง = ไตรมาสก่อนหน้า + ไตรมาสปัจจุบัน (รายเดือน) รวมเฉพาะไลน์ของ PR ใบนี้
@@ -27484,13 +27485,14 @@ if (dashboardPage) {
       // ── 2) งบ Spare part (Cost Ratio) ────────────────────────────
       var B = options.budgetDoc || null;
       function budgetCells(p) {
-        if (!(p.budget > 0)) return '<td class="n">-</td><td class="n">' + money(p.used) + '</td><td class="n">' + money(p.pr) + '</td><td class="n t-na">No budget set</td>';
+        var salesCell = '<td class="n t-sales">' + (p.sales > 0 ? money(p.sales) : '-') + '</td>';
+        if (!(p.budget > 0)) return salesCell + '<td class="n">-</td><td class="n">' + money(p.used) + '</td><td class="n">' + money(p.pr) + '</td><td class="n t-na">No budget set</td>';
         var remain = p.budget - p.used - p.pr;
-        return '<td class="n">' + money(p.budget) + '</td><td class="n">' + money(p.used) + '</td><td class="n"><b>' + money(p.pr) + '</b></td>' +
+        return salesCell + '<td class="n">' + money(p.budget) + '</td><td class="n">' + money(p.used) + '</td><td class="n"><b>' + money(p.pr) + '</b></td>' +
           '<td class="n ' + (remain < 0 ? 't-out' : 't-ok') + '"><b>' + (remain < 0 ? '-' : '') + money(Math.abs(remain)) + '</b>' + (remain < 0 ? '<div class="isub t-out">over budget</div>' : '') + '</td>';
       }
       function sumPart(rows, key) {
-        return rows.reduce(function(acc, r) { acc.budget += r[key].budget; acc.used += r[key].used; acc.pr += r[key].pr; return acc; }, { budget: 0, used: 0, pr: 0 });
+        return rows.reduce(function(acc, r) { acc.sales += r[key].sales || 0; acc.budget += r[key].budget; acc.used += r[key].used; acc.pr += r[key].pr; return acc; }, { sales: 0, budget: 0, used: 0, pr: 0 });
       }
       function usageBar(title, p) {
         if (!(p.budget > 0)) return '';
@@ -27591,12 +27593,12 @@ if (dashboardPage) {
         }).join('');
         if (B.rows.length > 1) rowsHtml += '<tr class="tot"><td><b>Total</b></td>' + budgetCells(mTot) + budgetCells(qTot) + '</tr>';
         budgetHtml += verdict + trendSvg(B.history) +
-          '<table class="budget"><colgroup><col style="width:12%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"></colgroup>' +
-          '<thead><tr><th rowspan="2">Line</th><th colspan="4">Monthly — ' + esc(B.monthLabel) + '</th><th colspan="4">Quarterly — ' + esc(B.quarterLabel) + ' (' + esc(B.quarterRange) + ', to date)</th></tr>' +
-          '<tr><th>Budget</th><th>Used</th><th>This PR</th><th>Remaining</th><th>Budget</th><th>Used</th><th>This PR</th><th>Remaining</th></tr></thead>' +
+          '<table class="budget"><colgroup><col style="width:11%">' + new Array(11).join('<col style="width:8.9%">') + '</colgroup>' +
+          '<thead><tr><th rowspan="2">Line</th><th colspan="5">Monthly — ' + esc(B.monthLabel) + '</th><th colspan="5">Quarterly — ' + esc(B.quarterLabel) + ' (' + esc(B.quarterRange) + ', to date)</th></tr>' +
+          '<tr><th>Production Value (Sales)</th><th>Budget</th><th>Used</th><th>This PR</th><th>Remaining</th><th>Production Value (Sales)</th><th>Budget</th><th>Used</th><th>This PR</th><th>Remaining</th></tr></thead>' +
           '<tbody>' + rowsHtml + '</tbody></table>' +
           '<div class="bars">' + usageBar('Monthly — ' + B.monthLabel, mTot) + usageBar('Quarterly — ' + B.quarterLabel, qTot) + '</div>' +
-          '<p class="note">Budget = production value × target % (Cost Ratio &amp; Expense Control). Used = purchases / goods received, consumables and other pending PRs, excluding this PR. Amounts in THB.</p>';
+          '<p class="note">Production value (sales) = output qty × unit price. Budget = production value × target % (Cost Ratio &amp; Expense Control). Used = purchases / goods received, consumables and other pending PRs, excluding this PR. Amounts in THB.</p>';
       }
 
       // ── 3) ลายเซ็น ─────────────────────────────────────────────
@@ -27679,7 +27681,7 @@ if (dashboardPage) {
         '.pr-doc .chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px;}.pr-doc .chip{border:1px solid #cbd5e1;border-radius:999px;padding:2px 10px;font-size:10.5px;background:#fff;}.pr-doc .chip-out{border-color:#fca5a5;background:#fef2f2;color:#b91c1c;}.pr-doc .chip-low{border-color:#fcd34d;background:#fffbeb;color:#b45309;}.pr-doc .chip-ok{border-color:#86efac;background:#f0fdf4;color:#15803d;}' +
         '.pr-doc .verdict{border-radius:8px;padding:10px 14px;margin:6px 0 8px;border:2px solid;}.pr-doc .verdict .v-t{font-size:15px;font-weight:700;letter-spacing:.5px;}.pr-doc .verdict .v-d{font-size:11.5px;margin-top:2px;}' +
         '.pr-doc .v-ok{background:#f0fdf4;border-color:#4ade80;color:#166534;}.pr-doc .v-over{background:#fef2f2;border-color:#f87171;color:#991b1b;}.pr-doc .v-na{background:#f8fafc;border-color:#cbd5e1;color:#475569;}' +
-        '.pr-doc .budget .tot td{background:#f1f5f9;}' +
+        '.pr-doc .budget .tot td{background:#f1f5f9;}.pr-doc .budget td,.pr-doc .budget th{font-size:10px;padding:4px 4px;}.pr-doc .budget .t-sales{color:#1d4ed8;font-weight:600;background:#f8fbff;}' +
         '.pr-doc .v-warn{background:#fffbeb;border-color:#f59e0b;color:#92400e;}' +
         '.pr-doc .trend-wrap{border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px 6px;margin:8px 0;page-break-inside:avoid;}.pr-doc .trend-title{font-size:11px;font-weight:700;color:#1e3a5f;margin-bottom:2px;}' +
         '.pr-doc .trend{display:block;width:100%;height:auto;}.pr-doc .trend-legend{flex-wrap:wrap;justify-content:center;}' +
