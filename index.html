@@ -6915,6 +6915,24 @@
       else runPrCandidateSelection();
     }
 
+    // จากหน้า "ขอซื้ออะไหล่" → เด้งไปหน้า PR Report โหมด "PR ขอซื้ออะไหล่" พร้อมรายการที่เลือก แล้ว Generate ให้เลย
+    // ส่ง PR แล้วคำขอต้นทางจะถูกผูกกับเลข PR จริง (สถานะ "แปลงเป็น PR แล้ว") และ PR เข้า Inbox ให้หัวหน้าอนุมัติ
+    // (เดิมปุ่ม "แปลงเป็น PR" แค่เปลี่ยนป้ายสถานะ ไม่ได้สร้าง PR จริง — ไม่มีอะไรไปถึง Inbox)
+    function openPrFromRequests(rows) {
+      rows = (rows || []).filter(function(r) { return r && r.request_id; });
+      if (!rows.length) { showQuickToast('ไม่พบรายการคำขอที่เลือก', 'warn'); return; }
+      if (!hasPermission('pr_create')) { showQuickToast('บัญชีนี้ไม่มีสิทธิ์สร้าง PR', 'error'); return; }
+      if (typeof closeRequestOrderDetailModal === 'function') closeRequestOrderDetailModal();
+      window.__prFromRequests = rows;
+      switchToPrReportPage();
+      if (typeof window.__applyPrPreset === 'function') window.__applyPrPreset('from_request');
+      else if (prMode) { prMode.value = 'from_request'; }
+      showQuickToast('📋 กำลังดึงคำขอ ' + rows.length + ' รายการมาทำ PR — ตรวจยอด/ราคา แล้วกด "ส่งอนุมัติ"', 'info');
+      var runBtn = document.getElementById('prRunBtn');
+      if (runBtn) runBtn.click();
+      else runPrCandidateSelection();
+    }
+
     // จากรายการติดดาว → เด้งไปหน้า "ขอซื้อ" พร้อมเลือกอะไหล่ + ใส่เหตุผล/หมายเหตุให้แล้ว
     function requestOrderFromStarred(key) {
       var entry = starredState[key];
@@ -28115,6 +28133,10 @@ if (dashboardPage) {
             return Promise.resolve(null);
           }
           var payload = { action: 'createPR', pr_id: prNumber, line: headerLine, lines_json: JSON.stringify(lines) };
+          // ทำจากคำขอซื้อ → ให้ backend ผูกคำขอกับ PR ใบนี้ (เฉพาะบรรทัดที่ยอด > 0 ที่ส่งไปจริง)
+          var sourceRequestIds = selected.filter(function(item) { return item.request_id && Number(item.suggestedQty || 0) > 0; })
+            .map(function(item) { return item.request_id; });
+          if (sourceRequestIds.length) payload.source_request_ids = sourceRequestIds.join(',');
           if (assignTo) payload.assign_to = assignTo;
           if (gate.bypass) { payload.budget_bypass = 'true'; payload.bypass_reason = gate.reason; payload.budget_over_detail = gate.overDetail; }
           // แนบกราฟงบ Spare part ตอนกดส่งอนุมัติ (สแนปช็อต HTML ของแผงที่เห็นอยู่ตรงๆ) ให้หัวหน้า
@@ -28688,11 +28710,8 @@ if (dashboardPage) {
         var selItems = pending.filter(function(r){ return selected.indexOf(r.request_id)!==-1; });
         document.body.removeChild(overlay);
         // Store for PR Report page and navigate
-        window.__prFromRequests = selItems;
-        showQuickToast('นำ ' + selItems.length + ' รายการไปสร้าง PR Report แล้ว', 'success');
-        // Switch to PR Report tab
-        var prTab = document.getElementById('tabPrReport');
-        if (prTab) prTab.click();
+        // เดิมแค่สลับแท็บ — โหมดยังค้างเป็น "ประจำเดือน" รายการที่เลือกเลยไม่ถูกดึงมา
+        openPrFromRequests(selItems);
       });
     });
     if (roListEl) roListEl.addEventListener('click', function(e){
@@ -28782,9 +28801,13 @@ if (dashboardPage) {
       var originalText = actionBtn.textContent;
       actionBtn.disabled = true;
       actionBtn.textContent = 'กำลังส่ง...';
-      var run = act === 'convert'
-        ? requestApi(withAuthPayload({ action: 'convertOrderRequestsToPR', request_ids: [id] }))
-        : requestApi(withAuthPayload({ action: ({ approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' }[act] || act), request_id: id }));
+      if (act === 'convert') {
+        var convRows = (window.__roGroupedEntries || []).reduce(function(acc, g) { return acc.concat(g.items || []); }, [])
+          .filter(function(r) { return String(r.request_id) === String(id); });
+        openPrFromRequests(convRows.slice(0, 1));
+        return;
+      }
+      var run = requestApi(withAuthPayload({ action: ({ approve: 'approveOrderRequest', reject: 'rejectOrderRequest', hold: 'holdOrderRequest' }[act] || act), request_id: id }));
       run.then(function(){
         showQuickToast('✅ บันทึกคำสั่งเรียบร้อย', 'success');
         loadOrderRequests(); return refreshRequestOrderBadgeCount();

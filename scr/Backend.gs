@@ -3690,11 +3690,20 @@ function holdOrderRequest(payload) { requirePermission({ authToken: payload.auth
 function closeOrderRequest(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_close'); return updateOrderRequestStatus(payload, 'Closed'); }
 function markOrderRequestPurchased(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_approve'); return updateOrderRequestStatus(payload, 'Purchased'); }
 function markOrderRequestReceived(payload) { requirePermission({ authToken: payload.authToken }, 'request_order_approve'); return updateOrderRequestStatus(payload, 'Received'); }
+// request_ids มาได้ทั้ง array (POST) และสตริงคั่นด้วย , (GET/JSONP แปลง array เป็นสตริง)
+function parseOrderRequestIdList(raw) {
+  var list = Array.isArray(raw) ? raw : String(raw || '').split(',');
+  return list.map(function(v) { return String(v || '').trim(); }).filter(Boolean);
+}
 function convertOrderRequestsToPR(payload) {
   requirePermission({ authToken: payload.authToken }, 'request_order_convert_pr');
-  var ids = Array.isArray(payload.request_ids) ? payload.request_ids : [];
+  var ids = parseOrderRequestIdList(payload.request_ids);
   if (!ids.length) throw new Error('ต้องมี request_ids อย่างน้อย 1 รายการ');
   var convertedPrId = payload.converted_pr_id || ('PR-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss'));
+  return markOrderRequestsConvertedToPr(payload.authToken, ids, convertedPrId, payload.admin_comment || '');
+}
+// ผูกคำขอซื้อกับ PR: สถานะ → "Converted to PR" + เก็บเลข PR จริงไว้ที่ converted_pr_id
+function markOrderRequestsConvertedToPr(authToken, ids, convertedPrId, adminComment) {
   var sheet = getOrderRequestSheet();
   var values = sheet.getDataRange().getValues();
   var headers = values[0] || [];
@@ -3703,7 +3712,7 @@ function convertOrderRequestsToPR(payload) {
   if (idxRid === -1 || idxPr === -1) throw new Error('โครงสร้างชีท OrderRequests ไม่ถูกต้อง');
 
   ids.forEach(function(id) {
-    updateOrderRequestStatus({ authToken: payload.authToken, request_id: id, admin_comment: payload.admin_comment || '' }, 'Converted to PR');
+    updateOrderRequestStatus({ authToken: authToken, request_id: id, admin_comment: adminComment || '' }, 'Converted to PR');
     for (var i = 1; i < values.length; i += 1) {
       if (String(values[i][idxRid]) === String(id)) {
         sheet.getRange(i + 1, idxPr + 1).setValue(convertedPrId);
@@ -4010,7 +4019,19 @@ function createPRUnlocked(payload) {
       Logger.log('createPR resubmit warning: ' + resubmitWarning);
     }
   }
-  return { status: 'success', pr_id: prId, pr_status: 'PENDING', item_count: lines.length, total_amount: totalAmount, resubmit_of: resubmitOf, warning: resubmitWarning };
+  // PR ที่ทำจาก "ขอซื้ออะไหล่" — ผูกคำขอต้นทางกับ PR ใบนี้ (สถานะ "แปลงเป็น PR แล้ว" + เลข PR)
+  // คำขอจะได้ไม่ค้างเป็น "อนุมัติแล้ว" ให้ดึงไปทำ PR ซ้ำ · PR ถูกบันทึกแล้ว ห้าม throw (กดซ้ำ = PR เบิ้ล)
+  var sourceRequestIds = parseOrderRequestIdList(payload.source_request_ids);
+  if (sourceRequestIds.length) {
+    try {
+      markOrderRequestsConvertedToPr(payload.authToken, sourceRequestIds, prId, 'แปลงเป็น ' + prId);
+    } catch (reqErr) {
+      var reqWarn = 'ส่ง PR แล้ว แต่อัปเดตสถานะคำขอซื้อไม่สำเร็จ: ' + (reqErr && reqErr.message ? reqErr.message : reqErr);
+      Logger.log('createPR source request warning: ' + reqWarn);
+      resubmitWarning = resubmitWarning ? resubmitWarning + ' · ' + reqWarn : reqWarn;
+    }
+  }
+  return { status: 'success', pr_id: prId, pr_status: 'PENDING', item_count: lines.length, total_amount: totalAmount, resubmit_of: resubmitOf, warning: resubmitWarning, linked_request_count: sourceRequestIds.length };
 }
 
 // ดึง PR ใบเดียว (header + lines) สำหรับหน้าตรวจ+แก้ยอด
@@ -7074,6 +7095,7 @@ function doGet(e) {
     if (action === 'updateOrderRequestStatus') return respond(updateOrderRequestStatus(e.parameter, e.parameter.status), e);
     if (action === 'getInbox') return respond(getInbox(e.parameter), e);
     if (action === 'createPR') return respond(createPR(e.parameter), e);
+    if (action === 'convertOrderRequestsToPR') return respond(convertOrderRequestsToPR(e.parameter), e);
     if (action === 'getPRForApproval') return respond(getPRForApproval(e.parameter), e);
     if (action === 'approvePR') return respond(approvePR(e.parameter), e);
     if (action === 'rejectPR') return respond(rejectPR(e.parameter), e);

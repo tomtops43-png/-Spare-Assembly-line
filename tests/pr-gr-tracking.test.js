@@ -42,6 +42,7 @@ function makeBackend(stock) {
   const sheets = {};
   const props = {};
   const phWrites = [];
+  const requestLinks = [];
   const ADMIN_PERMS = { view: true, pr_create: true, pr_view_own: true, pr_view_all: true, pr_approve: true, manage_users: true };
   const users = {
     admin: { username: 'admin', role: 'admin', isActive: true, line: '', permissions: ADMIN_PERMS },
@@ -101,12 +102,14 @@ function makeBackend(stock) {
     computeSuggestedOrderQty: function(it) { return Math.max(it.min * 2 - it.stock, 1); },
     findCrossLineStockMatches: function() { return []; },
     sanitizeDrivePathSegment: function(v) { return String(v || '').replace(/[^A-Za-z0-9]/g, ''); },
-    partKeyOf: function(name, model) { return String(name || '').toLowerCase() + '|' + String(model || '').toLowerCase(); }
+    partKeyOf: function(name, model) { return String(name || '').toLowerCase() + '|' + String(model || '').toLowerCase(); },
+    // ผูกคำขอซื้อกับ PR — บันทึกการเรียกไว้ตรวจ (ตัวจริงเขียนชีท OrderRequests)
+    markOrderRequestsConvertedToPr: function(token, ids, prId) { requestLinks.push({ ids: ids, pr_id: prId }); }
   };
 
   const fnNames = [
     'prStr', 'getPrSheetWithHeaders', 'getPrHeaderSheet', 'getPrLinesSheet', 'getPrAuditSheet', 'prIndexMap', 'appendPrAudit',
-    'parsePrLinesInput', 'prUserCanAccessLine', 'prHeaderRowToCard', 'findPrHeaderRow', 'parsePrAttachmentsInput', 'createPRUnlocked', 'approvePRUnlocked', 'rejectPRUnlocked',
+    'parseOrderRequestIdList', 'parsePrLinesInput', 'prUserCanAccessLine', 'prHeaderRowToCard', 'findPrHeaderRow', 'parsePrAttachmentsInput', 'createPRUnlocked', 'approvePRUnlocked', 'rejectPRUnlocked',
     'getPRForApproval', 'toBoolean', 'normalizeRole', 'normalizeLogTimestamp',
     'normalizePurchaseHistoryModel', 'isMeaningfulPurchaseHistoryModel', 'normalizePurchaseHistoryName',
     'getGrLogSheet', 'getPrGrCutoverAt', 'isPrGrSystemEnabled', 'prNowText', 'getPrGrSystemStatus', 'startPrGrSystem',
@@ -127,6 +130,7 @@ function makeBackend(stock) {
   api.sheets = sheets;
   api.props = props;
   api.phWrites = phWrites;
+  api.requestLinks = requestLinks;
   api.clock = clock;
   return api;
 }
@@ -386,6 +390,17 @@ console.log('PR → GR date-cell checks passed');
   api.postPrGoodsReceipt(api.resolvePrReceiptForTransaction(payload), payload, qty, '2026-10-08 09:00:00', 'Main List Stock');
   assert(!api.listPendingPrPartKeys()['cutter blade|cb-100'], 'รับครบแล้ว = ไม่นับว่ารอส่ง');
   assert.strictEqual(api.runAutoPrJob().created.length, 1, 'ของรับครบแล้วแต่ยังต่ำกว่า Min (สต็อกจำลองไม่ขยับ) = เสนอใบใหม่ได้');
+})();
+
+// ---- PR ที่ทำจาก "ขอซื้ออะไหล่" ต้องผูกคำขอต้นทางกับเลข PR จริง ----
+(function linkSourceRequests() {
+  const api = makeBackend();
+  const res = api.createPRUnlocked({ authToken: 'tok-tech', pr_id: 'PR-REQ-1', line: 'STAR', lines_json: LINES, source_request_ids: 'REQ-1, REQ-2,' });
+  assert.deepStrictEqual(api.requestLinks, [{ ids: ['REQ-1', 'REQ-2'], pr_id: res.pr_id }], 'คำขอถูกผูกกับเลข PR ที่ออกจริง');
+  assert.strictEqual(res.linked_request_count, 2);
+  const plain = makeBackend();
+  plain.createPRUnlocked({ authToken: 'tok-tech', pr_id: 'PR-X', line: 'STAR', lines_json: LINES });
+  assert.strictEqual(plain.requestLinks.length, 0, 'PR ทั่วไป (ไม่ได้มาจากคำขอ) ไม่แตะชีทคำขอ');
 })();
 
 console.log('Auto-PR cutover checks passed');
