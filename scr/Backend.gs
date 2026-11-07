@@ -5474,6 +5474,8 @@ function parseTransactionPayloadFromGet(e) {
     prId: e.parameter.prId,
     prLineNo: e.parameter.prLineNo,
     noPrReason: e.parameter.noPrReason,
+    // กันบันทึกเบิ้ล — id เดียวกัน = รายการเดียวกัน (ดู processTransaction)
+    clientTxnId: e.parameter.clientTxnId,
     sheetName: e.parameter.sheet,
     authToken: e.parameter.authToken || e.parameter.token || ''
   };
@@ -5828,9 +5830,58 @@ function processTransaction(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    return processTransactionUnlocked(payload);
+    // กันรับเข้า/เบิกเบิ้ล: หน้าเว็บแนบ clientTxnId มากับทุกการกดบันทึก และส่ง id เดิมซ้ำเมื่อเป็นรายการเดิม
+    // (เน็ตสะดุด → ขึ้น "ไม่สำเร็จ" ทั้งที่ server บันทึกไปแล้ว → ผู้ใช้กดซ้ำ / ระบบสลับช่องทางส่งซ้ำเอง)
+    // เจอ id ที่เคยบันทึกสำเร็จแล้ว = ตอบผลเดิมกลับไป ไม่แตะสต็อก/Log อีก — ตรวจภายใต้ lock จึงกันคำขอที่มาพร้อมกันได้ด้วย
+    var clientTxnId = normalizeClientTxnId(payload && payload.clientTxnId);
+    var txnFingerprint = clientTxnId ? transactionDedupeFingerprint(payload) : '';
+    if (clientTxnId) {
+      var prior = readTransactionDedupe(clientTxnId, txnFingerprint);
+      if (prior) {
+        Logger.log('processTransaction duplicate suppressed: ' + clientTxnId);
+        prior.duplicate = true;
+        return prior;
+      }
+    }
+    var result = processTransactionUnlocked(payload);
+    if (clientTxnId && result && result.status === 'success') rememberTransactionDedupe(clientTxnId, txnFingerprint, result);
+    return result;
   } finally {
     lock.releaseLock();
+  }
+}
+
+// id จากหน้าเว็บ — รับเฉพาะตัวอักษรปลอดภัย ยาวไม่เกิน 80 ตัว (ใช้เป็นคีย์ cache)
+function normalizeClientTxnId(raw) {
+  var id = String(raw || '').trim();
+  if (!id || id.length > 80 || !/^[A-Za-z0-9_-]+$/.test(id)) return '';
+  return id;
+}
+// ผูก id กับเนื้อรายการ — id เดิมแต่คนละอะไหล่/คนละจำนวน (ไม่ควรเกิด) ให้ถือเป็นรายการใหม่ ไม่ตอบผลเก่าผิดตัว
+function transactionDedupeFingerprint(payload) {
+  var p = payload || {};
+  var isOut = String(p.type || '').indexOf('Output') > -1;
+  return [isOut ? 'OUT' : 'IN', String(p.sheetName || p.sheet || '').trim(), String(p.partNo || '').trim(),
+    String(p.partName || '').trim(), String(p.model || '').trim(), Math.abs(Number(p.qty) || 0)].join('|');
+}
+var TRANSACTION_DEDUPE_TTL_SECONDS = 21600; // 6 ชม. (สูงสุดของ CacheService) — ครอบคลุมการกดซ้ำ/ส่งซ้ำทุกกรณีจริง
+function readTransactionDedupe(clientTxnId, fingerprint) {
+  try {
+    var raw = CacheService.getScriptCache().get('txn_done::' + clientTxnId);
+    if (!raw) return null;
+    var saved = JSON.parse(raw);
+    if (!saved || saved.fp !== fingerprint || !saved.result) return null;
+    return saved.result;
+  } catch (err) {
+    Logger.log('readTransactionDedupe warning: ' + (err && err.message ? err.message : err));
+    return null;
+  }
+}
+function rememberTransactionDedupe(clientTxnId, fingerprint, result) {
+  try {
+    CacheService.getScriptCache().put('txn_done::' + clientTxnId, JSON.stringify({ fp: fingerprint, result: result }), TRANSACTION_DEDUPE_TTL_SECONDS);
+  } catch (err) {
+    Logger.log('rememberTransactionDedupe warning: ' + (err && err.message ? err.message : err));
   }
 }
 
