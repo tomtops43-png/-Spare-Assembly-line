@@ -89,12 +89,12 @@ assert(html.includes('ถ้ารายการนี้เคยออกเ�
 // ── Frontend: logic ของ index กันคืนซ้ำ (โหลดมารันจริง) ───────────────────────
 const sandbox = {};
 const htmlLf = html.replace(/\r\n/g, '\n');
-['normalizeLogTimestampKey', 'logRowReturnKey', 'buildLogReturnedIndex', 'isLogRowReversal'].forEach(function (name) {
+['normalizeLogTimestampKey', 'logRowReturnKey', 'buildLogReturnedIndex', 'isLogRowReversal', 'buildLogReturnedRowSet'].forEach(function (name) {
   const re = new RegExp('^    function[ ]+' + name + '\\([\\s\\S]*?\\n    }$', 'm');
   const match = htmlLf.match(re);
   assert(match, 'cannot extract ' + name);
-  sandbox[name] = new Function('normalizeLogTimestampKey',
-    "var LOG_RETURN_MARKER = 'RETURN_OF:';\n" + match[0] + '\nreturn ' + name + ';')(sandbox.normalizeLogTimestampKey);
+  sandbox[name] = new Function('normalizeLogTimestampKey', 'logRowReturnKey', 'buildLogReturnedIndex', 'isLogRowReversal',
+    "var LOG_RETURN_MARKER = 'RETURN_OF:';\n" + match[0] + '\nreturn ' + name + ';')(sandbox.normalizeLogTimestampKey, sandbox.logRowReturnKey, sandbox.buildLogReturnedIndex, sandbox.isLogRowReversal);
 });
 
 // ── หัวใจของบั๊ก: เซลล์ Timestamp เป็น Date จริง → API ส่งกลับมาเป็น ISO ─────────
@@ -120,11 +120,30 @@ const rows = [
   { no: 2, timestamp: '2026-07-30T11:20:00.000Z', partName: 'MT PIN', reason: 'Return', reasonRemark: 'RETURN_OF:2026-07-30 18:13:17|MT PIN | คืนรายการโดย Admin' },
   { no: 3, timestamp: '2026-07-30T10:30:30.000Z', partName: 'SESAME', reason: 'N/A', reasonRemark: '' }
 ];
-const idx = sandbox.buildLogReturnedIndex(rows);
-assert.strictEqual(idx[sandbox.logRowReturnKey(rows[0])], true,
-  'แถวที่ถูกคืนต้องถูก mark แม้ timestamp ที่ได้จาก API เป็น ISO แต่ marker เป็นเวลาไทย');
-assert.strictEqual(idx[sandbox.logRowReturnKey(rows[2])], undefined, 'แถวที่ยังไม่ถูกคืนต้องไม่ถูก mark');
+const done = sandbox.buildLogReturnedRowSet(rows);
+assert.strictEqual(done[1], true,
+  'แถวที่ถูกคืนต้องถูก mark แม้ timestamp ที่ได้จาก API เป็น ISO แต่ marker เป็นเวลาไทย (marker รุ่นเก่าไม่มีจำนวน)');
+assert.strictEqual(done[3], undefined, 'แถวที่ยังไม่ถูกคืนต้องไม่ถูก mark');
 assert.strictEqual(sandbox.buildLogReturnedIndex([])['x'], undefined);
+
+// บั๊กจริง: รับเข้าเบิ้ล MXH10-30Z 3 แถว เวลา+ชื่อเหมือนกันเป๊ะ — คืน 1 แถว แต่ขึ้น "คืนแล้ว" ทั้ง 3 แถว
+const dupRows = [
+  { no: 10, timestamp: '2026-10-07 10:39:00', partName: 'cyl, compact slide table', qty: 1, reason: 'N/A', reasonRemark: '' },
+  { no: 11, timestamp: '2026-10-07 10:39:00', partName: 'cyl, compact slide table', qty: 1, reason: 'N/A', reasonRemark: '' },
+  { no: 12, timestamp: '2026-10-07 10:39:00', partName: 'cyl, compact slide table', qty: 1, reason: 'N/A', reasonRemark: '' },
+  { no: 20, timestamp: '2026-11-07 10:45:00', partName: 'cyl, compact slide table', qty: -1, reason: 'Return', reasonRemark: 'RETURN_OF:2026-10-07 10:39:00|cyl, compact slide table | คืนรายการโดย Admin' }
+];
+assert.strictEqual(Object.keys(sandbox.buildLogReturnedRowSet(dupRows)).length, 1, 'marker รุ่นเก่า 1 แถว = คืนแล้วแค่ 1 แถว ที่เหลือยังกดคืนได้');
+dupRows.push({ no: 21, timestamp: '2026-11-07 10:50:00', partName: 'cyl, compact slide table', qty: -1, reason: 'Return', reasonRemark: 'RETURN_OF:2026-10-07 10:39:00|cyl, compact slide table|q=1 | คืนรายการโดย Admin' });
+assert.strictEqual(Object.keys(sandbox.buildLogReturnedRowSet(dupRows)).length, 2, 'คืนครั้งที่ 2 (marker ใหม่มี |q=) = คืนแล้ว 2 แถว');
+// เวลา+ชื่อเดียวกันแต่จำนวนต่าง — marker ใหม่ต้องตรงจำนวน
+const mixed = [
+  { no: 1, timestamp: '2026-10-07 10:39:00', partName: 'X', qty: 1, reason: 'N/A' },
+  { no: 2, timestamp: '2026-10-07 10:39:00', partName: 'X', qty: 5, reason: 'N/A' },
+  { no: 3, timestamp: '2026-10-08 08:00:00', partName: 'X', qty: -5, reason: 'Return', reasonRemark: 'RETURN_OF:2026-10-07 10:39:00|X|q=5 | คืนรายการโดย Admin' }
+];
+const mixedDone = sandbox.buildLogReturnedRowSet(mixed);
+assert(mixedDone[2] && !mixedDone[1], 'คืนแถว +5 ต้องไม่ไป mark แถว +1');
 assert.strictEqual(sandbox.buildLogReturnedIndex(null) && Object.keys(sandbox.buildLogReturnedIndex(null)).length, 0,
   'rows เป็น null ต้องไม่ throw');
 
@@ -153,3 +172,25 @@ assert(html.includes('เป็นแค่บันทึกป้ายกำ�
   'confirm ต้องอธิบายความต่างจากการเปลี่ยนสถานะ "คืนคลัง" เฉยๆ');
 
 console.log('Log return-entry checks passed');
+
+// ── Backend: คืนแถวที่หน้าตาเหมือนกันได้ทีละแถว จนครบจำนวนแถวจริง ──────────────
+(function () {
+  const { grabFn } = require('./_export-extract');
+  const be = new Function('normalizeLogTimestamp',
+    "var LOG_RETURN_MARKER = 'RETURN_OF:';\n" +
+    ['parseLogReturnMarker', 'countLogOriginalsLike', 'countLogRowsReturnedFor'].map(function (n) { return grabFn(n, backend.replace(/\r\n/g, '\n'), 0); }).join('\n') +
+    '\nreturn { originals: countLogOriginalsLike, returned: countLogRowsReturnedFor, parse: parseLogReturnMarker };')(function (v) { return String(v); });
+  const headerMap = { timestamp: 0, partname: 1, qty: 2, reason: 3, reasonremark: 4 };
+  const ts = '2026-10-07 10:39:00', nm = 'cyl, compact slide table';
+  const data = [['h'], [ts, nm, 1, 'N/A', ''], [ts, nm, 1, 'N/A', ''], [ts, nm, 1, 'N/A', ''],
+    ['2026-11-07 10:45:00', nm, -1, 'Return', 'RETURN_OF:' + ts + '|' + nm + ' | คืนรายการโดย Admin']];
+  assert.strictEqual(be.originals(data, headerMap, ts, nm, 1), 3);
+  assert.strictEqual(be.returned(data, headerMap, ts, nm, 1), 1, 'คืนไปแล้ว 1 (marker รุ่นเก่า) < 3 แถว → ยังคืนแถวที่เหลือได้');
+  data.push(['2026-11-07 10:50:00', nm, -1, 'Return', 'RETURN_OF:' + ts + '|' + nm + '|q=1 | คืนรายการโดย Admin']);
+  data.push(['2026-11-07 10:51:00', nm, -1, 'Return', 'RETURN_OF:' + ts + '|' + nm + '|q=1 | คืนรายการโดย Admin']);
+  assert.strictEqual(be.returned(data, headerMap, ts, nm, 1), 3, 'คืนครบ 3 แถวแล้ว → กดคืนอีกต้องถูกปฏิเสธ');
+  assert.strictEqual(be.returned(data, headerMap, ts, nm + ' 2', 1), 0, 'ชื่อที่ขึ้นต้นเหมือนกันต้องไม่ถูกนับรวม');
+  assert.deepStrictEqual(be.parse('RETURN_OF:' + ts + '|' + nm + '|q=2 | x'), { key: ts + '|' + nm, q: 2 });
+  assert(backend.includes("var marker = LOG_RETURN_MARKER + originalTs + '|' + originalName + '|q=' + absQty;"), 'marker ใหม่มีจำนวน');
+})();
+console.log('Log return-entry duplicate-row checks passed');
