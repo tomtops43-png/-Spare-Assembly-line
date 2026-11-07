@@ -5643,6 +5643,42 @@ function findStockSheetNameForLogItem(item) {
   return '';
 }
 
+// แยก marker 'RETURN_OF:<เวลา>|<ชื่อ>[|q=<จำนวน>]' → { key: 'เวลา|ชื่อ', q } (marker รุ่นเก่าไม่มี q → q = null)
+function parseLogReturnMarker(remark) {
+  var text = String(remark || '');
+  var at = text.indexOf(LOG_RETURN_MARKER);
+  if (at === -1) return null;
+  var body = text.slice(at + LOG_RETURN_MARKER.length).split(' | ')[0].trim();
+  if (!body) return null;
+  var m = body.match(/^(.*)\|q=(\d+(?:\.\d+)?)$/);
+  return m ? { key: m[1], q: Number(m[2]) } : { key: body, q: null };
+}
+// จำนวนแถวต้นทาง (ไม่ใช่แถว Return) ที่เวลา+ชื่อ+จำนวนเหมือนกัน
+function countLogOriginalsLike(data, headerMap, ts, name, absQty) {
+  var tsIdx = headerMap['timestamp'], nameIdx = headerMap['partname'], qtyIdx = headerMap['qty'], reasonIdx = headerMap['reason'];
+  var n = 0;
+  for (var r = 1; r < data.length; r += 1) {
+    if (reasonIdx !== undefined && String(data[r][reasonIdx] || '').trim() === 'Return') continue;
+    if (normalizeLogTimestamp(data[r][tsIdx]) !== ts) continue;
+    if (String(data[r][nameIdx] || '').trim() !== name) continue;
+    if (Math.abs(Number(data[r][qtyIdx]) || 0) !== absQty) continue;
+    n += 1;
+  }
+  return n;
+}
+// จำนวนแถวที่ถูกคืนไปแล้วในกลุ่มนี้ — marker รุ่นเก่า (ไม่มีจำนวน) นับเป็นคืนไปแล้ว 1 แถวของกลุ่ม
+function countLogRowsReturnedFor(data, headerMap, ts, name, absQty) {
+  var remarkIdx = headerMap['reasonremark'];
+  var key = ts + '|' + name;
+  var n = 0;
+  for (var r = 1; r < data.length; r += 1) {
+    var mk = parseLogReturnMarker(data[r][remarkIdx]);
+    if (!mk || mk.key !== key) continue;
+    if (mk.q === null || mk.q === absQty) n += 1;
+  }
+  return n;
+}
+
 function returnLogEntry(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -5712,17 +5748,17 @@ function returnLogEntryUnlocked(payload) {
   var signedQty = Number(cell(['qty'], 0));
   if (!signedQty) throw new Error('รายการนี้ไม่มีจำนวน จึงคืนไม่ได้');
 
-  var marker = LOG_RETURN_MARKER + originalTs + '|' + originalName;
+  // marker ระบุจำนวนด้วย (|q=) — แถวที่เวลา+ชื่อเหมือนกันเป๊ะ (เช่น รับเข้าเบิ้ล 3 แถวนาทีเดียวกัน)
+  // ต้องคืนได้ทีละแถว เดิม marker มีแค่ เวลา|ชื่อ คืน 1 แถวแล้วทุกแถวที่หน้าตาเหมือนกันขึ้น "คืนแล้ว" หมด
+  var absQty = Math.abs(signedQty);
+  var marker = LOG_RETURN_MARKER + originalTs + '|' + originalName + '|q=' + absQty;
   var remarkIdx = headerMap['reasonremark'];
   if (String(cell(['reason'], '')).trim() === 'Return') {
     throw new Error('แถวนี้เป็นรายการคืนอยู่แล้ว จึงคืนซ้ำไม่ได้');
   }
-  if (remarkIdx !== undefined) {
-    for (var r = 1; r < data.length; r += 1) {
-      if (String(data[r][remarkIdx] || '').indexOf(marker) > -1) {
-        throw new Error('รายการนี้ถูกคืนไปแล้ว (ดูแถว Return ในประวัติ)');
-      }
-    }
+  if (remarkIdx !== undefined && countLogRowsReturnedFor(data, headerMap, originalTs, originalName, absQty) >=
+      countLogOriginalsLike(data, headerMap, originalTs, originalName, absQty)) {
+    throw new Error('รายการนี้ถูกคืนไปแล้ว (ดูแถว Return ในประวัติ)');
   }
 
   var item = {

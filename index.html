@@ -9910,16 +9910,42 @@ function getIssueCartEntries() {
       return normalizeLogTimestampKey(item && item.timestamp) + '|' + String((item && item.partName) || '').trim();
     }
 
+    // marker: 'RETURN_OF:<เวลา>|<ชื่อ>|q=<จำนวน>' (รุ่นเก่าไม่มี |q=) → index[เวลา|ชื่อ] = [จำนวน, ...] (รุ่นเก่า = null)
     function buildLogReturnedIndex(rows) {
-      var set = {};
+      var index = {};
       (rows || []).forEach(function(r) {
         var remark = String((r && r.reasonRemark) || '');
         var at = remark.indexOf(LOG_RETURN_MARKER);
         if (at === -1) return;
-        var key = remark.slice(at + LOG_RETURN_MARKER.length).split(' | ')[0].trim();
-        if (key) set[key] = true;
+        var body = remark.slice(at + LOG_RETURN_MARKER.length).split(' | ')[0].trim();
+        if (!body) return;
+        var m = body.match(/^(.*)\|q=(\d+(?:\.\d+)?)$/);
+        var key = m ? m[1] : body;
+        (index[key] = index[key] || []).push(m ? Number(m[2]) : null);
       });
-      return set;
+      return index;
+    }
+    // 1 แถว Return = คืน 1 แถวต้นทางเท่านั้น — แถวที่เวลา+ชื่อเหมือนกันเป๊ะ (เช่น รับเข้าเบิ้ล 3 แถวนาทีเดียวกัน)
+    // ต้องขึ้น "คืนแล้ว" ตามจำนวนที่คืนจริง เดิมคืน 1 แถวแล้วขึ้น "คืนแล้ว" ทั้ง 3 แถว และกดคืนแถวที่เหลือไม่ได้
+    // คืนค่า { no: true } ของแถวที่ถือว่าคืนแล้ว (ไล่จากแถวเก่าก่อน · จำนวนตรงกันก่อน แล้วค่อยใช้ marker รุ่นเก่า)
+    function buildLogReturnedRowSet(rows) {
+      var index = buildLogReturnedIndex(rows);
+      var pools = {};
+      Object.keys(index).forEach(function(k) { pools[k] = index[k].slice(); });
+      var done = {};
+      (rows || []).filter(function(r) { return r && !isLogRowReversal(r); })
+        .sort(function(a, b) { return Number(a.no) - Number(b.no); })
+        .forEach(function(r) {
+          var pool = pools[logRowReturnKey(r)];
+          if (!pool || !pool.length) return;
+          var q = Math.abs(Number(r.qty) || 0);
+          var at = pool.indexOf(q);
+          if (at === -1) at = pool.indexOf(null);
+          if (at === -1) return;
+          pool.splice(at, 1);
+          done[r.no] = true;
+        });
+      return done;
     }
 
     function isLogRowReversal(item) {
@@ -9938,7 +9964,7 @@ function getIssueCartEntries() {
       // ปุ่มคืนรายการเป็นของ Admin เท่านั้น (แก้ยอดสต็อกจริง) — คนละสิทธิ์กับปุ่มลบประวัติ
       var canReturnLog = isAdminUser();
       var showActionCol = canDeleteLog || canReturnLog;
-      var returnedIndex = buildLogReturnedIndex(logCache);
+      var returnedRows = buildLogReturnedRowSet(logCache);
       var logDeleteColHeader = document.getElementById('logDeleteColHeader');
       if (logDeleteColHeader) logDeleteColHeader.classList.toggle('hidden', !showActionCol);
       var colCount = showActionCol ? 13 : 12;
@@ -9951,7 +9977,7 @@ function getIssueCartEntries() {
           var isOut = String(item.type || '').toLowerCase() === 'output';
           var qty = Number(item.qty || 0);
           var displayQty = isOut ? -Math.abs(qty) : Math.abs(qty);
-          var alreadyReturned = !!returnedIndex[logRowReturnKey(item)];
+          var alreadyReturned = !!returnedRows[item.no];
           var isReversal = isLogRowReversal(item);
           var returnBtn = '';
           if (canReturnLog) {
