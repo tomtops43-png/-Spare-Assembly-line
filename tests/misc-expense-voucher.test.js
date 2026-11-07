@@ -56,9 +56,16 @@ assert.strictEqual(api.mxVoucherData([{ item_name: 'ประแจ', qty: 4, to
 assert.strictEqual(api.mxVoucherData([{ line: 'Arc Chute', item_name: 'x', qty: 1, total_amount: 1 }]).chargedDept, '');
 
 const out = api.mxVoucherHtml(d, '12/10/2026');
-['ใบเบิกจ่าย/ 付款申请单', '津荣电子科技（泰国）有限公司', 'ชื่อเจ้าหนี้:', '付款方式(จ่าย)', 'ตัวเขียน大写：', 'ยอดรวม合计',
-  'Charged Department / แผนกที่เกิดค่าใช้จ่าย / 费用承担部门', 'แผนกบัญชี', 'กรรมการผู้จัดการ', 'ผู้รับเงิน', 'หัวหน้าแผนก 部门核准人：'
+// ฟอร์มกระดาษ Rev.01 (ใบเบิกจ่ายฟอร์มใหม่)
+['ใบเบิกจ่าย / 付款申请单', '津荣电子科技（泰国）有限公司', 'วันที่เบิก 申请日期 :', 'ชื่อเจ้าหนี้:', 'วันที่ชำระเงิน:', 'เลขที่.:',
+  'สกุลเงิน/币别', '付款方式(จ่าย)', 'เลขที่บัญชี:', 'จำนวนเงิน<br>金额', 'หมายเหตุ 备注 :', 'VAT 7%', 'WHT', 'ตัวเขียน大写：', 'ยอดรวม合计',
+  'Charged Department / แผนกที่เกิดค่าใช้จ่าย / 费用承担部门', 'ผู้เบิก 申请人：', 'แผนกผู้เบิก 申请部门 :', 'หัวหน้าแผนก 部门核准人：',
+  'แผนกบัญชี', 'กรรมการผู้จัดการ', 'ผู้รับเงิน'
 ].forEach(function(t) { assert(out.includes(t), 'ใบเบิกต้องมีหัวข้อตามฟอร์มกระดาษ: ' + t); });
+// แผนกครบ 28 ช่องตามฟอร์มใหม่ (2 คอลัมน์ × 14)
+assert.strictEqual((out.match(/<span class="cb"/g) || []).length, 28 + 2, 'ช่องติ๊กแผนก 28 + วิธีจ่าย 2');
+['Management Department', 'IT Operations & Maintenance Department', 'Plant 2 Warehousing & Logistics Department', 'H1 Assembly Production Line',
+  'Aluminum Die Casting - Grinding and Shot Blasting Production Line'].forEach(function(t) { assert(out.includes(t.replace(/&/g, '&amp;')) || out.includes(t), 'มีแผนก ' + t); });
 assert(out.includes('181.90') && out.includes('ร้านไทยวัสดุ') && out.includes('INV-01') && /\( <span class="ed" contenteditable="true">สมชาย<\/span> \)/.test(out));
 assert(/<span class="cb"[^>]*>✓<\/span> H9 Assembly Production Line/.test(out), 'ต้องติ๊กแผนกที่เกิดค่าใช้จ่ายให้');
 assert(api.mxVoucherHtml({ ...d, vendor: '<b>x</b>' }, '').includes('&lt;b&gt;x&lt;/b&gt;'), 'ชื่อร้านต้อง escape');
@@ -92,7 +99,7 @@ assert(htmlLf.includes(`mxVoucherHtml(d, appDate) + '<div id="mxPageProbe"></div
 ['sub', 'total', 'pay', 'words'].forEach(function(f) {
   assert(new RegExp('data-f="' + f + '"').test(out) && !new RegExp('contenteditable="true" data-f="' + f + '"').test(out), 'ช่อง ' + f + ' ต้องคิดเองจากรายการ ไม่ให้แก้มือ');
 });
-assert((out.match(/<tr class="itm">/g) || []).length === 8, 'แถวว่างก็ต้องกรอกรายการเพิ่มได้');
+assert((out.match(/<tr class="itm">/g) || []).length === 5, 'ฟอร์มใหม่มีแถวรายการ 5 แถว (แถวว่างก็กรอกเพิ่มได้)');
 assert(out.includes('data-vat-rate="7"'), 'บิลที่มี VAT ต้องส่งอัตราไปคิด VAT ใหม่ตอนแก้รายการ');
 assert(blank.includes('data-vat-rate="0"'), 'ใบเปล่าไม่คิด VAT เอง (พิมพ์ยอดเองได้)');
 const runtimeSrc = grab(/^ {4}function mxVoucherEditorRuntime\(bahtText\) \{[\s\S]*?\n {4}\}/m, 'mxVoucherEditorRuntime');
