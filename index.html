@@ -5219,17 +5219,19 @@
 
   <!-- ============ หน้าตรวจ+แก้ยอด PR (approval editor) ============ -->
   <div id="prApprovalModal" class="hidden fixed inset-0 p-0 md:p-6 overflow-y-auto">
-    <div class="mx-auto max-w-3xl overflow-hidden rounded-none md:rounded-2xl bg-white shadow-2xl">
+    <div class="mx-auto max-w-4xl overflow-hidden rounded-none md:rounded-2xl bg-white shadow-2xl">
       <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3">
         <div>
-          <div class="text-base font-bold text-slate-800">ตรวจ + แก้ยอด PR</div>
+          <div class="text-base font-bold text-slate-800">ตรวจ + อนุมัติ PR</div>
           <div id="prApprovalMeta" class="text-xs text-slate-500"></div>
         </div>
         <button id="prApprovalCloseBtn" type="button" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200" aria-label="ปิด">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
-      <div class="overflow-y-auto p-4" style="max-height:60vh">
+      <div class="overflow-y-auto p-4" style="max-height:75vh">
+        <!-- สรุปหัวใบ: ใครขอ เมื่อไร ไลน์/ลงงบไหน มูลค่ารวม — ให้ผู้อนุมัติเห็นภาพรวมก่อนไล่ดูรายการ -->
+        <div id="prApprovalSummary" class="hidden mb-3"></div>
         <!-- งบ Spare part คำนวณสดจากรายการใน PR ใบนี้ — ให้หัวหน้าเห็นภาพรวมงบตรงนี้เลย ไม่ต้องเปิดหน้า PR builder เอง -->
         <div id="prApprovalBudgetSnapshot" class="hidden mb-3"></div>
         <!-- เอกสารแนบที่คนส่งแนบมากับ PR (ใบเสนอราคา/รูป/สเปก) -->
@@ -5243,6 +5245,8 @@
                 <th class="py-2 pr-2 text-right">ยอดที่ขอ<br><span class="font-normal">(ล็อก)</span></th>
                 <th class="py-2 pr-2 text-right">ยอดอนุมัติ</th>
                 <th class="py-2 pr-2">หน่วย</th>
+                <th class="py-2 pr-2 text-right">ราคา/หน่วย</th>
+                <th class="py-2 pr-2 text-right">รวม (฿)</th>
               </tr>
             </thead>
             <tbody id="prApprovalLines"></tbody>
@@ -25140,14 +25144,94 @@ function inferRequestPriority(stock, min) {
     }
 
     // ---- หน้าตรวจ+แก้ยอด ----
+    function prApprMoney(n) {
+      return Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+    // เอกสารแนบ 1 ไฟล์ในหน้าตรวจ PR: รูป → แสดงรูปเต็มความกว้าง (คลิกขยาย) · ไฟล์อื่น → พรีวิว Drive ในกรอบ
+    // ไฟล์ถูกตั้งแชร์ "ทุกคนที่มีลิงก์ดูได้" ตอนอัปโหลด (uploadPrAttachment) จึงโชว์ได้โดยไม่ต้องล็อกอิน Google
+    function prApprovalAttachmentHtml(att) {
+      var name = String((att && att.name) || 'เอกสาร');
+      var url = String((att && att.url) || '');
+      var id = extractDriveFileId(url);
+      var openLink = '<a href="' + escHtml(url) + '" target="_blank" rel="noopener" class="shrink-0 text-xs font-semibold text-violet-700 underline">เปิดแท็บใหม่ ↗</a>';
+      var head = '<div class="flex items-center justify-between gap-2 border-b border-violet-100 px-3 py-1.5"><span class="truncate text-xs font-semibold text-slate-700">' +
+        (/\.(png|jpe?g|webp|gif)$/i.test(name) ? '🖼️ ' : '📄 ') + escHtml(name) + '</span>' + openLink + '</div>';
+      if (!id) return '<div class="overflow-hidden rounded-lg border border-violet-200 bg-white">' + head + '</div>';
+      if (/\.(png|jpe?g|webp|gif)$/i.test(name)) {
+        var full = buildDriveThumbnailUrl(id, 1600);
+        return '<div class="overflow-hidden rounded-lg border border-violet-200 bg-white">' + head +
+          '<img loading="lazy" decoding="async" src="' + full + '" alt="' + escHtml(name) + '" data-appr-zoom="' + full + '" class="block w-full cursor-zoom-in bg-slate-50 object-contain" style="max-height:480px" />' +
+          '</div>';
+      }
+      return '<div class="overflow-hidden rounded-lg border border-violet-200 bg-white">' + head +
+        '<iframe src="https://drive.google.com/file/d/' + encodeURIComponent(id) + '/preview" title="' + escHtml(name) + '" class="block w-full bg-slate-50" style="height:480px;border:0" loading="lazy" allow="autoplay"></iframe>' +
+        '</div>';
+    }
+    // การ์ดสรุปหัว PR — ใครขอ เมื่อไร ไลน์/ลงงบไหน กี่รายการ มูลค่ารวม (คำนวณสดตามยอดอนุมัติที่แก้อยู่)
+    function prApprovalSummaryHtml(state, qtyByLineNo) {
+      var h = state.header || {};
+      var lines = state.lines || [];
+      var total = 0, unpriced = 0;
+      lines.forEach(function(l) {
+        var qty = qtyByLineNo && qtyByLineNo[l.line_no] !== undefined ? Number(qtyByLineNo[l.line_no]) : Number(l.qty_approved || 0);
+        if (!(Number(l.unit_price) > 0) && qty > 0) unpriced += 1;
+        total += qty * Number(l.unit_price || 0);
+      });
+      var budget = prBudgetInfo(h.line);
+      var lineText = isSharedLineName(h.line) ? 'ส่วนกลาง' : (h.line || '-');
+      var info = function(label, value) {
+        return value ? '<div><div class="text-xs font-semibold uppercase tracking-wide text-slate-400">' + label + '</div><div class="text-sm font-semibold text-slate-800">' + escHtml(value) + '</div></div>' : '';
+      };
+      var types = {};
+      lines.forEach(function(l) { types[prItemTypeInfo(l.category).icon + ' ' + prItemTypeInfo(l.category).label.split(' · ')[0]] = true; });
+      return '<div class="overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-emerald-50 shadow-sm">'
+        + '<div class="flex flex-wrap items-start justify-between gap-3 p-4">'
+          + '<div class="min-w-0">'
+            + '<div class="flex flex-wrap items-center gap-1.5">'
+              + '<span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">⏳ รออนุมัติ</span>'
+              + '<span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ' + budget.cls + '">' + escHtml(budget.label) + '</span>'
+              + Object.keys(types).map(function(t) { return '<span class="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600">' + escHtml(t) + '</span>'; }).join('')
+            + '</div>'
+            + '<div class="mt-1.5 text-lg font-extrabold text-slate-800">' + escHtml(h.pr_id || '-') + '</div>'
+          + '</div>'
+          + '<div class="text-right">'
+            + '<div class="text-xs font-semibold uppercase tracking-wide text-slate-400">มูลค่ารวม (ตามยอดอนุมัติ)</div>'
+            + '<div class="text-2xl font-extrabold text-emerald-700">฿' + prApprMoney(total) + '</div>'
+            + (unpriced ? '<div class="text-xs font-semibold text-amber-600">⚠️ ' + unpriced + ' รายการยังไม่มีราคา (ไม่รวมในยอด)</div>' : '')
+          + '</div>'
+        + '</div>'
+        + '<div class="grid grid-cols-2 gap-3 border-t border-indigo-100 bg-white px-4 py-3 sm:grid-cols-4">'
+          + info('ผู้ขอ', h.created_by_name || h.created_by)
+          + info('วันที่ส่ง', String(h.created_at || '').slice(0, 16))
+          + info('ไลน์', lineText)
+          + info('จำนวนรายการ', lines.length + ' รายการ')
+          + (h.assigned_to ? info('ส่งให้อนุมัติ', h.assigned_to) : '')
+        + '</div>'
+      + '</div>';
+    }
+    function renderPrApprovalSummary() {
+      var el = document.getElementById('prApprovalSummary');
+      var state = prApprovalState;
+      if (!el || !state || !state.header) return;
+      var qtyByLineNo = {};
+      collectApprovalEdits().forEach(function(e) { qtyByLineNo[e.line_no] = e.qty_approved; });
+      el.innerHTML = prApprovalSummaryHtml(state, qtyByLineNo);
+      el.classList.remove('hidden');
+      (state.lines || []).forEach(function(l) {
+        var cell = document.querySelector('#prApprovalLines [data-appr-total="' + l.line_no + '"]');
+        if (cell) cell.textContent = prApprMoney(Number(qtyByLineNo[l.line_no] !== undefined ? qtyByLineNo[l.line_no] : l.qty_approved || 0) * Number(l.unit_price || 0));
+      });
+    }
     function openPrApproval(prId) {
       var modal = document.getElementById('prApprovalModal');
       var meta = document.getElementById('prApprovalMeta');
       var body = document.getElementById('prApprovalLines');
       var budgetSnapshotEl = document.getElementById('prApprovalBudgetSnapshot');
       if (!modal) return;
-      if (body) body.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">กำลังโหลด...</td></tr>';
+      if (body) body.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">กำลังโหลด...</td></tr>';
       if (meta) meta.textContent = prId;
+      var summaryEl = document.getElementById('prApprovalSummary');
+      if (summaryEl) { summaryEl.innerHTML = ''; summaryEl.classList.add('hidden'); }
       if (budgetSnapshotEl) { budgetSnapshotEl.innerHTML = ''; budgetSnapshotEl.classList.add('hidden'); }
       var attachEl = document.getElementById('prApprovalAttachments');
       if (attachEl) { attachEl.innerHTML = ''; attachEl.classList.add('hidden'); }
@@ -25161,13 +25245,13 @@ function inferRequestPriority(stock, min) {
         // และงบเปลี่ยนตามเวลา) ใช้สูตรเดียวกับหน้า PR builder / การ์ด Cost Ratio
         renderPrApprovalBudget();
         var attachList = (res.header && res.header.attachments) || [];
+        // เอกสารแนบโชว์ในหน้าเลย (รูป = แสดงเต็ม คลิกขยาย / PDF-Word-Excel = พรีวิวของ Drive) ไม่ต้องกดเปิดทีละไฟล์
         if (attachEl && attachList.length) {
-          attachEl.innerHTML = '<div class="mb-1.5 text-xs font-bold text-violet-700">📎 เอกสารแนบจากผู้ส่ง (' + attachList.length + ')</div><div class="flex flex-wrap gap-2">' +
-            attachList.map(function(att) {
-              return '<a href="' + escHtml(att.url) + '" target="_blank" rel="noopener" class="inline-flex max-w-full items-center rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-violet-700 underline hover:bg-violet-100"><span class="truncate">📄 ' + escHtml(att.name || 'เอกสาร') + '</span></a>';
-            }).join('') + '</div>';
+          attachEl.innerHTML = '<div class="mb-2 text-xs font-bold text-violet-700">📎 เอกสารแนบจากผู้ส่ง (' + attachList.length + ')</div><div class="space-y-3">' +
+            attachList.map(prApprovalAttachmentHtml).join('') + '</div>';
           attachEl.classList.remove('hidden');
         }
+        renderPrApprovalSummary();
         if (body) body.innerHTML = res.lines.map(function(ln) {
           // สแนปช็อตรูปตอนสร้าง PR (image_url) — ให้ผู้อนุมัติเห็นรูปประกอบจริง ไม่ใช่แค่ชื่อ/รุ่น
           // เป็นตัวหนังสือ กันอนุมัติผิดตัวเวลาชื่อ/รุ่นคล้ายกัน (เช่น "Unknown Brand" หลายรายการ)
@@ -25180,18 +25264,21 @@ function inferRequestPriority(stock, min) {
                 '<img loading="lazy" decoding="async" src="' + imgSrc + '" alt="" class="h-11 w-11 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-0.5' + (hasImg ? ' cursor-zoom-in' : '') + '" data-appr-zoom="' + (hasImg ? escHtml(imgSrc) : '') + '" onerror="this.src=\'' + FALLBACK_IMAGE + '\';this.removeAttribute(\'data-appr-zoom\');" />' +
                 '<div class="min-w-0">' +
                   '<div class="font-semibold text-slate-700">' + escHtml(ln.part_name || '-') + '</div>' +
-                  '<div class="text-xs text-slate-400">' + escHtml(ln.model || '') + (ln.part_no ? ' · ' + escHtml(ln.part_no) : '') + '</div>' +
-                  (ln.remark ? '<div class="mt-0.5 text-[11px] text-violet-600">' + escHtml(ln.remark) + '</div>' : '') +
+                  '<div class="text-xs text-slate-400">' + [ln.brand, ln.model, ln.part_no].filter(function(v) { return v && v !== '-'; }).map(escHtml).join(' · ') + '</div>' +
+                  (function() { var t = prItemTypeInfo(ln.category); return '<span class="mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ' + t.cls + '">' + t.icon + ' ' + escHtml(t.label) + '</span>'; })() +
+                  (ln.remark ? '<div class="mt-1 text-[11px] text-violet-600">💬 ' + escHtml(ln.remark) + '</div>' : '') +
                 '</div>' +
               '</div>' +
             '</td>' +
             '<td class="py-2 pr-2 text-right font-mono text-slate-500">' + Number(ln.qty_requested || 0) + '</td>' +
             '<td class="py-2 pr-2 text-right"><input data-appr-line="' + ln.line_no + '" type="number" min="0" value="' + Number(ln.qty_approved || 0) + '" class="h-9 w-20 rounded-lg border border-slate-300 px-2 text-right text-sm focus:ring-2 focus:ring-emerald-400" /></td>' +
             '<td class="py-2 pr-2 text-slate-500">' + escHtml(ln.unit || '') + '</td>' +
+            '<td class="py-2 pr-2 text-right text-slate-600">' + (Number(ln.unit_price) > 0 ? prApprMoney(ln.unit_price) : '<span class="text-amber-600">ยังไม่มีราคา</span>') + '</td>' +
+            '<td class="py-2 pr-2 text-right font-bold text-slate-800" data-appr-total="' + ln.line_no + '">' + prApprMoney(Number(ln.qty_approved || 0) * Number(ln.unit_price || 0)) + '</td>' +
           '</tr>';
         }).join('');
       }).catch(function(err) {
-        if (body) body.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-500">⚠️ ' + escHtml(err && err.message ? err.message : String(err)) + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-rose-500">⚠️ ' + escHtml(err && err.message ? err.message : String(err)) + '</td></tr>';
       });
     }
     // ยอด PR ใบที่กำลังตรวจ = จำนวนอนุมัติ (ตามช่องที่แก้อยู่) × ราคา ลงไลน์ของหัว PR
@@ -25236,6 +25323,7 @@ function inferRequestPriority(stock, min) {
     // แก้จำนวนอนุมัติ → คำนวณงบใหม่ (หน่วงไว้ไม่ให้ยิงทุกตัวอักษร — ข้อมูลมาจากแคชเดียวกันอยู่แล้ว)
     document.addEventListener('input', function(e) {
       if (!e.target || !e.target.matches || !e.target.matches('#prApprovalLines input[data-appr-line]')) return;
+      renderPrApprovalSummary(); // ยอดรวมขยับทันทีที่แก้จำนวน
       clearTimeout(prApprovalBudgetTimer);
       prApprovalBudgetTimer = setTimeout(renderPrApprovalBudget, 300);
     });
@@ -25586,10 +25674,12 @@ function inferRequestPriority(stock, min) {
     var prRejectBtn = document.getElementById('prRejectBtn');
     if (prRejectBtn) prRejectBtn.addEventListener('click', submitReject);
     // คลิกรูปในตารางตรวจ+แก้ยอด PR เพื่อดูรูปขยาย (เผื่อรูปเล็กมองไม่ชัดว่าใช่ตัวที่ขอจริงไหม)
-    var prApprovalLinesEl = document.getElementById('prApprovalLines');
-    if (prApprovalLinesEl) prApprovalLinesEl.addEventListener('click', function(e) {
-      var img = e.target && e.target.closest ? e.target.closest('[data-appr-zoom]') : null;
-      if (img && img.getAttribute('data-appr-zoom')) openImageViewer(img.getAttribute('data-appr-zoom'));
+    ['prApprovalLines', 'prApprovalAttachments'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('click', function(e) {
+        var img = e.target && e.target.closest ? e.target.closest('[data-appr-zoom]') : null;
+        if (img && img.getAttribute('data-appr-zoom')) openImageViewer(img.getAttribute('data-appr-zoom'));
+      });
     });
     window.loadInboxBadge = loadInboxBadge;
     // รีเฟรช Inbox badge เองเป็นระยะ — หัวหน้าที่เปิดเว็บค้างไว้จะเห็นตัวเลข PR รออนุมัติเด้งเอง
