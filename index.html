@@ -3288,12 +3288,10 @@
           <label class="block text-xs font-semibold text-slate-600">รอบเดือน (Request Period)
             <input id="prPeriod" type="month" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
           </label>
-          <label class="block text-xs font-semibold text-slate-600">จากวันที่
-            <input id="prFrom" type="date" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
-          </label>
-          <label class="block text-xs font-semibold text-slate-600">ถึงวันที่
-            <input id="prTo" type="date" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" />
-          </label>
+          <!-- ช่วงวันที่ไม่ให้เลือกเองแล้ว — ใช้ "รอบเดือน" อย่างเดียว ระบบตั้งเป็นวันที่ 1 ถึงวันสุดท้ายของเดือนให้เอง
+               (ยังเก็บ element ไว้แบบซ่อน เพราะการนับยอดเบิกใช้ / Set ที่บันทึกไว้ อ่านค่าจากสองช่องนี้) -->
+          <input id="prFrom" type="hidden" />
+          <input id="prTo" type="hidden" />
           <label class="block text-xs font-semibold text-slate-600">จัดทำโดย
             <input id="prPreparedBy" class="mt-1 h-10 w-full rounded-xl border border-slate-300 px-3 text-sm" placeholder="ชื่อ Engineer" />
           </label>
@@ -20994,10 +20992,14 @@ function inferRequestPriority(stock, min) {
       var parts = String(el.value).split('-');
       if (parts.length < 2) return;
       var y = Number(parts[0]); var m = Number(parts[1]) - 1;
-      var from = new Date(y, m, 1); var to = new Date(y, m + 1, 0);
+      if (!y || m < 0 || m > 11) return;
+      // ห้ามแปลงผ่าน ISO/UTC — เวลาไทย (+7) จะเลื่อนไป 1 วัน
+      // (เลือก พ.ย. 2026 เคยได้ 31-Oct ถึง 29-Nov) ประกอบสตริงจากเลขวัน/เดือนตรงๆ แทน
+      var lastDay = new Date(y, m + 1, 0).getDate();
+      var mm = String(m + 1).padStart(2, '0');
       var f = document.getElementById('prFrom'); var t = document.getElementById('prTo');
-      if (f) f.value = from.toISOString().slice(0,10);
-      if (t) t.value = to.toISOString().slice(0,10);
+      if (f) f.value = y + '-' + mm + '-01';
+      if (t) t.value = y + '-' + mm + '-' + String(lastDay).padStart(2, '0');
       var step3 = document.getElementById('prStep3');
       if (step3 && !step3.classList.contains('hidden') && typeof renderPrBudgetPanel === 'function') renderPrBudgetPanel();
     }
@@ -21035,7 +21037,8 @@ function inferRequestPriority(stock, min) {
     function runPrCandidateSelection() {
       var mode = prMode ? String(prMode.value || 'assembly_monthly') : 'assembly_monthly';
       var lineFilterValue = prLineFilter ? String(prLineFilter.value || 'all') : 'all';
-      var fromDate = document.getElementById('prFrom').value ? new Date(document.getElementById('prFrom').value) : null;
+      // ต่อ 'T00:00:00' ให้เป็นเที่ยงคืนเวลาเครื่อง — สตริง yyyy-MM-dd เปล่าๆ ถูกตีเป็น UTC (= 07:00 เวลาไทย)
+      var fromDate = document.getElementById('prFrom').value ? new Date(document.getElementById('prFrom').value + 'T00:00:00') : null;
       var toDate = document.getElementById('prTo').value ? new Date(document.getElementById('prTo').value + 'T23:59:59') : null;
       var includeOut = document.getElementById('prIncludeOut').checked;
       var includeBelow = document.getElementById('prIncludeBelow').checked;
@@ -27883,7 +27886,8 @@ if (dashboardPage) {
       if (prMode) prMode.value = set.mode || 'assembly_monthly';
       document.querySelectorAll('.pr-preset-btn').forEach(function(btn) { if (btn.getAttribute('data-pr-preset') === set.mode) btn.click(); });
       var setVal = function(fid, v) { var el = document.getElementById(fid); if (el) el.value = v || ''; };
-      setVal('prPeriod', set.period); setVal('prFrom', set.from); setVal('prTo', set.to);
+      // ช่วงวันที่คิดจากรอบเดือนเสมอ (Set เก่าที่เคยเก็บวันที่เองก็ใช้รอบเดือนแทน)
+      setVal('prPeriod', set.period); syncPrPeriodToDates();
       setVal('prPreparedBy', set.preparedBy); setVal('prDepartment', set.department);
       if (prLineFilter) prLineFilter.value = set.lineFilter || 'all';
       var setChk = function(fid, v) { var el = document.getElementById(fid); if (el) el.checked = !!v; };
