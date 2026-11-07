@@ -18071,19 +18071,24 @@ function inferRequestPriority(stock, min) {
        ช่องที่บัญชี/ผู้อนุมัติกรอกเอง (เลขที่ วันที่จ่าย วิธีจ่าย ลายเซ็น) เว้นว่างไว้ให้เขียนมือ */
     var MX_VOUCHER_COMPANY_TH = 'บริษัท จินร้ง อิเล็กทรอนิกส์เทคโนโลยี(ประเทศไทย)จำกัด';
     var MX_VOUCHER_COMPANY_CN = '津荣电子科技（泰国）有限公司';
-    var MX_VOUCHER_MIN_ROWS = 8;
-    // แผนกที่เกิดค่าใช้จ่าย (费用承担部门) — ลำดับซ้าย/ขวาตามฟอร์มกระดาษ
+    // ฟอร์มกระดาษ Rev.01 มีแถวรายการ 5 แถว — บิลที่ยาวกว่านั้นเพิ่มแถวตามจริง (หรือกด "+ เพิ่มแถวรายการ")
+    var MX_VOUCHER_MIN_ROWS = 5;
+    // แผนกที่เกิดค่าใช้จ่าย (费用承担部门) — ลำดับซ้าย/ขวาตามฟอร์มกระดาษ Rev.01 (ใบเบิกจ่ายฟอร์มใหม่)
     var MX_VOUCHER_CHARGED_DEPTS = [
-      ['Quality Department', 'Powder Coating Production Line'],
-      ['Sales Department', 'Electrical Stamping Production Line'],
-      ['General Management Department', 'Automotive Stamping Production Line'],
-      ['Administration Department', 'H9 Assembly Production Line'],
-      ['Finance Department', 'Aluminum Die Casting - Die Casting Production Line'],
-      ['Purchasing Department', 'Aluminum Die Casting - Grunding and Shot Blasting Production Line'],
-      ['PIU Assembly Production Line', 'Aluminum Die Casting - CNC Production Line'],
-      ['Electrical Packaging Production Line', 'Assembly Production Line'],
-      ['Automotive Packaging Production Line', 'Aluminum Die Casting - Packaging Production Line'],
-      ['Welding, Riveting, Tapping Production Line', '']
+      ['Management Department', 'Aluminum Die Casting - CNC Production Line'],
+      ['Sales Department', 'Plant 1 Quality Control Department'],
+      ['Purchasing Department', 'Plant 1 Inspection Department'],
+      ['General Management Department', 'Plant 1 Production Planning Department'],
+      ['HR&Administration Department', 'Plant 1 Warehousing & Logistics Department'],
+      ['Finance Department', 'Plant 2 Manufacturing Department'],
+      ['IT Operations & Maintenance Department', 'PIU Assembly Production Line'],
+      ['Production Engineering Department', 'H9 Assembly Production Line'],
+      ['Plant 1 Manufacturing Department', 'H1 Assembly Production Line'],
+      ['Electrical Stamping Production Line', 'Painting Production Line'],
+      ['Automotive Stamping Production Line', 'Plant 2 Quality Control Department'],
+      ['Welding & Riveting Production Line', 'Plant 2 Inspection Department'],
+      ['Aluminum Die Casting - Die Casting Production Line', 'Plant 2 Production Planning Department'],
+      ['Aluminum Die Casting - Grinding and Shot Blasting Production Line', 'Plant 2 Warehousing & Logistics Department']
     ];
     // ไลน์ในระบบ → ช่องติ๊กในฟอร์ม (ไลน์ที่ไม่รู้ว่าตรงช่องไหนปล่อยว่างให้ติ๊กเอง ดีกว่าติ๊กผิดแผนก)
     var MX_VOUCHER_LINE_DEPT = { 'H9': 'H9 Assembly Production Line' };
@@ -18166,6 +18171,8 @@ function inferRequestPriority(stock, min) {
       };
     }
 
+    // หน้าตาตามฟอร์มกระดาษ Rev.01 (ใบเบิกจ่ายฟอร์มใหม่) — ตารางรายการเหลือ ลำดับ/รายละเอียด/จำนวนเงิน
+    // จำนวน × ราคาต่อหน่วยย้ายไปเป็นบรรทัดย่อยใต้รายละเอียด (ยังแก้ได้และคิดจำนวนเงินให้เหมือนเดิม)
     // ช่องที่มี class "ed" แก้ได้ในหน้าต่างพิมพ์ก่อนสั่งพิมพ์ (ดู mxVoucherEditorRuntime) — data-f คือชื่อช่องที่ใช้คำนวณ
     function mxVoucherHtml(d, appDate) {
       var e = escHtml;
@@ -18180,9 +18187,9 @@ function inferRequestPriority(stock, min) {
       for (var i = 0; i < count; i += 1) {
         var it = d.items[i];
         rowsHtml += '<tr class="itm"><td class="c no">' + (it ? (i + 1) : '') + '</td>' +
-          '<td' + ed('name', it ? e(it.name) : '') + '</td>' +
-          '<td' + ed('qty', it ? e(it.qty.toLocaleString('en-US') + (it.unit ? ' ' + it.unit : '')) : '', 'c') + '</td>' +
-          '<td' + ed('up', it ? mxVoucherMoney(it.unitPrice) : '', 'r') + '</td>' +
+          '<td colspan="2" class="desc"><div' + ed('name', it ? e(it.name) : '') + '</div>' +
+            '<div class="qp">จำนวน <span' + ed('qty', it ? e(it.qty.toLocaleString('en-US') + (it.unit ? ' ' + it.unit : '')) : '', 'q') + '</span>' +
+            ' × ราคาต่อหน่วย <span' + ed('up', it ? mxVoucherMoney(it.unitPrice) : '', 'q') + '</span></div></td>' +
           '<td' + ed('amt', it ? mxVoucherMoney(it.amount) : '', 'r') + '</td></tr>';
       }
       var ref = [];
@@ -18197,37 +18204,41 @@ function inferRequestPriority(stock, min) {
       // อัตรา VAT ไว้ให้คิด VAT ใหม่อัตโนมัติเมื่อแก้รายการ (บิลที่ไม่มี VAT = 0 → พิมพ์ยอด VAT เองได้)
       var vatRate = d.vat ? (parseFloat(d.vatLabel) || 0) : 0;
       return '<div class="sheet" data-vat-rate="' + vatRate + '"' + (d.vatInclusive ? ' data-vat-inclusive="1"' : '') + '>' +
+        '<div class="frame">' +
         '<div class="co">' + e(MX_VOUCHER_COMPANY_TH) + '<br>' + e(MX_VOUCHER_COMPANY_CN) + '</div>' +
-        '<div class="ttl">ใบเบิกจ่าย/ 付款申请单</div>' +
-        '<div class="appdate">申请日期/Date: <u' + ed('', e(appDate || '')) + '</u></div>' +
-        '<table class="hd">' +
+        '<div class="ttl">ใบเบิกจ่าย / 付款申请单</div>' +
+        '<div class="appdate">วันที่เบิก 申请日期 : <span' + ed('', e(appDate || ''), 'u') + '</span></div>' +
+        '<table class="hd"><colgroup><col style="width:19%"><col><col style="width:16%"><col style="width:21%"></colgroup>' +
           '<tr><td class="lb">ชื่อเจ้าหนี้:<br><small>付款公司名称</small></td><td' + ed('vendor', e(d.vendor), 'val') + '</td>' +
-            '<td class="lb">วันที่:<br><small>付款日期:</small></td><td' + ed('', '', 'val w-s') + '</td>' +
-            '<td class="lb">เลขที่.:<br><small>编号:</small></td><td' + ed('', '', 'val w-s') + '</td></tr>' +
-          '<tr><td class="lb">จำนวนเงินที่จ่าย<br><small>付款金额/币种:</small></td><td class="val big" colspan="3" data-f="pay">' + (blank ? '' : mxVoucherMoney(d.total)) + '</td><td class="lb" colspan="2">THB</td></tr>' +
-          '<tr><td class="lb">付款方式(จ่าย)</td><td colspan="5">' + box(false) + ' เงินสด Cash &nbsp;&nbsp;&nbsp; ' + box(false) + ' โอนเงิน Transfer &nbsp;&nbsp;&nbsp; เลขที่บัญชี: <span' + ed('', '', 'acct') + '</span></td></tr>' +
+            '<td class="lb">วันที่ชำระเงิน:<br><small>付款日期:</small> <span' + ed('', '', 'u sm') + '</span></td><td class="lb">เลขที่.:<br><small>编号:</small> <span' + ed('', '', 'u sm') + '</span></td></tr>' +
+          '<tr><td class="lb">จำนวนเงินที่จ่าย<br><small>付款金额/币种:</small></td><td class="val big" data-f="pay">' + (blank ? '' : mxVoucherMoney(d.total)) + '</td>' +
+            '<td class="lb">สกุลเงิน/币别</td><td class="c"><b>THB</b></td></tr>' +
+          '<tr><td class="lb">付款方式(จ่าย)</td><td class="nw">' + box(false) + ' เงินสด Cash &nbsp;&nbsp;&nbsp;&nbsp; ' + box(false) + ' โอนเงิน Transfer</td>' +
+            '<td colspan="2">เลขที่บัญชี: <span' + ed('', '', 'acct') + '</span></td></tr>' +
         '</table>' +
-        '<table class="it"><thead><tr>' +
-          '<th style="width:9%">ลำดับ<br>序号</th><th>รายละเอียด<br>详细描述</th><th style="width:12%">จำนวน<br>数量</th><th style="width:15%">ราคาต่อหน่วย<br>价格/单价</th><th style="width:17%">จำนวนเงิน/สกุลเงิน<br>金额/币别</th>' +
+        '<table class="it"><colgroup><col style="width:12%"><col><col style="width:18%"><col style="width:20%"></colgroup><thead><tr>' +
+          '<th>ลำดับ<br>序号</th><th colspan="2">รายละเอียด<br>详细描述</th><th>จำนวนเงิน<br>金额</th>' +
         '</tr></thead><tbody>' + rowsHtml +
-          '<tr><td></td><td colspan="4"' + ed('', ref.length ? 'อ้างอิง: ' + e(ref.join(' · ')) : '', 'ref') + '</td></tr>' +
-          '<tr><td colspan="3" rowspan="3" class="words"><b>ตัวเขียน大写：</b> <span data-f="words">' + e(d.totalText) + '</span></td><td class="r">รวมไม่รวมภาษี</td><td class="r" data-f="sub">' + money(d.subtotal) + '</td></tr>' +
-          '<tr><td class="r">Vat ' + e(d.vatLabel) + '</td><td' + ed('vat', blank || !d.vat ? '' : mxVoucherMoney(d.vat), 'r') + '</td></tr>' +
-          '<tr><td class="r">WHT</td><td' + ed('wht', '', 'r') + '</td></tr>' +
-          '<tr><td colspan="3"></td><td class="r"><b>ยอดรวม合计</b></td><td class="r"><b data-f="total">' + money(d.total) + '</b></td></tr>' +
+          '<tr><td colspan="2" rowspan="2" class="note"><b>หมายเหตุ 备注 :</b> <span' + ed('', ref.length ? 'อ้างอิง: ' + e(ref.join(' · ')) : '', 'ref') + '</span>' +
+            '<div class="subl">ยอดก่อน VAT: <span data-f="sub">' + money(d.subtotal) + '</span></div></td>' +
+            '<td class="c">VAT ' + e(d.vatLabel) + '</td><td' + ed('vat', blank || !d.vat ? '' : mxVoucherMoney(d.vat), 'r') + '</td></tr>' +
+          '<tr><td class="c">WHT <span' + ed('', '0%') + '</span></td><td' + ed('wht', '', 'r') + '</td></tr>' +
+          '<tr><td class="lb">ตัวเขียน大写：</td><td class="words"><span data-f="words">' + e(d.totalText) + '</span></td>' +
+            '<td class="c"><b>ยอดรวม合计</b></td><td class="r"><b data-f="total">' + money(d.total) + '</b></td></tr>' +
         '</tbody></table>' +
-        '<table class="sg">' +
-          '<tr><td>แผนก/申请部门: <u' + ed('', e(d.line ? 'Line ' + d.line : '')) + '</u></td><td></td></tr>' +
-          '<tr><td>ผู้ยื่น申请人：<div class="ln"></div><div class="nm">( <span' + ed('', e(d.requester)) + '</span> )</div></td>' +
-            '<td>หัวหน้าแผนก 部门核准人：<div class="ln"></div><div class="nm">( <span' + ed('', '') + '</span> )</div></td></tr>' +
-        '</table>' +
         '<div class="dh">Charged Department / แผนกที่เกิดค่าใช้จ่าย / 费用承担部门</div>' +
         '<table class="dp">' + deptsHtml + '</table>' +
-        '<table class="ap"><tr>' +
-          '<td>แผนกบัญชี<br>财务负责人<div class="ln"></div></td>' +
-          '<td>กรรมการผู้จัดการ<br>总经理<div class="ln"></div></td>' +
-          '<td>ผู้รับเงิน<br>收款人<div class="ln"></div></td>' +
+        '<table class="sg"><tr>' +
+          '<td>ผู้เบิก 申请人：<div class="nm">( <span' + ed('', e(d.requester)) + '</span> )</div></td>' +
+          '<td>แผนกผู้เบิก 申请部门 :<div class="nm"><span' + ed('', e(d.line ? 'Line ' + d.line : '')) + '</span></div></td>' +
+          '<td>หัวหน้าแผนก 部门核准人：<div class="nm">( <span' + ed('', '') + '</span> )</div></td>' +
         '</tr></table>' +
+        '<table class="ap"><tr>' +
+          '<td>แผนกบัญชี<br>财务负责人 :<div class="ln"></div></td>' +
+          '<td>กรรมการผู้จัดการ<br>总经理 :<div class="ln"></div></td>' +
+          '<td>ผู้รับเงิน<br>收款人 :<div class="ln"></div></td>' +
+        '</tr></table>' +
+        '</div>' +
       '</div>';
     }
 
@@ -18259,7 +18270,8 @@ function inferRequestPriority(stock, min) {
         if (inclusive) sub = Math.round((gross - vat) * 100) / 100;
         var total = Math.round((sub + vat - wht) * 100) / 100;
         var show = any || vat || wht;
-        field(sheet, 'sub').textContent = any ? money(sub) : '';
+        var subEl = field(sheet, 'sub');
+        if (subEl) subEl.textContent = any ? money(sub) : '';
         field(sheet, 'total').textContent = show ? money(total) : '';
         field(sheet, 'pay').textContent = show ? money(total) : '';
         field(sheet, 'words').textContent = show ? bahtText(total) : '';
@@ -18314,22 +18326,29 @@ function inferRequestPriority(stock, min) {
       return '@page{size:A4 portrait;margin:8mm}' +
         'html,body{margin:0}body{font-family:"Sarabun","TH Sarabun New","Tahoma",sans-serif;color:#000;font-size:12px;line-height:1.3}' +
         '.sheet{width:194mm;margin:0 auto;transform-origin:top center}' +
+        // กรอบหนาล้อมทั้งใบเหมือนฟอร์มกระดาษ Rev.01
+        '.frame{border:2px solid #000;padding:6px 8px 8px}' +
         '.co{text-align:center;font-weight:700;font-size:14px;line-height:1.3}' +
-        '.ttl{text-align:center;font-weight:700;font-size:16px;margin:2px 0 0}' +
-        '.appdate{text-align:right;margin-bottom:3px}' +
+        '.ttl{text-align:center;font-weight:700;font-size:17px;margin:3px 0 0}' +
+        '.appdate{text-align:right;margin:2px 0 4px}.u{display:inline-block;min-width:30mm;border-bottom:1px solid #000;text-align:center}.u.sm{min-width:20mm}' +
         'table{width:100%;border-collapse:collapse}' +
-        '.hd td,.it td,.it th{border:1px solid #000;padding:2px 6px;vertical-align:middle}' +
-        '.hd .lb{white-space:nowrap;font-weight:600;width:1%}.hd .val{min-width:20mm}.hd .w-s{width:22mm}.hd .big{font-size:14px;font-weight:700;text-align:right}' +
+        '.hd td,.it td,.it th{border:1px solid #000;padding:3px 6px;vertical-align:middle}' +
+        '.hd .lb,.it .lb{white-space:nowrap;font-weight:600}.hd .big{font-size:15px;font-weight:700;text-align:right}' +
         '.hd small,.it small{font-weight:400}' +
-        '.it{margin-top:-1px}.it th{background:#f1f5f9;font-weight:700;font-size:11px;line-height:1.2}' +
-        '.it td{height:17px}.c{text-align:center}.r{text-align:right;white-space:nowrap}' +
-        '.it .ref{font-size:10.5px;color:#333}.it .words{vertical-align:top}' +
+        '.it{margin-top:-1px}.it th{background:#f1f5f9;font-weight:700;font-size:11.5px;line-height:1.2}' +
+        '.it tr.itm td{height:28px}.c{text-align:center}.r{text-align:right;white-space:nowrap}' +
+        '.desc .qp{font-size:10.5px;color:#333;margin-top:1px}.qp .q{display:inline-block;min-width:12mm}' +
+        '.it .note{vertical-align:top;font-size:11px}.it .ref{font-size:10.5px;color:#333}.subl{margin-top:4px;font-size:10.5px;color:#444}' +
+        '.it .words{font-weight:600}' +
         '.cb{display:inline-block;width:11px;height:11px;border:1px solid #000;text-align:center;line-height:11px;font-size:10px;font-weight:700;vertical-align:-2px}' +
-        '.sg{margin-top:6px}.sg td{padding:3px 12px 3px 4px;width:50%;vertical-align:top}.sg .ln{border-bottom:1px solid #000;height:24px}.sg .nm{text-align:center;margin-top:2px;min-height:15px}' +
-        '.dh{margin-top:6px;padding:2px 6px;border:1px solid #000;font-weight:700;text-align:center;font-size:11.5px}' +
-        '.dp{margin-top:-1px;border:1px solid #000}.dp td{padding:1px 6px;font-size:10.5px;width:50%;line-height:1.25}' +
-        '.ap{margin-top:8px}.ap td{width:33%;text-align:center;vertical-align:top;padding:0 8px;line-height:1.25}.ap .ln{border-bottom:1px solid #000;height:30px;margin:0 10px}' +
-        '.ed.acct{display:inline-block;min-width:55mm;border-bottom:1px solid #000}.nm .ed{display:inline-block;min-width:40mm}.cb{cursor:pointer}' +
+        '.dh{margin-top:6px;padding:2px 6px;font-weight:700;text-align:center;font-size:11.5px}' +
+        '.dp td{padding:1px 6px;font-size:10.5px;width:50%;line-height:1.3}' +
+        '.sg{margin-top:6px;border:1px solid #000}.sg td{width:33%;padding:4px 8px;vertical-align:top;border-right:1px solid #000}.sg .nm{text-align:center;margin-top:16px;min-height:15px}' +
+        '.ap{margin-top:-1px;border:1px solid #000}.ap td{width:33%;vertical-align:top;padding:4px 8px;line-height:1.25;border-right:1px solid #000}.ap .ln{border-bottom:1px solid #000;height:26px;margin:0 6px}' +
+        '.ed.acct{display:inline-block;min-width:45mm;border-bottom:1px solid #000}.nm .ed{display:inline-block;min-width:35mm}.cb{cursor:pointer}' +
+        // แถวรายการว่าง: บรรทัด "จำนวน × ราคา" โชว์บนจอไว้ให้กรอก แต่ไม่พิมพ์ออกมาถ้ายังว่าง
+        '.nw{white-space:nowrap}' +
+        '@media print{.qp{display:none}.qp:has(.ed:not(:empty)){display:block}.subl:has([data-f="sub"]:empty){display:none}}' +
         '@media screen{.ed{background:#fef9c3;outline:1px dashed #eab308;outline-offset:-1px}.ed:hover{background:#fef08a}.ed:focus{background:#fff;outline:2px solid #2563eb}' +
         '.sheet{margin-top:8px}.noprint .hint{display:block;margin-top:6px;font-size:13px;color:#555}}' +
         '#mxPageProbe{position:absolute;visibility:hidden;width:1px;height:281mm;top:0;left:0}' +
