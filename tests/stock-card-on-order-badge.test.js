@@ -35,4 +35,13 @@ assert(rf.includes('ptEnsureOnOrderLoaded()') && rf.includes('bindOnOrderBadges(
 const ensure = grabFn('ptEnsureOnOrderLoaded');
 assert(ensure.includes("action: 'getOpenPrLines'") && ensure.includes('60000'), 'ดึงรายการค้างรับ และแคชไว้ 1 นาที');
 
+// ปุ่มกรอง "🚚 กำลังสั่ง (N)" บนแถบเครื่องมือหน้า Stock — ใช้ตัวจับคู่เดียวกับป้ายบนการ์ด
+const fs = require('fs');
+const html = fs.readFileSync(require('path').join(__dirname, '..', 'index.html'), 'utf8');
+assert(html.includes('id="onOrderFilterBtn"'), 'มีปุ่มกรองกำลังสั่ง');
+const af = grabFn('applyFilters');
+assert(af.includes('onOrderOnlyState && !ptOnOrderLinesForItem(item).length') && af.includes('updateOnOrderFilterBtn()'), 'applyFilters กรองตามรายการกำลังสั่ง');
+const upd = grabFn('updateOnOrderFilterBtn');
+assert(upd.includes('ptOnOrderLinesForItem(p)') && upd.includes("'กำลังสั่ง ('"), 'ปุ่มนับจำนวนรายการกำลังสั่ง');
+
 console.log('stock-card-on-order-badge: OK');
