@@ -42,6 +42,9 @@ assert(submitBody.includes('prAttachments = []; prRenderAttachments();'), 'ส�
 assert(html.includes('id="prApprovalAttachments"'));
 const openBody = html.slice(html.indexOf('function openPrApproval(prId)'), html.indexOf('\n    function closePrApproval'));
 assert(openBody.includes('res.header && res.header.attachments'));
-assert(openBody.includes("escHtml(att.url)"), 'ลิงก์ต้อง escape');
+// เอกสารแนบโชว์ในหน้าเลย — ตัวสร้าง HTML แยกเป็น prApprovalAttachmentHtml (ลิงก์/ชื่อไฟล์ต้อง escape ที่นั่น)
+assert(openBody.includes('attachList.map(prApprovalAttachmentHtml)'), 'แสดงเอกสารแนบแบบพรีวิว');
+const attFn = html.slice(html.indexOf('function prApprovalAttachmentHtml(att)'), html.indexOf('function prApprovalSummaryHtml('));
+assert(attFn.includes("escHtml(url)") && attFn.includes("escHtml(name)"), 'ลิงก์/ชื่อไฟล์ต้อง escape');
 
 console.log('pr-approval-attachments: all assertions passed');
