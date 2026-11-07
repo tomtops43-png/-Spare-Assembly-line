@@ -2,7 +2,8 @@
 const { html, grabFn, grabVar, assert } = require('./_export-extract');
 
 // ---- ส่ง PR ที่เลือกไปกับการรับเข้า (ทั้ง POST และ JSONP) ----
-const txnTransport = grabFn('callTransactionViaJsonp');
+// ตัวส่งจริงแยกออกมาเป็น sendTransactionRequest (callTransactionViaJsonp ห่อเพิ่ม id กันบันทึกเบิ้ล)
+const txnTransport = grabFn('sendTransactionRequest');
 ['prId: payload.prId', 'prLineNo: payload.prLineNo', 'noPrReason: payload.noPrReason'].forEach(function(f) {
   assert(txnTransport.includes(f), 'POST body ต้องมี ' + f);
 });

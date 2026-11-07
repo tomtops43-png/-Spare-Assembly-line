@@ -9677,7 +9677,45 @@ function getIssueCartEntries() {
       if (!m) return '';
       return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] + ':00';
     }
+    // ── กันรับเข้า/เบิกเบิ้ล ─────────────────────────────────────────────
+    // บั๊กจริง: รับเข้า MXH10-30Z 1 ชิ้น แต่ Log ขึ้น +1 สามแถวนาทีเดียวกัน (สต็อก 0→1→2→3)
+    // server บันทึกไปแล้วแต่หน้าเว็บได้คำตอบไม่ครบ → ขึ้น "ไม่สำเร็จ" → กดซ้ำ (หรือระบบสลับช่องทางส่งซ้ำเอง)
+    // แก้: ทุกรายการมี clientTxnId — ส่งรายการเดิมซ้ำ (อะไหล่/จำนวน/ประเภท/PR เดิม) ได้ id เดิม
+    // server เห็น id ที่บันทึกแล้วจะตอบผลเดิมกลับมา ไม่บวก/หักสต็อกซ้ำ · สำเร็จแล้วค่อยล้าง id ให้รายการถัดไปได้ id ใหม่
+    var TXN_SUBMIT_TICKET_TTL_MS = 30 * 60 * 1000;
+    var txnSubmitTickets = {};
+    function txnIntentFingerprint(p) {
+      p = p || {};
+      return [String(p.type || '').indexOf('Output') > -1 ? 'OUT' : 'IN', p.sheetName || '', p.partNo || '', p.partName || '', p.model || '',
+        Math.abs(Number(p.qty) || 0), p.prId || '', p.prLineNo || '', p.machine || ''].join('|');
+    }
+    function getTxnClientId(payload) {
+      var fp = txnIntentFingerprint(payload);
+      var now = Date.now();
+      var t = txnSubmitTickets[fp];
+      if (t && now - t.at < TXN_SUBMIT_TICKET_TTL_MS) return t.id;
+      var id = 'TXN-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+      txnSubmitTickets[fp] = { id: id, at: now };
+      return id;
+    }
+    function clearTxnClientId(id) {
+      Object.keys(txnSubmitTickets).forEach(function(fp) {
+        if (txnSubmitTickets[fp].id === id) delete txnSubmitTickets[fp];
+      });
+    }
     function callTransactionViaJsonp(payload) {
+      var clientTxnId = payload.clientTxnId || getTxnClientId(payload);
+      return sendTransactionRequest(payload, clientTxnId).then(function(res) {
+        if (res && res.status === 'success') {
+          clearTxnClientId(clientTxnId);
+          if (res.duplicate && typeof showQuickToast === 'function') {
+            showQuickToast('ℹ️ รายการนี้บันทึกไปแล้วตั้งแต่ครั้งก่อน — ระบบไม่บันทึกซ้ำ (กันรับเข้า/เบิกเบิ้ล)', 'warn');
+          }
+        }
+        return res;
+      });
+    }
+    function sendTransactionRequest(payload, clientTxnId) {
       var requestPayload = {
         authToken: authToken,
         action: 'transact',
@@ -9700,7 +9738,8 @@ function getIssueCartEntries() {
         // ระบบ PR → GR: รับเข้าตาม PR ใบไหน รายการไหน / เหตุผลที่ Admin รับโดยไม่มี PR
         prId: payload.prId || '',
         prLineNo: payload.prLineNo || '',
-        noPrReason: payload.noPrReason || ''
+        noPrReason: payload.noPrReason || '',
+        clientTxnId: clientTxnId || ''
       };
       var query = [
         'action=transact',
@@ -9723,6 +9762,7 @@ function getIssueCartEntries() {
         'prId=' + encodeURIComponent(requestPayload.prId),
         'prLineNo=' + encodeURIComponent(requestPayload.prLineNo),
         'noPrReason=' + encodeURIComponent(requestPayload.noPrReason),
+        'clientTxnId=' + encodeURIComponent(requestPayload.clientTxnId),
         'authToken=' + encodeURIComponent(requestPayload.authToken || '')
       ].join('&');
 
