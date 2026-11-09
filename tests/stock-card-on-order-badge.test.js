@@ -45,3 +45,9 @@ const upd = grabFn('updateOnOrderFilterBtn');
 assert(upd.includes('ptOnOrderLinesForItem(p)') && upd.includes("'กำลังสั่ง ('"), 'ปุ่มนับจำนวนรายการกำลังสั่ง');
 
 console.log('stock-card-on-order-badge: OK');
+
+// ป้ายต้องไม่ทะลุขึ้นมาทับหน้าต่างเบิก/รับเข้าแบบเร็ว
+// Tailwind v2 ไม่รองรับ class z-[210] → ต้องกำหนด z-index ด้วย CSS จริง และกล่องรูปการ์ดต้อง isolate ป้ายไว้ข้างใน
+assert(/#quickIssueModal,\s*#quickReceiveModal\s*\{\s*z-index:\s*210;/.test(html), 'quick issue/receive modal มี z-index จริง');
+assert(grabFn('renderTable').includes('aspect-ratio:4/3;isolation:isolate;'), 'กล่องรูปการ์ดเดสก์ท็อป isolate ป้าย');
+assert(grabFn('renderMobileCards').includes('aspect-ratio:1/1;isolation:isolate;'), 'กล่องรูปการ์ดมือถือ isolate ป้าย');
