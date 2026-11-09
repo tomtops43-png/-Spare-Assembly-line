@@ -93,7 +93,9 @@ var PRODUCTION_COST_CONFIG_HEADERS = ['Line', 'Unit Price', 'Target Pct', 'Updat
 // (บนบิลร้านค้ามีแต่ยอดรวม ไม่ได้แยกราคาต่อหน่วยเสมอ) ส่วน Unit Price คิดย้อนจาก Total/Qty
 var MISC_EXPENSE_HEADERS = ['Expense ID', 'Date', 'Month', 'Line', 'Category', 'Item Name', 'Qty', 'Unit', 'Unit Price', 'Total Amount', 'Vendor', 'Receipt No', 'Receipt URL', 'Paid By', 'Remark', 'Deleted', 'Created By', 'Created At', 'Updated By', 'Updated At', 'Bill ID'];
 var MISC_EXPENSE_AUDIT_HEADERS = ['Date Time', 'User', 'Expense ID', 'Action Type', 'Old Value', 'New Value', 'Reason'];
-var MISC_EXPENSE_CATEGORIES = ['น็อต/สกรู/ฮาร์ดแวร์', 'เครื่องมือช่าง', 'วัสดุสิ้นเปลือง', 'ค่าซ่อม/ค่าจ้างภายนอก', 'ค่าจัดส่ง', 'ภาษีมูลค่าเพิ่ม (VAT)', 'อื่นๆ'];
+var MISC_EXPENSE_CATEGORIES = ['น็อต/สกรู/ฮาร์ดแวร์', 'เครื่องมือช่าง', 'วัสดุสิ้นเปลือง', 'ค่าซ่อม/ค่าจ้างภายนอก', 'ค่าจัดส่ง', 'ภาษีมูลค่าเพิ่ม (VAT)', 'ส่วนลด', 'อื่นๆ'];
+// 'ส่วนลด' = คูปอง/ส่วนลดท้ายบิล — แถวเดียวที่ยอดติดลบได้ (เก็บเป็นลบเสมอ ให้รวมยอดทั้งบิลตรงกับเงินที่จ่ายจริง)
+var MISC_EXPENSE_DISCOUNT_CATEGORY = 'ส่วนลด';
 // 'ส่วนกลาง' = ของที่ใช้ร่วมหลายไลน์ ไม่เฉลี่ยเข้าไลน์ไหน (จะเห็นเฉพาะมุมมอง "ทุกไลน์ (รวม)")
 // เจตนา: ไม่ปันส่วนอัตโนมัติ เพราะตัวเลขที่เฉลี่ยเองอธิบายกับหน้างานไม่ได้ว่ามาจากไหน
 var MISC_EXPENSE_LINES = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw', 'ส่วนกลาง'];
@@ -2625,7 +2627,11 @@ function buildMiscExpenseFields(payload) {
   var qty = Number(payload.qty === undefined || payload.qty === '' ? 1 : payload.qty);
   if (!isFinite(qty) || qty <= 0) throw new Error('จำนวนต้องมากกว่า 0');
   var total = Number(payload.total_amount !== undefined ? payload.total_amount : payload.totalAmount);
-  if (!isFinite(total) || total < 0) throw new Error('ยอดรวมต้องเป็นตัวเลขไม่ติดลบ');
+  if (category === MISC_EXPENSE_DISCOUNT_CATEGORY) {
+    // ส่วนลดรับได้ทั้ง 55 และ -55 แต่เก็บเป็นลบเสมอ
+    if (!isFinite(total) || total === 0) throw new Error('กรุณาระบุจำนวนส่วนลด');
+    total = -Math.abs(total);
+  } else if (!isFinite(total) || total < 0) throw new Error('ยอดรวมต้องเป็นตัวเลขไม่ติดลบ');
   return {
     date: normalizeMiscExpenseDate(payload.date),
     line: line,
@@ -2735,6 +2741,8 @@ function addMiscExpenseBatch(payload) {
       throw new Error('รายการที่ ' + (index + 1) + ': ' + (err && err.message ? err.message : err));
     }
   });
+  var billTotal = fields.reduce(function(sum, f) { return sum + f.total; }, 0);
+  if (billTotal < 0) throw new Error('ส่วนลดมากกว่ายอดรวมของบิลไม่ได้');
   var timestamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss');
   var billId = 'MEB-' + Utilities.getUuid();
   var rows = fields.map(function(f) {
