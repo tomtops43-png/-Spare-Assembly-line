@@ -151,6 +151,9 @@
        จึงต้องกำหนด z-index และพื้นหลังของ overlay เหล่านี้ด้วย CSS จริง
        ไม่งั้น confirmDialog จะถูก modal ที่อยู่ท้าย DOM ทับจนมองไม่เห็น */
     #issueCartModal { z-index: 9600; }
+    /* 210: เบิก/รับเข้าแบบเร็ว (quickIssueModal / quickReceiveModal) — class z-[210] ใช้ไม่ได้ใน v2
+       ถ้าไม่กำหนดด้วย CSS จริง ป้าย 🚚 กำลังสั่ง (z-20) บนการ์ด Stock ข้างหลังจะทะลุขึ้นมาทับฟอร์ม */
+    #quickIssueModal, #quickReceiveModal { z-index: 210; }
     #issueCartBackdrop { background: rgba(15, 23, 42, 0.55); }
     /* 9700: อะไหล่ติดดาว (starredPartsModal) — เปิดจากใน Issue Cart ได้ ต้องอยู่เหนือ cart */
     #starredPartsModal { z-index: 9700; }
@@ -23936,7 +23939,7 @@ function inferRequestPriority(stock, min) {
           : '<span class="text-[11px] font-semibold" style="color:#b45309">❓ ยังไม่มีราคา</span>';
         return '<article data-row-key="' + itemKey + '" class="group relative flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="h-1 w-full shrink-0" style="' + topStripe + '"></div>' +
-          '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:4/3;">' +
+          '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:4/3;isolation:isolate;">' +
             '<img loading="lazy" decoding="async" src="' + imageSrc + '" data-fallback-src="' + (fallbackSrc || '') + '" alt="part image" class="h-full w-full object-contain p-2 transition duration-300 group-hover:scale-105 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\''+ FALLBACK_IMAGE +'\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-xl') + '</div>' : '') +
             '<div class="absolute top-2 left-2 flex flex-col items-start gap-1">' + renderNewArrivalBadge(item, false) + drawingBadge + '</div>' +
@@ -24048,7 +24051,7 @@ function inferRequestPriority(stock, min) {
         var mPriceVal = getItemUnitPrice(item);
         return '<article data-view-key="' + itemKey + '" class="relative flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all duration-200 active:scale-95 cursor-pointer ' + visualState.cardClass + '">' +
           '<div class="h-1 w-full shrink-0" style="' + mTopStripe + '"></div>' +
-          '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:1/1;">' +
+          '<div class="relative overflow-hidden bg-slate-50" style="aspect-ratio:1/1;isolation:isolate;">' +
             '<img loading="lazy" decoding="async" src="' + mobileImageSrc + '" data-fallback-src="' + (mobileFallbackSrc || '') + '" alt="thumb" class="h-full w-full object-contain p-2 ' + visualState.imageClass + '" onerror="if(this.dataset.fallbackSrc){var next=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=next;}else{this.src=\'' + FALLBACK_IMAGE + '\';}" />' +
             (visualState.showOutLabel ? '<div class="' + visualState.overlayLabelClass + '">' + renderOutOfStockOverlay('text-base') + '</div>' : '') +
             (visualState.isNewArrival ? '<div class="absolute top-1.5 left-1.5">' + renderNewArrivalBadge(item, true) + '</div>' : '') +
