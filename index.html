@@ -9495,6 +9495,9 @@ function getIssueCartEntries() {
           loadPartsData();
           if (!logPage.classList.contains('hidden')) loadLogData();
           msOnLineChanged();
+          // หน้าเบิกของสิ้นเปลืองไม่ผูกกับไลน์ — กดเลือกไลน์แล้วต้องพาไปหน้า Stock ของไลน์นั้น
+          // ไม่งั้นหน้าจอค้างอยู่ที่หน้าเดิม ผู้ใช้สับสนว่าเปลี่ยนไลน์แล้วหรือยัง
+          if (csIsPageVisible()) switchToStockPage();
         });
       });
     }
