@@ -1734,13 +1734,6 @@
         </div>
         <!-- Search + Sheet selector row -->
         <div class="flex items-center gap-2">
-          <div class="hidden shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2 md:inline-flex">
-            <span class="text-base">🏭</span>
-            <div class="leading-tight">
-              <p class="text-[10px] font-bold uppercase tracking-wide text-blue-700">SPARE PARTS</p>
-              <p class="text-xs font-bold text-blue-900">Stock Portal</p>
-            </div>
-          </div>
           <!-- Mobile search + cart + refresh -->
           <div class="flex min-w-0 flex-1 items-center gap-1.5 md:hidden">
             <div class="relative flex min-w-0 flex-1 items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -1755,39 +1748,44 @@
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             </button>
           </div>
-          <!-- Desktop: search + cart + sheet selector -->
-          <button id="openIssueCartBtn" type="button" class="hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition md:inline-flex">🛒 Issue Cart <span id="issueCartBadge" class="hidden min-w-[16px] h-4 rounded-full bg-red-500 px-1 text-[10px] font-black text-white leading-4">0</span></button>
-          <button id="openStarredBtn" type="button" title="อะไหล่ติดดาว (ต้องสั่งซื้อ)" class="hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition md:inline-flex" style="border-color:#fcd34d;background:#fffbeb;color:#b45309;">⭐ ติดดาว <span id="starredBadge" class="hidden min-w-[16px] h-4 rounded-full px-1 text-[10px] font-black leading-4" style="background:#f59e0b;color:#ffffff;">0</span></button>
-          <button id="openPartTagRegistryBtn" type="button" title="ทะเบียนชิ้น — ตามสถานะอะไหล่แต่ละชิ้นด้วยเลขประจำชิ้น" class="hidden h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition md:inline-flex" style="border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;">🏷️ ทะเบียนชิ้น</button>
-          <div class="hidden flex-1 md:block">
-            <div class="relative flex items-center rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-400 overflow-hidden">
-              <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none ml-3 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-10 w-full min-w-0 flex-1 bg-transparent pl-2 pr-2 text-sm outline-none" />
-              <button id="searchClearBtn" type="button" class="search-clear-btn hidden mr-1.5 shrink-0 text-slate-400 text-lg leading-none">×</button>
+          <!-- Desktop: แถว 1 = ค้นหา + ปุ่มลัด + Refresh · แถว 2 = ชิปกรองเร็ว (แยกแถวไม่ให้ปุ่มเบียดจนตัดบรรทัด) -->
+          <div class="hidden min-w-0 flex-1 flex-col gap-2 md:flex">
+            <div class="flex items-center gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="relative flex items-center rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-400 overflow-hidden">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none ml-3 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  <input id="searchInput" type="text" placeholder="ค้นหาอะไหล่ / รุ่น / แบรนด์" class="h-10 w-full min-w-0 flex-1 bg-transparent pl-2 pr-2 text-sm outline-none" />
+                  <button id="searchClearBtn" type="button" class="search-clear-btn hidden mr-1.5 shrink-0 text-slate-400 text-lg leading-none">×</button>
+                </div>
+              </div>
+              <div class="flex shrink-0 items-center gap-2">
+                <button id="openIssueCartBtn" type="button" class="hidden h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-blue-200 bg-blue-50 px-3 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition md:inline-flex">🛒 Issue Cart <span id="issueCartBadge" class="hidden min-w-[16px] h-4 rounded-full bg-red-500 px-1 text-[10px] font-black text-white leading-4">0</span></button>
+                <button id="openStarredBtn" type="button" title="อะไหล่ติดดาว (ต้องสั่งซื้อ)" class="hidden h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-sm font-semibold transition hover:brightness-95 md:inline-flex" style="border-color:#fcd34d;background:#fffbeb;color:#b45309;">⭐ ติดดาว <span id="starredBadge" class="hidden min-w-[16px] h-4 rounded-full px-1 text-[10px] font-black leading-4" style="background:#f59e0b;color:#ffffff;">0</span></button>
+                <button id="openPartTagRegistryBtn" type="button" title="ทะเบียนชิ้น — ตามสถานะอะไหล่แต่ละชิ้นด้วยเลขประจำชิ้น" class="hidden h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-sm font-semibold transition hover:brightness-95 md:inline-flex" style="border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;">🏷️ ทะเบียนชิ้น</button>
+                <span class="mx-0.5 h-6 w-px shrink-0 bg-slate-200"></span>
+                <button id="refreshStockDataBtn" type="button" title="โหลดข้อมูลล่าสุด" class="h-10 shrink-0 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 flex items-center gap-1.5 shadow-sm hover:bg-slate-50 hover:text-blue-700 transition-all">
+                  <svg id="refreshStockSpinner" class="hidden h-3.5 w-3.5 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a10 10 0 100 10z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  <span id="refreshStockBtnLabel" class="hidden sm:inline">Refresh</span>
+                </button>
+              </div>
             </div>
-          </div>
-          <!-- Outer wrapper: always hidden on mobile — JS never touches this -->
-          <div class="hidden md:flex items-center gap-2 shrink-0">
-            <div id="sheetSelectorWrap" class="flex items-center gap-2">
+            <div id="sheetSelectorWrap" class="flex flex-wrap items-center gap-1.5">
               <!-- sheetSelector ถูกซ่อนจาก UI — ซ้ำกับ filter "ทุกชีตย่อย" ด้านล่าง แต่คง element ไว้
                    เพราะ getCurrentSheetName() ใช้ค่าจากตัวนี้เป็น fallback ในหลายจุด (เบิก/รับ/แก้ไข) -->
               <select id="sheetSelector" class="hidden h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700">
                 <option value="Main List Stock">General</option>
                 <option value="Stock for MC">Stock for MC</option>
               </select>
+              <span class="mr-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">กรองเร็ว</span>
               <!-- กรองเร็ว: เฉพาะรายการที่ยังไม่มีราคา — หนุนเป้าหมายให้ทุกรายการมีราคาครบ -->
-              <button id="noPriceFilterBtn" type="button" class="h-10 rounded-xl border border-yellow-300 bg-yellow-50 px-3 text-xs font-bold text-yellow-700 hover:bg-yellow-100 transition whitespace-nowrap">❓ ยังไม่มีราคา</button>
+              <button id="noPriceFilterBtn" type="button" class="h-8 rounded-full border border-yellow-300 bg-yellow-50 px-3 text-xs font-bold text-yellow-700 hover:bg-yellow-100 transition whitespace-nowrap">❓ ยังไม่มีราคา</button>
               <!-- กรองเร็ว: เฉพาะรายการที่ยังไม่มี Location — ไว้ตามเติมให้ครบทุกรายการ -->
-              <button id="noLocationFilterBtn" type="button" class="h-10 rounded-xl border border-violet-300 bg-violet-50 px-3 text-xs font-bold text-violet-700 hover:bg-violet-100 transition whitespace-nowrap">📍 ยังไม่มี Location</button>
+              <button id="noLocationFilterBtn" type="button" class="h-8 rounded-full border border-violet-300 bg-violet-50 px-3 text-xs font-bold text-violet-700 hover:bg-violet-100 transition whitespace-nowrap">📍 ยังไม่มี Location</button>
               <!-- กรองเร็ว: เฉพาะของที่เพิ่งรับเข้าใน 7 วัน (ตัวเดียวกับที่ทำให้การ์ดเรืองแสง) -->
-              <button id="newArrivalFilterBtn" type="button" class="h-10 rounded-xl border border-amber-300 bg-amber-50 px-3 text-xs font-bold text-amber-700 hover:bg-amber-100 transition whitespace-nowrap">🆕 ของใหม่</button>
+              <button id="newArrivalFilterBtn" type="button" class="h-8 rounded-full border border-amber-300 bg-amber-50 px-3 text-xs font-bold text-amber-700 hover:bg-amber-100 transition whitespace-nowrap">🆕 ของใหม่</button>
               <!-- กรองเร็ว: เฉพาะรายการที่กำลังสั่ง (มี PR ค้างรับในระบบติดตาม PR — ตัวเดียวกับป้าย 🚚 บนการ์ด) -->
-              <button id="onOrderFilterBtn" type="button" class="h-10 rounded-xl border border-blue-300 bg-blue-50 px-3 text-xs font-bold text-blue-700 hover:bg-blue-100 transition whitespace-nowrap">🚚 กำลังสั่ง</button>
-              <button id="refreshStockDataBtn" type="button" class="h-10 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 flex items-center gap-1.5 hover:bg-blue-100 transition-all">
-                <svg id="refreshStockSpinner" class="hidden h-3.5 w-3.5 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a10 10 0 100 10z"/></svg>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                <span id="refreshStockBtnLabel" class="hidden sm:inline">Refresh</span>
-              </button>
+              <button id="onOrderFilterBtn" type="button" class="h-8 rounded-full border border-blue-300 bg-blue-50 px-3 text-xs font-bold text-blue-700 hover:bg-blue-100 transition whitespace-nowrap">🚚 กำลังสั่ง</button>
             </div>
           </div>
         </div>
