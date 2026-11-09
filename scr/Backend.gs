@@ -4449,14 +4449,26 @@ function startPrGrSystem(payload) {
 }
 
 // เลข PR แบบรันต่อเนื่อง: PR-yyMM-001 (นับใหม่ทุกเดือน) — อ่านเลขสูงสุดของเดือนนั้นจากชีทแล้ว +1
-function generatePrRunningId(hData, hIdx, date) {
+// นับเลขที่อยู่ในชีท PRLines ด้วย (lData/lIdx ไม่ส่งมา = อ่านเอง) — ถ้าหัวใบถูกลบไปแต่บรรทัดยังค้าง
+// จะได้ไม่ออกเลขซ้ำจนบรรทัดเก่ากับใหม่ปนกัน
+function generatePrRunningId(hData, hIdx, date, lData, lIdx) {
   var prefix = 'PR-' + Utilities.formatDate(date || new Date(), 'Asia/Bangkok', 'yyMM') + '-';
   var maxSeq = 0;
-  for (var i = 1; i < hData.length; i += 1) {
-    var id = String(hData[i][hIdx.pr_id] || '');
-    if (id.indexOf(prefix) !== 0) continue;
+  function consider(raw) {
+    var id = String(raw || '').trim();
+    if (id.indexOf(prefix) !== 0) return;
     var seq = Number(id.substring(prefix.length));
     if (isFinite(seq) && seq > maxSeq) maxSeq = seq;
+  }
+  for (var i = 1; i < hData.length; i += 1) consider(hData[i][hIdx.pr_id]);
+  if (!lData) {
+    try {
+      lData = getPrLinesSheet().getDataRange().getValues();
+      lIdx = prIndexMap(lData[0] || []);
+    } catch (err) { lData = null; }
+  }
+  if (lData && lIdx && lIdx.pr_id !== undefined) {
+    for (var j = 1; j < lData.length; j += 1) consider(lData[j][lIdx.pr_id]);
   }
   return prefix + ('00' + (maxSeq + 1)).slice(-3);
 }
@@ -4552,11 +4564,18 @@ function refreshPrHeaderStatus(headerSheet, hData, hIdx, hRow, lData, lIdx, acto
   return next;
 }
 
+// ชีท PRLines อาจมีแถวซ้ำ pr_id+line_no (เช่น เคยลบหัวใบในชีทด้วยมือแล้วเลข PR ถูกใช้ซ้ำ)
+// ต้องเลือกแถวที่ยังไม่ปิดยอดก่อน ให้ตรงกับที่ listOpenPrLines โชว์ในช่อง "รับตาม PR"
+// ไม่งั้นเลือกบรรทัดที่ค้างรับอยู่แล้วกดบันทึก จะไปเจอแถวเก่าที่ปิดยอดแล้วจนรับของไม่ได้
 function findPrLineRow(lData, lIdx, prId, lineNo) {
+  var first = -1;
   for (var i = 1; i < lData.length; i += 1) {
-    if (String(lData[i][lIdx.pr_id]) === String(prId) && Number(lData[i][lIdx.line_no]) === Number(lineNo)) return i;
+    if (prStr(lData[i][lIdx.pr_id]) !== prStr(prId) || Number(lData[i][lIdx.line_no]) !== Number(lineNo)) continue;
+    var status = lIdx.line_status !== undefined ? lData[i][lIdx.line_status] : '';
+    if (!prLineIsClosed(status)) return i;
+    if (first === -1) first = i;
   }
-  return -1;
+  return first;
 }
 
 // อะไหล่ที่รับเข้าต้องเป็นตัวเดียวกับบรรทัดใน PR — เทียบรุ่น (ถ้ามีทั้งสองฝั่ง) ไม่งั้นเทียบชื่อ

@@ -403,4 +403,42 @@ console.log('PR → GR date-cell checks passed');
   assert.strictEqual(plain.requestLinks.length, 0, 'PR ทั่วไป (ไม่ได้มาจากคำขอ) ไม่แตะชีทคำขอ');
 })();
 
+// ---- ชีท PRLines มีแถวซ้ำ pr_id+line_no (เลข PR เคยถูกใช้ซ้ำหลังลบหัวใบด้วยมือ) ----
+// ช่อง "รับตาม PR" โชว์บรรทัดที่ยังค้าง → กดบันทึกต้องรับเข้าบรรทัดนั้น ไม่ใช่ไปเจอแถวเก่าที่ปิดยอดแล้ว
+(function duplicateLineRowsPreferOpen() {
+  const api = makeBackend();
+  api.startPrGrSystem({ authToken: 'tok-admin' });
+  const pr = api.createPRUnlocked({ authToken: 'tok-tech', line: 'STAR', lines_json: LINES });
+  api.approvePRUnlocked({ authToken: 'tok-admin', pr_id: pr.pr_id });
+  const linesSheet = api.getPrLinesSheet();
+  const rows = linesSheet.rows;
+  const lIdx = api.prIndexMap(rows[0]);
+  const stale = rows.filter(function(r) { return r[lIdx.pr_id] === pr.pr_id && Number(r[lIdx.line_no]) === 1; })[0].slice();
+  stale[lIdx.line_status] = 'CLOSED';
+  stale[lIdx.close_reason] = 'แถวเก่าค้างในชีท';
+  rows.splice(1, 0, stale);
+
+  const open = api.getOpenPrLines({ authToken: 'tok-tech', part_name: 'Cutter blade', model: 'CB-100' }).lines;
+  assert.strictEqual(open.length, 1, 'แถวที่ปิดยอดแล้วไม่โชว์ในช่องรับตาม PR');
+  const r = receive(api, { prId: pr.pr_id, prLineNo: 1 }, 4, '2026-10-07 11:00:00');
+  assert.strictEqual(r.receipt.mode, 'PR', 'รับตามบรรทัดที่ค้างได้ แม้มีแถวซ้ำที่ปิดยอดแล้วอยู่ก่อน');
+  assert.strictEqual(r.gr.qty_outstanding, 6, 'ยอดรับลงแถวที่ค้างอยู่ (10 - 4)');
+  assert.strictEqual(rows[1][lIdx.line_status], 'CLOSED', 'แถวเก่าไม่ถูกแตะ');
+  assert.strictEqual(Number(rows[1][lIdx.qty_received] || 0), 0);
+})();
+
+// ---- เลข PR ใหม่ต้องไม่ชนกับเลขที่ยังมีบรรทัดค้างอยู่ใน PRLines (แม้หัวใบถูกลบไปแล้ว) ----
+(function runningIdSkipsOrphanLines() {
+  const api = makeBackend();
+  api.startPrGrSystem({ authToken: 'tok-admin' });
+  const first = api.createPRUnlocked({ authToken: 'tok-tech', line: 'STAR', lines_json: LINES });
+  assert.strictEqual(first.pr_id, 'PR-2610-001');
+  const hRows = api.getPrHeaderSheet().rows;
+  const hIdx = api.prIndexMap(hRows[0]);
+  const at = hRows.findIndex(function(r) { return r[hIdx.pr_id] === 'PR-2610-001'; });
+  hRows.splice(at, 1); // จำลองลบหัวใบในชีทด้วยมือ — บรรทัดยังค้างใน PRLines
+  const next = api.createPRUnlocked({ authToken: 'tok-tech', line: 'STAR', lines_json: LINES });
+  assert.strictEqual(next.pr_id, 'PR-2610-002', 'ไม่ออกเลขซ้ำกับบรรทัดเก่าที่ยังค้างในชีท');
+})();
+
 console.log('Auto-PR cutover checks passed');
