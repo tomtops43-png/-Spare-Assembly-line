@@ -59,6 +59,10 @@ assert(doc.includes('Monthly — Oct 2026') && doc.includes('Quarterly — Q4 20
 assert(doc.includes('&#10004; CHECKED') && doc.includes('Boss'), 'ผู้ตรวจในระบบขึ้นช่อง Checked by');
 assert(!doc.includes('&#10004; APPROVED'), 'Approved by เว้นให้เซ็นมือ');
 assert(doc.includes('<div class="s-name">Kan Qi</div>'), 'ชื่อผู้อนุมัติตายตัว Kan Qi');
+// ใบที่ยังไม่ผ่านการตรวจในระบบ (ปริ้นจากหน้าสร้าง PR) — ช่อง Checked by ใส่ชื่อผู้ตรวจประจำ Detbodin แต่ไม่ขึ้น ✔ CHECKED
+const draftDoc = fn.build(items, { prNumber: 'PR-TEST-2', budgetDoc: budgetDoc });
+assert(draftDoc.includes('<div class="s-name">Detbodin</div>'), 'Checked by default = Detbodin');
+assert(!draftDoc.includes('&#10004; CHECKED'), 'ยังไม่ตรวจ ไม่ขึ้นป้าย CHECKED');
 // ส่วนเก่าต้องหายไปหมด
 ['Annex', 'Drawing', 'Executive Summary', 'Critical Level', 'ใบขออนุมัติ'].forEach(function(t) { assert(!doc.includes(t), 'ต้องไม่มี ' + t + ' แล้ว'); });
 
