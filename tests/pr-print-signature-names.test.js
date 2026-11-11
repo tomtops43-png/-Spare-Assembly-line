@@ -20,7 +20,7 @@ assert(body.includes('header.approved_at = normalizeLogTimestamp('), 'approved_a
 
 // 3) หน้าปริ้นใช้ชื่อจริงก่อน username และแปลงเวลา Date ดิบเป็นเวลาไทย
 assert(html.includes("preparedByOverride: header.created_by_name || header.created_by || '-'"), 'prepared by uses display name');
-assert(html.includes("approvedByOverride: header.approved_by_name || header.approved_by || ''"), 'approved by uses display name');
+assert(html.includes("checkedByOverride: header.approved_by_name || header.approved_by || ''"), 'checked by = ผู้ที่ PR ถูกส่งไปตรวจ (ชื่อจริง)');
 const m = html.match(/function formatThaiDateTime\(value\) \{[\s\S]*?\n    \}/);
 assert(m, 'formatThaiDateTime exists');
 const formatThaiDateTime = new Function(m[0] + '; return formatThaiDateTime;')();
@@ -29,9 +29,14 @@ assert.strictEqual(label.slice(0, 16), '22/10/2026 10:14', 'raw Date string → 
 assert.strictEqual(formatThaiDateTime('Thu Oct 22 2026 03:14:57 GMT+0000').slice(0, 16), '22/10/2026 10:14', 'UTC → Bangkok');
 
 // 4) ช่องลายเซ็น 3 ช่องเรียงตามลำดับ: คนขอ > ตรวจสอบ > อนุมัติ
-const iReq = html.indexOf('<div class="s-role">Requested by</div>');
-const iChk = html.indexOf('<div class="s-role">Checked by</div>');
+const iReq = html.indexOf('<div class="s-role">Requested by');
+const iChk = html.indexOf('<div class="s-role">Checked by');
 const iApp = html.indexOf('<div class="s-role">Approved by</div>');
 assert(iReq > 0 && iChk > iReq && iApp > iChk, 'sign boxes ordered Requested > Checked > Approved');
+
+// 5) Approved by เซ็นมือหลังปริ้นเท่านั้น — ไม่ดึงชื่อ/วันที่จากระบบ และทุกช่องมีที่ว่างให้เซ็น (s-line ว่าง)
+assert(!html.includes('approvedByOverride'), 'Approved by ไม่รับชื่อจากระบบแล้ว');
+assert(html.includes('<div class="s-role">Approved by</div><div class="s-line"></div>'), 'Approved by เว้นช่องเซ็น');
+assert(!html.includes('<div class="s-line">\' +'), 'ช่องเซ็นต้องว่าง ไม่มีข้อความทับ');
 
 console.log('pr-print-signature-names: ok');
