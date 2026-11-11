@@ -19783,6 +19783,8 @@ function inferRequestPriority(stock, min) {
       REJECTED: { label: 'ตีกลับ', cls: 'bg-rose-100 text-rose-700' },
       CANCELLED: { label: 'ยกเลิก', cls: 'bg-slate-100 text-slate-400 line-through' }
     };
+    // สถานะที่เปิดดูใบ PR ฉบับเต็มได้ (ผ่านการอนุมัติแล้ว — ใบยังรออนุมัติ/ตีกลับ ยังไม่ใช่เอกสารจริง)
+    var PT_DOC_VIEW_STATUSES = ['APPROVED', 'ORDERED', 'PARTIAL', 'RECEIVED', 'CLOSED'];
     var PT_AUDIT_LABEL = {
       CREATE: '📝 สร้าง PR', APPROVE: '✅ อนุมัติ', EDIT_QTY: '✏️ แก้ยอดอนุมัติ', REJECT: '↩️ ตีกลับ',
       ORDER: '🛒 สั่งซื้อแล้ว', RECEIVE: '📥 รับของ', RECEIVE_REVERSED: '↩️ คืนรายการรับ',
@@ -20237,6 +20239,8 @@ function inferRequestPriority(stock, min) {
       var isOwner = currentUser && currentUser.username === h.created_by;
       var receivedAny = lines.some(function(l) { return l.qty_received > 0; });
       var actions = [];
+      // ดูใบ PR ฉบับเต็ม (รูป/งบ/ลายเซ็น) — เปิดได้ทุกสถานะหลังอนุมัติ ไม่ต้องย้อนไปหา Inbox
+      if (PT_DOC_VIEW_STATUSES.indexOf(h.status) > -1) actions.push('<button type="button" data-pt-act="view-doc" class="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700">📄 ดูใบ PR</button>');
       if (h.gr_tracked && h.status === 'APPROVED' && canBuy) actions.push('<button type="button" data-pt-act="order" class="h-9 rounded-lg bg-blue-600 px-3 text-sm font-bold text-white">🛒 สั่งซื้อแล้ว (ใส่ PO)</button>');
       if (['PENDING', 'APPROVED', 'ORDERED', 'REJECTED'].indexOf(h.status) > -1 && !receivedAny && (canBuy || isOwner)) actions.push('<button type="button" data-pt-act="cancel" class="h-9 rounded-lg border border-rose-300 bg-white px-3 text-sm font-semibold text-rose-600">🗑️ ยกเลิก PR</button>');
       ptEl('ptDetailActions').innerHTML = actions.join('');
@@ -20276,6 +20280,14 @@ function inferRequestPriority(stock, min) {
       if (!ptDetail) return;
       var prId = ptDetail.header.pr_id;
       var job;
+      if (act === 'view-doc') {
+        showQuickToast('⏳ กำลังโหลดใบ ' + prId + '...', 'info');
+        requestApi(withAuthPayload({ action: 'getPRForApproval', pr_id: prId })).then(function(res) {
+          if (!res || res.status !== 'success') throw new Error((res && res.message) || 'โหลด PR ไม่สำเร็จ');
+          openApprovedPrPrintWindow(res.header, res.lines);
+        }).catch(function(err) { showQuickToast('เปิดใบ PR ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error'); });
+        return;
+      }
       if (act === 'order') {
         var poNo = window.prompt('เลขที่ใบสั่งซื้อ (PO) — เว้นว่างได้', '');
         if (poNo === null) return;
