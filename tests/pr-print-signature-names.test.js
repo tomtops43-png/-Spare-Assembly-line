@@ -28,7 +28,10 @@ const label = formatThaiDateTime('Thu Oct 22 2026 10:14:57 GMT+0700 (เวล�
 assert.strictEqual(label.slice(0, 16), '22/10/2026 10:14', 'raw Date string → Thai time');
 assert.strictEqual(formatThaiDateTime('Thu Oct 22 2026 03:14:57 GMT+0000').slice(0, 16), '22/10/2026 10:14', 'UTC → Bangkok');
 
-console.log('pr-print-signature-names: ok');
+// 4) ช่องลายเซ็น 3 ช่องเรียงตามลำดับ: คนขอ > ตรวจสอบ > อนุมัติ
+const iReq = html.indexOf('<div class="s-role">Requested by</div>');
+const iChk = html.indexOf('<div class="s-role">Checked by</div>');
+const iApp = html.indexOf('<div class="s-role">Approved by</div>');
+assert(iReq > 0 && iChk > iReq && iApp > iChk, 'sign boxes ordered Requested > Checked > Approved');
 
-// 4) ตัดแถว Checked by ออกจากตารางลายเซ็น (เหลือ Prepared by / Approved by)
-assert(!html.includes('<tr><td>Checked by</td>'), 'Checked by row removed');
+console.log('pr-print-signature-names: ok');

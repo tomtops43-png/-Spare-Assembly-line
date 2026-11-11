@@ -27672,6 +27672,8 @@ if (dashboardPage) {
       var statusLabel = options.statusOverride || 'PENDING APPROVAL';
       var approvedByName = options.approvedByOverride || '';
       var approvedAtLabel = options.approvedAtOverride || '';
+      var checkedByName = options.checkedByOverride || '';
+      var checkedAtLabel = options.checkedAtOverride || '';
       var modeNow = String((document.getElementById('prMode') || {}).value || 'assembly_monthly');
       // ตอนปริ้นจาก Inbox บังคับ line จาก options — ไม่ให้ยึด prLineFilter ในฟอร์ม (อาจเป็นคนละใบ)
       var selectedLineNow = options.selectedLineOverride !== undefined ? String(options.selectedLineOverride) : String((document.getElementById('prLineFilter') || {}).value || 'all');
@@ -27920,6 +27922,8 @@ if (dashboardPage) {
         '<h2>3. Approval</h2>' +
         '<div class="signs">' +
           '<div class="sign"><div class="s-role">Requested by</div><div class="s-line">' + (isApproved ? '<span class="s-ok">Submitted</span>' : '') + '</div><div class="s-name">' + esc(preparedBy) + '</div><div class="s-date">Date: ' + esc(submissionDate) + '</div></div>' +
+          // ช่องกลาง = ผู้ตรวจสอบ (คนขอ > ตรวจสอบ > อนุมัติ) — ระบบยังไม่มีขั้นตรวจสอบ เว้นว่างไว้เซ็นมือ
+          '<div class="sign"><div class="s-role">Checked by</div><div class="s-line">' + (checkedByName ? '<span class="s-ok">&#10004; CHECKED</span>' : '') + '</div><div class="s-name">' + (checkedByName ? esc(checkedByName) : '&nbsp;') + '</div><div class="s-date">Date: ' + (checkedAtLabel ? esc(checkedAtLabel) : '____________') + '</div></div>' +
           '<div class="sign"><div class="s-role">Approved by</div><div class="s-line">' + (approvedByName ? '<span class="s-ok">&#10004; APPROVED</span>' : '') + '</div><div class="s-name">' + (approvedByName ? esc(approvedByName) : '&nbsp;') + '</div><div class="s-date">Date: ' + (approvedAtLabel ? esc(approvedAtLabel) : '____________') + '</div></div>' +
         '</div>';
 
