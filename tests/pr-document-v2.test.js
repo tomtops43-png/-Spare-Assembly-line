@@ -58,6 +58,7 @@ assert(doc.includes('WITHIN BUDGET — OK TO PURCHASE') && doc.includes('THB 8,0
 assert(doc.includes('Monthly — Oct 2026') && doc.includes('Quarterly — Q4 2026'), 'แสดงทั้งรายเดือนและรายไตรมาส');
 assert(doc.includes('&#10004; CHECKED') && doc.includes('Boss'), 'ผู้ตรวจในระบบขึ้นช่อง Checked by');
 assert(!doc.includes('&#10004; APPROVED'), 'Approved by เว้นให้เซ็นมือ');
+assert(doc.includes('<div class="s-name">Kan Qi</div>'), 'ชื่อผู้อนุมัติตายตัว Kan Qi');
 // ส่วนเก่าต้องหายไปหมด
 ['Annex', 'Drawing', 'Executive Summary', 'Critical Level', 'ใบขออนุมัติ'].forEach(function(t) { assert(!doc.includes(t), 'ต้องไม่มี ' + t + ' แล้ว'); });
 

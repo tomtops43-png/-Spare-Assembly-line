@@ -38,5 +38,7 @@ assert(iReq > 0 && iChk > iReq && iApp > iChk, 'sign boxes ordered Requested > C
 assert(!html.includes('approvedByOverride'), 'Approved by ไม่รับชื่อจากระบบแล้ว');
 assert(html.includes('<div class="s-role">Approved by</div><div class="s-line"></div>'), 'Approved by เว้นช่องเซ็น');
 assert(!html.includes('<div class="s-line">\' +'), 'ช่องเซ็นต้องว่าง ไม่มีข้อความทับ');
+assert(html.includes("var PR_DOC_APPROVER_NAME = 'Kan Qi';"), 'ชื่อผู้อนุมัติตายตัว = Kan Qi');
+assert(html.includes('<div class="s-role">Approved by</div><div class="s-line"></div><div class="s-name">\' + esc(PR_DOC_APPROVER_NAME) + \'</div><div class="s-date">Date: ____________</div>'), 'Approved by ขึ้นชื่อ Kan Qi แต่วันที่เว้นให้เขียนมือ');
 
 console.log('pr-print-signature-names: ok');

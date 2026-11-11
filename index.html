@@ -27672,6 +27672,8 @@ if (dashboardPage) {
       // สถานะ+ผู้อนุมัติ override ตอนปริ้นใบที่อนุมัติแล้วจาก Inbox — ใบจริงต้องขึ้น APPROVED ไม่ใช่ Pending
       var isApproved = !!options.statusOverride;
       var statusLabel = options.statusOverride || 'PENDING APPROVAL';
+      // ผู้อนุมัติใบ PR (ช่อง Approved by) — ชื่อตายตัว เซ็น/ลงวันที่ด้วยมือหลังปริ้น
+      var PR_DOC_APPROVER_NAME = 'Kan Qi';
       var checkedByName = options.checkedByOverride || '';
       var checkedAtLabel = options.checkedAtOverride || '';
       var modeNow = String((document.getElementById('prMode') || {}).value || 'assembly_monthly');
@@ -27925,7 +27927,7 @@ if (dashboardPage) {
           // คนขอ > ตรวจสอบ (ผู้ที่ PR ถูกส่งไปตรวจในระบบ) > อนุมัติ (เซ็นบนกระดาษเท่านั้น ไม่ใส่ชื่อ/วันที่ให้)
           '<div class="sign"><div class="s-role">Requested by' + (isApproved ? '<span class="s-ok">Submitted</span>' : '') + '</div><div class="s-line"></div><div class="s-name">' + esc(preparedBy) + '</div><div class="s-date">Date: ' + esc(submissionDate) + '</div></div>' +
           '<div class="sign"><div class="s-role">Checked by' + (checkedByName ? '<span class="s-ok">&#10004; CHECKED</span>' : '') + '</div><div class="s-line"></div><div class="s-name">' + (checkedByName ? esc(checkedByName) : '&nbsp;') + '</div><div class="s-date">Date: ' + (checkedAtLabel ? esc(checkedAtLabel) : '____________') + '</div></div>' +
-          '<div class="sign"><div class="s-role">Approved by</div><div class="s-line"></div><div class="s-name">(____________________)</div><div class="s-date">Date: ____________</div></div>' +
+          '<div class="sign"><div class="s-role">Approved by</div><div class="s-line"></div><div class="s-name">' + esc(PR_DOC_APPROVER_NAME) + '</div><div class="s-date">Date: ____________</div></div>' +
         '</div>';
 
       var metaCells = [
