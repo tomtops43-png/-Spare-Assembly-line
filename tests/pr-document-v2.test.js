@@ -43,7 +43,7 @@ const budgetDoc = {
   month: '2026-10', monthLabel: 'Oct 2026', quarterLabel: 'Q4 2026', quarterRange: 'Oct–Dec',
   rows: [{ line: 'H9', targetPct: 5, m: { budget: 20000, used: 5000, pr: 7000 }, q: { budget: 20000, used: 5000, pr: 7000 } }]
 };
-const doc = fn.build(items, { prNumber: 'PR-TEST-1', budgetDoc: budgetDoc, statusOverride: 'APPROVED', approvedByOverride: 'Boss' });
+const doc = fn.build(items, { prNumber: 'PR-TEST-1', budgetDoc: budgetDoc, statusOverride: 'APPROVED', checkedByOverride: 'Boss' });
 assert(doc.includes('class="doc-logo" src="https://example.com/app/images/Logo%20JR.jpg"'), 'มีโลโก้มุมบนซ้าย');
 assert(doc.includes('PURCHASE REQUEST') && doc.includes('PR-TEST-1'));
 ['Picture', 'Stock Status', 'On Hand', 'Min', 'Max', 'Order Qty', 'Unit Price (THB)', 'Amount (THB)'].forEach(function(h) {
@@ -56,7 +56,9 @@ assert(doc.includes('7,000.00'), 'ยอดรวม (ไม่รวม TBC) = 
 assert(doc.includes('excludes 1 TBC item(s)'));
 assert(doc.includes('WITHIN BUDGET — OK TO PURCHASE') && doc.includes('THB 8,000.00'), 'คงเหลือหลัง PR = 20,000 − 5,000 − 7,000');
 assert(doc.includes('Monthly — Oct 2026') && doc.includes('Quarterly — Q4 2026'), 'แสดงทั้งรายเดือนและรายไตรมาส');
-assert(doc.includes('&#10004; APPROVED') && doc.includes('Boss'));
+assert(doc.includes('&#10004; CHECKED') && doc.includes('Boss'), 'ผู้ตรวจในระบบขึ้นช่อง Checked by');
+assert(!doc.includes('&#10004; APPROVED'), 'Approved by เว้นให้เซ็นมือ');
+assert(doc.includes('<div class="s-name">Kan Qi</div>'), 'ชื่อผู้อนุมัติตายตัว Kan Qi');
 // ส่วนเก่าต้องหายไปหมด
 ['Annex', 'Drawing', 'Executive Summary', 'Critical Level', 'ใบขออนุมัติ'].forEach(function(t) { assert(!doc.includes(t), 'ต้องไม่มี ' + t + ' แล้ว'); });
 

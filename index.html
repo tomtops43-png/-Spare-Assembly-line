@@ -25478,8 +25478,10 @@ function inferRequestPriority(stock, min) {
         periodOverride: createdDate ? createdDate.slice(6, 10) + '-' + createdDate.slice(3, 5) : '',
         submissionDateOverride: createdDate,
         statusOverride: 'APPROVED',
-        approvedByOverride: header.approved_by_name || header.approved_by || '',
-        approvedAtOverride: approvedAtLabel ? approvedAtLabel.slice(0, 16) : '',
+        // ผู้ที่ PR ถูกส่งไปตรวจในระบบ (คนกดอนุมัติใน Inbox) = ช่อง Checked by
+        // ส่วน Approved by เว้นว่างให้ผู้อนุมัติเซ็นมือหลังปริ้นเท่านั้น
+        checkedByOverride: header.approved_by_name || header.approved_by || '',
+        checkedAtOverride: approvedAtLabel ? approvedAtLabel.slice(0, 16) : '',
         // ปริ้นจาก Inbox = จัดกลุ่มตามไลน์จริงของรายการ ไม่ยึด prLineFilter ในฟอร์ม
         isLineSpecificOverride: false,
         selectedLineOverride: 'all'
@@ -25501,8 +25503,8 @@ function inferRequestPriority(stock, min) {
     var PR_PRINT_EDIT_HEAD_FIELDS = [
       { key: 'preparedByOverride', label: 'Prepared by (ชื่อผู้ขอ)' },
       { key: 'submissionDateOverride', label: 'วันที่ขอ' },
-      { key: 'approvedByOverride', label: 'Approved by (ชื่อผู้อนุมัติ)' },
-      { key: 'approvedAtOverride', label: 'วันที่อนุมัติ' },
+      { key: 'checkedByOverride', label: 'Checked by (ชื่อผู้ตรวจสอบ)' },
+      { key: 'checkedAtOverride', label: 'วันที่ตรวจสอบ' },
       { key: 'departmentOverride', label: 'Department' },
       { key: 'periodOverride', label: 'Request Period' }
     ];
@@ -27670,8 +27672,8 @@ if (dashboardPage) {
       // สถานะ+ผู้อนุมัติ override ตอนปริ้นใบที่อนุมัติแล้วจาก Inbox — ใบจริงต้องขึ้น APPROVED ไม่ใช่ Pending
       var isApproved = !!options.statusOverride;
       var statusLabel = options.statusOverride || 'PENDING APPROVAL';
-      var approvedByName = options.approvedByOverride || '';
-      var approvedAtLabel = options.approvedAtOverride || '';
+      // ผู้อนุมัติใบ PR (ช่อง Approved by) — ชื่อตายตัว เซ็น/ลงวันที่ด้วยมือหลังปริ้น
+      var PR_DOC_APPROVER_NAME = 'Kan Qi';
       var checkedByName = options.checkedByOverride || '';
       var checkedAtLabel = options.checkedAtOverride || '';
       var modeNow = String((document.getElementById('prMode') || {}).value || 'assembly_monthly');
@@ -27921,10 +27923,11 @@ if (dashboardPage) {
       var signHtml =
         '<h2>3. Approval</h2>' +
         '<div class="signs">' +
-          '<div class="sign"><div class="s-role">Requested by</div><div class="s-line">' + (isApproved ? '<span class="s-ok">Submitted</span>' : '') + '</div><div class="s-name">' + esc(preparedBy) + '</div><div class="s-date">Date: ' + esc(submissionDate) + '</div></div>' +
-          // ช่องกลาง = ผู้ตรวจสอบ (คนขอ > ตรวจสอบ > อนุมัติ) — ระบบยังไม่มีขั้นตรวจสอบ เว้นว่างไว้เซ็นมือ
-          '<div class="sign"><div class="s-role">Checked by</div><div class="s-line">' + (checkedByName ? '<span class="s-ok">&#10004; CHECKED</span>' : '') + '</div><div class="s-name">' + (checkedByName ? esc(checkedByName) : '&nbsp;') + '</div><div class="s-date">Date: ' + (checkedAtLabel ? esc(checkedAtLabel) : '____________') + '</div></div>' +
-          '<div class="sign"><div class="s-role">Approved by</div><div class="s-line">' + (approvedByName ? '<span class="s-ok">&#10004; APPROVED</span>' : '') + '</div><div class="s-name">' + (approvedByName ? esc(approvedByName) : '&nbsp;') + '</div><div class="s-date">Date: ' + (approvedAtLabel ? esc(approvedAtLabel) : '____________') + '</div></div>' +
+          // ทุกช่องเว้นที่ว่าง (s-line) ไว้เซ็นมือหลังปริ้น — สถานะในระบบแสดงเป็นป้ายเล็กข้างหัวช่องแทน ไม่ทับที่เซ็น
+          // คนขอ > ตรวจสอบ (ผู้ที่ PR ถูกส่งไปตรวจในระบบ) > อนุมัติ (เซ็นบนกระดาษเท่านั้น ไม่ใส่ชื่อ/วันที่ให้)
+          '<div class="sign"><div class="s-role">Requested by' + (isApproved ? '<span class="s-ok">Submitted</span>' : '') + '</div><div class="s-line"></div><div class="s-name">' + esc(preparedBy) + '</div><div class="s-date">Date: ' + esc(submissionDate) + '</div></div>' +
+          '<div class="sign"><div class="s-role">Checked by' + (checkedByName ? '<span class="s-ok">&#10004; CHECKED</span>' : '') + '</div><div class="s-line"></div><div class="s-name">' + (checkedByName ? esc(checkedByName) : '&nbsp;') + '</div><div class="s-date">Date: ' + (checkedAtLabel ? esc(checkedAtLabel) : '____________') + '</div></div>' +
+          '<div class="sign"><div class="s-role">Approved by</div><div class="s-line"></div><div class="s-name">' + esc(PR_DOC_APPROVER_NAME) + '</div><div class="s-date">Date: ____________</div></div>' +
         '</div>';
 
       var metaCells = [
@@ -28011,8 +28014,8 @@ if (dashboardPage) {
         '.pr-doc .bar-legend{display:flex;gap:10px;font-size:9.5px;color:#475569;margin-top:3px;}.pr-doc .bar-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:-1px;}' +
         '.pr-doc .note{font-size:9.5px;color:#64748b;margin:4px 0;}' +
         '.pr-doc .signs{display:flex;gap:20px;margin-top:6px;}.pr-doc .sign{flex:1;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;text-align:center;}' +
-        '.pr-doc .s-role{font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:1px;text-align:left;}.pr-doc .s-line{height:40px;border-bottom:1px dashed #94a3b8;margin:4px 10px 4px;display:flex;align-items:flex-end;justify-content:center;}' +
-        '.pr-doc .s-ok{color:#15803d;font-weight:700;font-size:12px;padding-bottom:4px;}.pr-doc .s-name{font-weight:700;}.pr-doc .s-date{font-size:10.5px;color:#475569;}' +
+        '.pr-doc .s-role{font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:1px;text-align:left;}.pr-doc .s-line{height:56px;border-bottom:1px dashed #94a3b8;margin:4px 10px 4px;}' +
+        '.pr-doc .s-ok{float:right;color:#15803d;font-weight:700;font-size:10.5px;letter-spacing:0;text-transform:none;}.pr-doc .s-name{font-weight:700;}.pr-doc .s-date{font-size:10.5px;color:#475569;}' +
         '.pr-doc .doc-foot{text-align:center;margin-top:18px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:9.5px;color:#94a3b8;}' +
         '@media print{@page{size:A4 portrait;margin:12mm 10mm;}body{padding:0;background:#fff;}.pr-doc{max-width:none;padding:0;}' +
         '.pr-doc h2{page-break-after:avoid;break-after:avoid;}.pr-doc .verdict,.pr-doc .bars,.pr-doc .signs{page-break-inside:avoid;}thead{display:table-header-group;}tr,td,th{page-break-inside:avoid;}}';
