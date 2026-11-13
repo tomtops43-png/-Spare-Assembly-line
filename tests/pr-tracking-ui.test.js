@@ -136,3 +136,21 @@ console.log('Budget bypass button style checks passed');
 
 })();
 console.log('pr-tracking-ui (receive non-stock): ok');
+
+// ---- เปิดรายละเอียด PR ซ้ำตอนหน้าต่างยังเปิดอยู่ (หลังกดถอยกลับ/ยกเลิก/ปิดยอด) ห้ามล็อกเลื่อนหน้าเบิ้ล ----
+(function detailReopenNoDoubleLock() {
+  let locks = 0;
+  const cls = { hidden: true };
+  const modal = { classList: { contains: function(c) { return !!cls[c]; }, remove: function(c) { cls[c] = false; }, add: function(c) { cls[c] = true; } } };
+  const stub = { textContent: '', innerHTML: '' };
+  const open = new Function('ptEl', 'lockBodyScroll', 'ptApi', 'ptRenderDetail',
+    'var ptDetail;\n' + grabFn('ptOpenDetail') + '\nreturn ptOpenDetail;')(
+    function(id) { return id === 'ptDetailModal' ? modal : stub; },
+    function() { locks += 1; },
+    function() { return new Promise(function() {}); },
+    function() {});
+  open('PR-1');
+  open('PR-1');
+  assert.strictEqual(locks, 1, 'เปิดซ้ำตอนเปิดอยู่ต้องไม่ล็อกเลื่อนหน้าเพิ่ม');
+})();
+console.log('pr-tracking-ui (detail reopen lock): ok');

@@ -20443,8 +20443,12 @@ function inferRequestPriority(stock, min) {
       ptEl('ptDetailMeta').textContent = 'กำลังโหลด...';
       ptEl('ptDetailActions').innerHTML = '';
       ptEl('ptDetailBody').innerHTML = '';
-      modal.classList.remove('hidden');
-      lockBodyScroll();
+      // หลังกดปุ่มในหน้าต่าง (ถอยกลับ/ยกเลิก/ปิดยอด) จะเรียกซ้ำตอนหน้าต่างยังเปิดอยู่ — ล็อกเฉพาะตอนเปิดใหม่
+      // ไม่งั้นนับล็อกเบิ้ล ปิดหน้าต่างแล้วหน้าเว็บค้าง เลื่อนไม่ได้
+      if (modal.classList.contains('hidden')) {
+        modal.classList.remove('hidden');
+        lockBodyScroll();
+      }
       ptApi({ action: 'getPRDetail', pr_id: prId }).then(function(res) {
         ptDetail = res;
         ptRenderDetail();
