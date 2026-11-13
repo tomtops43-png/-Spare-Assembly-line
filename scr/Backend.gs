@@ -4353,27 +4353,52 @@ function getInbox(payload) {
 }
 
 // อ่านรายการ Bypass งบจาก PRAudit (action = BUDGET_BYPASS) ย้อนหลัง N วัน ใหม่สุดก่อน
+// แจ้งเตือน Bypass งบในกล่อง Inbox — แสดงเฉพาะ PR ที่ยัง "รออนุมัติ" อยู่
+// เดิมแสดงทุกครั้งที่ Bypass ใน 30 วัน แม้ PR ถูกอนุมัติ/ตีกลับ/ยกเลิกไปแล้ว → ค้างใน Inbox ปิดไม่ได้
+// (และ timestamp ในชีตเป็น Date — แปลงด้วย replace(' ', 'T') ได้ NaN เลยไม่เคยตัด 30 วันจริง)
 function listBudgetBypasses(days) {
   var sheet = getPrAuditSheet();
   var data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   var idx = prIndexMap(data[0]);
-  var cutoff = Date.now() - (days || 30) * 86400000;
-  var out = [];
-  for (var i = 1; i < data.length; i += 1) {
-    var row = data[i];
-    if (String(row[idx.action]) !== 'BUDGET_BYPASS') continue;
-    var tsRaw = String(row[idx.timestamp] || '');
-    var ts = new Date(tsRaw.replace(' ', 'T') + '+07:00').getTime();
-    if (!isNaN(ts) && ts < cutoff) continue;
-    out.push({
-      timestamp: tsRaw,
+  var statusByPr = {};
+  var hData = getPrHeaderSheet().getDataRange().getValues();
+  if (hData.length > 1) {
+    var hIdx = prIndexMap(hData[0]);
+    for (var h = 1; h < hData.length; h += 1) {
+      statusByPr[prStr(hData[h][hIdx.pr_id])] = String(hData[h][hIdx.status] || '').toUpperCase();
+    }
+  }
+  var rows = data.slice(1).map(function(row) {
+    var tsVal = row[idx.timestamp];
+    var isDate = Object.prototype.toString.call(tsVal) === '[object Date]';
+    return {
+      action: String(row[idx.action] || ''),
+      timestamp: isDate ? Utilities.formatDate(tsVal, 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss') : prStr(tsVal),
+      ts_ms: isDate ? tsVal.getTime() : NaN,
       pr_id: prStr(row[idx.pr_id]),
       actor: prStr(row[idx.actor]),
       line: prStr(row[idx.line]),
       detail: prStr(row[idx.detail])
-    });
-  }
+    };
+  });
+  return filterOpenBudgetBypasses(rows, statusByPr, Date.now() - (days || 30) * 86400000);
+}
+
+// แยกออกมาให้ทดสอบได้ — เก็บเฉพาะ BUDGET_BYPASS ของ PR ที่ยัง PENDING, ภายในช่วงเวลา, ใบละรายการเดียว (ล่าสุด)
+function filterOpenBudgetBypasses(rows, statusByPr, cutoffMs) {
+  var byPr = {};
+  (rows || []).forEach(function(r) {
+    if (r.action !== 'BUDGET_BYPASS') return;
+    if (statusByPr[r.pr_id] !== 'PENDING') return;
+    var ts = !isNaN(r.ts_ms) ? r.ts_ms : new Date(String(r.timestamp || '').replace(' ', 'T') + '+07:00').getTime();
+    if (!isNaN(ts) && ts < cutoffMs) return;
+    var prev = byPr[r.pr_id];
+    if (!prev || String(r.timestamp) > String(prev.timestamp)) {
+      byPr[r.pr_id] = { timestamp: r.timestamp, pr_id: r.pr_id, actor: r.actor, line: r.line, detail: r.detail };
+    }
+  });
+  var out = Object.keys(byPr).map(function(k) { return byPr[k]; });
   out.sort(function(a, b) { return String(b.timestamp).localeCompare(String(a.timestamp)); });
   return out;
 }

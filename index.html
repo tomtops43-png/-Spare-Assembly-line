@@ -25488,8 +25488,8 @@ function inferRequestPriority(stock, min) {
       if (inboxActiveTab === 'budget_bypass') {
         var bypasses = (inboxData && inboxData.budget_bypasses) || [];
         listEl.innerHTML = bypasses.length
-          ? '<div class="mb-3 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">🚧 รายการ PR ที่ถูกเปิดทั้งที่เกินงบ Spare part (Bypass) ใน 30 วันล่าสุด — ตรวจสอบความจำเป็นก่อนอนุมัติ</div>' + bypasses.map(inboxBypassCardHtml).join('')
-          : '<div class="p-6 text-center text-slate-400">✅ ไม่มีการเปิด PR เกินงบใน 30 วันล่าสุด</div>';
+          ? '<div class="mb-3 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">🚧 PR ที่เปิดทั้งที่เกินงบ Spare part (Bypass) และยัง <b>รออนุมัติ</b> — กด "ตรวจ PR" แล้วอนุมัติหรือตีกลับ รายการจะหายจากที่นี่เอง</div>' + bypasses.map(inboxBypassCardHtml).join('')
+          : '<div class="p-6 text-center text-slate-400">✅ ไม่มี PR เกินงบที่รออนุมัติ</div>';
         return;
       }
       if (inboxActiveTab === 'stock_below_min') {
