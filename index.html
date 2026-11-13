@@ -19890,7 +19890,7 @@ function inferRequestPriority(stock, min) {
     var PT_AUDIT_LABEL = {
       CREATE: '📝 สร้าง PR', APPROVE: '✅ อนุมัติ', EDIT_QTY: '✏️ แก้ยอดอนุมัติ', REJECT: '↩️ ตีกลับ',
       ORDER: '🛒 สั่งซื้อแล้ว', RECEIVE: '📥 รับของ', RECEIVE_REVERSED: '↩️ คืนรายการรับ',
-      CLOSE_LINE: '⛔ ปิดยอดค้าง', CANCEL: '🗑️ ยกเลิก', BUDGET_BYPASS: '⚠️ เปิดเกินงบ', RESUBMIT: '✏️ แก้ไขแล้วส่งใหม่'
+      CLOSE_LINE: '⛔ ปิดยอดค้าง', CANCEL: '🗑️ ยกเลิก', BUDGET_BYPASS: '⚠️ เปิดเกินงบ', RESUBMIT: '✏️ แก้ไขแล้วส่งใหม่', REVERT_PENDING: '↩️ ถอยกลับไปรออนุมัติ'
     };
     var ptState = { enabled: false, cutoverAt: '', checkedAt: 0, loading: null };
     var ptData = { open: null, prs: null, grs: null };
@@ -20474,6 +20474,8 @@ function inferRequestPriority(stock, min) {
       // ดูใบ PR ฉบับเต็ม (รูป/งบ/ลายเซ็น) — เปิดได้ทุกสถานะหลังอนุมัติ ไม่ต้องย้อนไปหา Inbox
       if (PT_DOC_VIEW_STATUSES.indexOf(h.status) > -1) actions.push('<button type="button" data-pt-act="view-doc" class="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700">📄 ดูใบ PR</button>');
       if (h.gr_tracked && h.status === 'APPROVED' && canBuy) actions.push('<button type="button" data-pt-act="order" class="h-9 rounded-lg bg-blue-600 px-3 text-sm font-bold text-white">🛒 สั่งซื้อแล้ว (ใส่ PO)</button>');
+      // อนุมัติไปแล้วแต่ยอดผิด — ถอยกลับไปรออนุมัติ ให้ผู้อนุมัติแก้ยอดแล้วอนุมัติใหม่ (ต้องยังไม่มีของเข้า)
+      if (h.gr_tracked && ['APPROVED', 'ORDERED'].indexOf(h.status) > -1 && !receivedAny && hasPermission('pr_approve')) actions.push('<button type="button" data-pt-act="revert-pending" class="h-9 rounded-lg border border-amber-300 bg-amber-50 px-3 text-sm font-bold text-amber-700">↩️ ถอยกลับไปรออนุมัติ</button>');
       if (['PENDING', 'APPROVED', 'ORDERED', 'REJECTED'].indexOf(h.status) > -1 && !receivedAny && (canBuy || isOwner)) actions.push('<button type="button" data-pt-act="cancel" class="h-9 rounded-lg border border-rose-300 bg-white px-3 text-sm font-semibold text-rose-600">🗑️ ยกเลิก PR</button>');
       ptEl('ptDetailActions').innerHTML = actions.join('');
 
@@ -20530,6 +20532,10 @@ function inferRequestPriority(stock, min) {
         var reason = window.prompt('เหตุผลที่ยกเลิก PR ' + prId);
         if (!reason || !reason.trim()) return;
         job = ptPost({ action: 'cancelPR', pr_id: prId, reason: reason.trim() });
+      } else if (act === 'revert-pending') {
+        var back = window.prompt('ถอย ' + prId + ' กลับไป "รออนุมัติ" เพื่อแก้ยอดแล้วอนุมัติใหม่\n\nเหตุผล (เช่น ยอดผิด ต้องแก้จำนวน)');
+        if (!back || !back.trim()) return;
+        job = ptPost({ action: 'revertPRToPending', pr_id: prId, reason: back.trim() });
       } else if (act === 'close-line') {
         var why = window.prompt('เหตุผลที่ปิดยอดค้างของรายการที่ ' + lineNo + ' (เช่น ซัพไม่มีของ / ไม่ต้องการแล้ว)');
         if (!why || !why.trim()) return;
