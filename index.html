@@ -3413,7 +3413,10 @@
           <label class="flex items-center gap-2 cursor-pointer"><input id="prIncludeUsage" type="checkbox" checked class="h-4 w-4 rounded" /><span>🔵 ใช้บ่อย (Usage)</span></label>
           <label class="flex items-center gap-2 cursor-pointer"><input id="prCriticalOnly" type="checkbox" class="h-4 w-4 rounded" /><span>⭐ Critical เท่านั้น</span></label>
         </div>
-        <p id="prFromRequestHint" class="mt-3 hidden rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">🧾 โหมดนี้จะดึงรายการจาก "ขอซื้ออะไหล่" ที่สถานะ <b>รออนุมัติ / อนุมัติแล้ว / พักรายการ</b> มาให้โดยตรง — ไม่ต้องตั้งเงื่อนไข Stock</p>
+        <div id="prFromRequestHint" class="mt-3 hidden rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
+          <p>🧾 ดึงคำขอซื้อที่ <b>ยังไม่ได้เปิด PR</b> (รออนุมัติ / อนุมัติแล้ว / พักรายการ) <b>เฉพาะที่ขอในรอบเดือนที่เลือก</b> — รายการ "พัก" จะไม่ถูกติ๊กให้</p>
+          <label class="mt-2 flex items-center gap-2 cursor-pointer font-semibold"><input id="prReqIncludeBacklog" type="checkbox" class="h-4 w-4 rounded" /><span>รวมคำขอที่ค้างจากเดือนก่อนๆ ด้วย</span></label>
+        </div>
         <p id="prFromStarredHint" class="mt-3 hidden rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">⭐ โหมดนี้จะดึง <b>อะไหล่ที่ติดดาวไว้ในเครื่องนี้</b> มาทำ PR ให้ทั้งหมด (โน๊ตที่พิมพ์ไว้จะกลายเป็นเหตุผล/Purpose) — ไม่ต้องตั้งเงื่อนไข Stock</p>
         <button id="prRunBtn" type="button" class="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition sm:w-auto sm:px-8">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
@@ -21318,6 +21321,16 @@ function inferRequestPriority(stock, min) {
       };
     }
     var PR_FROM_REQUEST_OPEN_STATUSES = { 'Pending': true, 'Approved': true, 'On Hold': true };
+    // โหมด "PR ขอซื้ออะไหล่" — เดิมดึงคำขอที่ยังเปิดอยู่ "ทุกเดือน" มาทั้งหมด (คำขอเก่าที่อนุมัติค้างไว้ก็มาด้วย รายการเลยเยอะเกิน)
+    // ตอนนี้ดึงเฉพาะคำขอที่ขอในรอบเดือนที่เลือก (period = 'yyyy-MM') เว้นแต่ติ๊ก "รวมคำขอค้างจากเดือนก่อนๆ"
+    // คืน { rows, backlog } — backlog = จำนวนคำขอเปิดอยู่จากเดือนอื่นที่ถูกกรองออก (ไว้บอกผู้ใช้ว่ายังมีค้าง)
+    function filterOrderRequestsForPr(rows, period, includeBacklog) {
+      var open = (rows || []).filter(function(r) { return PR_FROM_REQUEST_OPEN_STATUSES[String(r.status || 'Pending')]; });
+      period = String(period || '').trim();
+      if (!period || includeBacklog) return { rows: open, backlog: 0 };
+      var inPeriod = open.filter(function(r) { return String(r.requested_date || '').substring(0, 7) === period; });
+      return { rows: inPeriod, backlog: open.length - inPeriod.length };
+    }
     function loadOrderRequestPrCandidates() {
       return requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
         if (rows && rows.status === 'error') throw new Error(rows.message || 'โหลดรายการคำขอซื้อไม่สำเร็จ');
@@ -21328,7 +21341,14 @@ function inferRequestPriority(stock, min) {
           rows = rows.filter(function(r) { return idSet[String(r.request_id)]; });
           window.__prFromRequests = null;
         } else {
-          rows = rows.filter(function(r) { return PR_FROM_REQUEST_OPEN_STATUSES[String(r.status || 'Pending')]; });
+          var periodEl = document.getElementById('prPeriod');
+          var backlogEl = document.getElementById('prReqIncludeBacklog');
+          var periodVal = periodEl ? String(periodEl.value || '') : '';
+          var picked = filterOrderRequestsForPr(rows, periodVal, !!(backlogEl && backlogEl.checked));
+          rows = picked.rows;
+          if (picked.backlog > 0) {
+            showQuickToast('แสดงคำขอของเดือน ' + periodVal + ' ' + rows.length + ' รายการ · ยังมีคำขอค้างจากเดือนอื่นอีก ' + picked.backlog + ' รายการ (ติ๊ก "รวมคำขอที่ค้างจากเดือนก่อนๆ" ถ้าต้องการ)', 'info');
+          }
         }
         return loadPrSourceItems('assembly_monthly', 'all').catch(function() { return []; }).then(function(allItems) {
           // เลขที่ (no) ไม่ unique ข้ามไลน์ — แต่ละไลน์มีเลขรันของตัวเอง (1,2,3...)
@@ -21342,7 +21362,12 @@ function inferRequestPriority(stock, min) {
             var img = it.image_main_url || it.mainImage || it.imageUrlMain || it.imageMain || it.image || '';
             if (img && !imageByNo[key]) imageByNo[key] = img;
           });
-          return rows.map(function(r) { return orderRequestToPrCandidate(r, imageByNo); });
+          return rows.map(function(r) {
+            var c = orderRequestToPrCandidate(r, imageByNo);
+            // คำขอที่ถูก "พัก" ไว้ ยังแสดงให้เห็นแต่ไม่ติ๊กให้อัตโนมัติ
+            if (String(r.status || '') === 'On Hold') c.selected = false;
+            return c;
+          });
         });
       });
     }

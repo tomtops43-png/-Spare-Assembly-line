@@ -43,7 +43,7 @@ assert.strictEqual(c.suggestedQty, 2);
 assert.strictEqual(c.unitPrice, 1500);
 assert.strictEqual(c.critical, 'Critical', 'ด่วน = Critical');
 assert.strictEqual(c.selected, true);
-assert(html.includes('return rows.map(function(r) { return orderRequestToPrCandidate(r, imageByNo); });'), 'โหมด PR ขอซื้อใช้ตัวแปลงเดียวกัน');
+assert(html.includes('var c = orderRequestToPrCandidate(r, imageByNo);'), 'โหมด PR ขอซื้อใช้ตัวแปลงเดียวกัน');
 
 // ---- ผูกการทำงาน ----
 const i = html.indexOf("if (prManualForm) prManualForm.addEventListener('submit'");
