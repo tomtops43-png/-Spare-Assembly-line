@@ -114,8 +114,14 @@ console.log('Budget bypass button style checks passed');
   assert(!recv.includes('upsertItem') && !html.includes('function ptCreatePartFromLine'), 'ไม่สร้างรายการอะไหล่ใหม่');
   assert(!recv.includes('ในไลน์ที่เปิดอยู่ — ไปหน้า Stock'), 'ไม่ตันอยู่ที่ข้อความให้ไปหน้า Stock แล้ว');
   const ns = grabFn('ptReceiveNonStock');
-  assert(ns.includes("action: 'receivePrLineNonStock', pr_id: l.pr_id, line_no: l.line_no, qty: qty"), 'ส่ง PR + บรรทัด + จำนวนไปออก GR');
-  assert(ns.includes('ptAfterReceive()'), 'รีเฟรชหน้าติดตาม PR หลังรับ');
+  assert(!ns.includes('window.prompt'), 'ใช้หน้าต่างของระบบเอง ไม่ใช้ prompt ของเบราว์เซอร์');
+  assert(ns.includes("modal.classList.remove('hidden')"), 'เปิดหน้าต่าง #ptNsModal');
+  assert(html.includes('<div id="ptNsModal"') && html.includes('id="ptNsQty"') && html.includes('id="ptNsRemark"'), 'มีหน้าต่างรับของไม่เข้าสต็อก + ช่องจำนวน/หมายเหตุ');
+  const nsSubmit = grabFn('ptNsSubmit');
+  assert(nsSubmit.includes("action: 'receivePrLineNonStock', pr_id: l.pr_id, line_no: l.line_no, qty: qty"), 'ส่ง PR + บรรทัด + จำนวนไปออก GR');
+  assert(nsSubmit.includes('if (!(qty > 0))'), 'จำนวนต้องมากกว่า 0');
+  assert(nsSubmit.includes('ptAfterReceive()'), 'รีเฟรชหน้าติดตาม PR หลังรับ');
+  assert(grabFn('ptNsClose').includes('ptNsBusy) return'), 'ระหว่างบันทึกปิดหน้าต่างไม่ได้');
 
   const match = new Function(grabFn('ptMatchPart') + '\nreturn ptMatchPart;')();
   const parts = [{ name: 'เครื่องชั่ง', model: 'TBS-30CC' }, { name: 'Solenoid Valve', model: '-' }];
