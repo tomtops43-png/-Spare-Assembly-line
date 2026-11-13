@@ -4783,6 +4783,56 @@ function markPROrderedUnlocked(payload) {
 }
 
 // ยกเลิกทั้งใบ — ได้เฉพาะใบที่ยังไม่มีของเข้าเลย (มีของเข้าแล้วให้ "ปิดยอดค้าง" ทีละรายการแทน)
+// ถอย PR ที่อนุมัติแล้ว (ยังไม่มีของเข้า) กลับไป "รออนุมัติ" — ให้ผู้อนุมัติแก้ยอดแล้วกดอนุมัติใหม่
+// ยอด qty_approved เดิมคงไว้เป็นค่าตั้งต้นตอนตรวจใหม่, ผู้อนุมัติที่มอบหมายไว้ (assigned_to) คงเดิม
+var PR_REVERTIBLE_STATUSES = ['APPROVED', 'ORDERED'];
+function revertPRToPending(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return revertPRToPendingUnlocked(payload); } finally { lock.releaseLock(); }
+}
+function revertPRToPendingUnlocked(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'pr_approve');
+  var prId = String(payload.pr_id || '').trim();
+  if (!prId) throw new Error('ต้องระบุ pr_id');
+  var reason = String(payload.reason || '').trim();
+  if (!reason) throw new Error('กรุณาระบุเหตุผลที่ถอยกลับไปรออนุมัติ');
+  var headerSheet = getPrHeaderSheet();
+  var hData = headerSheet.getDataRange().getValues();
+  var hIdx = prIndexMap(hData[0]);
+  var hRow = findPrHeaderRow(hData, hIdx, prId);
+  if (hRow === -1) throw new Error('ไม่พบ PR: ' + prId);
+  var prLine = prStr(hData[hRow][hIdx.line]);
+  if (!prUserCanAccessLine(user, prLine)) throw new Error('ไม่มีสิทธิ์จัดการ PR ของไลน์นี้');
+  var cur = prStr(hData[hRow][hIdx.status]);
+  if (PR_REVERTIBLE_STATUSES.indexOf(cur) === -1) {
+    throw new Error('PR สถานะ ' + cur + ' ถอยกลับไปรออนุมัติไม่ได้ (ได้เฉพาะอนุมัติแล้ว/สั่งซื้อแล้ว ที่ยังไม่มีของเข้า)');
+  }
+  var linesSheet = getPrLinesSheet();
+  var lData = linesSheet.getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var rows = [];
+  for (var i = 1; i < lData.length; i += 1) {
+    if (String(lData[i][lIdx.pr_id]) !== prId) continue;
+    if (lIdx.qty_received !== undefined && Number(lData[i][lIdx.qty_received] || 0) > 0) {
+      throw new Error('PR นี้มีของเข้าแล้ว ถอยกลับไปรออนุมัติไม่ได้ — ให้ปิดยอดค้างทีละรายการแทน');
+    }
+    rows.push(i);
+  }
+  // บรรทัดกลับเป็นสถานะก่อนอนุมัติ (ว่าง) — หายจากรายการค้างรับจนกว่าจะอนุมัติใหม่
+  if (lIdx.line_status !== undefined) {
+    rows.forEach(function(r) { linesSheet.getRange(r + 1, lIdx.line_status + 1).setValue(''); });
+  }
+  var now = prNowText();
+  headerSheet.getRange(hRow + 1, hIdx.status + 1).setValue('PENDING');
+  ['approved_by', 'approved_at', 'ordered_by', 'ordered_at'].forEach(function(col) {
+    if (hIdx[col] !== undefined) headerSheet.getRange(hRow + 1, hIdx[col] + 1).setValue('');
+  });
+  headerSheet.getRange(hRow + 1, hIdx.updated_at + 1).setValue(now);
+  appendPrAudit(prId, 'REVERT_PENDING', user.username, prLine, cur, 'PENDING', reason);
+  return { status: 'success', pr_id: prId, pr_status: 'PENDING' };
+}
+
 function cancelPR(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -7174,6 +7224,7 @@ function doGet(e) {
     if (action === 'startPrGrSystem') return respond(startPrGrSystem(e.parameter), e);
     if (action === 'markPROrdered') return respond(markPROrdered(e.parameter), e);
     if (action === 'cancelPR') return respond(cancelPR(e.parameter), e);
+    if (action === 'revertPRToPending') return respond(revertPRToPending(e.parameter), e);
     if (action === 'closePrLine') return respond(closePrLine(e.parameter), e);
     if (action === 'receivePrLineNonStock') return respond(receivePrLineNonStock(e.parameter), e);
     if (action === 'listPRs') return respond(listPRs(e.parameter), e);
@@ -7540,6 +7591,7 @@ function doPost(e) {
     if (action === 'startPrGrSystem') return respond(startPrGrSystem(body), e);
     if (action === 'markPROrdered') return respond(markPROrdered(body), e);
     if (action === 'cancelPR') return respond(cancelPR(body), e);
+    if (action === 'revertPRToPending') return respond(revertPRToPending(body), e);
     if (action === 'closePrLine') return respond(closePrLine(body), e);
     if (action === 'receivePrLineNonStock') return respond(receivePrLineNonStock(body), e);
     if (action === 'listPRs') return respond(listPRs(body), e);

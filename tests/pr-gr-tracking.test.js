@@ -117,12 +117,12 @@ function makeBackend(stock) {
     'prLineRowToObject', 'refreshPrHeaderStatus', 'findPrLineRow', 'prLineMatchesReceivedPart', 'resolvePrReceiptForTransaction',
     'buildGrId', 'grLogRef', 'postPrGoodsReceipt', 'reversePrGoodsReceiptForLog', 'markPROrderedUnlocked', 'cancelPRUnlocked',
     'closePrLineUnlocked', 'prNetAmountById', 'listPRs', 'getPRDetail', 'grRowToObject', 'listGrRows', 'getGrLog', 'listOpenPrLines', 'getOpenPrLines',
-    'listPendingPrPartKeys', 'runAutoPrJob', 'receivePrLineNonStockUnlocked'
+    'listPendingPrPartKeys', 'runAutoPrJob', 'receivePrLineNonStockUnlocked', 'revertPRToPendingUnlocked'
   ];
   const src = [
     grabVar('PR_HEADER_HEADERS', backend), grabVar('PR_LINE_HEADERS', backend), grabVar('PR_AUDIT_HEADERS', backend),
     grabVar('GR_LOG_HEADERS', backend), grabVar('PR_RECEIVABLE_STATUSES', backend), grabScalar('PR_GR_CUTOVER_PROP', backend),
-    grabScalar('PR_ATTACH_MAX_FILES', backend), grabScalar('GR_NON_STOCK_SHEET', backend)
+    grabScalar('PR_ATTACH_MAX_FILES', backend), grabScalar('GR_NON_STOCK_SHEET', backend), grabVar('PR_REVERTIBLE_STATUSES', backend)
   ].concat(fnNames.map(function(n) { return grabFn(n, backend, 0); }))
     .concat(['return {' + fnNames.map(function(n) { return n + ': ' + n; }).join(', ') + '};']).join('\n');
   const envKeys = Object.keys(env);
@@ -337,7 +337,7 @@ function lineOf(api, prId, lineNo) {
   assert(inbox.includes("listPrCardsForUser(user, ['REJECTED']).filter(function(c) { return c.created_by === user.username; })"), 'แท็บถูกตีกลับเห็นเฉพาะใบของตัวเอง');
   assert(inbox.includes('pr_rejected: prRejected.length') && inbox.includes('tabs.pr_pending + tabs.pr_rejected'), 'ถูกตีกลับนับใน badge');
 
-  ['getPrGrSystemStatus', 'startPrGrSystem', 'markPROrdered', 'cancelPR', 'closePrLine', 'listPRs', 'getPRDetail', 'getGrLog', 'getOpenPrLines', 'receivePrLineNonStock'].forEach(function(action) {
+  ['getPrGrSystemStatus', 'startPrGrSystem', 'markPROrdered', 'cancelPR', 'closePrLine', 'listPRs', 'getPRDetail', 'getGrLog', 'getOpenPrLines', 'receivePrLineNonStock', 'revertPRToPending'].forEach(function(action) {
     assert(backend.includes("if (action === '" + action + "') return respond(" + action + "(e.parameter), e);"), 'doGet routes ' + action);
     assert(backend.includes("if (action === '" + action + "') return respond(" + action + "(body), e);"), 'doPost routes ' + action);
   });
@@ -473,3 +473,35 @@ console.log('Auto-PR cutover checks passed');
   assert.throws(function() { api.receivePrLineNonStockUnlocked({ authToken: 'tok-tech', pr_id: pr.pr_id, line_no: 1, qty: 1 }); }, /รับครบแล้ว|สถานะ: RECEIVED/, 'รับครบแล้วรับซ้ำไม่ได้');
 })();
 console.log('Non-stock receive checks passed');
+
+// ---- ถอย PR ที่อนุมัติแล้วกลับไปรออนุมัติ เพื่อแก้ยอดแล้วอนุมัติใหม่ ----
+(function revertToPending() {
+  const api = makeBackend();
+  api.startPrGrSystem({ authToken: 'tok-admin' });
+  const pr = api.createPRUnlocked({ authToken: 'tok-tech', line: 'STAR', lines_json: LINES, assign_to: 'admin' });
+  assert.throws(function() { api.revertPRToPendingUnlocked({ authToken: 'tok-admin', pr_id: pr.pr_id, reason: 'x' }); }, /ถอยกลับไปรออนุมัติไม่ได้/, 'ยังรออนุมัติอยู่ = ถอยไม่ได้');
+  api.approvePRUnlocked({ authToken: 'tok-admin', pr_id: pr.pr_id });
+  assert.strictEqual(api.listOpenPrLines({}).length, 2);
+  assert.throws(function() { api.revertPRToPendingUnlocked({ authToken: 'tok-tech', pr_id: pr.pr_id, reason: 'x' }); }, /pr_approve/, 'ต้องมีสิทธิ์อนุมัติ');
+  assert.throws(function() { api.revertPRToPendingUnlocked({ authToken: 'tok-admin', pr_id: pr.pr_id }); }, /เหตุผล/);
+  api.markPROrderedUnlocked({ authToken: 'tok-admin', pr_id: pr.pr_id, po_no: 'PO-1' });
+
+  const res = api.revertPRToPendingUnlocked({ authToken: 'tok-admin', pr_id: pr.pr_id, reason: 'ยอดผิด' });
+  assert.strictEqual(res.pr_status, 'PENDING');
+  const d = api.getPRDetail({ authToken: 'tok-admin', pr_id: pr.pr_id });
+  assert.strictEqual(d.header.status, 'PENDING');
+  assert.strictEqual(d.header.approved_by, '', 'ล้างผู้อนุมัติเดิม');
+  assert.strictEqual(api.listOpenPrLines({}).length, 0, 'หายจากรายการค้างรับ');
+  assert(d.timeline.some(function(t) { return t.action === 'REVERT_PENDING'; }), 'บันทึกประวัติ');
+
+  // แก้ยอดแล้วอนุมัติใหม่ได้
+  api.approvePRUnlocked({ authToken: 'tok-admin', pr_id: pr.pr_id, lines_json: JSON.stringify([{ line_no: 1, qty_approved: 3 }]) });
+  const open = api.listOpenPrLines({});
+  assert.strictEqual(open.length, 2);
+  assert.strictEqual(open.filter(function(l) { return l.line_no === 1; })[0].qty_outstanding, 3, 'ยอดใหม่หลังแก้');
+
+  // มีของเข้าแล้ว = ถอยไม่ได้
+  receive(api, { prId: pr.pr_id, prLineNo: 1 }, 1, '2026-10-08 09:00:00');
+  assert.throws(function() { api.revertPRToPendingUnlocked({ authToken: 'tok-admin', pr_id: pr.pr_id, reason: 'x' }); }, /ถอยกลับไปรออนุมัติไม่ได้|มีของเข้าแล้ว/);
+})();
+console.log('Revert PR to pending checks passed');
