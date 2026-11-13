@@ -248,6 +248,38 @@
       #ptNsModal { align-items: flex-end; padding: 0; }
       #ptNsModal .ns-panel { max-width: none; max-height: 92vh; border-radius: 22px 22px 0 0; }
     }
+    /* หน้าต่าง "➕ เพิ่มรายการนอกระบบ" ในหน้า PR Report ขั้นตอนที่ 3 — CSS จริงทั้งหมดแบบเดียวกับ #ptNsModal */
+    #prManualModal { position: fixed; inset: 0; z-index: 9900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    #prManualModal.hidden { display: none; }
+    #prManualModal *, #prManualModal *::before, #prManualModal *::after { box-sizing: border-box; }
+    #prManualModal .pm-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.55); }
+    #prManualModal .pm-panel { position: relative; width: 100%; max-width: 520px; max-height: calc(100vh - 32px); overflow-y: auto; background: #fff; border-radius: 22px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.4); animation: nsPop .16s ease-out; }
+    #prManualModal .pm-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; color: #fff; background: linear-gradient(135deg, #2563eb, #7c3aed); }
+    #prManualModal .pm-head h3 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+    #prManualModal .pm-head p { font-size: 12px; color: #e0e7ff; margin-top: 2px; }
+    #prManualModal .pm-x { width: 36px; height: 36px; border-radius: 9999px; background: rgba(255,255,255,.2); color: #fff; font-size: 22px; line-height: 1; }
+    #prManualModal .pm-x:hover { background: rgba(255,255,255,.32); }
+    #prManualModal .pm-body { padding: 18px 20px 6px; }
+    #prManualModal .pm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    #prManualModal .pm-full { grid-column: 1 / -1; }
+    #prManualModal .pm-label { display: block; font-size: 13px; font-weight: 600; color: #334155; }
+    #prManualModal .pm-label small { font-weight: 400; color: #94a3b8; }
+    #prManualModal .pm-input { display: block; width: 100%; height: 42px; margin-top: 4px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; background: #fff; color: #0f172a; }
+    #prManualModal .pm-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, .2); }
+    #prManualModal .pm-note { margin-top: 14px; padding: 8px 12px; border: 1px solid #c7d2fe; border-radius: 12px; background: #eef2ff; font-size: 12px; color: #3730a3; }
+    #prManualModal .pm-error { margin-top: 10px; font-size: 14px; font-weight: 600; color: #e11d48; }
+    #prManualModal .pm-foot { display: flex; gap: 8px; margin-top: 16px; padding: 14px 20px; border-top: 1px solid #f1f5f9; background: #f8fafc; }
+    #prManualModal .pm-btn { height: 48px; border-radius: 12px; font-weight: 700; }
+    #prManualModal .pm-btn-ghost { flex: 1; border: 1px solid #cbd5e1; background: #fff; color: #334155; }
+    #prManualModal .pm-btn-ghost:hover { background: #f1f5f9; }
+    #prManualModal .pm-btn-primary { flex: 2; background: #4f46e5; color: #fff; box-shadow: 0 4px 10px -2px rgba(79, 70, 229, .4); }
+    #prManualModal .pm-btn-primary:hover { background: #4338ca; }
+    #prManualModal .pm-btn-primary:disabled { opacity: .6; cursor: wait; }
+    @media (max-width: 480px) {
+      #prManualModal { align-items: flex-end; padding: 0; }
+      #prManualModal .pm-panel { max-width: none; max-height: 92vh; border-radius: 22px 22px 0 0; }
+      #prManualModal .pm-grid { grid-template-columns: 1fr; }
+    }
     #prPrintEditor { position: fixed; inset: 0; z-index: 10002; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(15, 23, 42, 0.5); }
     #prPrintEditor .pe-panel { display: flex; flex-direction: column; width: 100%; max-width: 1150px; max-height: 92vh; background: #fff; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.35); }
     #prPrintEditor .pe-head, #prPrintEditor .pe-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 20px; border-color: #e2e8f0; }
@@ -3438,11 +3470,14 @@
               <option value="TOPUP">เติมให้เต็ม Max เท่านั้น</option>
               <option value="CRIT">Critical</option>
               <option value="STAR">⭐ ติดดาวไว้</option>
+              <option value="NEW">🆕 นอกระบบ (เพิ่มเอง)</option>
               <option value="PENDING">⚠️ มีคำสั่งซื้อค้างอยู่</option>
             </select>
             <label class="flex h-9 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm cursor-pointer">
               <input id="prSelectedOnly" type="checkbox" class="h-4 w-4" /> เฉพาะที่เลือก
             </label>
+            <!-- ของที่ยังไม่มีในระบบ: กรอกตรงนี้ได้เลย ไม่ต้องไปหน้า "ขอซื้อ" ก่อน (ระบบออกใบคำขอให้เบื้องหลังเพื่อผูกกับ PR) -->
+            <button id="prAddManualBtn" type="button" class="h-9 rounded-xl border border-indigo-300 bg-indigo-50 px-3 text-sm font-bold text-indigo-700 hover:bg-indigo-100 transition">➕ เพิ่มรายการนอกระบบ</button>
           </div>
         </div>
         <div id="prCandidateList" class="max-h-[500px] space-y-0 overflow-auto divide-y divide-slate-100"></div>
@@ -5195,6 +5230,77 @@
       <div class="ns-foot">
         <button type="button" class="ns-btn ns-btn-ghost" data-pt-ns-close>ยกเลิก</button>
         <button id="ptNsSubmit" type="submit" class="ns-btn ns-btn-primary">📥 ยืนยันรับของ</button>
+      </div>
+    </form>
+  </div>
+  <!-- ➕ เพิ่มรายการนอกระบบเข้า PR (หน้า PR Report ขั้นตอนที่ 3) — สำหรับของที่ยังไม่มีในสต็อก
+       กดเพิ่มแล้วระบบสร้าง "คำขอซื้อ" ให้เบื้องหลัง (ใช้ผูกกับเลข PR / ติดตาม / รับของ) แล้วใส่ในรายการ PR ทันที
+       สไตล์อยู่ใน <style> (#prManualModal) ทั้งหมด -->
+  <div id="prManualModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="prManualTitle">
+    <div class="pm-backdrop" data-pr-manual-close></div>
+    <form id="prManualForm" class="pm-panel" novalidate>
+      <div class="pm-head">
+        <div>
+          <h3 id="prManualTitle">➕ เพิ่มรายการนอกระบบ</h3>
+          <p>ของที่ยังไม่มีในสต็อก · ใส่ใน PR ใบนี้ได้เลย</p>
+        </div>
+        <button type="button" class="pm-x" data-pr-manual-close aria-label="ปิด">×</button>
+      </div>
+      <div class="pm-body">
+        <div class="pm-grid">
+          <label class="pm-label pm-full">ชื่อรายการ *
+            <input id="prManualName" type="text" maxlength="150" class="pm-input" placeholder="เช่น Proximity Sensor" />
+          </label>
+          <label class="pm-label">รุ่น / Model
+            <input id="prManualModel" type="text" maxlength="120" class="pm-input" />
+          </label>
+          <label class="pm-label">ยี่ห้อ / Brand
+            <input id="prManualBrand" type="text" maxlength="80" class="pm-input" />
+          </label>
+          <label class="pm-label">Line *
+            <select id="prManualLine" class="pm-input">
+              <option value="H9">H9</option>
+              <option value="Arc Chute">Arc Chute</option>
+              <option value="Coil Winding">Coil Winding</option>
+              <option value="Lug&amp;Screw">Lug&amp;Screw</option>
+              <option value="ส่วนกลาง">ส่วนกลาง</option>
+            </select>
+          </label>
+          <label class="pm-label">ประเภทรายการ
+            <select id="prManualCategory" class="pm-input">
+              <option value="Spare Part">⚙️ อะไหล่เครื่องจักร</option>
+              <option value="Consumable">🧴 วัสดุสิ้นเปลือง</option>
+              <option value="Tools">🔧 เครื่องมือช่าง</option>
+              <option value="Office">🖇️ อุปกรณ์สำนักงาน</option>
+              <option value="Other">📦 อื่นๆ</option>
+            </select>
+          </label>
+          <label class="pm-label">จำนวน *
+            <input id="prManualQty" type="number" min="1" step="any" inputmode="decimal" class="pm-input" value="1" />
+          </label>
+          <label class="pm-label">หน่วย
+            <input id="prManualUnit" type="text" maxlength="20" class="pm-input" value="PCS" />
+          </label>
+          <label class="pm-label">ราคา/หน่วย (บาท) <small>ไม่รู้ปล่อยว่าง = TBC</small>
+            <input id="prManualPrice" type="number" min="0" step="any" inputmode="decimal" class="pm-input" />
+          </label>
+          <label class="pm-label">ความเร่งด่วน
+            <select id="prManualPriority" class="pm-input">
+              <option value="Normal">🟡 ปกติ</option>
+              <option value="High">🟠 สูง</option>
+              <option value="Urgent">🔴 ด่วน (Critical)</option>
+            </select>
+          </label>
+          <label class="pm-label pm-full">เหตุผล / Purpose *
+            <input id="prManualReason" type="text" maxlength="200" class="pm-input" placeholder="เช่น ใช้ซ่อมเครื่อง / เปลี่ยนรุ่นใหม่" />
+          </label>
+        </div>
+        <p class="pm-note">ระบบจะออก "คำขอซื้อ" ให้อัตโนมัติ (ไม่ต้องไปหน้าขอซื้อเอง) เพื่อผูกกับเลข PR ใช้ติดตามและรับของได้ — ถ้าไม่ได้ส่ง PR ใบนี้ คำขอจะค้างอยู่ในหน้า "ขอซื้อ" สถานะรออนุมัติ</p>
+        <p id="prManualError" class="pm-error hidden"></p>
+      </div>
+      <div class="pm-foot">
+        <button type="button" class="pm-btn pm-btn-ghost" data-pr-manual-close>ยกเลิก</button>
+        <button id="prManualSubmit" type="submit" class="pm-btn pm-btn-primary">➕ เพิ่มเข้า PR</button>
       </div>
     </form>
   </div>
@@ -21144,6 +21250,73 @@ function inferRequestPriority(stock, min) {
       return '';
     }
 
+    // แปลงแถวคำขอซื้อ (Order Request) → การ์ดรายการในขั้นตอนที่ 3 ของ PR Report
+    // ใช้ร่วมกันทั้งโหมด "PR ขอซื้ออะไหล่" และปุ่ม "➕ เพิ่มรายการนอกระบบ" (สร้างคำขอแล้วใส่ใน PR ทันที)
+    // imageByNo = รูปแคตตาล็อกของสต็อก key ด้วย ไลน์::no (ไม่มีให้ส่ง {} มา)
+    function orderRequestToPrCandidate(r, imageByNo) {
+      imageByNo = imageByNo || {};
+      var priorityRaw = String(r.priority || '').toLowerCase();
+      var critical = priorityRaw === 'urgent' || priorityRaw === 'critical' ? 'Critical' : priorityRaw === 'high' ? 'High' : 'Medium';
+      var qty = Number(r.request_qty || 0) || 1;
+      var noKey = String(r.item_id || '').trim();
+      var reqLine = isSharedLineName(r.line) ? 'ส่วนกลาง' : canonicalLineName(r.line || activeRealLine());
+      var noKeyComposite = reqLine + '::' + noKey;
+      var reqAttachImage = isRequestAttachmentDoc(r.attachment_url) ? '' : (r.attachment_url || '');
+      return {
+        id: 'REQ-' + (r.request_id || r.item_id || r.item_name),
+        request_id: r.request_id || '',
+        selected: true, no: r.item_id || '-', name: r.item_name || '-', model: r.model || '-', brand: r.brand || '-',
+        category: r.category || '-', line: reqLine, subLine: r.line || '-',
+        location: r.location || '-', unit: r.unit || 'PCS', stock: Number(r.stock || 0), min: Number(r.min || 0), max: Number(r.max || 0),
+        need: qty, suggestedQty: qty, recentUsage: 0, critical: critical, priority: critical,
+        reason: 'REQ', requestedBy: r.requested_by || '-', requestStatus: r.status || 'Pending',
+        unitPrice: Number(r.unit_price || 0), currency: r.currency || 'THB', supplier: r.supplier || '',
+        priceUpdatedAt: '', priceRemark: '', machineStation: '', purpose: r.purpose || r.remark || '',
+        // รายละเอียดคำขอ — แสดงบนการ์ดขั้นตอนที่ 3 ให้ตรวจได้โดยไม่ต้องย้อนกลับไปหน้าขอซื้อ
+        requestReason: r.reason || '', requestRemark: r.remark || '', requestedDate: r.requested_date || '',
+        expectedUseDate: r.expected_use_date || '', isNewItemRequest: !noKey,
+        // ถ้าอะไหล่มีอยู่ในสต็อกอยู่แล้ว (จับคู่ no+line เจอ) ต้องใช้รูปแคตตาล็อกของสต็อกเป็นหลัก
+        // เพราะเป็นรูปที่ยืนยันแล้วว่าตรงกับอะไหล่จริง — รูปแนบของคำขอ (attachment_url) มักเป็นรูป
+        // อ้างอิง/สภาพหน้างานที่อาจไม่ตรงกับอะไหล่เป๊ะ ใช้เป็น fallback เฉพาะรายการใหม่ที่ยังไม่มีในสต็อกเท่านั้น
+        mainImage: (noKey && imageByNo[noKeyComposite]) || reqAttachImage, drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
+        drawingRevision: '', drawing_revision: '', drawingStatus: '', drawing_status: '',
+        datasheetUrl: '', quotationUrl: ''
+      };
+    }
+    // ➕ เพิ่มรายการนอกระบบเข้า PR — ตรวจค่าที่กรอกแล้วสร้าง payload ของ createOrderRequest
+    // (ของที่ไม่มีในสต็อกต้องมีใบคำขอซื้อเป็นต้นทาง เพราะติดตาม PR / รับของ อ้างอิง request_id)
+    // คืน { error } ถ้ากรอกไม่ครบ
+    function buildManualPrRequestPayload(f) {
+      f = f || {};
+      var name = String(f.name || '').trim();
+      if (!name) return { error: 'กรุณากรอกชื่อรายการ' };
+      var qty = Number(f.qty);
+      if (!isFinite(qty) || qty <= 0) return { error: 'จำนวนต้องมากกว่า 0' };
+      var reason = String(f.reason || '').trim();
+      if (!reason) return { error: 'กรุณาระบุเหตุผล / Purpose' };
+      var priceRaw = String(f.price === undefined || f.price === null ? '' : f.price).trim();
+      var price = priceRaw === '' ? '' : Number(priceRaw);
+      if (price !== '' && (!isFinite(price) || price < 0)) return { error: 'ราคาไม่ถูกต้อง' };
+      var priority = { Normal: 1, High: 1, Urgent: 1 }[f.priority] ? f.priority : 'Normal';
+      return {
+        action: 'createOrderRequest',
+        item_id: '',
+        item_name: name,
+        model: String(f.model || '').trim(),
+        brand: String(f.brand || '').trim(),
+        category: String(f.category || '').trim() || 'Spare Part',
+        line: String(f.line || '').trim(),
+        current_stock: 0, min: 0, max: 0,
+        request_qty: qty,
+        unit: String(f.unit || '').trim() || 'PCS',
+        unit_price: price,
+        currency: 'THB',
+        reason: reason,
+        priority: priority,
+        remark: 'เพิ่มจากหน้า PR Report (รายการนอกระบบ)',
+        attachment_url: ''
+      };
+    }
     var PR_FROM_REQUEST_OPEN_STATUSES = { 'Pending': true, 'Approved': true, 'On Hold': true };
     function loadOrderRequestPrCandidates() {
       return requestApi(withAuthPayload({ action: 'getOrderRequests' })).then(function(rows) {
@@ -21169,35 +21342,7 @@ function inferRequestPriority(stock, min) {
             var img = it.image_main_url || it.mainImage || it.imageUrlMain || it.imageMain || it.image || '';
             if (img && !imageByNo[key]) imageByNo[key] = img;
           });
-          return rows.map(function(r) {
-            var priorityRaw = String(r.priority || '').toLowerCase();
-            var critical = priorityRaw === 'urgent' || priorityRaw === 'critical' ? 'Critical' : priorityRaw === 'high' ? 'High' : 'Medium';
-            var qty = Number(r.request_qty || 0) || 1;
-            var noKey = String(r.item_id || '').trim();
-            var reqLine = isSharedLineName(r.line) ? 'ส่วนกลาง' : canonicalLineName(r.line || activeRealLine());
-            var noKeyComposite = reqLine + '::' + noKey;
-            var reqAttachImage = isRequestAttachmentDoc(r.attachment_url) ? '' : (r.attachment_url || '');
-            return {
-              id: 'REQ-' + (r.request_id || r.item_id || r.item_name),
-              request_id: r.request_id || '',
-              selected: true, no: r.item_id || '-', name: r.item_name || '-', model: r.model || '-', brand: r.brand || '-',
-              category: r.category || '-', line: reqLine, subLine: r.line || '-',
-              location: r.location || '-', unit: r.unit || 'PCS', stock: Number(r.stock || 0), min: Number(r.min || 0), max: Number(r.max || 0),
-              need: qty, suggestedQty: qty, recentUsage: 0, critical: critical, priority: critical,
-              reason: 'REQ', requestedBy: r.requested_by || '-', requestStatus: r.status || 'Pending',
-              unitPrice: Number(r.unit_price || 0), currency: r.currency || 'THB', supplier: r.supplier || '',
-              priceUpdatedAt: '', priceRemark: '', machineStation: '', purpose: r.purpose || r.remark || '',
-              // รายละเอียดคำขอ — แสดงบนการ์ดขั้นตอนที่ 3 ให้ตรวจได้โดยไม่ต้องย้อนกลับไปหน้าขอซื้อ
-              requestReason: r.reason || '', requestRemark: r.remark || '', requestedDate: r.requested_date || '',
-              expectedUseDate: r.expected_use_date || '', isNewItemRequest: !noKey,
-              // ถ้าอะไหล่มีอยู่ในสต็อกอยู่แล้ว (จับคู่ no+line เจอ) ต้องใช้รูปแคตตาล็อกของสต็อกเป็นหลัก
-              // เพราะเป็นรูปที่ยืนยันแล้วว่าตรงกับอะไหล่จริง — รูปแนบของคำขอ (attachment_url) มักเป็นรูป
-              // อ้างอิง/สภาพหน้างานที่อาจไม่ตรงกับอะไหล่เป๊ะ ใช้เป็น fallback เฉพาะรายการใหม่ที่ยังไม่มีในสต็อกเท่านั้น
-              mainImage: (noKey && imageByNo[noKeyComposite]) || reqAttachImage, drawingUrl: '', drawing_url: '', drawingFileName: '', drawing_file_name: '',
-              drawingRevision: '', drawing_revision: '', drawingStatus: '', drawing_status: '',
-              datasheetUrl: '', quotationUrl: ''
-            };
-          });
+          return rows.map(function(r) { return orderRequestToPrCandidate(r, imageByNo); });
         });
       });
     }
@@ -21555,7 +21700,7 @@ function inferRequestPriority(stock, min) {
       var lines=['H9','Arc Chute','Coil Winding','Lug&Screw'];
       var tabs = document.getElementById('prLineTabs'); if (tabs) tabs.innerHTML = ['all'].concat(lines).map(function(l){ var active=(prLineTabState===l); return '<button data-pr-line-tab="'+l+'" class="h-8 rounded border px-2 '+(active?'bg-blue-600 text-white border-blue-600':'bg-white border-slate-300')+'">'+(l==='all'?'All':l)+'</button>'; }).join('');
       var lineMap={}; filtered.forEach(function(c){ var ln=String(c.line||'-'); (lineMap[ln]=lineMap[ln]||[]).push(c); });
-      var PR_REASON_LABELS = { OOS: ['หมดสต็อก', 'bg-rose-100 text-rose-700'], BMIN: ['ต่ำกว่า Min', 'bg-orange-100 text-orange-700'], REP: ['ใช้บ่อย', 'bg-blue-100 text-blue-700'], OCCAS: ['ใช้บางครั้ง', 'bg-slate-200 text-slate-600'], TOPUP: ['เติมให้เต็ม Max', 'bg-slate-100 text-slate-500'], CRIT: ['Critical', 'bg-rose-100 text-rose-700'], PENDING: ['มีคำสั่งซื้อค้าง', 'bg-amber-100 text-amber-800'], REQ: ['จากคำขอซื้อ', 'bg-violet-100 text-violet-700'], STAR: ['⭐ ติดดาวไว้', 'bg-amber-100 text-amber-800'] };
+      var PR_REASON_LABELS = { OOS: ['หมดสต็อก', 'bg-rose-100 text-rose-700'], BMIN: ['ต่ำกว่า Min', 'bg-orange-100 text-orange-700'], REP: ['ใช้บ่อย', 'bg-blue-100 text-blue-700'], OCCAS: ['ใช้บางครั้ง', 'bg-slate-200 text-slate-600'], TOPUP: ['เติมให้เต็ม Max', 'bg-slate-100 text-slate-500'], CRIT: ['Critical', 'bg-rose-100 text-rose-700'], PENDING: ['มีคำสั่งซื้อค้าง', 'bg-amber-100 text-amber-800'], REQ: ['จากคำขอซื้อ', 'bg-violet-100 text-violet-700'], STAR: ['⭐ ติดดาวไว้', 'bg-amber-100 text-amber-800'], NEW: ['🆕 นอกระบบ', 'bg-indigo-100 text-indigo-700'] };
       var PR_CRITICAL_BADGE = { critical: 'bg-rose-100 text-rose-700', high: 'bg-orange-100 text-orange-700', medium: 'bg-amber-100 text-amber-800', low: 'bg-slate-100 text-slate-600' };
       function renderItemCard(c){
         var idx=prCandidateState.indexOf(c); var qtyVal = Number(c.suggestedQty); if(!Number.isFinite(qtyVal)) qtyVal = 1; var priceVal = Number(c.unitPrice); if(!Number.isFinite(priceVal)) priceVal = 0; var total=qtyVal*priceVal;
@@ -27823,6 +27968,94 @@ if (dashboardPage) {
     var debouncedRenderPrCandidates = debounce(renderPrCandidates, 250);
     ['prCandidateSearch','prCriticalFilter','prPriceFilter','prReasonFilter','prSelectedOnly'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input', id === 'prCandidateSearch' ? debouncedRenderPrCandidates : renderPrCandidates); if(el) el.addEventListener('change', renderPrCandidates); });
     var prLineTabsEl=document.getElementById('prLineTabs'); if (prLineTabsEl) prLineTabsEl.addEventListener('click', function(e){ var t=e.target; if(!t) return; var line=t.getAttribute('data-pr-line-tab'); if(line===null) return; prLineTabState=line; if(line !== 'all') prLineCollapsedState[line] = false; renderPrCandidates(); });
+    // ➕ เพิ่มรายการนอกระบบ (ขั้นตอนที่ 3) — ไม่ต้องไปหน้า "ขอซื้อ" ก่อนแล้วค่อยกลับมาทำ PR
+    // กดเพิ่ม → สร้างคำขอซื้อให้เบื้องหลัง (ได้ request_id ไว้ผูกกับเลข PR ตอนส่งอนุมัติ) → ใส่การ์ดในรายการ PR ทันที
+    var prManualModal = document.getElementById('prManualModal');
+    var prManualForm = document.getElementById('prManualForm');
+    var prManualUid = '';
+    function prManualEl(id) { return document.getElementById(id); }
+    function setPrManualError(msg) {
+      var el = prManualEl('prManualError');
+      if (!el) return;
+      el.textContent = msg || '';
+      el.classList.toggle('hidden', !msg);
+    }
+    function openPrManualModal() {
+      if (!hasPermission('pr_create')) { showQuickToast('บัญชีนี้ไม่มีสิทธิ์สร้าง PR', 'error'); return; }
+      if (!prManualModal || !prManualForm) return;
+      prManualForm.reset();
+      prManualUid = '';
+      setPrManualError('');
+      var lineSel = prManualEl('prManualLine');
+      // ตั้ง Line ตามแท็บที่ดูอยู่ / Line ที่เลือกไว้ / Line ปัจจุบันของผู้ใช้
+      var wantLine = (prLineTabState && prLineTabState !== 'all') ? prLineTabState
+        : (prLineFilter && prLineFilter.value && prLineFilter.value !== 'all') ? prLineFilter.value : activeRealLine();
+      if (lineSel) {
+        var hasOpt = Array.prototype.some.call(lineSel.options, function(o) { return o.value === wantLine; });
+        if (hasOpt) lineSel.value = wantLine;
+      }
+      prManualModal.classList.remove('hidden');
+      var nameEl = prManualEl('prManualName');
+      if (nameEl) setTimeout(function() { nameEl.focus(); }, 30);
+    }
+    function closePrManualModal() {
+      var btn = prManualEl('prManualSubmit');
+      if (btn && btn.disabled) return; // กำลังบันทึก — ห้ามปิดกลางทาง
+      if (prManualModal) prManualModal.classList.add('hidden');
+    }
+    var prAddManualBtn = document.getElementById('prAddManualBtn');
+    if (prAddManualBtn) {
+      prAddManualBtn.addEventListener('click', openPrManualModal);
+    }
+    if (prManualModal) prManualModal.addEventListener('click', function(e) {
+      if (e.target && e.target.closest && e.target.closest('[data-pr-manual-close]')) closePrManualModal();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && prManualModal && !prManualModal.classList.contains('hidden')) closePrManualModal();
+    });
+    if (prManualForm) prManualForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var built = buildManualPrRequestPayload({
+        name: prManualEl('prManualName').value, model: prManualEl('prManualModel').value,
+        brand: prManualEl('prManualBrand').value, line: prManualEl('prManualLine').value,
+        category: prManualEl('prManualCategory').value, qty: prManualEl('prManualQty').value,
+        unit: prManualEl('prManualUnit').value, price: prManualEl('prManualPrice').value,
+        priority: prManualEl('prManualPriority').value, reason: prManualEl('prManualReason').value
+      });
+      if (built.error) { setPrManualError(built.error); return; }
+      setPrManualError('');
+      var payload = withAuthPayload(built);
+      // กดซ้ำ/เน็ตหลุดแล้วกดใหม่ในหน้าต่างเดิม = uid เดิม → server คืนใบเดิม ไม่สร้างคำขอซ้ำ
+      if (!prManualUid) prManualUid = 'prm-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+      payload.client_uid = prManualUid;
+      var submitBtn = prManualEl('prManualSubmit');
+      var oldLabel = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ กำลังบันทึก...'; }
+      postJson(payload).then(function(res) {
+        if (!res || res.status === 'error' || !res.request_id) throw new Error((res && res.message) || 'สร้างคำขอไม่สำเร็จ');
+        var cand = orderRequestToPrCandidate(Object.assign({}, built, {
+          request_id: res.request_id,
+          status: 'Pending',
+          requested_by: (currentUser && (currentUser.username || currentUser.name)) || '-',
+          requested_date: new Date().toISOString().slice(0, 10)
+        }), {});
+        cand.reason = 'REQ, NEW';
+        cand.purpose = built.reason;
+        // กันซ้ำในรายการ (เช่น server คืนใบเดิมเพราะกดส่งซ้ำ)
+        prCandidateState = prCandidateState.filter(function(c) { return String(c.request_id || '') !== String(res.request_id); });
+        prCandidateState.unshift(cand);
+        // แท็บ Line ที่ดูอยู่ไม่ตรงกับรายการใหม่ → สลับไปดูทั้งหมด ไม่งั้นกดเพิ่มแล้วไม่เห็น
+        if (prLineTabState !== 'all' && prLineTabState !== cand.line) prLineTabState = 'all';
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldLabel; }
+        closePrManualModal();
+        renderPrCandidates();
+        showQuickToast('➕ เพิ่ม "' + built.item_name + '" เข้า PR แล้ว (คำขอ #' + res.request_id + ')', 'success');
+        if (typeof refreshRequestOrderBadgeCount === 'function') refreshRequestOrderBadgeCount();
+      }).catch(function(err) {
+        setPrManualError('บันทึกไม่สำเร็จ: ' + (err && err.message ? err.message : err) + ' — กดเพิ่มใหม่ได้ ระบบกันคำขอซ้ำให้แล้ว');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldLabel; }
+      });
+    });
     if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } var zi=t.getAttribute('data-pr-zoom'); if(zi!==null){ openImageViewer(t.currentSrc || t.src); return; } });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
