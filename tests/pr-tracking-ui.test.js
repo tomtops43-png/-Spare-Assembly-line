@@ -110,12 +110,12 @@ console.log('Budget bypass button style checks passed');
 (function() {
   const recv = grabFn('ptReceiveFromLine');
   assert(recv.includes('ptSearchPartAllSheets(l)'), 'ไม่เจอในไลน์ที่เปิดอยู่ต้องค้นทุกชีตก่อน');
-  assert(recv.includes("hasPermission('manage_items')"), 'สร้างรายการใหม่ได้เฉพาะคนที่มีสิทธิ์จัดการอะไหล่');
-  assert(recv.includes('ptCreatePartFromLine(l)'), 'ไม่เจอทุกไลน์ต้องเสนอสร้างรายการใหม่');
-  assert(recv.indexOf('window.confirm(') < recv.indexOf('ptCreatePartFromLine(l)'), 'ต้องถามยืนยันก่อนสร้าง');
+  assert(recv.includes('return ptReceiveNonStock(l);'), 'ไม่เจอทุกไลน์ = รับของแบบไม่เข้าสต็อก');
+  assert(!recv.includes('upsertItem') && !html.includes('function ptCreatePartFromLine'), 'ไม่สร้างรายการอะไหล่ใหม่');
   assert(!recv.includes('ในไลน์ที่เปิดอยู่ — ไปหน้า Stock'), 'ไม่ตันอยู่ที่ข้อความให้ไปหน้า Stock แล้ว');
-  assert(grabFn('ptCreatePartFromLine').includes("callManageAction('upsertItem', payload)"), 'สร้างผ่าน upsertItem');
-  assert(grabFn('ptCreatePartFromLine').includes('requestNextNoForSheet(sheet)'), 'ออกเลข NO ใหม่จากชีตปลายทาง');
+  const ns = grabFn('ptReceiveNonStock');
+  assert(ns.includes("action: 'receivePrLineNonStock', pr_id: l.pr_id, line_no: l.line_no, qty: qty"), 'ส่ง PR + บรรทัด + จำนวนไปออก GR');
+  assert(ns.includes('ptAfterReceive()'), 'รีเฟรชหน้าติดตาม PR หลังรับ');
 
   const match = new Function(grabFn('ptMatchPart') + '\nreturn ptMatchPart;')();
   const parts = [{ name: 'เครื่องชั่ง', model: 'TBS-30CC' }, { name: 'Solenoid Valve', model: '-' }];
@@ -128,17 +128,5 @@ console.log('Budget bypass button style checks passed');
   const sheetsFor = new Function('LINE_SHEET_OPTIONS', 'canonicalLineName', grabFn('ptSheetsForLine') + '\nreturn ptSheetsForLine;')(LINE_SHEET_OPTIONS, canon);
   assert.deepStrictEqual(sheetsFor('Lug&Screw'), ['Lug&Screw', 'Main List Stock', 'Stock for MC'], 'ค้นชีตของไลน์ใน PR ก่อน');
 
-  const build = new Function('canonicalLineName', grabFn('ptBuildNewPartPayload') + '\nreturn ptBuildNewPartPayload;')(canon);
-  const pl = build({ part_name: 'เครื่องชั่งนับจำนวน', model: 'TBS-30CC', unit: 'PCS', unit_price: 4500, vendor: 'ABC', pr_line: 'Lug&Screw', category: '' }, 'Lug&Screw', 57);
-  assert.strictEqual(pl.no, '57');
-  assert.strictEqual(pl.sheet, 'Lug&Screw');
-  assert.strictEqual(pl.line, 'Lug&Screw');
-  assert.strictEqual(pl.name, 'เครื่องชั่งนับจำนวน');
-  assert.strictEqual(pl.model, 'TBS-30CC');
-  assert.strictEqual(pl.stock, '0', 'สต็อกเริ่ม 0 — ยอดจริงมาจากการรับเข้า');
-  assert.strictEqual(pl.unit_price, '4500');
-  assert.strictEqual(pl.supplier, 'ABC');
-  assert.strictEqual(pl.category, 'General');
-  assert.strictEqual(build({ part_name: 'x', model: '', unit_price: 0, pr_line: 'H9' }, 'Main List Stock', 1).model, '-');
 })();
-console.log('pr-tracking-ui (receive new part): ok');
+console.log('pr-tracking-ui (receive non-stock): ok');
