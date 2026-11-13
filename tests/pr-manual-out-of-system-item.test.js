@@ -57,3 +57,17 @@ assert(handler.includes("cand.reason = 'REQ, NEW';"));
 assert(html.includes("payload.source_request_ids = sourceRequestIds.join(',');"));
 
 console.log('pr-manual-out-of-system-item: OK');
+
+// ---- 📷 รูปภาพ ----
+assert(html.includes('id="prManualPhoto"') && html.includes('accept="image/*"'), 'หน้าต่างเพิ่มรายการนอกระบบแนบรูปได้');
+assert(handler.includes('uploadPrItemImageFile(prManualPhotoFile)'), 'อัปโหลดรูปก่อนสร้างคำขอ');
+assert(handler.includes('payload.attachment_url = photoUrl;'), 'แนบ URL รูปไปกับคำขอซื้อ');
+const toCandImg = toCand(Object.assign({}, ok, { request_id: 'REQ-78', attachment_url: 'https://drive.google.com/uc?id=abc' }), {});
+assert.strictEqual(toCandImg.mainImage, 'https://drive.google.com/uc?id=abc', 'รูปแนบกลายเป็นรูปบนการ์ด/ใน PR');
+// การ์ดที่ยังไม่มีรูป กดเพิ่มรูปได้ และรูปติดไปกับบรรทัด PR (image_url: item.mainImage)
+assert(html.includes('data-pr-add-image="'), 'การ์ดไม่มีรูปมีปุ่มเพิ่มรูป');
+assert(/var ai=t\.getAttribute\('data-pr-add-image'\); if\(ai!==null\)\{ addImageToPrCandidate\(Number\(ai\)\);/.test(html));
+const addFn = html.slice(html.indexOf('function addImageToPrCandidate('), html.indexOf('function addImageToPrCandidate(') + 1200);
+assert(addFn.includes('cand.mainImage = url;') && addFn.includes('renderPrCandidates();'));
+assert(html.includes("image_url: item.mainImage || ''"), 'บรรทัด PR ส่งรูปไปด้วย');
+console.log('pr-manual-out-of-system-item (image): OK');

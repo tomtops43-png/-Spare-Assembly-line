@@ -252,6 +252,7 @@
     #prManualModal { position: fixed; inset: 0; z-index: 9900; display: flex; align-items: center; justify-content: center; padding: 16px; }
     #prManualModal.hidden { display: none; }
     #prManualModal *, #prManualModal *::before, #prManualModal *::after { box-sizing: border-box; }
+    #prManualModal .hidden { display: none; }
     #prManualModal .pm-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.55); }
     #prManualModal .pm-panel { position: relative; width: 100%; max-width: 520px; max-height: calc(100vh - 32px); overflow-y: auto; background: #fff; border-radius: 22px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.4); animation: nsPop .16s ease-out; }
     #prManualModal .pm-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; color: #fff; background: linear-gradient(135deg, #2563eb, #7c3aed); }
@@ -266,6 +267,14 @@
     #prManualModal .pm-label small { font-weight: 400; color: #94a3b8; }
     #prManualModal .pm-input { display: block; width: 100%; height: 42px; margin-top: 4px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; background: #fff; color: #0f172a; }
     #prManualModal .pm-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, .2); }
+    #prManualModal .pm-photo { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+    #prManualModal .pm-photo-box { flex-shrink: 0; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 28px; border: 1px dashed #a5b4fc; border-radius: 12px; background: #eef2ff; }
+    #prManualModal .pm-photo-box img { width: 100%; height: 100%; object-fit: contain; }
+    #prManualModal .pm-photo-act { min-width: 0; }
+    #prManualModal .pm-photo-btn { display: inline-block; padding: 8px 12px; border: 1px solid #a5b4fc; border-radius: 10px; background: #fff; font-size: 13px; font-weight: 700; color: #4338ca; cursor: pointer; }
+    #prManualModal .pm-photo-btn:hover { background: #eef2ff; }
+    #prManualModal .pm-photo-clear { margin-left: 6px; font-size: 12px; font-weight: 600; color: #e11d48; }
+    #prManualModal .pm-photo-info { margin-top: 4px; font-size: 12px; font-weight: 400; color: #64748b; }
     #prManualModal .pm-note { margin-top: 14px; padding: 8px 12px; border: 1px solid #c7d2fe; border-radius: 12px; background: #eef2ff; font-size: 12px; color: #3730a3; }
     #prManualModal .pm-error { margin-top: 10px; font-size: 14px; font-weight: 600; color: #e11d48; }
     #prManualModal .pm-foot { display: flex; gap: 8px; margin-top: 16px; padding: 14px 20px; border-top: 1px solid #f1f5f9; background: #f8fafc; }
@@ -5297,6 +5306,16 @@
           <label class="pm-label pm-full">เหตุผล / Purpose *
             <input id="prManualReason" type="text" maxlength="200" class="pm-input" placeholder="เช่น ใช้ซ่อมเครื่อง / เปลี่ยนรุ่นใหม่" />
           </label>
+          <div class="pm-label pm-full">รูปภาพ <small>(ไม่บังคับ — ช่วยให้หัวหน้า/จัดซื้อเห็นของที่จะสั่ง)</small>
+            <div class="pm-photo">
+              <div id="prManualPhotoBox" class="pm-photo-box">📷</div>
+              <div class="pm-photo-act">
+                <label class="pm-photo-btn">📁 เลือกรูป / ถ่ายรูป<input id="prManualPhoto" type="file" accept="image/*" class="hidden" /></label>
+                <button id="prManualPhotoClear" type="button" class="pm-photo-clear hidden">ลบรูป</button>
+                <p id="prManualPhotoInfo" class="pm-photo-info">ยังไม่ได้เลือกรูป</p>
+              </div>
+            </div>
+          </div>
         </div>
         <p class="pm-note">ระบบจะออก "คำขอซื้อ" ให้อัตโนมัติ (ไม่ต้องไปหน้าขอซื้อเอง) เพื่อผูกกับเลข PR ใช้ติดตามและรับของได้ — ถ้าไม่ได้ส่ง PR ใบนี้ คำขอจะค้างอยู่ในหน้า "ขอซื้อ" สถานะรออนุมัติ</p>
         <p id="prManualError" class="pm-error hidden"></p>
@@ -21738,7 +21757,10 @@ function inferRequestPriority(stock, min) {
         var pendingHtml = c.pendingOrder ? '<div class="mb-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800"><span class="text-base leading-none">⚠️</span><span>มีคำสั่งซื้อค้างอยู่ <b>'+Number(c.pendingOrder.qty||0).toLocaleString('th-TH')+'</b> ชิ้น (สถานะ: '+escHtml(c.pendingOrder.status||'-')+(c.pendingOrder.date ? ' • สั่งเมื่อ '+escHtml(String(c.pendingOrder.date).slice(0,10)) : '')+') — ตรวจสอบก่อนสั่งซ้ำ</span></div>' : '';
         var thumbSrc = toSafeImageUrl(c.mainImage, 200);
         var thumbFallback = getSecondaryDriveImageUrl(c.mainImage);
-        var thumbHtml = '<img loading="lazy" decoding="async" src="'+thumbSrc+'" data-fallback-src="'+(thumbFallback||'')+'" alt="'+escHtml(c.name||'')+'" class="h-14 w-14 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1 cursor-zoom-in" data-pr-zoom="'+idx+'" onerror="if(this.dataset.fallbackSrc){var n=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=n;}else{this.src=\''+FALLBACK_IMAGE+'\';}" />';
+        // ยังไม่มีรูป (เช่น ของนอกระบบ / คำขอที่ไม่ได้แนบรูป) → กดที่กรอบเพื่อเพิ่มรูปเข้า PR ได้เลย
+        var thumbHtml = !String(c.mainImage || '').trim()
+          ? '<button type="button" data-pr-add-image="'+idx+'" title="เพิ่มรูป" class="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg border border-dashed border-indigo-300 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"><span data-pr-add-image="'+idx+'" class="text-lg leading-none">📷</span><span data-pr-add-image="'+idx+'" class="mt-0.5 text-[10px] font-bold">เพิ่มรูป</span></button>'
+          : '<img loading="lazy" decoding="async" src="'+thumbSrc+'" data-fallback-src="'+(thumbFallback||'')+'" alt="'+escHtml(c.name||'')+'" class="h-14 w-14 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1 cursor-zoom-in" data-pr-zoom="'+idx+'" onerror="if(this.dataset.fallbackSrc){var n=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=n;}else{this.src=\''+FALLBACK_IMAGE+'\';}" />';
         return '<div class="rounded-xl border '+(c.pendingOrder?'border-amber-300 bg-amber-50/20':'border-slate-200 bg-white')+' p-3 text-sm shadow-sm">'
           + pendingHtml
           + '<div class="flex items-start gap-2.5">'
@@ -28010,6 +28032,7 @@ if (dashboardPage) {
       if (!prManualModal || !prManualForm) return;
       prManualForm.reset();
       prManualUid = '';
+      if (typeof resetPrManualPhoto === 'function') resetPrManualPhoto();
       setPrManualError('');
       var lineSel = prManualEl('prManualLine');
       // ตั้ง Line ตามแท็บที่ดูอยู่ / Line ที่เลือกไว้ / Line ปัจจุบันของผู้ใช้
@@ -28038,6 +28061,69 @@ if (dashboardPage) {
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' && prManualModal && !prManualModal.classList.contains('hidden')) closePrManualModal();
     });
+    // เลือกรูป → บีบอัด → อัปโหลด (ช่องเก็บไฟล์แนบเดียวกับคำขอซื้อ) → คืน URL
+    function uploadPrItemImageFile(file) {
+      if (!file) return Promise.reject(new Error('ไม่ได้เลือกไฟล์'));
+      if (!/^image\//i.test(file.type || '')) return Promise.reject(new Error('รองรับเฉพาะไฟล์รูปภาพ'));
+      return resizeImageForUpload(file).then(function(dataUrl) {
+        return uploadRequestAttachmentData(String(dataUrl || ''), file.name || ('pr-item-' + Date.now() + '.jpg'), 'image/jpeg');
+      }).then(function(res) {
+        var url = res && res.attachment_url ? String(res.attachment_url) : '';
+        if (!url) throw new Error('อัปโหลดรูปไม่สำเร็จ');
+        return url;
+      });
+    }
+    // กดกรอบ "📷 เพิ่มรูป" บนการ์ดขั้นตอนที่ 3 — รูปติดไปกับบรรทัดนี้ใน PR (image_url) ให้หัวหน้าเห็นใน Inbox
+    function addImageToPrCandidate(idx) {
+      var cand = prCandidateState[idx];
+      if (!cand) return;
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', function() {
+        var file = input.files && input.files[0];
+        if (!file) return;
+        showQuickToast('⏳ กำลังอัปโหลดรูป...', 'info');
+        uploadPrItemImageFile(file).then(function(url) {
+          cand.mainImage = url;
+          renderPrCandidates();
+          showQuickToast('📷 เพิ่มรูปให้ "' + (cand.name || '') + '" แล้ว', 'success');
+        }).catch(function(err) {
+          showQuickToast('เพิ่มรูปไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+        });
+      });
+      input.click();
+    }
+    var prManualPhotoFile = null;
+    function resetPrManualPhoto() {
+      prManualPhotoFile = null;
+      var box = prManualEl('prManualPhotoBox'), info = prManualEl('prManualPhotoInfo'), clr = prManualEl('prManualPhotoClear'), inp = prManualEl('prManualPhoto');
+      if (box) box.innerHTML = '📷';
+      if (info) info.textContent = 'ยังไม่ได้เลือกรูป';
+      if (clr) clr.classList.add('hidden');
+      if (inp) inp.value = '';
+    }
+    var prManualPhotoInput = prManualEl('prManualPhoto');
+    if (prManualPhotoInput) prManualPhotoInput.addEventListener('change', function() {
+      var file = prManualPhotoInput.files && prManualPhotoInput.files[0];
+      if (!file) return;
+      if (!/^image\//i.test(file.type || '')) { resetPrManualPhoto(); setPrManualError('รองรับเฉพาะไฟล์รูปภาพ'); return; }
+      prManualPhotoFile = file;
+      var box = prManualEl('prManualPhotoBox');
+      if (box) {
+        var img = document.createElement('img');
+        img.alt = 'รูปที่เลือก';
+        img.src = URL.createObjectURL(file);
+        box.innerHTML = '';
+        box.appendChild(img);
+      }
+      var info = prManualEl('prManualPhotoInfo');
+      if (info) info.textContent = (file.name || 'รูปภาพ') + ' — จะอัปโหลดตอนกดเพิ่ม';
+      var clr = prManualEl('prManualPhotoClear');
+      if (clr) clr.classList.remove('hidden');
+    });
+    var prManualPhotoClear = prManualEl('prManualPhotoClear');
+    if (prManualPhotoClear) prManualPhotoClear.addEventListener('click', resetPrManualPhoto);
     if (prManualForm) prManualForm.addEventListener('submit', function(e) {
       e.preventDefault();
       var built = buildManualPrRequestPayload({
@@ -28056,7 +28142,14 @@ if (dashboardPage) {
       var submitBtn = prManualEl('prManualSubmit');
       var oldLabel = submitBtn ? submitBtn.textContent : '';
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ กำลังบันทึก...'; }
-      postJson(payload).then(function(res) {
+      // มีรูป → อัปโหลดก่อน แล้วแนบ URL ไปกับคำขอ (อัปโหลดแล้วจำ URL ไว้ กดซ้ำไม่อัปโหลดใหม่)
+      var photoStep = (prManualPhotoFile && !prManualPhotoFile.__uploadedUrl)
+        ? uploadPrItemImageFile(prManualPhotoFile).then(function(url) { prManualPhotoFile.__uploadedUrl = url; return url; })
+        : Promise.resolve(prManualPhotoFile ? prManualPhotoFile.__uploadedUrl : '');
+      photoStep.then(function(photoUrl) {
+        if (photoUrl) { payload.attachment_url = photoUrl; built.attachment_url = photoUrl; }
+        return postJson(payload);
+      }).then(function(res) {
         if (!res || res.status === 'error' || !res.request_id) throw new Error((res && res.message) || 'สร้างคำขอไม่สำเร็จ');
         var cand = orderRequestToPrCandidate(Object.assign({}, built, {
           request_id: res.request_id,
@@ -28081,7 +28174,7 @@ if (dashboardPage) {
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldLabel; }
       });
     });
-    if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } var zi=t.getAttribute('data-pr-zoom'); if(zi!==null){ openImageViewer(t.currentSrc || t.src); return; } });
+    if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } var zi=t.getAttribute('data-pr-zoom'); if(zi!==null){ openImageViewer(t.currentSrc || t.src); return; } var ai=t.getAttribute('data-pr-add-image'); if(ai!==null){ addImageToPrCandidate(Number(ai)); return; } });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
     if (prPeriodEl) { if (!prPeriodEl.value) { var now=new Date(); prPeriodEl.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'); } syncPrPeriodToDates(); prPeriodEl.addEventListener('change', syncPrPeriodToDates); }
