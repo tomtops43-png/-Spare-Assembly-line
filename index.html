@@ -20175,18 +20175,99 @@ function inferRequestPriority(stock, min) {
         }).join('') + '</tbody></table></div>';
     }
 
+    // จับคู่อะไหล่กับบรรทัด PR — มีรุ่นทั้งสองฝั่งเทียบรุ่น ไม่งั้นเทียบชื่อ (แบบเดียวกับ prLineMatchesReceivedPart ฝั่ง backend)
+    function ptMatchPart(list, l) {
+      var norm = function(v) { return String(v || '').trim().toLowerCase().replace(/\s+/g, ''); };
+      return (list || []).filter(function(p) {
+        var modelOk = l.model && l.model !== '-' && p.model && p.model !== '-';
+        return modelOk ? norm(p.model) === norm(l.model) : norm(p.name) === norm(l.part_name);
+      })[0] || null;
+    }
+
     // หาอะไหล่ในข้อมูลที่โหลดไว้ เพื่อเปิดหน้าต่างรับเข้าด่วน — ถ้ายังไม่ได้โหลดไลน์นั้นจะหาไม่เจอ
     function ptFindPartForLine(l) {
       var pools = [Array.isArray(partsData) ? partsData : [], (typeof dashboardAllPartsData !== 'undefined' && Array.isArray(dashboardAllPartsData)) ? dashboardAllPartsData : []];
-      var norm = function(v) { return String(v || '').trim().toLowerCase().replace(/\s+/g, ''); };
       for (var i = 0; i < pools.length; i += 1) {
-        var hit = pools[i].filter(function(p) {
-          var modelOk = l.model && l.model !== '-' && p.model && p.model !== '-';
-          return modelOk ? norm(p.model) === norm(l.model) : norm(p.name) === norm(l.part_name);
-        })[0];
+        var hit = ptMatchPart(pools[i], l);
         if (hit) return hit;
       }
       return null;
+    }
+
+    // ชีตที่ต้องค้น: ชีตของไลน์ใน PR ก่อน แล้วค่อยชีตของไลน์อื่น
+    function ptSheetsForLine(prLine) {
+      var line = canonicalLineName(prLine);
+      var out = (LINE_SHEET_OPTIONS[line] || []).slice();
+      Object.keys(LINE_SHEET_OPTIONS).forEach(function(key) {
+        (LINE_SHEET_OPTIONS[key] || []).forEach(function(sheet) { if (out.indexOf(sheet) === -1) out.push(sheet); });
+      });
+      return out;
+    }
+
+    // ไลน์ที่เปิดอยู่ไม่มี → โหลดทุกชีตมาค้นอีกรอบ (ติดป้ายชีตไว้ ให้รับเข้าลงชีตที่ถูก)
+    function ptSearchPartAllSheets(l) {
+      var sheets = ptSheetsForLine(l.pr_line);
+      return Promise.all(sheets.map(function(sheet) {
+        return loadJsonpWithFallback(function(base) { return base + appendAuthToQuery('?sheet=' + encodeURIComponent(sheet)); })
+          .then(function(rows) {
+            return (Array.isArray(rows) ? rows : []).map(function(r, i) {
+              var rec = normalizeRecord(r, i);
+              rec.__sourceSheet = sheet;
+              return rec;
+            });
+          })
+          .catch(function() { return []; });
+      })).then(function(sets) {
+        for (var i = 0; i < sets.length; i += 1) {
+          var hit = ptMatchPart(sets[i], l);
+          if (hit) return hit;
+        }
+        return null;
+      });
+    }
+
+    // อะไหล่ที่ซื้อครั้งแรก (ยังไม่มีในระบบ) — สร้างรายการใหม่จากข้อมูลใน PR ลงชีตแรกของไลน์นั้น สต็อกเริ่ม 0
+    function ptBuildNewPartPayload(l, sheet, no) {
+      return {
+        sheet: sheet,
+        no: String(no),
+        name: String(l.part_name || '').trim(),
+        model: String(l.model || '').trim() || '-',
+        line: canonicalLineName(l.pr_line),
+        location: '-',
+        category: String(l.category || '').trim() || 'General',
+        brand: String(l.brand || '').trim() || '-',
+        max: '0',
+        min: '0',
+        unit: String(l.unit || '').trim() || 'PCS',
+        stock: '0',
+        unit_price: Number(l.unit_price) > 0 ? String(l.unit_price) : '',
+        currency: 'THB',
+        supplier: String(l.vendor || '').trim(),
+        photo: l.image_url || '',
+        image_main: l.image_url || '',
+        image_main_url: l.image_url || ''
+      };
+    }
+
+    function ptCreatePartFromLine(l) {
+      var sheet = (LINE_SHEET_OPTIONS[canonicalLineName(l.pr_line)] || [])[0];
+      if (!sheet) return Promise.reject(new Error('ไม่รู้จักไลน์ "' + (l.pr_line || '-') + '" ของ PR นี้'));
+      return requestNextNoForSheet(sheet).then(function(no) {
+        if (!no) throw new Error('ไม่สามารถออกเลข NO ใหม่ได้');
+        var payload = ptBuildNewPartPayload(l, sheet, no);
+        return callManageAction('upsertItem', payload).then(function(res) {
+          if (!res || res.status !== 'success') throw new Error((res && res.message) || 'สร้างรายการอะไหล่ไม่สำเร็จ');
+          var rec = normalizeRecord(payload, 0);
+          rec.__sourceSheet = sheet;
+          return rec;
+        });
+      });
+    }
+
+    function ptOpenReceiveFor(l, item) {
+      ptPreselect = { pr_id: l.pr_id, line_no: l.line_no };
+      openQuickReceiveModal(item);
     }
 
     function ptReceiveFromLine(key) {
@@ -20194,12 +20275,28 @@ function inferRequestPriority(stock, min) {
       var l = (ptData.open || []).filter(function(x) { return x.pr_id === parts[0] && String(x.line_no) === parts[1]; })[0];
       if (!l) return;
       var item = ptFindPartForLine(l);
-      if (!item) {
-        showQuickToast('ไม่พบ "' + l.part_name + '" ในไลน์ที่เปิดอยู่ — ไปหน้า Stock เลือกไลน์ ' + (l.pr_line || '') + ' แล้วกดรับเข้า', 'error');
-        return;
-      }
-      ptPreselect = { pr_id: l.pr_id, line_no: l.line_no };
-      openQuickReceiveModal(item);
+      if (item) { ptOpenReceiveFor(l, item); return; }
+      showQuickToast('⏳ กำลังค้นหา "' + l.part_name + '" ในทุกไลน์...', 'success');
+      ptSearchPartAllSheets(l).then(function(found) {
+        if (found) { ptOpenReceiveFor(l, found); return; }
+        if (!hasPermission('manage_items')) {
+          showQuickToast('ยังไม่มี "' + l.part_name + '" ในระบบ — ให้ผู้มีสิทธิ์จัดการอะไหล่เพิ่มรายการก่อน แล้วกดรับของอีกครั้ง', 'error');
+          return;
+        }
+        var lineName = canonicalLineName(l.pr_line);
+        var ok = window.confirm('ยังไม่มี "' + l.part_name + '"' + (l.model && l.model !== '-' ? ' (' + l.model + ')' : '') +
+          ' ในระบบ\n\nสร้างรายการอะไหล่ใหม่ในไลน์ ' + lineName + ' จากข้อมูลใน ' + l.pr_id + ' (สต็อกเริ่ม 0) แล้วรับของเข้าเลยไหม?');
+        if (!ok) return;
+        showQuickToast('⏳ กำลังสร้างรายการ "' + l.part_name + '"...', 'success');
+        return ptCreatePartFromLine(l).then(function(created) {
+          // จำไว้ในข้อมูลรวม — PR อื่นที่ซื้อตัวเดียวกันกดรับของต่อได้ทันทีไม่ต้องสร้างซ้ำ
+          if (typeof dashboardAllPartsData !== 'undefined' && Array.isArray(dashboardAllPartsData)) dashboardAllPartsData.push(created);
+          showQuickToast('✅ เพิ่ม "' + l.part_name + '" เข้าระบบแล้ว (NO ' + created.no + ') — กรอกจำนวนที่รับได้เลย', 'success');
+          ptOpenReceiveFor(l, created);
+        });
+      }).catch(function(err) {
+        showQuickToast('รับของไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
+      });
     }
 
     /* ── รายละเอียด PR ── */

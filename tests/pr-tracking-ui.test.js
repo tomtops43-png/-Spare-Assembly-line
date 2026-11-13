@@ -105,3 +105,40 @@ assert(/#prBudgetBypassBtn \{[^}]*background:[^}]*#e11d48[^}]*color: #fff/.test(
 assert(html.includes('#prBudgetGateConfirm { background-color: #e11d48; color: #fff; }'), 'ปุ่มยืนยัน Bypass ใน modal ต้องมีสี');
 assert(html.includes('#prBudgetGateModal { z-index: 250; }'), 'modal Bypass ต้องลอยเหนือหน้า (z-[250] ไม่มีใน Tailwind 2)');
 console.log('Budget bypass button style checks passed');
+
+// ---- กด "รับของ" ของอะไหล่ที่ยังไม่มีในระบบ: ค้นทุกไลน์ก่อน ไม่เจอค่อยสร้างรายการใหม่จาก PR แล้วรับเข้า ----
+(function() {
+  const recv = grabFn('ptReceiveFromLine');
+  assert(recv.includes('ptSearchPartAllSheets(l)'), 'ไม่เจอในไลน์ที่เปิดอยู่ต้องค้นทุกชีตก่อน');
+  assert(recv.includes("hasPermission('manage_items')"), 'สร้างรายการใหม่ได้เฉพาะคนที่มีสิทธิ์จัดการอะไหล่');
+  assert(recv.includes('ptCreatePartFromLine(l)'), 'ไม่เจอทุกไลน์ต้องเสนอสร้างรายการใหม่');
+  assert(recv.indexOf('window.confirm(') < recv.indexOf('ptCreatePartFromLine(l)'), 'ต้องถามยืนยันก่อนสร้าง');
+  assert(!recv.includes('ในไลน์ที่เปิดอยู่ — ไปหน้า Stock'), 'ไม่ตันอยู่ที่ข้อความให้ไปหน้า Stock แล้ว');
+  assert(grabFn('ptCreatePartFromLine').includes("callManageAction('upsertItem', payload)"), 'สร้างผ่าน upsertItem');
+  assert(grabFn('ptCreatePartFromLine').includes('requestNextNoForSheet(sheet)'), 'ออกเลข NO ใหม่จากชีตปลายทาง');
+
+  const match = new Function(grabFn('ptMatchPart') + '\nreturn ptMatchPart;')();
+  const parts = [{ name: 'เครื่องชั่ง', model: 'TBS-30CC' }, { name: 'Solenoid Valve', model: '-' }];
+  assert.strictEqual(match(parts, { part_name: 'อื่น', model: 'tbs-30cc' }), parts[0], 'มีรุ่นทั้งสองฝั่ง = เทียบรุ่น');
+  assert.strictEqual(match(parts, { part_name: 'solenoid  valve', model: '-' }), parts[1], 'ไม่มีรุ่น = เทียบชื่อ');
+  assert.strictEqual(match(parts, { part_name: 'Notebook Battery', model: '5B11K09314' }), null);
+
+  const LINE_SHEET_OPTIONS = { H9: ['Main List Stock', 'Stock for MC'], 'Lug&Screw': ['Lug&Screw'] };
+  const canon = function(v) { return v; };
+  const sheetsFor = new Function('LINE_SHEET_OPTIONS', 'canonicalLineName', grabFn('ptSheetsForLine') + '\nreturn ptSheetsForLine;')(LINE_SHEET_OPTIONS, canon);
+  assert.deepStrictEqual(sheetsFor('Lug&Screw'), ['Lug&Screw', 'Main List Stock', 'Stock for MC'], 'ค้นชีตของไลน์ใน PR ก่อน');
+
+  const build = new Function('canonicalLineName', grabFn('ptBuildNewPartPayload') + '\nreturn ptBuildNewPartPayload;')(canon);
+  const pl = build({ part_name: 'เครื่องชั่งนับจำนวน', model: 'TBS-30CC', unit: 'PCS', unit_price: 4500, vendor: 'ABC', pr_line: 'Lug&Screw', category: '' }, 'Lug&Screw', 57);
+  assert.strictEqual(pl.no, '57');
+  assert.strictEqual(pl.sheet, 'Lug&Screw');
+  assert.strictEqual(pl.line, 'Lug&Screw');
+  assert.strictEqual(pl.name, 'เครื่องชั่งนับจำนวน');
+  assert.strictEqual(pl.model, 'TBS-30CC');
+  assert.strictEqual(pl.stock, '0', 'สต็อกเริ่ม 0 — ยอดจริงมาจากการรับเข้า');
+  assert.strictEqual(pl.unit_price, '4500');
+  assert.strictEqual(pl.supplier, 'ABC');
+  assert.strictEqual(pl.category, 'General');
+  assert.strictEqual(build({ part_name: 'x', model: '', unit_price: 0, pr_line: 'H9' }, 'Main List Stock', 1).model, '-');
+})();
+console.log('pr-tracking-ui (receive new part): ok');
