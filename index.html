@@ -20226,42 +20226,19 @@ function inferRequestPriority(stock, min) {
       });
     }
 
-    // อะไหล่ที่ซื้อครั้งแรก (ยังไม่มีในระบบ) — สร้างรายการใหม่จากข้อมูลใน PR ลงชีตแรกของไลน์นั้น สต็อกเริ่ม 0
-    function ptBuildNewPartPayload(l, sheet, no) {
-      return {
-        sheet: sheet,
-        no: String(no),
-        name: String(l.part_name || '').trim(),
-        model: String(l.model || '').trim() || '-',
-        line: canonicalLineName(l.pr_line),
-        location: '-',
-        category: String(l.category || '').trim() || 'General',
-        brand: String(l.brand || '').trim() || '-',
-        max: '0',
-        min: '0',
-        unit: String(l.unit || '').trim() || 'PCS',
-        stock: '0',
-        unit_price: Number(l.unit_price) > 0 ? String(l.unit_price) : '',
-        currency: 'THB',
-        supplier: String(l.vendor || '').trim(),
-        photo: l.image_url || '',
-        image_main: l.image_url || '',
-        image_main_url: l.image_url || ''
-      };
-    }
-
-    function ptCreatePartFromLine(l) {
-      var sheet = (LINE_SHEET_OPTIONS[canonicalLineName(l.pr_line)] || [])[0];
-      if (!sheet) return Promise.reject(new Error('ไม่รู้จักไลน์ "' + (l.pr_line || '-') + '" ของ PR นี้'));
-      return requestNextNoForSheet(sheet).then(function(no) {
-        if (!no) throw new Error('ไม่สามารถออกเลข NO ใหม่ได้');
-        var payload = ptBuildNewPartPayload(l, sheet, no);
-        return callManageAction('upsertItem', payload).then(function(res) {
-          if (!res || res.status !== 'success') throw new Error((res && res.message) || 'สร้างรายการอะไหล่ไม่สำเร็จ');
-          var rec = normalizeRecord(payload, 0);
-          rec.__sourceSheet = sheet;
-          return rec;
-        });
+    // ของขอซื้อที่ไม่ได้อยู่ในสต็อก — ออกใบรับของตัดยอด PR อย่างเดียว ไม่สร้างรายการอะไหล่ ไม่แตะสต็อก
+    function ptReceiveNonStock(l) {
+      var unit = l.unit || 'PCS';
+      var input = window.prompt('"' + l.part_name + '"' + (l.model && l.model !== '-' ? ' (' + l.model + ')' : '') +
+        ' ไม่ได้อยู่ในสต็อก\nรับของตาม ' + l.pr_id + ' รายการ ' + l.line_no + ' โดยไม่เข้าสต็อก\n\nจำนวนที่รับ (' + unit + ')', String(l.qty_outstanding || ''));
+      if (input === null) return Promise.resolve(null);
+      var qty = Number(String(input).trim());
+      if (!(qty > 0)) { showQuickToast('จำนวนที่รับต้องมากกว่า 0', 'error'); return Promise.resolve(null); }
+      showQuickToast('⏳ กำลังบันทึกรับของ...', 'success');
+      return ptPost({ action: 'receivePrLineNonStock', pr_id: l.pr_id, line_no: l.line_no, qty: qty }).then(function(res) {
+        showQuickToast('✅ รับของแล้ว (ไม่เข้าสต็อก)' + ptReceiptText(res), 'success');
+        ptAfterReceive();
+        return res;
       });
     }
 
@@ -20279,21 +20256,7 @@ function inferRequestPriority(stock, min) {
       showQuickToast('⏳ กำลังค้นหา "' + l.part_name + '" ในทุกไลน์...', 'success');
       ptSearchPartAllSheets(l).then(function(found) {
         if (found) { ptOpenReceiveFor(l, found); return; }
-        if (!hasPermission('manage_items')) {
-          showQuickToast('ยังไม่มี "' + l.part_name + '" ในระบบ — ให้ผู้มีสิทธิ์จัดการอะไหล่เพิ่มรายการก่อน แล้วกดรับของอีกครั้ง', 'error');
-          return;
-        }
-        var lineName = canonicalLineName(l.pr_line);
-        var ok = window.confirm('ยังไม่มี "' + l.part_name + '"' + (l.model && l.model !== '-' ? ' (' + l.model + ')' : '') +
-          ' ในระบบ\n\nสร้างรายการอะไหล่ใหม่ในไลน์ ' + lineName + ' จากข้อมูลใน ' + l.pr_id + ' (สต็อกเริ่ม 0) แล้วรับของเข้าเลยไหม?');
-        if (!ok) return;
-        showQuickToast('⏳ กำลังสร้างรายการ "' + l.part_name + '"...', 'success');
-        return ptCreatePartFromLine(l).then(function(created) {
-          // จำไว้ในข้อมูลรวม — PR อื่นที่ซื้อตัวเดียวกันกดรับของต่อได้ทันทีไม่ต้องสร้างซ้ำ
-          if (typeof dashboardAllPartsData !== 'undefined' && Array.isArray(dashboardAllPartsData)) dashboardAllPartsData.push(created);
-          showQuickToast('✅ เพิ่ม "' + l.part_name + '" เข้าระบบแล้ว (NO ' + created.no + ') — กรอกจำนวนที่รับได้เลย', 'success');
-          ptOpenReceiveFor(l, created);
-        });
+        return ptReceiveNonStock(l);
       }).catch(function(err) {
         showQuickToast('รับของไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
       });

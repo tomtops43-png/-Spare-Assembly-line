@@ -4829,6 +4829,49 @@ function cancelPRUnlocked(payload) {
 }
 
 // ปิดยอดค้างรับของบรรทัดเดียว (ของไม่มาแล้ว/ซัพยกเลิก) — ยอดที่รับแล้วยังนับตามจริง
+// รับของที่ "ขอซื้อแต่ไม่ได้อยู่ในสต็อก" (ของใช้ครั้งเดียว/อุปกรณ์) — ออกใบรับของ (GR) ตัดยอดค้างใน PR
+// โดยไม่สร้างรายการอะไหล่ และไม่แตะยอดสต็อก/Log สต็อก (sheet_name = NON-STOCK ไว้แยกตอนตรวจย้อนหลัง)
+var GR_NON_STOCK_SHEET = 'NON-STOCK';
+function receivePrLineNonStock(payload) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try { return receivePrLineNonStockUnlocked(payload); } finally { lock.releaseLock(); }
+}
+function receivePrLineNonStockUnlocked(payload) {
+  var user = requirePermission({ authToken: payload.authToken }, 'transact');
+  if (!isPrGrSystemEnabled()) throw new Error('ยังไม่ได้เปิดระบบ PR → รับของ');
+  var qty = Number(payload.qty);
+  if (!isFinite(qty) || qty <= 0) throw new Error('จำนวนที่รับต้องมากกว่า 0');
+  var prId = String(payload.pr_id || '').trim();
+  var lineNo = Number(payload.line_no);
+  if (!prId || !lineNo) throw new Error('ต้องระบุ pr_id และ line_no');
+  // ดึงชื่อ/รุ่นจากบรรทัด PR เอง แล้วผ่านตัวตรวจเดียวกับการรับเข้าปกติ (สถานะใบ/ปิดยอด/ค้างรับ)
+  var lData = getPrLinesSheet().getDataRange().getValues();
+  var lIdx = prIndexMap(lData[0]);
+  var lRow = findPrLineRow(lData, lIdx, prId, lineNo);
+  if (lRow === -1) throw new Error('ไม่พบรายการที่ ' + lineNo + ' ใน PR ' + prId);
+  var lineObj = prLineRowToObject(lIdx, lData[lRow]);
+  var receipt = resolvePrReceiptForTransaction({ prId: prId, prLineNo: lineNo, partName: lineObj.part_name, model: lineObj.model });
+  var ts = prNowText();
+  var grPayload = {
+    partNo: '', partName: lineObj.part_name, model: lineObj.model, brand: lineObj.brand,
+    process: receipt.pr_line, unit: lineObj.unit || 'PCS', by: user.username,
+    reasonRemark: String(payload.remark || '').trim() || 'รับของไม่เข้าสต็อก'
+  };
+  var gr = postPrGoodsReceipt(receipt, grPayload, qty, ts, GR_NON_STOCK_SHEET);
+  // ไม่มีแถว Log สต็อกให้ผูก — ใส่ log_ref แยกไว้ กันไปชนตอนคืนรายการจาก Log
+  var grSheet = getGrLogSheet();
+  var grData = grSheet.getDataRange().getValues();
+  var grIdx = prIndexMap(grData[0]);
+  for (var i = grData.length - 1; i >= 1; i -= 1) {
+    if (String(grData[i][grIdx.gr_id]) === gr.gr_id) {
+      grSheet.getRange(i + 1, grIdx.log_ref + 1).setValue('NONSTOCK|' + gr.gr_id);
+      break;
+    }
+  }
+  return { status: 'success', goodsReceipt: gr };
+}
+
 function closePrLine(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -7132,6 +7175,7 @@ function doGet(e) {
     if (action === 'markPROrdered') return respond(markPROrdered(e.parameter), e);
     if (action === 'cancelPR') return respond(cancelPR(e.parameter), e);
     if (action === 'closePrLine') return respond(closePrLine(e.parameter), e);
+    if (action === 'receivePrLineNonStock') return respond(receivePrLineNonStock(e.parameter), e);
     if (action === 'listPRs') return respond(listPRs(e.parameter), e);
     if (action === 'getPRDetail') return respond(getPRDetail(e.parameter), e);
     if (action === 'getGrLog') return respond(getGrLog(e.parameter), e);
@@ -7497,6 +7541,7 @@ function doPost(e) {
     if (action === 'markPROrdered') return respond(markPROrdered(body), e);
     if (action === 'cancelPR') return respond(cancelPR(body), e);
     if (action === 'closePrLine') return respond(closePrLine(body), e);
+    if (action === 'receivePrLineNonStock') return respond(receivePrLineNonStock(body), e);
     if (action === 'listPRs') return respond(listPRs(body), e);
     if (action === 'getPRDetail') return respond(getPRDetail(body), e);
     if (action === 'getGrLog') return respond(getGrLog(body), e);

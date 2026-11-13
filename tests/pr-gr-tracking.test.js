@@ -46,7 +46,7 @@ function makeBackend(stock) {
   const ADMIN_PERMS = { view: true, pr_create: true, pr_view_own: true, pr_view_all: true, pr_approve: true, manage_users: true };
   const users = {
     admin: { username: 'admin', role: 'admin', isActive: true, line: '', permissions: ADMIN_PERMS },
-    tech: { username: 'tech', role: 'user', isActive: true, line: 'STAR', permissions: { view: true, pr_create: true } }
+    tech: { username: 'tech', role: 'user', isActive: true, line: 'STAR', permissions: { view: true, pr_create: true, transact: true } }
   };
   const tokens = { 'tok-admin': 'admin', 'tok-tech': 'tech' };
 
@@ -117,12 +117,12 @@ function makeBackend(stock) {
     'prLineRowToObject', 'refreshPrHeaderStatus', 'findPrLineRow', 'prLineMatchesReceivedPart', 'resolvePrReceiptForTransaction',
     'buildGrId', 'grLogRef', 'postPrGoodsReceipt', 'reversePrGoodsReceiptForLog', 'markPROrderedUnlocked', 'cancelPRUnlocked',
     'closePrLineUnlocked', 'prNetAmountById', 'listPRs', 'getPRDetail', 'grRowToObject', 'listGrRows', 'getGrLog', 'listOpenPrLines', 'getOpenPrLines',
-    'listPendingPrPartKeys', 'runAutoPrJob'
+    'listPendingPrPartKeys', 'runAutoPrJob', 'receivePrLineNonStockUnlocked'
   ];
   const src = [
     grabVar('PR_HEADER_HEADERS', backend), grabVar('PR_LINE_HEADERS', backend), grabVar('PR_AUDIT_HEADERS', backend),
     grabVar('GR_LOG_HEADERS', backend), grabVar('PR_RECEIVABLE_STATUSES', backend), grabScalar('PR_GR_CUTOVER_PROP', backend),
-    grabScalar('PR_ATTACH_MAX_FILES', backend)
+    grabScalar('PR_ATTACH_MAX_FILES', backend), grabScalar('GR_NON_STOCK_SHEET', backend)
   ].concat(fnNames.map(function(n) { return grabFn(n, backend, 0); }))
     .concat(['return {' + fnNames.map(function(n) { return n + ': ' + n; }).join(', ') + '};']).join('\n');
   const envKeys = Object.keys(env);
@@ -337,7 +337,7 @@ function lineOf(api, prId, lineNo) {
   assert(inbox.includes("listPrCardsForUser(user, ['REJECTED']).filter(function(c) { return c.created_by === user.username; })"), 'แท็บถูกตีกลับเห็นเฉพาะใบของตัวเอง');
   assert(inbox.includes('pr_rejected: prRejected.length') && inbox.includes('tabs.pr_pending + tabs.pr_rejected'), 'ถูกตีกลับนับใน badge');
 
-  ['getPrGrSystemStatus', 'startPrGrSystem', 'markPROrdered', 'cancelPR', 'closePrLine', 'listPRs', 'getPRDetail', 'getGrLog', 'getOpenPrLines'].forEach(function(action) {
+  ['getPrGrSystemStatus', 'startPrGrSystem', 'markPROrdered', 'cancelPR', 'closePrLine', 'listPRs', 'getPRDetail', 'getGrLog', 'getOpenPrLines', 'receivePrLineNonStock'].forEach(function(action) {
     assert(backend.includes("if (action === '" + action + "') return respond(" + action + "(e.parameter), e);"), 'doGet routes ' + action);
     assert(backend.includes("if (action === '" + action + "') return respond(" + action + "(body), e);"), 'doPost routes ' + action);
   });
@@ -442,3 +442,34 @@ console.log('PR → GR date-cell checks passed');
 })();
 
 console.log('Auto-PR cutover checks passed');
+
+// ---- ของขอซื้อที่ไม่อยู่ในสต็อก: ออก GR ตัดยอด PR อย่างเดียว ไม่แตะสต็อก ----
+(function receiveNonStock() {
+  const api = makeBackend();
+  api.startPrGrSystem({ authToken: 'tok-admin' });
+  const NON_STOCK = JSON.stringify([{ part_name: 'เครื่องชั่งนับจำนวน', model: 'TBS-30CC', unit: 'PCS', qty: 2, unit_price: 4500 }]);
+  const pr = api.createPRUnlocked({ authToken: 'tok-tech', line: 'Lug&Screw', lines_json: NON_STOCK });
+  assert.throws(function() { api.receivePrLineNonStockUnlocked({ authToken: 'tok-tech', pr_id: pr.pr_id, line_no: 1, qty: 1 }); }, /ยังรับของไม่ได้/, 'ยังไม่อนุมัติ = รับไม่ได้');
+  api.approvePRUnlocked({ authToken: 'tok-admin', pr_id: pr.pr_id });
+  assert.throws(function() { api.receivePrLineNonStockUnlocked({ authToken: 'tok-tech', pr_id: pr.pr_id, line_no: 1, qty: 0 }); }, /มากกว่า 0/);
+  assert.throws(function() { api.receivePrLineNonStockUnlocked({ authToken: 'tok-tech', pr_id: pr.pr_id, line_no: 9, qty: 1 }); }, /ไม่พบรายการที่ 9/);
+
+  const r1 = api.receivePrLineNonStockUnlocked({ authToken: 'tok-tech', pr_id: pr.pr_id, line_no: 1, qty: 1 });
+  assert.strictEqual(r1.status, 'success');
+  assert.strictEqual(r1.goodsReceipt.mode, 'PR');
+  assert.strictEqual(r1.goodsReceipt.qty_outstanding, 1);
+  assert.strictEqual(r1.goodsReceipt.pr_status, 'PARTIAL');
+  const g = api.listGrRows({ pr_id: pr.pr_id })[0];
+  assert.strictEqual(g.sheet_name, 'NON-STOCK', 'GR ติดป้ายไม่เข้าสต็อก');
+  assert.strictEqual(g.line, 'Lug&Screw', 'GR นับเป็นค่าใช้จ่ายของไลน์ใน PR');
+  assert.strictEqual(g.amount, 4500, 'มูลค่าตามราคาใน PR');
+  assert.strictEqual(g.received_by, 'tech');
+  const grSheet = api.sheets.GRLog.rows;
+  assert.strictEqual(grSheet[grSheet.length - 1][grSheet[0].indexOf('log_ref')], 'NONSTOCK|' + g.gr_id, 'log_ref ไม่ชนกับ Log สต็อก');
+
+  const r2 = api.receivePrLineNonStockUnlocked({ authToken: 'tok-tech', pr_id: pr.pr_id, line_no: 1, qty: 1 });
+  assert.strictEqual(r2.goodsReceipt.line_status, 'RECEIVED');
+  assert.strictEqual(r2.goodsReceipt.pr_status, 'RECEIVED', 'รับครบ = ปิดใบ');
+  assert.throws(function() { api.receivePrLineNonStockUnlocked({ authToken: 'tok-tech', pr_id: pr.pr_id, line_no: 1, qty: 1 }); }, /รับครบแล้ว|สถานะ: RECEIVED/, 'รับครบแล้วรับซ้ำไม่ได้');
+})();
+console.log('Non-stock receive checks passed');
