@@ -28,4 +28,10 @@ assert.strictEqual(groups[5].label, 'ไม่ระบุวันที่');
 assert.strictEqual(api.inboxFmtDateTime('Wed Oct 21 2026 09:40:32 GMT+0700 (เวลาอินโดจีน)'), '21 ต.ค. 2026 09:40 น.');
 assert(html.includes('inboxDayGroupsHtml(approved, true)'), 'กลุ่มอนุมัติแล้วใช้การแบ่งตามวัน');
 assert(html.includes('inboxDayGroupsHtml(pending, false)'), 'กลุ่มรออนุมัติใช้การแบ่งตามวัน');
+
+// หน้า 📦 ติดตาม PR → 📋 รายการ PR ใช้การเรียง/แบ่งวันแบบเดียวกัน
+const list = grabFn('ptRenderList', html);
+assert(list.includes('inboxGroupByDay(rows)'), 'รายการ PR แบ่งหัวข้อตามวัน');
+assert(list.includes('colspan="8"'), 'แถวหัวข้อวันกินเต็มตาราง');
+assert(grabFn('ptListRowHtml', html).includes('inboxFmtDateTime(p.created_at)'), 'คอลัมน์วันที่แสดงเวลาอ่านง่าย');
 console.log('inbox-pr-sort-by-day: OK');

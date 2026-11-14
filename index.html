@@ -20370,17 +20370,23 @@ function inferRequestPriority(stock, min) {
       if (!rows.length) return '<p class="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">ไม่พบ PR</p>';
       return '<div class="overflow-x-auto"><table class="min-w-full text-sm"><thead><tr class="border-b border-slate-200 text-left text-xs text-slate-500">' +
         '<th class="py-2 pr-3">เลข PR</th><th class="py-2 pr-3">สถานะ</th><th class="py-2 pr-3">Line</th><th class="py-2 pr-3">ผู้สร้าง</th><th class="py-2 pr-3">วันที่</th><th class="py-2 pr-3 text-right">รายการ</th><th class="py-2 pr-3 text-right">ยอดเงิน</th><th class="py-2">PO</th></tr></thead><tbody>' +
-        rows.map(function(p) {
-          return '<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" data-pt-open-pr="' + escHtml(p.pr_id) + '">' +
-            '<td class="py-2 pr-3 font-semibold text-blue-700">' + escHtml(p.pr_id) + (p.gr_tracked ? '' : ' <span class="text-[10px] font-normal text-slate-400">(ระบบเก่า)</span>') + '</td>' +
-            '<td class="py-2 pr-3">' + ptStatusChip(p.status) + '</td>' +
-            '<td class="py-2 pr-3">' + escHtml(p.line || '-') + '</td>' +
-            '<td class="py-2 pr-3">' + escHtml(p.created_by || '-') + '</td>' +
-            '<td class="py-2 pr-3 whitespace-nowrap">' + escHtml(String(p.created_at || '').slice(0, 10)) + '</td>' +
-            '<td class="py-2 pr-3 text-right">' + ptFmtNum(p.item_count) + '</td>' +
-            '<td class="py-2 pr-3 text-right whitespace-nowrap">' + ptMoneyCell(p) + '</td>' +
-            '<td class="py-2">' + escHtml(p.po_no || '') + '</td></tr>';
+        // เรียงใหม่สุดก่อน + แทรกแถวหัวข้อวัน (ใช้ตัวช่วยเดียวกับ Inbox) ให้เห็นชัดว่าใบไหนล่าสุด
+        inboxGroupByDay(rows).map(function(g) {
+          return '<tr class="bg-slate-50"><td colspan="8" class="py-1.5 pr-3 text-xs font-bold text-slate-600">📅 ' + escHtml(g.label) +
+            ' <span class="ml-1 rounded-full bg-slate-200 px-1.5 text-[10px] text-slate-600">' + g.cards.length + '</span></td></tr>' +
+            g.cards.map(ptListRowHtml).join('');
         }).join('') + '</tbody></table></div>';
+    }
+    function ptListRowHtml(p) {
+      return '<tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" data-pt-open-pr="' + escHtml(p.pr_id) + '">' +
+        '<td class="py-2 pr-3 font-semibold text-blue-700">' + escHtml(p.pr_id) + (p.gr_tracked ? '' : ' <span class="text-[10px] font-normal text-slate-400">(ระบบเก่า)</span>') + '</td>' +
+        '<td class="py-2 pr-3">' + ptStatusChip(p.status) + '</td>' +
+        '<td class="py-2 pr-3">' + escHtml(p.line || '-') + '</td>' +
+        '<td class="py-2 pr-3">' + escHtml(p.created_by || '-') + '</td>' +
+        '<td class="py-2 pr-3 whitespace-nowrap">' + escHtml(inboxFmtDateTime(p.created_at)) + '</td>' +
+        '<td class="py-2 pr-3 text-right">' + ptFmtNum(p.item_count) + '</td>' +
+        '<td class="py-2 pr-3 text-right whitespace-nowrap">' + ptMoneyCell(p) + '</td>' +
+        '<td class="py-2">' + escHtml(p.po_no || '') + '</td></tr>';
     }
 
     function ptRenderGr(line) {
