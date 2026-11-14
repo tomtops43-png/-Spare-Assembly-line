@@ -25366,6 +25366,67 @@ function inferRequestPriority(stock, min) {
       if (isNaN(d.getTime())) return 0;
       return Math.floor((Date.now() - d.getTime()) / 86400000);
     }
+    // แปลง created_at (yyyy-MM-dd HH:mm:ss หรือ Date.toString จากชีต) → Date · อ่านไม่ได้ = null
+    function inboxParseDate(createdAt) {
+      var raw = String(createdAt || '').trim();
+      if (!raw) return null;
+      var norm = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/.test(raw) ? raw.replace(' ', 'T') + '+07:00' : raw.replace(/\s*\(.*\)\s*$/, '');
+      var d = new Date(norm);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    // คีย์วัน (เวลาไทย) yyyy-MM-dd ไว้จัดกลุ่ม
+    function inboxDayKey(d) {
+      var t = new Date(d.getTime() + 7 * 3600000);
+      return t.getUTCFullYear() + '-' + ('0' + (t.getUTCMonth() + 1)).slice(-2) + '-' + ('0' + t.getUTCDate()).slice(-2);
+    }
+    var INBOX_TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    var INBOX_TH_DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+    // หัวกลุ่มวัน: "วันนี้" / "เมื่อวาน" / "พุธ 21 ต.ค. 2026"
+    function inboxDayLabel(dayKey, nowMs) {
+      var today = inboxDayKey(new Date(nowMs == null ? Date.now() : nowMs));
+      var yest = inboxDayKey(new Date((nowMs == null ? Date.now() : nowMs) - 86400000));
+      var p = dayKey.split('-');
+      var dow = INBOX_TH_DAYS[new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])).getUTCDay()];
+      var full = dow + ' ' + Number(p[2]) + ' ' + INBOX_TH_MONTHS[Number(p[1]) - 1] + ' ' + p[0];
+      if (dayKey === today) return 'วันนี้ · ' + full;
+      if (dayKey === yest) return 'เมื่อวาน · ' + full;
+      return full;
+    }
+    // เวลาในการ์ด: "21 ต.ค. 2026 09:40 น." แทน Date.toString ยาวๆ
+    function inboxFmtDateTime(createdAt) {
+      var d = inboxParseDate(createdAt);
+      if (!d) return String(createdAt || '-');
+      var t = new Date(d.getTime() + 7 * 3600000);
+      return t.getUTCDate() + ' ' + INBOX_TH_MONTHS[t.getUTCMonth()] + ' ' + t.getUTCFullYear() + ' ' +
+        ('0' + t.getUTCHours()).slice(-2) + ':' + ('0' + t.getUTCMinutes()).slice(-2) + ' น.';
+    }
+    // เรียงใหม่สุดก่อน แล้วแบ่งกลุ่มตามวัน → [{ key, label, cards }]
+    function inboxGroupByDay(cards, nowMs) {
+      var sorted = (cards || []).slice().sort(function(a, b) {
+        var da = inboxParseDate(a.created_at), db = inboxParseDate(b.created_at);
+        return (db ? db.getTime() : -Infinity) - (da ? da.getTime() : -Infinity);
+      });
+      var groups = [];
+      sorted.forEach(function(c) {
+        var d = inboxParseDate(c.created_at);
+        var key = d ? inboxDayKey(d) : 'unknown';
+        var g = groups[groups.length - 1];
+        if (!g || g.key !== key) {
+          g = { key: key, label: d ? inboxDayLabel(key, nowMs) : 'ไม่ระบุวันที่', cards: [] };
+          groups.push(g);
+        }
+        g.cards.push(c);
+      });
+      return groups;
+    }
+    function inboxDayGroupsHtml(cards, isApproved) {
+      return inboxGroupByDay(cards).map(function(g) {
+        return '<div class="mt-3 mb-1.5 flex items-center gap-2 text-xs font-bold text-slate-500">' +
+          '<span>📅 ' + escHtml(g.label) + '</span><span class="rounded-full bg-slate-200 px-1.5 text-[10px] text-slate-600">' + g.cards.length + '</span>' +
+          '<span class="h-px flex-1 bg-slate-200"></span></div>' +
+          '<div class="space-y-3">' + g.cards.map(function(c) { return inboxPrCardHtml(c, isApproved); }).join('') + '</div>';
+      }).join('');
+    }
     function inboxUrgency(days) {
       if (days >= 3) return { bar: 'border-l-4 border-rose-500', chip: 'bg-rose-100 text-rose-700' };
       if (days >= 1) return { bar: 'border-l-4 border-amber-400', chip: 'bg-amber-100 text-amber-700' };
@@ -25448,10 +25509,11 @@ function inferRequestPriority(stock, min) {
         if (inboxData && inboxData.can_approve) {
           html += '<div class="mb-3 flex justify-end"><button id="runAutoPrNowBtn" class="rounded-xl border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100">🤖 สร้าง Auto-PR จากรายการต่ำกว่า Min เดี๋ยวนี้</button></div>';
         }
-        if (pending.length) html += pending.map(function(c) { return inboxPrCardHtml(c, false); }).join('');
+        // เรียงใหม่สุดก่อน + แบ่งหัวข้อตามวัน ให้เห็นชัดว่าใบไหนล่าสุด
+        if (pending.length) html += inboxDayGroupsHtml(pending, false);
         if (approved.length) {
-          html += '<div class="mt-4 mb-2 text-xs font-bold text-slate-400">✅ อนุมัติแล้ว (พร้อมปริ้น)</div>';
-          html += approved.map(function(c) { return inboxPrCardHtml(c, true); }).join('');
+          html += '<div class="mt-5 mb-1 text-sm font-bold text-emerald-700">✅ อนุมัติแล้ว (พร้อมปริ้น) · ใหม่สุดอยู่บน</div>';
+          html += inboxDayGroupsHtml(approved, true);
         }
         if (inboxActiveTab === 'all') {
           // ถูกตีกลับนับใน badge รวมแล้ว — ต้องเห็นในแท็บรวมด้วย ไม่งั้นเห็นเลขแต่หารายการไม่เจอ
@@ -25620,7 +25682,7 @@ function inferRequestPriority(stock, min) {
             (String(c.created_by || '') === 'AUTO-BOT' ? '<span class="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-700" title="สร้างอัตโนมัติจากรายการต่ำกว่า Min">🤖 Auto</span>' : '') +
             (c.line ? '<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-500">' + escHtml(c.line) + '</span>' : '') +
             (c.assigned_to ? '<span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700" title="ผู้ส่งระบุผู้อนุมัติไว้">👤 ' + escHtml(c.assigned_to) + '</span>' : '') + '</div>' +
-          '<div class="mt-1 text-xs text-slate-500">โดย ' + escHtml(c.created_by || '-') + ' · ' + escHtml(c.created_at || '-') + '</div>' +
+          '<div class="mt-1 text-xs text-slate-500">โดย ' + escHtml(c.created_by || '-') + ' · ' + escHtml(inboxFmtDateTime(c.created_at)) + '</div>' +
           '<div class="mt-0.5 text-xs text-slate-500">' + Number(c.item_count || 0) + ' รายการ · รวม ' + inboxMoney(c.total_amount) + ' ฿' +
             (isApproved && c.approved_by ? ' · อนุมัติโดย ' + escHtml(c.approved_by) : '') + '</div>' +
         '</div>' +
