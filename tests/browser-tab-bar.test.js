@@ -94,3 +94,9 @@ assert(/html \{ scroll-padding-top: var\(--titlebar-h\)/.test(wco[0]), 'scrollIn
 const deployYml = fs.readFileSync('.github/workflows/deploy-pages.yml', 'utf8');
 assert(/cp manifest\.webmanifest _site\//.test(deployYml), 'deploy-pages.yml ต้อง copy manifest.webmanifest ขึ้นเว็บ');
 assert(/cp -r images _site\/images/.test(deployYml), 'deploy-pages.yml ต้อง copy images (ไอคอนแอป) ขึ้นเว็บ');
+
+// ── ปุ่มเลือกไลน์ (☰ ลอยมุมซ้ายบน) ต้องไม่โดนแถบแท็บทับ ──
+// Tailwind ที่โหลดเป็น 2.2 แบบ CSS สำเร็จรูป ไม่มีคลาส z-[..] → ต้องกำหนด z-index ใน <style> เอง
+assert(/tailwindcss@2\./.test(htmlLf) ? /#lineMenuDockToggle \{ z-index: \d+; \}/.test(htmlLf) : true,
+  'ปุ่ม #lineMenuDockToggle ต้องมี z-index จริง (z-[75] ใช้ไม่ได้ใน Tailwind 2) ไม่งั้นแท็บ Stock ทับ');
+assert(/#browserTabBar \{ padding-left: \d+px; \}/.test(htmlLf), 'แถบแท็บต้องเว้นที่ซ้ายให้พ้นปุ่มเลือกไลน์');

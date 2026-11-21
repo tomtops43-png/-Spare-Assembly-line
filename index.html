@@ -441,6 +441,11 @@
     #prForceResaveBtn:hover { color: #b45309; }
     /* ─── แถบแท็บแบบ browser ด้านบนสุด: เปิดหลายหน้าค้างไว้แล้วสลับไปมาได้ ─── */
     #browserTabBar { display:flex; align-items:flex-end; gap:2px; margin:0 0 10px; padding:6px 6px 0; border-radius:14px 14px 0 0; background:#dbe4f0; border-bottom:2px solid #fff; }
+    /* ปุ่มเลือกไลน์ (☰ ลอยมุมซ้ายบน) — คลาส z-[75] ใช้ไม่ได้กับ Tailwind 2.2 แบบไฟล์ CSS สำเร็จรูป
+       ปุ่มเลยไม่มี z-index แล้วโดนแท็บ "Stock" ทับจนมองไม่เห็น/กดไม่ได้ (เห็นชัดบนมือถือ)
+       → กำหนด z-index เอง + เว้นที่ซ้ายของแถบแท็บให้พ้นปุ่ม */
+    #lineMenuDockToggle { z-index: 75; }
+    #browserTabBar { padding-left: 52px; }
     #browserTabList { display:flex; align-items:flex-end; gap:2px; min-width:0; overflow-x:auto; scrollbar-width:none; }
     #browserTabList::-webkit-scrollbar { display:none; }
     .browser-tab { position:relative; display:flex; align-items:center; gap:6px; flex:0 1 200px; min-width:92px; max-width:200px; height:34px; padding:0 6px 0 12px; border-radius:10px 10px 0 0; background:transparent; color:#475569; font-size:12.5px; font-weight:600; cursor:pointer; user-select:none; transition:background .15s; }
