@@ -5176,6 +5176,10 @@
         </select>
         <input id="quickIssueReasonRemark" type="text" class="hidden h-11 w-full rounded-xl border border-blue-300 bg-blue-50 px-3 text-base" placeholder="📝 ระบุเหตุผลอื่นๆ (บังคับกรอก)" />
         <!-- เครื่องจักรของไลน์อะไหล่ชิ้นนี้ (ทะเบียนเดียวกับ Issue Cart) -->
+        <!-- อะไหล่ไลน์หนึ่งเอาไปใส่เครื่องของอีกไลน์ได้ (เช่น Bearing ของ H9 ไปใส่เครื่อง Coil) — เลือกไลน์ของเครื่องก่อน -->
+        <label class="flex items-center gap-2 text-xs font-semibold text-slate-600">🏭 เครื่องอยู่ไลน์
+          <select id="quickIssueMachineLine" class="h-9 flex-1 rounded-lg border border-slate-300 bg-white px-2 text-sm"></select>
+        </label>
         <select id="quickIssueMachine" class="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
           <option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>
           <option value="__other__">✏️ อื่นๆ (พิมพ์เอง)</option>
@@ -8097,7 +8101,7 @@
     // จึงต้องเลือกเครื่องแยกต่อไลน์ และบันทึกแต่ละรายการเข้าไลน์ของอะไหล่ชิ้นนั้นเอง
     var issueCartMachineLines = [];
     function issueCartMachineIds(idx) {
-      return { sel: 'issueCartMachine_' + idx, other: 'issueCartMachineOther_' + idx };
+      return { sel: 'issueCartMachine_' + idx, other: 'issueCartMachineOther_' + idx, line: 'issueCartMachineLine_' + idx };
     }
     function getIssueCartLines(entries) {
       var lines = [];
@@ -8119,7 +8123,8 @@
         var ids = issueCartMachineIds(i);
         var sel = document.getElementById(ids.sel);
         var other = document.getElementById(ids.other);
-        if (sel) previous[line] = { sel: sel.value, other: other ? other.value : '' };
+        var lineSel = document.getElementById(ids.line);
+        if (sel) previous[line] = { sel: sel.value, other: other ? other.value : '', line: lineSel ? lineSel.value : '' };
       });
       issueCartMachineLines = lines;
       var multi = lines.length > 1;
@@ -8127,7 +8132,12 @@
         var ids = issueCartMachineIds(i);
         var count = entries.filter(function(e) { return (formLineDefault(e.item) || '-') === line; }).length;
         return '<div class="space-y-1">' +
-          (multi ? '<p class="text-xs font-bold text-slate-700">🏭 เครื่องของไลน์ ' + escHtml(line) + ' <span class="font-normal text-slate-500">(' + count + ' รายการ)</span></p>' : '') +
+          (multi ? '<p class="text-xs font-bold text-slate-700">🏭 อะไหล่ไลน์ ' + escHtml(line) + ' <span class="font-normal text-slate-500">(' + count + ' รายการ)</span></p>' : '') +
+          '<label class="flex items-center gap-2 text-xs font-semibold text-slate-600">🏭 เครื่องอยู่ไลน์' +
+            '<select id="' + ids.line + '" data-cart-machine-line-idx="' + i + '" class="h-9 flex-1 rounded-lg border border-slate-300 bg-white px-2 text-sm">' +
+              machineLineOptionsHtml(previous[line] && previous[line].line ? previous[line].line : line) +
+            '</select>' +
+          '</label>' +
           '<select id="' + ids.sel + '" data-cart-machine-idx="' + i + '" class="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">' +
             '<option value="">🏭 เลือกเครื่องที่จะเอาไปใส่ (บังคับ)</option>' +
             '<option value="' + MACHINE_SELECT_OTHER + '">✏️ อื่นๆ (พิมพ์เอง)</option>' +
@@ -8139,7 +8149,7 @@
         var ids = issueCartMachineIds(i);
         // ในไลน์เดียวกันใช้เครื่องเดียวกัน จึงเหลือเฉพาะเครื่องที่ทุกชิ้นของไลน์นั้นใส่ได้
         var items = entries.filter(function(e) { return (formLineDefault(e.item) || '-') === line; }).map(function(e) { return e.item; });
-        return populateMachineSelect(ids.sel, ids.other, line, getSharedMachineNames(items)).then(function() {
+        return populateMachineSelect(ids.sel, ids.other, getIssueCartMachineLineAt(i) || line, getSharedMachineNames(items)).then(function() {
           var prev = previous[line];
           var sel = document.getElementById(ids.sel);
           var other = document.getElementById(ids.other);
@@ -8149,6 +8159,27 @@
           if (other && sel.value === MACHINE_SELECT_OTHER) other.value = prev.other;
         });
       }));
+    }
+    // ไลน์ของเครื่องที่เลือกในกลุ่มที่ idx (ว่าง = ใช้ไลน์ของอะไหล่)
+    function getIssueCartMachineLineAt(idx) {
+      var el = document.getElementById(issueCartMachineIds(idx).line);
+      return String((el && el.value) || '').trim();
+    }
+    // ไลน์ที่จะบันทึกลงประวัติของรายการในกลุ่มไลน์อะไหล่ line = ไลน์ของเครื่องที่เอาไปใส่จริง
+    function getIssueCartMachineLineForLine(line) {
+      var i = issueCartMachineLines.indexOf(line || '-');
+      if (i === -1) return '';
+      return getIssueCartMachineLineAt(i);
+    }
+    // เปลี่ยนไลน์ของเครื่องในกลุ่ม → ล้างเครื่องเดิม แล้วโหลดรายชื่อเครื่องของไลน์ใหม่
+    function reloadIssueCartMachineGroup(idx) {
+      var i = Number(idx);
+      var partLine = issueCartMachineLines[i];
+      if (partLine === undefined) return Promise.resolve();
+      var ids = issueCartMachineIds(i);
+      resetMachineSelect(ids.sel, ids.other);
+      var items = getIssueCartEntries().filter(function(e) { return (formLineDefault(e.item) || '-') === partLine; }).map(function(e) { return e.item; });
+      return populateMachineSelect(ids.sel, ids.other, getIssueCartMachineLineAt(i) || partLine, getSharedMachineNames(items));
     }
     function getIssueCartMachineForLine(line) {
       var i = issueCartMachineLines.indexOf(line || '-');
@@ -8200,6 +8231,17 @@
             ? ' — ระบบใส่เลขถัดไปให้แล้ว ถ้าของที่หยิบมามีเลขติดอยู่ ให้แก้เป็นเลขจริงบนตัวของ'
             : ' — อ่านจากตัวของที่หยิบมา' + (seq ? ' · กด "ใช้เลขถัดไป" เพื่อกลับไปใช้ ' + seq : ''));
       }
+    }
+
+    // ตัวเลือก "เครื่องอยู่ไลน์" — ค่าเริ่มต้นคือไลน์ของอะไหล่ แต่เปลี่ยนไปไลน์อื่นได้
+    // เพราะอะไหล่บางตัวเก็บอยู่ไลน์หนึ่งแต่เอาไปใส่เครื่องของอีกไลน์ (เช่น Bearing ของ H9 → เครื่อง Coil)
+    function machineLineOptionsHtml(selectedLine) {
+      var lines = realLineKeys();
+      var sel = String(selectedLine || '').trim();
+      if (sel && sel !== '-' && lines.indexOf(sel) === -1) lines = [sel].concat(lines);
+      return lines.map(function(l) {
+        return '<option value="' + escHtml(l) + '"' + (l === sel ? ' selected' : '') + '>' + escHtml(l) + '</option>';
+      }).join('');
     }
 
     function populateQuickIssueMachineOptions(line, item) {
@@ -22786,7 +22828,9 @@ function inferRequestPriority(stock, min) {
         // แต่ละรายการบันทึกเข้าไลน์ของตัวเอง + เครื่องที่เลือกไว้ของไลน์นั้น (ตะกร้าข้ามไลน์ได้)
         var entryLine = formLineDefault(entry.item) || '-';
         var machineValue = getIssueCartMachineForLine(entryLine);
-        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, entryLine === '-' ? '' : entryLine, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '', machineValue, issueCartTagNos[entry.key], txnDateValue);
+        // ไลน์ในประวัติ = ไลน์ของเครื่องที่เอาไปใส่ (ตัดสต็อกจากชีทของอะไหล่เหมือนเดิมผ่าน sheetName)
+        var recordLine = getIssueCartMachineLineForLine(entryLine) || entryLine;
+        var payload = createOutputTransactionPayload(latestItem, latestQty, byValue, recordLine === '-' ? '' : recordLine, noteValue, reasonValue, reasonValue === 'Other' ? reasonRemarkValue : '', machineValue, issueCartTagNos[entry.key], txnDateValue);
         var beforeStock = Number(latestItem.stock || 0);
         latestItem.stock = Math.max(0, beforeStock - latestQty);
         applyFilters(false);
@@ -23041,6 +23085,8 @@ function inferRequestPriority(stock, min) {
       }
       // เครื่องจักรต้องเป็นของไลน์อะไหล่ชิ้นนี้ (อาจคนละไลน์กับที่กำลังเปิดดูอยู่)
       resetQuickIssueMachineField();
+      var quickIssueMachineLineSel = document.getElementById('quickIssueMachineLine');
+      if (quickIssueMachineLineSel) quickIssueMachineLineSel.innerHTML = machineLineOptionsHtml(quickIssueProcess.value);
       populateQuickIssueMachineOptions(item.line || formLineDefault(item), item).then(refreshQuickIssueGate);
       syncQuickIssueTagField(item, true);
       quickIssueMessage.className = 'text-sm text-slate-500';
@@ -27912,6 +27958,12 @@ if (dashboardPage) {
     if (issueCartMachineGroupsEl) {
       issueCartMachineGroupsEl.addEventListener('change', function(e) {
         if (!e.target || e.target.tagName !== 'SELECT') return;
+        var lineIdx = e.target.getAttribute('data-cart-machine-line-idx');
+        if (lineIdx !== null) {
+          refreshIssueCartSubmitGate();
+          reloadIssueCartMachineGroup(lineIdx).then(refreshIssueCartSubmitGate);
+          return;
+        }
         var ids = issueCartMachineIds(e.target.getAttribute('data-cart-machine-idx'));
         syncMachineSelectOther(ids.sel, ids.other);
         refreshIssueCartSubmitGate();
@@ -27922,6 +27974,17 @@ if (dashboardPage) {
     }
     if (quickIssueReason) quickIssueReason.addEventListener('change', function(){ var isOther = String(quickIssueReason.value || '') === 'Other'; if (quickIssueReasonRemark) { quickIssueReasonRemark.classList.toggle('hidden', !isOther); if (!isOther) quickIssueReasonRemark.value = ''; } refreshQuickIssueGate(); });
     if (quickIssueReasonRemark) quickIssueReasonRemark.addEventListener('input', refreshQuickIssueGate);
+    // เปลี่ยนไลน์ของเครื่อง → ไลน์ที่บันทึก (ช่อง Auto) ตามไปด้วย แล้วโหลดเครื่องของไลน์นั้น
+    var quickIssueMachineLineEl = document.getElementById('quickIssueMachineLine');
+    if (quickIssueMachineLineEl) quickIssueMachineLineEl.addEventListener('change', function() {
+      var item = getCurrentQuickIssueItem();
+      var line = String(quickIssueMachineLineEl.value || '').trim();
+      if (!item || !line) return;
+      quickIssueProcess.value = line;
+      resetQuickIssueMachineField();
+      refreshQuickIssueGate();
+      populateQuickIssueMachineOptions(line, item).then(refreshQuickIssueGate);
+    });
     var quickIssueMachineSelect = document.getElementById('quickIssueMachine');
     if (quickIssueMachineSelect) quickIssueMachineSelect.addEventListener('change', function() {
       syncMachineSelectOther('quickIssueMachine', 'quickIssueMachineOther');

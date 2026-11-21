@@ -27,15 +27,16 @@ assert(/function populateMachineSelect\(selectId, otherId, line, allowedNames\)[
 // ── Issue Cart wiring ────────────────────────────────────────────────────────
 // ไลน์ต้องมาจากของในตะกร้า ไม่ใช่ currentLine ตรงๆ — โหมด "ทุกไลน์" ตะกร้ามีของหลายไลน์ได้
 // จึงต้องมีช่องเลือกเครื่องแยกต่อไลน์ แต่ละช่องดึงทะเบียนเครื่องของไลน์นั้นเอง
-assert(html.includes('return populateMachineSelect(ids.sel, ids.other, line, getSharedMachineNames(items))'),
-  'ตะกร้าต้องโหลดเครื่องแยกตามไลน์ของของในตะกร้า');
+assert(html.includes('return populateMachineSelect(ids.sel, ids.other, getIssueCartMachineLineAt(i) || line, getSharedMachineNames(items))'),
+  'ตะกร้าต้องโหลดเครื่องแยกตามไลน์ของของในตะกร้า (หรือไลน์ของเครื่องที่เลือกเปลี่ยนไป)');
 assert(/populateIssueCartMachineOptions\(\)\.then\(refreshIssueCartSubmitGate\);[\s\S]{0,80}renderIssueCart\(\);/.test(html),
   'openIssueCart ต้องเรียก populateIssueCartMachineOptions');
 // แต่ละรายการบันทึกเข้าไลน์ของตัวเอง + เครื่องของไลน์นั้น ไม่ใช่ค่าชุดเดียวทั้งตะกร้า
 assert(html.includes("var entryLine = formLineDefault(entry.item) || '-';"));
 assert(html.includes('var machineValue = getIssueCartMachineForLine(entryLine);'));
-assert(html.includes("createOutputTransactionPayload(latestItem, latestQty, byValue, entryLine === '-' ? '' : entryLine,"),
-  'process ของแต่ละรายการต้องเป็นไลน์ของอะไหล่ชิ้นนั้น');
+assert(html.includes("var recordLine = getIssueCartMachineLineForLine(entryLine) || entryLine;"));
+assert(html.includes("createOutputTransactionPayload(latestItem, latestQty, byValue, recordLine === '-' ? '' : recordLine,"),
+  'process ของแต่ละรายการต้องเป็นไลน์ของเครื่องที่เอาไปใส่ (ค่าเริ่มต้น = ไลน์ของอะไหล่)');
 assert(html.includes('resetIssueCartMachineField();'), 'เบิกเสร็จต้องรีเซ็ตช่องเครื่อง');
 assert(html.includes("issueCartMachineGroupsEl.addEventListener('change'"), 'ช่องเครื่องที่วาดใหม่ต้องผูกอีเวนต์แบบ delegate');
 
