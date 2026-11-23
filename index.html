@@ -21736,9 +21736,9 @@ function inferRequestPriority(stock, min) {
       var sub = (raw && raw !== '-' && !/^spare ?part$/i.test(raw)) ? ' · หมวด ' + raw : '';
       return { icon: '⚙️', label: 'อะไหล่เครื่องจักร' + sub, cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
     }
-    // ลงงบไหน — ส่วนกลางไม่ตัดงบ Spare part ของไลน์ใด (เหมือนหน้า Cost Ratio / ค่าใช้จ่ายสิ้นเปลือง)
+    // ลงงบไหน — ส่วนกลาง = Assembly Line ทั้งหมด เทียบกับงบ Spare part รวมทุกไลน์ (ตรงกับใบ PR)
     function prBudgetInfo(line) {
-      if (isSharedLineName(line)) return { label: '🏢 งบส่วนกลาง (ไม่ตัดงบไลน์)', cls: 'bg-slate-100 text-slate-700 border-slate-300' };
+      if (isSharedLineName(line)) return { label: '🏢 งบส่วนกลาง (เทียบงบรวมทุกไลน์)', cls: 'bg-slate-100 text-slate-700 border-slate-300' };
       var ln = fccLineOf(line);
       if (['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw'].indexOf(ln) > -1) return { label: '💰 งบ Spare part ไลน์ ' + ln, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
       return { label: '💰 ยังไม่ระบุงบ (เลือกไลน์ใน "✏️ แก้ไขรายการ")', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
