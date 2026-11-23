@@ -33,4 +33,19 @@ assert(html.includes("data-pr-name-text=\"'+idx+'\" class=\"font-semibold text-s
   assert(html.includes(t), 'createPR ต้องส่ง: ' + t);
 });
 
+// ✏️ แก้ไขรูป: การ์ดที่มีรูปแล้วกดเปลี่ยน / ลบได้
+assert(html.includes('title="เปลี่ยนรูป"') && html.includes('data-pr-remove-image="'), 'การ์ดที่มีรูปต้องมีปุ่มเปลี่ยน/ลบรูป');
+assert(html.includes("var ri=t.getAttribute('data-pr-remove-image'); if(ri!==null){ removeImageFromPrCandidate(Number(ri)); return; }"));
+const rmSrc = grabFn('removeImageFromPrCandidate');
+const state = [{ name: 'RDA', mainImage: 'https://x/y.jpg' }];
+let rendered = 0;
+new Function('prCandidateState', 'renderPrCandidates', 'showQuickToast', rmSrc + '\nremoveImageFromPrCandidate(0);')(state, function() { rendered++; }, function() {});
+assert.strictEqual(state[0].mainImage, '', 'ลบรูปแล้ว mainImage ว่าง (image_url ใน createPR ว่างตาม)');
+assert.strictEqual(state[0].imageRemoved, true);
+assert.strictEqual(rendered, 1);
+// ใบ PR ไม่ดึงรูปจากสต็อกมาแทนรูปที่ลบ / อัปโหลดใหม่แล้วล้างธงลบ
+assert(html.includes("var normalizedImage = c.imageRemoved ? '' : normalizeImageUrl("));
+const addFn = html.slice(html.indexOf('function addImageToPrCandidate('), html.indexOf('function addImageToPrCandidate(') + 1400);
+assert(addFn.includes('cand.imageRemoved = false;'));
+
 console.log('pr-candidate-edit: OK');
