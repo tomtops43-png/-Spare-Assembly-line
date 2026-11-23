@@ -3521,6 +3521,8 @@
               🚧 Bypass เปิดทั้งที่เกินงบ
             </button>
           </div>
+          <!-- สถานะการส่ง PR (กำลังตรวจงบ / กำลังส่ง / ส่งแล้ว / ไม่สำเร็จ) — ให้คนส่งรู้ว่าระบบทำงานอยู่ ไม่กดซ้ำ -->
+          <div id="prSubmitStatus" class="hidden mt-3 rounded-xl border px-3 py-2 text-sm font-semibold" role="status" aria-live="polite"></div>
           <!-- เอกสารแนบ (ใบเสนอราคา/รูป/สเปก) — อัปโหลดลง Drive ทันทีที่เลือก แล้วแนบไปกับ PR ตอนกดส่งอนุมัติ -->
           <div class="mt-3 flex flex-wrap items-center gap-2">
             <input id="prAttachFile" type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.pdf,.xlsx,.xls,.docx,.doc" class="hidden" />
@@ -22267,7 +22269,7 @@ function inferRequestPriority(stock, min) {
       var hint = document.getElementById('prPrintBtnHint');
       var bypassBtn = document.getElementById('prBudgetBypassBtn');
       var locked = prBudgetLoadingState || prBudgetOverState;
-      if (btn) {
+      if (btn && !prSubmitBusy) {
         btn.disabled = locked;
         btn.classList.toggle('opacity-40', locked);
         btn.classList.toggle('cursor-not-allowed', locked);
@@ -29143,6 +29145,51 @@ if (dashboardPage) {
       });
     })();
 
+    // ── สถานะปุ่ม "ส่งอนุมัติ" ──
+    // ตั้งแต่กดจนส่งเสร็จ ปุ่มต้องล็อก + มีสปินเนอร์ + กล่องสถานะบอกว่ากำลังทำอะไร
+    // เดิมช่วงตรวจงบ (ก่อนขึ้นกล่องยืนยัน) ไม่มีอะไรบอกเลย → คนส่งกดซ้ำ และ server ออกเลข PR ใหม่ทุกครั้ง = PR ซ้ำ
+    var prSubmitBusy = false;
+    var prPrintBtnIdleHtml = null;
+    var PR_SUBMIT_SPINNER = '<svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity="0.25"></circle><path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path></svg>';
+    var PR_SUBMIT_STATES = {
+      checking: { btn: 'กำลังตรวจงบ...', box: 'border-sky-200 bg-sky-50 text-sky-700', msg: 'กำลังตรวจสอบงบ Spare part ก่อนส่ง... กรุณารอสักครู่' },
+      confirm: { btn: 'รอยืนยัน...', box: '', msg: '' },
+      sending: { btn: 'กำลังส่ง PR...', box: 'border-violet-200 bg-violet-50 text-violet-700', msg: 'กำลังส่ง PR เข้าระบบ... กรุณารอ ห้ามกดซ้ำหรือปิดหน้านี้' },
+      done: { btn: '✅ ส่งแล้ว', box: 'border-emerald-200 bg-emerald-50 text-emerald-700', msg: '' },
+      error: { btn: '', box: 'border-rose-200 bg-rose-50 text-rose-700', msg: '' }
+    };
+    function prSetSubmitState(state, message) {
+      var btn = document.getElementById('prPrintBtn');
+      var box = document.getElementById('prSubmitStatus');
+      var bypassBtn = document.getElementById('prBudgetBypassBtn');
+      var def = PR_SUBMIT_STATES[state] || null;
+      var busy = !!def && state !== 'error';
+      if (btn && prPrintBtnIdleHtml === null) prPrintBtnIdleHtml = btn.innerHTML;
+      prSubmitBusy = busy;
+      if (btn) {
+        btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+        btn.classList.toggle('cursor-wait', busy && state !== 'done');
+        if (busy) {
+          btn.disabled = true;
+          btn.classList.remove('opacity-40', 'cursor-not-allowed');
+          btn.innerHTML = state === 'done' ? def.btn : PR_SUBMIT_SPINNER + '<span>' + def.btn + '</span>';
+        } else if (prPrintBtnIdleHtml !== null) {
+          btn.innerHTML = prPrintBtnIdleHtml;
+        }
+      }
+      if (bypassBtn) bypassBtn.disabled = busy;
+      if (box) {
+        var text = message || (def && def.msg) || '';
+        if (!def || !def.box || !text) box.classList.add('hidden');
+        else {
+          var pulse = (state === 'checking' || state === 'sending')
+            ? '<div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/70"><div class="h-1.5 w-1/3 animate-pulse rounded-full bg-current opacity-60" style="animation-duration:1s"></div></div>' : '';
+          box.className = 'mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ' + def.box;
+          box.innerHTML = '<div class="flex items-center gap-2">' + ((state === 'checking' || state === 'sending') ? PR_SUBMIT_SPINNER : '') + '<span>' + escHtml(text) + '</span></div>' + pulse;
+        }
+      }
+      if (!busy) prUpdateSubmitLock();
+    }
     // ไลน์หัว PR ตอนส่งอนุมัติ: โหมด "เลือกไลน์" ใช้ไลน์ที่เลือก ; โหมดอื่นใช้ไลน์ของรายการ
     // ถ้ามีรายการ "ส่วนกลาง" ปนอยู่ ⇒ หัว PR = ส่วนกลาง (Assembly Line รวมทุกไลน์)
     function prHeaderLineForSubmit(mode, filterValue, selected) {
@@ -29154,6 +29201,7 @@ if (dashboardPage) {
     }
     function prSubmitCreatePr(){
       var selected = getFilteredPrCandidates(true);
+      if (prSubmitBusy) return; // กำลังตรวจงบ/รอยืนยัน/ส่งอยู่ — กันกดซ้ำแล้วได้ PR ซ้ำ
       if (!selected.length) { showQuickToast('กรุณาเลือกรายการก่อนส่งอนุมัติ', 'warn'); return; }
       if (prAttachUploading) { showQuickToast('รออัปโหลดเอกสารแนบให้เสร็จก่อน', 'warn'); return; }
       var prNumber = window._currentPrNumber || generatePrNumber((prMode && prMode.value) || 'assembly_monthly', (prLineFilter && prLineFilter.value) || '');
@@ -29188,17 +29236,19 @@ if (dashboardPage) {
       var assignSel = document.getElementById('prAssignApprover');
       var assignTo = assignSel ? String(assignSel.value || '').trim() : '';
       // ด่านงบ: ถ้าเกินงบต้องผ่าน modal Bypass ก่อน (ระบุเหตุผล) ไม่งั้น reject = ยกเลิก
+      prSetSubmitState('checking');
       prRunBudgetGate(prByLine).then(function(gate) {
+        prSetSubmitState('confirm');
         showConfirmDialog({ title: 'ส่ง PR ให้หัวหน้าอนุมัติ', message: 'สร้าง ' + prNumber + ' จำนวน ' + lines.length + ' รายการ เป็นสถานะ "รออนุมัติ"' + (assignTo ? ' — ส่งให้ ' + assignTo + ' อนุมัติ' : '') + (gate.bypass ? ' — ⚠️ เปิดทั้งที่เกินงบ (Bypass)' : '') + (prAttachments.length ? ' — แนบเอกสาร ' + prAttachments.length + ' ไฟล์' : '') + ' — หัวหน้าจะตรวจ/แก้ยอดใน Inbox ก่อนปริ้น ยืนยัน?', okLabel: gate.bypass ? '⚠️ ส่งอนุมัติ (Bypass)' : 'ส่งอนุมัติ' }).then(function(ok) {
-          if (!ok) return;
-          prPrintBtn.disabled = true;
-          var oldHtml = prPrintBtn.innerHTML; prPrintBtn.textContent = '⏳ กำลังส่ง...';
+          if (!ok) { prSetSubmitState('idle'); return; }
           // บัญชีดูอย่างเดียวเปิดหน้า PR Report ได้ (ต้องดูรายงานได้) แต่ต้องสร้าง PR ไม่ได้
           // role default ของ 'user' เปิด pr_create ให้เอง จึงต้องเช็คที่นี่ด้วย ไม่ใช่พึ่ง role
           if (!hasPermission('pr_create')) {
+            prSetSubmitState('idle');
             showQuickToast('บัญชีนี้ไม่มีสิทธิ์สร้าง PR (ดูรายงานได้อย่างเดียว)', 'warn');
             return Promise.resolve(null);
           }
+          prSetSubmitState('sending');
           var payload = { action: 'createPR', pr_id: prNumber, line: headerLine, lines_json: JSON.stringify(lines) };
           // ทำจากคำขอซื้อ → ให้ backend ผูกคำขอกับ PR ใบนี้ (เฉพาะบรรทัดที่ยอด > 0 ที่ส่งไปจริง)
           var sourceRequestIds = selected.filter(function(item) { return item.request_id && Number(item.suggestedQty || 0) > 0; })
@@ -29215,6 +29265,15 @@ if (dashboardPage) {
           if (resubmitOf) payload.resubmit_of = resubmitOf;
           postJson(withAuthPayload(payload))
             .then(parseApiResponse).then(function(res) {
+              var sentId = res.pr_id || prNumber;
+              prSetSubmitState('done', '✅ ส่ง ' + sentId + ' เข้า Inbox รออนุมัติแล้ว (' + (res.item_count || lines.length) + ' รายการ)' + (assignTo ? ' · ส่งให้ ' + assignTo : '') + ' — ไม่ต้องกดส่งซ้ำ');
+              // ค้างสถานะ "ส่งแล้ว" ไว้ครู่หนึ่ง กันมือกดซ้ำทันที แล้วค่อยปลดปุ่ม (กล่องข้อความยังอยู่)
+              setTimeout(function() {
+                var box = document.getElementById('prSubmitStatus'), keep = box ? box.innerHTML : '';
+                var keepCls = box ? box.className : '';
+                prSetSubmitState('idle');
+                if (box && keep) { box.className = keepCls; box.innerHTML = keep; }
+              }, 2500);
               showQuickToast('✅ ส่ง PR ' + (res.pr_id || prNumber) + ' รออนุมัติแล้ว (' + (res.item_count || lines.length) + ' รายการ)' + (assignTo ? ' · ส่งให้ ' + assignTo : '') + (gate.bypass ? ' · บันทึก Bypass งบแล้ว' : ''), 'success');
               prAttachments = []; prRenderAttachments(); // ส่งแล้ว — ไม่ให้ไฟล์ติดไปกับ PR ใบถัดไป
               if (resubmitOf) {
@@ -29225,12 +29284,12 @@ if (dashboardPage) {
               if (typeof prInvalidatePendingUsage === 'function') prInvalidatePendingUsage();
               if (typeof loadInboxBadge === 'function') loadInboxBadge();
             }).catch(function(err) {
-              showQuickToast('⚠️ สร้าง PR ไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'warn');
-            }).finally(function() {
-              prPrintBtn.innerHTML = oldHtml; prUpdateSubmitLock();
+              var msg = err && err.message ? err.message : err;
+              prSetSubmitState('error', '⚠️ ส่ง PR ไม่สำเร็จ: ' + msg + ' — ตรวจใน Inbox ก่อนกดส่งใหม่ (กันได้ PR ซ้ำ)');
+              showQuickToast('⚠️ สร้าง PR ไม่สำเร็จ: ' + msg, 'warn');
             });
-        });
-      }).catch(function() { /* ผู้ใช้กดยกเลิกที่ด่านงบ — ไม่เปิด PR */ });
+        }).catch(function() { prSetSubmitState('idle'); });
+      }).catch(function() { prSetSubmitState('idle'); /* ผู้ใช้กดยกเลิกที่ด่านงบ — ไม่เปิด PR */ });
     }
     if (prPrintBtn) prPrintBtn.addEventListener('click', function(){ if (prPrintBtn.disabled) return; prSubmitCreatePr(); });
     var prBudgetBypassBtn = document.getElementById('prBudgetBypassBtn');
