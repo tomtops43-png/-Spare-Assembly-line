@@ -12,7 +12,7 @@ assert.strictEqual(api.type('Office').label, 'อุปกรณ์สำนั�
 assert.strictEqual(api.type('Pneumatic').label, 'อะไหล่เครื่องจักร · หมวด Pneumatic', 'ของในสต็อกบอกหมวดอะไหล่ด้วย');
 assert.strictEqual(api.type('-').label, 'อะไหล่เครื่องจักร');
 
-assert.strictEqual(api.budget('ส่วนกลาง').label, '🏢 งบส่วนกลาง (ไม่ตัดงบไลน์)');
+assert.strictEqual(api.budget('ส่วนกลาง').label, '🏢 งบส่วนกลาง (เทียบงบรวมทุกไลน์)');
 assert.strictEqual(api.budget('Lug&Screw').label, '💰 งบ Spare part ไลน์ Lug&Screw');
 assert(/ยังไม่ระบุงบ/.test(api.budget('').label));
 
