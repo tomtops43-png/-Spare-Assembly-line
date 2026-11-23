@@ -21842,7 +21842,12 @@ function inferRequestPriority(stock, min) {
         // ยังไม่มีรูป (เช่น ของนอกระบบ / คำขอที่ไม่ได้แนบรูป) → กดที่กรอบเพื่อเพิ่มรูปเข้า PR ได้เลย
         var thumbHtml = !String(c.mainImage || '').trim()
           ? '<button type="button" data-pr-add-image="'+idx+'" title="เพิ่มรูป" class="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg border border-dashed border-indigo-300 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"><span data-pr-add-image="'+idx+'" class="text-lg leading-none">📷</span><span data-pr-add-image="'+idx+'" class="mt-0.5 text-[10px] font-bold">เพิ่มรูป</span></button>'
-          : '<img loading="lazy" decoding="async" src="'+thumbSrc+'" data-fallback-src="'+(thumbFallback||'')+'" alt="'+escHtml(c.name||'')+'" class="h-14 w-14 shrink-0 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1 cursor-zoom-in" data-pr-zoom="'+idx+'" onerror="if(this.dataset.fallbackSrc){var n=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=n;}else{this.src=\''+FALLBACK_IMAGE+'\';}" />';
+          : '<div class="flex w-14 shrink-0 flex-col items-center gap-0.5">'
+            + '<img loading="lazy" decoding="async" src="'+thumbSrc+'" data-fallback-src="'+(thumbFallback||'')+'" alt="'+escHtml(c.name||'')+'" class="h-14 w-14 rounded-lg border border-slate-200 bg-slate-50 object-contain p-1 cursor-zoom-in" data-pr-zoom="'+idx+'" onerror="if(this.dataset.fallbackSrc){var n=this.dataset.fallbackSrc;this.dataset.fallbackSrc=String();this.src=n;}else{this.src=\''+FALLBACK_IMAGE+'\';}" />'
+            // ✏️ แก้ไขรูป — เปลี่ยนเป็นรูปใหม่ / ลบรูปออกจาก PR ใบนี้ (ไม่แตะรูปของอะไหล่ในหน้า Stock)
+            + '<button type="button" data-pr-add-image="'+idx+'" title="เปลี่ยนรูป" class="w-full whitespace-nowrap rounded border border-indigo-200 bg-indigo-50 text-[10px] font-bold leading-4 text-indigo-700 hover:bg-indigo-100">📷 เปลี่ยน</button>'
+            + '<button type="button" data-pr-remove-image="'+idx+'" title="ลบรูป" class="w-full whitespace-nowrap rounded border border-rose-200 bg-rose-50 text-[10px] font-bold leading-4 text-rose-600 hover:bg-rose-100">✕ ลบรูป</button>'
+          + '</div>';
         return '<div class="rounded-xl border '+(c.pendingOrder?'border-amber-300 bg-amber-50/20':'border-slate-200 bg-white')+' p-3 text-sm shadow-sm">'
           + pendingHtml
           + '<div class="flex items-start gap-2.5">'
@@ -28243,14 +28248,25 @@ if (dashboardPage) {
         if (!file) return;
         showQuickToast('⏳ กำลังอัปโหลดรูป...', 'info');
         uploadPrItemImageFile(file).then(function(url) {
+          var hadImage = !!String(cand.mainImage || '').trim();
           cand.mainImage = url;
+          cand.imageRemoved = false;
           renderPrCandidates();
-          showQuickToast('📷 เพิ่มรูปให้ "' + (cand.name || '') + '" แล้ว', 'success');
+          showQuickToast('📷 ' + (hadImage ? 'เปลี่ยนรูป' : 'เพิ่มรูป') + 'ให้ "' + (cand.name || '') + '" แล้ว', 'success');
         }).catch(function(err) {
           showQuickToast('เพิ่มรูปไม่สำเร็จ: ' + (err && err.message ? err.message : err), 'error');
         });
       });
       input.click();
+    }
+    // ลบรูปออกจากรายการใน PR ใบนี้ — ใบ PR จะไม่ดึงรูปจากสต็อกมาแทน (imageRemoved) จนกว่าจะเพิ่มรูปใหม่
+    function removeImageFromPrCandidate(idx) {
+      var cand = prCandidateState[idx];
+      if (!cand) return;
+      cand.mainImage = '';
+      cand.imageRemoved = true;
+      renderPrCandidates();
+      showQuickToast('ลบรูปของ "' + (cand.name || '') + '" ออกจาก PR แล้ว', 'info');
     }
     var prManualPhotoFile = null;
     function resetPrManualPhoto() {
@@ -28332,7 +28348,7 @@ if (dashboardPage) {
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = oldLabel; }
       });
     });
-    if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } var zi=t.getAttribute('data-pr-zoom'); if(zi!==null){ openImageViewer(t.currentSrc || t.src); return; } var ai=t.getAttribute('data-pr-add-image'); if(ai!==null){ addImageToPrCandidate(Number(ai)); return; } });
+    if (prCandidateList) prCandidateList.addEventListener('click', function(e){ var t=e.target; if(!t) return; var tg=t.getAttribute('data-pr-toggle-line'); if(tg){ prLineCollapsedState[tg]=!prLineCollapsedState[tg]; renderPrCandidates(); return; } var sl=t.getAttribute('data-pr-select-line'); if(sl){ prCandidateState.forEach(function(c){ if(String(c.line||'')===sl) c.selected=true; }); renderPrCandidates(); return; } var ul=t.getAttribute('data-pr-unselect-line'); if(ul){ prCandidateState.forEach(function(c){ if(String(c.line||'')===ul) c.selected=false; }); renderPrCandidates(); return; } var zi=t.getAttribute('data-pr-zoom'); if(zi!==null){ openImageViewer(t.currentSrc || t.src); return; } var ai=t.getAttribute('data-pr-add-image'); if(ai!==null){ addImageToPrCandidate(Number(ai)); return; } var ri=t.getAttribute('data-pr-remove-image'); if(ri!==null){ removeImageFromPrCandidate(Number(ri)); return; } });
     var prPeriodEl = document.getElementById('prPeriod');
     var prPreparedByEl = document.getElementById('prPreparedBy');
     if (prPeriodEl) { if (!prPeriodEl.value) { var now=new Date(); prPeriodEl.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'); } syncPrPeriodToDates(); prPeriodEl.addEventListener('change', syncPrPeriodToDates); }
@@ -28511,7 +28527,7 @@ if (dashboardPage) {
         }
         var masterImg = master ? firstDefined([master.image_main_url, master.image_main, master.photo, master.image, master.imageUrl, master.photoUrl, master.picture, master.driveUrl, master.imageLink, master.image_main_file_id], '') : '';
         var selectedImg = firstDefined([c.mainImage, c.image_main_url, c.imageUrlMain, c.imageMain, c.image, c.imageUrl, c.photoUrl, c.picture, c.driveUrl, c.imageLink], '');
-        var normalizedImage = normalizeImageUrl(firstDefined([selectedImg, masterImg], ''));
+        var normalizedImage = c.imageRemoved ? '' : normalizeImageUrl(firstDefined([selectedImg, masterImg], ''));
         // สต็อก "ปัจจุบัน" — ใช้ master ก่อน (สดกว่าค่าที่ติดมากับ candidate ตอน Generate) แล้วค่อย fallback
         var rawStock = firstDefined([master && master.stock, c.stock], '');
         return {
