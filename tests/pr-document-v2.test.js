@@ -15,6 +15,7 @@ const api = new Function('partsData', 'dashboardAllPartsData',
   'var window = { location: { href: "https://example.com/app/index.html" } };\n' +
   'var document = { getElementById: function() { return null; } };\n' +
   'function canonicalLineName(l) { return String(l || "-").trim() || "-"; }\n' +
+  html.match(/var PR_DOC_ALL_LINES = [^\n]+\n/)[0] + grab('function isSharedLineName(value)') + '\n' + grab('function prDocLineName(value)') + '\n' +
   grab('function firstDefined(values, fallbackValue)') + '\n' + consts +
   grab('function prDocLogoUrl()') + '\n' + grab('function prDocStockStatus(item)') + '\n' +
   grab('function buildDocumentGradeReport(selected, options)') + '\n' +
