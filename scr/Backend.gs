@@ -98,7 +98,7 @@ var MISC_EXPENSE_CATEGORIES = ['น็อต/สกรู/ฮาร์ดแว�
 var MISC_EXPENSE_DISCOUNT_CATEGORY = 'ส่วนลด';
 // 'ส่วนกลาง' = ของที่ใช้ร่วมหลายไลน์ ไม่เฉลี่ยเข้าไลน์ไหน (จะเห็นเฉพาะมุมมอง "ทุกไลน์ (รวม)")
 // เจตนา: ไม่ปันส่วนอัตโนมัติ เพราะตัวเลขที่เฉลี่ยเองอธิบายกับหน้างานไม่ได้ว่ามาจากไหน
-var MISC_EXPENSE_LINES = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw', 'ส่วนกลาง'];
+var MISC_EXPENSE_LINES = ['H9', 'Arc Chute', 'Coil Winding', 'Lug&Screw', 'PIU', 'ส่วนกลาง'];
 var MISC_EXPENSE_SHARED_LINE = 'ส่วนกลาง';
 // คลังของสิ้นเปลือง — คอลัมน์ใหม่เพิ่มต่อท้ายเท่านั้น (โค้ดอ่านตามตำแหน่งคอลัมน์)
 var CONSUMABLE_HEADERS = ['Item ID', 'Name', 'Category', 'Spec', 'Unit', 'Icon', 'Qty', 'Min', 'Max', 'Location', 'Unit Price', 'Active', 'Updated By', 'Updated At', 'Created By', 'Created At', 'Image URL'];
@@ -176,7 +176,7 @@ var PR_AUDIT_HEADERS = ['timestamp', 'pr_id', 'action', 'actor', 'line', 'old_qt
 // APPROVED → ORDERED (สั่งซื้อแล้ว) → PARTIAL (รับบางส่วน) → RECEIVED (รับครบ) / CLOSED (ปิดยอดค้าง)
 var PR_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'ORDERED', 'PARTIAL', 'RECEIVED', 'CLOSED', 'CANCELLED'];
 var GR_LOG_HEADERS = ['gr_id', 'received_at', 'pr_id', 'line_no', 'part_no', 'part_name', 'model', 'brand', 'line', 'sheet_name', 'qty', 'unit', 'unit_price', 'amount', 'over_qty', 'received_by', 'no_pr_reason', 'log_ref', 'status', 'remark'];
-var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'];
+var STOCK_LOCATION_SHEETS = ['Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2', 'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw', 'PIU'];
 var DRIVE_ROOT_FOLDER_ID = '1XWO5rGpku35gSTMAh4HDOCHa6GJIkoS3';
 var DRAWING_STATUS_OPTIONS = ['Available', 'Missing', 'Not Required', 'Access Required'];
 var PART_ATTACHMENT_COLUMNS = [
@@ -321,6 +321,12 @@ var LOCATION_PLAN_BY_LINE = {
   'Coil Winding': {
     sheets: ['Coil Winding'],
     locations: { mechanical: 'SP-CL-A1-01', electrical: 'SP-CL-A1-02', pneumatic: 'SP-CL-A1-03' }
+  },
+  // PIU (Busway Plug-in Unit) — ยังไม่ได้กำหนดชั้นเก็บอะไหล่ ใส่ locations เมื่อหน้างานจัดชั้นแล้ว
+  // (ทั้งที่นี่และ LOCATION_PLAN_BY_LINE ฝั่งหน้าเว็บ) ระหว่างนี้จัด Location อัตโนมัติจะข้ามไลน์นี้
+  'PIU': {
+    sheets: ['PIU'],
+    locations: {}
   }
 };
 
