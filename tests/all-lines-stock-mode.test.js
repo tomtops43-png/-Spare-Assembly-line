@@ -78,7 +78,8 @@ api.realLineKeys().forEach(function(k) {
 assert.deepStrictEqual(union.slice().sort(), realSheets.slice().sort(), 'ไลน์เสมือนต้องครอบคลุมทุกชีตของทุกไลน์');
 assert.strictEqual(new Set(union).size, union.length, 'ชีตต้องไม่ซ้ำ');
 assert(api.realLineKeys().indexOf(api.ALL_LINES_KEY) === -1, 'รายชื่อไลน์จริงต้องไม่มีคีย์เสมือน');
-assert.strictEqual(api.realLineKeys().length, 4, 'ต้องมีไลน์จริงครบ 4 ไลน์');
+assert.strictEqual(api.realLineKeys().length, 5, 'ต้องมีไลน์จริงครบ 5 ไลน์ (รวม PIU)');
+assert.strictEqual(api.lineOfItem({ __sourceSheet: 'PIU' }), 'PIU');
 
 // ระบุไลน์ของอะไหล่จากชีตต้นทาง — เชื่อถือได้กว่าคอลัมน์ line ที่บางแถวว่าง
 assert.strictEqual(api.lineOfItem({ __sourceSheet: 'Arc chut' }), 'Arc Chute');

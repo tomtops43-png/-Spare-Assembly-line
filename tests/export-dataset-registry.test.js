@@ -80,7 +80,7 @@ const knownSheets = [
   'ProductionVolume', 'ProductionCostConfig', 'Machines', 'ItemAudit', 'PartTags',
   'PartTagGroups', 'PartTagGroupItems', 'StockCount', 'AnomalyAlerts', 'ExportLog',
   'Main List Stock', 'Stock for MC', 'Standard Spare part', 'Arc chut', 'Common Gv.2',
-  'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw'
+  'Gv.2 (6 plate)', 'Gv.2 (9 plate)', 'Coil Winding', 'Lug&Screw', 'PIU'
 ];
 XP_DATASETS.forEach(function(d) {
   (d.countSheets || []).forEach(function(name) {

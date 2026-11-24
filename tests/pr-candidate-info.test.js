@@ -29,6 +29,6 @@ assert(stockCard.includes('💰 งบ Spare part ไลน์ H9') && !stockCar
 assert(html.includes('id="roNewItemCategory"'));
 assert(html.includes("category: isNewItemMode ? ((document.getElementById('roNewItemCategory') || {}).value || '') : roSelectedItem.category,"));
 // แก้ไขเพิ่มเติม: ย้ายไปลงงบส่วนกลางได้
-assert(html.includes("['H9','Arc Chute','Coil Winding','Lug&Screw','ส่วนกลาง'].map(function(l){"));
+assert(html.includes("['H9','Arc Chute','Coil Winding','Lug&Screw','PIU','ส่วนกลาง'].map(function(l){"));
 
 console.log('pr-candidate-info: OK');
