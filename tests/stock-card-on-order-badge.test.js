@@ -24,6 +24,10 @@ const badge = api.badge({ name: 'Relay', model: 'RXM4AB2BD' }, false);
 assert(badge.includes('กำลังสั่ง 6 PCS'), 'รวมยอดค้างรับทุก PR');
 assert(badge.includes('PR-2610-001 +1') && badge.includes('สั่งซื้อแล้ว'), 'บอกเลข PR และสถานะ');
 assert(badge.includes('data-onorder-pr="PR-2610-001"'), 'กดป้ายแล้วเปิดรายละเอียด PR');
+assert(badge.includes('รอมาแล้ว 3 วัน'), 'บอกจำนวนวันที่รอ (นานสุดในบรรดา PR ที่ค้าง)');
+const lateBadge = api.badge({ name: 'Spring Balancer', model: '-' }, true);
+assert(lateBadge.includes('รอ 20 วัน') && lateBadge.includes('#e11d48'), 'รอเกิน 14 วันขึ้นสีแดง (มือถือแบบย่อ)');
+assert(!build([Object.assign({}, open[0], { days_waiting: null })]).badge({ name: 'Relay', model: 'RXM4AB2BD' }, false).includes('รอมาแล้ว'), 'ไม่มีวันรอ = ไม่แสดง');
 assert.strictEqual(api.badge({ name: 'Zebra Printhead', model: 'P1083320-016' }, false), '', 'ไม่มี PR ค้าง = ไม่มีป้าย');
 assert.strictEqual(build(null).badge({ name: 'Relay', model: 'RXM4AB2BD' }, true), '', 'ยังไม่โหลดข้อมูล = ไม่มีป้าย');
 
