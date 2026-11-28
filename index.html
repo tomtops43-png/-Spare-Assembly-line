@@ -20253,11 +20253,21 @@ function inferRequestPriority(stock, min) {
           (l.pr_line ? ' · ไลน์ ' + l.pr_line : '') + (l.po_no ? ' · PO ' + l.po_no : '') +
           (l.days_waiting !== null && l.days_waiting !== undefined ? ' · รอมาแล้ว ' + l.days_waiting + ' วัน' : '');
       }).join('\n');
+      // วันที่รอนานสุดในบรรดา PR ที่ค้าง — สีเดียวกับหน้าติดตาม PR (>7 วันเหลือง, >14 วันแดง)
+      var days = lines.reduce(function(m, l) {
+        var d = l.days_waiting;
+        return d !== null && d !== undefined && !isNaN(Number(d)) && (m === null || Number(d) > m) ? Number(d) : m;
+      }, null);
+      var daysHtml = '';
+      if (days !== null) {
+        var dayStyle = days > 14 ? 'background:#e11d48;color:#fff' : (days > 7 ? 'background:#fbbf24;color:#78350f' : 'background:rgba(255,255,255,.22);color:#fff');
+        daysHtml = '<span class="rounded px-1.5 whitespace-nowrap" style="' + dayStyle + '">⏳ ' + (compact ? 'รอ ' : 'รอมาแล้ว ') + days + ' วัน</span>';
+      }
       var pos = compact ? 'bottom-1.5 left-1.5 right-1.5 px-1.5 py-1 text-[10px]' : 'bottom-2 left-2 right-2 px-2 py-1.5 text-xs';
-      return '<button type="button" data-onorder-pr="' + escHtml(first.pr_id) + '" title="' + escHtml(tip) + '" class="absolute z-20 flex items-center justify-center gap-1 rounded-lg font-bold text-white shadow-md ' + pos + '" style="background:linear-gradient(135deg,#2563eb,#1d4ed8)">' +
-        '<span>🚚</span><span class="truncate">กำลังสั่ง ' + ptFmtNum(qty) + ' ' + escHtml(first.unit || 'PCS') +
+      return '<button type="button" data-onorder-pr="' + escHtml(first.pr_id) + '" title="' + escHtml(tip) + '" class="absolute z-20 flex flex-col items-center justify-center gap-0.5 rounded-lg font-bold text-white shadow-md ' + pos + '" style="background:linear-gradient(135deg,#2563eb,#1d4ed8)">' +
+        '<span class="flex w-full min-w-0 items-center justify-center gap-1"><span>🚚</span><span class="truncate">กำลังสั่ง ' + ptFmtNum(qty) + ' ' + escHtml(first.unit || 'PCS') +
         (compact ? '' : ' · ' + escHtml(first.pr_id) + (lines.length > 1 ? ' +' + (lines.length - 1) : '') + ' · ' + escHtml((PT_STATUS[first.pr_status] || {}).label || first.pr_status)) +
-        '</span></button>';
+        '</span></span>' + daysHtml + '</button>';
     }
     function bindOnOrderBadges(container) {
       Array.prototype.slice.call(container.querySelectorAll('[data-onorder-pr]')).forEach(function(btn) {
